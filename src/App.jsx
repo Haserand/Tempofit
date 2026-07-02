@@ -277,19 +277,25 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   }
 
   // 6. FALLBACK EXTRÊME (Si l'API est hors ligne ou vide)
-  //    On cherche le morceau local dont le BPM est le plus proche de la cible, tolérance ignorée.
+  //    On cherche parmi les morceaux locaux dont le BPM est le plus proche de la cible,
+  //    tolérance ignorée. Deux corrections par rapport à l'ancienne version :
+  //      - Si le genre sélectionné est épuisé (tous ses titres déjà utilisés dans la
+  //        playlist), on élargit à TOUTE la base locale plutôt que de retomber sur un
+  //        pool vide qui forçait la réutilisation du même titre.
+  //      - Le choix final est aléatoire PARMI les 3 titres les plus proches en BPM,
+  //        plutôt que strictement déterministe (toujours LE plus proche) — c'est ce
+  //        déterminisme qui causait des répétitions en boucle du même titre une fois
+  //        le stock épuisé (ex. "Duality" répété 10 fois d'affilée).
   let fallbackPool = availableTracks.filter(t => !excludeYoutubeIds.includes(t.youtubeId));
-  if(fallbackPool.length === 0) fallbackPool = availableTracks;
-  let closestTrack = fallbackPool[0];
-  let smallestDiff = Math.abs(closestTrack.bpm - targetBpm);
-  for (let i = 1; i < fallbackPool.length; i++) {
-      let currentDiff = Math.abs(fallbackPool[i].bpm - targetBpm);
-      if (currentDiff < smallestDiff) {
-          smallestDiff = currentDiff;
-          closestTrack = fallbackPool[i];
-      }
+  if (fallbackPool.length === 0) {
+    const allTracksFlat = [];
+    Object.keys(DATABASE_MUSIQUES).forEach(g => DATABASE_MUSIQUES[g].forEach(t => allTracksFlat.push({...t, genre: g})));
+    fallbackPool = allTracksFlat.filter(t => !excludeYoutubeIds.includes(t.youtubeId));
+    if (fallbackPool.length === 0) fallbackPool = allTracksFlat; // vraiment tout épuisé : on autorise la répétition en tout dernier recours
   }
-  return closestTrack;
+  const sortedByProximity = [...fallbackPool].sort((a, b) => Math.abs(a.bpm - targetBpm) - Math.abs(b.bpm - targetBpm));
+  const topCandidates = sortedByProximity.slice(0, 3);
+  return topCandidates[Math.floor(Math.random() * topCandidates.length)];
 };
 
 // =====================================================================================
