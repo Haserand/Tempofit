@@ -117,13 +117,15 @@ const TRANSLATIONS = {
  * Trouve UN morceau dont le BPM correspond à `targetBpm` (± tolerance).
  * Stratégie en cascade, du plus pertinent/personnel au plus générique :
  *
- *   1. Priorité aux morceaux de l'utilisateur (bibliothèque Spotify synchronisée,
- *      `spotifyTrackPool`) déjà analysés en BPM via `resolveRealBPM`.
- *   2. Si rien de compatible chez l'utilisateur, on pioche dans la base de données
+ *   1. Priorité ABSOLUE aux morceaux mis en Favoris par l'utilisateur (`favorites.tracks`)
+ *      — ce sont des choix explicites, donc plus fiables que tout le reste.
+ *   2. Puis les morceaux de la bibliothèque Spotify synchronisée (`spotifyTrackPool`),
+ *      déjà analysés en BPM via `resolveRealBPM`.
+ *   3. Si rien de compatible chez l'utilisateur, on pioche dans la base de données
  *      musicale locale (`DATABASE_MUSIQUES`), filtrée par genres sélectionnés.
- *   3. Si la base locale ne renvoie rien dans la fourchette de BPM demandée,
+ *   4. Si la base locale ne renvoie rien dans la fourchette de BPM demandée,
  *      on interroge l'API mondiale GetSongBPM (`/tempo/`) pour combler le trou.
- *   4. En tout dernier recours (API en panne, hors-ligne, réponse vide), on
+ *   5. En tout dernier recours (API en panne, hors-ligne, réponse vide), on
  *      retourne le morceau local dont le BPM est le plus PROCHE de la cible,
  *      même s'il est hors tolérance — pour ne jamais laisser un "trou" dans la
  *      playlist générée.
@@ -136,7 +138,21 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   const minBpm = targetBpm - tolerance;
   const maxBpm = targetBpm + tolerance;
 
-  // 1. PRIORITÉ ABSOLUE : On cherche dans TES propres morceaux Spotify synchronisés !
+  // 1. PRIORITÉ ABSOLUE : tes morceaux mis en Favoris (via la recherche BPM/genre ou
+  //    la recherche libre). `favorites.tracks` contient désormais des objets complets
+  //    (bpm, extrait audio...) et non plus juste des noms, ce qui permet de les
+  //    utiliser réellement ici plutôt que comme simple affichage.
+  if (favorites && Array.isArray(favorites.tracks) && favorites.tracks.length > 0) {
+    const perfectFavoriteTracks = favorites.tracks.filter(t =>
+      typeof t === 'object' && t.bpm >= minBpm && t.bpm <= maxBpm &&
+      !excludeYoutubeIds.includes(t.youtubeId)
+    );
+    if (perfectFavoriteTracks.length > 0) {
+      return perfectFavoriteTracks[Math.floor(Math.random() * perfectFavoriteTracks.length)];
+    }
+  }
+
+  // 2. On cherche ensuite dans TES propres morceaux Spotify synchronisés !
   if (spotifyTrackPool && spotifyTrackPool.length > 0) {
     const perfectSpotifyTracks = spotifyTrackPool.filter(t => 
       t.bpm >= minBpm && 
@@ -148,7 +164,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
     }
   }
 
-  // 2. BACKUP LOCAL : Si tu n'as pas de morceau à toi dans ce BPM, on pioche dans la BDD interne
+  // 3. BACKUP LOCAL : Si tu n'as rien à toi dans ce BPM, on pioche dans la BDD interne
   let availableTracks = [];
   const validGenres = selectedGenres.length > 0 ? selectedGenres : ['Métal'];
   
@@ -163,7 +179,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
       return suitable[Math.floor(Math.random() * suitable.length)];
   }
 
-  // 3. REQUÊTE API MONDIALE (NOUVEAU) : Aucun résultat local, on interroge GetSongBPM pour combler le trou
+  // 4. REQUÊTE API MONDIALE : Aucun résultat local, on interroge GetSongBPM pour combler le trou
   //    Endpoint /tempo/ : renvoie une liste de morceaux dont le tempo == bpm demandé (pas de tolérance
   //    côté API, d'où le fait qu'on demande directement `targetBpm` et non minBpm/maxBpm).
   try {
@@ -181,7 +197,8 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
                   bpm: targetBpm, 
                   duration: 180 + Math.floor(Math.random() * 60), // Durée simulée (l'API ne fournit pas la durée réelle)
                   isEmbeddable: true,
-                  genre: validGenres[0]
+                  genre: validGenres[0],
+                  preview: null // GetSongBPM ne fournit pas d'extrait audio
               };
           }
       }
@@ -191,7 +208,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
       console.error("L'API GetSongBPM n'a pas pu combler le vide", e);
   }
 
-  // 4. FALLBACK EXTRÊME (Si l'API est hors ligne ou vide)
+  // 5. FALLBACK EXTRÊME (Si l'API est hors ligne ou vide)
   //    On cherche le morceau local dont le BPM est le plus proche de la cible, tolérance ignorée.
   let fallbackPool = availableTracks.filter(t => !excludeYoutubeIds.includes(t.youtubeId));
   if(fallbackPool.length === 0) fallbackPool = availableTracks;
@@ -481,22 +498,23 @@ export default function App() {
             bpm: realBpm, 
             duration: Math.round(track.duration_ms / 1000),
             isEmbeddable: true,
-            isFromPlatform: 'Spotify' 
+            isFromPlatform: 'Spotify',
+            preview: track.preview_url || null // certains titres Spotify exposent encore un extrait 30s
          };
       }));
 
       setSpotifyTrackPool(analyzedPool);
 
-      // On garde un aperçu limité à 15 éléments pour l'affichage (vue Favoris),
-      // pas besoin d'afficher toute la bibliothèque synchronisée.
+      // On garde un aperçu limité à 15 éléments pour l'affichage ET l'utilisation
+      // dans le moteur de génération (voir getSingleMatchingTrack, priorité Favoris).
       const uniqueArtists = Array.from(new Set(analyzedPool.map(t => t.artist))).slice(0, 15);
-      const uniqueTitles = analyzedPool.map(t => t.title).slice(0, 15);
+      const uniqueTracks = analyzedPool.slice(0, 15);
 
       setFavorites(prev => ({ 
         ...prev,
         useFavorites: true, 
         artists: uniqueArtists, 
-        tracks: uniqueTitles 
+        tracks: uniqueTracks 
       }));
 
       showToast(`🎯 ${analyzedPool.length} titres synchronisés avec leur BPM !`);
@@ -529,7 +547,15 @@ export default function App() {
 
   // Pool de morceaux Spotify de l'utilisateur, déjà résolus en BPM (voir syncSpotifyFavorites).
   const [spotifyTrackPool, setSpotifyTrackPool] = useState([]);
+  // favorites.tracks contient des objets complets (bpm, extrait audio...), pas de
+  // simples chaînes — nécessaire pour que getSingleMatchingTrack puisse s'en servir
+  // en priorité, et pour permettre l'écoute d'extrait dans la vue Favoris.
   const [favorites, setFavorites] = useState({ useFavorites: true, artists: ['Metallica', 'System Of A Down'], tracks: [] });
+  // Réglages du sélecteur BPM/genre propre à la page Cœur & Favoris (indépendant
+  // de ceux du wizard de génération, qui a son propre contexte bpm/selectedGenres).
+  const [favBpmTarget, setFavBpmTarget] = useState(140);
+  const [favBpmTolerance, setFavBpmTolerance] = useState(10);
+  const [favSelectedGenres, setFavSelectedGenres] = useState(['Métal']);
   const [newFavArtist, setNewFavArtist] = useState("");
   const [newFavTrack, setNewFavTrack] = useState("");
 
@@ -604,6 +630,11 @@ export default function App() {
   // true quand la modale de recherche est en mode "BPM précis" (déclenchée depuis
   // le générateur) plutôt qu'en mode recherche libre par texte.
   const [isBpmSearchMode, setIsBpmSearchMode] = useState(false);
+  // Mémorise les paramètres (bpm, tolérance, genres) de la dernière recherche par
+  // BPM lancée, quel que soit l'endroit d'où elle a été déclenchée (wizard ou page
+  // Favoris) — permet à la modale d'afficher le bon contexte et de relancer une
+  // recherche identique via le bouton "actualiser", sans dépendre du state du wizard.
+  const [bpmSearchParams, setBpmSearchParams] = useState({ bpm: 140, tolerance: 10, genres: [] });
 
   // --- Lecture des extraits audio (30s, fournis par Deezer) ---
   // Un seul lecteur audio partagé pour toute l'app : lancer un nouvel extrait
@@ -751,23 +782,27 @@ export default function App() {
   };
 
   /**
-   * Recherche des titres dont le BPM tombe pile dans la fourchette [bpm-tolérance,
-   * bpm+tolérance] choisie dans le générateur, en tenant compte des genres
-   * sélectionnés. Utilise le filtre avancé natif de Deezer `bpm_min:`/`bpm_max:`
-   * (non documenté officiellement mais confirmé fonctionnel), combiné à un mot-clé
-   * de genre en texte libre. Une recherche est lancée par genre sélectionné (Deezer
-   * ne supporte pas de "OU" entre plusieurs genres dans une seule requête), puis
-   * les résultats sont fusionnés et dédupliqués.
+   * Recherche des titres dont le BPM tombe pile dans la fourchette [targetBpm-tolerance,
+   * targetBpm+tolerance], en tenant compte des genres fournis. Utilise le filtre avancé
+   * natif de Deezer `bpm_min:`/`bpm_max:` (non documenté officiellement mais confirmé
+   * fonctionnel), combiné à un mot-clé de genre en texte libre. Une recherche est lancée
+   * par genre (Deezer ne supporte pas de "OU" entre plusieurs genres dans une seule
+   * requête), puis les résultats sont fusionnés et dédupliqués.
+   *
+   * Paramètres explicites (plutôt que de lire directement le state du wizard) pour que
+   * cette fonction soit réutilisable depuis plusieurs endroits de l'app : le générateur
+   * (étape 4) ET la page Cœur & Favoris, qui ont chacun leurs propres réglages BPM/genres.
    */
-  const searchTracksByBpm = async () => {
+  const searchTracksByBpm = async (targetBpm, tolerance, genres) => {
+    setBpmSearchParams({ bpm: targetBpm, tolerance, genres: genres || [] });
     setIsWorldSearching(true);
     setWorldSearchResults([]);
-    setResultsContextLabel(`${bpm} BPM ± ${bpmTolerance}`);
+    setResultsContextLabel(`${targetBpm} BPM ± ${tolerance}`);
     setNoUsableResultsHint(false);
     try {
-      const minBpm = Math.max(1, bpm - bpmTolerance);
-      const maxBpm = bpm + bpmTolerance;
-      const genresToQuery = selectedGenres.length > 0 ? selectedGenres : ['Autre'];
+      const minBpm = Math.max(1, targetBpm - tolerance);
+      const maxBpm = targetBpm + tolerance;
+      const genresToQuery = genres && genres.length > 0 ? genres : ['Autre'];
 
       const stubsByGenre = await Promise.all(genresToQuery.map(async (genre) => {
         const keyword = DEEZER_GENRE_KEYWORDS[genre] || '';
@@ -1001,6 +1036,7 @@ export default function App() {
                 segmentIndex: segmentIndex + 1, targetSegmentBpm: segment.bpm,
                 title: randomTrack.title, artist: randomTrack.artist, genre: randomTrack.genre,
                 bpm: randomTrack.bpm, duration: randomTrack.duration, youtubeId: randomTrack.youtubeId,
+                preview: randomTrack.preview || null, // extrait audio 30s si disponible (Favoris/Spotify/Deezer)
             });
             usedYoutubeIds.push(randomTrack.youtubeId);
             segmentAccumulatedSecs += randomTrack.duration;
@@ -1112,7 +1148,8 @@ export default function App() {
     newTracks[indexToReplace] = {
       ...newTracks[indexToReplace], title: newRawTrack.title, artist: newRawTrack.artist,
       genre: newRawTrack.genre, bpm: newRawTrack.bpm, duration: newRawTrack.duration,
-      youtubeId: newRawTrack.youtubeId, id: `track-replaced-${Date.now()}`
+      youtubeId: newRawTrack.youtubeId, id: `track-replaced-${Date.now()}`,
+      preview: newRawTrack.preview || null
     };
 
     let updatedPlaylist = { ...currentPlaylist, tracks: newTracks };
@@ -1734,7 +1771,7 @@ export default function App() {
                           setResultsContextLabel(null);
                           setNoUsableResultsHint(false);
                           setIsSearchModalOpen(true);
-                          searchTracksByBpm();
+                          searchTracksByBpm(bpm, bpmTolerance, selectedGenres);
                         }} className={`w-full py-4 rounded-2xl border-2 border-dashed ${inputBorder} flex items-center justify-center gap-2 font-bold transition-colors ${textMuted} hover:${textHighlight} hover:border-gray-400 bg-gray-50 dark:bg-gray-800/50`}>
                           <Target size={20} /><span>Explorer les titres à {bpm} BPM</span>
                         </button>
@@ -1986,6 +2023,57 @@ export default function App() {
                   <p className={`mt-2 ${textMuted}`}>L'algorithme se basera sur tes artistes et titres préférés pour générer tes sessions.</p>
                 </div>
 
+                {/* Sélecteur BPM/genre propre à cette page : permet d'explorer et d'ajouter aux
+                    favoris des titres précis, indépendamment du wizard de génération. */}
+                <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
+                  <h3 className={`font-bold text-xl mb-6 flex items-center gap-2 ${textHighlight}`}><Target className={textColorClass} size={22}/> Explorer par BPM & Genre</h3>
+
+                  <div className="space-y-6">
+                    <div>
+                      <div className="flex justify-between items-end mb-2">
+                        <label className={`text-sm font-bold ${textMuted}`}>Rythme cible</label>
+                        <span className={`text-2xl font-black ${textColorClass}`}>{favBpmTarget} <span className={`text-xs font-bold ${textMuted}`}>BPM</span></span>
+                      </div>
+                      <input type="range" min="60" max="200" value={favBpmTarget} onChange={(e) => setFavBpmTarget(parseInt(e.target.value))} className={`w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer ${isNaughtyMode ? 'accent-rose-500' : 'accent-red-500'}`} />
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between items-end mb-2">
+                        <label className={`text-sm font-bold ${textMuted}`}>Marge d'erreur</label>
+                        <span className={`text-sm font-black ${textColorClass}`}>± {favBpmTolerance} BPM</span>
+                      </div>
+                      <input type="range" min="1" max="30" value={favBpmTolerance} onChange={(e) => setFavBpmTolerance(parseInt(e.target.value))} className={`w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer ${isNaughtyMode ? 'accent-rose-500' : 'accent-red-500'}`} />
+                    </div>
+
+                    <div>
+                      <label className={`text-sm font-bold ${textMuted} block mb-3`}>Genres</label>
+                      <div className="flex flex-wrap gap-2">
+                        {availableGenres.map(genre => {
+                          const isSelected = favSelectedGenres.includes(genre);
+                          return (
+                            <button key={genre} onClick={() => {
+                              if (isSelected) { if (favSelectedGenres.length > 1) setFavSelectedGenres(favSelectedGenres.filter(g => g !== genre)); }
+                              else setFavSelectedGenres([...favSelectedGenres, genre]);
+                            }} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                              {genre}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <button onClick={() => {
+                      setIsBpmSearchMode(true);
+                      setWorldSearchResults([]);
+                      setNoUsableResultsHint(false);
+                      setIsSearchModalOpen(true);
+                      searchTracksByBpm(favBpmTarget, favBpmTolerance, favSelectedGenres);
+                    }} className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
+                      <Search size={20}/> <span>Chercher des titres à {favBpmTarget} BPM</span>
+                    </button>
+                  </div>
+                </div>
+
                 <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
                     <h3 className={`font-bold text-xl ${textHighlight}`}>Tes Préférences Musicales</h3>
@@ -2018,14 +2106,29 @@ export default function App() {
                     </div>
 
                     <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
-                      <h4 className={`text-sm font-bold uppercase tracking-wider ${textMuted} mb-4 flex items-center`}><Heart size={16} className="mr-2"/> Derniers Titres Likés</h4>
-                      <div className="flex flex-wrap gap-2.5">
+                      <h4 className={`text-sm font-bold uppercase tracking-wider ${textMuted} mb-4 flex items-center`}><Heart size={16} className="mr-2"/> Titres Favoris <span className="ml-2 text-[10px] normal-case font-medium opacity-70">(utilisés en priorité à la génération)</span></h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         {favorites.tracks.map((track, idx) => (
-                          <span key={idx} className={`px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold ${textHighlight} shadow-sm`}>
-                            {track}
-                          </span>
+                          <div key={track.youtubeId || idx} className={`flex items-center gap-2 p-2.5 rounded-xl border ${cardBorder} ${inputBg}`}>
+                            <button
+                              onClick={() => togglePreview(track)}
+                              disabled={!track.preview}
+                              title={track.preview ? "Écouter un extrait" : "Extrait non disponible"}
+                              className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
+                            >
+                              {playingPreviewId === track.youtubeId ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5"/>}
+                            </button>
+                            <div className="flex-1 min-w-0">
+                              <div className={`font-bold text-sm truncate ${textHighlight}`}>{track.title}</div>
+                              <div className={`text-xs truncate ${textMuted}`}>{track.artist}</div>
+                            </div>
+                            {track.bpm ? <span className={`font-mono text-xs font-bold shrink-0 ${textColorClass}`}>{track.bpm} BPM</span> : null}
+                            <button onClick={() => setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.youtubeId !== track.youtubeId) }))} className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                              <X size={14}/>
+                            </button>
+                          </div>
                         ))}
-                        {favorites.tracks.length === 0 && <span className={textMuted}>Aucun titre synchronisé...</span>}
+                        {favorites.tracks.length === 0 && <span className={textMuted}>Aucun titre en favoris pour l'instant...</span>}
                       </div>
                     </div>
                   </div>
@@ -2194,6 +2297,17 @@ export default function App() {
                     {currentPlaylist.tracks.map((track, index) => (
                       <div key={track.id} className="flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-800/60 group">
                         <div className={"w-8 text-center font-medium text-xs " + textMuted}>{index + 1}</div>
+                        {/* Bouton lecture d'extrait : toujours affiché (pas seulement au survol),
+                            désactivé si le titre n'a pas d'extrait disponible (ex. venant de la BDD
+                            locale ou de GetSongBPM, qui n'en fournissent pas). */}
+                        <button
+                          onClick={() => togglePreview(track)}
+                          disabled={!track.preview}
+                          title={track.preview ? "Écouter un extrait" : "Extrait non disponible"}
+                          className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors mr-2 ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
+                        >
+                          {playingPreviewId === track.youtubeId ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5"/>}
+                        </button>
                         <div className="flex-1 px-2">
                           <div className={"font-bold text-sm " + textHighlight}>{track.title}</div>
                           <div className={"text-xs " + textMuted}>{track.artist}</div>
@@ -2244,8 +2358,8 @@ export default function App() {
 
               {isBpmSearchMode ? (
                 <div className={`mb-4 px-4 py-3 rounded-xl border ${inputBorder} ${inputBg} flex items-center justify-between`}>
-                  <span className={`text-sm font-bold ${textMuted}`}>Cible : <span className={textColorClass}>{bpm} BPM ± {bpmTolerance}</span> · {selectedGenres.join(', ')}</span>
-                  <button onClick={searchTracksByBpm} disabled={isWorldSearching} className={`p-2 rounded-lg text-white ${bgAccentClass}`}>
+                  <span className={`text-sm font-bold ${textMuted}`}>Cible : <span className={textColorClass}>{bpmSearchParams.bpm} BPM ± {bpmSearchParams.tolerance}</span> · {bpmSearchParams.genres.join(', ')}</span>
+                  <button onClick={() => searchTracksByBpm(bpmSearchParams.bpm, bpmSearchParams.tolerance, bpmSearchParams.genres)} disabled={isWorldSearching} className={`p-2 rounded-lg text-white ${bgAccentClass}`}>
                     {isWorldSearching ? <Loader2 className="animate-spin" size={16}/> : <RefreshCw size={16}/>}
                   </button>
                 </div>
@@ -2288,7 +2402,11 @@ export default function App() {
                             // Si on est dans la vue Playlist, on l'ajoute. Sinon, ça va dans les Favoris !
                             if (currentPlaylist) handleAddManualTrack(track);
                             else {
-                               setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, track.artist])), tracks: Array.from(new Set([...prev.tracks, track.title])) }));
+                               setFavorites(prev => ({
+                                 ...prev,
+                                 artists: Array.from(new Set([...prev.artists, track.artist])),
+                                 tracks: prev.tracks.some(t => t.youtubeId === track.youtubeId) ? prev.tracks : [...prev.tracks, track]
+                               }));
                                showToast("🎵 Ajouté à tes favoris !");
                             }
                         }} className="flex-1 min-w-0 text-left flex items-center justify-between gap-3">
@@ -2309,7 +2427,7 @@ export default function App() {
                     noUsableResultsHint ? (
                       <div className={`text-center py-8 px-4 font-medium ${textMuted}`}>
                         {isBpmSearchMode
-                          ? <>Aucun titre trouvé pile à {bpm} BPM (± {bpmTolerance}) pour ces genres.<br/>Essaie d'élargir la marge d'erreur.</>
+                          ? <>Aucun titre trouvé pile à {bpmSearchParams.bpm} BPM (± {bpmSearchParams.tolerance}) pour ces genres.<br/>Essaie d'élargir la marge d'erreur.</>
                           : <>Aucun titre avec un BPM connu trouvé pour "{searchQuery}".<br/>Essaie une orthographe différente, ou un titre plus précis.</>
                         }
                       </div>
