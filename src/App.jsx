@@ -1225,6 +1225,28 @@ export default function App() {
    * l'historique (plusieurs playlists générées d'un coup).
    */
   const executeGeneration = async (config, count = 1, routineId = null) => {
+    // Garde-fou : si la distance/durée saisie est vide ou nulle, la durée totale
+    // calculée de la séance tombe à 0 seconde. Sans cette vérification, la boucle
+    // de génération de morceaux (dans createPlaylistData) ne s'exécute alors
+    // jamais et produit silencieusement une playlist VIDE (zéro morceau) — ce qui
+    // se manifestait ensuite par un graphique BPM vide, sans qu'aucune erreur
+    // n'indique la vraie cause. On bloque maintenant la génération en amont avec
+    // un message clair, plutôt que de laisser passer une playlist inutilisable.
+    let computedDurationSecs;
+    if (config.isIntervalMode) {
+      const unitPaceSecs = config.targetMode === 'distance' ? ((parseInt(config.paceMin)||0)*60 + (parseInt(config.paceSec)||0)) : 60;
+      computedDurationSecs = (config.segments || []).reduce((sum, s) => sum + (parseFloat(s.durationValue) || 0) * unitPaceSecs, 0);
+    } else if (config.targetMode === 'distance') {
+      const unitPaceSecs = (parseInt(config.paceMin)||0)*60 + (parseInt(config.paceSec)||0);
+      computedDurationSecs = (parseFloat(config.distanceVal) || 0) * unitPaceSecs;
+    } else {
+      computedDurationSecs = (parseInt(config.hours) || 0) * 3600 + (parseInt(config.minutes) || 0) * 60;
+    }
+    if (!computedDurationSecs || computedDurationSecs <= 0) {
+      showToast("Renseigne une distance ou une durée avant de générer.", 'error');
+      return;
+    }
+
     setIsGenerating(true);
     let statsUpdated = false;
     let newStats = { ...userStats };
@@ -2469,6 +2491,11 @@ export default function App() {
                   </div>
 
                   <div className="h-72 w-full">
+                    {currentPlaylist.tracks.length === 0 ? (
+                      <div className={`h-full flex items-center justify-center text-center px-6 ${textMuted}`}>
+                        Cette playlist ne contient aucun morceau (durée/distance probablement vide au moment de la génération) — regénère-la avec une distance ou une durée renseignée.
+                      </div>
+                    ) : (
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={unifiedChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#374151' : '#e5e7eb'} vertical={false} />
@@ -2511,6 +2538,7 @@ export default function App() {
                         )}
                       </LineChart>
                     </ResponsiveContainer>
+                    )}
                   </div>
                 </div>
 
