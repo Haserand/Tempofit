@@ -260,7 +260,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
               return {
                   youtubeId: apiTrack.song_id, // L'ID de l'API mondiale
                   title: apiTrack.song_title,
-                  artist: apiTrack.artist_name.artist_name || apiTrack.artist_name,
+                  artist: (apiTrack.artist_name && apiTrack.artist_name.artist_name) || apiTrack.artist_name || 'Inconnu',
                   album: 'API GetSongBPM',
                   bpm: targetBpm, 
                   duration: 180 + Math.floor(Math.random() * 60), // Durée simulée (l'API ne fournit pas la durée réelle)
@@ -1502,13 +1502,21 @@ export default function App() {
 
     let combined = [];
     let accTime = 0;
+    // Vitesse moyenne (secondes par km/mile) utilisée pour convertir un temps
+    // écoulé en distance parcourue — même valeur que celle utilisée par
+    // recalculateTimeline pour calculer track.startDistVal.
+    const avgPaceSecs = currentPlaylist.avgPace || 330;
 
     currentPlaylist.tracks.forEach((track, i) => {
-      combined.push({ time: accTime, bpmTarget: track.bpm, trackName: track.title, isTrack: true });
+      // BUG CORRIGÉ : startDistVal n'était jamais calculé ici, alors que le mode
+      // "Distance" du graphique en dépend comme clé d'axe X. Résultat : en mode
+      // Distance, chaque point avait un X undefined → Recharts ne traçait rien
+      // du tout (un <path> sans attribut "d"), silencieusement.
+      combined.push({ time: accTime, startDistVal: accTime / avgPaceSecs, bpmTarget: track.bpm, trackName: track.title, isTrack: true });
       accTime += track.duration - (currentPlaylist.crossfade || 0);
     });
     if(currentPlaylist.tracks.length > 0) {
-      combined.push({ time: accTime, bpmTarget: currentPlaylist.tracks[currentPlaylist.tracks.length-1].bpm });
+      combined.push({ time: accTime, startDistVal: accTime / avgPaceSecs, bpmTarget: currentPlaylist.tracks[currentPlaylist.tracks.length-1].bpm });
     }
 
     if (currentPlaylist.actualData) {
@@ -1523,7 +1531,7 @@ export default function App() {
           }
           if(!target && currentPlaylist.tracks.length > 0) target = currentPlaylist.tracks[currentPlaylist.tracks.length-1].bpm;
 
-          combined.push({ time: t, bpmReal: d.cadenceReelle, targetAtTime: target, title: `Tour Garmin ${d.circuit}` });
+          combined.push({ time: t, startDistVal: t / avgPaceSecs, bpmReal: d.cadenceReelle, targetAtTime: target, title: `Tour Garmin ${d.circuit}` });
         }
       });
     }
