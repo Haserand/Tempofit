@@ -121,19 +121,53 @@ const TRANSLATIONS = {
  *      — ce sont des choix explicites, donc plus fiables que tout le reste.
  *   2. Puis les morceaux de la bibliothèque Spotify synchronisée (`spotifyTrackPool`),
  *      déjà analysés en BPM via `resolveRealBPM`.
- *   3. Si rien de compatible chez l'utilisateur, on pioche dans la base de données
- *      musicale locale (`DATABASE_MUSIQUES`), filtrée par genres sélectionnés.
- *   4. Si la base locale ne renvoie rien dans la fourchette de BPM demandée,
- *      on interroge l'API mondiale GetSongBPM (`/tempo/`) pour combler le trou.
- *   5. En tout dernier recours (API en panne, hors-ligne, réponse vide), on
- *      retourne le morceau local dont le BPM est le plus PROCHE de la cible,
- *      même s'il est hors tolérance — pour ne jamais laisser un "trou" dans la
- *      playlist générée.
+ *   3. Une recherche Deezer en direct (filtre bpm_min/bpm_max + mot-clé de genre) :
+ *      prioritaire sur la base locale statique car elle fournit systématiquement un
+ *      extrait audio écoutable dans l'app, contrairement aux morceaux codés en dur.
+ *   4. Si Deezer ne renvoie rien (hors-ligne, proxy down...), on pioche dans la base
+ *      de données musicale locale (`DATABASE_MUSIQUES`), filtrée par genres sélectionnés.
+ *   5. Si la base locale ne renvoie rien non plus, on interroge l'API GetSongBPM
+ *      (`/tempo/`) en dernier recours réseau.
+ *   6. En tout dernier recours absolu (tout est hors ligne), on retourne le morceau
+ *      local dont le BPM est le plus PROCHE de la cible, même s'il est hors tolérance
+ *      — pour ne jamais laisser un "trou" dans la playlist générée.
  *
  * `excludeYoutubeIds` sert à éviter de proposer deux fois le même morceau dans
  * une même playlist (utilisé aussi bien à la génération initiale qu'au
  * remplacement manuel d'un titre).
  */
+// Fetch + parsing JSON "sûr" : ne lève JAMAIS d'exception pour un corps vide
+// ou invalide (contrairement à res.json() classique), seulement pour une
+// vraie erreur réseau (fetch() qui rejette). Définie au niveau module (et non
+// dans le composant App) car utilisée à la fois par l'UI (recherche manuelle)
+// et par le moteur de génération getSingleMatchingTrack ci-dessous.
+const safeFetchJson = async (url) => {
+  const res = await fetch(url);
+  const text = await res.text();
+  if (!text) return { data: null, isEmpty: true };
+  try {
+    return { data: JSON.parse(text), isEmpty: false };
+  } catch {
+    return { data: null, isEmpty: true };
+  }
+};
+
+// ⚠️ Piège connu : l'API Deezer ne renvoie PAS d'en-têtes CORS pour les appels
+// directs depuis un navigateur (confirmé dans leur propre FAQ développeur), donc
+// on passe par un relais serveur qu'on contrôle nous-mêmes : la fonction serverless
+// Vercel /api/deezer.js (voir ce fichier). Chemin relatif : fonctionne aussi bien
+// appelé depuis le module que depuis le composant, tant que le code tourne dans
+// le navigateur (même origine que l'app déployée).
+const DEEZER_CORS_PROXY = '/api/deezer?url=';
+const deezerFetch = (deezerUrl) => safeFetchJson(DEEZER_CORS_PROXY + encodeURIComponent(deezerUrl));
+
+// Correspondance approximative entre les genres internes de l'app et des mots-clés
+// Deezer (recherche floue) — voir le détail de cette limite dans searchTracksByBpm.
+const DEEZER_GENRE_KEYWORDS = {
+  'Métal': 'metal', 'Rock': 'rock', 'Electro': 'electro',
+  'Pop': 'pop', 'R&B Sensuel': 'rnb', 'Autre': ''
+};
+
 const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excludeYoutubeIds = [], favorites = null, spotifyTrackPool = []) => {
   const minBpm = targetBpm - tolerance;
   const maxBpm = targetBpm + tolerance;
@@ -164,7 +198,41 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
     }
   }
 
-  // 3. BACKUP LOCAL : Si tu n'as rien à toi dans ce BPM, on pioche dans la BDD interne
+  // 3. DEEZER EN DIRECT : on cherche un titre correspondant via l'API Deezer (bpm_min/bpm_max
+  //    + mot-clé du premier genre sélectionné). Prioritaire sur la base locale statique car
+  //    Deezer fournit systématiquement un extrait audio (`preview`) permettant l'écoute dans
+  //    l'app, ce que les morceaux codés en dur de DATABASE_MUSIQUES ne peuvent jamais offrir.
+  try {
+    const genreForQuery = selectedGenres && selectedGenres.length > 0 ? selectedGenres[0] : 'Autre';
+    const keyword = DEEZER_GENRE_KEYWORDS[genreForQuery] || '';
+    const q = `bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
+    const { data: searchData } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=10`);
+    const stubs = (searchData && Array.isArray(searchData.data)) ? searchData.data.filter(s => !excludeYoutubeIds.includes(`deezer-${s.id}`)) : [];
+
+    if (stubs.length > 0) {
+      // On tire un candidat au hasard puis on va chercher son BPM exact + son extrait
+      // (absents de la liste de résultats, il faut l'appel /track/{id} dédié).
+      const pick = stubs[Math.floor(Math.random() * stubs.length)];
+      const { data: full } = await deezerFetch(`https://api.deezer.com/track/${pick.id}`);
+      if (full && full.bpm && parseFloat(full.bpm) >= minBpm && parseFloat(full.bpm) <= maxBpm) {
+        return {
+          youtubeId: `deezer-${full.id}`,
+          title: full.title,
+          artist: full.artist ? full.artist.name : 'Inconnu',
+          bpm: Math.round(parseFloat(full.bpm)),
+          duration: full.duration || 180,
+          isEmbeddable: true,
+          genre: genreForQuery,
+          preview: full.preview || null
+        };
+      }
+    }
+  } catch (e) {
+    // Échec silencieux (proxy indisponible, hors-ligne...) : on continue vers le fallback local.
+  }
+
+  // 4. BACKUP LOCAL : Si Deezer n'a rien donné, on pioche dans la BDD interne statique
+  //    (ces morceaux n'ont jamais d'extrait audio, contrairement à ceux de Deezer ci-dessus).
   let availableTracks = [];
   const validGenres = selectedGenres.length > 0 ? selectedGenres : ['Métal'];
   
@@ -179,7 +247,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
       return suitable[Math.floor(Math.random() * suitable.length)];
   }
 
-  // 4. REQUÊTE API MONDIALE : Aucun résultat local, on interroge GetSongBPM pour combler le trou
+  // 5. REQUÊTE API MONDIALE (GetSongBPM) : Aucun résultat local, on tente ce dernier service
   //    Endpoint /tempo/ : renvoie une liste de morceaux dont le tempo == bpm demandé (pas de tolérance
   //    côté API, d'où le fait qu'on demande directement `targetBpm` et non minBpm/maxBpm).
   try {
@@ -208,7 +276,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
       console.error("L'API GetSongBPM n'a pas pu combler le vide", e);
   }
 
-  // 5. FALLBACK EXTRÊME (Si l'API est hors ligne ou vide)
+  // 6. FALLBACK EXTRÊME (Si l'API est hors ligne ou vide)
   //    On cherche le morceau local dont le BPM est le plus proche de la cible, tolérance ignorée.
   let fallbackPool = availableTracks.filter(t => !excludeYoutubeIds.includes(t.youtubeId));
   if(fallbackPool.length === 0) fallbackPool = availableTracks;
@@ -569,6 +637,10 @@ export default function App() {
   
   const [routineBatchCounts, setRoutineBatchCounts] = useState({});
   const [isSavingRoutineModalOpen, setIsSavingRoutineModalOpen] = useState(false);
+  // Routine en cours d'édition (copie modifiable, distincte de l'entrée dans `routines`
+  // tant que l'utilisateur n'a pas choisi "cette séance seulement" ou "toujours").
+  const [editingRoutine, setEditingRoutine] = useState(null);
+  const [isEditRoutineModalOpen, setIsEditRoutineModalOpen] = useState(false);
   const [newRoutineName, setNewRoutineName] = useState("");
   const [newRoutineIcon, setNewRoutineIcon] = useState("⚡");
   const [newRoutineFreq, setNewRoutineFreq] = useState("Manuel");
@@ -671,35 +743,17 @@ export default function App() {
     }
   }, [isSearchModalOpen]);
 
-  // Fetch + parsing JSON "sûr" : ne lève JAMAIS d'exception pour un corps vide
-  // ou invalide (contrairement à res.json() classique), seulement pour une
-  // vraie erreur réseau (fetch() qui rejette).
-  const safeFetchJson = async (url) => {
-    const res = await fetch(url);
-    const text = await res.text();
-    if (!text) return { data: null, isEmpty: true };
-    try {
-      return { data: JSON.parse(text), isEmpty: false };
-    } catch {
-      return { data: null, isEmpty: true };
-    }
-  };
-
   // --- MOTEUR DE RECHERCHE DEEZER (recherche manuelle titre/artiste avec BPM) ---
   // On utilise l'API publique Deezer (100M+ titres, champ "bpm" par titre, pas de
   // clé API requise) plutôt que GetSongBPM pour cette recherche manuelle : Deezer
   // permet aussi de lister les titres populaires d'un artiste, ce que GetSongBPM
   // ne sait pas faire.
-  // ⚠️ Piège connu : l'API Deezer ne renvoie PAS d'en-têtes CORS pour les appels
-  // directs depuis un navigateur (confirmé dans leur propre FAQ développeur), donc
-  // on passe par un petit relais serveur qu'on contrôle nous-mêmes : la fonction
-  // serverless Vercel /api/deezer.js (voir ce fichier). Contrairement à un proxy
-  // CORS public tiers (testé avec allorigins.win, qui s'est avéré peu fiable :
-  // timeouts 408, erreurs 520 sous charge), ce relais tourne sur notre propre
-  // déploiement Vercel — pas de dépendance à la disponibilité d'un service externe,
-  // et pas de CORS puisque l'appel se fait vers notre propre domaine (même origine).
-  const DEEZER_CORS_PROXY = '/api/deezer?url=';
-  const deezerFetch = (deezerUrl) => safeFetchJson(DEEZER_CORS_PROXY + encodeURIComponent(deezerUrl));
+  //
+  // NOTE : safeFetchJson et deezerFetch sont maintenant définies au niveau module
+  // (tout en haut du fichier, avant ce composant) plutôt qu'ici, car le moteur de
+  // génération getSingleMatchingTrack en a aussi besoin pour interroger Deezer en
+  // direct (voir plus bas : ça garantit des extraits audio disponibles sur les
+  // morceaux générés, ce que la base locale statique ne permettait pas).
 
   /**
    * Recherche manuelle utilisée dans la modale "Recherche Mondiale API".
@@ -768,17 +822,6 @@ export default function App() {
       showToast("Erreur réseau lors de la recherche.", 'error');
     }
     setIsWorldSearching(false);
-  };
-
-  // Correspondance approximative entre les genres internes de l'app (en français,
-  // orientés fitness) et des mots-clés Deezer (recherche floue, en anglais/générique).
-  // Deezer n'a pas de filtre "genre" officiel dans sa recherche avancée (seulement
-  // artist/album/track/label/dur_min/dur_max/bpm_min/bpm_max) : on ajoute donc ce
-  // mot-clé en texte libre dans la requête pour orienter les résultats, ce n'est
-  // pas un filtre strict — approximatif mais nettement mieux que rien.
-  const DEEZER_GENRE_KEYWORDS = {
-    'Métal': 'metal', 'Rock': 'rock', 'Electro': 'electro',
-    'Pop': 'pop', 'R&B Sensuel': 'rnb', 'Autre': ''
   };
 
   /**
@@ -958,6 +1001,32 @@ export default function App() {
     setRoutines([newRoutine, ...routines]);
     setNewRoutineName(""); setNewRoutineIcon("⚡"); setNewRoutineFreq("Manuel"); setIsSavingRoutineModalOpen(false);
     showToast(`Routine sauvegardée avec succès !`);
+  };
+
+  /**
+   * Lance une génération à partir de `editingRoutine` (la version modifiée dans la
+   * modale d'édition), sans jamais toucher à la routine sauvegardée dans `routines`.
+   * Utilisée par le bouton "Cette séance seulement".
+   */
+  const applyRoutineEditOnce = () => {
+    if (!editingRoutine) return;
+    executeGeneration({ ...editingRoutine, workoutName: editingRoutine.customActivity || editingRoutine.workoutType, routineName: editingRoutine.name }, 1, editingRoutine.id);
+    setIsEditRoutineModalOpen(false);
+    setEditingRoutine(null);
+  };
+
+  /**
+   * Écrase la routine sauvegardée avec les valeurs modifiées dans `editingRoutine`,
+   * PUIS lance une génération avec ces nouvelles valeurs. Utilisée par le bouton
+   * "Toujours pour cette routine".
+   */
+  const applyRoutineEditPermanently = () => {
+    if (!editingRoutine) return;
+    setRoutines(routines.map(r => r.id === editingRoutine.id ? { ...editingRoutine } : r));
+    executeGeneration({ ...editingRoutine, workoutName: editingRoutine.customActivity || editingRoutine.workoutType, routineName: editingRoutine.name }, 1, editingRoutine.id);
+    showToast("Routine mise à jour pour toutes les prochaines séances.");
+    setIsEditRoutineModalOpen(false);
+    setEditingRoutine(null);
   };
 
   /**
@@ -1314,7 +1383,11 @@ export default function App() {
     setIsShareModalOpen(false);
   };
 
-  const [chartAxisType, setChartAxisType] = useState('musique');
+  // BUG CORRIGÉ : la valeur par défaut était 'musique', qui ne correspond à aucun
+  // des deux cas gérés par le graphique ('temps' ou 'distance') — la clé de l'axe X
+  // ('time' vs 'startDistVal') ne matchait donc jamais, et le graphique restait vide
+  // par défaut malgré le bouton "Temps (Min)" visuellement sélectionné.
+  const [chartAxisType, setChartAxisType] = useState('temps');
 
   /**
    * Construit le jeu de données unifié pour le graphique BPM : fusionne la
@@ -1860,6 +1933,9 @@ export default function App() {
                                 </div>
                               )
                             })()}
+                            <button onClick={() => { setEditingRoutine({ ...routine }); setIsEditRoutineModalOpen(true); }} className={`p-2 rounded-lg text-gray-400 hover:text-blue-500 transition-colors opacity-0 group-hover:opacity-100`} title="Éditer cette routine">
+                              <Edit3 size={16} />
+                            </button>
                             <button onClick={() => setRoutines(routines.filter(r => r.id !== routine.id))} className={`p-2 rounded-lg text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100`}>
                               <Trash2 size={16} />
                             </button>
@@ -2023,57 +2099,6 @@ export default function App() {
                   <p className={`mt-2 ${textMuted}`}>L'algorithme se basera sur tes artistes et titres préférés pour générer tes sessions.</p>
                 </div>
 
-                {/* Sélecteur BPM/genre propre à cette page : permet d'explorer et d'ajouter aux
-                    favoris des titres précis, indépendamment du wizard de génération. */}
-                <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
-                  <h3 className={`font-bold text-xl mb-6 flex items-center gap-2 ${textHighlight}`}><Target className={textColorClass} size={22}/> Explorer par BPM & Genre</h3>
-
-                  <div className="space-y-6">
-                    <div>
-                      <div className="flex justify-between items-end mb-2">
-                        <label className={`text-sm font-bold ${textMuted}`}>Rythme cible</label>
-                        <span className={`text-2xl font-black ${textColorClass}`}>{favBpmTarget} <span className={`text-xs font-bold ${textMuted}`}>BPM</span></span>
-                      </div>
-                      <input type="range" min="60" max="200" value={favBpmTarget} onChange={(e) => setFavBpmTarget(parseInt(e.target.value))} className={`w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer ${isNaughtyMode ? 'accent-rose-500' : 'accent-red-500'}`} />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between items-end mb-2">
-                        <label className={`text-sm font-bold ${textMuted}`}>Marge d'erreur</label>
-                        <span className={`text-sm font-black ${textColorClass}`}>± {favBpmTolerance} BPM</span>
-                      </div>
-                      <input type="range" min="1" max="30" value={favBpmTolerance} onChange={(e) => setFavBpmTolerance(parseInt(e.target.value))} className={`w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer ${isNaughtyMode ? 'accent-rose-500' : 'accent-red-500'}`} />
-                    </div>
-
-                    <div>
-                      <label className={`text-sm font-bold ${textMuted} block mb-3`}>Genres</label>
-                      <div className="flex flex-wrap gap-2">
-                        {availableGenres.map(genre => {
-                          const isSelected = favSelectedGenres.includes(genre);
-                          return (
-                            <button key={genre} onClick={() => {
-                              if (isSelected) { if (favSelectedGenres.length > 1) setFavSelectedGenres(favSelectedGenres.filter(g => g !== genre)); }
-                              else setFavSelectedGenres([...favSelectedGenres, genre]);
-                            }} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
-                              {genre}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <button onClick={() => {
-                      setIsBpmSearchMode(true);
-                      setWorldSearchResults([]);
-                      setNoUsableResultsHint(false);
-                      setIsSearchModalOpen(true);
-                      searchTracksByBpm(favBpmTarget, favBpmTolerance, favSelectedGenres);
-                    }} className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
-                      <Search size={20}/> <span>Chercher des titres à {favBpmTarget} BPM</span>
-                    </button>
-                  </div>
-                </div>
-
                 <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
                     <h3 className={`font-bold text-xl ${textHighlight}`}>Tes Préférences Musicales</h3>
@@ -2131,6 +2156,57 @@ export default function App() {
                         {favorites.tracks.length === 0 && <span className={textMuted}>Aucun titre en favoris pour l'instant...</span>}
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Sélecteur BPM/genre propre à cette page : permet d'explorer et d'ajouter aux
+                    favoris des titres précis, indépendamment du wizard de génération. */}
+                <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
+                  <h3 className={`font-bold text-xl mb-6 flex items-center gap-2 ${textHighlight}`}><Target className={textColorClass} size={22}/> Explorer par BPM & Genre</h3>
+
+                  <div className="space-y-6">
+                    <div>
+                      <div className="flex justify-between items-end mb-2">
+                        <label className={`text-sm font-bold ${textMuted}`}>Rythme cible</label>
+                        <span className={`text-2xl font-black ${textColorClass}`}>{favBpmTarget} <span className={`text-xs font-bold ${textMuted}`}>BPM</span></span>
+                      </div>
+                      <input type="range" min="60" max="200" value={favBpmTarget} onChange={(e) => setFavBpmTarget(parseInt(e.target.value))} className={`w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer ${isNaughtyMode ? 'accent-rose-500' : 'accent-red-500'}`} />
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between items-end mb-2">
+                        <label className={`text-sm font-bold ${textMuted}`}>Marge d'erreur</label>
+                        <span className={`text-sm font-black ${textColorClass}`}>± {favBpmTolerance} BPM</span>
+                      </div>
+                      <input type="range" min="1" max="30" value={favBpmTolerance} onChange={(e) => setFavBpmTolerance(parseInt(e.target.value))} className={`w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer ${isNaughtyMode ? 'accent-rose-500' : 'accent-red-500'}`} />
+                    </div>
+
+                    <div>
+                      <label className={`text-sm font-bold ${textMuted} block mb-3`}>Genres</label>
+                      <div className="flex flex-wrap gap-2">
+                        {availableGenres.map(genre => {
+                          const isSelected = favSelectedGenres.includes(genre);
+                          return (
+                            <button key={genre} onClick={() => {
+                              if (isSelected) { if (favSelectedGenres.length > 1) setFavSelectedGenres(favSelectedGenres.filter(g => g !== genre)); }
+                              else setFavSelectedGenres([...favSelectedGenres, genre]);
+                            }} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                              {genre}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <button onClick={() => {
+                      setIsBpmSearchMode(true);
+                      setWorldSearchResults([]);
+                      setNoUsableResultsHint(false);
+                      setIsSearchModalOpen(true);
+                      searchTracksByBpm(favBpmTarget, favBpmTolerance, favSelectedGenres);
+                    }} className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
+                      <Search size={20}/> <span>Chercher des titres à {favBpmTarget} BPM</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -2511,6 +2587,96 @@ export default function App() {
                 </div>
               </div>
               <button onClick={handleSaveRoutine} className={"w-full py-4 text-white font-bold rounded-xl shadow-md hover:brightness-110 transition-all " + bgAccentClass}>Enregistrer la routine</button>
+            </div>
+          </div>
+        )}
+
+        {/* Modale d'édition d'une routine existante. Contrairement à la modale de
+            création, elle propose un choix explicite à la sauvegarde : appliquer les
+            changements uniquement à la génération lancée maintenant ("cette séance
+            seulement"), ou les répercuter sur la routine elle-même pour toutes les
+            générations futures ("toujours pour cette routine"). */}
+        {isEditRoutineModalOpen && editingRoutine && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => { setIsEditRoutineModalOpen(false); setEditingRoutine(null); }}>
+            <div className={"p-6 md:p-8 rounded-3xl w-full max-w-lg shadow-2xl flex flex-col max-h-[85vh] border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
+                  <Edit3 className={textColorClass}/>
+                  <span>Éditer la routine</span>
+                </h3>
+                <button onClick={() => { setIsEditRoutineModalOpen(false); setEditingRoutine(null); }} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><X size={20}/></button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto no-scrollbar space-y-5 pr-1">
+                <input type="text" value={editingRoutine.name} onChange={e => setEditingRoutine({...editingRoutine, name: e.target.value})} className={`w-full rounded-xl px-4 py-3 font-bold outline-none border ${inputBg} ${inputBorder} ${textHighlight}`} placeholder="Nom de la routine" />
+
+                <div>
+                  <div className="flex justify-between items-end mb-2">
+                    <label className={`text-sm font-bold ${textMuted}`}>Rythme cible</label>
+                    <span className={`text-xl font-black ${textColorClass}`}>{editingRoutine.bpm} <span className={`text-xs font-bold ${textMuted}`}>BPM</span></span>
+                  </div>
+                  <input type="range" min="60" max="200" value={editingRoutine.bpm} onChange={e => setEditingRoutine({...editingRoutine, bpm: parseInt(e.target.value)})} className={`w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer ${isNaughtyMode ? 'accent-rose-500' : 'accent-red-500'}`} />
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-end mb-2">
+                    <label className={`text-sm font-bold ${textMuted}`}>Marge d'erreur</label>
+                    <span className={`text-sm font-black ${textColorClass}`}>± {editingRoutine.bpmTolerance} BPM</span>
+                  </div>
+                  <input type="range" min="0" max="30" value={editingRoutine.bpmTolerance} onChange={e => setEditingRoutine({...editingRoutine, bpmTolerance: parseInt(e.target.value)})} className={`w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer ${isNaughtyMode ? 'accent-rose-500' : 'accent-red-500'}`} />
+                </div>
+
+                {editingRoutine.targetMode === 'distance' ? (
+                  <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-3 justify-between`}>
+                    <input type="number" min="0" step="0.1" value={editingRoutine.distanceVal} onChange={e => setEditingRoutine({...editingRoutine, distanceVal: e.target.value})} className={`bg-transparent w-full font-bold outline-none ${textHighlight}`} />
+                    <span className={`text-sm font-bold ${textMuted}`}>{editingRoutine.distanceUnit}</span>
+                  </div>
+                ) : (
+                  <div className="flex gap-3">
+                    <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-3 justify-between`}>
+                      <input type="number" min="0" value={editingRoutine.hours} onChange={e => setEditingRoutine({...editingRoutine, hours: e.target.value})} className={`bg-transparent w-full font-bold outline-none ${textHighlight}`} />
+                      <span className={`text-sm font-bold ${textMuted}`}>Heures</span>
+                    </div>
+                    <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-3 justify-between`}>
+                      <input type="number" min="0" max="59" value={editingRoutine.minutes} onChange={e => setEditingRoutine({...editingRoutine, minutes: e.target.value})} className={`bg-transparent w-full font-bold outline-none ${textHighlight}`} />
+                      <span className={`text-sm font-bold ${textMuted}`}>Min</span>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className={`text-sm font-bold ${textMuted} block mb-3`}>Genres</label>
+                  <div className="flex flex-wrap gap-2">
+                    {(isNaughtyMode ? NAUGHTY_GENRES : STANDARD_GENRES).map(genre => {
+                      const isSelected = editingRoutine.selectedGenres.includes(genre);
+                      return (
+                        <button key={genre} onClick={() => {
+                          const current = editingRoutine.selectedGenres;
+                          if (isSelected) { if (current.length > 1) setEditingRoutine({...editingRoutine, selectedGenres: current.filter(g => g !== genre)}); }
+                          else setEditingRoutine({...editingRoutine, selectedGenres: [...current, genre]});
+                        }} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                          {genre}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {editingRoutine.isIntervalMode && (
+                  <div className={`text-xs p-3 rounded-xl ${inputBg} border ${inputBorder} ${textMuted}`}>
+                    Cette routine est en mode Fractionné : les portions détaillées ne sont pas éditables depuis cette fenêtre pour l'instant. Les réglages ci-dessus (BPM, genres, marge d'erreur) s'appliqueront quand même à l'ensemble des portions.
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-6 mt-2 border-t border-gray-100 dark:border-gray-800">
+                <button onClick={applyRoutineEditOnce} className={`flex-1 py-3.5 rounded-xl font-bold border-2 ${cardBorder} ${textHighlight} hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors`}>
+                  Cette séance seulement
+                </button>
+                <button onClick={applyRoutineEditPermanently} className={`flex-1 py-3.5 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
+                  Toujours pour cette routine
+                </button>
+              </div>
             </div>
           </div>
         )}
