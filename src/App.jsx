@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Dumbbell, Bike, Footprints, Flame, Heart, MoreHorizontal, SlidersHorizontal, ListPlus, ArrowDownRight, Loader2, Lock, Unlock, Disc, User, Star, ExternalLink, AlertCircle, Link as LinkIcon, Music2, Headphones, Radio, Zap, BookmarkPlus, ArrowDownToLine, Menu, RefreshCw, Globe, Moon, Sun, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, MessageCircle, Copy, CheckCircle, Circle, Layers, Trophy, Medal, Award, MapPin, Upload, ChevronRight, ChevronLeft, Target, History } from 'lucide-react';
+import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Dumbbell, Bike, Footprints, Flame, Heart, MoreHorizontal, SlidersHorizontal, ListPlus, ArrowDownRight, Loader2, Lock, Unlock, Disc, User, Star, ExternalLink, AlertCircle, Link as LinkIcon, Music2, Headphones, Radio, Zap, BookmarkPlus, ArrowDownToLine, Menu, RefreshCw, Globe, Moon, Sun, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, MessageCircle, Copy, CheckCircle, Circle, Layers, Trophy, Medal, Award, MapPin, Upload, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Target, History } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 
 // =====================================================================================
@@ -929,6 +929,13 @@ export default function App() {
   // Réinitialise le décalage temporel du graphique (dataOffset) à chaque changement de playlist affichée.
   useEffect(() => { setDataOffset(0); }, [currentPlaylist?.id]);
 
+  // Le <title> de la page est écrit en dur dans index.html (hors de portée de React),
+  // donc il ne suivait jamais le mode Intime. On le met à jour manuellement ici pour
+  // que la personnalisation soit vraiment complète, jusque dans l'onglet du navigateur.
+  useEffect(() => {
+    document.title = isNaughtyMode ? 'TempoIntime' : 'TempoFit';
+  }, [isNaughtyMode]);
+
   // Affiche un toast temporaire. `variant` détermine le style et la durée :
   //   - 'default' (3s) : confirmation neutre (icône check)
   //   - 'special'  (5s) : mise en avant positive, ex. déblocage de trophée (icône trophée dorée)
@@ -1192,6 +1199,27 @@ export default function App() {
     if (!currentPlaylist) return;
     const newTracks = [...currentPlaylist.tracks];
     newTracks.splice(indexToRemove, 1);
+
+    let updatedPlaylist = { ...currentPlaylist, tracks: newTracks };
+    updatedPlaylist = recalculateTimeline(updatedPlaylist);
+
+    setCurrentPlaylist(updatedPlaylist);
+    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
+  };
+
+  /**
+   * Déplace un morceau d'une position vers le haut ou le bas dans la playlist, puis
+   * recalcule la timeline (les horodatages de démarrage dépendent de l'ordre).
+   * `direction` vaut -1 (monter) ou 1 (descendre). Ne fait rien si le morceau est
+   * déjà à l'extrémité correspondante.
+   */
+  const handleMoveTrack = (index, direction) => {
+    if (!currentPlaylist) return;
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= currentPlaylist.tracks.length) return;
+
+    const newTracks = [...currentPlaylist.tracks];
+    [newTracks[index], newTracks[targetIndex]] = [newTracks[targetIndex], newTracks[index]];
 
     let updatedPlaylist = { ...currentPlaylist, tracks: newTracks };
     updatedPlaylist = recalculateTimeline(updatedPlaylist);
@@ -1838,6 +1866,7 @@ export default function App() {
                         {/* Exploration manuelle : voir les titres qui matchent pile ce BPM + ces genres,
                             avec extrait audio, plutôt que de laisser l'algorithme piocher au hasard. */}
                         <button onClick={() => {
+                          setCurrentPlaylist(null); // idem : garantit que les ajouts vont aux favoris, pas dans une ancienne playlist
                           setIsBpmSearchMode(true);
                           setSearchQuery('');
                           setWorldSearchResults([]);
@@ -1933,10 +1962,10 @@ export default function App() {
                                 </div>
                               )
                             })()}
-                            <button onClick={() => { setEditingRoutine({ ...routine }); setIsEditRoutineModalOpen(true); }} className={`p-2 rounded-lg text-gray-400 hover:text-blue-500 transition-colors opacity-0 group-hover:opacity-100`} title="Éditer cette routine">
+                            <button onClick={() => { setEditingRoutine({ ...routine }); setIsEditRoutineModalOpen(true); }} className={`p-2 rounded-lg text-gray-400 hover:text-blue-500 transition-colors`} title="Éditer cette routine">
                               <Edit3 size={16} />
                             </button>
-                            <button onClick={() => setRoutines(routines.filter(r => r.id !== routine.id))} className={`p-2 rounded-lg text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100`}>
+                            <button onClick={() => setRoutines(routines.filter(r => r.id !== routine.id))} className={`p-2 rounded-lg text-gray-400 hover:text-red-500 transition-colors`} title="Supprimer cette routine">
                               <Trash2 size={16} />
                             </button>
                           </div>
@@ -2120,13 +2149,30 @@ export default function App() {
                   <div className="space-y-8">
                     <div>
                       <h4 className={`text-sm font-bold uppercase tracking-wider ${textMuted} mb-4 flex items-center`}><User size={16} className="mr-2"/> Top Artistes</h4>
-                      <div className="flex flex-wrap gap-2.5">
+                      <div className="flex flex-wrap gap-2.5 mb-3">
                         {favorites.artists.map((artist, idx) => (
-                          <span key={idx} className={`px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold ${textHighlight} shadow-sm`}>
+                          <span key={idx} className={`px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold ${textHighlight} shadow-sm flex items-center gap-2`}>
                             {artist}
+                            <button onClick={() => setFavorites(prev => ({ ...prev, artists: prev.artists.filter(a => a !== artist) }))} className="text-gray-400 hover:text-red-500 transition-colors">
+                              <X size={13}/>
+                            </button>
                           </span>
                         ))}
-                        {favorites.artists.length === 0 && <span className={textMuted}>Aucun artiste synchronisé...</span>}
+                        {favorites.artists.length === 0 && <span className={textMuted}>Aucun artiste en favoris...</span>}
+                      </div>
+                      {/* Ajout manuel : jusqu'ici un artiste ne pouvait être ajouté qu'indirectement
+                          (en ajoutant un de ses titres via la recherche). On peut désormais aussi
+                          taper un nom directement, sans passer par une recherche de titre. */}
+                      <div className="flex gap-2">
+                        <input
+                          type="text" value={newFavArtist} onChange={e => setNewFavArtist(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' && newFavArtist.trim()) { setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, newFavArtist.trim()])) })); setNewFavArtist(""); } }}
+                          placeholder="Ajouter un artiste par son nom..."
+                          className={`flex-1 rounded-xl px-3 py-2 text-sm font-medium outline-none border ${inputBg} ${inputBorder} ${textHighlight}`}
+                        />
+                        <button onClick={() => { if (newFavArtist.trim()) { setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, newFavArtist.trim()])) })); setNewFavArtist(""); } }} className={`px-4 rounded-xl text-white font-bold ${bgAccentClass} hover:brightness-110 transition-colors`}>
+                          <Plus size={16}/>
+                        </button>
                       </div>
                     </div>
 
@@ -2199,6 +2245,7 @@ export default function App() {
                     </div>
 
                     <button onClick={() => {
+                      setCurrentPlaylist(null); // BUG CORRIGÉ : sans ça, les ajouts partaient dans une ancienne playlist au lieu des favoris
                       setIsBpmSearchMode(true);
                       setWorldSearchResults([]);
                       setNoUsableResultsHint(false);
@@ -2327,12 +2374,12 @@ export default function App() {
                         <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#374151' : '#e5e7eb'} vertical={false} />
                         
                         <XAxis 
-                          dataKey={chartAxisType === 'temps' ? 'time' : 'startDistVal'} 
+                          dataKey={chartAxisType === 'distance' ? 'startDistVal' : 'time'} 
                           type="number"
                           domain={[0, 'dataMax']}
                           stroke={theme === 'dark' ? '#9ca3af' : '#6b7280'} 
                           tick={{fontSize: 12}} 
-                          tickFormatter={chartAxisType === 'temps' ? formatDuration : undefined}
+                          tickFormatter={chartAxisType === 'distance' ? undefined : formatDuration}
                           allowDuplicatedCategory={false}
                         />
                         <YAxis domain={['dataMin - 10', 'dataMax + 10']} stroke={theme === 'dark' ? '#9ca3af' : '#6b7280'} tick={{fontSize: 12}} width={40} />
@@ -2392,6 +2439,12 @@ export default function App() {
                           <div className={"font-mono font-bold text-sm " + textColorClass}>{track.bpm}</div>
                         </div>
                         <div className="flex justify-end gap-1 opacity-50 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => handleMoveTrack(index, -1)} disabled={index === 0} className={"p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed " + textMuted} title="Monter">
+                            <ChevronUp size={16}/>
+                          </button>
+                          <button onClick={() => handleMoveTrack(index, 1)} disabled={index === currentPlaylist.tracks.length - 1} className={"p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed " + textMuted} title="Descendre">
+                            <ChevronDown size={16}/>
+                          </button>
                           <button onClick={() => handleReplaceTrack(index)} className={"p-2 hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 rounded-lg transition-colors " + textMuted} title="Remplacer par un autre titre similaire">
                             <RefreshCw size={16}/>
                           </button>
