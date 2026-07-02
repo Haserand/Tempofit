@@ -1126,7 +1126,7 @@ export default function App() {
        const updatedTrack = {
            ...t,
            startTimeStr: formatDuration(Math.max(0, accSecs)),
-           startDistVal: startDist.toFixed(2)
+           startDistVal: Math.round(startDist * 100) / 100 // nombre, PAS .toFixed() qui renvoie une chaîne (cassait l'axe "Distance" du graphique)
        };
        accSecs += t.duration;
        if (idx < playlistToUpdate.tracks.length - 1) {
@@ -1531,6 +1531,26 @@ export default function App() {
     combined.sort((a,b) => a.time - b.time);
     return combined;
   }, [currentPlaylist, dataOffset]);
+
+  // Domaines des axes calculés explicitement en JS, plutôt que de laisser Recharts
+  // les déduire lui-même via les expressions "dataMax"/"dataMin" (qui semblent être
+  // la cause du bug récurrent : graphique vide malgré des données valides). Ici, le
+  // calcul est fait à la main, avec parseFloat/coercion numérique défensive, donc
+  // le résultat est garanti correct quel que soit le type exact des valeurs sources.
+  const chartXDomain = useMemo(() => {
+    const key = chartAxisType === 'distance' ? 'startDistVal' : 'time';
+    const values = unifiedChartData.map(d => parseFloat(d[key])).filter(v => !isNaN(v));
+    if (values.length === 0) return [0, 1];
+    return [0, Math.max(...values)];
+  }, [unifiedChartData, chartAxisType]);
+
+  const chartYDomain = useMemo(() => {
+    const values = unifiedChartData
+      .flatMap(d => [parseFloat(d.bpmTarget), parseFloat(d.bpmReal)])
+      .filter(v => !isNaN(v));
+    if (values.length === 0) return [60, 200];
+    return [Math.min(...values) - 10, Math.max(...values) + 10];
+  }, [unifiedChartData]);
 
   // Calcule le % de temps passé "dans la cible" / "trop lent" / "trop rapide"
   // en comparant chaque point de données réelles à la cible au même instant.
@@ -2448,13 +2468,13 @@ export default function App() {
                         <XAxis 
                           dataKey={chartAxisType === 'distance' ? 'startDistVal' : 'time'} 
                           type="number"
-                          domain={[0, 'dataMax']}
+                          domain={chartXDomain}
                           stroke={theme === 'dark' ? '#9ca3af' : '#6b7280'} 
                           tick={{fontSize: 12}} 
                           tickFormatter={chartAxisType === 'distance' ? undefined : formatDuration}
                           allowDuplicatedCategory={false}
                         />
-                        <YAxis domain={['dataMin - 10', 'dataMax + 10']} stroke={theme === 'dark' ? '#9ca3af' : '#6b7280'} tick={{fontSize: 12}} width={40} />
+                        <YAxis domain={chartYDomain} stroke={theme === 'dark' ? '#9ca3af' : '#6b7280'} tick={{fontSize: 12}} width={40} />
                         
                         <RechartsTooltip content={(props) => <CustomChartTooltip {...props} isNaughtyMode={isNaughtyMode} currentUnit={currentPlaylist.distanceUnit} />} />
                         <Legend wrapperStyle={{fontSize: '12px', paddingTop: '15px'}}/>
