@@ -629,7 +629,7 @@ export default function App() {
   // qu'on contrôle soi-même (ex. une Cloudflare Worker gratuite d'une dizaine de
   // lignes), qui appelle Deezer côté serveur (pas de CORS entre deux serveurs) et
   // renvoie le JSON tel quel.
-  const DEEZER_CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+ const DEEZER_CORS_PROXY = '/api/deezer?url=';
   const deezerFetch = (deezerUrl) => safeFetchJson(DEEZER_CORS_PROXY + encodeURIComponent(deezerUrl));
 
   /**
