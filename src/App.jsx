@@ -601,6 +601,44 @@ export default function App() {
   // true si la recherche n'a rien donné du tout (aucun titre, aucun artiste connu,
   // ou aucun des titres trouvés n'a de BPM renseigné par Deezer).
   const [noUsableResultsHint, setNoUsableResultsHint] = useState(false);
+  // true quand la modale de recherche est en mode "BPM précis" (déclenchée depuis
+  // le générateur) plutôt qu'en mode recherche libre par texte.
+  const [isBpmSearchMode, setIsBpmSearchMode] = useState(false);
+
+  // --- Lecture des extraits audio (30s, fournis par Deezer) ---
+  // Un seul lecteur audio partagé pour toute l'app : lancer un nouvel extrait
+  // coupe automatiquement celui en cours. `previewAudioRef` est créé une seule
+  // fois (lazy) plutôt qu'avec useState pour éviter de recréer un objet Audio à
+  // chaque re-render.
+  const [playingPreviewId, setPlayingPreviewId] = useState(null);
+  const previewAudioRef = useRef(null);
+
+  const togglePreview = (track) => {
+    if (!track.preview) return;
+    if (!previewAudioRef.current) {
+      previewAudioRef.current = new Audio();
+      previewAudioRef.current.addEventListener('ended', () => setPlayingPreviewId(null));
+    }
+    const audio = previewAudioRef.current;
+    if (playingPreviewId === track.youtubeId) {
+      audio.pause();
+      setPlayingPreviewId(null);
+    } else {
+      audio.src = track.preview;
+      audio.currentTime = 0;
+      audio.play().catch(() => showToast("Impossible de lire cet extrait.", 'error'));
+      setPlayingPreviewId(track.youtubeId);
+    }
+  };
+
+  // Coupe l'extrait en cours si la modale de recherche se ferme, pour ne pas
+  // laisser un aperçu jouer en arrière-plan une fois la fenêtre fermée.
+  useEffect(() => {
+    if (!isSearchModalOpen && previewAudioRef.current) {
+      previewAudioRef.current.pause();
+      setPlayingPreviewId(null);
+    }
+  }, [isSearchModalOpen]);
 
   // Fetch + parsing JSON "sûr" : ne lève JAMAIS d'exception pour un corps vide
   // ou invalide (contrairement à res.json() classique), seulement pour une
@@ -623,13 +661,13 @@ export default function App() {
   // ne sait pas faire.
   // ⚠️ Piège connu : l'API Deezer ne renvoie PAS d'en-têtes CORS pour les appels
   // directs depuis un navigateur (confirmé dans leur propre FAQ développeur), donc
-  // on passe par un proxy CORS public gratuit (allorigins.win). C'est un point de
-  // fragilité assumé pour un usage perso/prototype — pour quelque chose de plus
-  // robuste (production), il faudrait remplacer ce proxy public par un petit relais
-  // qu'on contrôle soi-même (ex. une Cloudflare Worker gratuite d'une dizaine de
-  // lignes), qui appelle Deezer côté serveur (pas de CORS entre deux serveurs) et
-  // renvoie le JSON tel quel.
- const DEEZER_CORS_PROXY = '/api/deezer?url=';
+  // on passe par un petit relais serveur qu'on contrôle nous-mêmes : la fonction
+  // serverless Vercel /api/deezer.js (voir ce fichier). Contrairement à un proxy
+  // CORS public tiers (testé avec allorigins.win, qui s'est avéré peu fiable :
+  // timeouts 408, erreurs 520 sous charge), ce relais tourne sur notre propre
+  // déploiement Vercel — pas de dépendance à la disponibilité d'un service externe,
+  // et pas de CORS puisque l'appel se fait vers notre propre domaine (même origine).
+  const DEEZER_CORS_PROXY = '/api/deezer?url=';
   const deezerFetch = (deezerUrl) => safeFetchJson(DEEZER_CORS_PROXY + encodeURIComponent(deezerUrl));
 
   /**
@@ -686,7 +724,8 @@ export default function App() {
            bpm: Math.round(parseFloat(t.bpm)),
            duration: t.duration || 180,
            isEmbeddable: true,
-           genre: 'API'
+           genre: 'API',
+           preview: t.preview || null // extrait MP3 de 30s fourni par Deezer, lisible sans clé ni CORS
         }));
 
       setWorldSearchResults(formattedResults);
@@ -695,6 +734,82 @@ export default function App() {
     } catch(e) {
       // Erreur réseau réelle (proxy CORS injoignable, hors-ligne...) — safeFetchJson
       // absorbe déjà les corps vides/invalides sans lever d'exception.
+      showToast("Erreur réseau lors de la recherche.", 'error');
+    }
+    setIsWorldSearching(false);
+  };
+
+  // Correspondance approximative entre les genres internes de l'app (en français,
+  // orientés fitness) et des mots-clés Deezer (recherche floue, en anglais/générique).
+  // Deezer n'a pas de filtre "genre" officiel dans sa recherche avancée (seulement
+  // artist/album/track/label/dur_min/dur_max/bpm_min/bpm_max) : on ajoute donc ce
+  // mot-clé en texte libre dans la requête pour orienter les résultats, ce n'est
+  // pas un filtre strict — approximatif mais nettement mieux que rien.
+  const DEEZER_GENRE_KEYWORDS = {
+    'Métal': 'metal', 'Rock': 'rock', 'Electro': 'electro',
+    'Pop': 'pop', 'R&B Sensuel': 'rnb', 'Autre': ''
+  };
+
+  /**
+   * Recherche des titres dont le BPM tombe pile dans la fourchette [bpm-tolérance,
+   * bpm+tolérance] choisie dans le générateur, en tenant compte des genres
+   * sélectionnés. Utilise le filtre avancé natif de Deezer `bpm_min:`/`bpm_max:`
+   * (non documenté officiellement mais confirmé fonctionnel), combiné à un mot-clé
+   * de genre en texte libre. Une recherche est lancée par genre sélectionné (Deezer
+   * ne supporte pas de "OU" entre plusieurs genres dans une seule requête), puis
+   * les résultats sont fusionnés et dédupliqués.
+   */
+  const searchTracksByBpm = async () => {
+    setIsWorldSearching(true);
+    setWorldSearchResults([]);
+    setResultsContextLabel(`${bpm} BPM ± ${bpmTolerance}`);
+    setNoUsableResultsHint(false);
+    try {
+      const minBpm = Math.max(1, bpm - bpmTolerance);
+      const maxBpm = bpm + bpmTolerance;
+      const genresToQuery = selectedGenres.length > 0 ? selectedGenres : ['Autre'];
+
+      const stubsByGenre = await Promise.all(genresToQuery.map(async (genre) => {
+        const keyword = DEEZER_GENRE_KEYWORDS[genre] || '';
+        const q = `bpm_min:"${minBpm}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
+        const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=6`);
+        const stubs = (data && Array.isArray(data.data)) ? data.data : [];
+        return stubs.map(s => ({ ...s, matchedGenre: genre }));
+      }));
+
+      // Fusion + déduplication par id de titre (un même titre peut remonter pour plusieurs genres)
+      const merged = new Map();
+      stubsByGenre.flat().forEach(s => { if (!merged.has(s.id)) merged.set(s.id, s); });
+      const uniqueStubs = Array.from(merged.values()).slice(0, 15);
+
+      if (uniqueStubs.length === 0) {
+         setNoUsableResultsHint(true);
+         setIsWorldSearching(false);
+         return;
+      }
+
+      // Un appel par titre pour confirmer le BPM exact et récupérer l'extrait audio
+      const detailedTracks = await Promise.all(uniqueStubs.map(async (stub) => {
+         const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
+         return full ? { ...full, matchedGenre: stub.matchedGenre } : null;
+      }));
+
+      const formattedResults = detailedTracks
+        .filter(t => t && t.bpm && parseFloat(t.bpm) >= minBpm && parseFloat(t.bpm) <= maxBpm)
+        .map(t => ({
+           youtubeId: `deezer-${t.id}`,
+           title: t.title,
+           artist: t.artist ? t.artist.name : 'Inconnu',
+           bpm: Math.round(parseFloat(t.bpm)),
+           duration: t.duration || 180,
+           isEmbeddable: true,
+           genre: t.matchedGenre || 'API',
+           preview: t.preview || null
+        }));
+
+      setWorldSearchResults(formattedResults);
+      if (formattedResults.length === 0) setNoUsableResultsHint(true);
+    } catch(e) {
       showToast("Erreur réseau lors de la recherche.", 'error');
     }
     setIsWorldSearching(false);
@@ -1610,6 +1725,20 @@ export default function App() {
                           </div>
                         </div>
 
+                        {/* Exploration manuelle : voir les titres qui matchent pile ce BPM + ces genres,
+                            avec extrait audio, plutôt que de laisser l'algorithme piocher au hasard. */}
+                        <button onClick={() => {
+                          setIsBpmSearchMode(true);
+                          setSearchQuery('');
+                          setWorldSearchResults([]);
+                          setResultsContextLabel(null);
+                          setNoUsableResultsHint(false);
+                          setIsSearchModalOpen(true);
+                          searchTracksByBpm();
+                        }} className={`w-full py-4 rounded-2xl border-2 border-dashed ${inputBorder} flex items-center justify-center gap-2 font-bold transition-colors ${textMuted} hover:${textHighlight} hover:border-gray-400 bg-gray-50 dark:bg-gray-800/50`}>
+                          <Target size={20} /><span>Explorer les titres à {bpm} BPM</span>
+                        </button>
+
                         {/* Boutons finaux : génération immédiate, ou sauvegarde en routine réutilisable */}
                         <div className="flex flex-col sm:flex-row gap-4 pt-6 mt-6 border-t border-gray-100 dark:border-gray-800">
                           <button onClick={() => executeGeneration({ isIntervalMode, targetMode, distanceVal, distanceUnit, paceMin, paceSec, segments, bpm, hours, minutes, selectedGenres, bpmTolerance, crossfade, workoutName: getActiveWorkoutName() })} disabled={isGenerating} className={`flex-1 text-xl font-black py-5 rounded-2xl flex items-center justify-center space-x-3 transition-transform active:scale-95 shadow-xl ${isNaughtyMode ?
@@ -1861,7 +1990,7 @@ export default function App() {
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
                     <h3 className={`font-bold text-xl ${textHighlight}`}>Tes Préférences Musicales</h3>
                     <div className="flex gap-2">
-                      <button onClick={() => { setCurrentPlaylist(null); setIsSearchModalOpen(true); }} className={`px-4 py-2.5 ${cardBg} border-2 ${borderAccentClass} rounded-xl text-sm font-bold ${textColorClass} hover:${bgAccentClass} hover:text-white transition-colors flex items-center gap-2 shadow-sm`}>
+                      <button onClick={() => { setCurrentPlaylist(null); setIsBpmSearchMode(false); setIsSearchModalOpen(true); }} className={`px-4 py-2.5 ${cardBg} border-2 ${borderAccentClass} rounded-xl text-sm font-bold ${textColorClass} hover:${bgAccentClass} hover:text-white transition-colors flex items-center gap-2 shadow-sm`}>
                         <Search size={16}/> Chercher via l'API
                       </button>
                       {spotifyToken ? (
@@ -2085,7 +2214,7 @@ export default function App() {
 
                     {/* BOUTON AJOUT MANUEL */}
                     <div className="p-2 bg-gray-50 dark:bg-gray-900/50">
-                      <button onClick={() => setIsSearchModalOpen(true)} className={"w-full py-3 flex items-center justify-center gap-2 text-sm font-bold border-2 border-dashed rounded-xl transition-colors hover:border-gray-400 " + inputBorder + " " + textMuted + " hover:" + textHighlight}>
+                      <button onClick={() => { setIsBpmSearchMode(false); setIsSearchModalOpen(true); }} className={"w-full py-3 flex items-center justify-center gap-2 text-sm font-bold border-2 border-dashed rounded-xl transition-colors hover:border-gray-400 " + inputBorder + " " + textMuted + " hover:" + textHighlight}>
                         <Plus size={18} /> <span>Ajouter un titre précis</span>
                       </button>
                     </div>
@@ -2103,57 +2232,86 @@ export default function App() {
             actuellement affichée, le titre choisi y est ajouté ; sinon, il est
             ajouté aux favoris (utile pour "nourrir" l'algorithme de génération). */}
         {isSearchModalOpen && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => {setIsSearchModalOpen(false); setSearchQuery("");}}>
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => {setIsSearchModalOpen(false); setSearchQuery(""); setIsBpmSearchMode(false);}}>
             <div className={"p-6 md:p-8 rounded-3xl w-full max-w-lg shadow-2xl flex flex-col max-h-[80vh] border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-6">
                 <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
-                  <Search className={textColorClass}/>
-                  <span>Recherche Mondiale API</span>
+                  {isBpmSearchMode ? <Target className={textColorClass}/> : <Search className={textColorClass}/>}
+                  <span>{isBpmSearchMode ? "Titres à ce BPM" : "Recherche Mondiale API"}</span>
                 </h3>
-                <button onClick={() => {setIsSearchModalOpen(false); setSearchQuery("");}} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><X size={20}/></button>
+                <button onClick={() => {setIsSearchModalOpen(false); setSearchQuery(""); setIsBpmSearchMode(false);}} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><X size={20}/></button>
               </div>
 
-              <div className="mb-4 flex gap-2">
-                <div className={"flex-1 flex items-center px-4 py-3 rounded-xl border " + inputBg + " " + inputBorder}>
-                  <Search size={18} className={"mr-3 " + textMuted} />
-                  <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchWorldMusicApi()} placeholder="Titre ou artiste (ex: One More Time, Daft Punk)..." className={"bg-transparent w-full font-bold outline-none " + textHighlight} autoFocus />
+              {isBpmSearchMode ? (
+                <div className={`mb-4 px-4 py-3 rounded-xl border ${inputBorder} ${inputBg} flex items-center justify-between`}>
+                  <span className={`text-sm font-bold ${textMuted}`}>Cible : <span className={textColorClass}>{bpm} BPM ± {bpmTolerance}</span> · {selectedGenres.join(', ')}</span>
+                  <button onClick={searchTracksByBpm} disabled={isWorldSearching} className={`p-2 rounded-lg text-white ${bgAccentClass}`}>
+                    {isWorldSearching ? <Loader2 className="animate-spin" size={16}/> : <RefreshCw size={16}/>}
+                  </button>
                 </div>
-                <button onClick={searchWorldMusicApi} disabled={isWorldSearching} className={"px-4 rounded-xl text-white font-bold transition-transform active:scale-95 flex items-center justify-center " + bgAccentClass}>
-                  {isWorldSearching ? <Loader2 className="animate-spin" size={20}/> : <Search size={20}/>}
-                </button>
-              </div>
+              ) : (
+                <div className="mb-4 flex gap-2">
+                  <div className={"flex-1 flex items-center px-4 py-3 rounded-xl border " + inputBg + " " + inputBorder}>
+                    <Search size={18} className={"mr-3 " + textMuted} />
+                    <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchWorldMusicApi()} placeholder="Titre ou artiste (ex: One More Time, Daft Punk)..." className={"bg-transparent w-full font-bold outline-none " + textHighlight} autoFocus />
+                  </div>
+                  <button onClick={searchWorldMusicApi} disabled={isWorldSearching} className={"px-4 rounded-xl text-white font-bold transition-transform active:scale-95 flex items-center justify-center " + bgAccentClass}>
+                    {isWorldSearching ? <Loader2 className="animate-spin" size={20}/> : <Search size={20}/>}
+                  </button>
+                </div>
+              )}
 
               <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 min-h-[200px]">
-                {worldSearchResults.length > 0 ? (
+                {isWorldSearching && worldSearchResults.length === 0 ? (
+                  <div className={`text-center py-8 font-medium ${textMuted} flex flex-col items-center gap-2`}>
+                    <Loader2 className="animate-spin" size={20}/>
+                    <span>Recherche en cours...</span>
+                  </div>
+                ) : worldSearchResults.length > 0 ? (
                   <>
-                    {resultsContextLabel && (
+                    {resultsContextLabel && !isBpmSearchMode && (
                       <div className={`text-xs font-bold uppercase tracking-wider mb-2 px-1 ${textMuted}`}>{resultsContextLabel}</div>
                     )}
                     {worldSearchResults.map((track, i) => (
-                      <button key={i} onClick={() => {
-                          // Si on est dans la vue Playlist, on l'ajoute. Sinon, ça va dans les Favoris !
-                          if (currentPlaylist) handleAddManualTrack(track);
-                          else {
-                             setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, track.artist])), tracks: Array.from(new Set([...prev.tracks, track.title])) }));
-                             showToast("🎵 Ajouté à tes favoris !");
-                             setIsSearchModalOpen(false);
-                             setSearchQuery("");
-                          }
-                      }} className={"w-full text-left flex items-center justify-between p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border border-transparent hover:" + cardBorder}>
-                        <div className="truncate pr-4">
-                          <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
-                          <div className={"text-xs truncate " + textMuted}>{track.artist}</div>
-                        </div>
-                        <div className={"font-mono text-sm font-bold shrink-0 " + textColorClass}>{track.bpm} BPM</div>
-                      </button>
+                      <div key={i} className={"flex items-center gap-2 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border border-transparent hover:" + cardBorder}>
+                        {/* Bouton lecture/pause de l'extrait audio 30s (Deezer). Désactivé si aucun extrait disponible. */}
+                        <button
+                          onClick={() => togglePreview(track)}
+                          disabled={!track.preview}
+                          title={track.preview ? "Écouter un extrait" : "Extrait non disponible"}
+                          className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
+                        >
+                          {playingPreviewId === track.youtubeId ? <Pause size={16} fill="currentColor"/> : <Play size={16} fill="currentColor" className="ml-0.5"/>}
+                        </button>
+
+                        <button onClick={() => {
+                            // Si on est dans la vue Playlist, on l'ajoute. Sinon, ça va dans les Favoris !
+                            if (currentPlaylist) handleAddManualTrack(track);
+                            else {
+                               setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, track.artist])), tracks: Array.from(new Set([...prev.tracks, track.title])) }));
+                               showToast("🎵 Ajouté à tes favoris !");
+                            }
+                        }} className="flex-1 min-w-0 text-left flex items-center justify-between gap-3">
+                          <div className="truncate">
+                            <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
+                            <div className={"text-xs truncate " + textMuted}>{track.artist}{isBpmSearchMode && track.genre ? ` · ${track.genre}` : ''}</div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={"font-mono text-sm font-bold " + textColorClass}>{track.bpm} BPM</span>
+                            <Plus size={16} className={textMuted}/>
+                          </div>
+                        </button>
+                      </div>
                     ))}
                   </>
                 ) : (
-                  searchQuery.length > 0 && !isWorldSearching ? (
+                  (isBpmSearchMode || searchQuery.length > 0) && !isWorldSearching ? (
                     noUsableResultsHint ? (
                       <div className={`text-center py-8 px-4 font-medium ${textMuted}`}>
-                        Aucun titre avec un BPM connu trouvé pour "{searchQuery}".
-                        <br/>Essaie une orthographe différente, ou un titre plus précis.
+                        {isBpmSearchMode
+                          ? <>Aucun titre trouvé pile à {bpm} BPM (± {bpmTolerance}) pour ces genres.<br/>Essaie d'élargir la marge d'erreur.</>
+                          : <>Aucun titre avec un BPM connu trouvé pour "{searchQuery}".<br/>Essaie une orthographe différente, ou un titre plus précis.</>
+                        }
                       </div>
                     ) : (
                       <div className={`text-center py-8 font-medium ${textMuted}`}>Aucun résultat.</div>
