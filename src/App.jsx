@@ -206,15 +206,26 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
     const genreForQuery = selectedGenres && selectedGenres.length > 0 ? selectedGenres[0] : 'Autre';
     const keyword = DEEZER_GENRE_KEYWORDS[genreForQuery] || '';
     const q = `bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
-    const { data: searchData } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=10`);
+    const { data: searchData } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=15`);
     const stubs = (searchData && Array.isArray(searchData.data)) ? searchData.data.filter(s => !excludeYoutubeIds.includes(`deezer-${s.id}`)) : [];
 
     if (stubs.length > 0) {
-      // On tire un candidat au hasard puis on va chercher son BPM exact + son extrait
-      // (absents de la liste de résultats, il faut l'appel /track/{id} dédié).
-      const pick = stubs[Math.floor(Math.random() * stubs.length)];
-      const { data: full } = await deezerFetch(`https://api.deezer.com/track/${pick.id}`);
-      if (full && full.bpm && parseFloat(full.bpm) >= minBpm && parseFloat(full.bpm) <= maxBpm) {
+      // BUG CORRIGÉ : avant, on ne testait qu'UN SEUL candidat tiré au hasard, et on
+      // abandonnait toute cette étape s'il ne correspondait pas exactement au BPM
+      // demandé (le filtre bpm_min/bpm_max de Deezer, non officiel, n'est pas fiable
+      // à 100%). Résultat : cette étape échouait très souvent, faisant retomber la
+      // génération sur la base locale (sans extrait audio) même quand Deezer avait
+      // de bons candidats. On teste maintenant jusqu'à 5 candidats en parallèle et on
+      // choisit au hasard parmi ceux qui correspondent vraiment.
+      const candidates = stubs.slice(0, 5);
+      const detailedCandidates = await Promise.all(candidates.map(async (stub) => {
+        const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
+        return full;
+      }));
+      const validCandidates = detailedCandidates.filter(full => full && full.bpm && parseFloat(full.bpm) >= minBpm && parseFloat(full.bpm) <= maxBpm);
+
+      if (validCandidates.length > 0) {
+        const full = validCandidates[Math.floor(Math.random() * validCandidates.length)];
         return {
           youtubeId: `deezer-${full.id}`,
           title: full.title,
@@ -225,6 +236,37 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
           genre: genreForQuery,
           preview: full.preview || null
         };
+      }
+    }
+
+    // Filet de secours : si le filtre bpm_min/bpm_max n'a renvoyé AUCUN résultat (pas
+    // juste des résultats hors cible, mais vraiment zéro), on retente une recherche
+    // large sur le mot-clé de genre seul, sans filtre BPM côté serveur, puis on trie
+    // et filtre nous-mêmes côté client par proximité — pour maximiser les chances
+    // d'obtenir un titre avec extrait audio plutôt que de céder trop vite à la base
+    // locale statique (qui n'en a jamais).
+    if (stubs.length === 0 && keyword) {
+      const { data: broadData } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(keyword)}&limit=20`);
+      const broadStubs = (broadData && Array.isArray(broadData.data)) ? broadData.data.filter(s => !excludeYoutubeIds.includes(`deezer-${s.id}`)) : [];
+      if (broadStubs.length > 0) {
+        const detailedBroad = await Promise.all(broadStubs.slice(0, 8).map(async (stub) => {
+          const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
+          return full;
+        }));
+        const validBroad = detailedBroad.filter(full => full && full.bpm && parseFloat(full.bpm) >= minBpm && parseFloat(full.bpm) <= maxBpm);
+        if (validBroad.length > 0) {
+          const full = validBroad[Math.floor(Math.random() * validBroad.length)];
+          return {
+            youtubeId: `deezer-${full.id}`,
+            title: full.title,
+            artist: full.artist ? full.artist.name : 'Inconnu',
+            bpm: Math.round(parseFloat(full.bpm)),
+            duration: full.duration || 180,
+            isEmbeddable: true,
+            genre: genreForQuery,
+            preview: full.preview || null
+          };
+        }
       }
     }
   } catch (e) {
