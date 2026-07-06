@@ -749,29 +749,30 @@ export default function App() {
   const [isValidatingArtist, setIsValidatingArtist] = useState(false);
 
   /**
-   * Ajoute un artiste aux favoris SEULEMENT s'il existe vraiment (recherche Deezer),
-   * plutôt que d'accepter n'importe quel texte tapé — évite les faux artistes (fautes
-   * de frappe, doublons de casse différente, texte au hasard) qui n'aideraient de
-   * toute façon jamais le moteur de génération à trouver de vrais titres.
+   * Ajoute un artiste aux favoris. Best-effort : on tente une recherche Deezer pour
+   * récupérer le nom canonique (corrige la casse/l'orthographe si l'artiste est
+   * trouvé), mais on n'AJOUTE JAMAIS de blocage — que Deezer ne trouve rien, ou que
+   * la requête échoue (proxy indisponible, hors-ligne...), le nom tapé est ajouté
+   * tel quel. Ce choix évite qu'une panne de service tiers empêche une action aussi
+   * basique que "noter un nom d'artiste", au prix d'accepter parfois un nom mal
+   * orthographié ou un artiste inexistant si Deezer est injoignable au bon moment.
    */
   const addFavoriteArtistValidated = async (rawName) => {
     const query = rawName.trim();
     if (!query) return;
     setIsValidatingArtist(true);
+    let finalName = query;
     try {
       const { data } = await deezerFetch(`https://api.deezer.com/search/artist?q=${encodeURIComponent(query)}&limit=1`);
       const match = data && Array.isArray(data.data) ? data.data[0] : null;
-      if (match) {
-        setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, match.name])) }));
-        showToast(`🎵 ${match.name} ajouté à tes artistes favoris !`);
-        setNewFavArtist("");
-        setIsAddingArtist(false);
-      } else {
-        showToast(`Aucun artiste trouvé pour "${query}".`, 'error');
-      }
+      if (match) finalName = match.name;
     } catch (e) {
-      showToast("Erreur réseau lors de la recherche.", 'error');
+      // Échec silencieux : on ajoute quand même le nom tel que tapé (voir docstring).
     }
+    setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, finalName])) }));
+    showToast(`🎵 ${finalName} ajouté à tes artistes favoris !`);
+    setNewFavArtist("");
+    setIsAddingArtist(false);
     setIsValidatingArtist(false);
   };
 
