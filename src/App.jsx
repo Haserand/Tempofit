@@ -2182,7 +2182,7 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {routines.length === 0 && (
+                  {routines.length === 0 ? (
                     <div className={`col-span-full py-16 text-center border-2 border-dashed ${cardBorder} rounded-2xl`}>
                       <ListPlus size={48} className={`mx-auto mb-4 text-gray-300 dark:text-gray-700`} />
                       <h3 className={`text-lg font-bold mb-2 ${textHighlight}`}>Aucune routine pour l'instant</h3>
@@ -2191,6 +2191,14 @@ export default function App() {
                         Créer ma première playlist
                       </button>
                     </div>
+                  ) : (
+                    // Tuile "+" toujours visible (même avec des routines existantes) — même principe
+                    // que la tuile "+" de "Titres Favoris" : incite à en ajouter une nouvelle sans
+                    // dupliquer le lien "Générer" déjà présent dans la sidebar.
+                    <button onClick={() => changeView('generator')} className={`rounded-2xl border-2 border-dashed ${cardBorder} flex flex-col items-center justify-center gap-2 py-10 font-bold transition-colors ${textMuted} hover:${textHighlight} hover:border-gray-400`}>
+                      <Plus size={28} />
+                      <span>Créer une nouvelle routine</span>
+                    </button>
                   )}
                   {routines.map(routine => {
                     const batchCount = routineBatchCounts[routine.id] || 1;
@@ -2265,6 +2273,15 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {savedPlaylists.length > 0 && (
+                    // Tuile "+" toujours visible, même principe que "Mes Routines" et
+                    // "Titres Favoris" — incite à en générer une nouvelle sans avoir à
+                    // revenir chercher le lien "Générer" dans la sidebar.
+                    <button onClick={() => changeView('generator')} className={`rounded-2xl border-2 border-dashed ${cardBorder} flex flex-col items-center justify-center gap-2 py-10 font-bold transition-colors ${textMuted} hover:${textHighlight} hover:border-gray-400`}>
+                      <Plus size={28} />
+                      <span>Générer une nouvelle playlist</span>
+                    </button>
+                  )}
                   {savedPlaylists.map(playlist => (
                     <div key={playlist.id} className={`${cardBg} rounded-2xl p-4 border ${playlist.status === 'completed' ?
                       'border-green-500/30 bg-green-50/30 dark:bg-green-900/10' : cardBorder} shadow-sm flex flex-col group hover:border-gray-400 transition-colors cursor-pointer`} onClick={() => { setCurrentPlaylist(playlist); changeView('playlist'); }}>
