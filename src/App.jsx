@@ -746,6 +746,35 @@ export default function App() {
   const [favSelectedGenres, setFavSelectedGenres] = useState(['Métal']);
   const [newFavArtist, setNewFavArtist] = useState("");
   const [isAddingArtist, setIsAddingArtist] = useState(false);
+  const [isValidatingArtist, setIsValidatingArtist] = useState(false);
+
+  /**
+   * Ajoute un artiste aux favoris SEULEMENT s'il existe vraiment (recherche Deezer),
+   * plutôt que d'accepter n'importe quel texte tapé — évite les faux artistes (fautes
+   * de frappe, doublons de casse différente, texte au hasard) qui n'aideraient de
+   * toute façon jamais le moteur de génération à trouver de vrais titres.
+   */
+  const addFavoriteArtistValidated = async (rawName) => {
+    const query = rawName.trim();
+    if (!query) return;
+    setIsValidatingArtist(true);
+    try {
+      const { data } = await deezerFetch(`https://api.deezer.com/search/artist?q=${encodeURIComponent(query)}&limit=1`);
+      const match = data && Array.isArray(data.data) ? data.data[0] : null;
+      if (match) {
+        setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, match.name])) }));
+        showToast(`🎵 ${match.name} ajouté à tes artistes favoris !`);
+        setNewFavArtist("");
+        setIsAddingArtist(false);
+      } else {
+        showToast(`Aucun artiste trouvé pour "${query}".`, 'error');
+      }
+    } catch (e) {
+      showToast("Erreur réseau lors de la recherche.", 'error');
+    }
+    setIsValidatingArtist(false);
+  };
+
   const [newFavTrack, setNewFavTrack] = useState("");
 
   // Routines sauvegardées : configurations de génération réutilisables en 1 clic.
@@ -877,7 +906,7 @@ export default function App() {
   // morceaux générés, ce que la base locale statique ne permettait pas).
 
   /**
-   * Recherche manuelle utilisée dans la modale "Recherche Mondiale API".
+   * Recherche manuelle utilisée dans la modale "Rechercher un titre".
    * Stratégie en 3 temps pour couvrir "artiste OU titre" :
    *   1. Recherche directe de titres correspondant au texte tapé (/search).
    *   2. Si rien ne matche comme titre, recherche d'artiste (/search/artist) ;
@@ -2302,22 +2331,20 @@ export default function App() {
                 <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
                     <h3 className={`font-bold text-xl ${textHighlight}`}>Tes Préférences Musicales</h3>
-                    <div className="flex gap-2">
-                      <button onClick={() => { setCurrentPlaylist(null); setIsBpmSearchMode(false); setIsSearchModalOpen(true); }} className={`px-4 py-2.5 ${inputBg} border ${inputBorder} rounded-xl text-sm font-bold ${textMuted} hover:${textHighlight} transition-colors flex items-center gap-2`}>
-                        <Search size={16}/> Rechercher un titre
+                    {spotifyToken ? (
+                      <button onClick={syncSpotifyFavorites} className="px-5 py-2.5 bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold rounded-xl shadow-md transition-all flex items-center space-x-2 text-sm hover:scale-105 active:scale-95">
+                        <RefreshCw size={18} /> <span>Synchroniser mon Spotify</span>
                       </button>
-                      {spotifyToken ? (
-                        <button onClick={syncSpotifyFavorites} className="px-5 py-2.5 bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold rounded-xl shadow-md transition-all flex items-center space-x-2 text-sm hover:scale-105 active:scale-95">
-                          <RefreshCw size={18} /> <span>Synchroniser mon Spotify</span>
-                        </button>
-                      ) : (
-                        <button onClick={() => changeView('settings')} className={`px-5 py-2.5 ${cardBg} border-2 border-[#1DB954] rounded-xl text-sm font-bold text-[#1DB954] hover:bg-[#1DB954] hover:text-black transition-colors shadow-sm`}>
-                          Aller connecter Spotify
-                        </button>
-                      )}
-                    </div>
+                    ) : (
+                      <button onClick={() => changeView('settings')} className={`px-5 py-2.5 ${cardBg} border-2 border-[#1DB954] rounded-xl text-sm font-bold text-[#1DB954] hover:bg-[#1DB954] hover:text-black transition-colors shadow-sm`}>
+                        Aller connecter Spotify
+                      </button>
+                    )}
                   </div>
                   <div className="space-y-8">
+                    {/* LIGNE 1 : Artistes uniquement. L'ajout est validé via une recherche Deezer
+                        réelle (addFavoriteArtistValidated) — on n'accepte plus n'importe quel texte
+                        tapé, seulement des artistes qui existent vraiment. */}
                     <div>
                       <h4 className={`text-sm font-bold uppercase tracking-wider ${textMuted} mb-4 flex items-center`}><User size={16} className="mr-2"/> Top Artistes</h4>
                       <div className="flex flex-wrap gap-2.5 items-center">
@@ -2329,26 +2356,21 @@ export default function App() {
                             </button>
                           </span>
                         ))}
-                        {/* Ajout manuel repensé : une bulle "+" directement dans la liste des badges
-                            (plutôt qu'un champ séparé en dessous) — plus instinctif, cohérent avec
-                            le geste "ajouter un tag". Clic → révèle un petit champ de saisie inline. */}
                         {isAddingArtist ? (
                           <div className="flex items-center gap-1 bg-white border border-gray-300 rounded-xl pl-3 pr-1 py-1 shadow-sm">
                             <input
                               type="text" autoFocus value={newFavArtist} onChange={e => setNewFavArtist(e.target.value)}
+                              disabled={isValidatingArtist}
                               onKeyDown={(e) => {
-                                if (e.key === 'Enter' && newFavArtist.trim()) {
-                                  setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, newFavArtist.trim()])) }));
-                                  setNewFavArtist(""); setIsAddingArtist(false);
-                                }
+                                if (e.key === 'Enter') addFavoriteArtistValidated(newFavArtist);
                                 if (e.key === 'Escape') { setNewFavArtist(""); setIsAddingArtist(false); }
                               }}
                               onBlur={() => { if (!newFavArtist.trim()) setIsAddingArtist(false); }}
                               placeholder="Nom de l'artiste..."
-                              className="text-sm font-bold text-gray-900 outline-none bg-transparent w-36"
+                              className="text-sm font-bold text-gray-900 outline-none bg-transparent w-36 disabled:opacity-50"
                             />
-                            <button onClick={() => { if (newFavArtist.trim()) { setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, newFavArtist.trim()])) })); setNewFavArtist(""); setIsAddingArtist(false); } }} className={`w-7 h-7 rounded-full flex items-center justify-center text-white shrink-0 ${bgAccentClass}`}>
-                              <Plus size={14}/>
+                            <button onClick={() => addFavoriteArtistValidated(newFavArtist)} disabled={isValidatingArtist} className={`w-7 h-7 rounded-full flex items-center justify-center text-white shrink-0 ${bgAccentClass}`}>
+                              {isValidatingArtist ? <Loader2 size={14} className="animate-spin"/> : <Plus size={14}/>}
                             </button>
                           </div>
                         ) : (
@@ -2359,6 +2381,9 @@ export default function App() {
                       </div>
                     </div>
 
+                    {/* LIGNE 2 : Titres uniquement. La tuile "+" remplace l'ancien bouton
+                        "Rechercher un titre" du header — plus besoin d'un bouton séparé
+                        puisque l'ajout se fait directement depuis cette rangée. */}
                     <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
                       <h4 className={`text-sm font-bold uppercase tracking-wider ${textMuted} mb-4 flex items-center`}><Heart size={16} className="mr-2"/> Titres Favoris <span className="ml-2 text-[10px] normal-case font-medium opacity-70">(utilisés en priorité à la génération)</span></h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -2382,7 +2407,9 @@ export default function App() {
                             </button>
                           </div>
                         ))}
-                        {favorites.tracks.length === 0 && <span className={textMuted}>Aucun titre en favoris pour l'instant...</span>}
+                        <button onClick={() => { setCurrentPlaylist(null); setIsBpmSearchMode(false); setIsSearchModalOpen(true); }} className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 border-dashed ${inputBorder} ${textMuted} hover:${textHighlight} hover:border-gray-400 transition-colors font-bold text-sm`}>
+                          <Plus size={16}/> Ajouter un titre
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -2392,6 +2419,7 @@ export default function App() {
                     favoris des titres précis, indépendamment du wizard de génération. */}
                 <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
                   <h3 className={`font-bold text-xl mb-6 flex items-center gap-2 ${textHighlight}`}><Target className={textColorClass} size={22}/> Explorer par BPM & Genre</h3>
+
 
                   <div className="space-y-6">
                     <div>
@@ -2666,13 +2694,17 @@ export default function App() {
         {isSearchModalOpen && (
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => {setIsSearchModalOpen(false); setSearchQuery(""); setIsBpmSearchMode(false);}}>
             <div className={"p-6 md:p-8 rounded-3xl w-full max-w-lg shadow-2xl flex flex-col max-h-[80vh] border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex justify-between items-center mb-1">
                 <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
                   {isBpmSearchMode ? <Target className={textColorClass}/> : <Search className={textColorClass}/>}
-                  <span>{isBpmSearchMode ? "Titres à ce BPM" : "Recherche Mondiale API"}</span>
+                  <span>{isBpmSearchMode ? "Titres à ce BPM" : "Rechercher un titre"}</span>
                 </h3>
                 <button onClick={() => {setIsSearchModalOpen(false); setSearchQuery(""); setIsBpmSearchMode(false);}} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><X size={20}/></button>
               </div>
+              {/* Disclaimer honnête : l'utilisateur n'a pas besoin de savoir qu'on passe par
+                  une API, mais mérite de savoir que les résultats viennent d'un service tiers
+                  (Deezer) et peuvent être incomplets ou approximatifs — sans jargon technique. */}
+              <p className={`text-xs mb-5 ${textMuted}`}>* Connecté via Deezer — le BPM peut être approximatif, et certains titres peuvent rester introuvables.</p>
 
               {isBpmSearchMode ? (
                 <div className={`mb-4 px-4 py-3 rounded-xl border ${inputBorder} ${inputBg} flex items-center justify-between`}>
