@@ -746,34 +746,41 @@ export default function App() {
   const [favSelectedGenres, setFavSelectedGenres] = useState(['Métal']);
   const [newFavArtist, setNewFavArtist] = useState("");
   const [isAddingArtist, setIsAddingArtist] = useState(false);
-  const [isValidatingArtist, setIsValidatingArtist] = useState(false);
 
   /**
-   * Ajoute un artiste aux favoris. Best-effort : on tente une recherche Deezer pour
-   * récupérer le nom canonique (corrige la casse/l'orthographe si l'artiste est
-   * trouvé), mais on n'AJOUTE JAMAIS de blocage — que Deezer ne trouve rien, ou que
-   * la requête échoue (proxy indisponible, hors-ligne...), le nom tapé est ajouté
-   * tel quel. Ce choix évite qu'une panne de service tiers empêche une action aussi
-   * basique que "noter un nom d'artiste", au prix d'accepter parfois un nom mal
-   * orthographié ou un artiste inexistant si Deezer est injoignable au bon moment.
+   * Ajoute un artiste aux favoris de façon OPTIMISTE : le nom tapé apparaît
+   * immédiatement (aucune latence perçue, aucun blocage possible), puis une
+   * recherche Deezer tourne en arrière-plan pour corriger discrètement l'orthographe
+   * si un artiste correspondant est trouvé sous un nom légèrement différent (ex.
+   * casse, accents). Si Deezer ne répond pas ou ne trouve rien, le nom tapé reste
+   * tel quel — jamais de blocage, jamais d'attente visible.
    */
-  const addFavoriteArtistValidated = async (rawName) => {
+  const addFavoriteArtistValidated = (rawName) => {
     const query = rawName.trim();
     if (!query) return;
-    setIsValidatingArtist(true);
-    let finalName = query;
-    try {
-      const { data } = await deezerFetch(`https://api.deezer.com/search/artist?q=${encodeURIComponent(query)}&limit=1`);
-      const match = data && Array.isArray(data.data) ? data.data[0] : null;
-      if (match) finalName = match.name;
-    } catch (e) {
-      // Échec silencieux : on ajoute quand même le nom tel que tapé (voir docstring).
-    }
-    setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, finalName])) }));
-    showToast(`🎵 ${finalName} ajouté à tes artistes favoris !`);
+
+    // 1. Ajout immédiat, sans attendre quoi que ce soit.
+    setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, query])) }));
+    showToast(`🎵 ${query} ajouté à tes artistes favoris !`);
     setNewFavArtist("");
     setIsAddingArtist(false);
-    setIsValidatingArtist(false);
+
+    // 2. Correction discrète en arrière-plan (ne bloque plus rien, pas de toast
+    // supplémentaire pour rester discret — juste le nom qui se corrige si besoin).
+    (async () => {
+      try {
+        const { data } = await deezerFetch(`https://api.deezer.com/search/artist?q=${encodeURIComponent(query)}&limit=1`);
+        const match = data && Array.isArray(data.data) ? data.data[0] : null;
+        if (match && match.name && match.name.toLowerCase() !== query.toLowerCase()) {
+          setFavorites(prev => ({
+            ...prev,
+            artists: Array.from(new Set(prev.artists.map(a => a === query ? match.name : a)))
+          }));
+        }
+      } catch (e) {
+        // Échec silencieux : le nom tapé reste tel quel (voir docstring).
+      }
+    })();
   };
 
   const [newFavTrack, setNewFavTrack] = useState("");
@@ -2361,17 +2368,16 @@ export default function App() {
                           <div className="flex items-center gap-1 bg-white border border-gray-300 rounded-xl pl-3 pr-1 py-1 shadow-sm">
                             <input
                               type="text" autoFocus value={newFavArtist} onChange={e => setNewFavArtist(e.target.value)}
-                              disabled={isValidatingArtist}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') addFavoriteArtistValidated(newFavArtist);
                                 if (e.key === 'Escape') { setNewFavArtist(""); setIsAddingArtist(false); }
                               }}
                               onBlur={() => { if (!newFavArtist.trim()) setIsAddingArtist(false); }}
                               placeholder="Nom de l'artiste..."
-                              className="text-sm font-bold text-gray-900 outline-none bg-transparent w-36 disabled:opacity-50"
+                              className="text-sm font-bold text-gray-900 outline-none bg-transparent w-36"
                             />
-                            <button onClick={() => addFavoriteArtistValidated(newFavArtist)} disabled={isValidatingArtist} className={`w-7 h-7 rounded-full flex items-center justify-center text-white shrink-0 ${bgAccentClass}`}>
-                              {isValidatingArtist ? <Loader2 size={14} className="animate-spin"/> : <Plus size={14}/>}
+                            <button onClick={() => addFavoriteArtistValidated(newFavArtist)} className={`w-7 h-7 rounded-full flex items-center justify-center text-white shrink-0 ${bgAccentClass}`}>
+                              <Plus size={14}/>
                             </button>
                           </div>
                         ) : (
@@ -2749,27 +2755,39 @@ export default function App() {
                           {playingPreviewId === track.youtubeId ? <Pause size={16} fill="currentColor"/> : <Play size={16} fill="currentColor" className="ml-0.5"/>}
                         </button>
 
-                        <button onClick={() => {
-                            // Si on est dans la vue Playlist, on l'ajoute. Sinon, ça va dans les Favoris !
-                            if (currentPlaylist) handleAddManualTrack(track);
-                            else {
-                               setFavorites(prev => ({
-                                 ...prev,
-                                 artists: Array.from(new Set([...prev.artists, track.artist])),
-                                 tracks: prev.tracks.some(t => t.youtubeId === track.youtubeId) ? prev.tracks : [...prev.tracks, track]
-                               }));
-                               showToast("🎵 Ajouté à tes favoris !");
-                            }
-                        }} className="flex-1 min-w-0 text-left flex items-center justify-between gap-3">
-                          <div className="truncate">
-                            <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
-                            <div className={"text-xs truncate " + textMuted}>{track.artist}{isBpmSearchMode && track.genre ? ` · ${track.genre}` : ''}</div>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className={"font-mono text-sm font-bold " + textColorClass}>{track.bpm} BPM</span>
-                            <Plus size={16} className={textMuted}/>
-                          </div>
-                        </button>
+                        {(() => {
+                          const isAlreadyFavorited = !currentPlaylist && favorites.tracks.some(t => t.youtubeId === track.youtubeId);
+                          return (
+                            <button onClick={() => {
+                                // Si on est dans la vue Playlist, on l'ajoute. Sinon, ça bascule dans les Favoris !
+                                if (currentPlaylist) handleAddManualTrack(track);
+                                else if (isAlreadyFavorited) {
+                                   setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.youtubeId !== track.youtubeId) }));
+                                   showToast("Retiré de tes favoris.");
+                                } else {
+                                   setFavorites(prev => ({
+                                     ...prev,
+                                     artists: Array.from(new Set([...prev.artists, track.artist])),
+                                     tracks: [...prev.tracks, track]
+                                   }));
+                                   showToast("🎵 Ajouté à tes favoris !");
+                                }
+                            }} className="flex-1 min-w-0 text-left flex items-center justify-between gap-3">
+                              <div className="truncate">
+                                <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
+                                <div className={"text-xs truncate " + textMuted}>{track.artist}{isBpmSearchMode && track.genre ? ` · ${track.genre}` : ''}</div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className={"font-mono text-sm font-bold " + textColorClass}>{track.bpm} BPM</span>
+                                {isAlreadyFavorited ? (
+                                  <Check size={16} className="text-green-500" />
+                                ) : (
+                                  <Plus size={16} className={textMuted}/>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })()}
                       </div>
                     ))}
                   </>
