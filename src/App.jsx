@@ -119,6 +119,9 @@ const TRANSLATIONS = {
  *
  *   1. Priorité ABSOLUE aux morceaux mis en Favoris par l'utilisateur (`favorites.tracks`)
  *      — ce sont des choix explicites, donc plus fiables que tout le reste.
+ *   1.5. Recherche Deezer sur tes artistes favoris (`favorites.artists`) dans la
+ *      fourchette de BPM demandée — sans cette étape, "Top Artistes" n'avait aucun
+ *      effet réel sur la génération, uniquement un rôle d'affichage.
  *   2. Puis les morceaux de la bibliothèque Spotify synchronisée (`spotifyTrackPool`),
  *      déjà analysés en BPM via `resolveRealBPM`.
  *   3. Une recherche Deezer en direct (filtre bpm_min/bpm_max + mot-clé de genre) :
@@ -183,6 +186,44 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
     );
     if (perfectFavoriteTracks.length > 0) {
       return perfectFavoriteTracks[Math.floor(Math.random() * perfectFavoriteTracks.length)];
+    }
+  }
+
+  // 1.5. ARTISTES FAVORIS : jusqu'ici, favorites.artists ("Top Artistes") n'était
+  //      jamais utilisé nulle part dans ce moteur — un vrai trou fonctionnel entre
+  //      ce que la page Favoris laissait penser et ce qui se passait réellement.
+  //      On cherche maintenant sur Deezer des titres de ces artistes qui tombent
+  //      dans la fourchette de BPM demandée (filtre combiné artist:/bpm_min/bpm_max).
+  //      Limité à 3 artistes tirés au hasard par appel pour contenir le nombre de
+  //      requêtes réseau (un utilisateur peut avoir des dizaines d'artistes favoris).
+  if (favorites && Array.isArray(favorites.artists) && favorites.artists.length > 0) {
+    try {
+      const sampledArtists = [...favorites.artists].sort(() => Math.random() - 0.5).slice(0, 3);
+      const stubsByArtist = await Promise.all(sampledArtists.map(async (artistName) => {
+        const q = `artist:"${artistName}" bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"`;
+        const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=5`);
+        const stubs = (data && Array.isArray(data.data)) ? data.data : [];
+        return stubs.filter(s => !excludeYoutubeIds.includes(`deezer-${s.id}`));
+      }));
+      const candidateStubs = stubsByArtist.flat();
+      if (candidateStubs.length > 0) {
+        const pick = candidateStubs[Math.floor(Math.random() * candidateStubs.length)];
+        const { data: full } = await deezerFetch(`https://api.deezer.com/track/${pick.id}`);
+        if (full && full.bpm && parseFloat(full.bpm) >= minBpm && parseFloat(full.bpm) <= maxBpm) {
+          return {
+            youtubeId: `deezer-${full.id}`,
+            title: full.title,
+            artist: full.artist ? full.artist.name : 'Inconnu',
+            bpm: Math.round(parseFloat(full.bpm)),
+            duration: full.duration || 180,
+            isEmbeddable: true,
+            genre: (selectedGenres && selectedGenres[0]) || 'Autre',
+            preview: full.preview || null
+          };
+        }
+      }
+    } catch (e) {
+      // Échec silencieux : on continue vers Spotify/Deezer générique ci-dessous.
     }
   }
 
@@ -2337,7 +2378,7 @@ export default function App() {
                 </div>
 
                 <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-4">
                     <h3 className={`font-bold text-xl ${textHighlight}`}>Tes Préférences Musicales</h3>
                     {spotifyToken ? (
                       <button onClick={syncSpotifyFavorites} className="px-5 py-2.5 bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold rounded-xl shadow-md transition-all flex items-center space-x-2 text-sm hover:scale-105 active:scale-95">
@@ -2349,11 +2390,48 @@ export default function App() {
                       </button>
                     )}
                   </div>
+                  {/* Explication discrète du principe de priorisation, en langage simple —
+                      pas de détail technique (pas de mention d'API/Deezer ici), juste l'ordre
+                      qui compte pour l'utilisateur : pourquoi ajouter un titre a plus de poids
+                      qu'ajouter un artiste. */}
+                  <p className={`text-xs mb-6 ${textMuted}`}>Priorité à la génération : tes titres favoris d'abord, puis tes artistes favoris, puis une recherche plus large si besoin pour compléter la playlist.</p>
                   <div className="space-y-8">
-                    {/* LIGNE 1 : Artistes uniquement. L'ajout est validé via une recherche Deezer
-                        réelle (addFavoriteArtistValidated) — on n'accepte plus n'importe quel texte
-                        tapé, seulement des artistes qui existent vraiment. */}
+                    {/* LIGNE 1 : Titres uniquement — en premier car c'est le niveau le plus
+                        précis de la cascade de génération (priorité 1). La tuile "+" remplace
+                        l'ancien bouton "Rechercher un titre" du header. */}
                     <div>
+                      <h4 className={`text-sm font-bold uppercase tracking-wider ${textMuted} mb-4 flex items-center`}><Heart size={16} className="mr-2"/> Titres Favoris</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {favorites.tracks.map((track, idx) => (
+                          <div key={track.youtubeId || idx} className={`flex items-center gap-2 p-2.5 rounded-xl border ${cardBorder} ${inputBg}`}>
+                            <button
+                              onClick={() => togglePreview(track)}
+                              disabled={!track.preview}
+                              title={track.preview ? "Écouter un extrait" : "Extrait non disponible"}
+                              className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
+                            >
+                              {playingPreviewId === track.youtubeId ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5"/>}
+                            </button>
+                            <div className="flex-1 min-w-0">
+                              <div className={`font-bold text-sm truncate ${textHighlight}`}>{track.title}</div>
+                              <div className={`text-xs truncate ${textMuted}`}>{track.artist}</div>
+                            </div>
+                            {track.bpm ? <span className={`font-mono text-xs font-bold shrink-0 ${textColorClass}`}>{track.bpm} BPM</span> : null}
+                            <button onClick={() => setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.youtubeId !== track.youtubeId) }))} className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                              <X size={14}/>
+                            </button>
+                          </div>
+                        ))}
+                        <button onClick={() => { setCurrentPlaylist(null); setIsBpmSearchMode(false); setIsSearchModalOpen(true); }} className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 border-dashed ${inputBorder} ${textMuted} hover:${textHighlight} hover:border-gray-400 transition-colors font-bold text-sm`}>
+                          <Plus size={16}/> Ajouter un titre
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* LIGNE 2 : Artistes uniquement — en second, car c'est le niveau
+                        d'élargissement suivant dans la cascade de génération (priorité 1.5).
+                        L'ajout est optimiste (voir addFavoriteArtistValidated). */}
+                    <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
                       <h4 className={`text-sm font-bold uppercase tracking-wider ${textMuted} mb-4 flex items-center`}><User size={16} className="mr-2"/> Top Artistes</h4>
                       <div className="flex flex-wrap gap-2.5 items-center">
                         {favorites.artists.map((artist, idx) => (
@@ -2385,38 +2463,6 @@ export default function App() {
                             <Plus size={18}/>
                           </button>
                         )}
-                      </div>
-                    </div>
-
-                    {/* LIGNE 2 : Titres uniquement. La tuile "+" remplace l'ancien bouton
-                        "Rechercher un titre" du header — plus besoin d'un bouton séparé
-                        puisque l'ajout se fait directement depuis cette rangée. */}
-                    <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
-                      <h4 className={`text-sm font-bold uppercase tracking-wider ${textMuted} mb-4 flex items-center`}><Heart size={16} className="mr-2"/> Titres Favoris <span className="ml-2 text-[10px] normal-case font-medium opacity-70">(utilisés en priorité à la génération)</span></h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        {favorites.tracks.map((track, idx) => (
-                          <div key={track.youtubeId || idx} className={`flex items-center gap-2 p-2.5 rounded-xl border ${cardBorder} ${inputBg}`}>
-                            <button
-                              onClick={() => togglePreview(track)}
-                              disabled={!track.preview}
-                              title={track.preview ? "Écouter un extrait" : "Extrait non disponible"}
-                              className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
-                            >
-                              {playingPreviewId === track.youtubeId ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5"/>}
-                            </button>
-                            <div className="flex-1 min-w-0">
-                              <div className={`font-bold text-sm truncate ${textHighlight}`}>{track.title}</div>
-                              <div className={`text-xs truncate ${textMuted}`}>{track.artist}</div>
-                            </div>
-                            {track.bpm ? <span className={`font-mono text-xs font-bold shrink-0 ${textColorClass}`}>{track.bpm} BPM</span> : null}
-                            <button onClick={() => setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.youtubeId !== track.youtubeId) }))} className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                              <X size={14}/>
-                            </button>
-                          </div>
-                        ))}
-                        <button onClick={() => { setCurrentPlaylist(null); setIsBpmSearchMode(false); setIsSearchModalOpen(true); }} className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 border-dashed ${inputBorder} ${textMuted} hover:${textHighlight} hover:border-gray-400 transition-colors font-bold text-sm`}>
-                          <Plus size={16}/> Ajouter un titre
-                        </button>
                       </div>
                     </div>
                   </div>
