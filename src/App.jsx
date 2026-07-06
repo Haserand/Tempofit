@@ -745,6 +745,7 @@ export default function App() {
   const [favBpmTolerance, setFavBpmTolerance] = useState(10);
   const [favSelectedGenres, setFavSelectedGenres] = useState(['Métal']);
   const [newFavArtist, setNewFavArtist] = useState("");
+  const [isAddingArtist, setIsAddingArtist] = useState(false);
   const [newFavTrack, setNewFavTrack] = useState("");
 
   // Routines sauvegardées : configurations de génération réutilisables en 1 clic.
@@ -2302,8 +2303,8 @@ export default function App() {
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
                     <h3 className={`font-bold text-xl ${textHighlight}`}>Tes Préférences Musicales</h3>
                     <div className="flex gap-2">
-                      <button onClick={() => { setCurrentPlaylist(null); setIsBpmSearchMode(false); setIsSearchModalOpen(true); }} className={`px-4 py-2.5 ${cardBg} border-2 ${borderAccentClass} rounded-xl text-sm font-bold ${textColorClass} hover:${bgAccentClass} hover:text-white transition-colors flex items-center gap-2 shadow-sm`}>
-                        <Search size={16}/> Chercher via l'API
+                      <button onClick={() => { setCurrentPlaylist(null); setIsBpmSearchMode(false); setIsSearchModalOpen(true); }} className={`px-4 py-2.5 ${inputBg} border ${inputBorder} rounded-xl text-sm font-bold ${textMuted} hover:${textHighlight} transition-colors flex items-center gap-2`}>
+                        <Search size={16}/> Rechercher un titre
                       </button>
                       {spotifyToken ? (
                         <button onClick={syncSpotifyFavorites} className="px-5 py-2.5 bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold rounded-xl shadow-md transition-all flex items-center space-x-2 text-sm hover:scale-105 active:scale-95">
@@ -2319,7 +2320,7 @@ export default function App() {
                   <div className="space-y-8">
                     <div>
                       <h4 className={`text-sm font-bold uppercase tracking-wider ${textMuted} mb-4 flex items-center`}><User size={16} className="mr-2"/> Top Artistes</h4>
-                      <div className="flex flex-wrap gap-2.5 mb-3">
+                      <div className="flex flex-wrap gap-2.5 items-center">
                         {favorites.artists.map((artist, idx) => (
                           <span key={idx} className={`px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold ${textHighlight} shadow-sm flex items-center gap-2`}>
                             {artist}
@@ -2328,21 +2329,33 @@ export default function App() {
                             </button>
                           </span>
                         ))}
-                        {favorites.artists.length === 0 && <span className={textMuted}>Aucun artiste en favoris...</span>}
-                      </div>
-                      {/* Ajout manuel : jusqu'ici un artiste ne pouvait être ajouté qu'indirectement
-                          (en ajoutant un de ses titres via la recherche). On peut désormais aussi
-                          taper un nom directement, sans passer par une recherche de titre. */}
-                      <div className="flex gap-2">
-                        <input
-                          type="text" value={newFavArtist} onChange={e => setNewFavArtist(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter' && newFavArtist.trim()) { setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, newFavArtist.trim()])) })); setNewFavArtist(""); } }}
-                          placeholder="Ajouter un artiste par son nom..."
-                          className={`flex-1 rounded-xl px-3 py-2 text-sm font-medium outline-none border ${inputBg} ${inputBorder} ${textHighlight}`}
-                        />
-                        <button onClick={() => { if (newFavArtist.trim()) { setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, newFavArtist.trim()])) })); setNewFavArtist(""); } }} className={`px-4 rounded-xl text-white font-bold ${bgAccentClass} hover:brightness-110 transition-colors`}>
-                          <Plus size={16}/>
-                        </button>
+                        {/* Ajout manuel repensé : une bulle "+" directement dans la liste des badges
+                            (plutôt qu'un champ séparé en dessous) — plus instinctif, cohérent avec
+                            le geste "ajouter un tag". Clic → révèle un petit champ de saisie inline. */}
+                        {isAddingArtist ? (
+                          <div className="flex items-center gap-1 bg-white border border-gray-300 rounded-xl pl-3 pr-1 py-1 shadow-sm">
+                            <input
+                              type="text" autoFocus value={newFavArtist} onChange={e => setNewFavArtist(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && newFavArtist.trim()) {
+                                  setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, newFavArtist.trim()])) }));
+                                  setNewFavArtist(""); setIsAddingArtist(false);
+                                }
+                                if (e.key === 'Escape') { setNewFavArtist(""); setIsAddingArtist(false); }
+                              }}
+                              onBlur={() => { if (!newFavArtist.trim()) setIsAddingArtist(false); }}
+                              placeholder="Nom de l'artiste..."
+                              className="text-sm font-bold text-gray-900 outline-none bg-transparent w-36"
+                            />
+                            <button onClick={() => { if (newFavArtist.trim()) { setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, newFavArtist.trim()])) })); setNewFavArtist(""); setIsAddingArtist(false); } }} className={`w-7 h-7 rounded-full flex items-center justify-center text-white shrink-0 ${bgAccentClass}`}>
+                              <Plus size={14}/>
+                            </button>
+                          </div>
+                        ) : (
+                          <button onClick={() => setIsAddingArtist(true)} title="Ajouter un artiste" className="w-10 h-10 rounded-full bg-white border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:border-gray-400 transition-colors shadow-sm">
+                            <Plus size={18}/>
+                          </button>
+                        )}
                       </div>
                     </div>
 
