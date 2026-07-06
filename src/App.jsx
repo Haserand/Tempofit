@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Dumbbell, Bike, Footprints, Flame, Heart, MoreHorizontal, SlidersHorizontal, ListPlus, ArrowDownRight, Loader2, Lock, Unlock, Disc, User, Star, ExternalLink, AlertCircle, Link as LinkIcon, Music2, Headphones, Radio, Zap, BookmarkPlus, ArrowDownToLine, Menu, RefreshCw, Globe, Moon, Sun, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, MessageCircle, Copy, CheckCircle, Circle, Layers, Trophy, Medal, Award, MapPin, Upload, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Target, History } from 'lucide-react';
+import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Dumbbell, Bike, Footprints, Flame, Heart, MoreHorizontal, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Target, History } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 
 // =====================================================================================
@@ -771,9 +771,6 @@ export default function App() {
   const [isNaughtyMode, setIsNaughtyMode] = useState(false);
   const [toast, setToast] = useState(null);
 
-  const [accounts, setAccounts] = useState({ spotify: false, apple: false, deezer: false, youtube: false, amazon: false });
-  const hasPremiumAccess = Object.values(accounts).some(Boolean);
-
   // Pool de morceaux Spotify de l'utilisateur, déjà résolus en BPM (voir syncSpotifyFavorites).
   const [spotifyTrackPool, setSpotifyTrackPool] = useState([]);
   // favorites.tracks contient des objets complets (bpm, extrait audio...), pas de
@@ -837,8 +834,6 @@ export default function App() {
     })();
   };
 
-  const [newFavTrack, setNewFavTrack] = useState("");
-
   // Routines sauvegardées : configurations de génération réutilisables en 1 clic.
   const [routines, setRoutines] = useState([{
     id: 'routine-1', name: '🏃‍♂️ Mon 5km Quotidien', workoutType: 'Course à pied', customActivity: '',
@@ -893,7 +888,6 @@ export default function App() {
   const [currentPlaylist, setCurrentPlaylist] = useState(null);
   const [savedPlaylists, setSavedPlaylists] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [playlistName, setPlaylistName] = useState("");
 
   const [shareData, setShareData] = useState(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -1197,16 +1191,6 @@ export default function App() {
     }
   };
 
-  // Calcule la durée totale visée (en secondes) selon le mode choisi :
-  // en mode distance, on déduit le temps à partir de l'allure (min:sec par km/mile).
-  const getCalculatedTotalSeconds = () => {
-    if (targetMode === 'distance') {
-      const paceInSeconds = (parseInt(paceMin) || 0) * 60 + (parseInt(paceSec) || 0);
-      return (parseFloat(distanceVal) || 0) * paceInSeconds;
-    }
-    return (parseInt(hours) || 0) * 3600 + (parseInt(minutes) || 0) * 60;
-  };
-
   // Sauvegarde la configuration actuelle du wizard comme routine réutilisable.
   const handleSaveRoutine = () => {
     const finalName = newRoutineName.trim() || `Routine ${workoutType === 'Autre' ? customActivity || 'Personnalisée' : workoutType}`;
@@ -1418,7 +1402,6 @@ export default function App() {
     setIsGenerating(false);
 
     if (count === 1) {
-      setPlaylistName(generatedPlaylists[0].name);
       setCurrentPlaylist(generatedPlaylists[0]);
       changeView('playlist');
     } else {
@@ -3109,6 +3092,30 @@ export default function App() {
                   Toujours pour cette routine
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modale de partage — BUG CORRIGÉ : handleShare() préparait shareData et ouvrait
+            isShareModalOpen, mais aucune fenêtre ne s'affichait nulle part avant ça (le
+            bouton "Partager" ne faisait donc rien de visible). copyToClipboard existait
+            déjà et n'attendait que son interface. */}
+        {isShareModalOpen && shareData && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsShareModalOpen(false)}>
+            <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
+                  <Share2 className={textColorClass}/>
+                  <span>Partager</span>
+                </h3>
+                <button onClick={() => setIsShareModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><X size={20}/></button>
+              </div>
+              <div className={`p-4 rounded-xl mb-6 text-sm ${inputBg} border ${inputBorder} ${textHighlight}`}>
+                {shareData.text}
+              </div>
+              <button onClick={copyToClipboard} className={`w-full py-4 text-white font-bold rounded-xl shadow-md hover:brightness-110 transition-all flex items-center justify-center gap-2 ${bgAccentClass}`}>
+                <Copy size={18}/> Copier le lien
+              </button>
             </div>
           </div>
         )}
