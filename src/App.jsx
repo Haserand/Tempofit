@@ -779,7 +779,20 @@ export default function App() {
   // favorites.tracks contient des objets complets (bpm, extrait audio...), pas de
   // simples chaînes — nécessaire pour que getSingleMatchingTrack puisse s'en servir
   // en priorité, et pour permettre l'écoute d'extrait dans la vue Favoris.
-  const [favorites, setFavorites] = useState({ useFavorites: true, artists: ['Metallica', 'System Of A Down'], tracks: [] });
+  // Titres et artistes de démonstration pré-remplis pour inciter l'utilisateur à
+  // manipuler ces options dès le premier lancement (les découvrir passivement,
+  // sans avoir à d'abord chercher/ajouter quoi que ce soit soi-même). Les deux
+  // titres viennent de la base locale (mêmes youtubeId que DATABASE_MUSIQUES) donc
+  // leur BPM est fiable, mais ils n'ont pas d'extrait audio par défaut (bouton
+  // grisé) — pas d'appel réseau Deezer nécessaire juste pour peupler l'exemple.
+  const [favorites, setFavorites] = useState({
+    useFavorites: true,
+    artists: ['Metallica', 'System Of A Down'],
+    tracks: [
+      { youtubeId: 'uRyAIyq53FY', title: 'Master of Puppets', artist: 'Metallica', bpm: 212, duration: 515, isEmbeddable: false, preview: null, genre: 'Métal' },
+      { youtubeId: 'CSvFpBOe8eY', title: 'Chop Suey!', artist: 'System Of A Down', bpm: 128, duration: 210, isEmbeddable: false, preview: null, genre: 'Métal' }
+    ]
+  });
   // Réglages du sélecteur BPM/genre propre à la page Cœur & Favoris (indépendant
   // de ceux du wizard de génération, qui a son propre contexte bpm/selectedGenres).
   const [favBpmTarget, setFavBpmTarget] = useState(140);
@@ -2374,11 +2387,16 @@ export default function App() {
                   <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}>
                     <Star className="text-yellow-500 fill-yellow-500/20" size={36} /> <span>Cœur & Favoris</span>
                   </h1>
-                  <p className={`mt-2 ${textMuted}`}>L'algorithme se basera sur tes artistes et titres préférés pour générer tes sessions.</p>
+                  {/* Explication du principe de priorisation, en langage simple — pas de
+                      détail technique (pas de mention d'API/Deezer), juste l'ordre qui compte
+                      pour l'utilisateur. Placée ici (en-tête de page) plutôt que dans la carte
+                      "Tes Préférences Musicales" car elle concerne toute la page, pas
+                      seulement cette carte. Remplace l'ancien sous-titre générique. */}
+                  <p className={`mt-2 ${textMuted}`}>Priorité à la génération : tes titres favoris d'abord, puis tes artistes favoris, puis une recherche plus large si besoin pour compléter la playlist.</p>
                 </div>
 
                 <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
                     <h3 className={`font-bold text-xl ${textHighlight}`}>Tes Préférences Musicales</h3>
                     {spotifyToken ? (
                       <button onClick={syncSpotifyFavorites} className="px-5 py-2.5 bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold rounded-xl shadow-md transition-all flex items-center space-x-2 text-sm hover:scale-105 active:scale-95">
@@ -2390,11 +2408,6 @@ export default function App() {
                       </button>
                     )}
                   </div>
-                  {/* Explication discrète du principe de priorisation, en langage simple —
-                      pas de détail technique (pas de mention d'API/Deezer ici), juste l'ordre
-                      qui compte pour l'utilisateur : pourquoi ajouter un titre a plus de poids
-                      qu'ajouter un artiste. */}
-                  <p className={`text-xs mb-6 ${textMuted}`}>Priorité à la génération : tes titres favoris d'abord, puis tes artistes favoris, puis une recherche plus large si besoin pour compléter la playlist.</p>
                   <div className="space-y-8">
                     {/* LIGNE 1 : Titres uniquement — en premier car c'est le niveau le plus
                         précis de la cascade de génération (priorité 1). La tuile "+" remplace
@@ -2407,7 +2420,7 @@ export default function App() {
                             <button
                               onClick={() => togglePreview(track)}
                               disabled={!track.preview}
-                              title={track.preview ? "Écouter un extrait" : "Extrait non disponible"}
+                              title={track.preview ? "Écouter un extrait" : "Extrait non disponible (titre de base — les titres ajoutés via la recherche ont un extrait)"}
                               className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
                             >
                               {playingPreviewId === track.youtubeId ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5"/>}
@@ -2696,7 +2709,7 @@ export default function App() {
                         <button
                           onClick={() => togglePreview(track)}
                           disabled={!track.preview}
-                          title={track.preview ? "Écouter un extrait" : "Extrait non disponible"}
+                          title={track.preview ? "Écouter un extrait" : "Extrait non disponible (titre de base — les titres ajoutés via la recherche ont un extrait)"}
                           className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors mr-2 ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
                         >
                           {playingPreviewId === track.youtubeId ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5"/>}
@@ -2795,7 +2808,7 @@ export default function App() {
                         <button
                           onClick={() => togglePreview(track)}
                           disabled={!track.preview}
-                          title={track.preview ? "Écouter un extrait" : "Extrait non disponible"}
+                          title={track.preview ? "Écouter un extrait" : "Extrait non disponible (titre de base — les titres ajoutés via la recherche ont un extrait)"}
                           className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
                         >
                           {playingPreviewId === track.youtubeId ? <Pause size={16} fill="currentColor"/> : <Play size={16} fill="currentColor" className="ml-0.5"/>}
