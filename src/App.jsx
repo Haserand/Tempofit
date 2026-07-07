@@ -163,7 +163,7 @@ const TRANSLATIONS = {
   fr: {
     creation: "Création", library: "Bibliothèque", config: "Configuration",
     generateMenu: "Générer", routinesMenu: "Mes Routines", playlistsMenu: "Historique & Playlists",
-    favoritesMenu: "Cœur & Favoris", trophiesMenu: "Mes Trophées", settingsMenu: "Options & Comptes",
+    favoritesMenu: "Mes Favoris", trophiesMenu: "Mes Trophées", settingsMenu: "Options & Comptes",
     prepareMoment: "Prépare l'ambiance...", buildSession: "Sculpte ta séance",
     subtitleGen: "Laisse l'algorithme générer la bande-son ultime pour pulvériser tes objectifs.",
     tooltipMemorize: "Sauvegarde ces réglages pour relancer cette session en un claquement de doigts la prochaine fois."
@@ -1911,7 +1911,7 @@ export default function App() {
 
             <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors ${view === 'favorites' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
               <Star size={18} className={favorites.useFavorites && favorites.artists.length > 0 ? "text-yellow-500 fill-yellow-500/20" : ""} />
-              <span className="font-bold text-sm">Cœur & Favoris</span>
+              <span className="font-bold text-sm">Mes Favoris</span>
             </button>
 
             <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors ${view === 'settings' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
@@ -2390,7 +2390,7 @@ export default function App() {
             {view === 'playlists' && (
               <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
                 <div className={`border-b ${cardBorder} pb-6`}>
-                  <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}><List className={textColorClass} size={36} /> <span>Historique & Playlists</span></h1>
+                  <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}><List className={textColorClass} size={36} /> <span>Mes Playlists</span></h1>
                   <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Retrouve tes sessions sauvegardées. N'oublie pas de les marquer comme terminées !</p>
                 </div>
 
@@ -2457,7 +2457,7 @@ export default function App() {
                   {savedPlaylists.length === 0 && (
                     <div className={`col-span-full py-16 text-center border-2 border-dashed ${cardBorder} rounded-2xl`}>
                       <List size={48} className={`mx-auto mb-4 text-gray-300 dark:text-gray-700`} />
-                      <h3 className={`text-lg font-bold mb-2 ${textHighlight}`}>Aucune playlist dans l'historique</h3>
+                      <h3 className={`text-lg font-bold mb-2 ${textHighlight}`}>Aucune playlist sauvegardée</h3>
                       <p className={`text-sm mb-6 max-w-sm mx-auto ${textMuted}`}>Génère une playlist et sauvegarde-la pour la retrouver ici.</p>
                       <button onClick={() => changeView('generator')} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
                         Générer ma première playlist
@@ -2545,7 +2545,7 @@ export default function App() {
                 </div>
 
                 <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
-                  <h3 className={`font-bold text-xl mb-6 ${textHighlight}`}>Connexion API</h3>
+                  <h3 className={`font-bold text-xl mb-6 ${textHighlight}`}>Comptes connectés</h3>
 
                   <div className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${spotifyToken ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : inputBorder + ' ' + inputBg}`}>
                     <div className="flex items-center space-x-4">
@@ -2571,7 +2571,7 @@ export default function App() {
 
                   <div className="h-4"></div>
                   <div className="p-4 rounded-2xl border border-green-500 bg-green-50 dark:bg-green-900/10 text-sm font-bold text-green-600 dark:text-green-400 flex items-center gap-2">
-                    <Globe size={18}/> <span>API Mondiale GetSongBPM : Clé active et connectée</span>
+                    <Globe size={18}/> <span>Base musicale mondiale : connectée</span>
                   </div>
                 </div>
               </div>
@@ -2587,7 +2587,7 @@ export default function App() {
               <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
                 <div className={`border-b ${cardBorder} pb-6`}>
                   <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}>
-                    <Star className="text-yellow-500 fill-yellow-500/20" size={36} /> <span>Cœur & Favoris</span>
+                    <Star className="text-yellow-500 fill-yellow-500/20" size={36} /> <span>Mes Favoris</span>
                   </h1>
                   {/* Explication du principe de priorisation, en langage simple — pas de
                       détail technique (pas de mention d'API/Deezer), juste l'ordre qui compte
@@ -2604,7 +2604,7 @@ export default function App() {
                         comptes connectés (Spotify, et bientôt d'autres plateformes) est
                         centralisée dans "Options & Comptes", pour ne pas avoir à empiler un
                         bouton par plateforme sur cette page à mesure que d'autres s'ajoutent. */}
-                    <button onClick={() => changeView('settings')} className={`px-5 py-2.5 ${cardBg} border-2 ${borderAccentClass} rounded-xl text-sm font-bold ${textColorClass} hover:${bgAccentClass} hover:text-white transition-colors shadow-sm flex items-center gap-2`}>
+                    <button onClick={() => changeView('settings')} className={`px-5 py-2.5 ${cardBg} border-2 ${borderAccentClass} rounded-xl text-sm font-bold ${textColorClass} transition-colors shadow-sm flex items-center gap-2 ${isNaughtyMode ? 'hover:bg-rose-500 dark:hover:bg-rose-600' : 'hover:bg-red-500 dark:hover:bg-red-600'} hover:text-white`}>
                       <RefreshCw size={18} /> <span>Synchroniser mes comptes</span>
                     </button>
                   </div>
@@ -2802,7 +2802,7 @@ export default function App() {
                         </button>
                       ) : (
                         <div className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800">
-                          <CheckCircle size={16} /> <span>Sauvegardée dans l'historique</span>
+                          <CheckCircle size={16} /> <span>Sauvegardée dans tes playlists</span>
                         </div>
                       )}
                       <button onClick={() => handleShare('playlist', currentPlaylist)} className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40">
