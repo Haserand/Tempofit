@@ -473,30 +473,20 @@ const parseTimeToSeconds = (timeStr) => {
 // Tooltip personnalisé affiché au survol d'un point du graphique BPM.
 // Affiche le nom du morceau (si dispo), le temps écoulé, et selon les données
 // disponibles le BPM cible (musique) et/ou le BPM réel (import Garmin/Strava).
-const CustomChartTooltip = ({ active, payload, isNaughtyMode, currentUnit, onTogglePreview, playingPreviewId, accentBg }) => {
+const CustomChartTooltip = ({ active, payload, isNaughtyMode, currentUnit }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
       <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl min-w-[200px]">
-        {data.trackName && (
-          <div className="flex items-center gap-2 mb-1">
-            {/* Bouton d'écoute d'extrait directement dans le tooltip, au survol du point.
-                Désactivé si ce titre n'a pas d'extrait disponible (base locale/GetSongBPM). */}
-            <button
-              onClick={() => onTogglePreview && onTogglePreview({ youtubeId: data.trackYoutubeId, preview: data.trackPreview })}
-              disabled={!data.trackPreview}
-              title={data.trackPreview ? "Écouter un extrait" : "Extrait non disponible (titre de base — les titres ajoutés via la recherche ont un extrait)"}
-              className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-colors ${data.trackPreview ? `${accentBg} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
-            >
-              {playingPreviewId === data.trackYoutubeId ? <Pause size={12} fill="currentColor"/> : <Play size={12} fill="currentColor" className="ml-0.5"/>}
-            </button>
-            <p className="font-black text-sm text-gray-900 dark:text-white truncate">{data.trackName}</p>
-          </div>
-        )}
+        {data.trackName && <p className="font-black text-sm text-gray-900 dark:text-white mb-1 truncate">{data.trackName}</p>}
         {/* Deux informations distinctes, clairement étiquetées pour ne plus les confondre :
             "Début" = position de ce titre dans la séance ; "Durée" = longueur du titre
             lui-même. Avant, une seule des deux s'affichait selon l'endroit (tooltip vs
-            liste), sans jamais préciser laquelle — source de confusion signalée. */}
+            liste), sans jamais préciser laquelle — source de confusion signalée. Le
+            bouton d'écoute a été retiré d'ici (déplacé dans un encart fixe sous le
+            titre du graphique) : dans cette bulle flottante qui suit la souris, il
+            devenait impossible à cliquer de façon fiable (la bulle se repositionnait
+            en tentant de l'atteindre). */}
         <p className="text-xs text-gray-500 font-medium mb-1 flex items-center space-x-1">
           <Clock size={12}/> <span>{data.trackName ? 'Début' : 'Temps'} : {formatDuration(data.time)}</span>
         </p>
@@ -2961,6 +2951,39 @@ export default function App() {
                     </div>
                   </div>
 
+                  {/* Encart fixe pour le segment survolé — remplace la bulle flottante de
+                      Recharts qui suivait la souris et se repositionnait de façon instable
+                      (elle pouvait "sauter" en tentant de cliquer sur le bouton lecture).
+                      Ici, la position ne bouge JAMAIS : seul le contenu change selon le
+                      segment survolé (piloté par hoveredSegmentIdx, déjà calculé). */}
+                  <div className={`mb-4 p-4 rounded-2xl border ${cardBorder} ${inputBg} flex items-center gap-4 min-h-[76px]`}>
+                    {hoveredSegmentIdx !== null && trackSegments[hoveredSegmentIdx] ? (
+                      <>
+                        <button
+                          onClick={() => togglePreview(trackSegments[hoveredSegmentIdx].track)}
+                          disabled={!trackSegments[hoveredSegmentIdx].track.preview}
+                          title={trackSegments[hoveredSegmentIdx].track.preview ? "Écouter un extrait" : "Extrait non disponible (titre de base — les titres ajoutés via la recherche ont un extrait)"}
+                          className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-colors ${trackSegments[hoveredSegmentIdx].track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
+                        >
+                          {playingPreviewId === trackSegments[hoveredSegmentIdx].track.youtubeId ? <Pause size={18} fill="currentColor"/> : <Play size={18} fill="currentColor" className="ml-0.5"/>}
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <div className={`font-bold text-sm truncate ${textHighlight}`}>{trackSegments[hoveredSegmentIdx].track.title}</div>
+                          <div className={`text-xs truncate ${textMuted}`}>{trackSegments[hoveredSegmentIdx].track.artist}</div>
+                        </div>
+                        <div className={`text-xs font-mono ${textMuted} shrink-0`}>
+                          Début : {formatDuration(trackSegments[hoveredSegmentIdx].startTime)}<br/>
+                          Durée : {formatDuration(trackSegments[hoveredSegmentIdx].track.duration)}
+                        </div>
+                        <div className={`px-3 py-2 rounded-lg text-sm font-bold font-mono text-white shrink-0 ${isNaughtyMode ? 'bg-rose-500' : 'bg-gray-800 dark:bg-gray-700'}`}>
+                          🎯 {trackSegments[hoveredSegmentIdx].track.bpm} BPM
+                        </div>
+                      </>
+                    ) : (
+                      <span className={`text-sm ${textMuted}`}>Survole un segment du graphique pour voir le détail du titre et l'écouter.</span>
+                    )}
+                  </div>
+
                   <div className="h-72 w-full">
                     {currentPlaylist.tracks.length === 0 ? (
                       <div className={`h-full flex items-center justify-center text-center px-6 ${textMuted}`}>
@@ -3010,14 +3033,7 @@ export default function App() {
                         <YAxis domain={chartYDomain} stroke={theme === 'dark' ? '#9ca3af' : '#6b7280'} tick={{fontSize: 12}} width={40} />
                         
                         <RechartsTooltip
-                          content={(props) => <CustomChartTooltip {...props} isNaughtyMode={isNaughtyMode} currentUnit={currentPlaylist.distanceUnit} onTogglePreview={togglePreview} playingPreviewId={playingPreviewId} accentBg={bgAccentClass} />}
-                          // BUG CORRIGÉ : par défaut, Recharts met pointer-events:none sur
-                          // l'infobulle pour ne pas interrompre le survol du graphique — ce qui
-                          // empêche aussi TOUT clic sur un bouton à l'intérieur (le clic traverse
-                          // l'infobulle sans jamais l'atteindre). "auto" ici rend l'infobulle
-                          // cliquable. isAnimationActive=false évite un léger décalage/tremblement
-                          // pendant que la souris se déplace vers le bouton.
-                          wrapperStyle={{ pointerEvents: 'auto' }}
+                          content={(props) => <CustomChartTooltip {...props} isNaughtyMode={isNaughtyMode} currentUnit={currentPlaylist.distanceUnit} />}
                           isAnimationActive={false}
                         />
                         <Legend wrapperStyle={{fontSize: '12px', paddingTop: '15px'}}/>
