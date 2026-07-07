@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Dumbbell, Bike, Footprints, Flame, Heart, MoreHorizontal, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Target, History } from 'lucide-react';
+import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Dumbbell, Bike, Footprints, Flame, Heart, MoreHorizontal, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Target, History, Wind } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 
 // =====================================================================================
@@ -96,13 +96,28 @@ const WORKOUT_TYPES = [
 // Libellés affichés à la place des noms d'activité classiques quand le mode Intime
 // est actif — purement cosmétique : la valeur `id` ci-dessus (utilisée par toute la
 // logique de génération/sauvegarde) ne change jamais, seul le texte affiché à l'écran
-// est substitué. Évite le décalage "cœur + Course à pied" repéré par l'utilisateur.
+// est substitué. Construits comme un vrai gradient d'intensité (pas juste des noms
+// rigolos indépendants) : Douceur (Cyclisme) → Passion (Course à pied) → Intensité
+// (Musculation). "Autre" reste neutre, car c'est la porte d'entrée du mode Intime
+// lui-même (via l'icône flamme), pas un échelon de cette échelle.
 const NAUGHTY_WORKOUT_LABELS = {
-  'Course à pied': 'Rythme Effréné',
-  'Musculation': 'Renforcement Intense',
-  'Cyclisme': 'Balade Sensuelle',
+  'Cyclisme': 'Douceur',
+  'Course à pied': 'Passion',
+  'Musculation': 'Intensité',
   'Autre': 'Autre'
 };
+// Icônes assorties au même gradient (vent doux → cœur → flamme), remplaçant les
+// icônes de sport classiques (vélo/course/haltère) qui n'évoquaient rien de ce thème.
+const NAUGHTY_WORKOUT_ICONS = {
+  'Cyclisme': Wind,
+  'Course à pied': Heart,
+  'Musculation': Flame,
+  'Autre': MoreHorizontal
+};
+// Ordre d'affichage spécifique au mode Intime, pour que la grille se lise de gauche
+// à droite / haut en bas comme une progression douceur → intensité. Le mode standard
+// garde l'ordre d'origine de WORKOUT_TYPES, inchangé.
+const NAUGHTY_WORKOUT_ORDER = ['Cyclisme', 'Course à pied', 'Musculation', 'Autre'];
 
 const STANDARD_GENRES = ['Métal', 'Rock', 'Electro', 'Pop', 'Autre'];
 const NAUGHTY_GENRES = ['R&B Sensuel', 'Pop', 'Autre'];
@@ -1902,7 +1917,7 @@ export default function App() {
               <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
                 <div className="text-center md:text-left space-y-2 mb-8">
                   <h1 className={`text-3xl md:text-5xl font-extrabold tracking-tight ${textHighlight}`}>{isNaughtyMode ? "Prépare l'ambiance..." : "Sculpte ta séance"}</h1>
-                  <p className={`text-lg ${textMuted}`}>{t.subtitleGen}</p>
+                  <p className="text-lg font-medium text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{t.subtitleGen}</p>
                 </div>
 
                 <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl relative overflow-hidden flex flex-col min-h-[450px]`}>
@@ -1927,8 +1942,8 @@ export default function App() {
                           <span>{isNaughtyMode ? "De quoi as-tu envie aujourd'hui ?" : "Qu'est-ce qu'on fait aujourd'hui ?"}</span>
                         </label>
                         <div className="grid grid-cols-2 gap-4">
-                          {WORKOUT_TYPES.map(type => {
-                            const Icon = type.icon;
+                          {(isNaughtyMode ? NAUGHTY_WORKOUT_ORDER.map(id => WORKOUT_TYPES.find(t => t.id === id)) : WORKOUT_TYPES).map(type => {
+                            const Icon = isNaughtyMode ? NAUGHTY_WORKOUT_ICONS[type.id] : type.icon;
                             const isSelected = workoutType === type.id;
                             return (
                               <div key={type.id} className="relative group/btn">
