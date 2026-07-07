@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Dumbbell, Bike, Footprints, Flame, Heart, MoreHorizontal, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Target, History, Wind, MessageCircle, ExternalLink } from 'lucide-react';
+import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Dumbbell, Bike, Footprints, Flame, Heart, MoreHorizontal, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Target, History, Wind, MessageCircle, ExternalLink, GripVertical, MoreVertical } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine, ReferenceArea } from 'recharts';
 
 // =====================================================================================
@@ -1523,26 +1523,9 @@ export default function App() {
     setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
   };
 
-  /**
-   * Déplace un morceau d'une position vers le haut ou le bas dans la playlist, puis
-   * recalcule la timeline (les horodatages de démarrage dépendent de l'ordre).
-   * `direction` vaut -1 (monter) ou 1 (descendre). Ne fait rien si le morceau est
-   * déjà à l'extrémité correspondante.
-   */
-  const handleMoveTrack = (index, direction) => {
-    if (!currentPlaylist) return;
-    const targetIndex = index + direction;
-    if (targetIndex < 0 || targetIndex >= currentPlaylist.tracks.length) return;
-
-    const newTracks = [...currentPlaylist.tracks];
-    [newTracks[index], newTracks[targetIndex]] = [newTracks[targetIndex], newTracks[index]];
-
-    let updatedPlaylist = { ...currentPlaylist, tracks: newTracks };
-    updatedPlaylist = recalculateTimeline(updatedPlaylist);
-
-    setCurrentPlaylist(updatedPlaylist);
-    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
-  };
+  // handleMoveTrack (flèches ↑/↓) supprimée : remplacée par le glisser-déposer
+  // ci-dessous (handleTrackDragStart/handleTrackDragEnter/handleTrackDragEnd),
+  // plus naturel et qui libère de la place sur la ligne de titre.
 
   /**
    * Duplique un titre de la playlist (le remet juste après lui-même) — permet de
@@ -1601,6 +1584,93 @@ export default function App() {
     setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
     showToast("🎵 Titre remplacé et durée ajustée !");
   };
+
+  /**
+   * Variante de handleReplaceTrack qui privilégie un autre titre du MÊME artiste
+   * (recherche Deezer combinée artist:/bpm_min/bpm_max), plutôt que la recherche
+   * large habituelle. Si aucun autre titre de cet artiste ne correspond au BPM
+   * demandé, on retombe sur la recherche large classique pour ne jamais bloquer.
+   */
+  const handleReplaceTrackSameArtist = async (indexToReplace) => {
+    if (!currentPlaylist) return;
+    const oldTrack = currentPlaylist.tracks[indexToReplace];
+    const usedIds = currentPlaylist.tracks.map(t => t.youtubeId);
+    const minBpm = oldTrack.targetSegmentBpm - (currentPlaylist.tolerance || 10);
+    const maxBpm = oldTrack.targetSegmentBpm + (currentPlaylist.tolerance || 10);
+
+    let newRawTrack = null;
+    try {
+      const q = `artist:"${oldTrack.artist}" bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"`;
+      const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=8`);
+      const stubs = (data && Array.isArray(data.data) ? data.data : []).filter(s => !usedIds.includes(`deezer-${s.id}`));
+      if (stubs.length > 0) {
+        const details = await Promise.all(stubs.map(async (s) => {
+          const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
+          return full;
+        }));
+        const valid = details.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm);
+        if (valid.length > 0) {
+          const pick = valid[Math.floor(Math.random() * valid.length)];
+          newRawTrack = {
+            title: pick.title, artist: pick.artist ? pick.artist.name : oldTrack.artist,
+            genre: oldTrack.genre, bpm: Math.round(parseFloat(pick.bpm)), duration: pick.duration || 180,
+            youtubeId: `deezer-${pick.id}`, preview: pick.preview || null
+          };
+        }
+      }
+    } catch (e) {
+      // Échec silencieux : on retombe sur la recherche large ci-dessous.
+    }
+
+    // Repli sur la recherche large habituelle si aucun autre titre de cet artiste n'a été trouvé.
+    if (!newRawTrack) {
+      newRawTrack = await getSingleMatchingTrack(oldTrack.targetSegmentBpm, currentPlaylist.tolerance || 10, currentPlaylist.config?.selectedGenres || ['Métal'], usedIds, favorites, spotifyTrackPool);
+      showToast(`Aucun autre titre de ${oldTrack.artist} à ce BPM — recherche élargie utilisée.`);
+    } else {
+      let stats = { ...userStats, replacedTracks: userStats.replacedTracks + 1 };
+      checkTrophies(stats);
+      showToast(`🎵 Remplacé par un autre titre de ${newRawTrack.artist} !`);
+    }
+
+    const newTracks = [...currentPlaylist.tracks];
+    newTracks[indexToReplace] = {
+      ...newTracks[indexToReplace], title: newRawTrack.title, artist: newRawTrack.artist,
+      genre: newRawTrack.genre, bpm: newRawTrack.bpm, duration: newRawTrack.duration,
+      youtubeId: newRawTrack.youtubeId, id: `track-replaced-${Date.now()}`,
+      preview: newRawTrack.preview || null
+    };
+
+    let updatedPlaylist = { ...currentPlaylist, tracks: newTracks };
+    updatedPlaylist = recalculateTimeline(updatedPlaylist);
+
+    setCurrentPlaylist(updatedPlaylist);
+    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
+  };
+
+  // --- Glisser-déposer pour réordonner les titres — remplace les flèches ↑/↓,
+  // plus naturel et ça libère de la place sur une ligne déjà chargée d'actions.
+  const [draggedTrackIndex, setDraggedTrackIndex] = useState(null);
+  const handleTrackDragStart = (index) => (e) => {
+    setDraggedTrackIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+  const handleTrackDragEnter = (index) => (e) => {
+    e.preventDefault();
+    if (draggedTrackIndex === null || draggedTrackIndex === index || !currentPlaylist) return;
+    const newTracks = [...currentPlaylist.tracks];
+    const [moved] = newTracks.splice(draggedTrackIndex, 1);
+    newTracks.splice(index, 0, moved);
+    let updatedPlaylist = { ...currentPlaylist, tracks: newTracks };
+    updatedPlaylist = recalculateTimeline(updatedPlaylist);
+    setCurrentPlaylist(updatedPlaylist);
+    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
+    setDraggedTrackIndex(index);
+  };
+  const handleTrackDragEnd = () => setDraggedTrackIndex(null);
+
+  // Menu d'options par titre (Dupliquer / Remplacer large / Remplacer même artiste),
+  // regroupées derrière une seule icône "⋮" plutôt que plusieurs boutons permanents.
+  const [openTrackMenuIndex, setOpenTrackMenuIndex] = useState(null);
 
   // Ajoute manuellement un morceau choisi dans la modale de recherche (locale ou API mondiale).
   const handleAddManualTrack = (rawTrack) => {
@@ -3168,8 +3238,21 @@ export default function App() {
                 <div className={"rounded-3xl border overflow-hidden shadow-md " + cardBg + " " + cardBorder}>
                   <div className="divide-y divide-gray-100 dark:divide-gray-800/50">
                     {currentPlaylist.tracks.map((track, index) => (
-                      <div key={track.id} className="flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-800/60 group">
-                        <div className={"w-8 text-center font-medium text-xs " + textMuted}>{index + 1}</div>
+                      <div
+                        key={track.id}
+                        draggable
+                        onDragStart={handleTrackDragStart(index)}
+                        onDragEnter={handleTrackDragEnter(index)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDragEnd={handleTrackDragEnd}
+                        className={`flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-800/60 group ${draggedTrackIndex === index ? 'opacity-40' : ''}`}
+                      >
+                        {/* Poignée de glisser-déposer — remplace les flèches ↑/↓, plus naturel
+                            pour réordonner et ça libère de la place sur la ligne. */}
+                        <div className={`shrink-0 cursor-grab active:cursor-grabbing px-1 ${textMuted}`} title="Glisser pour réordonner">
+                          <GripVertical size={16}/>
+                        </div>
+                        <div className={"w-6 text-center font-medium text-xs " + textMuted}>{index + 1}</div>
                         {/* Bouton lecture d'extrait : toujours affiché (pas seulement au survol),
                             désactivé si le titre n'a pas d'extrait disponible (ex. venant de la BDD
                             locale ou de GetSongBPM, qui n'en fournissent pas). */}
@@ -3181,11 +3264,11 @@ export default function App() {
                         >
                           {playingPreviewId === track.youtubeId ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5"/>}
                         </button>
-                        <div className="flex-1 px-2">
-                          <div className={"font-bold text-sm " + textHighlight}>{track.title}</div>
-                          <div className={"text-xs " + textMuted}>{track.artist}</div>
+                        <div className="flex-1 px-2 min-w-0">
+                          <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
+                          <div className={"text-xs truncate " + textMuted}>{track.artist}</div>
                         </div>
-                        <div className="w-28 text-center">
+                        <div className="w-28 text-center shrink-0">
                           <div className={"font-mono font-bold text-sm " + textColorClass}>{track.bpm} <span className={`text-[10px] font-normal ${textMuted}`}>BPM</span></div>
                           {/* Les deux informations, clairement étiquetées — avant, seule la durée
                               s'affichait ici (sans le mot "Durée"), pendant que le tooltip du
@@ -3201,23 +3284,35 @@ export default function App() {
                             Durée : {formatDuration(track.duration)}
                           </div>
                         </div>
-                        <button onClick={() => handleDuplicateTrack(index)} className={"p-2 hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-900/20 dark:hover:text-green-400 rounded-lg transition-colors " + textMuted} title="Dupliquer ce titre (l'ajouter une fois de plus juste après)">
-                          <Plus size={16}/>
-                        </button>
-                        <div className="flex justify-end gap-1 opacity-50 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => handleMoveTrack(index, -1)} disabled={index === 0} className={"p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed " + textMuted} title="Monter">
-                            <ChevronUp size={16}/>
+
+                        {/* Menu d'options unique (Dupliquer / Remplacer large / Remplacer même
+                            artiste) — regroupe ce qui prenait avant 3 icônes permanentes. */}
+                        <div className="relative shrink-0">
+                          <button onClick={() => setOpenTrackMenuIndex(openTrackMenuIndex === index ? null : index)} className={"p-2 rounded-lg transition-colors " + textMuted + " hover:" + textHighlight} title="Plus d'options">
+                            <MoreVertical size={16}/>
                           </button>
-                          <button onClick={() => handleMoveTrack(index, 1)} disabled={index === currentPlaylist.tracks.length - 1} className={"p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed " + textMuted} title="Descendre">
-                            <ChevronDown size={16}/>
-                          </button>
-                          <button onClick={() => handleReplaceTrack(index)} className={"p-2 hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 rounded-lg transition-colors " + textMuted} title="Remplacer par un autre titre similaire">
-                            <RefreshCw size={16}/>
-                          </button>
-                          <button onClick={() => handleRemoveTrack(index)} className={"p-2 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400 rounded-lg transition-colors " + textMuted} title="Retirer de la proposition">
-                            <X size={16}/>
-                          </button>
+                          {openTrackMenuIndex === index && (
+                            <>
+                              {/* Zone invisible pour fermer le menu au clic ailleurs */}
+                              <div className="fixed inset-0 z-10" onClick={() => setOpenTrackMenuIndex(null)}></div>
+                              <div className={`absolute right-0 top-full mt-1 z-20 w-64 rounded-xl border shadow-2xl ${cardBg} ${cardBorder} overflow-hidden`}>
+                                <button onClick={() => { handleDuplicateTrack(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                                  <Plus size={16} className="text-green-500"/> Dupliquer ce titre
+                                </button>
+                                <button onClick={() => { handleReplaceTrack(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                                  <RefreshCw size={16} className="text-blue-500"/> Remplacer (recherche large)
+                                </button>
+                                <button onClick={() => { handleReplaceTrackSameArtist(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                                  <User size={16} className="text-purple-500"/> Remplacer (même artiste)
+                                </button>
+                              </div>
+                            </>
+                          )}
                         </div>
+
+                        <button onClick={() => handleRemoveTrack(index)} className={"p-2 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400 rounded-lg transition-colors shrink-0 " + textMuted} title="Retirer de la proposition">
+                          <X size={16}/>
+                        </button>
                       </div>
                     ))}
 
