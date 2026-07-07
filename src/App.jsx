@@ -119,6 +119,41 @@ const NAUGHTY_WORKOUT_ICONS = {
 // garde l'ordre d'origine de WORKOUT_TYPES, inchangé.
 const NAUGHTY_WORKOUT_ORDER = ['Cyclisme', 'Course à pied', 'Musculation', 'Autre'];
 
+// BPM proposé par défaut selon l'activité choisie à l'étape 1 — avant, choisir
+// Course à pied, Musculation ou Cyclisme n'avait strictement aucun effet sur le
+// BPM proposé ensuite (toujours la même valeur par défaut, peu importe le choix).
+// Deux jeux de valeurs : un pour le mode standard, un pour le mode Intime (dont la
+// plage de BPM utilisable est différente — 40-130 contre 80-200 en standard, voir
+// le slider de l'étape 3). "Autre" garde une valeur neutre dans les deux cas,
+// puisque l'activité réelle est alors définie librement par l'utilisateur.
+const WORKOUT_DEFAULT_BPM = {
+  standard: { 'Course à pied': 160, 'Musculation': 120, 'Cyclisme': 140, 'Autre': 140 },
+  naughty: { 'Cyclisme': 70, 'Course à pied': 95, 'Musculation': 115, 'Autre': 85 }
+};
+
+// Mode (temps/distance) et durée ou distance proposés par défaut selon l'activité
+// et le mode actif — même logique que WORKOUT_DEFAULT_BPM ci-dessus, appliquée
+// cette fois à l'étape 2/3 du wizard plutôt qu'au BPM. La distance ne fait sens
+// qu'en mode standard (le mode Intime force déjà le temps, voir toggleNaughtyMode) :
+// Course à pied et Cyclisme y sont donc en distance, avec des kilométrages réalistes
+// différents (le vélo couvre naturellement plus de distance que la course à pied
+// pour un effort comparable). En mode Intime, la durée varie avec l'intensité :
+// plus longue et détendue pour "Douceur", plus courte et intense pour "Intensité".
+const WORKOUT_DEFAULT_TARGET = {
+  standard: {
+    'Course à pied': { targetMode: 'distance', distanceVal: 5, distanceUnit: 'km' },
+    'Cyclisme':      { targetMode: 'distance', distanceVal: 20, distanceUnit: 'km' },
+    'Musculation':   { targetMode: 'time', hours: 0, minutes: 45 },
+    'Autre':         { targetMode: 'time', hours: 0, minutes: 45 }
+  },
+  naughty: {
+    'Cyclisme':      { targetMode: 'time', hours: 0, minutes: 45 },
+    'Course à pied': { targetMode: 'time', hours: 0, minutes: 30 },
+    'Musculation':   { targetMode: 'time', hours: 0, minutes: 20 },
+    'Autre':         { targetMode: 'time', hours: 0, minutes: 30 }
+  }
+};
+
 const STANDARD_GENRES = ['Métal', 'Rock', 'Electro', 'Pop', 'Autre'];
 const NAUGHTY_GENRES = ['R&B Sensuel', 'Pop', 'Autre'];
 const AVAILABLE_ICONS = ["🏃‍♂️", "🚴‍♀️", "🏋️‍♂️", "🧘‍♀️", "🔥", "⚡", "🎵", "🏆", "🎧", "🎸", "🥁", "🎹", "🍑", "🍆", "🕺"];
@@ -1148,6 +1183,11 @@ export default function App() {
 
   const availableGenres = isNaughtyMode ? NAUGHTY_GENRES : STANDARD_GENRES;
   const t = TRANSLATIONS['fr'];
+  // Sous-titre du générateur adapté au mode Intime — avant, le titre changeait déjà
+  // ("Prépare l'ambiance...") mais le sous-titre juste en dessous restait le texte
+  // générique fitness ("pulvériser tes objectifs"), ce qui jurait avec l'ambiance
+  // annoncée par le titre.
+  const displaySubtitleGen = isNaughtyMode ? "Laisse l'algorithme composer la bande-son idéale pour cette soirée." : t.subtitleGen;
 
   // En mode "Intime", pré-remplit le nom de la routine avec un nom rigolo tiré
   // au hasard de NAUGHTY_ROUTINE_NAMES, uniquement si le champ est encore vide.
@@ -1906,7 +1946,7 @@ export default function App() {
             <div className={`bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border ${cardBorder} shadow-lg px-6 py-3 rounded-full flex items-center space-x-4 pointer-events-auto`}>
               <span className={`font-bold text-sm ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
               <div className={`w-1 h-1 rounded-full ${bgAccentClass}`}></div>
-              <span className={`text-sm font-medium ${textMuted}`}>{t.subtitleGen}</span>
+              <span className={`text-sm font-medium ${textMuted}`}>{displaySubtitleGen}</span>
             </div>
           </header>
 
@@ -1917,7 +1957,7 @@ export default function App() {
               <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
                 <div className="text-center md:text-left space-y-2 mb-8">
                   <h1 className={`text-3xl md:text-5xl font-extrabold tracking-tight ${textHighlight}`}>{isNaughtyMode ? "Prépare l'ambiance..." : "Sculpte ta séance"}</h1>
-                  <p className="text-lg font-medium text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{t.subtitleGen}</p>
+                  <p className="text-lg font-medium text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{displaySubtitleGen}</p>
                 </div>
 
                 <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl relative overflow-hidden flex flex-col min-h-[450px]`}>
@@ -1950,7 +1990,24 @@ export default function App() {
                                 <button
                                   onClick={() => {
                                     if(type.id === 'Autre') handleOpenCustomActivityModal();
-                                    else { setWorkoutType(type.id); setTimeout(()=>setWizardStep(2), 200); }
+                                    else {
+                                      setWorkoutType(type.id);
+                                      const modeKey = isNaughtyMode ? 'naughty' : 'standard';
+                                      const defaultBpm = WORKOUT_DEFAULT_BPM[modeKey][type.id];
+                                      if (defaultBpm) setBpm(defaultBpm);
+                                      const defaultTarget = WORKOUT_DEFAULT_TARGET[modeKey][type.id];
+                                      if (defaultTarget) {
+                                        setTargetMode(defaultTarget.targetMode);
+                                        if (defaultTarget.targetMode === 'distance') {
+                                          setDistanceVal(defaultTarget.distanceVal);
+                                          setDistanceUnit(defaultTarget.distanceUnit);
+                                        } else {
+                                          setHours(defaultTarget.hours);
+                                          setMinutes(defaultTarget.minutes);
+                                        }
+                                      }
+                                      setTimeout(()=>setWizardStep(2), 200);
+                                    }
                                   }}
                                   className={`w-full flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all duration-300 ${isSelected ? `${isNaughtyMode ?
                                     'bg-rose-100 dark:bg-rose-900/20 border-rose-500 text-rose-500 dark:text-rose-400' : 'bg-red-50 dark:bg-red-600/10 border-red-500 text-red-600 dark:text-red-500'}` : `${bgMainApp} ${cardBorder} ${textMuted} hover:${textHighlight} hover:border-gray-300 dark:hover:border-gray-600`}`}
@@ -2026,7 +2083,7 @@ export default function App() {
                                 </label>
                                 <span className={`text-4xl font-black ${textColorClass}`}>{bpm} <span className={`text-sm font-bold ${textMuted}`}>BPM</span></span>
                               </div>
-                              <input type="range" min={isNaughtyMode ? "40" : "80"} max={isNaughtyMode ? "130" : "200"} value={bpm} onChange={(e) => setBpm(parseInt(e.target.value))} className={`w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer ${isNaughtyMode ?
+                              <input type="range" min={isNaughtyMode ? "40" : "80"} max={isNaughtyMode ? "180" : "220"} value={bpm} onChange={(e) => setBpm(parseInt(e.target.value))} className={`w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer ${isNaughtyMode ?
                                 'accent-rose-500' : 'accent-red-500'}`} />
                             </div>
 
@@ -2629,7 +2686,7 @@ export default function App() {
                         <label className={`text-sm font-bold ${textMuted}`}>Rythme cible</label>
                         <span className={`text-2xl font-black ${textColorClass}`}>{favBpmTarget} <span className={`text-xs font-bold ${textMuted}`}>BPM</span></span>
                       </div>
-                      <input type="range" min="60" max="200" value={favBpmTarget} onChange={(e) => setFavBpmTarget(parseInt(e.target.value))} className={`w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer ${isNaughtyMode ? 'accent-rose-500' : 'accent-red-500'}`} />
+                      <input type="range" min={isNaughtyMode ? "40" : "80"} max={isNaughtyMode ? "180" : "220"} value={favBpmTarget} onChange={(e) => setFavBpmTarget(parseInt(e.target.value))} className={`w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer ${isNaughtyMode ? 'accent-rose-500' : 'accent-red-500'}`} />
                     </div>
 
                     <div>
@@ -3103,7 +3160,7 @@ export default function App() {
                     <label className={`text-sm font-bold ${textMuted}`}>Rythme cible</label>
                     <span className={`text-xl font-black ${textColorClass}`}>{editingRoutine.bpm} <span className={`text-xs font-bold ${textMuted}`}>BPM</span></span>
                   </div>
-                  <input type="range" min="60" max="200" value={editingRoutine.bpm} onChange={e => setEditingRoutine({...editingRoutine, bpm: parseInt(e.target.value)})} className={`w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer ${isNaughtyMode ? 'accent-rose-500' : 'accent-red-500'}`} />
+                  <input type="range" min={isNaughtyMode ? "40" : "80"} max={isNaughtyMode ? "180" : "220"} value={editingRoutine.bpm} onChange={e => setEditingRoutine({...editingRoutine, bpm: parseInt(e.target.value)})} className={`w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer ${isNaughtyMode ? 'accent-rose-500' : 'accent-red-500'}`} />
                 </div>
 
                 <div>
