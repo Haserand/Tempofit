@@ -2991,7 +2991,12 @@ export default function App() {
                       </div>
                     ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={unifiedChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }} onMouseMove={handleChartMouseMove} onMouseLeave={() => setHoveredSegmentIdx(null)}>
+                      {/* BUG CORRIGÉ : onMouseLeave réinitialisait hoveredSegmentIdx dès que la
+                          souris quittait le graphique — y compris en remontant vers l'encart
+                          fixe au-dessus pour cliquer sur le bouton lecture, qui disparaissait
+                          donc juste avant qu'on puisse l'atteindre. Maintenant, l'info reste
+                          affichée tant qu'un AUTRE segment n'est pas survolé. */}
+                      <LineChart data={unifiedChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }} onMouseMove={handleChartMouseMove}>
                         <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#374151' : '#e5e7eb'} vertical={false} />
 
                         {/* Surbrillance de TOUT le segment survolé (pas juste son point de
