@@ -1747,6 +1747,10 @@ export default function App() {
   // ('time' vs 'startDistVal') ne matchait donc jamais, et le graphique restait vide
   // par défaut malgré le bouton "Temps (Min)" visuellement sélectionné.
   const [chartAxisType, setChartAxisType] = useState('temps');
+  // Unité d'affichage du graphique en mode Distance — purement cosmétique, ne
+  // touche jamais à l'allure/l'unité réellement utilisées pour générer la
+  // playlist (currentPlaylist.distanceUnit). null = utilise l'unité d'origine.
+  const [chartDistanceUnitOverride, setChartDistanceUnitOverride] = useState(null);
 
   /**
    * Construit le jeu de données unifié pour le graphique BPM : fusionne la
@@ -1831,9 +1835,13 @@ export default function App() {
   const [selectedSegmentIdx, setSelectedSegmentIdx] = useState(null);
   const handleChartClick = (state) => {
     if (!state || state.activeLabel === undefined || state.activeLabel === null) return;
-    const cursorVal = parseFloat(state.activeLabel);
+    // En mode Distance, activeLabel est déjà dans l'unité d'AFFICHAGE convertie
+    // (voir dataKey du XAxis) — on le reconvertit dans l'unité brute d'origine
+    // avant de le comparer aux bornes de trackSegments, qui restent toujours
+    // exprimées dans l'unité d'origine de la playlist.
+    const rawCursorVal = chartAxisType === 'distance' ? parseFloat(state.activeLabel) / distanceDisplayFactor : parseFloat(state.activeLabel);
     const key = chartAxisType === 'distance' ? 'Dist' : 'Time';
-    const idx = trackSegments.findIndex(seg => cursorVal >= seg[`start${key}`] && cursorVal < seg[`end${key}`]);
+    const idx = trackSegments.findIndex(seg => rawCursorVal >= seg[`start${key}`] && rawCursorVal < seg[`end${key}`]);
     if (idx >= 0) setSelectedSegmentIdx(idx);
   };
 
@@ -1842,12 +1850,24 @@ export default function App() {
   // la cause du bug récurrent : graphique vide malgré des données valides). Ici, le
   // calcul est fait à la main, avec parseFloat/coercion numérique défensive, donc
   // le résultat est garanti correct quel que soit le type exact des valeurs sources.
+  // Facteur de conversion appliqué uniquement à l'affichage du graphique — les
+  // valeurs startDistVal sont toujours calculées dans l'unité d'origine de la
+  // playlist (currentPlaylist.distanceUnit), ce facteur les convertit à la volée
+  // si l'utilisateur a choisi de visualiser dans l'autre unité.
+  const chartDistanceUnit = chartDistanceUnitOverride || (currentPlaylist ? currentPlaylist.distanceUnit : 'km') || 'km';
+  const distanceDisplayFactor = useMemo(() => {
+    if (!currentPlaylist || chartDistanceUnit === currentPlaylist.distanceUnit) return 1;
+    // km -> mi : ×0.621371 ; mi -> km : ×1.60934
+    return currentPlaylist.distanceUnit === 'km' ? 0.621371 : 1.60934;
+  }, [currentPlaylist, chartDistanceUnit]);
+
   const chartXDomain = useMemo(() => {
     const key = chartAxisType === 'distance' ? 'startDistVal' : 'time';
-    const values = unifiedChartData.map(d => parseFloat(d[key])).filter(v => !isNaN(v));
+    const factor = chartAxisType === 'distance' ? distanceDisplayFactor : 1;
+    const values = unifiedChartData.map(d => parseFloat(d[key]) * factor).filter(v => !isNaN(v));
     if (values.length === 0) return [0, 1];
     return [0, Math.max(...values)];
-  }, [unifiedChartData, chartAxisType]);
+  }, [unifiedChartData, chartAxisType, distanceDisplayFactor]);
 
   // Graduations explicites pour l'axe X, dans les deux modes — sans ça, Recharts
   // choisit lui-même un nombre de graduations "arbitraire" selon l'espace
@@ -2953,6 +2973,15 @@ export default function App() {
                           <button onClick={() => setChartAxisType('distance')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartAxisType === 'distance' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted)}>Distance</button>
                         )}
                       </div>
+                      {/* Sélecteur km/mi : purement cosmétique, ne change jamais l'unité
+                          réellement utilisée pour générer la playlist — visible seulement
+                          quand l'axe Distance est actuellement affiché. */}
+                      {chartAxisType === 'distance' && (
+                        <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                          <button onClick={() => setChartDistanceUnitOverride('km')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartDistanceUnit === 'km' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted)}>km</button>
+                          <button onClick={() => setChartDistanceUnitOverride('mi')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartDistanceUnit === 'mi' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted)}>mi</button>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -3007,8 +3036,8 @@ export default function App() {
                             sous le curseur, déterminée via handleChartMouseMove. */}
                         {selectedSegmentIdx !== null && trackSegments[selectedSegmentIdx] && (
                           <ReferenceArea
-                            x1={chartAxisType === 'distance' ? trackSegments[selectedSegmentIdx].startDist : trackSegments[selectedSegmentIdx].startTime}
-                            x2={chartAxisType === 'distance' ? trackSegments[selectedSegmentIdx].endDist : trackSegments[selectedSegmentIdx].endTime}
+                            x1={chartAxisType === 'distance' ? trackSegments[selectedSegmentIdx].startDist * distanceDisplayFactor : trackSegments[selectedSegmentIdx].startTime}
+                            x2={chartAxisType === 'distance' ? trackSegments[selectedSegmentIdx].endDist * distanceDisplayFactor : trackSegments[selectedSegmentIdx].endTime}
                             fill={isNaughtyMode ? '#f43f5e' : '#ef4444'}
                             fillOpacity={0.12}
                             stroke="none"
@@ -3021,7 +3050,7 @@ export default function App() {
                         {trackSegments.map((seg, i) => (
                           <ReferenceLine
                             key={i}
-                            x={chartAxisType === 'distance' ? seg.startDist : seg.startTime}
+                            x={chartAxisType === 'distance' ? seg.startDist * distanceDisplayFactor : seg.startTime}
                             stroke="#3b82f6"
                             strokeOpacity={0.5}
                             strokeDasharray="2 2"
@@ -3029,13 +3058,13 @@ export default function App() {
                         ))}
 
                         <XAxis 
-                          dataKey={chartAxisType === 'distance' ? 'startDistVal' : 'time'} 
+                          dataKey={chartAxisType === 'distance' ? (d) => parseFloat(d.startDistVal) * distanceDisplayFactor : 'time'} 
                           type="number"
                           domain={chartXDomain}
                           ticks={chartXTicks}
                           stroke={theme === 'dark' ? '#9ca3af' : '#6b7280'} 
                           tick={{fontSize: 12}} 
-                          tickFormatter={chartAxisType === 'distance' ? (val) => (Number.isInteger(val) ? `${val} ${currentPlaylist.distanceUnit || 'km'}` : `${val.toFixed(2)} ${currentPlaylist.distanceUnit || 'km'}`) : formatDuration}
+                          tickFormatter={chartAxisType === 'distance' ? (val) => (Number.isInteger(val) ? `${val} ${chartDistanceUnit}` : `${val.toFixed(2)} ${chartDistanceUnit}`) : formatDuration}
                           allowDuplicatedCategory={false}
                         />
                         <YAxis domain={chartYDomain} stroke={theme === 'dark' ? '#9ca3af' : '#6b7280'} tick={{fontSize: 12}} width={40} />
