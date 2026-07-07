@@ -1540,6 +1540,26 @@ export default function App() {
     setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
   };
 
+  /**
+   * Duplique un titre de la playlist (le remet juste après lui-même) — permet de
+   * mettre plusieurs fois le même morceau sans repasser par la recherche à chaque
+   * fois. Le bouton "+" fait office d'ajout ; le "X" déjà existant sur chaque
+   * occurrence fait office de retrait, pas besoin d'un compteur séparé.
+   */
+  const handleDuplicateTrack = (index) => {
+    if (!currentPlaylist) return;
+    const newTracks = [...currentPlaylist.tracks];
+    const duplicated = { ...newTracks[index], id: `track-dup-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` };
+    newTracks.splice(index + 1, 0, duplicated);
+
+    let updatedPlaylist = { ...currentPlaylist, tracks: newTracks };
+    updatedPlaylist = recalculateTimeline(updatedPlaylist);
+
+    setCurrentPlaylist(updatedPlaylist);
+    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
+    showToast("🎵 Titre dupliqué !");
+  };
+
   // Remplace un morceau par un autre correspondant au même BPM cible (utilise
   // à nouveau la cascade Spotify → local → API mondiale → fallback le plus proche).
   const handleReplaceTrack = async (indexToReplace) => {
@@ -2964,9 +2984,18 @@ export default function App() {
                           <div className={"font-bold text-sm " + textHighlight}>{track.title}</div>
                           <div className={"text-xs " + textMuted}>{track.artist}</div>
                         </div>
-                        <div className="w-16 text-center">
-                          <div className={"font-mono font-bold text-sm " + textColorClass}>{track.bpm}</div>
+                        <div className="w-24 text-center">
+                          <div className={"font-mono font-bold text-sm " + textColorClass}>{track.bpm} <span className={`text-[10px] font-normal ${textMuted}`}>BPM</span></div>
+                          <div
+                            className={`text-[11px] font-mono ${textMuted}`}
+                            title="Durée réelle du morceau dans la séance — l'extrait écoutable reste toujours limité à 30 secondes, quelle que soit cette durée."
+                          >
+                            {formatDuration(track.duration)}
+                          </div>
                         </div>
+                        <button onClick={() => handleDuplicateTrack(index)} className={"p-2 hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-900/20 dark:hover:text-green-400 rounded-lg transition-colors " + textMuted} title="Dupliquer ce titre (l'ajouter une fois de plus juste après)">
+                          <Plus size={16}/>
+                        </button>
                         <div className="flex justify-end gap-1 opacity-50 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                           <button onClick={() => handleMoveTrack(index, -1)} disabled={index === 0} className={"p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed " + textMuted} title="Monter">
                             <ChevronUp size={16}/>
