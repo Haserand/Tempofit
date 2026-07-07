@@ -1797,12 +1797,19 @@ export default function App() {
   // Graduations explicites pour l'axe X en mode Distance — sans ça, Recharts choisit
   // lui-même un nombre de graduations "arbitraire" selon l'espace disponible, ce qui
   // pouvait sauter de "2" à "5.972727272727273" (aucun arrondi, pas d'unité, écart
-  // incohérent entre graduations). Ici : un repère tous les 1 km/mile, arrondi.
+  // incohérent entre graduations). Ici : un repère tous les 1 km/mile, arrondi, PLUS
+  // la distance finale exacte (arrondie à la dizaine de mètres, soit 0.01 km/mile)
+  // ajoutée à part — sans elle, la distance réellement parcourue en fin de séance
+  // ne correspondait à aucune graduation ronde et n'était donc jamais lisible.
   const chartXTicks = useMemo(() => {
     if (chartAxisType !== 'distance') return undefined; // laisse Recharts gérer l'axe Temps normalement
-    const maxVal = Math.ceil(chartXDomain[1]);
+    const maxVal = chartXDomain[1];
+    const roundedMax = Math.round(maxVal * 100) / 100; // arrondi à 0.01 km/mile (dizaine de mètres)
     const ticks = [];
-    for (let i = 0; i <= maxVal; i++) ticks.push(i);
+    for (let i = 0; i <= Math.floor(maxVal); i++) ticks.push(i);
+    // N'ajoute la distance finale que si elle n'est pas déjà quasiment un nombre rond
+    // (évite un doublon visuel du type "6" et "6.0" côte à côte).
+    if (Math.abs(roundedMax - Math.round(roundedMax)) > 0.02) ticks.push(roundedMax);
     return ticks;
   }, [chartAxisType, chartXDomain]);
 
@@ -2890,12 +2897,22 @@ export default function App() {
                           ticks={chartXTicks}
                           stroke={theme === 'dark' ? '#9ca3af' : '#6b7280'} 
                           tick={{fontSize: 12}} 
-                          tickFormatter={chartAxisType === 'distance' ? (val) => `${val.toFixed(1)} ${currentPlaylist.distanceUnit || 'km'}` : formatDuration}
+                          tickFormatter={chartAxisType === 'distance' ? (val) => (Number.isInteger(val) ? `${val} ${currentPlaylist.distanceUnit || 'km'}` : `${val.toFixed(2)} ${currentPlaylist.distanceUnit || 'km'}`) : formatDuration}
                           allowDuplicatedCategory={false}
                         />
                         <YAxis domain={chartYDomain} stroke={theme === 'dark' ? '#9ca3af' : '#6b7280'} tick={{fontSize: 12}} width={40} />
                         
-                        <RechartsTooltip content={(props) => <CustomChartTooltip {...props} isNaughtyMode={isNaughtyMode} currentUnit={currentPlaylist.distanceUnit} onTogglePreview={togglePreview} playingPreviewId={playingPreviewId} accentBg={bgAccentClass} />} />
+                        <RechartsTooltip
+                          content={(props) => <CustomChartTooltip {...props} isNaughtyMode={isNaughtyMode} currentUnit={currentPlaylist.distanceUnit} onTogglePreview={togglePreview} playingPreviewId={playingPreviewId} accentBg={bgAccentClass} />}
+                          // BUG CORRIGÉ : par défaut, Recharts met pointer-events:none sur
+                          // l'infobulle pour ne pas interrompre le survol du graphique — ce qui
+                          // empêche aussi TOUT clic sur un bouton à l'intérieur (le clic traverse
+                          // l'infobulle sans jamais l'atteindre). "auto" ici rend l'infobulle
+                          // cliquable. isAnimationActive=false évite un léger décalage/tremblement
+                          // pendant que la souris se déplace vers le bouton.
+                          wrapperStyle={{ pointerEvents: 'auto' }}
+                          isAnimationActive={false}
+                        />
                         <Legend wrapperStyle={{fontSize: '12px', paddingTop: '15px'}}/>
 
                         <Line 
