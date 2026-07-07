@@ -3319,7 +3319,7 @@ export default function App() {
                     {/* BOUTON AJOUT MANUEL */}
                     <div className="p-2 bg-gray-50 dark:bg-gray-900/50">
                       <button onClick={() => { setIsBpmSearchMode(false); setIsSearchModalOpen(true); }} className={"w-full py-3 flex items-center justify-center gap-2 text-sm font-bold border-2 border-dashed rounded-xl transition-colors hover:border-gray-400 " + inputBorder + " " + textMuted + " hover:" + textHighlight}>
-                        <Plus size={18} /> <span>Ajouter un titre précis</span>
+                        <Plus size={18} /> <span>Ajouter un titre</span>
                       </button>
                     </div>
                   </div>
