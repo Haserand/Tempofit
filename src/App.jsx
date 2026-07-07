@@ -1805,7 +1805,7 @@ export default function App() {
    * Bornes [début, fin[ de chaque morceau, en temps ET en distance — calculées à
    * part de `unifiedChartData` (qui mélange aussi les points de données réelles
    * Garmin) pour avoir une source propre et fiable des segments musicaux. Sert à
-   * deux choses : mettre en surbrillance tout le segment survolé (pas juste son
+   * deux choses : mettre en surbrillance tout le segment sélectionné (pas juste son
    * point de départ), et placer un repère vertical à chaque début de morceau.
    */
   const trackSegments = useMemo(() => {
@@ -1820,16 +1820,21 @@ export default function App() {
     });
   }, [currentPlaylist]);
 
-  // Segment actuellement survolé (déterminé par la position X du curseur, pas par
+  // Segment actuellement sélectionné (déterminé par la position X du curseur, pas par
   // le point de données le plus proche) — permet de mettre en surbrillance TOUTE
   // la largeur du segment plutôt qu'un simple sommet.
-  const [hoveredSegmentIdx, setHoveredSegmentIdx] = useState(null);
-  const handleChartMouseMove = (state) => {
-    if (!state || state.activeLabel === undefined || state.activeLabel === null) { setHoveredSegmentIdx(null); return; }
+  // BUG UX CORRIGÉ : le survol continu était trop fragile en pratique (un léger
+  // écart de trajectoire de la souris en remontant vers l'encart changeait de
+  // segment sans le vouloir ; il fallait aussi rester immobile une seconde ou
+  // deux avant que l'info n'apparaisse). Un CLIC fixe désormais l'affichage de
+  // façon déterministe et instantanée, et reste stable jusqu'au clic suivant.
+  const [selectedSegmentIdx, setSelectedSegmentIdx] = useState(null);
+  const handleChartClick = (state) => {
+    if (!state || state.activeLabel === undefined || state.activeLabel === null) return;
     const cursorVal = parseFloat(state.activeLabel);
     const key = chartAxisType === 'distance' ? 'Dist' : 'Time';
     const idx = trackSegments.findIndex(seg => cursorVal >= seg[`start${key}`] && cursorVal < seg[`end${key}`]);
-    setHoveredSegmentIdx(idx >= 0 ? idx : null);
+    if (idx >= 0) setSelectedSegmentIdx(idx);
   };
 
   // Domaines des axes calculés explicitement en JS, plutôt que de laisser Recharts
@@ -2951,36 +2956,36 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Encart fixe pour le segment survolé — remplace la bulle flottante de
+                  {/* Encart fixe pour le segment sélectionné — remplace la bulle flottante de
                       Recharts qui suivait la souris et se repositionnait de façon instable
                       (elle pouvait "sauter" en tentant de cliquer sur le bouton lecture).
                       Ici, la position ne bouge JAMAIS : seul le contenu change selon le
-                      segment survolé (piloté par hoveredSegmentIdx, déjà calculé). */}
+                      segment sélectionné (piloté par selectedSegmentIdx, déjà calculé). */}
                   <div className={`mb-4 p-4 rounded-2xl border ${cardBorder} ${inputBg} flex items-center gap-4 min-h-[76px]`}>
-                    {hoveredSegmentIdx !== null && trackSegments[hoveredSegmentIdx] ? (
+                    {selectedSegmentIdx !== null && trackSegments[selectedSegmentIdx] ? (
                       <>
                         <button
-                          onClick={() => togglePreview(trackSegments[hoveredSegmentIdx].track)}
-                          disabled={!trackSegments[hoveredSegmentIdx].track.preview}
-                          title={trackSegments[hoveredSegmentIdx].track.preview ? "Écouter un extrait" : "Extrait non disponible (titre de base — les titres ajoutés via la recherche ont un extrait)"}
-                          className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-colors ${trackSegments[hoveredSegmentIdx].track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
+                          onClick={() => togglePreview(trackSegments[selectedSegmentIdx].track)}
+                          disabled={!trackSegments[selectedSegmentIdx].track.preview}
+                          title={trackSegments[selectedSegmentIdx].track.preview ? "Écouter un extrait" : "Extrait non disponible (titre de base — les titres ajoutés via la recherche ont un extrait)"}
+                          className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-colors ${trackSegments[selectedSegmentIdx].track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
                         >
-                          {playingPreviewId === trackSegments[hoveredSegmentIdx].track.youtubeId ? <Pause size={18} fill="currentColor"/> : <Play size={18} fill="currentColor" className="ml-0.5"/>}
+                          {playingPreviewId === trackSegments[selectedSegmentIdx].track.youtubeId ? <Pause size={18} fill="currentColor"/> : <Play size={18} fill="currentColor" className="ml-0.5"/>}
                         </button>
                         <div className="flex-1 min-w-0">
-                          <div className={`font-bold text-sm truncate ${textHighlight}`}>{trackSegments[hoveredSegmentIdx].track.title}</div>
-                          <div className={`text-xs truncate ${textMuted}`}>{trackSegments[hoveredSegmentIdx].track.artist}</div>
+                          <div className={`font-bold text-sm truncate ${textHighlight}`}>{trackSegments[selectedSegmentIdx].track.title}</div>
+                          <div className={`text-xs truncate ${textMuted}`}>{trackSegments[selectedSegmentIdx].track.artist}</div>
                         </div>
                         <div className={`text-xs font-mono ${textMuted} shrink-0`}>
-                          Début : {formatDuration(trackSegments[hoveredSegmentIdx].startTime)}<br/>
-                          Durée : {formatDuration(trackSegments[hoveredSegmentIdx].track.duration)}
+                          Début : {formatDuration(trackSegments[selectedSegmentIdx].startTime)}<br/>
+                          Durée : {formatDuration(trackSegments[selectedSegmentIdx].track.duration)}
                         </div>
                         <div className={`px-3 py-2 rounded-lg text-sm font-bold font-mono text-white shrink-0 ${isNaughtyMode ? 'bg-rose-500' : 'bg-gray-800 dark:bg-gray-700'}`}>
-                          🎯 {trackSegments[hoveredSegmentIdx].track.bpm} BPM
+                          🎯 {trackSegments[selectedSegmentIdx].track.bpm} BPM
                         </div>
                       </>
                     ) : (
-                      <span className={`text-sm ${textMuted}`}>Survole un segment du graphique pour voir le détail du titre et l'écouter.</span>
+                      <span className={`text-sm ${textMuted}`}>Clique sur un segment du graphique pour voir le détail du titre et l'écouter.</span>
                     )}
                   </div>
 
@@ -2991,21 +2996,19 @@ export default function App() {
                       </div>
                     ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      {/* BUG CORRIGÉ : onMouseLeave réinitialisait hoveredSegmentIdx dès que la
-                          souris quittait le graphique — y compris en remontant vers l'encart
-                          fixe au-dessus pour cliquer sur le bouton lecture, qui disparaissait
-                          donc juste avant qu'on puisse l'atteindre. Maintenant, l'info reste
-                          affichée tant qu'un AUTRE segment n'est pas survolé. */}
-                      <LineChart data={unifiedChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }} onMouseMove={handleChartMouseMove}>
+                      {/* Interaction par CLIC plutôt que par survol continu (voir handleChartClick
+                          ci-dessus pour le détail du raisonnement) : plus fiable, plus rapide,
+                          et le résultat reste stable tant qu'on ne clique pas ailleurs. */}
+                      <LineChart data={unifiedChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }} onClick={handleChartClick} style={{ cursor: 'pointer' }}>
                         <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#374151' : '#e5e7eb'} vertical={false} />
 
-                        {/* Surbrillance de TOUT le segment survolé (pas juste son point de
+                        {/* Surbrillance de TOUT le segment sélectionné (pas juste son point de
                             départ) — la zone couvre exactement la durée/distance du morceau
                             sous le curseur, déterminée via handleChartMouseMove. */}
-                        {hoveredSegmentIdx !== null && trackSegments[hoveredSegmentIdx] && (
+                        {selectedSegmentIdx !== null && trackSegments[selectedSegmentIdx] && (
                           <ReferenceArea
-                            x1={chartAxisType === 'distance' ? trackSegments[hoveredSegmentIdx].startDist : trackSegments[hoveredSegmentIdx].startTime}
-                            x2={chartAxisType === 'distance' ? trackSegments[hoveredSegmentIdx].endDist : trackSegments[hoveredSegmentIdx].endTime}
+                            x1={chartAxisType === 'distance' ? trackSegments[selectedSegmentIdx].startDist : trackSegments[selectedSegmentIdx].startTime}
+                            x2={chartAxisType === 'distance' ? trackSegments[selectedSegmentIdx].endDist : trackSegments[selectedSegmentIdx].endTime}
                             fill={isNaughtyMode ? '#f43f5e' : '#ef4444'}
                             fillOpacity={0.12}
                             stroke="none"
