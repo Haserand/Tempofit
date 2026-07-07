@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Dumbbell, Bike, Footprints, Flame, Heart, MoreHorizontal, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Target, History, Wind } from 'lucide-react';
+import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Dumbbell, Bike, Footprints, Flame, Heart, MoreHorizontal, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Target, History, Wind, MessageCircle, ExternalLink } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine, ReferenceArea } from 'recharts';
 
 // =====================================================================================
@@ -1756,6 +1756,37 @@ export default function App() {
     setIsShareModalOpen(false);
   };
 
+  // Partage natif du téléphone/OS (menu "Partager" habituel avec toutes les apps
+  // installées) — disponible sur mobile et certains navigateurs desktop récents,
+  // pas partout. D'où les boutons de partage direct ci-dessous en complément, qui
+  // fonctionnent eux partout puisqu'ils ouvrent juste une URL classique.
+  const shareNative = async () => {
+    if (!shareData || !navigator.share) return;
+    try {
+      await navigator.share({ title: shareData.title, text: shareData.text, url: shareData.url });
+      setIsShareModalOpen(false);
+    } catch (e) {
+      // L'utilisateur a annulé le partage, ou l'API a échoué : on ne fait rien de spécial.
+    }
+  };
+
+  const shareToWhatsApp = () => {
+    if (!shareData) return;
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareData.text + ' ' + shareData.url)}`, '_blank');
+  };
+  const shareToTwitter = () => {
+    if (!shareData) return;
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareData.text)}&url=${encodeURIComponent(shareData.url)}`, '_blank');
+  };
+  const shareToFacebook = () => {
+    if (!shareData) return;
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareData.url)}`, '_blank');
+  };
+  const shareViaEmail = () => {
+    if (!shareData) return;
+    window.location.href = `mailto:?subject=${encodeURIComponent(shareData.title)}&body=${encodeURIComponent(shareData.text + ' ' + shareData.url)}`;
+  };
+
   // BUG CORRIGÉ : la valeur par défaut était 'musique', qui ne correspond à aucun
   // des deux cas gérés par le graphique ('temps' ou 'distance') — la clé de l'axe X
   // ('time' vs 'startDistVal') ne matchait donc jamais, et le graphique restait vide
@@ -3502,6 +3533,33 @@ export default function App() {
               <div className={`p-4 rounded-xl mb-6 text-sm ${inputBg} border ${inputBorder} ${textHighlight}`}>
                 {shareData.text}
               </div>
+
+              {/* Partage natif (menu "Partager" habituel du téléphone/OS) : affiché en
+                  priorité seulement si le navigateur le supporte (surtout mobile). */}
+              {typeof navigator !== 'undefined' && navigator.share && (
+                <button onClick={shareNative} className={`w-full py-4 mb-3 text-white font-bold rounded-xl shadow-md hover:brightness-110 transition-all flex items-center justify-center gap-2 ${bgAccentClass}`}>
+                  <Share2 size={18}/> Partager...
+                </button>
+              )}
+
+              {/* Boutons directs vers les réseaux les plus courants — fonctionnent partout
+                  (juste une URL classique), contrairement au partage natif ci-dessus qui
+                  n'est pas disponible sur tous les navigateurs/appareils. */}
+              <div className="grid grid-cols-4 gap-2 mb-3">
+                <button onClick={shareToWhatsApp} title="WhatsApp" className="flex flex-col items-center gap-1 py-3 rounded-xl bg-[#25D366] hover:brightness-110 text-white font-bold text-xs transition-all">
+                  <MessageCircle size={20}/> WhatsApp
+                </button>
+                <button onClick={shareToTwitter} title="X (Twitter)" className="flex flex-col items-center gap-1 py-3 rounded-xl bg-black hover:brightness-125 text-white font-bold text-xs transition-all">
+                  <Share2 size={20}/> X
+                </button>
+                <button onClick={shareToFacebook} title="Facebook" className="flex flex-col items-center gap-1 py-3 rounded-xl bg-[#1877F2] hover:brightness-110 text-white font-bold text-xs transition-all">
+                  <ExternalLink size={20}/> Facebook
+                </button>
+                <button onClick={shareViaEmail} title="E-mail" className={`flex flex-col items-center gap-1 py-3 rounded-xl ${inputBg} border ${inputBorder} ${textHighlight} font-bold text-xs transition-all hover:bg-gray-100 dark:hover:bg-gray-700`}>
+                  <MessageCircle size={20}/> E-mail
+                </button>
+              </div>
+
               <button onClick={copyToClipboard} className={`w-full py-4 text-white font-bold rounded-xl shadow-md hover:brightness-110 transition-all flex items-center justify-center gap-2 ${bgAccentClass}`}>
                 <Copy size={18}/> Copier le lien
               </button>
