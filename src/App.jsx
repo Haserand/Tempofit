@@ -493,9 +493,18 @@ const CustomChartTooltip = ({ active, payload, isNaughtyMode, currentUnit, onTog
             <p className="font-black text-sm text-gray-900 dark:text-white truncate">{data.trackName}</p>
           </div>
         )}
-        <p className="text-xs text-gray-500 font-medium mb-3 flex items-center space-x-1">
-          <Clock size={12}/> <span>{formatDuration(data.time)}</span>
+        {/* Deux informations distinctes, clairement étiquetées pour ne plus les confondre :
+            "Début" = position de ce titre dans la séance ; "Durée" = longueur du titre
+            lui-même. Avant, une seule des deux s'affichait selon l'endroit (tooltip vs
+            liste), sans jamais préciser laquelle — source de confusion signalée. */}
+        <p className="text-xs text-gray-500 font-medium mb-1 flex items-center space-x-1">
+          <Clock size={12}/> <span>{data.trackName ? 'Début' : 'Temps'} : {formatDuration(data.time)}</span>
         </p>
+        {data.trackDuration !== undefined && (
+          <p className="text-xs text-gray-500 font-medium mb-3 flex items-center space-x-1">
+            <Clock size={12}/> <span>Durée : {formatDuration(data.trackDuration)}</span>
+          </p>
+        )}
         <div className="flex flex-col gap-2">
             {data.bpmTarget !== undefined && (
                <div className={`px-2 py-1.5 rounded text-xs font-bold font-mono text-white ${isNaughtyMode ? 'bg-rose-500' : 'bg-gray-800 dark:bg-gray-700'}`}>
@@ -1774,7 +1783,7 @@ export default function App() {
       // du tout (un <path> sans attribut "d"), silencieusement.
       // trackPreview/trackYoutubeId ajoutés pour permettre l'écoute d'extrait
       // directement au survol d'un point du graphique (dans le tooltip).
-      combined.push({ time: accTime, startDistVal: accTime / avgPaceSecs, bpmTarget: track.bpm, trackName: track.title, trackArtist: track.artist, trackPreview: track.preview || null, trackYoutubeId: track.youtubeId, isTrack: true });
+      combined.push({ time: accTime, startDistVal: accTime / avgPaceSecs, bpmTarget: track.bpm, trackName: track.title, trackArtist: track.artist, trackPreview: track.preview || null, trackYoutubeId: track.youtubeId, trackDuration: track.duration, isTrack: true });
       accTime += track.duration - (currentPlaylist.crossfade || 0);
     });
     if(currentPlaylist.tracks.length > 0) {
@@ -3062,13 +3071,20 @@ export default function App() {
                           <div className={"font-bold text-sm " + textHighlight}>{track.title}</div>
                           <div className={"text-xs " + textMuted}>{track.artist}</div>
                         </div>
-                        <div className="w-24 text-center">
+                        <div className="w-28 text-center">
                           <div className={"font-mono font-bold text-sm " + textColorClass}>{track.bpm} <span className={`text-[10px] font-normal ${textMuted}`}>BPM</span></div>
+                          {/* Les deux informations, clairement étiquetées — avant, seule la durée
+                              s'affichait ici (sans le mot "Durée"), pendant que le tooltip du
+                              graphique montrait le "Début" sans le préciser non plus : source de
+                              confusion entre les deux, maintenant levée par les libellés. */}
+                          <div className={`text-[11px] font-mono ${textMuted}`} title="Moment où ce titre démarre dans la séance">
+                            Début : {track.startTimeStr || '0m 00s'}
+                          </div>
                           <div
                             className={`text-[11px] font-mono ${textMuted}`}
                             title="Durée réelle du morceau dans la séance — l'extrait écoutable reste toujours limité à 30 secondes, quelle que soit cette durée."
                           >
-                            {formatDuration(track.duration)}
+                            Durée : {formatDuration(track.duration)}
                           </div>
                         </div>
                         <button onClick={() => handleDuplicateTrack(index)} className={"p-2 hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-900/20 dark:hover:text-green-400 rounded-lg transition-colors " + textMuted} title="Dupliquer ce titre (l'ajouter une fois de plus juste après)">
