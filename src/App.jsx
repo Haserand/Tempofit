@@ -960,7 +960,35 @@ export default function App() {
   const [segments, setSegments] = useState([{ id: 1, bpm: 120, durationValue: 15 }]); 
 
   const [currentPlaylist, setCurrentPlaylist] = useState(null);
-  const [savedPlaylists, setSavedPlaylists] = useState([]);
+  // Playlist d'exemple pré-remplie, même principe que la routine et les favoris de
+  // départ — clairement nommée "Exemple" pour ne pas laisser penser qu'elle a été
+  // vraiment générée, construite sur des titres de la base locale (pas d'appel
+  // Deezer nécessaire au premier chargement), et laissée en statut "à faire" pour
+  // que la découverte du bouton "marquer comme terminée" reste naturelle.
+  const [savedPlaylists, setSavedPlaylists] = useState([{
+    id: 'playlist-example-1',
+    name: '🏃 Exemple : Session Rock/Métal',
+    workoutType: 'Course à pied',
+    avgPace: 330,
+    targetMode: 'time',
+    distanceUnit: 'km',
+    tolerance: 15,
+    crossfade: 2,
+    isNaughty: false,
+    coverIcon: '🏃‍♂️',
+    createdAt: new Date().toLocaleDateString(),
+    status: 'pending',
+    actualData: null,
+    config: { workoutName: 'Course à pied' },
+    totalDuration: 1138,
+    tracks: [
+      { id: 'ex-track-1', segmentIndex: 1, targetSegmentBpm: 148, title: 'Mr. Brightside', artist: 'The Killers', genre: 'Rock', bpm: 148, duration: 222, youtubeId: 'gGdGFtwPNsQ', preview: null, startTimeStr: '0m 00s', startDistVal: 0 },
+      { id: 'ex-track-2', segmentIndex: 1, targetSegmentBpm: 145, title: 'Duality', artist: 'Slipknot', genre: 'Métal', bpm: 145, duration: 252, youtubeId: 'v2H4l9RpkwM', preview: null, startTimeStr: '3m 40s', startDistVal: 0.67 },
+      { id: 'ex-track-3', segmentIndex: 1, targetSegmentBpm: 180, title: 'Smash', artist: 'The Offspring', genre: 'Métal', bpm: 180, duration: 170, youtubeId: 'L_jWHffIx5E', preview: null, startTimeStr: '7m 50s', startDistVal: 1.42 },
+      { id: 'ex-track-4', segmentIndex: 1, targetSegmentBpm: 133, title: 'Thunderstruck', artist: 'AC/DC', genre: 'Rock', bpm: 133, duration: 292, youtubeId: 'v2AC41dglnM', preview: null, startTimeStr: '10m 38s', startDistVal: 1.93 },
+      { id: 'ex-track-5', segmentIndex: 1, targetSegmentBpm: 128, title: 'Chop Suey!', artist: 'System Of A Down', genre: 'Métal', bpm: 128, duration: 210, youtubeId: 'CSvFpBOe8eY', preview: null, startTimeStr: '15m 28s', startDistVal: 2.81 }
+    ]
+  }]);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const [shareData, setShareData] = useState(null);
