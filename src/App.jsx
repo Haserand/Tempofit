@@ -1249,7 +1249,10 @@ export default function App() {
   const toggleNaughtyMode = () => {
     if (!isNaughtyMode) {
       setIsNaughtyMode(true);
-      setBpm(85); setIsIntervalMode(false); setBpmTolerance(15); setSelectedGenres(['R&B Sensuel']); setTargetMode('time');
+      // isIntervalMode n'est plus forcé à false ici : le mode Fractionné reste
+      // proposé en mode Intime (voir étape 2 du wizard), donc son état ne doit
+      // plus être écrasé silencieusement à l'activation du mode.
+      setBpm(85); setBpmTolerance(15); setSelectedGenres(['R&B Sensuel']); setTargetMode('time');
       setCrossfade(5); 
       showToast("Ambiance intime activée...", 'special');
     } else {
@@ -2032,41 +2035,47 @@ export default function App() {
                     {/* ETAPE 2 : OBJECTIF (temps vs distance, option HIIT) */}
                     {wizardStep === 2 && (
                       <div className="space-y-8 animate-in slide-in-from-right-8 duration-300">
-                        <div className="space-y-4">
-                          <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
-                            <MapPin className={textColorClass} size={24} /> <span>Sur quoi on se base ?</span>
-                          </label>
-                          <div className="flex bg-gray-100 dark:bg-gray-800 rounded-2xl p-1.5">
-                            <button onClick={() => setTargetMode('time')} className={`flex-1 flex flex-col items-center justify-center py-4 rounded-xl font-bold transition-all ${targetMode === 'time' ?
-                              'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted}`}>
-                              <Clock size={20} className="mb-1"/> Par Durée (Temps)
-                            </button>
-                            <button onClick={() => setTargetMode('distance')} className={`flex-1 flex flex-col items-center justify-center py-4 rounded-xl font-bold transition-all ${targetMode === 'distance' ?
-                              'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted}`}>
-                              <Footprints size={20} className="mb-1"/> Par Distance (Km/Mi)
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Le mode HIIT n'est pas proposé en mode Intime (logique produit) */}
+                        {/* Le choix Temps/Distance n'a pas de sens en mode Intime (personne ne
+                            mesure ça en kilomètres) : le mode reste forcé sur "temps"
+                            (voir toggleNaughtyMode) et ce sélecteur est simplement masqué. */}
                         {!isNaughtyMode && (
-                          <div className={`flex items-center justify-between p-5 ${inputBg} border-2 ${isIntervalMode ? borderAccentClass : inputBorder} rounded-2xl transition-colors cursor-pointer`} onClick={() => setIsIntervalMode(!isIntervalMode)}>
-                            <div className="flex items-center space-x-4">
-                              <div className={`p-3 rounded-xl ${isIntervalMode ? bgAccentClass : 'bg-gray-200 dark:bg-gray-700'}`}>
-                                <ListPlus size={24} className={isIntervalMode ? 'text-white' : textMuted} />
-                              </div>
-                              <div>
-                                <h3 className={`font-bold text-lg ${textHighlight}`}>Mode Fractionné (HIIT)</h3>
-                                <p className={`text-sm ${textMuted}`}>Faire des variations de rythme</p>
-                              </div>
-                            </div>
-                            <label className="relative inline-flex items-center cursor-pointer pointer-events-none">
-                              <input type="checkbox" className="sr-only peer" checked={isIntervalMode} readOnly />
-                              <div className={`w-14 h-7 bg-gray-300 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all ${isIntervalMode ?
-                                'peer-checked:bg-red-500 dark:peer-checked:bg-red-600' : ''}`}></div>
+                          <div className="space-y-4">
+                            <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
+                              <MapPin className={textColorClass} size={24} /> <span>Sur quoi on se base ?</span>
                             </label>
+                            <div className="flex bg-gray-100 dark:bg-gray-800 rounded-2xl p-1.5">
+                              <button onClick={() => setTargetMode('time')} className={`flex-1 flex flex-col items-center justify-center py-4 rounded-xl font-bold transition-all ${targetMode === 'time' ?
+                                'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted}`}>
+                                <Clock size={20} className="mb-1"/> Par Durée (Temps)
+                              </button>
+                              <button onClick={() => setTargetMode('distance')} className={`flex-1 flex flex-col items-center justify-center py-4 rounded-xl font-bold transition-all ${targetMode === 'distance' ?
+                                'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted}`}>
+                                <Footprints size={20} className="mb-1"/> Par Distance (Km/Mi)
+                              </button>
+                            </div>
                           </div>
                         )}
+
+                        {/* Mode Fractionné : réactivé en mode Intime (variations d'intensité qui
+                            s'enchaînent — le principe colle en fait très bien au thème), avec un
+                            libellé adapté. Avant, cette option était entièrement masquée en mode
+                            Intime, sans vraie raison de fond de l'en priver. */}
+                        <div className={`flex items-center justify-between p-5 ${inputBg} border-2 ${isIntervalMode ? borderAccentClass : inputBorder} rounded-2xl transition-colors cursor-pointer`} onClick={() => setIsIntervalMode(!isIntervalMode)}>
+                          <div className="flex items-center space-x-4">
+                            <div className={`p-3 rounded-xl ${isIntervalMode ? bgAccentClass : 'bg-gray-200 dark:bg-gray-700'}`}>
+                              <ListPlus size={24} className={isIntervalMode ? 'text-white' : textMuted} />
+                            </div>
+                            <div>
+                              <h3 className={`font-bold text-lg ${textHighlight}`}>{isNaughtyMode ? 'Montée en Intensité' : 'Mode Fractionné (HIIT)'}</h3>
+                              <p className={`text-sm ${textMuted}`}>{isNaughtyMode ? 'Enchaîner plusieurs phases, à des rythmes différents' : 'Faire des variations de rythme'}</p>
+                            </div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer pointer-events-none">
+                            <input type="checkbox" className="sr-only peer" checked={isIntervalMode} readOnly />
+                            <div className={`w-14 h-7 bg-gray-300 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all ${isIntervalMode ?
+                              'peer-checked:bg-red-500 dark:peer-checked:bg-red-600' : ''}`}></div>
+                          </label>
+                        </div>
                       </div>
                     )}
 
@@ -2291,7 +2300,7 @@ export default function App() {
               <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
                 <div className={`border-b ${cardBorder} pb-6`}>
                   <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}><ListPlus className={textColorClass} size={36} /> <span>Mes Routines</span></h1>
-                  <p className={`mt-2 ${textMuted}`}>Génère instantanément des playlists à partir de tes configurations.</p>
+                  <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Génère instantanément des playlists à partir de tes configurations.</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2382,7 +2391,7 @@ export default function App() {
               <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
                 <div className={`border-b ${cardBorder} pb-6`}>
                   <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}><List className={textColorClass} size={36} /> <span>Historique & Playlists</span></h1>
-                  <p className={`mt-2 ${textMuted}`}>Retrouve tes sessions sauvegardées. N'oublie pas de les marquer comme terminées !</p>
+                  <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Retrouve tes sessions sauvegardées. N'oublie pas de les marquer comme terminées !</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2470,7 +2479,7 @@ export default function App() {
                 <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
                   <div className={`border-b ${cardBorder} pb-6`}>
                     <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}><History className={textColorClass} size={36} /> <span>Historique</span></h1>
-                    <p className={`mt-2 ${textMuted}`}>Le journal de tes séances effectuées.</p>
+                    <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Le journal de tes séances effectuées.</p>
                   </div>
 
                   {completedPlaylists.length === 0 ? (
@@ -2532,7 +2541,7 @@ export default function App() {
                   <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}>
                     <Settings className={textColorClass} size={36} /> <span>Options & Comptes</span>
                   </h1>
-                  <p className={`mt-2 ${textMuted}`}>Connecte tes plateformes pour utiliser de vraies musiques.</p>
+                  <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Connecte tes plateformes pour utiliser de vraies musiques.</p>
                 </div>
 
                 <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
@@ -2585,21 +2594,19 @@ export default function App() {
                       pour l'utilisateur. Placée ici (en-tête de page) plutôt que dans la carte
                       "Tes Préférences Musicales" car elle concerne toute la page, pas
                       seulement cette carte. Remplace l'ancien sous-titre générique. */}
-                  <p className={`mt-2 ${textMuted}`}>Priorité à la génération : tes titres favoris d'abord, puis tes artistes favoris, puis une recherche plus large si besoin pour compléter la playlist.</p>
+                  <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Priorité à la génération : tes titres favoris d'abord, puis tes artistes favoris, puis une recherche plus large si besoin pour compléter la playlist.</p>
                 </div>
 
                 <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
                     <h3 className={`font-bold text-xl ${textHighlight}`}>Tes Préférences Musicales</h3>
-                    {spotifyToken ? (
-                      <button onClick={syncSpotifyFavorites} className="px-5 py-2.5 bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold rounded-xl shadow-md transition-all flex items-center space-x-2 text-sm hover:scale-105 active:scale-95">
-                        <RefreshCw size={18} /> <span>Synchroniser mon Spotify</span>
-                      </button>
-                    ) : (
-                      <button onClick={() => changeView('settings')} className={`px-5 py-2.5 ${cardBg} border-2 border-[#1DB954] rounded-xl text-sm font-bold text-[#1DB954] hover:bg-[#1DB954] hover:text-black transition-colors shadow-sm`}>
-                        Aller connecter Spotify
-                      </button>
-                    )}
+                    {/* Bouton générique plutôt qu'un bouton dédié à Spotify : la gestion des
+                        comptes connectés (Spotify, et bientôt d'autres plateformes) est
+                        centralisée dans "Options & Comptes", pour ne pas avoir à empiler un
+                        bouton par plateforme sur cette page à mesure que d'autres s'ajoutent. */}
+                    <button onClick={() => changeView('settings')} className={`px-5 py-2.5 ${cardBg} border-2 ${borderAccentClass} rounded-xl text-sm font-bold ${textColorClass} hover:${bgAccentClass} hover:text-white transition-colors shadow-sm flex items-center gap-2`}>
+                      <RefreshCw size={18} /> <span>Synchroniser mes comptes</span>
+                    </button>
                   </div>
                   <div className="space-y-8">
                     {/* LIGNE 1 : Titres uniquement — en premier car c'est le niveau le plus
@@ -2736,7 +2743,7 @@ export default function App() {
                   <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}>
                     <Award className="text-yellow-500" size={36} /> <span>Mes Trophées</span>
                   </h1>
-                  <p className={`mt-2 ${textMuted}`}>Le mur des légendes. Accomplis tes sessions pour débloquer ces succès.</p>
+                  <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Le mur des légendes. Accomplis tes sessions pour débloquer ces succès.</p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
