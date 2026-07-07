@@ -473,12 +473,26 @@ const parseTimeToSeconds = (timeStr) => {
 // Tooltip personnalisé affiché au survol d'un point du graphique BPM.
 // Affiche le nom du morceau (si dispo), le temps écoulé, et selon les données
 // disponibles le BPM cible (musique) et/ou le BPM réel (import Garmin/Strava).
-const CustomChartTooltip = ({ active, payload, isNaughtyMode, currentUnit }) => {
+const CustomChartTooltip = ({ active, payload, isNaughtyMode, currentUnit, onTogglePreview, playingPreviewId, accentBg }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
       <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl min-w-[200px]">
-        {data.trackName && <p className="font-black text-sm text-gray-900 dark:text-white mb-1">{data.trackName}</p>}
+        {data.trackName && (
+          <div className="flex items-center gap-2 mb-1">
+            {/* Bouton d'écoute d'extrait directement dans le tooltip, au survol du point.
+                Désactivé si ce titre n'a pas d'extrait disponible (base locale/GetSongBPM). */}
+            <button
+              onClick={() => onTogglePreview && onTogglePreview({ youtubeId: data.trackYoutubeId, preview: data.trackPreview })}
+              disabled={!data.trackPreview}
+              title={data.trackPreview ? "Écouter un extrait" : "Extrait non disponible (titre de base — les titres ajoutés via la recherche ont un extrait)"}
+              className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-colors ${data.trackPreview ? `${accentBg} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
+            >
+              {playingPreviewId === data.trackYoutubeId ? <Pause size={12} fill="currentColor"/> : <Play size={12} fill="currentColor" className="ml-0.5"/>}
+            </button>
+            <p className="font-black text-sm text-gray-900 dark:text-white truncate">{data.trackName}</p>
+          </div>
+        )}
         <p className="text-xs text-gray-500 font-medium mb-3 flex items-center space-x-1">
           <Clock size={12}/> <span>{formatDuration(data.time)}</span>
         </p>
@@ -1738,7 +1752,9 @@ export default function App() {
       // "Distance" du graphique en dépend comme clé d'axe X. Résultat : en mode
       // Distance, chaque point avait un X undefined → Recharts ne traçait rien
       // du tout (un <path> sans attribut "d"), silencieusement.
-      combined.push({ time: accTime, startDistVal: accTime / avgPaceSecs, bpmTarget: track.bpm, trackName: track.title, isTrack: true });
+      // trackPreview/trackYoutubeId ajoutés pour permettre l'écoute d'extrait
+      // directement au survol d'un point du graphique (dans le tooltip).
+      combined.push({ time: accTime, startDistVal: accTime / avgPaceSecs, bpmTarget: track.bpm, trackName: track.title, trackArtist: track.artist, trackPreview: track.preview || null, trackYoutubeId: track.youtubeId, isTrack: true });
       accTime += track.duration - (currentPlaylist.crossfade || 0);
     });
     if(currentPlaylist.tracks.length > 0) {
@@ -1777,6 +1793,18 @@ export default function App() {
     if (values.length === 0) return [0, 1];
     return [0, Math.max(...values)];
   }, [unifiedChartData, chartAxisType]);
+
+  // Graduations explicites pour l'axe X en mode Distance — sans ça, Recharts choisit
+  // lui-même un nombre de graduations "arbitraire" selon l'espace disponible, ce qui
+  // pouvait sauter de "2" à "5.972727272727273" (aucun arrondi, pas d'unité, écart
+  // incohérent entre graduations). Ici : un repère tous les 1 km/mile, arrondi.
+  const chartXTicks = useMemo(() => {
+    if (chartAxisType !== 'distance') return undefined; // laisse Recharts gérer l'axe Temps normalement
+    const maxVal = Math.ceil(chartXDomain[1]);
+    const ticks = [];
+    for (let i = 0; i <= maxVal; i++) ticks.push(i);
+    return ticks;
+  }, [chartAxisType, chartXDomain]);
 
   const chartYDomain = useMemo(() => {
     const values = unifiedChartData
@@ -2859,14 +2887,15 @@ export default function App() {
                           dataKey={chartAxisType === 'distance' ? 'startDistVal' : 'time'} 
                           type="number"
                           domain={chartXDomain}
+                          ticks={chartXTicks}
                           stroke={theme === 'dark' ? '#9ca3af' : '#6b7280'} 
                           tick={{fontSize: 12}} 
-                          tickFormatter={chartAxisType === 'distance' ? undefined : formatDuration}
+                          tickFormatter={chartAxisType === 'distance' ? (val) => `${val.toFixed(1)} ${currentPlaylist.distanceUnit || 'km'}` : formatDuration}
                           allowDuplicatedCategory={false}
                         />
                         <YAxis domain={chartYDomain} stroke={theme === 'dark' ? '#9ca3af' : '#6b7280'} tick={{fontSize: 12}} width={40} />
                         
-                        <RechartsTooltip content={(props) => <CustomChartTooltip {...props} isNaughtyMode={isNaughtyMode} currentUnit={currentPlaylist.distanceUnit} />} />
+                        <RechartsTooltip content={(props) => <CustomChartTooltip {...props} isNaughtyMode={isNaughtyMode} currentUnit={currentPlaylist.distanceUnit} onTogglePreview={togglePreview} playingPreviewId={playingPreviewId} accentBg={bgAccentClass} />} />
                         <Legend wrapperStyle={{fontSize: '12px', paddingTop: '15px'}}/>
 
                         <Line 
