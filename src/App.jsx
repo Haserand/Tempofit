@@ -1585,6 +1585,11 @@ export default function App() {
     showToast("🎵 Titre remplacé et durée ajustée !");
   };
 
+  // handleReplaceTrackFromFavorites supprimée : redondante avec "Remplacer (recherche
+  // large)", qui vérifie déjà les favoris en tout premier via getSingleMatchingTrack.
+  // Ne gardait comme vraie différence que l'absence de repli automatique, ce qui
+  // n'était pas une distinction assez utile pour justifier un 3e bouton dans le menu.
+
   /**
    * Variante de handleReplaceTrack qui privilégie un autre titre du MÊME artiste
    * (recherche Deezer combinée artist:/bpm_min/bpm_max), plutôt que la recherche
@@ -3299,11 +3304,12 @@ export default function App() {
                                 <button onClick={() => { handleDuplicateTrack(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
                                   <Plus size={16} className="text-green-500"/> Dupliquer ce titre
                                 </button>
-                                <button onClick={() => { handleReplaceTrack(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
-                                  <RefreshCw size={16} className="text-blue-500"/> Remplacer (recherche large)
-                                </button>
+                                <div className={`h-px my-1 ${cardBorder} border-t`}></div>
                                 <button onClick={() => { handleReplaceTrackSameArtist(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
                                   <User size={16} className="text-purple-500"/> Remplacer (même artiste)
+                                </button>
+                                <button onClick={() => { handleReplaceTrack(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                                  <RefreshCw size={16} className="text-blue-500"/> Remplacer (recherche large)
                                 </button>
                               </div>
                             </>
