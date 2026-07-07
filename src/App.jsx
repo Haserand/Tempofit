@@ -982,6 +982,11 @@ export default function App() {
   // true quand la modale de recherche est en mode "BPM précis" (déclenchée depuis
   // le générateur) plutôt qu'en mode recherche libre par texte.
   const [isBpmSearchMode, setIsBpmSearchMode] = useState(false);
+  // Édition du nom d'une playlist générée — avant, le nom auto-généré (ex. "Depuis :
+  // 🏃‍♂️ Mon 5km Quotidien") n'était jamais modifiable, ce qui devenait vite peu
+  // pratique pour s'y retrouver une fois plusieurs playlists sauvegardées.
+  const [isEditingPlaylistName, setIsEditingPlaylistName] = useState(false);
+  const [editedPlaylistName, setEditedPlaylistName] = useState("");
   // Mémorise les paramètres (bpm, tolérance, genres) de la dernière recherche par
   // BPM lancée, quel que soit l'endroit d'où elle a été déclenchée (wizard ou page
   // Favoris) — permet à la modale d'afficher le bon contexte et de relancer une
@@ -1557,6 +1562,15 @@ export default function App() {
     setCurrentPlaylist(updatedPlaylist);
     setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
     showToast("🎵 Titre dupliqué !");
+  };
+
+  const handleRenamePlaylist = () => {
+    const trimmed = editedPlaylistName.trim();
+    if (!trimmed || !currentPlaylist) { setIsEditingPlaylistName(false); return; }
+    const updatedPlaylist = { ...currentPlaylist, name: trimmed };
+    setCurrentPlaylist(updatedPlaylist);
+    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
+    setIsEditingPlaylistName(false);
   };
 
   // Remplace un morceau par un autre correspondant au même BPM cible (utilise
@@ -2919,7 +2933,23 @@ export default function App() {
                     </div>
                   </div>
                   <div className="flex-1 text-center md:text-left space-y-4 w-full">
-                    <h2 className={"text-3xl md:text-5xl font-black " + textHighlight}>{currentPlaylist.name}</h2>
+                    {isEditingPlaylistName ? (
+                      <div className="flex items-center gap-2 justify-center md:justify-start">
+                        <input
+                          type="text" autoFocus value={editedPlaylistName} onChange={e => setEditedPlaylistName(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleRenamePlaylist(); if (e.key === 'Escape') setIsEditingPlaylistName(false); }}
+                          className={`text-3xl md:text-5xl font-black bg-transparent outline-none border-b-2 ${borderAccentClass} ${textHighlight} w-full`}
+                        />
+                        <button onClick={handleRenamePlaylist} className={`p-2 rounded-lg text-white shrink-0 ${bgAccentClass}`}><Check size={20}/></button>
+                      </div>
+                    ) : (
+                      <h2 className={"text-3xl md:text-5xl font-black flex items-center gap-3 justify-center md:justify-start " + textHighlight}>
+                        {currentPlaylist.name}
+                        <button onClick={() => { setEditedPlaylistName(currentPlaylist.name); setIsEditingPlaylistName(true); }} className={`p-1.5 rounded-lg ${textMuted} hover:${textHighlight} transition-colors shrink-0`} title="Renommer la playlist">
+                          <Edit3 size={20}/>
+                        </button>
+                      </h2>
+                    )}
                     <div className={"flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm font-medium " + textMuted}>
                       <div className="flex items-center space-x-1"><Activity size={16}/><span>{currentPlaylist.workoutType}</span></div><span>•</span>
                       <div className="flex items-center space-x-1"><Clock size={16}/><span>{formatDuration(currentPlaylist.totalDuration)}</span></div><span>•</span>
