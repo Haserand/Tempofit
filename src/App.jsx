@@ -93,6 +93,17 @@ const WORKOUT_TYPES = [
   { id: 'Autre', icon: MoreHorizontal } 
 ];
 
+// Libellés affichés à la place des noms d'activité classiques quand le mode Intime
+// est actif — purement cosmétique : la valeur `id` ci-dessus (utilisée par toute la
+// logique de génération/sauvegarde) ne change jamais, seul le texte affiché à l'écran
+// est substitué. Évite le décalage "cœur + Course à pied" repéré par l'utilisateur.
+const NAUGHTY_WORKOUT_LABELS = {
+  'Course à pied': 'Rythme Effréné',
+  'Musculation': 'Renforcement Intense',
+  'Cyclisme': 'Balade Sensuelle',
+  'Autre': 'Autre'
+};
+
 const STANDARD_GENRES = ['Métal', 'Rock', 'Electro', 'Pop', 'Autre'];
 const NAUGHTY_GENRES = ['R&B Sensuel', 'Pop', 'Autre'];
 const AVAILABLE_ICONS = ["🏃‍♂️", "🚴‍♀️", "🏋️‍♂️", "🧘‍♀️", "🔥", "⚡", "🎵", "🏆", "🎧", "🎸", "🥁", "🎹", "🍑", "🍆", "🕺"];
@@ -1159,6 +1170,18 @@ export default function App() {
 
   const getActiveWorkoutName = () => (workoutType === 'Autre' && customActivity.trim() !== '') ? customActivity : workoutType;
 
+  // Hash simple et stable (même routine → toujours le même résultat, pas aléatoire
+  // à chaque re-render) utilisé pour attribuer un nom/icône "Intime" cohérent à une
+  // routine existante, sans jamais modifier ses vraies données sauvegardées (nom,
+  // config, musiques). Purement cosmétique, à l'affichage seulement.
+  const simpleHash = (str) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) { hash = (hash * 31 + str.charCodeAt(i)) | 0; }
+    return Math.abs(hash);
+  };
+  const getDisplayRoutineName = (routine) => isNaughtyMode ? NAUGHTY_ROUTINE_NAMES[simpleHash(routine.id) % NAUGHTY_ROUTINE_NAMES.length] : routine.name;
+  const getDisplayRoutineIcon = (routine) => isNaughtyMode ? NAUGHTY_ROUTINE_NAMES[simpleHash(routine.id) % NAUGHTY_ROUTINE_NAMES.length].split(' ')[0] : routine.coverIcon;
+
   const handleOpenCustomActivityModal = () => {
     setWorkoutType('Autre');
     setTempCustomActivity(customActivity);
@@ -1750,7 +1773,12 @@ export default function App() {
   const cardBorder = "border-gray-200 dark:border-gray-800";
   const inputBg = "bg-gray-50 dark:bg-gray-950";
   const inputBorder = "border-gray-300 dark:border-gray-700";
-  const textMuted = "text-gray-400 dark:text-gray-500";
+  // BUG DE CONTRASTE CORRIGÉ : le mode Intime éclaircit le fond en mode clair
+  // (dégradé rose très pâle/blanc, voir bgMainApp), mais le texte "muted" gardait
+  // le même gris clair que le fond neutre standard — illisible dans ce contexte
+  // plus pâle. On fonce ce gris uniquement en clair + Intime, où le contraste
+  // manquait vraiment ; le mode sombre n'était pas concerné (fond toujours foncé).
+  const textMuted = isNaughtyMode ? "text-gray-500 dark:text-gray-500" : "text-gray-400 dark:text-gray-500";
   const textHighlight = "text-gray-900 dark:text-white";
 
   return (
@@ -1834,6 +1862,19 @@ export default function App() {
             </button>
 
           </nav>
+
+          {/* Crédit du projet, en bas de la sidebar — discret, ouvre dans un nouvel onglet
+              pour ne pas faire quitter l'app en un clic accidentel. */}
+          <div className={`px-4 py-4 border-t ${cardBorder} text-center`}>
+            <a
+              href="https://www.linkedin.com/in/damiengrange/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`text-xs font-medium ${textMuted} hover:${textHighlight} transition-colors`}
+            >
+              Un projet créé par <span className="font-bold underline">Damien Grangé</span>
+            </a>
+          </div>
         </aside>
 
         <div className="flex-1 flex flex-col relative w-full">
@@ -1883,7 +1924,7 @@ export default function App() {
                       <div className="space-y-6 animate-in slide-in-from-right-8 duration-300">
                         <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
                           {isNaughtyMode ? <Heart className={textColorClass} size={24} /> : <Activity className={textColorClass} size={24} />}
-                          <span>Qu'est-ce qu'on fait aujourd'hui ?</span>
+                          <span>{isNaughtyMode ? "De quoi as-tu envie aujourd'hui ?" : "Qu'est-ce qu'on fait aujourd'hui ?"}</span>
                         </label>
                         <div className="grid grid-cols-2 gap-4">
                           {WORKOUT_TYPES.map(type => {
@@ -1901,7 +1942,7 @@ export default function App() {
                                 >
                                   <Icon size={32} className="mb-3" />
                                   <span className="font-bold text-center">
-                                    {type.id === 'Autre' && customActivity ? customActivity : type.id}
+                                    {type.id === 'Autre' && customActivity ? customActivity : (isNaughtyMode ? NAUGHTY_WORKOUT_LABELS[type.id] : type.id)}
                                   </span>
                                 </button>
                                 {type.id === 'Autre' && (
@@ -2206,7 +2247,7 @@ export default function App() {
                       <div key={routine.id} className={`${cardBg} rounded-2xl p-6 border ${cardBorder} shadow-sm relative group overflow-hidden flex flex-col`}>
                         <div className="flex items-start justify-between mb-4">
                           <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl bg-gray-100 dark:bg-gray-800`}>
-                            {routine.coverIcon}
+                            {getDisplayRoutineIcon(routine)}
                           </div>
                           <div className="flex items-center space-x-2">
                             {/* Badge "génération auto" : calcule combien de générations manuelles il reste
@@ -2233,7 +2274,7 @@ export default function App() {
                             </button>
                           </div>
                         </div>
-                        <h3 className={`font-bold text-xl mb-1 ${textHighlight}`}>{routine.name}</h3>
+                        <h3 className={`font-bold text-xl mb-1 ${textHighlight}`}>{getDisplayRoutineName(routine)}</h3>
                         <div className={`text-sm mb-4 space-y-1 flex flex-wrap gap-3 ${textMuted}`}>
                           <div className="flex items-center space-x-1.5"><Activity size={14}/><span>{routine.workoutType} {routine.customActivity && `(${routine.customActivity})`}</span></div>
                           <div className="flex items-center space-x-1.5"><Clock size={14}/><span>{routine.targetMode==='distance' ? `${routine.distanceVal} ${routine.distanceUnit}` : `${routine.hours}h ${routine.minutes}m`}</span></div>
