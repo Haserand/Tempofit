@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Dumbbell, Bike, Footprints, Flame, Heart, MoreHorizontal, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Target, History, Wind } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine, ReferenceArea } from 'recharts';
 
 // =====================================================================================
 // CONSTANTES GLOBALES & CONFIGURATION
@@ -1802,6 +1802,37 @@ export default function App() {
     return combined;
   }, [currentPlaylist, dataOffset]);
 
+  /**
+   * Bornes [début, fin[ de chaque morceau, en temps ET en distance — calculées à
+   * part de `unifiedChartData` (qui mélange aussi les points de données réelles
+   * Garmin) pour avoir une source propre et fiable des segments musicaux. Sert à
+   * deux choses : mettre en surbrillance tout le segment survolé (pas juste son
+   * point de départ), et placer un repère vertical à chaque début de morceau.
+   */
+  const trackSegments = useMemo(() => {
+    if (!currentPlaylist) return [];
+    const avgPaceSecs = currentPlaylist.avgPace || 330;
+    let accTime = 0;
+    return currentPlaylist.tracks.map((track) => {
+      const startTime = accTime;
+      const startDist = accTime / avgPaceSecs;
+      accTime += track.duration - (currentPlaylist.crossfade || 0);
+      return { track, startTime, endTime: accTime, startDist, endDist: accTime / avgPaceSecs };
+    });
+  }, [currentPlaylist]);
+
+  // Segment actuellement survolé (déterminé par la position X du curseur, pas par
+  // le point de données le plus proche) — permet de mettre en surbrillance TOUTE
+  // la largeur du segment plutôt qu'un simple sommet.
+  const [hoveredSegmentIdx, setHoveredSegmentIdx] = useState(null);
+  const handleChartMouseMove = (state) => {
+    if (!state || state.activeLabel === undefined || state.activeLabel === null) { setHoveredSegmentIdx(null); return; }
+    const cursorVal = parseFloat(state.activeLabel);
+    const key = chartAxisType === 'distance' ? 'Dist' : 'Time';
+    const idx = trackSegments.findIndex(seg => cursorVal >= seg[`start${key}`] && cursorVal < seg[`end${key}`]);
+    setHoveredSegmentIdx(idx >= 0 ? idx : null);
+  };
+
   // Domaines des axes calculés explicitement en JS, plutôt que de laisser Recharts
   // les déduire lui-même via les expressions "dataMax"/"dataMin" (qui semblent être
   // la cause du bug récurrent : graphique vide malgré des données valides). Ici, le
@@ -1814,22 +1845,43 @@ export default function App() {
     return [0, Math.max(...values)];
   }, [unifiedChartData, chartAxisType]);
 
-  // Graduations explicites pour l'axe X en mode Distance — sans ça, Recharts choisit
-  // lui-même un nombre de graduations "arbitraire" selon l'espace disponible, ce qui
-  // pouvait sauter de "2" à "5.972727272727273" (aucun arrondi, pas d'unité, écart
-  // incohérent entre graduations). Ici : un repère tous les 1 km/mile, arrondi, PLUS
-  // la distance finale exacte (arrondie à la dizaine de mètres, soit 0.01 km/mile)
-  // ajoutée à part — sans elle, la distance réellement parcourue en fin de séance
-  // ne correspondait à aucune graduation ronde et n'était donc jamais lisible.
+  // Graduations explicites pour l'axe X, dans les deux modes — sans ça, Recharts
+  // choisit lui-même un nombre de graduations "arbitraire" selon l'espace
+  // disponible, ce qui pouvait sauter de "2" à "5.972727272727273" en Distance,
+  // ou finir sur un "29m 46s" isolé en Temps (aucun repère régulier avant).
+  //
+  // Mode Distance : un repère tous les 1 km/mile, arrondi, PLUS la distance finale
+  // exacte (précision 0.01 km/mile, soit la dizaine de mètres) ajoutée à part —
+  // sans elle, la distance réellement parcourue en fin de séance ne correspondait
+  // à aucune graduation ronde et n'était donc jamais lisible.
+  //
+  // Mode Temps : un repère par minute — mais SEULEMENT si la séance est assez
+  // courte pour rester lisible (jusqu'à 10 min). Au-delà, un repère toutes les
+  // minutes donnerait des dizaines d'étiquettes qui se chevauchent ; le pas
+  // s'élargit alors automatiquement (2, 5, ou 10 min) pour rester lisible tout en
+  // gardant des graduations bien régulières. Même logique de "durée finale ajoutée
+  // à part" qu'en mode Distance.
   const chartXTicks = useMemo(() => {
-    if (chartAxisType !== 'distance') return undefined; // laisse Recharts gérer l'axe Temps normalement
     const maxVal = chartXDomain[1];
-    const roundedMax = Math.round(maxVal * 100) / 100; // arrondi à 0.01 km/mile (dizaine de mètres)
     const ticks = [];
-    for (let i = 0; i <= Math.floor(maxVal); i++) ticks.push(i);
-    // N'ajoute la distance finale que si elle n'est pas déjà quasiment un nombre rond
-    // (évite un doublon visuel du type "6" et "6.0" côte à côte).
-    if (Math.abs(roundedMax - Math.round(roundedMax)) > 0.02) ticks.push(roundedMax);
+
+    if (chartAxisType === 'distance') {
+      const roundedMax = Math.round(maxVal * 100) / 100; // arrondi à 0.01 km/mile (dizaine de mètres)
+      for (let i = 0; i <= Math.floor(maxVal); i++) ticks.push(i);
+      // N'ajoute la distance finale que si elle n'est pas déjà quasiment un nombre rond
+      // (évite un doublon visuel du type "6" et "6.0" côte à côte).
+      if (Math.abs(roundedMax - Math.round(roundedMax)) > 0.02) ticks.push(roundedMax);
+    } else {
+      const totalMinutes = maxVal / 60;
+      let stepMinutes = 1;
+      if (totalMinutes > 40) stepMinutes = 10;
+      else if (totalMinutes > 20) stepMinutes = 5;
+      else if (totalMinutes > 10) stepMinutes = 2;
+      const stepSeconds = stepMinutes * 60;
+      for (let t = 0; t <= maxVal; t += stepSeconds) ticks.push(t);
+      const roundedMax = Math.round(maxVal / 10) * 10; // arrondi à la dizaine de secondes
+      if (ticks.length === 0 || Math.abs(roundedMax - ticks[ticks.length - 1]) > 5) ticks.push(roundedMax);
+    }
     return ticks;
   }, [chartAxisType, chartXDomain]);
 
@@ -2907,9 +2959,35 @@ export default function App() {
                       </div>
                     ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={unifiedChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                      <LineChart data={unifiedChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }} onMouseMove={handleChartMouseMove} onMouseLeave={() => setHoveredSegmentIdx(null)}>
                         <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#374151' : '#e5e7eb'} vertical={false} />
-                        
+
+                        {/* Surbrillance de TOUT le segment survolé (pas juste son point de
+                            départ) — la zone couvre exactement la durée/distance du morceau
+                            sous le curseur, déterminée via handleChartMouseMove. */}
+                        {hoveredSegmentIdx !== null && trackSegments[hoveredSegmentIdx] && (
+                          <ReferenceArea
+                            x1={chartAxisType === 'distance' ? trackSegments[hoveredSegmentIdx].startDist : trackSegments[hoveredSegmentIdx].startTime}
+                            x2={chartAxisType === 'distance' ? trackSegments[hoveredSegmentIdx].endDist : trackSegments[hoveredSegmentIdx].endTime}
+                            fill={isNaughtyMode ? '#f43f5e' : '#ef4444'}
+                            fillOpacity={0.12}
+                            stroke="none"
+                          />
+                        )}
+
+                        {/* Repère vertical fin à chaque début de morceau, dans une couleur
+                            distincte de la grille régulière — permet de voir où chaque titre
+                            commence, en plus des graduations rondes (minutes/km). */}
+                        {trackSegments.map((seg, i) => (
+                          <ReferenceLine
+                            key={i}
+                            x={chartAxisType === 'distance' ? seg.startDist : seg.startTime}
+                            stroke="#3b82f6"
+                            strokeOpacity={0.5}
+                            strokeDasharray="2 2"
+                          />
+                        ))}
+
                         <XAxis 
                           dataKey={chartAxisType === 'distance' ? 'startDistVal' : 'time'} 
                           type="number"
