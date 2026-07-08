@@ -2796,20 +2796,19 @@ export default function App() {
                         <div className="flex items-center space-x-1"><Music size={14}/><span>{playlist.tracks.length} titres</span></div>
                         <div className="flex items-center space-x-1"><Clock size={14}/><span>{formatDuration(playlist.totalDuration)}</span></div>
                         <span className="bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded text-xs">{playlist.workoutType}</span>
+                        {/* Style musical, sur la même ligne que le reste — même format que la
+                            carte de routine, avec repli sur les genres réellement présents dans
+                            les titres si la config de la playlist ne précise pas selectedGenres
+                            (ex. playlist d'exemple). */}
+                        {(() => {
+                          const genres = playlist.config?.selectedGenres && playlist.config.selectedGenres.length > 0
+                            ? playlist.config.selectedGenres
+                            : Array.from(new Set(playlist.tracks.map(t => t.genre).filter(g => g && g !== 'Genre inconnu')));
+                          return genres.length > 0 ? (
+                            <div className="flex items-center space-x-1"><Music size={14}/><span>{genres.join(', ')}</span></div>
+                          ) : null;
+                        })()}
                       </div>
-                      {/* Style musical ajouté — même logique que sur les cartes de routines :
-                          repli sur les genres réellement présents dans les titres si la config
-                          de la playlist ne précise pas selectedGenres (ex. playlist d'exemple). */}
-                      {(() => {
-                        const genres = playlist.config?.selectedGenres && playlist.config.selectedGenres.length > 0
-                          ? playlist.config.selectedGenres
-                          : Array.from(new Set(playlist.tracks.map(t => t.genre).filter(g => g && g !== 'Genre inconnu')));
-                        return genres.length > 0 ? (
-                          <div className={`text-xs flex items-center gap-1.5 mt-1.5 ${textMuted}`}>
-                            <Music size={12}/><span>{genres.join(', ')}</span>
-                          </div>
-                        ) : null;
-                      })()}
 
                       <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
                         {playlist.status === 'completed' ? (
@@ -2915,17 +2914,15 @@ export default function App() {
                             <div className="flex items-center space-x-1"><Music size={14}/><span>{playlist.tracks.length} titres</span></div>
                             <div className="flex items-center space-x-1"><Clock size={14}/><span>{formatDuration(playlist.totalDuration)}</span></div>
                             <span className={`text-[10px] uppercase font-bold tracking-wider ${textMuted}`}>{playlist.createdAt}</span>
+                            {(() => {
+                              const genres = playlist.config?.selectedGenres && playlist.config.selectedGenres.length > 0
+                                ? playlist.config.selectedGenres
+                                : Array.from(new Set(playlist.tracks.map(t => t.genre).filter(g => g && g !== 'Genre inconnu')));
+                              return genres.length > 0 ? (
+                                <div className="flex items-center space-x-1"><Music size={14}/><span>{genres.join(', ')}</span></div>
+                              ) : null;
+                            })()}
                           </div>
-                          {(() => {
-                            const genres = playlist.config?.selectedGenres && playlist.config.selectedGenres.length > 0
-                              ? playlist.config.selectedGenres
-                              : Array.from(new Set(playlist.tracks.map(t => t.genre).filter(g => g && g !== 'Genre inconnu')));
-                            return genres.length > 0 ? (
-                              <div className={`text-xs flex items-center gap-1.5 mt-1.5 ${textMuted}`}>
-                                <Music size={12}/><span>{genres.join(', ')}</span>
-                              </div>
-                            ) : null;
-                          })()}
                           {playlist.actualData && (
                             <div className="flex items-center justify-center w-full py-2 mt-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-lg text-xs font-bold">
                               <Activity size={14} className="mr-2"/> Données réelles associées
