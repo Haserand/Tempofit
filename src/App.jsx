@@ -102,7 +102,7 @@ const TROPHIES_DATA = [
   { id: 't_regular', name: 'Athlète Régulier', desc: 'Complète 5 sessions. La constance est la clé !', icon: '🥈', requirement: { type: 'total', count: 5 } },
   { id: 't_machine', name: 'La Machine', desc: 'Complète 30 sessions. Un mois entier d\'efforts.', icon: '🏆', requirement: { type: 'total', count: 30 } },
   { id: 't_lover', name: 'Tempo Lover', desc: 'Complète une session avec le mode "Intime".', icon: '🔥', requirement: { type: 'naughty', count: 1 } },
-  { id: 't_data', name: 'Data Scientist', desc: 'Importe tes données réelles (Garmin/Strava) pour analyse.', icon: '📊', requirement: { type: 'data', count: 1 } },
+  { id: 't_data', name: 'Data Scientist', desc: 'Importe tes données réelles (cadence PPM et/ou fréquence cardiaque, via Garmin/Strava) pour analyse.', icon: '📊', requirement: { type: 'data', count: 1 } },
   { id: 't_marathon', name: 'Le Marathonien', desc: 'Génère une session de plus de 42 km ou 4 heures.', icon: '🏅', requirement: { type: 'custom', key: 'hasMarathon' } },
   { id: 't_bolt', name: 'La Foudre', desc: 'Génère une session avec un rythme extrême (> 180 BPM ou < 4:00/km).', icon: '⚡', requirement: { type: 'custom', key: 'hasBolt' } },
   { id: 't_hiit', name: 'Maître du HIIT', desc: 'Génère une session fractionnée complexe (5 portions ou plus).', icon: '📈', requirement: { type: 'custom', key: 'hasHiitMaster' } },
@@ -590,6 +590,10 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   const maxBpm = segment.bpm + config.bpmTolerance;
   const pool = [];
   const seenIds = new Set(excludeYoutubeIds);
+  // Genre effectif pour CE segment : si la portion a un genre spécifique défini
+  // (override manuel à l'étape 3 du wizard), il prime sur le genre global de la
+  // séance (config.selectedGenres) — sinon comportement inchangé.
+  const effectiveGenres = (segment.selectedGenres && segment.selectedGenres.length > 0) ? segment.selectedGenres : config.selectedGenres;
 
   const addIfValid = (t) => {
     if (t && typeof t.bpm === 'number' && t.bpm >= minBpm && t.bpm <= maxBpm && t.duration && t.youtubeId && !seenIds.has(t.youtubeId)) {
@@ -606,7 +610,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   // pour donner à l'algorithme de sélection un vrai choix de durées parmi
   // lesquelles piocher, plutôt qu'un seul candidat par appel.
   try {
-    const genreForQuery = config.selectedGenres && config.selectedGenres.length > 0 ? config.selectedGenres[0] : 'Autre';
+    const genreForQuery = effectiveGenres && effectiveGenres.length > 0 ? effectiveGenres[0] : 'Autre';
     const keyword = DEEZER_GENRE_KEYWORDS[genreForQuery] || '';
     const q = `bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
     const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=25`);
@@ -635,7 +639,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
 
   // Base locale statique (jamais d'extrait audio, mais toujours disponible hors-ligne).
   let localPool = [];
-  const validGenres = config.selectedGenres && config.selectedGenres.length > 0 ? config.selectedGenres : ['Métal'];
+  const validGenres = effectiveGenres && effectiveGenres.length > 0 ? effectiveGenres : ['Métal'];
   validGenres.forEach(g => { if (DATABASE_MUSIQUES[g]) localPool = [...localPool, ...DATABASE_MUSIQUES[g].map(t => ({ ...t, genre: g }))]; });
   localPool.filter(t => t.bpm >= minBpm && t.bpm <= maxBpm).forEach(addIfValid);
 
@@ -661,7 +665,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   // information transmise à l'utilisateur après génération (voir createPlaylistData).
   while (remaining > 30) {
     const usedSoFar = [...excludeYoutubeIds, ...selected.map(t => t.youtubeId)];
-    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, config.selectedGenres, usedSoFar, favorites, spotifyTrackPool, remaining);
+    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, effectiveGenres, usedSoFar, favorites, spotifyTrackPool, remaining);
     extra._isFallback = true;
     selected.push(extra);
     remaining -= extra.duration;
@@ -669,7 +673,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
 
   // Filet de sécurité ultime : un segment ne doit jamais rester totalement vide.
   if (selected.length === 0) {
-    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, config.selectedGenres, excludeYoutubeIds, favorites, spotifyTrackPool, segment.durationSeconds);
+    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, effectiveGenres, excludeYoutubeIds, favorites, spotifyTrackPool, segment.durationSeconds);
     extra._isFallback = true;
     selected.push(extra);
   }
@@ -717,8 +721,8 @@ const parseTimeToSeconds = (timeStr) => {
 
 // Tooltip personnalisé affiché au survol d'un point du graphique BPM.
 // Affiche le nom du morceau (si dispo), le temps écoulé, et selon les données
-// disponibles le BPM cible (musique) et/ou le BPM réel (import Garmin/Strava).
-const CustomChartTooltip = ({ active, payload, isNaughtyMode, currentUnit }) => {
+// disponibles le BPM cible (musique) et/ou la cadence réelle en PPM (import Garmin/Strava).
+const CustomChartTooltip = ({ active, payload, isNaughtyMode, currentUnit, metric }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
@@ -743,12 +747,12 @@ const CustomChartTooltip = ({ active, payload, isNaughtyMode, currentUnit }) => 
         <div className="flex flex-col gap-2">
             {data.bpmTarget !== undefined && (
                <div className={`px-2 py-1.5 rounded text-xs font-bold font-mono text-white ${isNaughtyMode ? 'bg-rose-500' : 'bg-gray-800 dark:bg-gray-700'}`}>
-                 🎯 Cible: {data.bpmTarget} BPM
+                 🎯 Cible: {data.bpmTarget} BPM musical
                </div>
             )}
-            {data.bpmReal !== undefined && (
+            {data.realValue !== undefined && (
                <div className="px-2 py-1.5 rounded text-xs font-bold font-mono bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
-                 🏃 Réel: {data.bpmReal} BPM
+                 {metric === 'heartRate' ? `❤️ Fréquence cardiaque: ${data.realValue} pulsations/min` : `🏃 Cadence réelle: ${data.realValue} PPM`}
                </div>
             )}
         </div>
@@ -758,14 +762,22 @@ const CustomChartTooltip = ({ active, payload, isNaughtyMode, currentUnit }) => 
   return null;
 };
 
-// Point personnalisé de la courbe "BPM réel" : sa couleur change selon l'écart
-// avec la cible au même instant (vert = dans la tolérance, orange = trop lent,
-// rouge = trop rapide). C'est ce qui donne le petit effet "feu tricolore" sur le graphique.
+// Point personnalisé de la courbe "réelle" affichée (Cadence PPM OU Fréquence
+// cardiaque, selon `selectedMetric` — voir plus bas). La coloration "feu tricolore"
+// (vert/orange/rouge selon l'écart à la cible) n'a de sens QUE pour la cadence,
+// comparable au BPM musical cible via la convention "1 pas = 1 temps" (course à
+// pied). La fréquence cardiaque n'a pas de cible équivalente dans TempoFit
+// aujourd'hui (pas de zone de FC cible définie) — son point reste donc dans une
+// couleur neutre unique, sans jugement "trop lent/trop rapide" inventé de toutes pièces.
 const RealDataDot = (props) => {
-  const { cx, cy, payload, tolerance } = props;
-  if (payload.bpmReal === undefined || payload.targetAtTime === undefined) return null;
+  const { cx, cy, payload, tolerance, metric } = props;
+  if (payload.realValue === undefined) return null;
+  if (metric !== 'cadence' || payload.targetAtTime === undefined) {
+    // Fréquence cardiaque (ou cadence sans cible connue à cet instant) : point neutre.
+    return <circle cx={cx} cy={cy} r={4} fill="#ec4899" stroke="white" strokeWidth={1} />;
+  }
   const target = payload.targetAtTime;
-  const real = payload.bpmReal;
+  const real = payload.realValue;
   const tol = tolerance || 10;
   let fill = "#3b82f6";
   if (real >= target - tol && real <= target + tol) fill = "#22c55e"; 
@@ -1208,6 +1220,9 @@ export default function App() {
 
   // Segments du mode fractionné (HIIT) : chacun a son propre BPM cible et sa durée.
   const [segments, setSegments] = useState([{ id: 1, bpm: 120, durationValue: 15 }]); 
+  // Quelle portion a son panneau "genre spécifique" déplié (une seule à la fois,
+  // replié par défaut pour ne pas surcharger l'étape 3 du wizard). null = aucune.
+  const [expandedSegmentGenreId, setExpandedSegmentGenreId] = useState(null);
 
   const [currentPlaylist, setCurrentPlaylist] = useState(null);
   // Playlist d'exemple pré-remplie, même principe que la routine et les favoris de
@@ -1228,7 +1243,7 @@ export default function App() {
     coverIcon: '🏃‍♂️',
     createdAt: new Date().toLocaleDateString(),
     status: 'pending',
-    actualData: null,
+    actualDataByDate: {},
     config: { workoutName: 'Course à pied', targetMode: 'time', hours: 0, minutes: 18, bpm: 150, tolerance: 15, isIntervalMode: false, selectedGenres: ['Rock', 'Métal'] },
     totalDuration: 1138,
     tracks: [
@@ -1486,6 +1501,18 @@ export default function App() {
 
   const [dataOffset, setDataOffset] = useState(0);
   const fileInputRef = useRef(null);
+  // Mémorise à QUELLE date de complétion précise rattacher le prochain import CSV
+  // (une playlist peut désormais avoir plusieurs séances réelles, une par date de
+  // complétion, au lieu d'une seule donnée réelle partagée pour toute la playlist).
+  const [csvUploadTargetDate, setCsvUploadTargetDate] = useState(null);
+  // Quelle date de complétion afficher dans le graphique "Cible vs Réalité" quand
+  // plusieurs séances ont des données réelles importées — par défaut la plus récente.
+  const [selectedAnalysisDate, setSelectedAnalysisDate] = useState(null);
+  // Quelle métrique réelle afficher sur le graphique quand les deux sont dispo pour
+  // la séance sélectionnée : 'cadence' (PPM, comparable au BPM musical cible) ou
+  // 'heartRate' (fréquence cardiaque, affichée en courbe brute — pas de cible
+  // équivalente dans TempoFit aujourd'hui, voir RealDataDot et analysisStats).
+  const [selectedMetric, setSelectedMetric] = useState('cadence');
 
   const availableGenres = isNaughtyMode ? NAUGHTY_GENRES : STANDARD_GENRES;
   const t = TRANSLATIONS['fr'];
@@ -1504,8 +1531,38 @@ export default function App() {
     }
   }, [isSavingRoutineModalOpen, isNaughtyMode]);
 
-  // Réinitialise le décalage temporel du graphique (dataOffset) à chaque changement de playlist affichée.
-  useEffect(() => { setDataOffset(0); }, [currentPlaylist?.id]);
+  // Réinitialise le décalage temporel du graphique (dataOffset) à chaque changement de
+  // playlist affichée, et pré-sélectionne la séance réelle la plus récente (s'il y en a)
+  // pour l'affichage "Cible vs Réalité".
+  useEffect(() => {
+    setDataOffset(0);
+    const datesWithData = currentPlaylist?.actualDataByDate ? Object.keys(currentPlaylist.actualDataByDate).sort() : [];
+    setSelectedAnalysisDate(datesWithData.length > 0 ? datesWithData[datesWithData.length - 1] : null);
+  }, [currentPlaylist?.id]);
+
+  // Données réelles (Garmin/Strava) de la séance actuellement sélectionnée pour analyse
+  // — remplace l'ancien `currentPlaylist.actualData` unique par un accès à la bonne
+  // entrée de `actualDataByDate` selon `selectedAnalysisDate`.
+  const currentActualData = (currentPlaylist && currentPlaylist.actualDataByDate && selectedAnalysisDate)
+    ? currentPlaylist.actualDataByDate[selectedAnalysisDate]
+    : null;
+
+  // Quelles métriques sont réellement présentes dans la séance affichée — un même
+  // fichier CSV Garmin/Strava peut contenir la cadence, la fréquence cardiaque, ou
+  // les deux (elles viennent du même export par tour, pas d'imports séparés).
+  const availableMetrics = {
+    cadence: !!(currentActualData && currentActualData.some(d => d.cadenceReelle !== undefined)),
+    heartRate: !!(currentActualData && currentActualData.some(d => d.heartRate !== undefined)),
+  };
+
+  // Si la métrique actuellement choisie n'existe pas pour la séance affichée (ex. on
+  // vient de changer de date, ou ce CSV ne contenait que l'une des deux), on bascule
+  // automatiquement sur celle qui est disponible plutôt que d'afficher un graphique vide.
+  useEffect(() => {
+    if (!currentActualData) return;
+    if (selectedMetric === 'cadence' && !availableMetrics.cadence && availableMetrics.heartRate) setSelectedMetric('heartRate');
+    else if (selectedMetric === 'heartRate' && !availableMetrics.heartRate && availableMetrics.cadence) setSelectedMetric('cadence');
+  }, [currentActualData, selectedAnalysisDate]);
 
   // Le <title> de la page est écrit en dur dans index.html (hors de portée de React),
   // donc il ne suivait jamais le mode Intime. On le met à jour manuellement ici pour
@@ -1603,6 +1660,30 @@ export default function App() {
     }
   };
 
+  // Ajoute/retire un genre du genre SPÉCIFIQUE d'une portion en mode Fractionné
+  // (override qui prime sur le genre global de la séance — voir buildSegmentTracks).
+  // Un segment sans selectedGenres (undefined) utilise le genre global ; dès qu'on
+  // coche un genre ici, la portion bascule sur sa propre sélection indépendante.
+  const toggleSegmentGenre = (segmentId, genre) => {
+    setSegments(segments.map(s => {
+      if (s.id !== segmentId) return s;
+      const current = s.selectedGenres || [];
+      if (current.includes(genre)) {
+        const updated = current.filter(g => g !== genre);
+        // Liste vidée : on ne laisse jamais une portion sans AUCUN genre, on
+        // repasse simplement en "pas d'override" (undefined = genre global).
+        return { ...s, selectedGenres: updated.length > 0 ? updated : undefined };
+      }
+      return { ...s, selectedGenres: [...current, genre] };
+    }));
+  };
+
+  // Retire l'override de genre d'une portion : elle revient au genre global de
+  // la séance plutôt que de garder une sélection propre.
+  const resetSegmentGenre = (segmentId) => {
+    setSegments(segments.map(s => s.id === segmentId ? { ...s, selectedGenres: undefined } : s));
+  };
+
   // Sauvegarde la configuration actuelle du wizard comme routine réutilisable.
   const handleSaveRoutine = () => {
     const finalName = newRoutineName.trim() || `Routine ${workoutType === 'Autre' ? customActivity || 'Personnalisée' : workoutType}`;
@@ -1695,7 +1776,9 @@ export default function App() {
     if (config.isIntervalMode) {
       activeSegments = config.segments.map(s => {
         let durationSecs = s.durationValue * (config.targetMode === 'distance' ? unitPaceSecs : 60);
-        return { bpm: s.bpm, durationSeconds: durationSecs };
+        // selectedGenres transmis tel quel : undefined/vide = pas d'override, le
+        // segment utilisera le genre global de la séance (voir buildSegmentTracks).
+        return { bpm: s.bpm, durationSeconds: durationSecs, selectedGenres: s.selectedGenres };
       });
     } else {
       let durationSecs = config.targetMode === 'distance' 
@@ -1740,7 +1823,7 @@ export default function App() {
       tolerance: config.bpmTolerance, crossfade: config.crossfade || 0,
       tracks: tracks, isNaughty: isNaughtyMode, fallbackTrackCount: fallbackCount,
       coverIcon: config.coverIcon || '🎧', createdAt: new Date().toLocaleDateString(),
-      status: 'pending', actualData: null, config: { ...config } 
+      status: 'pending', actualDataByDate: {}, config: { ...config } 
     };
 
     return recalculateTimeline(rawPlaylist);
@@ -2130,8 +2213,13 @@ export default function App() {
     const pl = savedPlaylists.find(p => p.id === playlistId);
     if (!pl) return;
     const remaining = (pl.completions || []).filter(d => d !== isoDate);
+    // Si des données Garmin/Strava étaient rattachées à CETTE date précise, on les
+    // retire aussi — les garder n'aurait plus de sens sans la date de complétion
+    // qu'elles étaient censées documenter.
+    const remainingActualData = { ...(pl.actualDataByDate || {}) };
+    delete remainingActualData[isoDate];
 
-    setSavedPlaylists(savedPlaylists.map(p => p.id === playlistId ? { ...p, completions: remaining } : p));
+    setSavedPlaylists(savedPlaylists.map(p => p.id === playlistId ? { ...p, completions: remaining, actualDataByDate: remainingActualData } : p));
 
     if (remaining.length === 0) {
       showToast("Dernière date retirée : cette playlist n'a plus aucune complétion, elle repasse dans \"Mes Playlists\".", 'error');
@@ -2148,29 +2236,51 @@ export default function App() {
       const existing = p.completions || [];
       if (existing.includes(newIso)) { showToast("Cette date est déjà enregistrée."); return p; }
       const updated = existing.map(d => d === oldIso ? newIso : d).sort();
-      return { ...p, completions: updated };
+      // Si des données réelles étaient rattachées à l'ancienne date, on les
+      // déplace vers la nouvelle plutôt que de les perdre.
+      let updatedActualData = p.actualDataByDate || {};
+      if (updatedActualData[oldIso] !== undefined) {
+        updatedActualData = { ...updatedActualData };
+        updatedActualData[newIso] = updatedActualData[oldIso];
+        delete updatedActualData[oldIso];
+      }
+      return { ...p, completions: updated, actualDataByDate: updatedActualData };
     }));
   };
 
-  // Déclenche le sélecteur de fichier caché pour l'import CSV Garmin/Strava,
-  // en mémorisant d'abord quelle playlist est concernée.
-  const triggerCSVUpload = (e, playlist) => {
+  // Déclenche le sélecteur de fichier caché pour l'import CSV Garmin/Strava, en
+  // mémorisant d'abord quelle playlist ET quelle date de complétion précise sont
+  // concernées (une playlist faite plusieurs fois peut avoir une séance réelle
+  // différente par date, plutôt qu'une seule donnée partagée pour toute la playlist).
+  const triggerCSVUpload = (e, playlist, targetDateIso) => {
     e.stopPropagation();
     setCurrentPlaylist(playlist);
+    setCsvUploadTargetDate(targetDateIso);
     if(fileInputRef.current) fileInputRef.current.click();
   };
 
   /**
    * Parse un export CSV Garmin/Strava (format à guillemets doubles, séparateur
-   * `","`). Cherche dynamiquement la colonne de cadence ("cadence de course
-   * moyenne" ou contenant à la fois "cadence" et "ppm") et, si possible, une
-   * colonne de temps cumulé pour caler chaque point sur la timeline.
-   * En cas de succès, associe ces données réelles à la playlist courante
-   * (`actualData`), ce qui active l'affichage "Cible vs Réalité" du graphique.
+   * `","`). Cherche dynamiquement DEUX colonnes possibles, indépendamment l'une
+   * de l'autre — un même export par tour contient généralement les deux :
+   *   - la cadence ("cadence de course moyenne" ou "cadence"+"ppm")
+   *   - la fréquence cardiaque ("fréquence cardiaque moyenne" ou "fc moyenne",
+   *     ou "heart rate" pour un export Strava en anglais)
+   * et, si possible, une colonne de temps cumulé pour caler chaque point sur la
+   * timeline. Au moins UNE des deux métriques doit être trouvée pour accepter le
+   * fichier (elles sont indépendantes : un fichier peut n'avoir que l'une ou
+   * l'autre). En cas de succès, associe ces données réelles à la date de
+   * complétion ciblée (`actualDataByDate[targetDate]`), ce qui active
+   * l'affichage "Cadence/FC vs BPM cible" du graphique.
    */
   const handleCSVUpload = (e) => {
     const file = e.target.files[0];
-    if (!file || !currentPlaylist) return;
+    // csvUploadTargetDate doit toujours être défini : le bouton d'import n'existe
+    // que sur une date de complétion précise (voir renderCompletionsList), donc si
+    // jamais il manque (état incohérent), on préfère bloquer plutôt que de deviner
+    // à quelle séance rattacher les données.
+    if (!file || !currentPlaylist || !csvUploadTargetDate) return;
+    const targetDate = csvUploadTargetDate;
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
@@ -2180,32 +2290,52 @@ export default function App() {
 
         const headers = lines[0].split('","').map(h => h.replace(/"/g, '').toLowerCase());
         const cadenceIdx = headers.findIndex(h => h.includes('cadence de course moyenne') || (h.includes('cadence') && h.includes('ppm')));
+        const heartRateIdx = headers.findIndex(h => h.includes('fréquence cardiaque') || h.includes('frequence cardiaque') || h.includes('fc moyenne') || h.includes('heart rate'));
         const timeIdx = headers.findIndex(h => h.includes('temps cumulé') || h.includes('durée'));
 
-        if(cadenceIdx === -1) { showToast("Erreur: Colonne 'Cadence' introuvable.", 'error'); return; }
+        if(cadenceIdx === -1 && heartRateIdx === -1) { showToast("Erreur: aucune colonne de cadence ou de fréquence cardiaque trouvée dans ce fichier.", 'error'); return; }
 
         const parsedData = lines.slice(1).map((line, idx) => {
           const cols = line.split('","').map(c => c.replace(/"/g, ''));
-          if(cols.length <= cadenceIdx) return null;
-          const cadenceVal = parseInt(cols[cadenceIdx]) || 0;
-          if(cadenceVal === 0) return null;
+          const cadenceVal = (cadenceIdx !== -1 && cols.length > cadenceIdx) ? (parseInt(cols[cadenceIdx]) || 0) : 0;
+          const heartRateVal = (heartRateIdx !== -1 && cols.length > heartRateIdx) ? (parseInt(cols[heartRateIdx]) || 0) : 0;
+          if(cadenceVal === 0 && heartRateVal === 0) return null;
 
           const timeSec = timeIdx !== -1 ? parseTimeToSeconds(cols[timeIdx]) : idx * 60;
 
-          return { circuit: idx + 1, cadenceReelle: cadenceVal, timeSec: timeSec };
+          const point = { circuit: idx + 1, timeSec: timeSec };
+          if (cadenceVal > 0) point.cadenceReelle = cadenceVal;
+          if (heartRateVal > 0) point.heartRate = heartRateVal;
+          return point;
         }).filter(Boolean);
 
-        if(parsedData.length === 0) { showToast("Aucune donnée de cadence valide trouvée.", 'error'); return; }
+        if(parsedData.length === 0) { showToast("Aucune donnée de cadence ou de fréquence cardiaque valide trouvée.", 'error'); return; }
 
-        const updatedPlaylist = { ...currentPlaylist, actualData: parsedData };
+        // Rattache ces données réelles à la date de complétion précise ciblée
+        // (`targetDate`), sans toucher aux données déjà importées pour d'autres
+        // dates de la même playlist.
+        const updatedActualDataByDate = { ...(currentPlaylist.actualDataByDate || {}), [targetDate]: parsedData };
+        const updatedPlaylist = { ...currentPlaylist, actualDataByDate: updatedActualDataByDate };
         setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
         setCurrentPlaylist(updatedPlaylist);
+        setSelectedAnalysisDate(targetDate);
+        // Bascule sur la métrique effectivement importée pour donner un retour visuel
+        // immédiat cohérent (ex. si ce fichier n'a que la FC, on ne reste pas bloqué
+        // sur un graphique vide en mode "cadence").
+        const hasCadence = parsedData.some(d => d.cadenceReelle !== undefined);
+        const hasHeartRate = parsedData.some(d => d.heartRate !== undefined);
+        if (!hasCadence && hasHeartRate) setSelectedMetric('heartRate');
+        else if (hasCadence && !hasHeartRate) setSelectedMetric('cadence');
 
         let stats = { ...userStats, dataImports: userStats.dataImports + 1 };
         checkTrophies(stats);
         changeView('playlist');
-        showToast("Données Garmin/Strava importées avec succès !");
+        const importedLabel = hasCadence && hasHeartRate ? "Cadence (PPM) et fréquence cardiaque importées"
+          : hasCadence ? "Cadence (PPM) importée"
+          : "Fréquence cardiaque importée";
+        showToast(`${importedLabel} pour la séance du ${formatCompletionDate(targetDate)} !`);
       } catch(err) { showToast("Erreur lors de la lecture du fichier CSV.", 'error'); }
+      finally { setCsvUploadTargetDate(null); }
     };
     reader.readAsText(file);
     e.target.value = '';
@@ -2289,7 +2419,9 @@ export default function App() {
    * Construit le jeu de données unifié pour le graphique BPM : fusionne la
    * courbe "cible" (un point par début/fin de morceau, tracée en "escalier"
    * avec type="stepAfter") et, si des données réelles ont été importées, la
-   * courbe "réel" (un point par tour Garmin, décalé de `dataOffset` secondes
+   * courbe "réelle" — cadence (PPM) OU fréquence cardiaque selon `selectedMetric`,
+   * jamais les deux en même temps (échelles trop différentes pour être lisibles
+   * superposées) — un point par tour Garmin, décalé de `dataOffset` secondes
    * pour permettre à l'utilisateur de recaler manuellement les deux courbes
    * si le chrono du device n'était pas parfaitement synchronisé au démarrage).
    */
@@ -2317,8 +2449,14 @@ export default function App() {
       combined.push({ time: accTime, startDistVal: accTime / avgPaceSecs, bpmTarget: currentPlaylist.tracks[currentPlaylist.tracks.length-1].bpm });
     }
 
-    if (currentPlaylist.actualData) {
-      currentPlaylist.actualData.forEach(d => {
+    if (currentActualData) {
+      currentActualData.forEach(d => {
+        // Métrique effectivement affichée pour ce point : si la séance n'a pas
+        // cette valeur précise (ex. FC manquante sur certains tours), on saute
+        // le point plutôt que d'afficher un zéro trompeur.
+        const rawValue = selectedMetric === 'heartRate' ? d.heartRate : d.cadenceReelle;
+        if (rawValue === undefined) return;
+
         let t = d.timeSec + dataOffset;
         if(t >= 0 && t <= accTime + 300) {
           let target = null;
@@ -2329,14 +2467,14 @@ export default function App() {
           }
           if(!target && currentPlaylist.tracks.length > 0) target = currentPlaylist.tracks[currentPlaylist.tracks.length-1].bpm;
 
-          combined.push({ time: t, startDistVal: t / avgPaceSecs, bpmReal: d.cadenceReelle, targetAtTime: target, title: `Tour Garmin ${d.circuit}` });
+          combined.push({ time: t, startDistVal: t / avgPaceSecs, realValue: rawValue, targetAtTime: target, title: `Tour Garmin ${d.circuit}` });
         }
       });
     }
 
     combined.sort((a,b) => a.time - b.time);
     return combined;
-  }, [currentPlaylist, dataOffset]);
+  }, [currentPlaylist, currentActualData, selectedMetric, dataOffset]);
 
   /**
    * Bornes [début, fin[ de chaque morceau, en temps ET en distance — calculées à
@@ -2423,10 +2561,12 @@ export default function App() {
 
   const renderCompletionsList = (playlist) => {
     const completions = playlist.completions || [];
+    const dataByDate = playlist.actualDataByDate || {};
     return (
       <div onClick={(e) => e.stopPropagation()} className="flex flex-wrap items-center gap-1.5">
         {completions.map((iso) => {
           const isEditing = editingCompletion && editingCompletion.playlistId === playlist.id && editingCompletion.isoDate === iso;
+          const hasData = !!dataByDate[iso];
           return isEditing ? (
             <input
               key={iso} type="date" autoFocus defaultValue={iso}
@@ -2438,6 +2578,16 @@ export default function App() {
             <span key={iso} className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold ${inputBg} border ${inputBorder} ${textHighlight}`}>
               <button onClick={() => setEditingCompletion({ playlistId: playlist.id, isoDate: iso })} className="hover:underline" title="Modifier cette date">
                 {formatCompletionDate(iso)}
+              </button>
+              {/* Import Garmin/Strava rattaché à CETTE séance précise (pas à toute la
+                  playlist) — une playlist refaite plusieurs fois peut donc avoir une
+                  analyse Cible vs Réalité différente pour chaque date. */}
+              <button
+                onClick={(e) => triggerCSVUpload(e, playlist, iso)}
+                className={hasData ? "text-purple-500 hover:text-purple-600 transition-colors" : "text-gray-400 hover:text-blue-500 transition-colors"}
+                title={hasData ? "Données déjà importées pour cette séance (cadence et/ou FC) — cliquer pour remplacer" : "Importer les données Garmin/Strava de cette séance (cadence et/ou fréquence cardiaque)"}
+              >
+                <Upload size={12}/>
               </button>
               <button onClick={() => removeCompletionDate(playlist.id, iso)} className="text-gray-400 hover:text-red-500 transition-colors" title="Retirer cette date">
                 <X size={12}/>
@@ -2531,20 +2681,25 @@ export default function App() {
 
   const chartYDomain = useMemo(() => {
     const values = unifiedChartData
-      .flatMap(d => [parseFloat(d.bpmTarget), parseFloat(d.bpmReal)])
+      .flatMap(d => [parseFloat(d.bpmTarget), parseFloat(d.realValue)])
       .filter(v => !isNaN(v));
     if (values.length === 0) return [60, 200];
     return [Math.min(...values) - 10, Math.max(...values) + 10];
   }, [unifiedChartData]);
 
-  // Calcule le % de temps passé "dans la cible" / "trop lent" / "trop rapide"
-  // en comparant chaque point de données réelles à la cible au même instant.
+  // Calcule le % de temps passé "dans la cible" / "trop lent" / "trop rapide" en
+  // comparant chaque point de CADENCE réelle à la cible (BPM musical) au même
+  // instant. Volontairement limité à la cadence : la fréquence cardiaque n'a pas
+  // de cible équivalente dans TempoFit aujourd'hui (pas de zone de FC cible
+  // définie), donc un "% de match" pour elle n'aurait pas de sens réel — voir
+  // aussi RealDataDot, qui applique la même restriction à la coloration des points.
   const analysisStats = useMemo(() => {
-    if (!currentPlaylist || !currentPlaylist.actualData) return null;
+    if (!currentPlaylist || !currentActualData || selectedMetric !== 'cadence') return null;
     let matchCount = 0, belowCount = 0, aboveCount = 0;
     const tol = currentPlaylist.tolerance || 10;
 
-    currentPlaylist.actualData.forEach(d => {
+    currentActualData.forEach(d => {
+      if (d.cadenceReelle === undefined) return; // point sans cadence (FC seule) : hors calcul
       const t = d.timeSec + dataOffset;
       let target = null;
       let acc = 0;
@@ -2568,7 +2723,7 @@ export default function App() {
       belowPct: Math.round((belowCount / total) * 100),
       abovePct: Math.round((aboveCount / total) * 100),
     };
-  }, [currentPlaylist, dataOffset]);
+  }, [currentPlaylist, currentActualData, selectedMetric, dataOffset]);
 
   // --- Tokens de thème (couleurs Tailwind conditionnées par le mode Intime / clair-sombre) ---
   const themeColor = isNaughtyMode ? 'rose' : 'red';
@@ -2907,24 +3062,79 @@ export default function App() {
                             </div>
 
                             <div className="space-y-3">
-                              {segments.map((segment, index) => (
-                                <div key={segment.id} className={`flex items-center gap-4 ${inputBg} p-4 rounded-xl border ${inputBorder}`}>
-                                  <div className={`w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center font-bold text-sm ${textHighlight}`}>{index + 1}</div>
-                                  <div className="flex-1 flex gap-3">
-                                    <div className={`flex-1 flex items-center bg-white dark:bg-gray-900 rounded-lg px-3 py-2 shadow-sm`}>
-                                      <input type="number" value={segment.bpm} onChange={(e) => setSegments(segments.map(s => s.id === segment.id ? { ...s, bpm: parseInt(e.target.value) || 0 } : s))} className={`w-full bg-transparent text-lg font-bold outline-none ${textHighlight}`} />
-                                      <span className={`text-xs font-bold ${textMuted}`}>BPM</span>
+                              {segments.map((segment, index) => {
+                                const isGenreExpanded = expandedSegmentGenreId === segment.id;
+                                const hasOverride = segment.selectedGenres && segment.selectedGenres.length > 0;
+                                return (
+                                <div key={segment.id} className={`${inputBg} rounded-xl border ${inputBorder} overflow-hidden`}>
+                                  <div className="flex items-center gap-4 p-4">
+                                    <div className={`w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center font-bold text-sm ${textHighlight}`}>{index + 1}</div>
+                                    <div className="flex-1 flex gap-3">
+                                      <div className={`flex-1 flex items-center bg-white dark:bg-gray-900 rounded-lg px-3 py-2 shadow-sm`}>
+                                        <input type="number" value={segment.bpm} onChange={(e) => setSegments(segments.map(s => s.id === segment.id ? { ...s, bpm: parseInt(e.target.value) || 0 } : s))} className={`w-full bg-transparent text-lg font-bold outline-none ${textHighlight}`} />
+                                        <span className={`text-xs font-bold ${textMuted}`}>BPM</span>
+                                      </div>
+                                      <div className={`flex-1 flex items-center bg-white dark:bg-gray-900 rounded-lg px-3 py-2 shadow-sm`}>
+                                        <input type="number" step={targetMode==='distance'?'0.1':'1'} value={segment.durationValue} onChange={(e) => setSegments(segments.map(s => s.id === segment.id ? { ...s, durationValue: parseFloat(e.target.value) || 0 } : s))} className={`w-full bg-transparent text-lg font-bold outline-none ${textHighlight}`} />
+                                        <span className={`text-xs font-bold ${textMuted}`}>{targetMode === 'distance' ? distanceUnit : 'Min'}</span>
+                                      </div>
                                     </div>
-                                    <div className={`flex-1 flex items-center bg-white dark:bg-gray-900 rounded-lg px-3 py-2 shadow-sm`}>
-                                      <input type="number" step={targetMode==='distance'?'0.1':'1'} value={segment.durationValue} onChange={(e) => setSegments(segments.map(s => s.id === segment.id ? { ...s, durationValue: parseFloat(e.target.value) || 0 } : s))} className={`w-full bg-transparent text-lg font-bold outline-none ${textHighlight}`} />
-                                      <span className={`text-xs font-bold ${textMuted}`}>{targetMode === 'distance' ? distanceUnit : 'Min'}</span>
-                                    </div>
+                                    {/* Genre spécifique à CETTE portion : replié par défaut (icône
+                                        neutre), colorée dès qu'un override est défini pour cette
+                                        portion — sinon elle utilise le genre global de l'étape 4. */}
+                                    <button
+                                      onClick={() => setExpandedSegmentGenreId(isGenreExpanded ? null : segment.id)}
+                                      title={hasOverride ? `Genre spécifique : ${segment.selectedGenres.join(', ')}` : "Genre global de la séance (cliquer pour définir un genre spécifique à cette portion)"}
+                                      className={`p-2 rounded-lg transition-colors ${hasOverride ? `${bgAccentClass} text-white` : `${textMuted} hover:${textHighlight} hover:bg-gray-200 dark:hover:bg-gray-700`}`}
+                                    >
+                                      <Music size={18} />
+                                    </button>
+                                    <button onClick={() => segments.length > 1 && setSegments(segments.filter(s => s.id !== segment.id))} disabled={segments.length === 1} className={`p-2 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-30 ${textMuted}`}>
+                                      <Trash2 size={20} />
+                                    </button>
                                   </div>
-                                  <button onClick={() => segments.length > 1 && setSegments(segments.filter(s => s.id !== segment.id))} disabled={segments.length === 1} className={`p-2 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-30 ${textMuted}`}>
-                                    <Trash2 size={20} />
-                                  </button>
+                                  {isGenreExpanded && (
+                                    <div className={`px-4 pb-4 border-t ${inputBorder} pt-3`}>
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className={`text-xs font-bold ${textMuted}`}>
+                                          {hasOverride ? "Genre spécifique à cette portion" : "Aucun override — utilise le genre global de la séance"}
+                                        </span>
+                                        {hasOverride && (
+                                          <button onClick={() => resetSegmentGenre(segment.id)} className={`text-xs font-bold underline ${textMuted} hover:${textHighlight}`}>
+                                            Revenir au genre global
+                                          </button>
+                                        )}
+                                      </div>
+                                      <div className="flex flex-wrap gap-2">
+                                        {STANDARD_GENRES.map(genre => {
+                                          const isSelected = (segment.selectedGenres || []).includes(genre);
+                                          return (
+                                            <button key={genre} onClick={() => toggleSegmentGenre(segment.id, genre)} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                                              {genre}
+                                            </button>
+                                          );
+                                        })}
+                                        <button onClick={() => setShowExtraGenres(!showExtraGenres)} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border-2 border-dashed ${cardBorder} ${textMuted} hover:${textHighlight}`}>
+                                          {showExtraGenres ? '− Moins de genres' : '+ Plus de genres'}
+                                        </button>
+                                      </div>
+                                      {showExtraGenres && (
+                                        <div className="flex flex-wrap gap-2 mt-2">
+                                          {EXTRA_GENRES.map(genre => {
+                                            const isSelected = (segment.selectedGenres || []).includes(genre);
+                                            return (
+                                              <button key={genre} onClick={() => toggleSegmentGenre(segment.id, genre)} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                                                {genre}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
-                              ))}
+                              );
+                              })}
                             </div>
                             <button onClick={() => setSegments([...segments, { id: Date.now(), bpm: segments[segments.length - 1].bpm, durationValue: targetMode==='distance'?1:10 }])} className={`w-full py-4 mt-4 border-2 border-dashed ${inputBorder} rounded-xl flex items-center justify-center gap-2 font-bold transition-colors ${textMuted} hover:${textHighlight} hover:border-gray-400 bg-gray-50 dark:bg-gray-800/50`}>
                               <Plus size={20} /><span>Ajouter une portion</span>
@@ -3285,14 +3495,13 @@ export default function App() {
                             <button onClick={(e) => markPlaylistAsCompleted(e, playlist.id)} className={`flex items-center justify-center w-full py-2 text-xs font-bold ${inputBg} hover:bg-green-100 dark:hover:bg-green-900/20 hover:text-green-600 rounded-lg transition-colors border ${inputBorder}`}>
                               <Circle size={14} className="mr-1.5"/> Marquer comme refaite aujourd'hui
                             </button>
-                            {!playlist.actualData && (
-                              <button onClick={(e) => triggerCSVUpload(e, playlist)} className="flex items-center justify-center w-full py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 rounded-lg text-xs font-bold transition-colors">
-                                <Upload size={14} className="mr-2"/> Analyser avec Garmin/Strava (CSV)
-                              </button>
-                            )}
-                            {playlist.actualData && (
+                            {/* L'import CSV se fait désormais via l'icône 📤 sur chaque date
+                                ci-dessus (une séance = une analyse), plus via un bouton unique
+                                pour toute la playlist. Ce badge résume juste combien de séances
+                                ont déjà des données réelles associées. */}
+                            {playlist.actualDataByDate && Object.keys(playlist.actualDataByDate).length > 0 && (
                               <div className="flex items-center justify-center w-full py-2 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-lg text-xs font-bold">
-                                <Activity size={14} className="mr-2"/> Données réelles associées
+                                <Activity size={14} className="mr-2"/> {Object.keys(playlist.actualDataByDate).length} séance{Object.keys(playlist.actualDataByDate).length > 1 ? 's' : ''} avec données Garmin importées (cadence/FC)
                               </div>
                             )}
                           </div>
@@ -3414,9 +3623,9 @@ export default function App() {
                               <div className="flex items-center space-x-1"><List size={14}/><span>{playlist.tracks.length} titres</span></div>
                             ));
                           })()}
-                          {playlist.actualData && (
+                          {playlist.actualDataByDate && Object.keys(playlist.actualDataByDate).length > 0 && (
                             <div className="flex items-center justify-center w-full py-2 mt-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-lg text-xs font-bold">
-                              <Activity size={14} className="mr-2"/> Données réelles associées
+                              <Activity size={14} className="mr-2"/> {Object.keys(playlist.actualDataByDate).length} séance{Object.keys(playlist.actualDataByDate).length > 1 ? 's' : ''} avec données Garmin importées (cadence/FC)
                             </div>
                           )}
                           {/* Date de création + liste des dates de complétion réelles — avant,
@@ -3754,9 +3963,11 @@ export default function App() {
                     <div>
                       <h3 className={"font-bold text-xl flex items-center space-x-2 " + textHighlight}>
                         <Activity className={textColorClass}/>
-                        <span>{currentPlaylist.actualData ? "Analyse Cible vs Réalité" : "Courbe d'intensité (BPM)"}</span>
+                        <span>{currentActualData ? (selectedMetric === 'heartRate' ? "Fréquence cardiaque de la séance" : "Analyse Cadence (PPM) vs BPM cible") : "Courbe d'intensité (BPM)"}</span>
                       </h3>
-                      {currentPlaylist.actualData && analysisStats && (
+                      {/* Les stats de "match %" ne s'affichent qu'en mode Cadence : la FC
+                          n'a pas de cible équivalente dans TempoFit (voir analysisStats). */}
+                      {currentActualData && selectedMetric === 'cadence' && analysisStats && (
                         <div className="flex items-center gap-3 mt-3 text-xs font-bold bg-gray-50 dark:bg-gray-800 p-2 rounded-lg border border-gray-100 dark:border-gray-700">
                           <span className="text-green-600 dark:text-green-400">🎯 Match: {analysisStats.matchPct}%</span>
                           <span className="text-red-500">⬆ Rapide: {analysisStats.abovePct}%</span>
@@ -3766,7 +3977,30 @@ export default function App() {
                     </div>
 
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                      {currentPlaylist.actualData && (
+                      {/* Sélecteur de séance à analyser — n'apparaît que si au moins 2 dates
+                          de complétion ont des données réelles importées, pour choisir
+                          laquelle superposer à la courbe cible (par défaut, la plus récente). */}
+                      {currentPlaylist.actualDataByDate && Object.keys(currentPlaylist.actualDataByDate).length > 1 && (
+                        <select
+                          value={selectedAnalysisDate || ''}
+                          onChange={(e) => setSelectedAnalysisDate(e.target.value)}
+                          className={`px-3 py-2 rounded-lg text-xs font-bold ${inputBg} border ${inputBorder} ${textHighlight}`}
+                        >
+                          {Object.keys(currentPlaylist.actualDataByDate).sort().reverse().map(iso => (
+                            <option key={iso} value={iso}>Séance du {formatCompletionDate(iso)}</option>
+                          ))}
+                        </select>
+                      )}
+                      {/* Sélecteur cadence/FC — n'apparaît que si les DEUX métriques sont
+                          présentes pour cette séance précise (un même CSV peut n'avoir que
+                          l'une des deux, auto-basculé automatiquement dans ce cas). */}
+                      {availableMetrics.cadence && availableMetrics.heartRate && (
+                        <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                          <button onClick={() => setSelectedMetric('cadence')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (selectedMetric === 'cadence' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted)}>Cadence (PPM)</button>
+                          <button onClick={() => setSelectedMetric('heartRate')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (selectedMetric === 'heartRate' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted)}>Fréquence cardiaque</button>
+                        </div>
+                      )}
+                      {currentActualData && (
                         <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
                           <button onClick={() => setDataOffset(o => o - 10)} className="px-2 py-1 bg-white dark:bg-gray-700 rounded text-xs font-bold text-gray-700 dark:text-gray-200 shadow-sm">-10s</button>
                           <span className={"text-xs font-bold w-24 text-center " + textMuted}>Décalage: {dataOffset > 0 ? '+' : ''}{dataOffset}s</span>
@@ -3876,14 +4110,14 @@ export default function App() {
                         <YAxis domain={chartYDomain} stroke={theme === 'dark' ? '#9ca3af' : '#6b7280'} tick={{fontSize: 12}} width={40} />
                         
                         <RechartsTooltip
-                          content={(props) => <CustomChartTooltip {...props} isNaughtyMode={isNaughtyMode} currentUnit={currentPlaylist.distanceUnit} />}
+                          content={(props) => <CustomChartTooltip {...props} isNaughtyMode={isNaughtyMode} currentUnit={currentPlaylist.distanceUnit} metric={selectedMetric} />}
                           isAnimationActive={false}
                         />
                         <Legend wrapperStyle={{fontSize: '12px', paddingTop: '15px'}}/>
 
                         <Line 
                           dataKey="bpmTarget" 
-                          name="Cible (Musique)" 
+                          name="Cible (BPM musical)" 
                           type="stepAfter"
                           stroke={isNaughtyMode ? '#f43f5e' : '#ef4444'} 
                           strokeWidth={3} 
@@ -3891,16 +4125,16 @@ export default function App() {
                           dot={{ r: 3, fill: isNaughtyMode ? '#f43f5e' : '#ef4444', strokeWidth: 0 }} 
                         />
 
-                        {currentPlaylist.actualData && (
+                        {currentActualData && (
                           <Line 
-                            dataKey="bpmReal" 
-                            name="Réel (Garmin)" 
+                            dataKey="realValue" 
+                            name={selectedMetric === 'heartRate' ? "Fréquence cardiaque (pulsations/min)" : "Cadence réelle (PPM)"} 
                             type="monotone"
-                            stroke="#3b82f6" 
+                            stroke={selectedMetric === 'heartRate' ? '#ec4899' : '#3b82f6'} 
                             strokeWidth={2}
                             strokeDasharray="4 4"
                             connectNulls
-                            dot={<RealDataDot tolerance={currentPlaylist.tolerance} />}
+                            dot={<RealDataDot tolerance={currentPlaylist.tolerance} metric={selectedMetric} />}
                           />
                         )}
                       </LineChart>
