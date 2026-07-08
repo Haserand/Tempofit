@@ -2046,7 +2046,7 @@ export default function App() {
     return Object.entries(buckets).map(([name, value]) => ({ name, value }));
   }, [currentPlaylist]);
 
-  const DISTRIBUTION_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#64748b'];
+  const DISTRIBUTION_COLORS = ['#f43f5e', '#3b82f6', '#f59e0b', '#22c55e', '#a855f7', '#06b6d4', '#ec4899', '#84cc16'];
 
   // Segment actuellement sélectionné (déterminé par la position X du curseur, pas par
   // le point de données le plus proche) — permet de mettre en surbrillance TOUTE
@@ -3438,32 +3438,72 @@ export default function App() {
                 {/* Répartition BPM et style musical — deux vues complémentaires de la
                     courbe d'intensité, pondérées par la durée de chaque titre (pas juste
                     un compte de titres) pour refléter combien de temps de la séance est
-                    passé à chaque niveau/style. */}
+                    passé à chaque niveau/style. Donut + pourcentages + légende propre,
+                    plutôt que le rendu Recharts par défaut (étiquettes en dehors qui se
+                    chevauchent facilement). */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className={`${cardBg} rounded-3xl p-6 border ${cardBorder} shadow-xl`}>
                     <h3 className={`font-bold text-lg mb-4 flex items-center gap-2 ${textHighlight}`}><Activity className={textColorClass} size={20}/> Répartition par BPM</h3>
-                    <div className="h-64">
+                    <div className="h-56">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
-                          <Pie data={bpmDistributionData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name }) => name}>
+                          <Pie
+                            data={bpmDistributionData} dataKey="value" nameKey="name"
+                            cx="50%" cy="50%" innerRadius={55} outerRadius={85}
+                            paddingAngle={3} cornerRadius={4} stroke="none"
+                            label={({ percent }) => `${Math.round(percent * 100)}%`}
+                            labelLine={false}
+                          >
                             {bpmDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} />)}
                           </Pie>
-                          <RechartsTooltip formatter={(value) => formatDuration(value)} />
+                          <RechartsTooltip formatter={(value, name, props) => [`${formatDuration(value)} (${Math.round(props.payload.percent * 100)}%)`, `${name} BPM`]} />
                         </PieChart>
                       </ResponsiveContainer>
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2">
+                      {bpmDistributionData.map((entry, i) => {
+                        const total = bpmDistributionData.reduce((s, e) => s + e.value, 0);
+                        const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
+                        return (
+                          <div key={i} className="flex items-center gap-1.5 text-xs font-bold">
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }}></span>
+                            <span className={textHighlight}>{entry.name}</span>
+                            <span className={textMuted}>{pct}%</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                   <div className={`${cardBg} rounded-3xl p-6 border ${cardBorder} shadow-xl`}>
                     <h3 className={`font-bold text-lg mb-4 flex items-center gap-2 ${textHighlight}`}><Music className={textColorClass} size={20}/> Répartition par style</h3>
-                    <div className="h-64">
+                    <div className="h-56">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
-                          <Pie data={genreDistributionData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name }) => name}>
+                          <Pie
+                            data={genreDistributionData} dataKey="value" nameKey="name"
+                            cx="50%" cy="50%" innerRadius={55} outerRadius={85}
+                            paddingAngle={3} cornerRadius={4} stroke="none"
+                            label={({ percent }) => `${Math.round(percent * 100)}%`}
+                            labelLine={false}
+                          >
                             {genreDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} />)}
                           </Pie>
-                          <RechartsTooltip formatter={(value) => formatDuration(value)} />
+                          <RechartsTooltip formatter={(value, name, props) => [`${formatDuration(value)} (${Math.round(props.payload.percent * 100)}%)`, name]} />
                         </PieChart>
                       </ResponsiveContainer>
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2">
+                      {genreDistributionData.map((entry, i) => {
+                        const total = genreDistributionData.reduce((s, e) => s + e.value, 0);
+                        const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
+                        return (
+                          <div key={i} className="flex items-center gap-1.5 text-xs font-bold">
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }}></span>
+                            <span className={textHighlight}>{entry.name}</span>
+                            <span className={textMuted}>{pct}%</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
