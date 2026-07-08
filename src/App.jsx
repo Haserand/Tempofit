@@ -196,19 +196,26 @@ const WORKOUT_DEFAULT_TARGET = {
 // originales) — on n'en reprend ici qu'un sous-ensemble plus large qu'avant, pour
 // ne pas rendre le sélecteur illisible avec 20 chips. "Rap" remplace "Hip-Hop"
 // pour coller au nom réel utilisé par Deezer.
-const STANDARD_GENRES = ['Métal', 'Rock', 'Electro', 'Techno', 'Pop', 'Rap', 'R&B', 'Reggae', 'Country', 'Jazz', 'Latino', 'Autre'];
+const STANDARD_GENRES = ['Métal', 'Rock', 'Electro', 'Pop', 'Rap', 'Autre'];
 const NAUGHTY_GENRES = ['R&B Sensuel', 'Pop', 'Latino', 'Jazz', 'Autre'];
 // Reste de la vraie taxonomie Deezer (~20 catégories, voir commentaire ci-dessus),
 // masqué par défaut derrière le bouton "Plus de genres" pour ne pas surcharger le
 // sélecteur principal. Uniquement en mode standard : le mode Intime garde sa liste
 // restreinte et cohérente avec son thème, pas d'extension ici.
-// ⚠️ Limite honnête : contrairement aux genres de STANDARD_GENRES, ces styles n'ont
-// PAS d'entrée dans DATABASE_MUSIQUES (aucun titre de secours hors-ligne écrit à la
-// main). Ils reposent donc entièrement sur Deezer/GetSongBPM ; si les deux sont hors
-// service, le filet de secours retombera sur la base locale "Pop" plutôt que sur le
-// genre demandé — comportement déjà existant pour tout genre absent de la base, pas
-// une régression introduite ici.
-const EXTRA_GENRES = ['Musique africaine', 'Musique asiatique', 'Blues', 'Musique brésilienne', 'Classique', 'Dance & EDM', 'Folk', 'Indie', 'K-pop', 'Soul & Funk', 'Bandes originales'];
+// Critère de tri principal/secondaire : pertinence pour un usage SPORTIF (tempo
+// naturellement élevé/dynamique, genres effectivement utilisés en musculation/course),
+// pas juste "existait déjà dans une vieille liste écrite à la main". Techno, R&B,
+// Reggae, Country, Jazz et Latino sont de vrais genres avec un filet de secours local
+// (DATABASE_MUSIQUES) mais un usage sport plus marginal — d'où leur place ici plutôt
+// qu'en principal.
+// ⚠️ Limite honnête : contrairement à Techno/R&B/Reggae/Country/Jazz/Latino, les
+// genres suivants (Musique africaine → Bandes originales) n'ont PAS d'entrée dans
+// DATABASE_MUSIQUES (aucun titre de secours hors-ligne écrit à la main). Ils reposent
+// donc entièrement sur Deezer/GetSongBPM ; si les deux sont hors service, le filet de
+// secours retombera sur la base locale "Pop" plutôt que sur le genre demandé —
+// comportement déjà existant pour tout genre absent de la base, pas une régression
+// introduite ici.
+const EXTRA_GENRES = ['Techno', 'R&B', 'Reggae', 'Country', 'Jazz', 'Latino', 'Musique africaine', 'Musique asiatique', 'Blues', 'Musique brésilienne', 'Classique', 'Dance & EDM', 'Folk', 'Indie', 'K-pop', 'Soul & Funk', 'Bandes originales'];
 const AVAILABLE_ICONS = ["🏃‍♂️", "🚴‍♀️", "🏋️‍♂️", "🧘‍♀️", "🔥", "⚡", "🎵", "🏆", "🎧", "🎸", "🥁", "🎹", "🍑", "🍆", "🕺"];
 const AUTO_GEN_OPTIONS = ["Manuel", "1 fois / jour", "2 fois / jour", "1 fois / semaine"];
 
