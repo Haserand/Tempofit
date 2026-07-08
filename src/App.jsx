@@ -3454,7 +3454,11 @@ export default function App() {
                           >
                             {bpmDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} />)}
                           </Pie>
-                          <RechartsTooltip formatter={(value, name, props) => [`${formatDuration(value)} (${Math.round(props.payload.percent * 100)}%)`, `${name} BPM`]} />
+                          <RechartsTooltip formatter={(value, name) => {
+                            const total = bpmDistributionData.reduce((s, e) => s + e.value, 0);
+                            const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+                            return [`${formatDuration(value)} (${pct}%)`, `${name} BPM`];
+                          }} />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
@@ -3484,7 +3488,11 @@ export default function App() {
                           >
                             {genreDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} />)}
                           </Pie>
-                          <RechartsTooltip formatter={(value, name, props) => [`${formatDuration(value)} (${Math.round(props.payload.percent * 100)}%)`, name]} />
+                          <RechartsTooltip formatter={(value, name) => {
+                            const total = genreDistributionData.reduce((s, e) => s + e.value, 0);
+                            const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+                            return [`${formatDuration(value)} (${pct}%)`, name];
+                          }} />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
