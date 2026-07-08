@@ -58,6 +58,23 @@ const DATABASE_MUSIQUES = {
   'Pop': [
     { youtubeId: 'DyDfgMOUjCI', title: 'Bad Guy', artist: 'Billie Eilish', album: 'When We All Fall Asleep', bpm: 135, duration: 194, isEmbeddable: false }
   ],
+  // Styles ajoutés une fois la résolution du vrai genre (resolveDeezerGenre) devenue
+  // fiable — juste quelques titres ici, dont le BPM est largement documenté
+  // publiquement (valeurs couramment citées, pas une mesure officielle vérifiée
+  // par mes soins). Le gros du travail pour ces styles repose sur Deezer, cette
+  // base locale n'étant qu'un filet de secours hors-ligne, volontairement mince.
+  'Techno': [
+    { youtubeId: 'y6120QOlsfU', title: 'Sandstorm', artist: 'Darude', album: 'Before the Storm', bpm: 136, duration: 223, isEmbeddable: false }
+  ],
+  'Hip-Hop': [
+    { youtubeId: '5qm8PH4xAss', title: 'In Da Club', artist: '50 Cent', album: 'Get Rich or Die Tryin\'', bpm: 90, duration: 193, isEmbeddable: false }
+  ],
+  'Latino': [
+    { youtubeId: 'kJQP7kiw5Fk', title: 'Despacito', artist: 'Luis Fonsi', album: 'Vida', bpm: 89, duration: 229, isEmbeddable: false }
+  ],
+  'Jazz': [
+    { youtubeId: 'vmDDOFXSgAs', title: 'Take Five', artist: 'Dave Brubeck', album: 'Time Out', bpm: 176, duration: 324, isEmbeddable: false }
+  ],
   'Autre': [
     { youtubeId: 'dQw4w9WgXcQ', title: 'Never Gonna Give You Up', artist: 'Rick Astley', album: 'Whenever You Need Somebody', bpm: 113, duration: 212, isEmbeddable: true }
   ]
@@ -154,8 +171,14 @@ const WORKOUT_DEFAULT_TARGET = {
   }
 };
 
-const STANDARD_GENRES = ['Métal', 'Rock', 'Electro', 'Pop', 'Autre'];
-const NAUGHTY_GENRES = ['R&B Sensuel', 'Pop', 'Autre'];
+// Liste des styles proposés à la génération/aux favoris — étendue maintenant que
+// la résolution du vrai genre (resolveDeezerGenre) est fiable : plus besoin de se
+// limiter à une poignée de styles "sûrs", Deezer peut chercher correctement sur
+// bien plus de genres. Le mode Intime garde une sélection plus restreinte et
+// cohérente avec son thème (styles au tempo posé/sensuel), pas une simple copie
+// de la liste standard.
+const STANDARD_GENRES = ['Métal', 'Rock', 'Electro', 'Techno', 'Pop', 'Hip-Hop', 'Latino', 'Autre'];
+const NAUGHTY_GENRES = ['R&B Sensuel', 'Pop', 'Latino', 'Jazz', 'Autre'];
 const AVAILABLE_ICONS = ["🏃‍♂️", "🚴‍♀️", "🏋️‍♂️", "🧘‍♀️", "🔥", "⚡", "🎵", "🏆", "🎧", "🎸", "🥁", "🎹", "🍑", "🍆", "🕺"];
 const AUTO_GEN_OPTIONS = ["Manuel", "1 fois / jour", "2 fois / jour", "1 fois / semaine"];
 
@@ -257,8 +280,9 @@ const resolveDeezerGenre = async (deezerTrackId) => {
 // Correspondance approximative entre les genres internes de l'app et des mots-clés
 // Deezer (recherche floue) — voir le détail de cette limite dans searchTracksByBpm.
 const DEEZER_GENRE_KEYWORDS = {
-  'Métal': 'metal', 'Rock': 'rock', 'Electro': 'electro',
-  'Pop': 'pop', 'R&B Sensuel': 'rnb', 'Autre': ''
+  'Métal': 'metal', 'Rock': 'rock', 'Electro': 'electro', 'Techno': 'techno',
+  'Pop': 'pop', 'Hip-Hop': 'hip hop', 'Latino': 'latino', 'Jazz': 'jazz',
+  'R&B Sensuel': 'rnb', 'Autre': ''
 };
 
 /**
@@ -1942,12 +1966,39 @@ export default function App() {
 
   // Marque une playlist de l'historique comme "faite", met à jour les stats
   // (dont la détection "Oiseau de Nuit" selon l'heure locale) et vérifie les trophées.
+  /**
+   * Ajoute la date du jour à l'historique des complétions de la playlist (voir
+   * playlist.completions), plutôt que de simplement basculer un statut booléen
+   * "faite/pas faite". Ce choix permet de marquer la MÊME playlist comme faite
+   * plusieurs fois (une entrée par vraie utilisation), sans dupliquer toute la
+   * playlist à chaque fois — ce qui aurait recréé inutilement les mêmes titres et
+   * pollué "Mes Playlists" d'un doublon par séance.
+   */
+  // Formate une date ISO (YYYY-MM-DD, format natif de <input type="date">) en
+  // date lisible localement — les completions sont désormais stockées en ISO en
+  // interne (nécessaire pour pouvoir les éditer via un vrai sélecteur de date),
+  // et seulement formatées au moment de l'affichage.
+  const formatCompletionDate = (isoStr) => {
+    const d = new Date(isoStr + 'T00:00:00');
+    return isNaN(d.getTime()) ? isoStr : d.toLocaleDateString();
+  };
+
   const markPlaylistAsCompleted = (e, playlistId) => {
     e.stopPropagation();
     const pl = savedPlaylists.find(p => p.id === playlistId);
-    if (!pl || pl.status === 'completed') return;
+    if (!pl) return;
 
-    setSavedPlaylists(savedPlaylists.map(p => p.id === playlistId ? { ...p, status: 'completed' } : p));
+    const todayIso = new Date().toISOString().split('T')[0];
+    const existingCompletions = pl.completions || [];
+    // Évite d'empiler plusieurs entrées identiques si on clique par erreur deux
+    // fois le même jour — une seule entrée par jour a du sens.
+    if (existingCompletions.includes(todayIso)) {
+      showToast("Déjà marquée comme faite aujourd'hui !");
+      return;
+    }
+    const updatedCompletions = [...existingCompletions, todayIso].sort();
+
+    setSavedPlaylists(savedPlaylists.map(p => p.id === playlistId ? { ...p, completions: updatedCompletions } : p));
 
     const hour = new Date().getHours();
     const isNight = hour >= 22 || hour <= 4;
@@ -1959,7 +2010,59 @@ export default function App() {
       hasNightOwl: userStats.hasNightOwl || isNight
     };
     checkTrophies(stats);
-    if(stats.unlockedTrophies.length === userStats.unlockedTrophies.length) showToast("Session marquée comme terminée ! 💪");
+    if(stats.unlockedTrophies.length === userStats.unlockedTrophies.length) {
+      showToast(updatedCompletions.length > 1 ? `Séance re-marquée comme faite ! (${updatedCompletions.length}e fois) 💪` : "Session marquée comme terminée ! 💪");
+    }
+  };
+
+  /**
+   * Ajoute une date de complétion PRÉCISE (choisie via un input date), à la
+   * différence de markPlaylistAsCompleted qui ajoute toujours la date du jour.
+   * Permet de renseigner une séance faite un autre jour (rattrapage, oubli...).
+   */
+  const addCompletionDate = (playlistId, isoDate) => {
+    if (!isoDate) return;
+    setSavedPlaylists(savedPlaylists.map(p => {
+      if (p.id !== playlistId) return p;
+      const existing = p.completions || [];
+      if (existing.includes(isoDate)) { showToast("Cette date est déjà enregistrée."); return p; }
+      return { ...p, completions: [...existing, isoDate].sort() };
+    }));
+  };
+
+  /**
+   * Retire une date de complétion précise. Si c'était la DERNIÈRE restante, la
+   * playlist n'a alors plus aucune complétion : elle disparaît de l'Historique et
+   * retourne dans "Mes Playlists" (son statut n'est plus que dérivé de la présence
+   * ou non de complétions, voir plus haut). On prévient clairement de cette
+   * conséquence plutôt que de laisser l'utilisateur la découvrir après coup —
+   * mais on laisse quand même l'action se faire, puisque c'est explicitement ce
+   * qui est demandé.
+   */
+  const removeCompletionDate = (playlistId, isoDate) => {
+    const pl = savedPlaylists.find(p => p.id === playlistId);
+    if (!pl) return;
+    const remaining = (pl.completions || []).filter(d => d !== isoDate);
+
+    setSavedPlaylists(savedPlaylists.map(p => p.id === playlistId ? { ...p, completions: remaining } : p));
+
+    if (remaining.length === 0) {
+      showToast("Dernière date retirée : cette playlist n'a plus aucune complétion, elle repasse dans \"Mes Playlists\".", 'error');
+    }
+  };
+
+  /**
+   * Modifie une date de complétion existante (remplace oldIso par newIso).
+   */
+  const editCompletionDate = (playlistId, oldIso, newIso) => {
+    if (!newIso || oldIso === newIso) return;
+    setSavedPlaylists(savedPlaylists.map(p => {
+      if (p.id !== playlistId) return p;
+      const existing = p.completions || [];
+      if (existing.includes(newIso)) { showToast("Cette date est déjà enregistrée."); return p; }
+      const updated = existing.map(d => d === oldIso ? newIso : d).sort();
+      return { ...p, completions: updated };
+    }));
   };
 
   // Déclenche le sélecteur de fichier caché pour l'import CSV Garmin/Strava,
@@ -2209,6 +2312,60 @@ export default function App() {
   // deux avant que l'info n'apparaisse). Un CLIC fixe désormais l'affichage de
   // façon déterministe et instantanée, et reste stable jusqu'au clic suivant.
   const [selectedSegmentIdx, setSelectedSegmentIdx] = useState(null);
+
+  // Une seule date de complétion éditable à la fois, tous playlists confondus —
+  // évite d'avoir à suivre un état d'édition séparé par playlist/par date.
+  const [editingCompletion, setEditingCompletion] = useState(null); // {playlistId, isoDate} | null
+
+  /**
+   * Liste interactive des dates de complétion d'une playlist — partagée entre
+   * "Mes Playlists" et "Historique" pour rester cohérente. Chaque date : clic
+   * pour modifier (ouvre un vrai sélecteur de date), croix pour retirer. Une
+   * tuile en pointillés permet d'ajouter une date précise (pas seulement
+   * "aujourd'hui", pour les séances renseignées après coup).
+   */
+  // Bordure + badge pour les éléments les plus utilisés (routines, playlists,
+  // séances de l'historique) — même logique partagée aux 3 endroits. `rank` va
+  // de 0 (le plus utilisé) à 2 ; au-delà, pas de distinction visuelle.
+  const RANK_STYLES = [
+    { emoji: '🥇', border: 'border-yellow-500 ring-2 ring-yellow-500/20' },
+    { emoji: '🥈', border: 'border-gray-400 ring-2 ring-gray-400/20' },
+    { emoji: '🥉', border: 'border-amber-700 ring-2 ring-amber-700/20' },
+  ];
+  const getRankStyle = (rank) => (rank >= 0 && rank < 3) ? RANK_STYLES[rank] : null;
+
+  const renderCompletionsList = (playlist) => {
+    const completions = playlist.completions || [];
+    return (
+      <div onClick={(e) => e.stopPropagation()} className="flex flex-wrap items-center gap-1.5">
+        {completions.map((iso) => {
+          const isEditing = editingCompletion && editingCompletion.playlistId === playlist.id && editingCompletion.isoDate === iso;
+          return isEditing ? (
+            <input
+              key={iso} type="date" autoFocus defaultValue={iso}
+              onBlur={(e) => { editCompletionDate(playlist.id, iso, e.target.value); setEditingCompletion(null); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCompletion(null); }}
+              className={`px-2 py-1 rounded-lg text-xs font-bold ${inputBg} border ${borderAccentClass} ${textHighlight}`}
+            />
+          ) : (
+            <span key={iso} className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold ${inputBg} border ${inputBorder} ${textHighlight}`}>
+              <button onClick={() => setEditingCompletion({ playlistId: playlist.id, isoDate: iso })} className="hover:underline" title="Modifier cette date">
+                {formatCompletionDate(iso)}
+              </button>
+              <button onClick={() => removeCompletionDate(playlist.id, iso)} className="text-gray-400 hover:text-red-500 transition-colors" title="Retirer cette date">
+                <X size={12}/>
+              </button>
+            </span>
+          );
+        })}
+        <label className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border border-dashed cursor-pointer ${inputBorder} ${textMuted} hover:${textHighlight} transition-colors`}>
+          <Plus size={12}/> Ajouter une date
+          <input type="date" className="hidden" onChange={(e) => { if (e.target.value) addCompletionDate(playlist.id, e.target.value); e.target.value = ''; }} />
+        </label>
+      </div>
+    );
+  };
+
   const handleChartClick = (state) => {
     if (!state || state.activeLabel === undefined || state.activeLabel === null) return;
     // En mode Distance, activeLabel est déjà dans l'unité d'AFFICHAGE convertie
@@ -2829,10 +2986,22 @@ export default function App() {
                       <span>Créer une nouvelle routine</span>
                     </button>
                   )}
-                  {routines.map(routine => {
+                  {(() => {
+                    // Triées par nombre de générations manuelles décroissant — les plus
+                    // utilisées remontent en premier. À égalité, ordre inchangé.
+                    const sortedRoutines = [...routines].sort((a, b) => (b.manualGenerations || 0) - (a.manualGenerations || 0));
+                    const routineRanks = [...routines]
+                      .filter(r => (r.manualGenerations || 0) > 0)
+                      .sort((a, b) => (b.manualGenerations || 0) - (a.manualGenerations || 0))
+                      .map(r => r.id);
+
+                    return sortedRoutines.map(routine => {
                     const batchCount = routineBatchCounts[routine.id] || 1;
+                    const rank = routineRanks.indexOf(routine.id);
+                    const rankStyle = getRankStyle(rank);
                     return (
-                      <div key={routine.id} className={`${cardBg} rounded-2xl p-6 border ${cardBorder} shadow-sm relative group overflow-hidden flex flex-col`}>
+                      <div key={routine.id} className={`${cardBg} rounded-2xl p-6 border ${rankStyle ? rankStyle.border : cardBorder} shadow-sm relative group overflow-hidden flex flex-col`}>
+                        {rankStyle && <span className="absolute -top-2 -right-2 text-xl" title={`${routine.manualGenerations} générations — la ${rank === 0 ? 'plus' : rank === 1 ? '2e plus' : '3e plus'} utilisée`}>{rankStyle.emoji}</span>}
                         <div className="flex items-start justify-between mb-4">
                           <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl bg-gray-100 dark:bg-gray-800`}>
                             {getDisplayRoutineIcon(routine)}
@@ -2903,7 +3072,9 @@ export default function App() {
                           )}
                         </div>
                       </div>
-                    )})}
+                    );
+                    });
+                  })()}
                 </div>
               </div>
             )}
@@ -2926,9 +3097,32 @@ export default function App() {
                       <span>Générer une nouvelle playlist</span>
                     </button>
                   )}
-                  {savedPlaylists.map(playlist => (
-                    <div key={playlist.id} className={`${cardBg} rounded-2xl p-4 border ${playlist.status === 'completed' ?
-                      'border-green-500/30 bg-green-50/30 dark:bg-green-900/10' : cardBorder} shadow-sm flex flex-col group hover:border-gray-400 transition-colors cursor-pointer`} onClick={() => { setCurrentPlaylist(playlist); changeView('playlist'); }}>
+                  {(() => {
+                    // Triées par utilisation la plus récente d'abord ; celles jamais
+                    // encore faites restent après, par ordre de création (comportement
+                    // précédent, inchangé pour elles).
+                    const sortedPlaylists = [...savedPlaylists].sort((a, b) => {
+                      const lastA = a.completions && a.completions.length > 0 ? a.completions[a.completions.length - 1] : null;
+                      const lastB = b.completions && b.completions.length > 0 ? b.completions[b.completions.length - 1] : null;
+                      if (lastA && lastB) return lastB.localeCompare(lastA);
+                      if (lastA) return -1;
+                      if (lastB) return 1;
+                      return 0;
+                    });
+                    // Classement par nombre d'utilisations, uniquement parmi celles
+                    // ayant déjà été faites au moins une fois — sert à la bordure.
+                    const playlistRanks = savedPlaylists
+                      .filter(p => p.completions && p.completions.length > 0)
+                      .sort((a, b) => b.completions.length - a.completions.length)
+                      .map(p => p.id);
+
+                    return sortedPlaylists.map(playlist => {
+                      const rank = playlistRanks.indexOf(playlist.id);
+                      const rankStyle = getRankStyle(rank);
+                      return (
+                  <div key={playlist.id} className={`${cardBg} rounded-2xl p-4 border ${rankStyle ? rankStyle.border : (playlist.completions && playlist.completions.length > 0 ?
+                    'border-green-500/30 bg-green-50/30 dark:bg-green-900/10' : cardBorder)} shadow-sm flex flex-col group hover:border-gray-400 transition-colors cursor-pointer relative`} onClick={() => { setCurrentPlaylist(playlist); changeView('playlist'); }}>
+                    {rankStyle && <span className="absolute -top-2 -right-2 text-xl" title={`${playlist.completions.length} fois — la ${rank === 0 ? 'plus' : rank === 1 ? '2e plus' : '3e plus'} utilisée`}>{rankStyle.emoji}</span>}
                       <div className="flex items-start justify-between mb-3">
                         <div className={`w-16 h-16 rounded-xl flex items-center justify-center bg-gradient-to-br ${isNaughtyMode ? 'from-rose-400 to-rose-600' : 'from-gray-800 to-black dark:from-gray-200 dark:to-white'} shrink-0 text-3xl`}>
                           {playlist.coverIcon || <Music size={24} className={isNaughtyMode ? 'text-white' : 'text-white dark:text-black'} />}
@@ -2970,14 +3164,21 @@ export default function App() {
                       })()}
 
                       <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
-                        {playlist.status === 'completed' ? (
+                        {playlist.completions && playlist.completions.length > 0 ? (
                           <div className="flex flex-col gap-2 w-full">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center text-green-600 dark:text-green-400 text-xs font-bold bg-green-100 dark:bg-green-900/30 px-3 py-1.5 rounded-lg">
-                                <CheckCircle size={14} className="mr-1.5"/> Session effectuée
+                                <CheckCircle size={14} className="mr-1.5"/> Faite {playlist.completions.length}x
                               </div>
                               <span className={`text-[10px] uppercase font-bold tracking-wider ${textMuted}`}>Créée le {playlist.createdAt}</span>
                             </div>
+                            {/* Liste interactive des dates de complétion — chaque date cliquable
+                                pour la modifier, croix pour la retirer, tuile pour en ajouter une
+                                précise (pas seulement "aujourd'hui"). */}
+                            {renderCompletionsList(playlist)}
+                            <button onClick={(e) => markPlaylistAsCompleted(e, playlist.id)} className={`flex items-center justify-center w-full py-2 text-xs font-bold ${inputBg} hover:bg-green-100 dark:hover:bg-green-900/20 hover:text-green-600 rounded-lg transition-colors border ${inputBorder}`}>
+                              <Circle size={14} className="mr-1.5"/> Marquer comme refaite aujourd'hui
+                            </button>
                             {!playlist.actualData && (
                               <button onClick={(e) => triggerCSVUpload(e, playlist)} className="flex items-center justify-center w-full py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 rounded-lg text-xs font-bold transition-colors">
                                 <Upload size={14} className="mr-2"/> Analyser avec Garmin/Strava (CSV)
@@ -2999,7 +3200,9 @@ export default function App() {
                         )}
                       </div>
                     </div>
-                  ))}
+                      );
+                    });
+                  })()}
                   {savedPlaylists.length === 0 && (
                     <div className={`col-span-full py-16 text-center border-2 border-dashed ${cardBorder} rounded-2xl`}>
                       <List size={48} className={`mx-auto mb-4 text-gray-300 dark:text-gray-700`} />
@@ -3020,7 +3223,20 @@ export default function App() {
                 Playlists" (qui liste TOUTES les playlists sauvegardées, terminées ou non), "Historique"
                 ne montre que les sessions marquées comme faites — un vrai journal d'entraînement. */}
             {view === 'history' && (() => {
-              const completedPlaylists = savedPlaylists.filter(p => p.status === 'completed');
+              // Triées par utilisation la PLUS RÉCENTE (pas par ordre de création) —
+              // la dernière fois qu'une playlist a été faite remonte en premier.
+              const completedPlaylists = savedPlaylists
+                .filter(p => p.completions && p.completions.length > 0)
+                .sort((a, b) => {
+                  const lastA = a.completions[a.completions.length - 1];
+                  const lastB = b.completions[b.completions.length - 1];
+                  return lastB.localeCompare(lastA);
+                });
+              // Classement par NOMBRE d'utilisations (indépendant du tri par
+              // récence ci-dessus) — sert uniquement à la bordure or/argent/bronze.
+              const completionRanks = [...completedPlaylists]
+                .sort((a, b) => b.completions.length - a.completions.length)
+                .map(p => p.id);
               return (
                 <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
                   <div className={`border-b ${cardBorder} pb-6`}>
@@ -3051,8 +3267,12 @@ export default function App() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {completedPlaylists.map(playlist => (
-                        <div key={playlist.id} className={`${cardBg} rounded-2xl p-4 border border-green-500/30 bg-green-50/30 dark:bg-green-900/10 shadow-sm flex flex-col hover:border-gray-400 transition-colors cursor-pointer`} onClick={() => { setCurrentPlaylist(playlist); changeView('playlist'); }}>
+                      {completedPlaylists.map(playlist => {
+                        const rank = completionRanks.indexOf(playlist.id);
+                        const rankStyle = getRankStyle(rank);
+                        return (
+                        <div key={playlist.id} className={`${cardBg} rounded-2xl p-4 border ${rankStyle ? rankStyle.border : 'border-green-500/30'} bg-green-50/30 dark:bg-green-900/10 shadow-sm flex flex-col hover:border-gray-400 transition-colors cursor-pointer relative`} onClick={() => { setCurrentPlaylist(playlist); changeView('playlist'); }}>
+                          {rankStyle && <span className="absolute -top-2 -right-2 text-xl" title={`${playlist.completions.length} fois — la ${rank === 0 ? 'plus' : rank === 1 ? '2e plus' : '3e plus'} utilisée`}>{rankStyle.emoji}</span>}
                           <div className="flex items-start justify-between mb-3">
                             <div className={`w-14 h-14 rounded-xl flex items-center justify-center bg-gradient-to-br ${isNaughtyMode ? 'from-rose-400 to-rose-600' : 'from-gray-800 to-black dark:from-gray-200 dark:to-white'} shrink-0 text-2xl`}>
                               {playlist.coverIcon || <Music size={20} className={isNaughtyMode ? 'text-white' : 'text-white dark:text-black'} />}
@@ -3093,14 +3313,16 @@ export default function App() {
                               <Activity size={14} className="mr-2"/> Données réelles associées
                             </div>
                           )}
-                          {/* Date de création déplacée en pied de carte, avec la même bordure de
-                              séparation que les cartes Routine/Playlist — avant, elle était juste
-                              après les infos, seule position différente des deux autres vues. */}
+                          {/* Date de création + liste des dates de complétion réelles — avant,
+                              seule la date de création apparaissait, sans distinguer "généré le"
+                              de "réellement effectué le". */}
                           <div className="mt-auto pt-3 border-t border-gray-100 dark:border-gray-800">
-                            <div className={`text-[10px] uppercase font-bold tracking-wider ${textMuted}`}>Créée le {playlist.createdAt}</div>
+                            <div className={`text-[10px] uppercase font-bold tracking-wider mb-1.5 ${textMuted}`}>Créée le {playlist.createdAt}</div>
+                            {renderCompletionsList(playlist)}
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
