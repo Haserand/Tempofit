@@ -1169,7 +1169,7 @@ export default function App() {
   const [routines, setRoutines] = useState([{
     id: 'routine-1', name: '🏃‍♂️ Mon 5km Quotidien', workoutType: 'Course à pied', customActivity: '',
     isIntervalMode: false, bpm: 160, selectedGenres: ['Métal', 'Rock'], bpmTolerance: 10, crossfade: 2,
-    segments: [], coverIcon: '🏃‍♂️', autoGenFreq: 'Manuel', manualGenerations: 0,
+    segments: [], coverIcon: '🏃‍♂️', autoGenFreq: 'Manuel', manualGenerations: 0, recentTrackIds: [],
     targetMode: 'distance', distanceVal: 5, distanceUnit: 'km', paceMin: 5, paceSec: 30, hours: 0, minutes: 27,
     createdAt: new Date().toLocaleDateString()
   }]);
@@ -1692,7 +1692,7 @@ export default function App() {
       customActivity: workoutType === 'Autre' ? customActivity : '', isIntervalMode, bpm,
       targetMode, distanceVal, distanceUnit, paceMin, paceSec, hours, minutes, selectedGenres, bpmTolerance, crossfade,
       segments: isIntervalMode ? [...segments] : [], coverIcon: newRoutineIcon, autoGenFreq: newRoutineFreq,
-      manualGenerations: 0, createdAt: new Date().toLocaleDateString()
+      manualGenerations: 0, recentTrackIds: [], createdAt: new Date().toLocaleDateString()
     };
     setRoutines([newRoutine, ...routines]);
     setNewRoutineName(""); setNewRoutineIcon("⚡"); setNewRoutineFreq("Manuel"); setIsSavingRoutineModalOpen(false);
@@ -1768,8 +1768,13 @@ export default function App() {
    *    (usedYoutubeIds) au sein de la playlist entière.
    * 3. Calcule un nom de playlist selon le mode (naughty / fractionné / routine...).
    * 4. Recalcule la timeline finale (horodatages, durée totale) avant de renvoyer l'objet.
+   *
+   * `initialExcludeIds` : titres à exclure DÈS LE DÉPART (pas seulement au sein de
+   * cette playlist) — utilisé par executeGeneration pour éviter de répéter des
+   * titres déjà utilisés lors de générations précédentes de la même routine (voir
+   * `routine.recentTrackIds`), en plus des doublons internes à la playlist elle-même.
    */
-  const createPlaylistData = async (config) => {
+  const createPlaylistData = async (config, initialExcludeIds = []) => {
     let activeSegments = [];
     const unitPaceSecs = config.targetMode === 'distance' ? ((parseInt(config.paceMin)||0)*60 + (parseInt(config.paceSec)||0)) : 330;
 
@@ -1789,7 +1794,7 @@ export default function App() {
 
     const tracks = [];
     let idCounter = 1;
-    const usedYoutubeIds = []; 
+    const usedYoutubeIds = [...initialExcludeIds]; 
     let fallbackCount = 0; // titres pour lesquels le pool de candidats de qualité n'a pas suffi
 
     for (let segmentIndex = 0; segmentIndex < activeSegments.length; segmentIndex++) {
@@ -1886,17 +1891,37 @@ export default function App() {
     }
     if (statsUpdated) checkTrophies(newStats);
 
-    if (routineId) {
-      setRoutines(routines.map(r => r.id === routineId ? { ...r, manualGenerations: (r.manualGenerations || 0) + count } : r));
-    }
+    // Historique glissant des titres déjà utilisés par CETTE routine (toutes
+    // générations précédentes confondues), pour éviter de reproduire la même
+    // playlist à chaque régénération — voir `routine.recentTrackIds`.
+    // Volontairement PLAFONNÉ (RECENT_TRACKS_CAP) plutôt qu'illimité : sur une
+    // routine à genre/BPM étroit, exclure indéfiniment tous les titres déjà
+    // utilisés finirait par vider le pool de candidats et forcer un repli extrême
+    // dégradé (_isFallback) — mieux vaut laisser les plus anciens titres redevenir
+    // éligibles après quelques générations que produire des playlists de moins
+    // bonne qualité pour garantir un "jamais deux fois le même titre" absolu.
+    const RECENT_TRACKS_CAP = 60;
+    const sourceRoutine = routineId ? routines.find(r => r.id === routineId) : null;
+    let rollingExcludeIds = sourceRoutine ? [...(sourceRoutine.recentTrackIds || [])] : [];
 
     const generatedPlaylists = [];
     for (let i = 0; i < count; i++) {
-      const pl = await createPlaylistData(config);
+      const pl = await createPlaylistData(config, rollingExcludeIds);
       if (count > 1) pl.name = `${pl.name} (Session ${i + 1})`;
       generatedPlaylists.push(pl);
+      // Les titres de CETTE playlist s'ajoutent immédiatement à l'exclusion pour
+      // les sessions SUIVANTES du même lot (ex. "générer 6 fois d'un coup") — sans
+      // ça, un lot généré en une fois aurait le même problème de répétition que
+      // deux générations séparées dans le temps.
+      rollingExcludeIds = [...rollingExcludeIds, ...pl.tracks.map(t => t.youtubeId)];
     }
     setIsGenerating(false);
+
+    if (routineId) {
+      setRoutines(routines.map(r => r.id === routineId
+        ? { ...r, manualGenerations: (r.manualGenerations || 0) + count, recentTrackIds: rollingExcludeIds.slice(-RECENT_TRACKS_CAP) }
+        : r));
+    }
 
     if (count === 1) {
       setCurrentPlaylist(generatedPlaylists[0]);
