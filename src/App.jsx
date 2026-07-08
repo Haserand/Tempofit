@@ -498,7 +498,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
 
   // 5. FALLBACK EXTRÊME (dernier recours) :
   //    On cherche parmi les morceaux locaux dont le BPM est le plus proche de la cible,
-  //    tolérance ignorée. Deux corrections par rapport à l'ancienne version :
+  //    tolérance ignorée. Trois corrections par rapport à l'ancienne version :
   //      - Si le genre sélectionné est épuisé (tous ses titres déjà utilisés dans la
   //        playlist), on élargit à TOUTE la base locale plutôt que de retomber sur un
   //        pool vide qui forçait la réutilisation du même titre.
@@ -506,11 +506,19 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   //        plutôt que strictement déterministe (toujours LE plus proche) — c'est ce
   //        déterminisme qui causait des répétitions en boucle du même titre une fois
   //        le stock épuisé (ex. "Duality" répété 10 fois d'affilée).
-  let fallbackPool = availableTracks.filter(t => !excludeYoutubeIds.includes(t.youtubeId));
+  //      - BUG CORRIGÉ : cette étape utilisait `excludeYoutubeIds` (qui inclut
+  //        l'historique inter-génération) au lieu de `localExcludeIds` (qui l'exempte).
+  //        Résultat concret observé : au bout de quelques générations, les titres
+  //        locaux du genre demandé finissaient tous marqués "déjà utilisés" par
+  //        l'historique, et le code élargissait alors à TOUT le catalogue local
+  //        (Country, R&B, Electro...) au lieu de rester sur le genre sélectionné —
+  //        exactement le genre de fuite que l'exemption d'historique était censée
+  //        éviter, oubliée sur cette seule étape.
+  let fallbackPool = availableTracks.filter(t => !localExcludeIds.includes(t.youtubeId));
   if (fallbackPool.length === 0) {
     const allTracksFlat = [];
     Object.keys(DATABASE_MUSIQUES).forEach(g => DATABASE_MUSIQUES[g].forEach(t => allTracksFlat.push({...t, genre: g})));
-    fallbackPool = allTracksFlat.filter(t => !excludeYoutubeIds.includes(t.youtubeId));
+    fallbackPool = allTracksFlat.filter(t => !localExcludeIds.includes(t.youtubeId));
     if (fallbackPool.length === 0) fallbackPool = allTracksFlat; // vraiment tout épuisé : on autorise la répétition en tout dernier recours
   }
   const sortedByProximity = [...fallbackPool].sort((a, b) => Math.abs(a.bpm - targetBpm) - Math.abs(b.bpm - targetBpm));
@@ -1896,6 +1904,18 @@ export default function App() {
       // ça, un lot généré en une fois aurait le même problème de répétition que
       // deux générations séparées dans le temps.
       rollingExcludeIds = [...rollingExcludeIds, ...pl.tracks.map(t => t.youtubeId)];
+
+      // Petite pause entre deux playlists d'un même lot (pas après la dernière) :
+      // générer plusieurs playlists d'affilée déclenche une rafale d'appels Deezer
+      // très rapprochés (jusqu'à ~60 par playlist rien que pour le pool principal),
+      // ce qui peut atteindre le rate-limiting de Deezer/du proxy Vercel — observé
+      // en pratique sur un lot de 10, où les dernières sessions retombaient presque
+      // entièrement sur le repli local (faute de réponse Deezer). Cette pause
+      // ralentit un peu la génération d'un gros lot, mais réduit le risque que les
+      // dernières playlists du lot soient de moins bonne qualité que les premières.
+      if (i < count - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
     setIsGenerating(false);
 
