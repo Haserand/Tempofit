@@ -198,6 +198,17 @@ const WORKOUT_DEFAULT_TARGET = {
 // pour coller au nom réel utilisé par Deezer.
 const STANDARD_GENRES = ['Métal', 'Rock', 'Electro', 'Techno', 'Pop', 'Rap', 'R&B', 'Reggae', 'Country', 'Jazz', 'Latino', 'Autre'];
 const NAUGHTY_GENRES = ['R&B Sensuel', 'Pop', 'Latino', 'Jazz', 'Autre'];
+// Reste de la vraie taxonomie Deezer (~20 catégories, voir commentaire ci-dessus),
+// masqué par défaut derrière le bouton "Plus de genres" pour ne pas surcharger le
+// sélecteur principal. Uniquement en mode standard : le mode Intime garde sa liste
+// restreinte et cohérente avec son thème, pas d'extension ici.
+// ⚠️ Limite honnête : contrairement aux genres de STANDARD_GENRES, ces styles n'ont
+// PAS d'entrée dans DATABASE_MUSIQUES (aucun titre de secours hors-ligne écrit à la
+// main). Ils reposent donc entièrement sur Deezer/GetSongBPM ; si les deux sont hors
+// service, le filet de secours retombera sur la base locale "Pop" plutôt que sur le
+// genre demandé — comportement déjà existant pour tout genre absent de la base, pas
+// une régression introduite ici.
+const EXTRA_GENRES = ['Musique africaine', 'Musique asiatique', 'Blues', 'Musique brésilienne', 'Classique', 'Dance & EDM', 'Folk', 'Indie', 'K-pop', 'Soul & Funk', 'Bandes originales'];
 const AVAILABLE_ICONS = ["🏃‍♂️", "🚴‍♀️", "🏋️‍♂️", "🧘‍♀️", "🔥", "⚡", "🎵", "🏆", "🎧", "🎸", "🥁", "🎹", "🍑", "🍆", "🕺"];
 const AUTO_GEN_OPTIONS = ["Manuel", "1 fois / jour", "2 fois / jour", "1 fois / semaine"];
 
@@ -302,7 +313,13 @@ const DEEZER_GENRE_KEYWORDS = {
   'Métal': 'metal', 'Rock': 'rock', 'Electro': 'electro', 'Techno': 'techno',
   'Pop': 'pop', 'Rap': 'rap', 'Latino': 'latino', 'Jazz': 'jazz',
   'R&B': 'rnb', 'Reggae': 'reggae', 'Country': 'country',
-  'R&B Sensuel': 'rnb', 'Autre': ''
+  'R&B Sensuel': 'rnb', 'Autre': '',
+  // Mots-clés pour les genres du bouton "Plus de genres" (EXTRA_GENRES) — recherche
+  // floue par mot-clé, comme pour les genres standards, pas la vraie taxonomie exacte.
+  'Musique africaine': 'african', 'Musique asiatique': 'asian', 'Blues': 'blues',
+  'Musique brésilienne': 'brazilian', 'Classique': 'classical', 'Dance & EDM': 'dance',
+  'Folk': 'folk', 'Indie': 'indie', 'K-pop': 'k-pop', 'Soul & Funk': 'soul',
+  'Bandes originales': 'soundtrack'
 };
 
 /**
@@ -1159,6 +1176,10 @@ export default function App() {
   // --- État du wizard de génération (4 étapes) ---
   const [wizardStep, setWizardStep] = useState(1);
   const [selectedGenres, setSelectedGenres] = useState(['Métal']);
+  // Affiche ou non le reste de la taxonomie Deezer (EXTRA_GENRES) sous les 3 sélecteurs
+  // de genre (wizard étape 4, page Favoris, édition de routine) — un seul état partagé
+  // puisque c'est une simple préférence d'affichage, pas une donnée métier par écran.
+  const [showExtraGenres, setShowExtraGenres] = useState(false);
   const [workoutType, setWorkoutType] = useState('Course à pied');
   const [customActivity, setCustomActivity] = useState('');
   const [tempCustomActivity, setTempCustomActivity] = useState('');
@@ -2923,7 +2944,26 @@ export default function App() {
                                 </button>
                               )
                             })}
+                            {/* Le mode Intime garde volontairement sa liste restreinte, pas d'extension ici */}
+                            {!isNaughtyMode && (
+                              <button onClick={() => setShowExtraGenres(!showExtraGenres)} className={`px-5 py-3 rounded-full text-base font-bold transition-all duration-200 border-2 border-dashed ${cardBorder} ${textMuted} hover:${textHighlight}`}>
+                                {showExtraGenres ? '− Moins de genres' : '+ Plus de genres'}
+                              </button>
+                            )}
                           </div>
+                          {!isNaughtyMode && showExtraGenres && (
+                            <div className="flex flex-wrap gap-3 pt-1">
+                              {EXTRA_GENRES.map(genre => {
+                                const isSelected = selectedGenres.includes(genre);
+                                return (
+                                  <button key={genre} onClick={() => toggleGenre(genre)} className={`px-5 py-3 rounded-full text-base font-bold transition-all duration-200 border-2 ${isSelected ?
+                                    `${bgAccentClass} ${borderAccentClass} text-white shadow-md scale-105` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                                    {genre}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3572,7 +3612,27 @@ export default function App() {
                             </button>
                           );
                         })}
+                        {!isNaughtyMode && (
+                          <button onClick={() => setShowExtraGenres(!showExtraGenres)} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 border-dashed ${cardBorder} ${textMuted} hover:${textHighlight}`}>
+                            {showExtraGenres ? '− Moins de genres' : '+ Plus de genres'}
+                          </button>
+                        )}
                       </div>
+                      {!isNaughtyMode && showExtraGenres && (
+                        <div className="flex flex-wrap gap-2 pt-2">
+                          {EXTRA_GENRES.map(genre => {
+                            const isSelected = favSelectedGenres.includes(genre);
+                            return (
+                              <button key={genre} onClick={() => {
+                                if (isSelected) { if (favSelectedGenres.length > 1) setFavSelectedGenres(favSelectedGenres.filter(g => g !== genre)); }
+                                else setFavSelectedGenres([...favSelectedGenres, genre]);
+                              }} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                                {genre}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
 
                     <button onClick={() => {
@@ -4275,7 +4335,28 @@ export default function App() {
                         </button>
                       );
                     })}
+                    {!isNaughtyMode && (
+                      <button onClick={() => setShowExtraGenres(!showExtraGenres)} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 border-dashed ${cardBorder} ${textMuted} hover:${textHighlight}`}>
+                        {showExtraGenres ? '− Moins de genres' : '+ Plus de genres'}
+                      </button>
+                    )}
                   </div>
+                  {!isNaughtyMode && showExtraGenres && (
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {EXTRA_GENRES.map(genre => {
+                        const isSelected = editingRoutine.selectedGenres.includes(genre);
+                        return (
+                          <button key={genre} onClick={() => {
+                            const current = editingRoutine.selectedGenres;
+                            if (isSelected) { if (current.length > 1) setEditingRoutine({...editingRoutine, selectedGenres: current.filter(g => g !== genre)}); }
+                            else setEditingRoutine({...editingRoutine, selectedGenres: [...current, genre]});
+                          }} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                            {genre}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {editingRoutine.isIntervalMode && (
