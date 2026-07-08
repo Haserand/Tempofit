@@ -1011,7 +1011,7 @@ export default function App() {
     createdAt: new Date().toLocaleDateString(),
     status: 'pending',
     actualData: null,
-    config: { workoutName: 'Course à pied' },
+    config: { workoutName: 'Course à pied', targetMode: 'time', hours: 0, minutes: 18, bpm: 150, tolerance: 15, isIntervalMode: false, selectedGenres: ['Rock', 'Métal'] },
     totalDuration: 1138,
     tracks: [
       { id: 'ex-track-1', segmentIndex: 1, targetSegmentBpm: 148, title: 'Mr. Brightside', artist: 'The Killers', genre: 'Rock', bpm: 148, duration: 222, youtubeId: 'gGdGFtwPNsQ', preview: null, startTimeStr: '0m 00s', startDistVal: 0 },
@@ -1324,6 +1324,31 @@ export default function App() {
   };
   const getDisplayRoutineName = (routine) => isNaughtyMode ? NAUGHTY_ROUTINE_NAMES[simpleHash(routine.id) % NAUGHTY_ROUTINE_NAMES.length] : routine.name;
   const getDisplayRoutineIcon = (routine) => isNaughtyMode ? NAUGHTY_ROUTINE_NAMES[simpleHash(routine.id) % NAUGHTY_ROUTINE_NAMES.length].split(' ')[0] : routine.coverIcon;
+
+  /**
+   * Ligne d'infos partagée par les cartes de Routine, Playlist (Mes Playlists) et
+   * Historique — avant, chacune affichait un mélange différent de champs, dans un
+   * ordre différent, ce qui rendait les trois vues incohérentes entre elles. Ordre
+   * unique désormais : Activité → Distance/Durée → BPM (ou phases si Fractionné)
+   * → Style musical, partout. `extra` permet d'ajouter un élément propre à un
+   * contexte précis (ex. le nombre de titres, qui n'existe que pour une playlist
+   * déjà générée — une routine n'a pas encore de titres concrets).
+   */
+  const renderConfigInfoLine = (source, extra) => {
+    const distanceOrDuration = source.targetMode === 'distance'
+      ? `${source.distanceVal} ${source.distanceUnit}`
+      : `${source.hours || 0}h ${source.minutes || 0}m`;
+    const genres = source.selectedGenres && source.selectedGenres.length > 0 ? source.selectedGenres : [];
+    return (
+      <div className={`text-sm flex flex-wrap items-center gap-x-3 gap-y-1 ${textMuted} mt-2`}>
+        <div className="flex items-center space-x-1"><Activity size={14}/><span>{source.workoutType}{source.customActivity ? ` (${source.customActivity})` : ''}</span></div>
+        <div className="flex items-center space-x-1"><Clock size={14}/><span>{distanceOrDuration}</span></div>
+        <div className="flex items-center space-x-1"><Zap size={14}/><span>{source.isIntervalMode ? `${(source.segments || []).length} phases` : `${source.bpm} BPM`}</span></div>
+        {genres.length > 0 && <div className="flex items-center space-x-1"><Music size={14}/><span>{genres.join(', ')}</span></div>}
+        {extra}
+      </div>
+    );
+  };
 
   const handleOpenCustomActivityModal = () => {
     setWorkoutType('Autre');
@@ -2718,17 +2743,7 @@ export default function App() {
                             </span>
                           )}
                         </h3>
-                        <div className={`text-sm mb-4 space-y-1 flex flex-wrap gap-3 ${textMuted}`}>
-                          <div className="flex items-center space-x-1.5"><Activity size={14}/><span>{routine.workoutType} {routine.customActivity && `(${routine.customActivity})`}</span></div>
-                          <div className="flex items-center space-x-1.5"><Clock size={14}/><span>{routine.targetMode==='distance' ? `${routine.distanceVal} ${routine.distanceUnit}` : `${routine.hours}h ${routine.minutes}m`}</span></div>
-                          <div className="flex items-center space-x-1.5"><Zap size={14}/><span>{routine.isIntervalMode ? `${(routine.segments || []).length} phases` : `${routine.bpm} BPM`}</span></div>
-                          {/* Style musical ajouté — jusqu'ici invisible sans ouvrir la modale
-                              d'édition, alors que c'est une info aussi pertinente à voir d'un
-                              coup d'œil que l'activité ou le BPM. */}
-                          {routine.selectedGenres && routine.selectedGenres.length > 0 && (
-                            <div className="flex items-center space-x-1.5"><Music size={14}/><span>{routine.selectedGenres.join(', ')}</span></div>
-                          )}
-                        </div>
+                        <div className="mb-4">{renderConfigInfoLine(routine)}</div>
                         <div className="mt-auto pt-4 flex gap-2">
                           <div className={`flex items-center ${inputBg} border ${inputBorder} rounded-xl px-2`} title="Playlists à générer">
                             <Layers size={16} className={`${textMuted} mr-1`} />
@@ -2792,23 +2807,28 @@ export default function App() {
                           </span>
                         )}
                       </h3>
-                      <div className={`text-sm flex flex-wrap items-center gap-x-3 gap-y-1 ${textMuted} mt-2`}>
-                        <div className="flex items-center space-x-1"><Music size={14}/><span>{playlist.tracks.length} titres</span></div>
-                        <div className="flex items-center space-x-1"><Clock size={14}/><span>{formatDuration(playlist.totalDuration)}</span></div>
-                        <span className="bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded text-xs">{playlist.workoutType}</span>
-                        {/* Style musical, sur la même ligne que le reste — même format que la
-                            carte de routine, avec repli sur les genres réellement présents dans
-                            les titres si la config de la playlist ne précise pas selectedGenres
-                            (ex. playlist d'exemple). */}
-                        {(() => {
-                          const genres = playlist.config?.selectedGenres && playlist.config.selectedGenres.length > 0
-                            ? playlist.config.selectedGenres
-                            : Array.from(new Set(playlist.tracks.map(t => t.genre).filter(g => g && g !== 'Genre inconnu')));
-                          return genres.length > 0 ? (
-                            <div className="flex items-center space-x-1"><Music size={14}/><span>{genres.join(', ')}</span></div>
-                          ) : null;
-                        })()}
-                      </div>
+                      {(() => {
+                        const cfg = playlist.config || {};
+                        const genres = cfg.selectedGenres && cfg.selectedGenres.length > 0
+                          ? cfg.selectedGenres
+                          : Array.from(new Set(playlist.tracks.map(t => t.genre).filter(g => g && g !== 'Genre inconnu')));
+                        // Distance/durée RÉELLES de la playlist générée (pas juste la cible de
+                        // départ) — plus pertinent ici qu'en Routine, puisque le résultat concret
+                        // existe déjà.
+                        const infoSource = {
+                          workoutType: playlist.workoutType, customActivity: cfg.customActivity,
+                          targetMode: cfg.targetMode,
+                          distanceVal: playlist.avgPace ? Math.round((playlist.totalDuration / playlist.avgPace) * 10) / 10 : 0,
+                          distanceUnit: playlist.distanceUnit || cfg.distanceUnit,
+                          hours: Math.floor(playlist.totalDuration / 3600),
+                          minutes: Math.round((playlist.totalDuration % 3600) / 60),
+                          bpm: cfg.bpm, isIntervalMode: cfg.isIntervalMode, segments: cfg.segments,
+                          selectedGenres: genres
+                        };
+                        return renderConfigInfoLine(infoSource, (
+                          <div className="flex items-center space-x-1"><List size={14}/><span>{playlist.tracks.length} titres</span></div>
+                        ));
+                      })()}
 
                       <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
                         {playlist.status === 'completed' ? (
@@ -2910,19 +2930,26 @@ export default function App() {
                               </span>
                             )}
                           </h3>
-                          <div className={`text-sm flex flex-wrap items-center gap-x-3 gap-y-1 ${textMuted} mt-2`}>
-                            <div className="flex items-center space-x-1"><Music size={14}/><span>{playlist.tracks.length} titres</span></div>
-                            <div className="flex items-center space-x-1"><Clock size={14}/><span>{formatDuration(playlist.totalDuration)}</span></div>
-                            <span className={`text-[10px] uppercase font-bold tracking-wider ${textMuted}`}>{playlist.createdAt}</span>
-                            {(() => {
-                              const genres = playlist.config?.selectedGenres && playlist.config.selectedGenres.length > 0
-                                ? playlist.config.selectedGenres
-                                : Array.from(new Set(playlist.tracks.map(t => t.genre).filter(g => g && g !== 'Genre inconnu')));
-                              return genres.length > 0 ? (
-                                <div className="flex items-center space-x-1"><Music size={14}/><span>{genres.join(', ')}</span></div>
-                              ) : null;
-                            })()}
-                          </div>
+                          {(() => {
+                            const cfg = playlist.config || {};
+                            const genres = cfg.selectedGenres && cfg.selectedGenres.length > 0
+                              ? cfg.selectedGenres
+                              : Array.from(new Set(playlist.tracks.map(t => t.genre).filter(g => g && g !== 'Genre inconnu')));
+                            const infoSource = {
+                              workoutType: playlist.workoutType, customActivity: cfg.customActivity,
+                              targetMode: cfg.targetMode,
+                              distanceVal: playlist.avgPace ? Math.round((playlist.totalDuration / playlist.avgPace) * 10) / 10 : 0,
+                              distanceUnit: playlist.distanceUnit || cfg.distanceUnit,
+                              hours: Math.floor(playlist.totalDuration / 3600),
+                              minutes: Math.round((playlist.totalDuration % 3600) / 60),
+                              bpm: cfg.bpm, isIntervalMode: cfg.isIntervalMode, segments: cfg.segments,
+                              selectedGenres: genres
+                            };
+                            return renderConfigInfoLine(infoSource, (
+                              <div className="flex items-center space-x-1"><List size={14}/><span>{playlist.tracks.length} titres</span></div>
+                            ));
+                          })()}
+                          <div className={`text-[10px] uppercase font-bold tracking-wider mt-1 ${textMuted}`}>{playlist.createdAt}</div>
                           {playlist.actualData && (
                             <div className="flex items-center justify-center w-full py-2 mt-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-lg text-xs font-bold">
                               <Activity size={14} className="mr-2"/> Données réelles associées
