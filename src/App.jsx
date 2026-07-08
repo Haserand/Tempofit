@@ -3451,8 +3451,6 @@ export default function App() {
                             data={bpmDistributionData} dataKey="value" nameKey="name"
                             cx="50%" cy="50%" innerRadius={55} outerRadius={85}
                             paddingAngle={3} cornerRadius={4} stroke="none"
-                            label={({ percent }) => `${Math.round(percent * 100)}%`}
-                            labelLine={false}
                           >
                             {bpmDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} />)}
                           </Pie>
@@ -3483,8 +3481,6 @@ export default function App() {
                             data={genreDistributionData} dataKey="value" nameKey="name"
                             cx="50%" cy="50%" innerRadius={55} outerRadius={85}
                             paddingAngle={3} cornerRadius={4} stroke="none"
-                            label={({ percent }) => `${Math.round(percent * 100)}%`}
-                            labelLine={false}
                           >
                             {genreDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} />)}
                           </Pie>
