@@ -495,6 +495,106 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   return pickByDurationProximity(topCandidates, preferredDuration);
 };
 
+/**
+ * Construit l'ensemble des titres d'un SEGMENT (une phase de la séance à un BPM
+ * donné), en visant sa durée cible comme un vrai problème de "somme de
+ * sous-ensemble" — plutôt que d'ajouter des morceaux un par un sans vue
+ * d'ensemble, en ne regardant le temps restant qu'au moment de choisir le
+ * dernier titre (ce qui pouvait faire largement dépasser la cible si les seuls
+ * candidats alors disponibles étaient longs).
+ *
+ * Principe : on rassemble d'abord un POOL de candidats variés (favoris, Spotify,
+ * Deezer, base locale) correspondant au BPM/genre demandés, PUIS on sélectionne
+ * dedans, à chaque étape, le titre dont la durée comble le mieux ce qu'il reste
+ * à combler — en comparant à TOUT le pool restant, pas seulement 2-3 candidats
+ * tirés au hasard en fin de parcours. Si le pool s'épuise avant d'atteindre la
+ * durée cible, on retombe sur `getSingleMatchingTrack` (GetSongBPM + repli
+ * extrême) pour terminer, qui garantit qu'on ne reste jamais bloqué.
+ */
+const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites, spotifyTrackPool) => {
+  const minBpm = segment.bpm - config.bpmTolerance;
+  const maxBpm = segment.bpm + config.bpmTolerance;
+  const pool = [];
+  const seenIds = new Set(excludeYoutubeIds);
+
+  const addIfValid = (t) => {
+    if (t && typeof t.bpm === 'number' && t.bpm >= minBpm && t.bpm <= maxBpm && t.duration && t.youtubeId && !seenIds.has(t.youtubeId)) {
+      pool.push(t);
+      seenIds.add(t.youtubeId); // évite aussi les doublons À L'INTÉRIEUR du pool lui-même
+    }
+  };
+
+  // Favoris et Spotify : sources déjà en mémoire, aucun appel réseau nécessaire.
+  (favorites && Array.isArray(favorites.tracks) ? favorites.tracks : []).forEach(addIfValid);
+  (Array.isArray(spotifyTrackPool) ? spotifyTrackPool : []).forEach(addIfValid);
+
+  // Deezer : recherche plus large qu'avant (jusqu'à 15 détails récupérés d'un coup)
+  // pour donner à l'algorithme de sélection un vrai choix de durées parmi
+  // lesquelles piocher, plutôt qu'un seul candidat par appel.
+  try {
+    const genreForQuery = config.selectedGenres && config.selectedGenres.length > 0 ? config.selectedGenres[0] : 'Autre';
+    const keyword = DEEZER_GENRE_KEYWORDS[genreForQuery] || '';
+    const q = `bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
+    const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=25`);
+    const stubs = (data && Array.isArray(data.data) ? data.data : []).filter(s => !seenIds.has(`deezer-${s.id}`)).slice(0, 15);
+    const details = await Promise.all(stubs.map(async (s) => {
+      const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
+      return full;
+    }));
+    for (const full of details) {
+      if (full && full.bpm && parseFloat(full.bpm) >= minBpm && parseFloat(full.bpm) <= maxBpm) {
+        const realGenre = await resolveDeezerGenre(full.id);
+        addIfValid({
+          youtubeId: `deezer-${full.id}`, title: full.title,
+          artist: full.artist ? full.artist.name : 'Inconnu',
+          bpm: Math.round(parseFloat(full.bpm)), duration: full.duration || 180,
+          genre: realGenre || 'Genre inconnu', preview: full.preview || null
+        });
+      }
+    }
+  } catch (e) {
+    // Échec silencieux : le pool s'appuiera sur les autres sources (favoris/Spotify/local).
+  }
+
+  // Base locale statique (jamais d'extrait audio, mais toujours disponible hors-ligne).
+  let localPool = [];
+  const validGenres = config.selectedGenres && config.selectedGenres.length > 0 ? config.selectedGenres : ['Métal'];
+  validGenres.forEach(g => { if (DATABASE_MUSIQUES[g]) localPool = [...localPool, ...DATABASE_MUSIQUES[g].map(t => ({ ...t, genre: g }))]; });
+  localPool.filter(t => t.bpm >= minBpm && t.bpm <= maxBpm).forEach(addIfValid);
+
+  // Sélection gloutonne SUR TOUT LE POOL : à chaque étape, on compare le temps
+  // restant à TOUS les candidats encore disponibles (pas 2-3), et on retire celui
+  // qui s'en rapproche le plus — un vrai "bin packing" plutôt qu'un tirage local.
+  const selected = [];
+  let remaining = segment.durationSeconds;
+  let availablePool = [...pool];
+
+  while (remaining > 30 && availablePool.length > 0) {
+    availablePool.sort((a, b) => Math.abs(a.duration - remaining) - Math.abs(b.duration - remaining));
+    const pick = availablePool.shift();
+    selected.push(pick);
+    remaining -= pick.duration;
+  }
+
+  // Le pool s'est épuisé avant d'atteindre la durée cible (rare, mais possible sur
+  // un BPM/genre très restrictif) : on termine avec l'ancien moteur au coup par
+  // coup, qui sait déjà gérer ce cas (GetSongBPM, repli extrême).
+  while (remaining > 30) {
+    const usedSoFar = [...excludeYoutubeIds, ...selected.map(t => t.youtubeId)];
+    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, config.selectedGenres, usedSoFar, favorites, spotifyTrackPool, remaining);
+    selected.push(extra);
+    remaining -= extra.duration;
+  }
+
+  // Filet de sécurité ultime : un segment ne doit jamais rester totalement vide.
+  if (selected.length === 0) {
+    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, config.selectedGenres, excludeYoutubeIds, favorites, spotifyTrackPool, segment.durationSeconds);
+    selected.push(extra);
+  }
+
+  return selected;
+};
+
 // =====================================================================================
 // UTILITAIRES DE FORMATAGE / PARSING
 // =====================================================================================
@@ -1514,15 +1614,12 @@ export default function App() {
 
     for (let segmentIndex = 0; segmentIndex < activeSegments.length; segmentIndex++) {
         let segment = activeSegments[segmentIndex];
-        let segmentAccumulatedSecs = 0;
-        
-        while (segmentAccumulatedSecs < segment.durationSeconds) {
-            // Temps qu'il reste à combler dans ce segment — transmis pour privilégier un
-            // morceau dont la durée s'en rapproche, plutôt qu'un choix purement aléatoire
-            // qui pouvait faire largement dépasser la cible en fin de séance.
-            const remainingSecs = segment.durationSeconds - segmentAccumulatedSecs;
-            // await nécessaire car getSingleMatchingTrack peut désormais appeler l'API mondiale.
-            const randomTrack = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, config.selectedGenres, usedYoutubeIds, favorites, spotifyTrackPool, remainingSecs);
+        // Construit tout l'ensemble des titres de ce segment d'un coup, en visant sa
+        // durée cible comme un problème de "somme de sous-ensemble" (voir
+        // buildSegmentTracks) — plutôt que d'ajouter des morceaux un par un sans
+        // vue d'ensemble, ce qui pouvait faire largement dépasser la cible.
+        const segmentTracks = await buildSegmentTracks(segment, config, usedYoutubeIds, favorites, spotifyTrackPool);
+        segmentTracks.forEach((randomTrack) => {
             tracks.push({
                 id: `track-${idCounter++}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 segmentIndex: segmentIndex + 1, targetSegmentBpm: segment.bpm,
@@ -1531,8 +1628,7 @@ export default function App() {
                 preview: randomTrack.preview || null, // extrait audio 30s si disponible (Favoris/Spotify/Deezer)
             });
             usedYoutubeIds.push(randomTrack.youtubeId);
-            segmentAccumulatedSecs += randomTrack.duration;
-        }
+        });
     }
 
     const finalWorkoutName = isNaughtyMode ? 'Ambiance' : config.workoutName;
