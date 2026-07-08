@@ -2745,31 +2745,36 @@ export default function App() {
                           )}
                         </h3>
                         <div>{renderConfigInfoLine(routine)}</div>
-                        {routine.createdAt && (
-                          <div className={`text-[10px] uppercase font-bold tracking-wider mt-1 mb-4 ${textMuted}`}>Créée le {routine.createdAt}</div>
-                        )}
-                        <div className="mt-auto pt-4 flex gap-2">
-                          <div className={`flex items-center ${inputBg} border ${inputBorder} rounded-xl px-2`} title="Nombre de playlists différentes à générer en un seul clic sur « Générer » — pratique pour avoir plusieurs propositions parmi lesquelles choisir, plutôt qu'une seule.">
-                            <Layers size={16} className={`${textMuted} mr-1`} />
-                            <select
-                              value={batchCount} onChange={(e) => setRoutineBatchCounts({...routineBatchCounts, [routine.id]: parseInt(e.target.value)})}
-                              className={`bg-transparent text-sm font-bold outline-none text-blue-600 dark:text-blue-400 cursor-pointer py-3 appearance-none pl-1 pr-2`}
-                            >
-                              <option value={1} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">x1</option>
-                              <option value={3} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">x3</option>
-                              <option value={5} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">x5</option>
-                              <option value={10} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">x10</option>
-                            </select>
-                            {/* Icône Info visible plutôt qu'un simple attribut title invisible sur
-                                un div — l'ancienne version était peu découvrable (aucun indice
-                                visuel qu'une infobulle existait). */}
-                            <Info size={13} className={`${textMuted} ml-0.5 mr-1 shrink-0`} />
+                        <div className="mt-auto pt-4 border-t border-gray-100 dark:border-gray-800">
+                          <div className="flex gap-2 mb-2">
+                            <div className={`flex items-center ${inputBg} border ${inputBorder} rounded-xl px-2`} title="Nombre de playlists différentes à générer en un seul clic sur « Générer » — pratique pour avoir plusieurs propositions parmi lesquelles choisir, plutôt qu'une seule.">
+                              <Layers size={16} className={`${textMuted} mr-1`} />
+                              <select
+                                value={batchCount} onChange={(e) => setRoutineBatchCounts({...routineBatchCounts, [routine.id]: parseInt(e.target.value)})}
+                                className={`bg-transparent text-sm font-bold outline-none text-blue-600 dark:text-blue-400 cursor-pointer py-3 appearance-none pl-1 pr-2`}
+                              >
+                                <option value={1} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">x1</option>
+                                <option value={3} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">x3</option>
+                                <option value={5} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">x5</option>
+                                <option value={10} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">x10</option>
+                              </select>
+                              {/* Icône Info visible plutôt qu'un simple attribut title invisible sur
+                                  un div — l'ancienne version était peu découvrable (aucun indice
+                                  visuel qu'une infobulle existait). */}
+                              <Info size={13} className={`${textMuted} ml-0.5 mr-1 shrink-0`} />
+                            </div>
+                            <button onClick={() => { executeGeneration({ ...routine, workoutName: routine.customActivity || routine.workoutType, routineName: routine.name }, batchCount, routine.id);
+                            }} className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${bgAccentClass} text-white hover:brightness-110 active:scale-95`}>
+                              {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <PlaySquare size={18} fill="currentColor"/>}
+                              <span>Générer</span>
+                            </button>
                           </div>
-                          <button onClick={() => { executeGeneration({ ...routine, workoutName: routine.customActivity || routine.workoutType, routineName: routine.name }, batchCount, routine.id);
-                          }} className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${bgAccentClass} text-white hover:brightness-110 active:scale-95`}>
-                            {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <PlaySquare size={18} fill="currentColor"/>}
-                            <span>Générer</span>
-                          </button>
+                          {/* Date de création déplacée en pied de carte — avant, elle était
+                              juste après les infos, alors que sur les cartes Playlist/Historique
+                              elle est en bas. Même position partout désormais. */}
+                          {routine.createdAt && (
+                            <div className={`text-[10px] uppercase font-bold tracking-wider ${textMuted}`}>Créée le {routine.createdAt}</div>
+                          )}
                         </div>
                       </div>
                     )})}
@@ -2957,12 +2962,17 @@ export default function App() {
                               <div className="flex items-center space-x-1"><List size={14}/><span>{playlist.tracks.length} titres</span></div>
                             ));
                           })()}
-                          <div className={`text-[10px] uppercase font-bold tracking-wider mt-1 ${textMuted}`}>Créée le {playlist.createdAt}</div>
                           {playlist.actualData && (
                             <div className="flex items-center justify-center w-full py-2 mt-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-lg text-xs font-bold">
                               <Activity size={14} className="mr-2"/> Données réelles associées
                             </div>
                           )}
+                          {/* Date de création déplacée en pied de carte, avec la même bordure de
+                              séparation que les cartes Routine/Playlist — avant, elle était juste
+                              après les infos, seule position différente des deux autres vues. */}
+                          <div className="mt-auto pt-3 border-t border-gray-100 dark:border-gray-800">
+                            <div className={`text-[10px] uppercase font-bold tracking-wider ${textMuted}`}>Créée le {playlist.createdAt}</div>
+                          </div>
                         </div>
                       ))}
                     </div>
