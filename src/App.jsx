@@ -261,7 +261,28 @@ const DEEZER_GENRE_KEYWORDS = {
   'Pop': 'pop', 'R&B Sensuel': 'rnb', 'Autre': ''
 };
 
-const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excludeYoutubeIds = [], favorites = null, spotifyTrackPool = []) => {
+/**
+ * Choisit un morceau parmi plusieurs candidats, en privilégiant celui dont la
+ * durée se rapproche le plus de `preferredDuration` (le temps qu'il reste à
+ * combler dans la séance) — plutôt qu'un choix uniquement aléatoire, qui pouvait
+ * ajouter un morceau de 6-8 minutes en toute fin de séance et faire largement
+ * dépasser la distance/durée cible (jusqu'à 1+ km d'écart observé en pratique).
+ * Garde un peu de hasard (parmi les 3 plus proches) pour ne pas devenir
+ * déterministe et répétitif. Si `preferredDuration` n'est pas fourni, comportement
+ * inchangé (choix uniformément aléatoire).
+ */
+const pickByDurationProximity = (candidates, preferredDuration) => {
+  if (!preferredDuration || candidates.length <= 1) {
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+  const sorted = [...candidates].sort((a, b) =>
+    Math.abs((a.duration || 180) - preferredDuration) - Math.abs((b.duration || 180) - preferredDuration)
+  );
+  const top = sorted.slice(0, Math.min(3, sorted.length));
+  return top[Math.floor(Math.random() * top.length)];
+};
+
+const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excludeYoutubeIds = [], favorites = null, spotifyTrackPool = [], preferredDuration = null) => {
   const minBpm = targetBpm - tolerance;
   const maxBpm = targetBpm + tolerance;
 
@@ -275,7 +296,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
       !excludeYoutubeIds.includes(t.youtubeId)
     );
     if (perfectFavoriteTracks.length > 0) {
-      return perfectFavoriteTracks[Math.floor(Math.random() * perfectFavoriteTracks.length)];
+      return pickByDurationProximity(perfectFavoriteTracks, preferredDuration);
     }
   }
 
@@ -326,7 +347,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
       !excludeYoutubeIds.includes(t.youtubeId)
     );
     if (perfectSpotifyTracks.length > 0) {
-      return perfectSpotifyTracks[Math.floor(Math.random() * perfectSpotifyTracks.length)];
+      return pickByDurationProximity(perfectSpotifyTracks, preferredDuration);
     }
   }
 
@@ -357,7 +378,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
       const validCandidates = detailedCandidates.filter(full => full && full.bpm && parseFloat(full.bpm) >= minBpm && parseFloat(full.bpm) <= maxBpm);
 
       if (validCandidates.length > 0) {
-        const full = validCandidates[Math.floor(Math.random() * validCandidates.length)];
+        const full = pickByDurationProximity(validCandidates, preferredDuration);
         const realGenre = await resolveDeezerGenre(full.id);
         return {
           youtubeId: `deezer-${full.id}`,
@@ -388,7 +409,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
         }));
         const validBroad = detailedBroad.filter(full => full && full.bpm && parseFloat(full.bpm) >= minBpm && parseFloat(full.bpm) <= maxBpm);
         if (validBroad.length > 0) {
-          const full = validBroad[Math.floor(Math.random() * validBroad.length)];
+          const full = pickByDurationProximity(validBroad, preferredDuration);
           const realGenre = await resolveDeezerGenre(full.id);
           return {
             youtubeId: `deezer-${full.id}`,
@@ -420,7 +441,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   let suitable = availableTracks.filter(t => t.bpm >= minBpm && t.bpm <= maxBpm && !excludeYoutubeIds.includes(t.youtubeId));
 
   if (suitable.length > 0) {
-      return suitable[Math.floor(Math.random() * suitable.length)];
+      return pickByDurationProximity(suitable, preferredDuration);
   }
 
   // 5. REQUÊTE API MONDIALE (GetSongBPM) : Aucun résultat local, on tente ce dernier service
@@ -471,7 +492,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   }
   const sortedByProximity = [...fallbackPool].sort((a, b) => Math.abs(a.bpm - targetBpm) - Math.abs(b.bpm - targetBpm));
   const topCandidates = sortedByProximity.slice(0, 3);
-  return topCandidates[Math.floor(Math.random() * topCandidates.length)];
+  return pickByDurationProximity(topCandidates, preferredDuration);
 };
 
 // =====================================================================================
@@ -1496,8 +1517,12 @@ export default function App() {
         let segmentAccumulatedSecs = 0;
         
         while (segmentAccumulatedSecs < segment.durationSeconds) {
+            // Temps qu'il reste à combler dans ce segment — transmis pour privilégier un
+            // morceau dont la durée s'en rapproche, plutôt qu'un choix purement aléatoire
+            // qui pouvait faire largement dépasser la cible en fin de séance.
+            const remainingSecs = segment.durationSeconds - segmentAccumulatedSecs;
             // await nécessaire car getSingleMatchingTrack peut désormais appeler l'API mondiale.
-            const randomTrack = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, config.selectedGenres, usedYoutubeIds, favorites, spotifyTrackPool);
+            const randomTrack = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, config.selectedGenres, usedYoutubeIds, favorites, spotifyTrackPool, remainingSecs);
             tracks.push({
                 id: `track-${idCounter++}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 segmentIndex: segmentIndex + 1, targetSegmentBpm: segment.bpm,
@@ -2747,7 +2772,7 @@ export default function App() {
                         <div>{renderConfigInfoLine(routine)}</div>
                         <div className="mt-auto pt-4 border-t border-gray-100 dark:border-gray-800">
                           <div className="flex gap-2 mb-2">
-                            <div className={`flex items-center ${inputBg} border ${inputBorder} rounded-xl px-2`} title="Nombre de playlists différentes à générer en un seul clic sur « Générer » — pratique pour avoir plusieurs propositions parmi lesquelles choisir, plutôt qu'une seule.">
+                            <div className={`flex items-center ${inputBg} border ${inputBorder} rounded-xl px-2`} title="Génère plusieurs versions différentes en un clic, pour choisir celle que tu préfères.">
                               <Layers size={16} className={`${textMuted} mr-1`} />
                               <select
                                 value={batchCount} onChange={(e) => setRoutineBatchCounts({...routineBatchCounts, [routine.id]: parseInt(e.target.value)})}
