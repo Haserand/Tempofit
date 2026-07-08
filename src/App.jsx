@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Dumbbell, Bike, Footprints, Flame, Heart, MoreHorizontal, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Target, History, Wind, MessageCircle, ExternalLink, GripVertical, MoreVertical } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine, ReferenceArea } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine, ReferenceArea, PieChart, Pie, Cell } from 'recharts';
 
 // =====================================================================================
 // CONSTANTES GLOBALES & CONFIGURATION
@@ -225,6 +225,35 @@ const safeFetchJson = async (url) => {
 const DEEZER_CORS_PROXY = '/api/deezer?url=';
 const deezerFetch = (deezerUrl) => safeFetchJson(DEEZER_CORS_PROXY + encodeURIComponent(deezerUrl));
 
+/**
+ * Résout le VRAI genre d'un titre Deezer via la chaîne officielle titre → album →
+ * genre_id → nom du genre. Deezer n'expose pas le genre directement sur le titre
+ * lui-même (limite documentée et confirmée par des développeurs sur le forum
+ * officiel Deezer, jamais corrigée) — il faut passer par l'album puis l'endpoint
+ * dédié /genre/{id}. `_deezerAlbumGenreCache` (module-level, partagé pour toute la
+ * session) évite de refaire ces 2 appels supplémentaires pour des titres du même
+ * album. Renvoie null en cas d'échec (jamais d'erreur bloquante) — l'appelant
+ * décide alors d'afficher "Genre inconnu" plutôt qu'une fausse valeur.
+ */
+const _deezerAlbumGenreCache = {};
+const resolveDeezerGenre = async (deezerTrackId) => {
+  try {
+    const { data: trackData } = await deezerFetch(`https://api.deezer.com/track/${deezerTrackId}`);
+    const albumId = trackData && trackData.album ? trackData.album.id : null;
+    if (!albumId) return null;
+    if (_deezerAlbumGenreCache[albumId] !== undefined) return _deezerAlbumGenreCache[albumId];
+    const { data: albumData } = await deezerFetch(`https://api.deezer.com/album/${albumId}`);
+    const genreId = albumData ? albumData.genre_id : null;
+    if (!genreId || genreId <= 0) { _deezerAlbumGenreCache[albumId] = null; return null; }
+    const { data: genreData } = await deezerFetch(`https://api.deezer.com/genre/${genreId}`);
+    const name = genreData ? genreData.name : null;
+    _deezerAlbumGenreCache[albumId] = name;
+    return name;
+  } catch (e) {
+    return null;
+  }
+};
+
 // Correspondance approximative entre les genres internes de l'app et des mots-clés
 // Deezer (recherche floue) — voir le détail de cette limite dans searchTracksByBpm.
 const DEEZER_GENRE_KEYWORDS = {
@@ -271,6 +300,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
         const pick = candidateStubs[Math.floor(Math.random() * candidateStubs.length)];
         const { data: full } = await deezerFetch(`https://api.deezer.com/track/${pick.id}`);
         if (full && full.bpm && parseFloat(full.bpm) >= minBpm && parseFloat(full.bpm) <= maxBpm) {
+          const realGenre = await resolveDeezerGenre(full.id);
           return {
             youtubeId: `deezer-${full.id}`,
             title: full.title,
@@ -278,7 +308,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
             bpm: Math.round(parseFloat(full.bpm)),
             duration: full.duration || 180,
             isEmbeddable: true,
-            genre: (selectedGenres && selectedGenres[0]) || 'Autre',
+            genre: realGenre || 'Genre inconnu',
             preview: full.preview || null
           };
         }
@@ -328,6 +358,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
 
       if (validCandidates.length > 0) {
         const full = validCandidates[Math.floor(Math.random() * validCandidates.length)];
+        const realGenre = await resolveDeezerGenre(full.id);
         return {
           youtubeId: `deezer-${full.id}`,
           title: full.title,
@@ -335,7 +366,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
           bpm: Math.round(parseFloat(full.bpm)),
           duration: full.duration || 180,
           isEmbeddable: true,
-          genre: genreForQuery,
+          genre: realGenre || 'Genre inconnu',
           preview: full.preview || null
         };
       }
@@ -358,6 +389,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
         const validBroad = detailedBroad.filter(full => full && full.bpm && parseFloat(full.bpm) >= minBpm && parseFloat(full.bpm) <= maxBpm);
         if (validBroad.length > 0) {
           const full = validBroad[Math.floor(Math.random() * validBroad.length)];
+          const realGenre = await resolveDeezerGenre(full.id);
           return {
             youtubeId: `deezer-${full.id}`,
             title: full.title,
@@ -365,7 +397,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
             bpm: Math.round(parseFloat(full.bpm)),
             duration: full.duration || 180,
             isEmbeddable: true,
-            genre: genreForQuery,
+            genre: realGenre || 'Genre inconnu',
             preview: full.preview || null
           };
         }
@@ -1113,18 +1145,23 @@ export default function App() {
          return full;
       }));
 
-      const formattedResults = detailedTracks
-        .filter(t => t && t.bpm && parseFloat(t.bpm) > 0)
-        .map(t => ({
-           youtubeId: `deezer-${t.id}`,
-           title: t.title,
-           artist: t.artist ? t.artist.name : 'Inconnu',
-           bpm: Math.round(parseFloat(t.bpm)),
-           duration: t.duration || 180,
-           isEmbeddable: true,
-           genre: 'API',
-           preview: t.preview || null // extrait MP3 de 30s fourni par Deezer, lisible sans clé ni CORS
-        }));
+      const formattedResults = await Promise.all(
+        detailedTracks
+          .filter(t => t && t.bpm && parseFloat(t.bpm) > 0)
+          .map(async (t) => {
+            const realGenre = await resolveDeezerGenre(t.id);
+            return {
+              youtubeId: `deezer-${t.id}`,
+              title: t.title,
+              artist: t.artist ? t.artist.name : 'Inconnu',
+              bpm: Math.round(parseFloat(t.bpm)),
+              duration: t.duration || 180,
+              isEmbeddable: true,
+              genre: realGenre || 'Genre inconnu',
+              preview: t.preview || null // extrait MP3 de 30s fourni par Deezer, lisible sans clé ni CORS
+            };
+          })
+      );
 
       setWorldSearchResults(formattedResults);
       setResultsContextLabel(contextLabel);
@@ -1185,18 +1222,23 @@ export default function App() {
          return full ? { ...full, matchedGenre: stub.matchedGenre } : null;
       }));
 
-      const formattedResults = detailedTracks
-        .filter(t => t && t.bpm && parseFloat(t.bpm) >= minBpm && parseFloat(t.bpm) <= maxBpm)
-        .map(t => ({
-           youtubeId: `deezer-${t.id}`,
-           title: t.title,
-           artist: t.artist ? t.artist.name : 'Inconnu',
-           bpm: Math.round(parseFloat(t.bpm)),
-           duration: t.duration || 180,
-           isEmbeddable: true,
-           genre: t.matchedGenre || 'API',
-           preview: t.preview || null
-        }));
+      const formattedResults = (await Promise.all(
+        detailedTracks
+          .filter(t => t && t.bpm && parseFloat(t.bpm) >= minBpm && parseFloat(t.bpm) <= maxBpm)
+          .map(async (t) => {
+            const realGenre = await resolveDeezerGenre(t.id);
+            return {
+              youtubeId: `deezer-${t.id}`,
+              title: t.title,
+              artist: t.artist ? t.artist.name : 'Inconnu',
+              bpm: Math.round(parseFloat(t.bpm)),
+              duration: t.duration || 180,
+              isEmbeddable: true,
+              genre: realGenre || 'Genre inconnu',
+              preview: t.preview || null
+            };
+          })
+      ));
 
       setWorldSearchResults(formattedResults);
       if (formattedResults.length === 0) setNoUsableResultsHint(true);
@@ -1644,9 +1686,10 @@ export default function App() {
         const valid = details.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm);
         if (valid.length > 0) {
           const pick = valid[Math.floor(Math.random() * valid.length)];
+          const realGenre = await resolveDeezerGenre(pick.id);
           newRawTrack = {
             title: pick.title, artist: pick.artist ? pick.artist.name : oldTrack.artist,
-            genre: oldTrack.genre, bpm: Math.round(parseFloat(pick.bpm)), duration: pick.duration || 180,
+            genre: realGenre || 'Genre inconnu', bpm: Math.round(parseFloat(pick.bpm)), duration: pick.duration || 180,
             youtubeId: `deezer-${pick.id}`, preview: pick.preview || null
           };
         }
@@ -1971,6 +2014,39 @@ export default function App() {
       return { track, startTime, endTime: accTime, startDist, endDist: accTime / avgPaceSecs };
     });
   }, [currentPlaylist]);
+
+  // Répartition de la playlist par tranche de BPM, pondérée par la DURÉE de chaque
+  // titre (pas juste un compte de titres) — donne une vue "combien de temps de la
+  // séance à chaque niveau d'intensité", complémentaire à la courbe déjà affichée.
+  const bpmDistributionData = useMemo(() => {
+    if (!currentPlaylist) return [];
+    const buckets = {};
+    currentPlaylist.tracks.forEach(t => {
+      const bucketStart = Math.floor(t.bpm / 20) * 20;
+      const label = `${bucketStart}-${bucketStart + 19}`;
+      buckets[label] = (buckets[label] || 0) + t.duration;
+    });
+    return Object.entries(buckets)
+      .map(([name, value]) => ({ name, value, sortKey: parseInt(name) }))
+      .sort((a, b) => a.sortKey - b.sortKey);
+  }, [currentPlaylist]);
+
+  // Répartition par style musical, pondérée par la durée elle aussi. Le champ
+  // `genre` de chaque titre est désormais résolu via la vraie chaîne Deezer
+  // titre → album → genre_id → nom (voir resolveDeezerGenre) plutôt qu'hérité du
+  // mot-clé de recherche — sans ça, ce graphique aurait surtout affiché le
+  // critère de recherche utilisé, pas le vrai style du morceau.
+  const genreDistributionData = useMemo(() => {
+    if (!currentPlaylist) return [];
+    const buckets = {};
+    currentPlaylist.tracks.forEach(t => {
+      const g = t.genre || 'Genre inconnu';
+      buckets[g] = (buckets[g] || 0) + t.duration;
+    });
+    return Object.entries(buckets).map(([name, value]) => ({ name, value }));
+  }, [currentPlaylist]);
+
+  const DISTRIBUTION_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#64748b'];
 
   // Segment actuellement sélectionné (déterminé par la position X du curseur, pas par
   // le point de données le plus proche) — permet de mettre en surbrillance TOUTE
@@ -3358,6 +3434,39 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+
+                {/* Répartition BPM et style musical — deux vues complémentaires de la
+                    courbe d'intensité, pondérées par la durée de chaque titre (pas juste
+                    un compte de titres) pour refléter combien de temps de la séance est
+                    passé à chaque niveau/style. */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className={`${cardBg} rounded-3xl p-6 border ${cardBorder} shadow-xl`}>
+                    <h3 className={`font-bold text-lg mb-4 flex items-center gap-2 ${textHighlight}`}><Activity className={textColorClass} size={20}/> Répartition par BPM</h3>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={bpmDistributionData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name }) => name}>
+                            {bpmDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} />)}
+                          </Pie>
+                          <RechartsTooltip formatter={(value) => formatDuration(value)} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  <div className={`${cardBg} rounded-3xl p-6 border ${cardBorder} shadow-xl`}>
+                    <h3 className={`font-bold text-lg mb-4 flex items-center gap-2 ${textHighlight}`}><Music className={textColorClass} size={20}/> Répartition par style</h3>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={genreDistributionData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name }) => name}>
+                            {genreDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} />)}
+                          </Pie>
+                          <RechartsTooltip formatter={(value) => formatDuration(value)} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </main>
@@ -3446,7 +3555,7 @@ export default function App() {
                             }} className="flex-1 min-w-0 text-left flex items-center justify-between gap-3">
                               <div className="truncate">
                                 <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
-                                <div className={"text-xs truncate " + textMuted}>{track.artist}{isBpmSearchMode && track.genre ? ` · ${track.genre}` : ''}</div>
+                                <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${track.genre}` : ''}</div>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 <span className={"font-mono text-sm font-bold " + textColorClass}>{track.bpm} BPM</span>
