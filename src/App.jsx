@@ -2710,11 +2710,24 @@ export default function App() {
                             </button>
                           </div>
                         </div>
-                        <h3 className={`font-bold text-xl mb-1 ${textHighlight}`}>{getDisplayRoutineName(routine)}</h3>
+                        <h3 className={`font-bold text-xl mb-1 flex items-center gap-2 ${textHighlight}`}>
+                          {getDisplayRoutineName(routine)}
+                          {routine.isIntervalMode && (
+                            <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full text-white shrink-0 ${bgAccentClass}`}>
+                              Fractionné
+                            </span>
+                          )}
+                        </h3>
                         <div className={`text-sm mb-4 space-y-1 flex flex-wrap gap-3 ${textMuted}`}>
                           <div className="flex items-center space-x-1.5"><Activity size={14}/><span>{routine.workoutType} {routine.customActivity && `(${routine.customActivity})`}</span></div>
                           <div className="flex items-center space-x-1.5"><Clock size={14}/><span>{routine.targetMode==='distance' ? `${routine.distanceVal} ${routine.distanceUnit}` : `${routine.hours}h ${routine.minutes}m`}</span></div>
-                          <div className="flex items-center space-x-1.5"><Zap size={14}/><span>{routine.isIntervalMode ? "Fractionné" : `${routine.bpm} BPM`}</span></div>
+                          <div className="flex items-center space-x-1.5"><Zap size={14}/><span>{routine.isIntervalMode ? `${(routine.segments || []).length} phases` : `${routine.bpm} BPM`}</span></div>
+                          {/* Style musical ajouté — jusqu'ici invisible sans ouvrir la modale
+                              d'édition, alors que c'est une info aussi pertinente à voir d'un
+                              coup d'œil que l'activité ou le BPM. */}
+                          {routine.selectedGenres && routine.selectedGenres.length > 0 && (
+                            <div className="flex items-center space-x-1.5"><Music size={14}/><span>{routine.selectedGenres.join(', ')}</span></div>
+                          )}
                         </div>
                         <div className="mt-auto pt-4 flex gap-2">
                           <div className={`flex items-center ${inputBg} border ${inputBorder} rounded-xl px-2`} title="Playlists à générer">
