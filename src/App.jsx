@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Dumbbell, Bike, Footprints, Flame, Heart, MoreHorizontal, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Target, History, Wind, MessageCircle, ExternalLink, GripVertical, MoreVertical } from 'lucide-react';
+import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Dumbbell, Bike, Footprints, Flame, Heart, MoreHorizontal, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, Target, History, Wind, MessageCircle, ExternalLink, GripVertical, MoreVertical } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine, ReferenceArea, PieChart, Pie, Cell } from 'recharts';
 
 // =====================================================================================
@@ -66,7 +66,7 @@ const DATABASE_MUSIQUES = {
   'Techno': [
     { youtubeId: 'y6120QOlsfU', title: 'Sandstorm', artist: 'Darude', album: 'Before the Storm', bpm: 136, duration: 223, isEmbeddable: false }
   ],
-  'Hip-Hop': [
+  'Rap': [
     { youtubeId: '5qm8PH4xAss', title: 'In Da Club', artist: '50 Cent', album: 'Get Rich or Die Tryin\'', bpm: 90, duration: 193, isEmbeddable: false }
   ],
   'Latino': [
@@ -75,10 +75,20 @@ const DATABASE_MUSIQUES = {
   'Jazz': [
     { youtubeId: 'vmDDOFXSgAs', title: 'Take Five', artist: 'Dave Brubeck', album: 'Time Out', bpm: 176, duration: 324, isEmbeddable: false }
   ],
+  'Reggae': [
+    { youtubeId: 'a3nfmqwqrqQ', title: 'No Woman, No Cry', artist: 'Bob Marley & The Wailers', album: 'Legend', bpm: 76, duration: 259, isEmbeddable: false }
+  ],
+  // Pas d'entrée locale pour "Classique" : une œuvre classique n'a en général pas
+  // de BPM fixe unique (le tempo varie dans le morceau lui-même), contrairement à
+  // une chanson pop/rock standard — inventer une valeur serait trompeur. Ce genre
+  // repose donc entièrement sur la résolution Deezer, sans filet de secours local.
   'Autre': [
     { youtubeId: 'dQw4w9WgXcQ', title: 'Never Gonna Give You Up', artist: 'Rick Astley', album: 'Whenever You Need Somebody', bpm: 113, duration: 212, isEmbeddable: true }
   ]
 };
+// "R&B" (genre standard général) réutilise les mêmes titres que "R&B Sensuel"
+// (mode Intime) plutôt que d'en dupliquer — ce sont déjà de vrais titres R&B.
+DATABASE_MUSIQUES['R&B'] = DATABASE_MUSIQUES['R&B Sensuel'];
 
 // Définition des trophées débloquables et de leur condition de déblocage.
 // `requirement.type` détermine comment `checkTrophies` évalue la condition :
@@ -177,7 +187,16 @@ const WORKOUT_DEFAULT_TARGET = {
 // bien plus de genres. Le mode Intime garde une sélection plus restreinte et
 // cohérente avec son thème (styles au tempo posé/sensuel), pas une simple copie
 // de la liste standard.
-const STANDARD_GENRES = ['Métal', 'Rock', 'Electro', 'Techno', 'Pop', 'Hip-Hop', 'Latino', 'Autre'];
+// Liste alignée sur la vraie taxonomie de genres de Deezer (vérifiée via leur
+// documentation officielle des catégories/genres) plutôt que sur une sélection
+// choisie à la main sans vérification, comme c'était le cas avant. Deezer expose
+// en réalité ~20 catégories (Musique africaine, Musique asiatique, Blues, Musique
+// brésilienne, Classique, Country, Dance & EDM, Électronique, Folk, Indie, Jazz,
+// K-pop, Musique latine, Métal, Pop, R&B, Rap, Reggae, Rock, Soul & Funk, Bandes
+// originales) — on n'en reprend ici qu'un sous-ensemble plus large qu'avant, pour
+// ne pas rendre le sélecteur illisible avec 20 chips. "Rap" remplace "Hip-Hop"
+// pour coller au nom réel utilisé par Deezer.
+const STANDARD_GENRES = ['Métal', 'Rock', 'Electro', 'Techno', 'Pop', 'Rap', 'R&B', 'Reggae', 'Country', 'Jazz', 'Latino', 'Autre'];
 const NAUGHTY_GENRES = ['R&B Sensuel', 'Pop', 'Latino', 'Jazz', 'Autre'];
 const AVAILABLE_ICONS = ["🏃‍♂️", "🚴‍♀️", "🏋️‍♂️", "🧘‍♀️", "🔥", "⚡", "🎵", "🏆", "🎧", "🎸", "🥁", "🎹", "🍑", "🍆", "🕺"];
 const AUTO_GEN_OPTIONS = ["Manuel", "1 fois / jour", "2 fois / jour", "1 fois / semaine"];
@@ -281,7 +300,8 @@ const resolveDeezerGenre = async (deezerTrackId) => {
 // Deezer (recherche floue) — voir le détail de cette limite dans searchTracksByBpm.
 const DEEZER_GENRE_KEYWORDS = {
   'Métal': 'metal', 'Rock': 'rock', 'Electro': 'electro', 'Techno': 'techno',
-  'Pop': 'pop', 'Hip-Hop': 'hip hop', 'Latino': 'latino', 'Jazz': 'jazz',
+  'Pop': 'pop', 'Rap': 'rap', 'Latino': 'latino', 'Jazz': 'jazz',
+  'R&B': 'rnb', 'Reggae': 'reggae', 'Country': 'country',
   'R&B Sensuel': 'rnb', 'Autre': ''
 };
 
@@ -487,7 +507,12 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
                   duration: 180 + Math.floor(Math.random() * 60), // Durée simulée (l'API ne fournit pas la durée réelle)
                   isEmbeddable: true,
                   genre: validGenres[0],
-                  preview: null // GetSongBPM ne fournit pas d'extrait audio
+                  preview: null, // GetSongBPM ne fournit pas d'extrait audio
+                  // Marqué comme "repli" : signifie qu'aucune source principale (Favoris,
+                  // Spotify, Deezer, base locale dans la tolérance) n'avait de candidat —
+                  // sert à prévenir l'utilisateur si trop de titres de la playlist viennent
+                  // de ce genre de repli (voir buildSegmentTracks / createPlaylistData).
+                  _isFallback: true
               };
           }
       }
@@ -516,7 +541,8 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   }
   const sortedByProximity = [...fallbackPool].sort((a, b) => Math.abs(a.bpm - targetBpm) - Math.abs(b.bpm - targetBpm));
   const topCandidates = sortedByProximity.slice(0, 3);
-  return pickByDurationProximity(topCandidates, preferredDuration);
+  const picked = pickByDurationProximity(topCandidates, preferredDuration);
+  return { ...picked, _isFallback: true };
 };
 
 /**
@@ -567,12 +593,15 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
     }));
     for (const full of details) {
       if (full && full.bpm && parseFloat(full.bpm) >= minBpm && parseFloat(full.bpm) <= maxBpm) {
-        const realGenre = await resolveDeezerGenre(full.id);
+        // Genre volontairement PAS résolu ici : ça coûte 2-3 appels réseau par
+        // titre, et la plupart des candidats du pool ne seront jamais retenus par
+        // la sélection ci-dessous — autant ne le faire QUE pour les titres
+        // effectivement choisis (voir la boucle après la sélection gloutonne).
         addIfValid({
           youtubeId: `deezer-${full.id}`, title: full.title,
           artist: full.artist ? full.artist.name : 'Inconnu',
           bpm: Math.round(parseFloat(full.bpm)), duration: full.duration || 180,
-          genre: realGenre || 'Genre inconnu', preview: full.preview || null
+          genre: null, _deezerId: full.id, preview: full.preview || null
         });
       }
     }
@@ -602,10 +631,14 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
 
   // Le pool s'est épuisé avant d'atteindre la durée cible (rare, mais possible sur
   // un BPM/genre très restrictif) : on termine avec l'ancien moteur au coup par
-  // coup, qui sait déjà gérer ce cas (GetSongBPM, repli extrême).
+  // coup, qui sait déjà gérer ce cas (GetSongBPM, repli extrême). Ces titres sont
+  // marqués `_isFallback` : le pool de candidats "de qualité" (bpm/genre/durée
+  // bien ciblés) n'a pas suffi, donc ce qui suit peut être moins bien ajusté —
+  // information transmise à l'utilisateur après génération (voir createPlaylistData).
   while (remaining > 30) {
     const usedSoFar = [...excludeYoutubeIds, ...selected.map(t => t.youtubeId)];
     const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, config.selectedGenres, usedSoFar, favorites, spotifyTrackPool, remaining);
+    extra._isFallback = true;
     selected.push(extra);
     remaining -= extra.duration;
   }
@@ -613,8 +646,19 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   // Filet de sécurité ultime : un segment ne doit jamais rester totalement vide.
   if (selected.length === 0) {
     const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, config.selectedGenres, excludeYoutubeIds, favorites, spotifyTrackPool, segment.durationSeconds);
+    extra._isFallback = true;
     selected.push(extra);
   }
+
+  // Résolution du genre différée à MAINTENANT : seuls les titres réellement
+  // retenus payent le coût des appels réseau supplémentaires (album + genre),
+  // pas tout le pool de candidats écartés par la sélection ci-dessus.
+  await Promise.all(selected.map(async (t) => {
+    if (t.genre === null && t._deezerId) {
+      t.genre = (await resolveDeezerGenre(t._deezerId)) || 'Genre inconnu';
+      delete t._deezerId;
+    }
+  }));
 
   return selected;
 };
@@ -1635,6 +1679,7 @@ export default function App() {
     const tracks = [];
     let idCounter = 1;
     const usedYoutubeIds = []; 
+    let fallbackCount = 0; // titres pour lesquels le pool de candidats de qualité n'a pas suffi
 
     for (let segmentIndex = 0; segmentIndex < activeSegments.length; segmentIndex++) {
         let segment = activeSegments[segmentIndex];
@@ -1644,6 +1689,7 @@ export default function App() {
         // vue d'ensemble, ce qui pouvait faire largement dépasser la cible.
         const segmentTracks = await buildSegmentTracks(segment, config, usedYoutubeIds, favorites, spotifyTrackPool);
         segmentTracks.forEach((randomTrack) => {
+            if (randomTrack._isFallback) fallbackCount++;
             tracks.push({
                 id: `track-${idCounter++}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 segmentIndex: segmentIndex + 1, targetSegmentBpm: segment.bpm,
@@ -1664,7 +1710,7 @@ export default function App() {
       name: generatedName, workoutType: finalWorkoutName,
       avgPace: unitPaceSecs, targetMode: config.targetMode, distanceUnit: config.distanceUnit || 'km',
       tolerance: config.bpmTolerance, crossfade: config.crossfade || 0,
-      tracks: tracks, isNaughty: isNaughtyMode,
+      tracks: tracks, isNaughty: isNaughtyMode, fallbackTrackCount: fallbackCount,
       coverIcon: config.coverIcon || '🎧', createdAt: new Date().toLocaleDateString(),
       status: 'pending', actualData: null, config: { ...config } 
     };
@@ -1749,10 +1795,23 @@ export default function App() {
       // légèrement de la cible demandée — mieux vaut le dire que laisser croire à
       // une précision parfaite.
       showToast("🎧 Playlist générée ! Distance/durée réelle : peut légèrement différer de la cible.");
+      // Deuxième avertissement, distinct : si une part importante des titres vient
+      // du repli de secours (voir fallbackTrackCount), c'est le signe qu'il n'y
+      // avait pas assez de vrais candidats pour ce BPM/style — l'utilisateur doit
+      // le savoir plutôt que de découvrir silencieusement des titres approximatifs.
+      const pl = generatedPlaylists[0];
+      if (pl.tracks.length > 0 && pl.fallbackTrackCount / pl.tracks.length >= 0.34) {
+        showToast(`⚠️ Peu de titres trouvés à ce BPM/style précis — ${pl.fallbackTrackCount} sur ${pl.tracks.length} viennent d'un choix de secours approximatif.`, 'error');
+      }
     } else {
       setSavedPlaylists([...generatedPlaylists, ...savedPlaylists]);
       changeView('playlists');
       showToast(`${count} playlists générées ! Distance/durée réelle : peut légèrement différer de la cible.`);
+      const totalFallback = generatedPlaylists.reduce((s, p) => s + (p.fallbackTrackCount || 0), 0);
+      const totalTracks = generatedPlaylists.reduce((s, p) => s + p.tracks.length, 0);
+      if (totalTracks > 0 && totalFallback / totalTracks >= 0.34) {
+        showToast(`⚠️ Peu de titres trouvés à ce BPM/style précis sur cette série — pas mal de choix de secours approximatifs.`, 'error');
+      }
     }
   };
 
