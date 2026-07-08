@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Dumbbell, Bike, Footprints, Flame, Heart, MoreHorizontal, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, Target, History, Wind, MessageCircle, ExternalLink, GripVertical, MoreVertical } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine, ReferenceArea, PieChart, Pie, Cell } from 'recharts';
+import { DATABASE_MUSIQUES, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, DEEZER_GENRE_KEYWORDS, getGenreLocalDepthWarning } from './musicCatalog';
 
 // =====================================================================================
 // CONSTANTES GLOBALES & CONFIGURATION
@@ -14,81 +15,17 @@ const SPOTIFY_API_BASE = ['https:/', '/api.spotify.com/v1'].join('');
 const SPOTIFY_AUTH_BASE = ['https:/', '/accounts.spotify.com/authorize?'].join('');
 const SPOTIFY_TOKEN_BASE = ['https:/', '/accounts.spotify.com/api/token'].join('');
 
-// --- CLÉ API MONDIALE GETSONGBPM ---
-// ⚠️ SÉCURITÉ : cette clé est en clair dans le bundle JS envoyé au navigateur.
-// N'importe qui peut l'extraire (onglet Network, ou simplement en lisant le code
-// source de l'app une fois buildée) et l'utiliser à ta place, ce qui peut :
-//   - consommer ton quota / déclencher du rate-limiting sur ton compte GetSongBPM
-//   - potentiellement violer les conditions d'usage de l'API si elles interdisent
-//     l'exposition côté client
-// Décision actuelle : on laisse tel quel pour l'instant (choix assumé du produit).
-// Si un jour ça devient un problème, la solution standard est de faire passer ces
-// appels par un petit backend/proxy qui garde la clé côté serveur.
-const GETSONGBPM_API_KEY = "96c5781040e3871a023964bc0120062c";
+// --- CLÉ API GETSONGBPM ---
+// Déplacée côté serveur (api/getsongbpm.js) : la clé n'apparaît plus du tout dans
+// ce fichier ni dans le bundle envoyé au navigateur. Elle doit être configurée
+// comme variable d'environnement Vercel (GETSONGBPM_API_KEY) sur le projet.
+// ⚠️ L'ancienne clé codée en dur ici a circulé en clair dans les commits Git
+// précédents — même retirée du code, elle reste visible dans l'historique du
+// dépôt. Vaut le coup de la régénérer côté GetSongBPM plutôt que de considérer
+// le problème réglé par ce seul changement.
 
-// Base de données musicale locale (fallback hors-ligne / avant tout appel API).
-// Organisée par genre → tableau de morceaux avec leur BPM connu à l'avance.
-// Sert de filet de sécurité quand ni les favoris Spotify ni l'API mondiale
-// ne remontent de résultat satisfaisant.
-const DATABASE_MUSIQUES = {
-  'Métal': [
-    { youtubeId: 'CSvFpBOe8eY', title: 'Chop Suey!', artist: 'System Of A Down', album: 'Toxicity', bpm: 128, duration: 210, isEmbeddable: false },
-    { youtubeId: 'uRyAIyq53FY', title: 'Master of Puppets', artist: 'Metallica', album: 'Master of Puppets', bpm: 212, duration: 515, isEmbeddable: false },
-    { youtubeId: 'L_jWHffIx5E', title: 'Smash', artist: 'The Offspring', album: 'Smash', bpm: 180, duration: 170, isEmbeddable: false },
-    { youtubeId: 'v2H4l9RpkwM', title: 'Duality', artist: 'Slipknot', album: 'Vol. 3', bpm: 145, duration: 252, isEmbeddable: false },
-    { youtubeId: 'kNGNLo8K6Fk', title: 'Numb', artist: 'Linkin Park', album: 'Meteora', bpm: 108, duration: 187, isEmbeddable: false },
-    { youtubeId: 'W3q8Od5qJio', title: 'Du Hast', artist: 'Rammstein', album: 'Sehnsucht', bpm: 125, duration: 234, isEmbeddable: false }
-  ],
-  'Rock': [
-    { youtubeId: 'hTWKbfoikeg', title: 'Smells Like Teen Spirit', artist: 'Nirvana', album: 'Nevermind', bpm: 116, duration: 301, isEmbeddable: false },
-    { youtubeId: 'gGdGFtwPNsQ', title: 'Mr. Brightside', artist: 'The Killers', album: 'Hot Fuss', bpm: 148, duration: 222, isEmbeddable: false },
-    { youtubeId: 'v2AC41dglnM', title: 'Thunderstruck', artist: 'AC/DC', album: 'The Razors Edge', bpm: 133, duration: 292, isEmbeddable: false }
-  ],
-  'Electro': [
-    { youtubeId: '5NV6Rdv1a3I', title: 'Get Lucky', artist: 'Daft Punk', album: 'Random Access Memories', bpm: 116, duration: 248, isEmbeddable: false },
-    { youtubeId: '4NRXx6U8ABQ', title: 'Blinding Lights', artist: 'The Weeknd', album: 'After Hours', bpm: 171, duration: 240, isEmbeddable: false },
-    { youtubeId: 'YykjpeuMNEk', title: 'Animals', artist: 'Martin Garrix', album: 'Gold Skies', bpm: 128, duration: 195, isEmbeddable: false },
-    { youtubeId: 'K4DyBUG242c', title: 'Cartoon - On & On', artist: 'Daniel Levi', album: 'NCS Release', bpm: 174, duration: 208, isEmbeddable: true }
-  ],
-  'R&B Sensuel': [
-    { youtubeId: 'lbnoG2mHIes', title: 'Pony', artist: 'Ginuwine', album: 'Ginuwine...The Bachelor', bpm: 142, duration: 251, isEmbeddable: false },
-    { youtubeId: 'waU75okJZq0', title: 'Earned It', artist: 'The Weeknd', album: 'Beauty Behind the Madness', bpm: 120, duration: 252, isEmbeddable: false },
-    { youtubeId: 'O1OTWCd40Ls', title: 'Wicked Games', artist: 'The Weeknd', album: 'House of Balloons', bpm: 115, duration: 323, isEmbeddable: false }
-  ],
-  'Pop': [
-    { youtubeId: 'DyDfgMOUjCI', title: 'Bad Guy', artist: 'Billie Eilish', album: 'When We All Fall Asleep', bpm: 135, duration: 194, isEmbeddable: false }
-  ],
-  // Styles ajoutés une fois la résolution du vrai genre (resolveDeezerGenre) devenue
-  // fiable — juste quelques titres ici, dont le BPM est largement documenté
-  // publiquement (valeurs couramment citées, pas une mesure officielle vérifiée
-  // par mes soins). Le gros du travail pour ces styles repose sur Deezer, cette
-  // base locale n'étant qu'un filet de secours hors-ligne, volontairement mince.
-  'Techno': [
-    { youtubeId: 'y6120QOlsfU', title: 'Sandstorm', artist: 'Darude', album: 'Before the Storm', bpm: 136, duration: 223, isEmbeddable: false }
-  ],
-  'Rap': [
-    { youtubeId: '5qm8PH4xAss', title: 'In Da Club', artist: '50 Cent', album: 'Get Rich or Die Tryin\'', bpm: 90, duration: 193, isEmbeddable: false }
-  ],
-  'Latino': [
-    { youtubeId: 'kJQP7kiw5Fk', title: 'Despacito', artist: 'Luis Fonsi', album: 'Vida', bpm: 89, duration: 229, isEmbeddable: false }
-  ],
-  'Jazz': [
-    { youtubeId: 'vmDDOFXSgAs', title: 'Take Five', artist: 'Dave Brubeck', album: 'Time Out', bpm: 176, duration: 324, isEmbeddable: false }
-  ],
-  'Reggae': [
-    { youtubeId: 'a3nfmqwqrqQ', title: 'No Woman, No Cry', artist: 'Bob Marley & The Wailers', album: 'Legend', bpm: 76, duration: 259, isEmbeddable: false }
-  ],
-  // Pas d'entrée locale pour "Classique" : une œuvre classique n'a en général pas
-  // de BPM fixe unique (le tempo varie dans le morceau lui-même), contrairement à
-  // une chanson pop/rock standard — inventer une valeur serait trompeur. Ce genre
-  // repose donc entièrement sur la résolution Deezer, sans filet de secours local.
-  'Autre': [
-    { youtubeId: 'dQw4w9WgXcQ', title: 'Never Gonna Give You Up', artist: 'Rick Astley', album: 'Whenever You Need Somebody', bpm: 113, duration: 212, isEmbeddable: true }
-  ]
-};
-// "R&B" (genre standard général) réutilise les mêmes titres que "R&B Sensuel"
-// (mode Intime) plutôt que d'en dupliquer — ce sont déjà de vrais titres R&B.
-DATABASE_MUSIQUES['R&B'] = DATABASE_MUSIQUES['R&B Sensuel'];
+
+
 
 // Définition des trophées débloquables et de leur condition de déblocage.
 // `requirement.type` détermine comment `checkTrophies` évalue la condition :
@@ -181,41 +118,8 @@ const WORKOUT_DEFAULT_TARGET = {
   }
 };
 
-// Liste des styles proposés à la génération/aux favoris — étendue maintenant que
-// la résolution du vrai genre (resolveDeezerGenre) est fiable : plus besoin de se
-// limiter à une poignée de styles "sûrs", Deezer peut chercher correctement sur
-// bien plus de genres. Le mode Intime garde une sélection plus restreinte et
-// cohérente avec son thème (styles au tempo posé/sensuel), pas une simple copie
-// de la liste standard.
-// Liste alignée sur la vraie taxonomie de genres de Deezer (vérifiée via leur
-// documentation officielle des catégories/genres) plutôt que sur une sélection
-// choisie à la main sans vérification, comme c'était le cas avant. Deezer expose
-// en réalité ~20 catégories (Musique africaine, Musique asiatique, Blues, Musique
-// brésilienne, Classique, Country, Dance & EDM, Électronique, Folk, Indie, Jazz,
-// K-pop, Musique latine, Métal, Pop, R&B, Rap, Reggae, Rock, Soul & Funk, Bandes
-// originales) — on n'en reprend ici qu'un sous-ensemble plus large qu'avant, pour
-// ne pas rendre le sélecteur illisible avec 20 chips. "Rap" remplace "Hip-Hop"
-// pour coller au nom réel utilisé par Deezer.
-const STANDARD_GENRES = ['Métal', 'Rock', 'Electro', 'Pop', 'Rap', 'Autre'];
-const NAUGHTY_GENRES = ['R&B Sensuel', 'Pop', 'Latino', 'Jazz', 'Autre'];
-// Reste de la vraie taxonomie Deezer (~20 catégories, voir commentaire ci-dessus),
-// masqué par défaut derrière le bouton "Plus de genres" pour ne pas surcharger le
-// sélecteur principal. Uniquement en mode standard : le mode Intime garde sa liste
-// restreinte et cohérente avec son thème, pas d'extension ici.
-// Critère de tri principal/secondaire : pertinence pour un usage SPORTIF (tempo
-// naturellement élevé/dynamique, genres effectivement utilisés en musculation/course),
-// pas juste "existait déjà dans une vieille liste écrite à la main". Techno, R&B,
-// Reggae, Country, Jazz et Latino sont de vrais genres avec un filet de secours local
-// (DATABASE_MUSIQUES) mais un usage sport plus marginal — d'où leur place ici plutôt
-// qu'en principal.
-// ⚠️ Limite honnête : contrairement à Techno/R&B/Reggae/Country/Jazz/Latino, les
-// genres suivants (Musique africaine → Bandes originales) n'ont PAS d'entrée dans
-// DATABASE_MUSIQUES (aucun titre de secours hors-ligne écrit à la main). Ils reposent
-// donc entièrement sur Deezer/GetSongBPM ; si les deux sont hors service, le filet de
-// secours retombera sur la base locale "Pop" plutôt que sur le genre demandé —
-// comportement déjà existant pour tout genre absent de la base, pas une régression
-// introduite ici.
-const EXTRA_GENRES = ['Techno', 'R&B', 'Reggae', 'Country', 'Jazz', 'Latino', 'Musique africaine', 'Musique asiatique', 'Blues', 'Musique brésilienne', 'Classique', 'Dance & EDM', 'Folk', 'Indie', 'K-pop', 'Soul & Funk', 'Bandes originales'];
+// Liste des styles proposés à la génération/aux favoris — voir musicCatalog.js
+// pour le détail (taxonomie Deezer, critère de tri principal/secondaire, etc.).
 const AVAILABLE_ICONS = ["🏃‍♂️", "🚴‍♀️", "🏋️‍♂️", "🧘‍♀️", "🔥", "⚡", "🎵", "🏆", "🎧", "🎸", "🥁", "🎹", "🍑", "🍆", "🕺"];
 const AUTO_GEN_OPTIONS = ["Manuel", "1 fois / jour", "2 fois / jour", "1 fois / semaine"];
 
@@ -314,20 +218,88 @@ const resolveDeezerGenre = async (deezerTrackId) => {
   }
 };
 
-// Correspondance approximative entre les genres internes de l'app et des mots-clés
-// Deezer (recherche floue) — voir le détail de cette limite dans searchTracksByBpm.
-const DEEZER_GENRE_KEYWORDS = {
-  'Métal': 'metal', 'Rock': 'rock', 'Electro': 'electro', 'Techno': 'techno',
-  'Pop': 'pop', 'Rap': 'rap', 'Latino': 'latino', 'Jazz': 'jazz',
-  'R&B': 'rnb', 'Reggae': 'reggae', 'Country': 'country',
-  'R&B Sensuel': 'rnb', 'Autre': '',
-  // Mots-clés pour les genres du bouton "Plus de genres" (EXTRA_GENRES) — recherche
-  // floue par mot-clé, comme pour les genres standards, pas la vraie taxonomie exacte.
-  'Musique africaine': 'african', 'Musique asiatique': 'asian', 'Blues': 'blues',
-  'Musique brésilienne': 'brazilian', 'Classique': 'classical', 'Dance & EDM': 'dance',
-  'Folk': 'folk', 'Indie': 'indie', 'K-pop': 'k-pop', 'Soul & Funk': 'soul',
-  'Bandes originales': 'soundtrack'
+/**
+ * Détecte le BPM RÉEL d'un extrait audio Deezer (30s) directement dans le
+ * navigateur — Web Audio API + la librairie `web-audio-beat-detector` (analyse
+ * des pics rythmiques du signal, aucune donnée externe requise). N'est utilisé
+ * QUE quand Deezer ne fournit aucun BPM pour un titre (`full.bpm` absent/à 0) —
+ * cas fréquent dans le catalogue Deezer, qui réduisait artificiellement le pool
+ * exploitable jusqu'ici (un genre/BPM pouvait sembler "pauvre" alors que
+ * beaucoup de titres valides existaient, juste sans métadonnée BPM renseignée).
+ *
+ * ⚠️ Limites honnêtes à connaître :
+ *  - C'est une ESTIMATION algorithmique (généralement fiable à ±1-2 BPM sur de la
+ *    musique à rythme marqué), pas une donnée officielle vérifiée — moins fiable
+ *    sur du jazz/rubato ou des morceaux sans pulsation nette.
+ *  - Risque classique d'"erreur d'octave" (détecter la moitié ou le double du
+ *    vrai tempo) — atténué ici en contraignant l'analyse à la fenêtre BPM déjà
+ *    visée (`minBpm`/`maxBpm` ± 5) plutôt que de laisser l'algorithme deviner
+ *    sans aucune borne.
+ *  - Point NON VÉRIFIABLE depuis cet environnement de développement (pas d'accès
+ *    réseau ici) : ça suppose que le CDN Deezer autorise la récupération de
+ *    l'extrait en ArrayBuffer via `fetch` (CORS). L'app lit déjà ces extraits via
+ *    une balise `<audio>`, mais ça ne garantit pas que `fetch()` fonctionnera
+ *    pareil pour du décodage. À VÉRIFIER une fois déployé — en cas de blocage
+ *    CORS, il faudra faire transiter l'extrait par le proxy Vercel existant
+ *    plutôt que de le récupérer en direct depuis le CDN Deezer.
+ *  - Nécessite d'ajouter la dépendance `web-audio-beat-detector` au projet
+ *    (`npm install web-audio-beat-detector`) avant de déployer.
+ */
+const detectBpmFromPreview = async (previewUrl, minBpm, maxBpm) => {
+  if (!previewUrl) return null;
+  let audioContext = null;
+  try {
+    const response = await fetch(previewUrl);
+    const arrayBuffer = await response.arrayBuffer();
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    audioContext = new AudioContextClass();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    const { analyze } = await import('web-audio-beat-detector');
+    // Marge de ±5 BPM autour de la fenêtre visée : laisse un peu de mou à
+    // l'algorithme (sinon un titre à 159.5 BPM réel pourrait rater de peu une
+    // fenêtre stricte 150-160), sans pour autant le laisser dériver vers une
+    // octave complètement différente.
+    const tempo = await analyze(audioBuffer, { minTempo: Math.max(1, minBpm - 5), maxTempo: maxBpm + 5 });
+    return tempo;
+  } catch (e) {
+    // Échec silencieux (CORS, format non décodable, extrait trop court pour une
+    // détection fiable...) : le titre est simplement écarté, comme s'il n'avait
+    // pas de BPM du tout — jamais bloquant pour le reste de la génération.
+    return null;
+  } finally {
+    if (audioContext) audioContext.close();
+  }
 };
+
+/**
+ * Résout le BPM utilisable pour une liste de titres Deezer déjà détaillés
+ * (`full` = réponse de /track/{id}) dans une fenêtre [minBpm, maxBpm] donnée :
+ *  - Si Deezer fournit un BPM dans la fenêtre → utilisé tel quel (`_bpmSource: 'deezer'`).
+ *  - Sinon, si un extrait audio existe → tentative de détection en direct (voir
+ *    `detectBpmFromPreview`), acceptée seulement si le résultat tombe dans la
+ *    fenêtre (`_bpmSource: 'detected'`).
+ * Les détections tournent en parallèle (Promise.all) pour limiter la latence
+ * totale — chacune reste indépendante et ne bloque pas les autres en cas d'échec.
+ */
+const resolveBpmForCandidates = async (details, minBpm, maxBpm) => {
+  const withDeezerBpm = details
+    .filter(full => full && full.bpm && parseFloat(full.bpm) >= minBpm && parseFloat(full.bpm) <= maxBpm)
+    .map(full => ({ ...full, _resolvedBpm: Math.round(parseFloat(full.bpm)), _bpmSource: 'deezer' }));
+
+  const missingBpm = details.filter(full => full && (!full.bpm || parseFloat(full.bpm) <= 0) && full.preview);
+  const detected = await Promise.all(missingBpm.map(async (full) => {
+    const tempo = await detectBpmFromPreview(full.preview, minBpm, maxBpm);
+    if (tempo && tempo >= minBpm && tempo <= maxBpm) {
+      return { ...full, _resolvedBpm: Math.round(tempo), _bpmSource: 'detected' };
+    }
+    return null;
+  }));
+
+  return [...withDeezerBpm, ...detected.filter(Boolean)];
+};
+
+// DEEZER_GENRE_KEYWORDS et getGenreLocalDepthWarning : voir musicCatalog.js
+// (importés en haut de ce fichier).
 
 /**
  * Choisit un morceau parmi plusieurs candidats, en privilégiant celui dont la
@@ -350,7 +322,62 @@ const pickByDurationProximity = (candidates, preferredDuration) => {
   return top[Math.floor(Math.random() * top.length)];
 };
 
-const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excludeYoutubeIds = [], favorites = null, spotifyTrackPool = [], preferredDuration = null) => {
+/**
+ * Recherche Deezer multi-genres (une requête par genre sélectionné, entrelacées en
+ * round-robin pour une représentation équitable — sinon les 1-2 premiers genres à
+ * répondre monopolisent tout le pool quand beaucoup de genres sont cochés à la
+ * fois). Le BPM de chaque candidat est résolu via `resolveBpmForCandidates` :
+ * valeur Deezer si présente, sinon détection audio en direct (voir plus haut).
+ * Retourne UN titre choisi (pondéré par proximité de durée) ou null si rien de
+ * valable dans la fenêtre BPM donnée. Factorisé pour être appelé DEUX FOIS par
+ * getSingleMatchingTrack : une fois à la tolérance demandée, une fois à une
+ * tolérance élargie si la première tentative échoue.
+ */
+const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYoutubeIds, preferredDuration, candidateCap) => {
+  const stubsByGenre = await Promise.all(genresForQuery.map(async (g) => {
+    const keyword = DEEZER_GENRE_KEYWORDS[g] || '';
+    const q = `bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
+    const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=15`);
+    return (data && Array.isArray(data.data) ? data.data : []);
+  }));
+  const seenStubIds = new Set();
+  const allStubs = [];
+  for (let i = 0; i < 15; i++) {
+    let addedThisRound = false;
+    for (const arr of stubsByGenre) {
+      if (i < arr.length) {
+        const s = arr[i];
+        if (!seenStubIds.has(s.id) && !excludeYoutubeIds.includes(`deezer-${s.id}`)) { seenStubIds.add(s.id); allStubs.push(s); }
+        addedThisRound = true;
+      }
+    }
+    if (!addedThisRound) break;
+  }
+  if (allStubs.length === 0) return null;
+
+  const detailedCandidates = await Promise.all(allStubs.slice(0, candidateCap).map(async (stub) => {
+    const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
+    return full;
+  }));
+  const validCandidates = await resolveBpmForCandidates(detailedCandidates.filter(Boolean), minBpm, maxBpm);
+  if (validCandidates.length === 0) return null;
+
+  const full = pickByDurationProximity(validCandidates, preferredDuration);
+  const realGenre = await resolveDeezerGenre(full.id);
+  return {
+    youtubeId: `deezer-${full.id}`,
+    title: full.title,
+    artist: full.artist ? full.artist.name : 'Inconnu',
+    bpm: full._resolvedBpm,
+    duration: full.duration || 180,
+    isEmbeddable: true,
+    genre: realGenre || 'Genre inconnu',
+    preview: full.preview || null,
+    _bpmSource: full._bpmSource
+  };
+};
+
+const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excludeYoutubeIds = [], favorites = null, spotifyTrackPool = [], preferredDuration = null, historyExcludeIds = []) => {
   const minBpm = targetBpm - tolerance;
   const maxBpm = targetBpm + tolerance;
 
@@ -419,134 +446,57 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
     }
   }
 
-  // 3. DEEZER EN DIRECT : on cherche un titre correspondant via l'API Deezer (bpm_min/bpm_max
-  //    + mot-clé du premier genre sélectionné). Prioritaire sur la base locale statique car
-  //    Deezer fournit systématiquement un extrait audio (`preview`) permettant l'écoute dans
-  //    l'app, ce que les morceaux codés en dur de DATABASE_MUSIQUES ne peuvent jamais offrir.
+  // 3. DEEZER EN DIRECT, tolérance exacte : mot-clé de CHAQUE genre sélectionné, une
+  //    recherche par genre entrelacée round-robin (voir searchDeezerForGenres) —
+  //    prioritaire sur la base locale statique car Deezer/la détection audio
+  //    fournissent un extrait écoutable, ce que DATABASE_MUSIQUES ne peut jamais offrir.
+  const genresForQuery = (selectedGenres && selectedGenres.length > 0) ? selectedGenres : ['Autre'];
+  const candidateCap = Math.min(Math.max(8, genresForQuery.length * 3), 24);
   try {
-    const genreForQuery = selectedGenres && selectedGenres.length > 0 ? selectedGenres[0] : 'Autre';
-    const keyword = DEEZER_GENRE_KEYWORDS[genreForQuery] || '';
-    const q = `bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
-    const { data: searchData } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=15`);
-    const stubs = (searchData && Array.isArray(searchData.data)) ? searchData.data.filter(s => !excludeYoutubeIds.includes(`deezer-${s.id}`)) : [];
-
-    if (stubs.length > 0) {
-      // BUG CORRIGÉ : avant, on ne testait qu'UN SEUL candidat tiré au hasard, et on
-      // abandonnait toute cette étape s'il ne correspondait pas exactement au BPM
-      // demandé (le filtre bpm_min/bpm_max de Deezer, non officiel, n'est pas fiable
-      // à 100%). Résultat : cette étape échouait très souvent, faisant retomber la
-      // génération sur la base locale (sans extrait audio) même quand Deezer avait
-      // de bons candidats. On teste maintenant jusqu'à 5 candidats en parallèle et on
-      // choisit au hasard parmi ceux qui correspondent vraiment.
-      const candidates = stubs.slice(0, 5);
-      const detailedCandidates = await Promise.all(candidates.map(async (stub) => {
-        const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
-        return full;
-      }));
-      const validCandidates = detailedCandidates.filter(full => full && full.bpm && parseFloat(full.bpm) >= minBpm && parseFloat(full.bpm) <= maxBpm);
-
-      if (validCandidates.length > 0) {
-        const full = pickByDurationProximity(validCandidates, preferredDuration);
-        const realGenre = await resolveDeezerGenre(full.id);
-        return {
-          youtubeId: `deezer-${full.id}`,
-          title: full.title,
-          artist: full.artist ? full.artist.name : 'Inconnu',
-          bpm: Math.round(parseFloat(full.bpm)),
-          duration: full.duration || 180,
-          isEmbeddable: true,
-          genre: realGenre || 'Genre inconnu',
-          preview: full.preview || null
-        };
-      }
-    }
-
-    // Filet de secours : si le filtre bpm_min/bpm_max n'a renvoyé AUCUN résultat (pas
-    // juste des résultats hors cible, mais vraiment zéro), on retente une recherche
-    // large sur le mot-clé de genre seul, sans filtre BPM côté serveur, puis on trie
-    // et filtre nous-mêmes côté client par proximité — pour maximiser les chances
-    // d'obtenir un titre avec extrait audio plutôt que de céder trop vite à la base
-    // locale statique (qui n'en a jamais).
-    if (stubs.length === 0 && keyword) {
-      const { data: broadData } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(keyword)}&limit=20`);
-      const broadStubs = (broadData && Array.isArray(broadData.data)) ? broadData.data.filter(s => !excludeYoutubeIds.includes(`deezer-${s.id}`)) : [];
-      if (broadStubs.length > 0) {
-        const detailedBroad = await Promise.all(broadStubs.slice(0, 8).map(async (stub) => {
-          const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
-          return full;
-        }));
-        const validBroad = detailedBroad.filter(full => full && full.bpm && parseFloat(full.bpm) >= minBpm && parseFloat(full.bpm) <= maxBpm);
-        if (validBroad.length > 0) {
-          const full = pickByDurationProximity(validBroad, preferredDuration);
-          const realGenre = await resolveDeezerGenre(full.id);
-          return {
-            youtubeId: `deezer-${full.id}`,
-            title: full.title,
-            artist: full.artist ? full.artist.name : 'Inconnu',
-            bpm: Math.round(parseFloat(full.bpm)),
-            duration: full.duration || 180,
-            isEmbeddable: true,
-            genre: realGenre || 'Genre inconnu',
-            preview: full.preview || null
-          };
-        }
-      }
-    }
+    const exactMatch = await searchDeezerForGenres(genresForQuery, minBpm, maxBpm, excludeYoutubeIds, preferredDuration, candidateCap);
+    if (exactMatch) return exactMatch;
   } catch (e) {
-    // Échec silencieux (proxy indisponible, hors-ligne...) : on continue vers le fallback local.
+    // Échec silencieux (proxy indisponible, hors-ligne...) : on continue vers la tentative suivante.
   }
 
-  // 4. BACKUP LOCAL : Si Deezer n'a rien donné, on pioche dans la BDD interne statique
-  //    (ces morceaux n'ont jamais d'extrait audio, contrairement à ceux de Deezer ci-dessus).
+  // 3.5. DEEZER, TOLÉRANCE ÉLARGIE : changement de priorité délibéré. Avant de
+  //      sacrifier l'écoute (base locale, jamais d'extrait), on retente Deezer avec
+  //      une fenêtre BPM doublée (plafonnée à ±40 BPM d'écart max) — un vrai titre
+  //      écoutable légèrement hors tempo sert mieux l'usage réel qu'un repli qui ne
+  //      s'écoute pas du tout. Marqué `_isFallback`.
+  try {
+    const widenedTolerance = Math.min(tolerance * 2, 40);
+    const widenedMatch = await searchDeezerForGenres(genresForQuery, targetBpm - widenedTolerance, targetBpm + widenedTolerance, excludeYoutubeIds, preferredDuration, candidateCap);
+    if (widenedMatch) return { ...widenedMatch, _isFallback: true };
+  } catch (e) {
+    // Échec silencieux : on continue vers le fallback local.
+  }
+
+  // 4. BACKUP LOCAL, tolérance exacte : Deezer n'a rien donné (ni exact, ni élargi).
+  //    Cette base est exemptée de l'historique inter-génération (`historyExcludeIds`)
+  //    — trop réduite pour servir de source de "nouveauté" sans se vider — mais reste
+  //    dédoublonnée SUR LA PLAYLIST EN COURS.
   let availableTracks = [];
   const validGenres = selectedGenres.length > 0 ? selectedGenres : ['Métal'];
-  
+  const localExcludeIds = excludeYoutubeIds.filter(id => !historyExcludeIds.includes(id));
+
   validGenres.forEach(g => {
     if (DATABASE_MUSIQUES[g]) availableTracks = [...availableTracks, ...DATABASE_MUSIQUES[g].map(t => ({...t, genre: g}))];
   });
   if (availableTracks.length === 0) availableTracks = DATABASE_MUSIQUES['Pop'].map(t => ({...t, genre: 'Pop'}));
 
-  let suitable = availableTracks.filter(t => t.bpm >= minBpm && t.bpm <= maxBpm && !excludeYoutubeIds.includes(t.youtubeId));
+  let suitable = availableTracks.filter(t => t.bpm >= minBpm && t.bpm <= maxBpm && !localExcludeIds.includes(t.youtubeId));
 
   if (suitable.length > 0) {
       return pickByDurationProximity(suitable, preferredDuration);
   }
 
-  // 5. REQUÊTE API MONDIALE (GetSongBPM) : Aucun résultat local, on tente ce dernier service
-  //    Endpoint /tempo/ : renvoie une liste de morceaux dont le tempo == bpm demandé (pas de tolérance
-  //    côté API, d'où le fait qu'on demande directement `targetBpm` et non minBpm/maxBpm).
-  try {
-      const response = await fetch(`https://api.getsong.co/tempo/?api_key=${GETSONGBPM_API_KEY}&bpm=${targetBpm}&limit=50`);
-      const data = await response.json();
-      if (data.tempo && data.tempo.length > 0) {
-          let apiValid = data.tempo.filter(t => !excludeYoutubeIds.includes(t.song_id));
-          if(apiValid.length > 0) {
-              let apiTrack = apiValid[Math.floor(Math.random() * apiValid.length)];
-              return {
-                  youtubeId: apiTrack.song_id, // L'ID de l'API mondiale
-                  title: apiTrack.song_title,
-                  artist: (apiTrack.artist_name && apiTrack.artist_name.artist_name) || apiTrack.artist_name || 'Inconnu',
-                  album: 'API GetSongBPM',
-                  bpm: targetBpm, 
-                  duration: 180 + Math.floor(Math.random() * 60), // Durée simulée (l'API ne fournit pas la durée réelle)
-                  isEmbeddable: true,
-                  genre: validGenres[0],
-                  preview: null, // GetSongBPM ne fournit pas d'extrait audio
-                  // Marqué comme "repli" : signifie qu'aucune source principale (Favoris,
-                  // Spotify, Deezer, base locale dans la tolérance) n'avait de candidat —
-                  // sert à prévenir l'utilisateur si trop de titres de la playlist viennent
-                  // de ce genre de repli (voir buildSegmentTracks / createPlaylistData).
-                  _isFallback: true
-              };
-          }
-      }
-  } catch(e) {
-      // Pas de gestion différenciée des erreurs (ex. 429 rate-limit) : tout tombe ici
-      // et on continue vers le fallback ci-dessous. À affiner si l'API sature souvent.
-      console.error("L'API GetSongBPM n'a pas pu combler le vide", e);
-  }
+  // GetSongBPM SUPPRIMÉ ICI (ancienne étape 5) : ne fournissait jamais d'extrait
+  // écoutable, inventait une durée aléatoire, et donnait souvent un artiste
+  // "Inconnu" — moins fiable que le repli extrême ci-dessous (vrai titre, vraie
+  // durée, juste hors tolérance BPM), qui est de toute façon garanti non-vide.
 
-  // 6. FALLBACK EXTRÊME (Si l'API est hors ligne ou vide)
+  // 5. FALLBACK EXTRÊME (dernier recours) :
   //    On cherche parmi les morceaux locaux dont le BPM est le plus proche de la cible,
   //    tolérance ignorée. Deux corrections par rapport à l'ancienne version :
   //      - Si le genre sélectionné est épuisé (tous ses titres déjà utilisés dans la
@@ -585,7 +535,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
  * durée cible, on retombe sur `getSingleMatchingTrack` (GetSongBPM + repli
  * extrême) pour terminer, qui garantit qu'on ne reste jamais bloqué.
  */
-const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites, spotifyTrackPool) => {
+const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites, spotifyTrackPool, historyExcludeIds = []) => {
   const minBpm = segment.bpm - config.bpmTolerance;
   const maxBpm = segment.bpm + config.bpmTolerance;
   const pool = [];
@@ -606,42 +556,72 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   (favorites && Array.isArray(favorites.tracks) ? favorites.tracks : []).forEach(addIfValid);
   (Array.isArray(spotifyTrackPool) ? spotifyTrackPool : []).forEach(addIfValid);
 
-  // Deezer : recherche plus large qu'avant (jusqu'à 15 détails récupérés d'un coup)
-  // pour donner à l'algorithme de sélection un vrai choix de durées parmi
-  // lesquelles piocher, plutôt qu'un seul candidat par appel.
+  // Deezer : une recherche PAR GENRE sélectionné, entrelacées round-robin (voir
+  // searchDeezerForGenres) pour que chaque genre coché ait une vraie chance d'être
+  // représenté, même à beaucoup de genres à la fois. Le BPM de chaque candidat est
+  // résolu via `resolveBpmForCandidates` : valeur Deezer si présente, sinon
+  // détection audio en direct sur l'extrait (voir plus haut) — beaucoup de titres
+  // Deezer n'ont simplement pas de BPM renseigné, ce qui réduisait artificiellement
+  // le pool exploitable même quand le titre convenait parfaitement.
   try {
-    const genreForQuery = effectiveGenres && effectiveGenres.length > 0 ? effectiveGenres[0] : 'Autre';
-    const keyword = DEEZER_GENRE_KEYWORDS[genreForQuery] || '';
-    const q = `bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
-    const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=25`);
-    const stubs = (data && Array.isArray(data.data) ? data.data : []).filter(s => !seenIds.has(`deezer-${s.id}`)).slice(0, 15);
-    const details = await Promise.all(stubs.map(async (s) => {
+    const genresForQuery = (effectiveGenres && effectiveGenres.length > 0) ? effectiveGenres : ['Autre'];
+    const stubsByGenre = await Promise.all(genresForQuery.map(async (g) => {
+      const keyword = DEEZER_GENRE_KEYWORDS[g] || '';
+      const q = `bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
+      const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=40`);
+      return (data && Array.isArray(data.data) ? data.data : []);
+    }));
+    const seenStubIds = new Set();
+    const allStubs = [];
+    for (let i = 0; i < 40; i++) {
+      let addedThisRound = false;
+      for (const arr of stubsByGenre) {
+        if (i < arr.length) {
+          const s = arr[i];
+          if (!seenStubIds.has(s.id) && !seenIds.has(`deezer-${s.id}`)) { seenStubIds.add(s.id); allStubs.push(s); }
+          addedThisRound = true;
+        }
+      }
+      if (!addedThisRound) break;
+    }
+    const detailFetchCap = Math.min(Math.max(25, genresForQuery.length * 6), 60);
+    const details = await Promise.all(allStubs.slice(0, detailFetchCap).map(async (s) => {
       const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
       return full;
     }));
-    for (const full of details) {
-      if (full && full.bpm && parseFloat(full.bpm) >= minBpm && parseFloat(full.bpm) <= maxBpm) {
-        // Genre volontairement PAS résolu ici : ça coûte 2-3 appels réseau par
-        // titre, et la plupart des candidats du pool ne seront jamais retenus par
-        // la sélection ci-dessous — autant ne le faire QUE pour les titres
-        // effectivement choisis (voir la boucle après la sélection gloutonne).
-        addIfValid({
-          youtubeId: `deezer-${full.id}`, title: full.title,
-          artist: full.artist ? full.artist.name : 'Inconnu',
-          bpm: Math.round(parseFloat(full.bpm)), duration: full.duration || 180,
-          genre: null, _deezerId: full.id, preview: full.preview || null
-        });
-      }
+    const resolved = await resolveBpmForCandidates(details.filter(Boolean), minBpm, maxBpm);
+    for (const full of resolved) {
+      // Genre volontairement PAS résolu ici : ça coûte 2-3 appels réseau par
+      // titre, et la plupart des candidats du pool ne seront jamais retenus par
+      // la sélection ci-dessous — autant ne le faire QUE pour les titres
+      // effectivement choisis (voir la boucle après la sélection gloutonne).
+      addIfValid({
+        youtubeId: `deezer-${full.id}`, title: full.title,
+        artist: full.artist ? full.artist.name : 'Inconnu',
+        bpm: full._resolvedBpm, duration: full.duration || 180,
+        genre: null, _deezerId: full.id, preview: full.preview || null,
+        _bpmSource: full._bpmSource
+      });
     }
   } catch (e) {
     // Échec silencieux : le pool s'appuiera sur les autres sources (favoris/Spotify/local).
   }
 
   // Base locale statique (jamais d'extrait audio, mais toujours disponible hors-ligne).
+  // Volontairement épargnée de l'historique inter-génération (`historyExcludeIds`) :
+  // cette base ne contient que quelques titres par genre au total, c'est un filet de
+  // sécurité minimal, pas une source de nouveauté — l'exclure sur tout l'historique
+  // des générations précédentes la viderait en quelques séances et forcerait un repli
+  // vers une source moins fiable juste pour "garantir" une variété que cette petite
+  // base n'a jamais eu vocation à fournir. Elle reste en revanche dédoublonnée sur LA
+  // PLAYLIST EN COURS (pas de titre local répété deux fois dans la même séance).
+  const localExcludeIds = excludeYoutubeIds.filter(id => !historyExcludeIds.includes(id));
   let localPool = [];
   const validGenres = effectiveGenres && effectiveGenres.length > 0 ? effectiveGenres : ['Métal'];
   validGenres.forEach(g => { if (DATABASE_MUSIQUES[g]) localPool = [...localPool, ...DATABASE_MUSIQUES[g].map(t => ({ ...t, genre: g }))]; });
-  localPool.filter(t => t.bpm >= minBpm && t.bpm <= maxBpm).forEach(addIfValid);
+  localPool
+    .filter(t => t.bpm >= minBpm && t.bpm <= maxBpm && !localExcludeIds.includes(t.youtubeId))
+    .forEach(addIfValid);
 
   // Sélection gloutonne SUR TOUT LE POOL : à chaque étape, on compare le temps
   // restant à TOUS les candidats encore disponibles (pas 2-3), et on retire celui
@@ -659,13 +639,13 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
 
   // Le pool s'est épuisé avant d'atteindre la durée cible (rare, mais possible sur
   // un BPM/genre très restrictif) : on termine avec l'ancien moteur au coup par
-  // coup, qui sait déjà gérer ce cas (GetSongBPM, repli extrême). Ces titres sont
-  // marqués `_isFallback` : le pool de candidats "de qualité" (bpm/genre/durée
-  // bien ciblés) n'a pas suffi, donc ce qui suit peut être moins bien ajusté —
+  // coup, qui sait déjà gérer ce cas (Deezer à tolérance élargie puis repli
+  // extrême local). Ces titres sont marqués `_isFallback` : le pool de candidats
+  // "de qualité" n'a pas suffi, donc ce qui suit peut être moins bien ajusté —
   // information transmise à l'utilisateur après génération (voir createPlaylistData).
   while (remaining > 30) {
     const usedSoFar = [...excludeYoutubeIds, ...selected.map(t => t.youtubeId)];
-    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, effectiveGenres, usedSoFar, favorites, spotifyTrackPool, remaining);
+    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, effectiveGenres, usedSoFar, favorites, spotifyTrackPool, remaining, historyExcludeIds);
     extra._isFallback = true;
     selected.push(extra);
     remaining -= extra.duration;
@@ -673,7 +653,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
 
   // Filet de sécurité ultime : un segment ne doit jamais rester totalement vide.
   if (selected.length === 0) {
-    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, effectiveGenres, excludeYoutubeIds, favorites, spotifyTrackPool, segment.durationSeconds);
+    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, effectiveGenres, excludeYoutubeIds, favorites, spotifyTrackPool, segment.durationSeconds, historyExcludeIds);
     extra._isFallback = true;
     selected.push(extra);
   }
@@ -763,12 +743,12 @@ const CustomChartTooltip = ({ active, payload, isNaughtyMode, currentUnit, metri
 };
 
 // Point personnalisé de la courbe "réelle" affichée (Cadence PPM OU Fréquence
-// cardiaque, selon `selectedMetric` — voir plus bas). La coloration "feu tricolore"
-// (vert/orange/rouge selon l'écart à la cible) n'a de sens QUE pour la cadence,
-// comparable au BPM musical cible via la convention "1 pas = 1 temps" (course à
-// pied). La fréquence cardiaque n'a pas de cible équivalente dans TempoFit
-// aujourd'hui (pas de zone de FC cible définie) — son point reste donc dans une
-// couleur neutre unique, sans jugement "trop lent/trop rapide" inventé de toutes pièces.
+// cardiaque, selon `selectedMetric`). La coloration "feu tricolore" (vert/orange/
+// rouge selon l'écart à la cible) n'a de sens QUE pour la cadence, comparable au
+// BPM musical cible via la convention "1 pas = 1 temps" (course à pied). La
+// fréquence cardiaque n'a pas de cible équivalente dans TempoFit aujourd'hui —
+// son point reste donc dans une couleur neutre unique, sans jugement "trop
+// lent/trop rapide" inventé de toutes pièces.
 const RealDataDot = (props) => {
   const { cx, cy, payload, tolerance, metric } = props;
   if (payload.realValue === undefined) return null;
@@ -859,17 +839,19 @@ export default function App() {
       // On continue vers le fallback GetSongBPM ci-dessous.
     }
 
-    // Filet de sécurité : GetSongBPM
+    // Filet de sécurité : GetSongBPM, désormais via /api/getsongbpm (la clé reste
+    // côté serveur, voir api/getsongbpm.js — avant, elle était en clair dans ce
+    // fichier et donc visible par n'importe qui dans le bundle JS envoyé au navigateur).
     try {
         const queryStr = "song:" + cleanTitle + " artist:" + cleanArtist;
-        let res = await fetch(`https://api.getsong.co/search/?api_key=${GETSONGBPM_API_KEY}&type=both&lookup=${encodeURIComponent(queryStr)}`);
+        let res = await fetch(`/api/getsongbpm?type=both&lookup=${encodeURIComponent(queryStr)}`);
         let data = await res.json();
         if (data.search && data.search.length > 0 && data.search[0].tempo) {
             return { bpm: parseInt(data.search[0].tempo), preview: null };
         }
 
         // Fallback: chercher uniquement par titre
-        res = await fetch(`https://api.getsong.co/search/?api_key=${GETSONGBPM_API_KEY}&type=song&lookup=${encodeURIComponent(cleanTitle)}`);
+        res = await fetch(`/api/getsongbpm?type=song&lookup=${encodeURIComponent(cleanTitle)}`);
         data = await res.json();
         if (data.search && data.search.length > 0 && data.search[0].tempo) {
             return { bpm: parseInt(data.search[0].tempo), preview: null };
@@ -1803,7 +1785,7 @@ export default function App() {
         // durée cible comme un problème de "somme de sous-ensemble" (voir
         // buildSegmentTracks) — plutôt que d'ajouter des morceaux un par un sans
         // vue d'ensemble, ce qui pouvait faire largement dépasser la cible.
-        const segmentTracks = await buildSegmentTracks(segment, config, usedYoutubeIds, favorites, spotifyTrackPool);
+        const segmentTracks = await buildSegmentTracks(segment, config, usedYoutubeIds, favorites, spotifyTrackPool, initialExcludeIds);
         segmentTracks.forEach((randomTrack) => {
             if (randomTrack._isFallback) fallbackCount++;
             tracks.push({
@@ -1896,10 +1878,10 @@ export default function App() {
     // playlist à chaque régénération — voir `routine.recentTrackIds`.
     // Volontairement PLAFONNÉ (RECENT_TRACKS_CAP) plutôt qu'illimité : sur une
     // routine à genre/BPM étroit, exclure indéfiniment tous les titres déjà
-    // utilisés finirait par vider le pool de candidats et forcer un repli extrême
-    // dégradé (_isFallback) — mieux vaut laisser les plus anciens titres redevenir
-    // éligibles après quelques générations que produire des playlists de moins
-    // bonne qualité pour garantir un "jamais deux fois le même titre" absolu.
+    // utilisés finirait par vider le pool de candidats et forcer un repli de
+    // moins bonne qualité — mieux vaut laisser les plus anciens titres redevenir
+    // éligibles après quelques générations que dégrader la qualité pour garantir
+    // un "jamais deux fois le même titre" absolu.
     const RECENT_TRACKS_CAP = 60;
     const sourceRoutine = routineId ? routines.find(r => r.id === routineId) : null;
     let rollingExcludeIds = sourceRoutine ? [...(sourceRoutine.recentTrackIds || [])] : [];
@@ -2293,8 +2275,7 @@ export default function App() {
    *     ou "heart rate" pour un export Strava en anglais)
    * et, si possible, une colonne de temps cumulé pour caler chaque point sur la
    * timeline. Au moins UNE des deux métriques doit être trouvée pour accepter le
-   * fichier (elles sont indépendantes : un fichier peut n'avoir que l'une ou
-   * l'autre). En cas de succès, associe ces données réelles à la date de
+   * fichier. En cas de succès, associe ces données réelles à la date de
    * complétion ciblée (`actualDataByDate[targetDate]`), ce qui active
    * l'affichage "Cadence/FC vs BPM cible" du graphique.
    */
@@ -2444,9 +2425,7 @@ export default function App() {
    * Construit le jeu de données unifié pour le graphique BPM : fusionne la
    * courbe "cible" (un point par début/fin de morceau, tracée en "escalier"
    * avec type="stepAfter") et, si des données réelles ont été importées, la
-   * courbe "réelle" — cadence (PPM) OU fréquence cardiaque selon `selectedMetric`,
-   * jamais les deux en même temps (échelles trop différentes pour être lisibles
-   * superposées) — un point par tour Garmin, décalé de `dataOffset` secondes
+   * courbe "réel" (un point par tour Garmin, décalé de `dataOffset` secondes
    * pour permettre à l'utilisateur de recaler manuellement les deux courbes
    * si le chrono du device n'était pas parfaitement synchronisé au démarrage).
    */
@@ -2715,9 +2694,8 @@ export default function App() {
   // Calcule le % de temps passé "dans la cible" / "trop lent" / "trop rapide" en
   // comparant chaque point de CADENCE réelle à la cible (BPM musical) au même
   // instant. Volontairement limité à la cadence : la fréquence cardiaque n'a pas
-  // de cible équivalente dans TempoFit aujourd'hui (pas de zone de FC cible
-  // définie), donc un "% de match" pour elle n'aurait pas de sens réel — voir
-  // aussi RealDataDot, qui applique la même restriction à la coloration des points.
+  // de cible équivalente dans TempoFit aujourd'hui, donc un "% de match" pour
+  // elle n'aurait pas de sens réel — voir aussi RealDataDot, même restriction.
   const analysisStats = useMemo(() => {
     if (!currentPlaylist || !currentActualData || selectedMetric !== 'cadence') return null;
     let matchCount = 0, belowCount = 0, aboveCount = 0;
@@ -3133,9 +3111,10 @@ export default function App() {
                                       <div className="flex flex-wrap gap-2">
                                         {STANDARD_GENRES.map(genre => {
                                           const isSelected = (segment.selectedGenres || []).includes(genre);
+                                          const warning = getGenreLocalDepthWarning(genre);
                                           return (
-                                            <button key={genre} onClick={() => toggleSegmentGenre(segment.id, genre)} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
-                                              {genre}
+                                            <button key={genre} onClick={() => toggleSegmentGenre(segment.id, genre)} title={warning || undefined} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                                              {genre}{warning && <span className="ml-1">⚠️</span>}
                                             </button>
                                           );
                                         })}
@@ -3147,9 +3126,10 @@ export default function App() {
                                         <div className="flex flex-wrap gap-2 mt-2">
                                           {EXTRA_GENRES.map(genre => {
                                             const isSelected = (segment.selectedGenres || []).includes(genre);
+                                            const warning = getGenreLocalDepthWarning(genre);
                                             return (
-                                              <button key={genre} onClick={() => toggleSegmentGenre(segment.id, genre)} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
-                                                {genre}
+                                              <button key={genre} onClick={() => toggleSegmentGenre(segment.id, genre)} title={warning || undefined} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                                                {genre}{warning && <span className="ml-1">⚠️</span>}
                                               </button>
                                             );
                                           })}
@@ -3179,10 +3159,11 @@ export default function App() {
                           <div className="flex flex-wrap gap-3">
                             {availableGenres.map(genre => {
                               const isSelected = selectedGenres.includes(genre);
+                              const warning = getGenreLocalDepthWarning(genre);
                               return (
-                                <button key={genre} onClick={() => toggleGenre(genre)} className={`px-5 py-3 rounded-full text-base font-bold transition-all duration-200 border-2 ${isSelected ?
+                                <button key={genre} onClick={() => toggleGenre(genre)} title={warning || undefined} className={`px-5 py-3 rounded-full text-base font-bold transition-all duration-200 border-2 ${isSelected ?
                                   `${bgAccentClass} ${borderAccentClass} text-white shadow-md scale-105` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
-                                  {genre}
+                                  {genre}{warning && <span className="ml-1">⚠️</span>}
                                 </button>
                               )
                             })}
@@ -3197,10 +3178,11 @@ export default function App() {
                             <div className="flex flex-wrap gap-3 pt-1">
                               {EXTRA_GENRES.map(genre => {
                                 const isSelected = selectedGenres.includes(genre);
+                                const warning = getGenreLocalDepthWarning(genre);
                                 return (
-                                  <button key={genre} onClick={() => toggleGenre(genre)} className={`px-5 py-3 rounded-full text-base font-bold transition-all duration-200 border-2 ${isSelected ?
+                                  <button key={genre} onClick={() => toggleGenre(genre)} title={warning || undefined} className={`px-5 py-3 rounded-full text-base font-bold transition-all duration-200 border-2 ${isSelected ?
                                     `${bgAccentClass} ${borderAccentClass} text-white shadow-md scale-105` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
-                                    {genre}
+                                    {genre}{warning && <span className="ml-1">⚠️</span>}
                                   </button>
                                 )
                               })}
@@ -3844,12 +3826,13 @@ export default function App() {
                       <div className="flex flex-wrap gap-2">
                         {availableGenres.map(genre => {
                           const isSelected = favSelectedGenres.includes(genre);
+                          const warning = getGenreLocalDepthWarning(genre);
                           return (
                             <button key={genre} onClick={() => {
                               if (isSelected) { if (favSelectedGenres.length > 1) setFavSelectedGenres(favSelectedGenres.filter(g => g !== genre)); }
                               else setFavSelectedGenres([...favSelectedGenres, genre]);
-                            }} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
-                              {genre}
+                            }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                              {genre}{warning && <span className="ml-1">⚠️</span>}
                             </button>
                           );
                         })}
@@ -3863,12 +3846,13 @@ export default function App() {
                         <div className="flex flex-wrap gap-2 pt-2">
                           {EXTRA_GENRES.map(genre => {
                             const isSelected = favSelectedGenres.includes(genre);
+                            const warning = getGenreLocalDepthWarning(genre);
                             return (
                               <button key={genre} onClick={() => {
                                 if (isSelected) { if (favSelectedGenres.length > 1) setFavSelectedGenres(favSelectedGenres.filter(g => g !== genre)); }
                                 else setFavSelectedGenres([...favSelectedGenres, genre]);
-                              }} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
-                                {genre}
+                              }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                                {genre}{warning && <span className="ml-1">⚠️</span>}
                               </button>
                             );
                           })}
@@ -4591,13 +4575,14 @@ export default function App() {
                   <div className="flex flex-wrap gap-2">
                     {(isNaughtyMode ? NAUGHTY_GENRES : STANDARD_GENRES).map(genre => {
                       const isSelected = editingRoutine.selectedGenres.includes(genre);
+                      const warning = getGenreLocalDepthWarning(genre);
                       return (
                         <button key={genre} onClick={() => {
                           const current = editingRoutine.selectedGenres;
                           if (isSelected) { if (current.length > 1) setEditingRoutine({...editingRoutine, selectedGenres: current.filter(g => g !== genre)}); }
                           else setEditingRoutine({...editingRoutine, selectedGenres: [...current, genre]});
-                        }} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
-                          {genre}
+                        }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                          {genre}{warning && <span className="ml-1">⚠️</span>}
                         </button>
                       );
                     })}
@@ -4611,13 +4596,14 @@ export default function App() {
                     <div className="flex flex-wrap gap-2 pt-2">
                       {EXTRA_GENRES.map(genre => {
                         const isSelected = editingRoutine.selectedGenres.includes(genre);
+                        const warning = getGenreLocalDepthWarning(genre);
                         return (
                           <button key={genre} onClick={() => {
                             const current = editingRoutine.selectedGenres;
                             if (isSelected) { if (current.length > 1) setEditingRoutine({...editingRoutine, selectedGenres: current.filter(g => g !== genre)}); }
                             else setEditingRoutine({...editingRoutine, selectedGenres: [...current, genre]});
-                          }} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
-                            {genre}
+                          }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                            {genre}{warning && <span className="ml-1">⚠️</span>}
                           </button>
                         );
                       })}
