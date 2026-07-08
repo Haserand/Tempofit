@@ -945,7 +945,8 @@ export default function App() {
     id: 'routine-1', name: '🏃‍♂️ Mon 5km Quotidien', workoutType: 'Course à pied', customActivity: '',
     isIntervalMode: false, bpm: 160, selectedGenres: ['Métal', 'Rock'], bpmTolerance: 10, crossfade: 2,
     segments: [], coverIcon: '🏃‍♂️', autoGenFreq: 'Manuel', manualGenerations: 0,
-    targetMode: 'distance', distanceVal: 5, distanceUnit: 'km', paceMin: 5, paceSec: 30, hours: 0, minutes: 27
+    targetMode: 'distance', distanceVal: 5, distanceUnit: 'km', paceMin: 5, paceSec: 30, hours: 0, minutes: 27,
+    createdAt: new Date().toLocaleDateString()
   }]);
   
   const [routineBatchCounts, setRoutineBatchCounts] = useState({});
@@ -1393,7 +1394,7 @@ export default function App() {
       customActivity: workoutType === 'Autre' ? customActivity : '', isIntervalMode, bpm,
       targetMode, distanceVal, distanceUnit, paceMin, paceSec, hours, minutes, selectedGenres, bpmTolerance, crossfade,
       segments: isIntervalMode ? [...segments] : [], coverIcon: newRoutineIcon, autoGenFreq: newRoutineFreq,
-      manualGenerations: 0
+      manualGenerations: 0, createdAt: new Date().toLocaleDateString()
     };
     setRoutines([newRoutine, ...routines]);
     setNewRoutineName(""); setNewRoutineIcon("⚡"); setNewRoutineFreq("Manuel"); setIsSavingRoutineModalOpen(false);
@@ -2743,9 +2744,12 @@ export default function App() {
                             </span>
                           )}
                         </h3>
-                        <div className="mb-4">{renderConfigInfoLine(routine)}</div>
+                        <div>{renderConfigInfoLine(routine)}</div>
+                        {routine.createdAt && (
+                          <div className={`text-[10px] uppercase font-bold tracking-wider mt-1 mb-4 ${textMuted}`}>Créée le {routine.createdAt}</div>
+                        )}
                         <div className="mt-auto pt-4 flex gap-2">
-                          <div className={`flex items-center ${inputBg} border ${inputBorder} rounded-xl px-2`} title="Playlists à générer">
+                          <div className={`flex items-center ${inputBg} border ${inputBorder} rounded-xl px-2`} title="Nombre de playlists différentes à générer en un seul clic sur « Générer » — pratique pour avoir plusieurs propositions parmi lesquelles choisir, plutôt qu'une seule.">
                             <Layers size={16} className={`${textMuted} mr-1`} />
                             <select
                               value={batchCount} onChange={(e) => setRoutineBatchCounts({...routineBatchCounts, [routine.id]: parseInt(e.target.value)})}
@@ -2756,6 +2760,10 @@ export default function App() {
                               <option value={5} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">x5</option>
                               <option value={10} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">x10</option>
                             </select>
+                            {/* Icône Info visible plutôt qu'un simple attribut title invisible sur
+                                un div — l'ancienne version était peu découvrable (aucun indice
+                                visuel qu'une infobulle existait). */}
+                            <Info size={13} className={`${textMuted} ml-0.5 mr-1 shrink-0`} />
                           </div>
                           <button onClick={() => { executeGeneration({ ...routine, workoutName: routine.customActivity || routine.workoutType, routineName: routine.name }, batchCount, routine.id);
                           }} className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${bgAccentClass} text-white hover:brightness-110 active:scale-95`}>
@@ -2837,7 +2845,7 @@ export default function App() {
                               <div className="flex items-center text-green-600 dark:text-green-400 text-xs font-bold bg-green-100 dark:bg-green-900/30 px-3 py-1.5 rounded-lg">
                                 <CheckCircle size={14} className="mr-1.5"/> Session effectuée
                               </div>
-                              <span className={`text-[10px] uppercase font-bold tracking-wider ${textMuted}`}>{playlist.createdAt}</span>
+                              <span className={`text-[10px] uppercase font-bold tracking-wider ${textMuted}`}>Créée le {playlist.createdAt}</span>
                             </div>
                             {!playlist.actualData && (
                               <button onClick={(e) => triggerCSVUpload(e, playlist)} className="flex items-center justify-center w-full py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 rounded-lg text-xs font-bold transition-colors">
@@ -2855,7 +2863,7 @@ export default function App() {
                             <button onClick={(e) => markPlaylistAsCompleted(e, playlist.id)} className={`flex items-center text-gray-500 hover:text-green-600 text-xs font-bold ${inputBg} hover:bg-green-100 px-3 py-1.5 rounded-lg transition-colors border ${inputBorder}`}>
                               <Circle size={14} className="mr-1.5"/> Marquer comme faite
                             </button>
-                            <span className={`text-[10px] uppercase font-bold tracking-wider ${textMuted}`}>{playlist.createdAt}</span>
+                            <span className={`text-[10px] uppercase font-bold tracking-wider ${textMuted}`}>Créée le {playlist.createdAt}</span>
                           </>
                         )}
                       </div>
@@ -2949,7 +2957,7 @@ export default function App() {
                               <div className="flex items-center space-x-1"><List size={14}/><span>{playlist.tracks.length} titres</span></div>
                             ));
                           })()}
-                          <div className={`text-[10px] uppercase font-bold tracking-wider mt-1 ${textMuted}`}>{playlist.createdAt}</div>
+                          <div className={`text-[10px] uppercase font-bold tracking-wider mt-1 ${textMuted}`}>Créée le {playlist.createdAt}</div>
                           {playlist.actualData && (
                             <div className="flex items-center justify-center w-full py-2 mt-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-lg text-xs font-bold">
                               <Activity size={14} className="mr-2"/> Données réelles associées
