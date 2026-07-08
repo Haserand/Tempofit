@@ -1720,10 +1720,15 @@ export default function App() {
     if (count === 1) {
       setCurrentPlaylist(generatedPlaylists[0]);
       changeView('playlist');
+      // Transparence : les morceaux ont une durée fixe (on ne peut pas couper une
+      // chanson en deux), donc la distance/durée réellement atteinte peut différer
+      // légèrement de la cible demandée — mieux vaut le dire que laisser croire à
+      // une précision parfaite.
+      showToast("🎧 Playlist générée ! Distance/durée réelle : peut légèrement différer de la cible.");
     } else {
       setSavedPlaylists([...generatedPlaylists, ...savedPlaylists]);
       changeView('playlists');
-      showToast(`${count} playlists générées avec succès !`);
+      showToast(`${count} playlists générées ! Distance/durée réelle : peut légèrement différer de la cible.`);
     }
   };
 
