@@ -196,13 +196,17 @@ const resolveBpmForCandidates = async (details, minBpm, maxBpm) => {
     .map(full => ({ ...full, _resolvedBpm: Math.round(parseFloat(full.bpm)), _bpmSource: 'deezer' }));
 
   const missingBpm = details.filter(full => full && (!full.bpm || parseFloat(full.bpm) <= 0) && full.preview);
-  const detected = await Promise.all(missingBpm.map(async (full) => {
+  // Lots plus petits qu'au-dessus (5 au lieu de 10) : chaque détection implique un
+  // téléchargement d'extrait + décodage audio + analyse, nettement plus coûteux
+  // qu'un simple appel JSON — mieux vaut limiter la charge simultanée sur le
+  // navigateur en plus du risque de rate-limiting côté CDN Deezer.
+  const detected = await fetchInBatches(missingBpm, 5, async (full) => {
     const tempo = await detectBpmFromPreview(full.preview, minBpm, maxBpm);
     if (tempo && tempo >= minBpm && tempo <= maxBpm) {
       return { ...full, _resolvedBpm: Math.round(tempo), _bpmSource: 'detected' };
     }
     return null;
-  }));
+  });
 
   return [...withDeezerBpm, ...detected.filter(Boolean)];
 };
@@ -242,6 +246,32 @@ const pickByDurationProximity = (candidates, preferredDuration) => {
  * getSingleMatchingTrack : une fois à la tolérance demandée, une fois à une
  * tolérance élargie si la première tentative échoue.
  */
+/**
+ * Exécute `fn` sur chaque élément de `items`, mais PAR LOTS de `batchSize` au
+ * lieu d'un seul `Promise.all` géant sur tout d'un coup, avec une petite pause
+ * entre chaque lot. Nécessaire pour rester sous le rate-limiting de Deezer : un
+ * burst de 40-60 requêtes simultanées (ce qu'on faisait avant, rien que pour
+ * remplir le pool d'UNE seule playlist) peut à lui seul déclencher un blocage
+ * temporaire — la pause d'1s ajoutée entre deux GÉNÉRATIONS différentes (voir
+ * executeGeneration) n'y changeait rien, puisque le vrai risque de rafale est
+ * DANS une seule génération, pas seulement entre plusieurs. Observé en pratique :
+ * des playlists encore entièrement composées de repli local après cette
+ * première pause, ce qui a confirmé que la rafale intra-génération restait le
+ * vrai goulot d'étranglement.
+ */
+const fetchInBatches = async (items, batchSize, fn) => {
+  const results = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    const batchResults = await Promise.all(batch.map(fn));
+    results.push(...batchResults);
+    if (i + batchSize < items.length) {
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+  }
+  return results;
+};
+
 const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYoutubeIds, preferredDuration, candidateCap) => {
   const stubsByGenre = await Promise.all(genresForQuery.map(async (g) => {
     const keyword = DEEZER_GENRE_KEYWORDS[g] || '';
@@ -264,10 +294,10 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYout
   }
   if (allStubs.length === 0) return null;
 
-  const detailedCandidates = await Promise.all(allStubs.slice(0, candidateCap).map(async (stub) => {
+  const detailedCandidates = await fetchInBatches(allStubs.slice(0, candidateCap), 10, async (stub) => {
     const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
     return full;
-  }));
+  });
   const validCandidates = await resolveBpmForCandidates(detailedCandidates.filter(Boolean), minBpm, maxBpm);
   if (validCandidates.length === 0) return null;
 
@@ -502,10 +532,10 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
       if (!addedThisRound) break;
     }
     const detailFetchCap = Math.min(Math.max(25, genresForQuery.length * 6), 60);
-    const details = await Promise.all(allStubs.slice(0, detailFetchCap).map(async (s) => {
+    const details = await fetchInBatches(allStubs.slice(0, detailFetchCap), 10, async (s) => {
       const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
       return full;
-    }));
+    });
     const resolved = await resolveBpmForCandidates(details.filter(Boolean), minBpm, maxBpm);
     for (const full of resolved) {
       // Genre volontairement PAS résolu ici : ça coûte 2-3 appels réseau par
