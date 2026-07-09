@@ -3780,7 +3780,7 @@ export default function App() {
                             <button
                               onClick={() => togglePreview(track)}
                               disabled={!track.preview}
-                              title={track.preview ? "Écouter un extrait" : "Extrait non disponible (titre de base — les titres ajoutés via la recherche ont un extrait)"}
+                              title={track.preview ? "Écouter un extrait" : "Extrait non disponible pour ce titre (source sans aperçu audio)"}
                               className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
                             >
                               {playingPreviewId === track.youtubeId ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5"/>}
@@ -4088,7 +4088,7 @@ export default function App() {
                         <button
                           onClick={() => togglePreview(trackSegments[selectedSegmentIdx].track)}
                           disabled={!trackSegments[selectedSegmentIdx].track.preview}
-                          title={trackSegments[selectedSegmentIdx].track.preview ? "Écouter un extrait" : "Extrait non disponible (titre de base — les titres ajoutés via la recherche ont un extrait)"}
+                          title={trackSegments[selectedSegmentIdx].track.preview ? "Écouter un extrait" : "Extrait non disponible pour ce titre (source sans aperçu audio)"}
                           className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-colors ${trackSegments[selectedSegmentIdx].track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
                         >
                           {playingPreviewId === trackSegments[selectedSegmentIdx].track.youtubeId ? <Pause size={18} fill="currentColor"/> : <Play size={18} fill="currentColor" className="ml-0.5"/>}
@@ -4220,7 +4220,7 @@ export default function App() {
                         <button
                           onClick={() => togglePreview(track)}
                           disabled={!track.preview}
-                          title={track.preview ? "Écouter un extrait" : "Extrait non disponible (titre de base — les titres ajoutés via la recherche ont un extrait)"}
+                          title={track.preview ? "Écouter un extrait" : "Extrait non disponible pour ce titre (source sans aperçu audio)"}
                           className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors mr-2 ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
                         >
                           {playingPreviewId === track.youtubeId ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5"/>}
@@ -4256,7 +4256,15 @@ export default function App() {
                             <>
                               {/* Zone invisible pour fermer le menu au clic ailleurs */}
                               <div className="fixed inset-0 z-10" onClick={() => setOpenTrackMenuIndex(null)}></div>
-                              <div className={`absolute right-0 top-full mt-1 z-20 w-64 rounded-xl border shadow-2xl ${cardBg} ${cardBorder} overflow-hidden`}>
+                              {/* BUG CORRIGÉ : la liste des titres est dans un conteneur à coins
+                                  arrondis avec `overflow-hidden` (nécessaire pour l'effet visuel) —
+                                  ce qui coupait ce menu net dès qu'il s'ouvrait vers le bas sur un
+                                  des 2-3 derniers titres, faute de place pour s'afficher entièrement
+                                  avant le bord du conteneur. On ouvre donc le menu VERS LE HAUT pour
+                                  les derniers titres de la liste plutôt que systématiquement vers le bas. */}
+                              <div className={`absolute right-0 z-20 w-64 rounded-xl border shadow-2xl ${cardBg} ${cardBorder} overflow-hidden ${
+                                index >= currentPlaylist.tracks.length - 2 ? 'bottom-full mb-1' : 'top-full mt-1'
+                              }`}>
                                 <button onClick={() => { handleDuplicateTrack(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
                                   <Plus size={16} className="text-green-500"/> Dupliquer ce titre
                                 </button>
@@ -4425,7 +4433,7 @@ export default function App() {
                         <button
                           onClick={() => togglePreview(track)}
                           disabled={!track.preview}
-                          title={track.preview ? "Écouter un extrait" : "Extrait non disponible (titre de base — les titres ajoutés via la recherche ont un extrait)"}
+                          title={track.preview ? "Écouter un extrait" : "Extrait non disponible pour ce titre (source sans aperçu audio)"}
                           className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
                         >
                           {playingPreviewId === track.youtubeId ? <Pause size={16} fill="currentColor"/> : <Play size={16} fill="currentColor" className="ml-0.5"/>}
