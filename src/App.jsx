@@ -1418,7 +1418,7 @@ export default function App() {
   // ("Prépare l'ambiance...") mais le sous-titre juste en dessous restait le texte
   // générique fitness ("pulvériser tes objectifs"), ce qui jurait avec l'ambiance
   // annoncée par le titre.
-  const displaySubtitleGen = isNaughtyMode ? "Laisse l'algorithme composer la bande-son idéale pour cette soirée." : t.subtitleGen;
+  const displaySubtitleGen = isNaughtyMode ? "Laisse l'algorithme composer la bande-son idéale pour cette soirée." : "Laisse l'algorithme générer la bande-son ultime pour pulvériser tes objectifs.";
 
   // En mode "Intime", pré-remplit le nom de la routine avec un nom rigolo tiré
   // au hasard de NAUGHTY_ROUTINE_NAMES, uniquement si le champ est encore vide.
