@@ -1,0 +1,121 @@
+/**
+ * appConfig.js — Configuration applicative de TempoFit, séparée de App.jsx.
+ *
+ * Contient uniquement de la DONNÉE (pas de state, pas de hooks React, pas
+ * d'appel réseau) : définitions des trophées, types d'activité, libellés et
+ * icônes du mode Intime, valeurs par défaut du wizard, icônes de routine, et
+ * fréquences de génération automatique. Même logique d'extraction que
+ * musicCatalog.js — ne pas mélanger données et logique applicative dans un
+ * seul fichier.
+ */
+
+import { Footprints, Dumbbell, Bike, MoreHorizontal, Wind, Heart, Flame } from 'lucide-react';
+
+// Définition des trophées débloquables et de leur condition de déblocage.
+// `requirement.type` détermine comment `checkTrophies` évalue la condition :
+//   - 'total'   : nombre total de sessions terminées >= count
+//   - 'naughty' : nombre de sessions "mode intime" terminées >= count
+//   - 'data'    : nombre d'imports CSV (Garmin/Strava) >= count
+//   - 'replace' : nombre de remplacements de titres >= count
+//   - 'custom'  : un flag booléen arbitraire dans userStats (ex. hasMarathon)
+const TROPHIES_DATA = [
+  { id: 't_first', name: 'Premier Pas', desc: 'Complète ta toute 1ère session d\'entraînement.', icon: '🥉', requirement: { type: 'total', count: 1 } },
+  { id: 't_regular', name: 'Athlète Régulier', desc: 'Complète 5 sessions. La constance est la clé !', icon: '🥈', requirement: { type: 'total', count: 5 } },
+  { id: 't_machine', name: 'La Machine', desc: 'Complète 30 sessions. Un mois entier d\'efforts.', icon: '🏆', requirement: { type: 'total', count: 30 } },
+  { id: 't_lover', name: 'Tempo Lover', desc: 'Complète une session avec le mode "Intime".', icon: '🔥', requirement: { type: 'naughty', count: 1 } },
+  { id: 't_data', name: 'Data Scientist', desc: 'Importe tes données réelles (cadence PPM et/ou fréquence cardiaque, via Garmin/Strava) pour analyse.', icon: '📊', requirement: { type: 'data', count: 1 } },
+  { id: 't_marathon', name: 'Le Marathonien', desc: 'Génère une session de plus de 42 km ou 4 heures.', icon: '🏅', requirement: { type: 'custom', key: 'hasMarathon' } },
+  { id: 't_bolt', name: 'La Foudre', desc: 'Génère une session avec un rythme extrême (> 180 BPM ou < 4:00/km).', icon: '⚡', requirement: { type: 'custom', key: 'hasBolt' } },
+  { id: 't_hiit', name: 'Maître du HIIT', desc: 'Génère une session fractionnée complexe (5 portions ou plus).', icon: '📈', requirement: { type: 'custom', key: 'hasHiitMaster' } },
+  { id: 't_dj', name: 'Le Mixeur', desc: 'Utilise le bouton "Remplacer" 3 fois pour parfaire tes playlists.', icon: '🎛️', requirement: { type: 'replace', count: 3 } },
+  { id: 't_night', name: 'Oiseau de Nuit', desc: 'Complète une session entre 22h et 5h du matin.', icon: '🦉', requirement: { type: 'custom', key: 'hasNightOwl' } },
+  { id: 't_rickroll', name: 'Never Gonna Give You Up', desc: 'Tu as trouvé le secret ultime de l\'application.', icon: '🕺', requirement: { type: 'custom', key: 'hasRickroll' } }
+];
+
+const NAUGHTY_ROUTINE_NAMES = ["🍑 Cardio Horizontal", "🔥 Entraînement au lit", "💦 Session Sous la Couette", "😈 Sprint Nocturne"];
+
+const WORKOUT_TYPES = [
+  { id: 'Course à pied', icon: Footprints },
+  { id: 'Musculation', icon: Dumbbell },
+  { id: 'Cyclisme', icon: Bike },
+  { id: 'Autre', icon: MoreHorizontal } 
+];
+
+// Libellés affichés à la place des noms d'activité classiques quand le mode Intime
+// est actif — purement cosmétique : la valeur `id` ci-dessus (utilisée par toute la
+// logique de génération/sauvegarde) ne change jamais, seul le texte affiché à l'écran
+// est substitué. Construits comme un vrai gradient d'intensité (pas juste des noms
+// rigolos indépendants) : Douceur (Cyclisme) → Passion (Course à pied) → Intensité
+// (Musculation). "Autre" reste neutre, car c'est la porte d'entrée du mode Intime
+// lui-même (via l'icône flamme), pas un échelon de cette échelle.
+const NAUGHTY_WORKOUT_LABELS = {
+  'Cyclisme': 'Douceur',
+  'Course à pied': 'Passion',
+  'Musculation': 'Intensité',
+  'Autre': 'Autre'
+};
+// Icônes assorties au même gradient (vent doux → cœur → flamme), remplaçant les
+// icônes de sport classiques (vélo/course/haltère) qui n'évoquaient rien de ce thème.
+const NAUGHTY_WORKOUT_ICONS = {
+  'Cyclisme': Wind,
+  'Course à pied': Heart,
+  'Musculation': Flame,
+  'Autre': MoreHorizontal
+};
+// Ordre d'affichage spécifique au mode Intime, pour que la grille se lise de gauche
+// à droite / haut en bas comme une progression douceur → intensité. Le mode standard
+// garde l'ordre d'origine de WORKOUT_TYPES, inchangé.
+const NAUGHTY_WORKOUT_ORDER = ['Cyclisme', 'Course à pied', 'Musculation', 'Autre'];
+
+// BPM proposé par défaut selon l'activité choisie à l'étape 1 — avant, choisir
+// Course à pied, Musculation ou Cyclisme n'avait strictement aucun effet sur le
+// BPM proposé ensuite (toujours la même valeur par défaut, peu importe le choix).
+// Deux jeux de valeurs : un pour le mode standard, un pour le mode Intime (dont la
+// plage de BPM utilisable est différente — 40-130 contre 80-200 en standard, voir
+// le slider de l'étape 3). "Autre" garde une valeur neutre dans les deux cas,
+// puisque l'activité réelle est alors définie librement par l'utilisateur.
+const WORKOUT_DEFAULT_BPM = {
+  standard: { 'Course à pied': 160, 'Musculation': 120, 'Cyclisme': 140, 'Autre': 140 },
+  naughty: { 'Cyclisme': 70, 'Course à pied': 95, 'Musculation': 115, 'Autre': 85 }
+};
+
+// Mode (temps/distance) et durée ou distance proposés par défaut selon l'activité
+// et le mode actif — même logique que WORKOUT_DEFAULT_BPM ci-dessus, appliquée
+// cette fois à l'étape 2/3 du wizard plutôt qu'au BPM. La distance ne fait sens
+// qu'en mode standard (le mode Intime force déjà le temps, voir toggleNaughtyMode) :
+// Course à pied et Cyclisme y sont donc en distance, avec des kilométrages réalistes
+// différents (le vélo couvre naturellement plus de distance que la course à pied
+// pour un effort comparable). En mode Intime, la durée varie avec l'intensité :
+// plus longue et détendue pour "Douceur", plus courte et intense pour "Intensité".
+const WORKOUT_DEFAULT_TARGET = {
+  standard: {
+    'Course à pied': { targetMode: 'distance', distanceVal: 5, distanceUnit: 'km' },
+    'Cyclisme':      { targetMode: 'distance', distanceVal: 20, distanceUnit: 'km' },
+    'Musculation':   { targetMode: 'time', hours: 0, minutes: 45 },
+    'Autre':         { targetMode: 'time', hours: 0, minutes: 45 }
+  },
+  naughty: {
+    'Cyclisme':      { targetMode: 'time', hours: 0, minutes: 45 },
+    'Course à pied': { targetMode: 'time', hours: 0, minutes: 30 },
+    'Musculation':   { targetMode: 'time', hours: 0, minutes: 20 },
+    'Autre':         { targetMode: 'time', hours: 0, minutes: 30 }
+  }
+};
+
+// Icônes proposées pour personnaliser une routine sauvegardée, et fréquences de
+// génération automatique disponibles (voir routine.autoGenFreq).
+const AVAILABLE_ICONS = ["🏃‍♂️", "🚴‍♀️", "🏋️‍♂️", "🧘‍♀️", "🔥", "⚡", "🎵", "🏆", "🎧", "🎸", "🥁", "🎹", "🍑", "🍆", "🕺"];
+const AUTO_GEN_OPTIONS = ["Manuel", "1 fois / jour", "2 fois / jour", "1 fois / semaine"];
+
+export {
+  TROPHIES_DATA,
+  NAUGHTY_ROUTINE_NAMES,
+  WORKOUT_TYPES,
+  NAUGHTY_WORKOUT_LABELS,
+  NAUGHTY_WORKOUT_ICONS,
+  NAUGHTY_WORKOUT_ORDER,
+  WORKOUT_DEFAULT_BPM,
+  WORKOUT_DEFAULT_TARGET,
+  AVAILABLE_ICONS,
+  AUTO_GEN_OPTIONS
+};
