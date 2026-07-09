@@ -280,12 +280,37 @@ const fetchInBatches = async (items, batchSize, fn) => {
   return results;
 };
 
+/**
+ * Recherche Deezer avec un décalage (`index`) aléatoire dans le classement,
+ * pour explorer des tranches différentes du catalogue plutôt que retomber sur
+ * le même paquet de titres à chaque appel (voir le pool qui s'épuisait au fil
+ * d'un lot de 10 générations). Si la page aléatoire ne renvoie RIEN (la
+ * profondeur réelle pour cette requête est plus modeste que la plage explorée),
+ * on retente automatiquement à l'index 0 — garanti de renvoyer quelque chose
+ * s'il existe ne serait-ce qu'un seul résultat pour cette requête. Ainsi la
+ * plage aléatoire (`maxIndex`) peut rester large sans risque réel de "page
+ * vide alors qu'il y avait des résultats ailleurs".
+ */
+const searchDeezerPage = async (q, limit, maxIndex = 100) => {
+  const randomIndex = Math.floor(Math.random() * maxIndex);
+  const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=${limit}&index=${randomIndex}`);
+  let stubs = (data && Array.isArray(data.data)) ? data.data : [];
+  if (stubs.length === 0 && randomIndex > 0) {
+    const { data: retryData } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=${limit}&index=0`);
+    stubs = (retryData && Array.isArray(retryData.data)) ? retryData.data : [];
+  }
+  return stubs;
+};
+
 const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYoutubeIds, preferredDuration, candidateCap) => {
   const stubsByGenre = await Promise.all(genresForQuery.map(async (g) => {
     const keyword = DEEZER_GENRE_KEYWORDS[g] || '';
     const q = `bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
-    const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=15`);
-    return (data && Array.isArray(data.data) ? data.data : []);
+    // Décalage aléatoire dans le classement Deezer (voir searchDeezerPage), avec
+    // repli automatique sur l'index 0 si la page tirée au sort est vide — la
+    // plage peut donc rester large sans risque réel de rater des résultats qui
+    // existent ailleurs.
+    return await searchDeezerPage(q, 15, 150);
   }));
   const seenStubIds = new Set();
   const allStubs = [];
@@ -523,8 +548,11 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
     const stubsByGenre = await Promise.all(genresForQuery.map(async (g) => {
       const keyword = DEEZER_GENRE_KEYWORDS[g] || '';
       const q = `bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
-      const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=40`);
-      return (data && Array.isArray(data.data) ? data.data : []);
+      // Même correctif que dans searchDeezerForGenres : décalage aléatoire dans le
+      // classement Deezer, avec repli sur l'index 0 si la page est vide (voir
+      // searchDeezerPage) — pour ne pas retomber systématiquement sur le même
+      // paquet de titres à chaque génération.
+      return await searchDeezerPage(q, 40, 150);
     }));
     const seenStubIds = new Set();
     const allStubs = [];
