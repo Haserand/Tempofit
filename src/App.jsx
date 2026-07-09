@@ -535,37 +535,66 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   // détection audio en direct sur l'extrait (voir plus haut) — beaucoup de titres
   // Deezer n'ont simplement pas de BPM renseigné, ce qui réduisait artificiellement
   // le pool exploitable même quand le titre convenait parfaitement.
+  //
+  // BOUCLE ADAPTATIVE : une seule page (plafonnée à 25-60 titres détaillés) pouvait
+  // être insuffisante pour couvrir une longue séance (marathon, plusieurs heures),
+  // forçant un repli local même quand Deezer avait encore de la matière plus loin
+  // dans son classement. On va donc chercher une page Deezer SUPPLÉMENTAIRE tant
+  // que : (a) le pool ne couvre pas encore confortablement la durée du segment, ET
+  // (b) la dernière page a effectivement apporté de nouveaux titres valides. Dès
+  // que l'une des deux conditions cesse d'être vraie — assez de matière, ou le
+  // filon Deezer semble tari pour ce genre/BPM — on s'arrête et on laisse la main
+  // aux filets de secours (base locale, etc.), plutôt que de continuer à interroger
+  // Deezer indéfiniment sur un genre déjà épuisé.
   try {
     const genresForQuery = (effectiveGenres && effectiveGenres.length > 0) ? effectiveGenres : ['Autre'];
-    const stubsByGenre = await Promise.all(genresForQuery.map(async (g) => {
-      const keyword = DEEZER_GENRE_KEYWORDS[g] || '';
-      const q = `bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
-      // Même correctif que dans searchDeezerForGenres : décalage aléatoire dans le
-      // classement Deezer, avec repli sur l'index 0 si la page est vide (voir
-      // searchDeezerPage) — pour ne pas retomber systématiquement sur le même
-      // paquet de titres à chaque génération.
-      return await searchDeezerPage(q, 40, 150);
-    }));
-    const seenStubIds = new Set();
-    const allStubs = [];
-    for (let i = 0; i < 40; i++) {
-      let addedThisRound = false;
-      for (const arr of stubsByGenre) {
-        if (i < arr.length) {
-          const s = arr[i];
-          if (!seenStubIds.has(s.id) && !seenIds.has(`deezer-${s.id}`)) { seenStubIds.add(s.id); allStubs.push(s); }
-          addedThisRound = true;
-        }
-      }
-      if (!addedThisRound) break;
-    }
     const detailFetchCap = Math.min(Math.max(25, genresForQuery.length * 6), 60);
-    const details = await fetchInBatches(allStubs.slice(0, detailFetchCap), 10, async (s) => {
-      const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
-      return full;
-    });
-    const resolved = await resolveBpmForCandidates(details.filter(Boolean), minBpm, maxBpm);
-    for (const full of resolved) {
+    const seenStubIds = new Set();
+    let allResolvedCandidates = [];
+    let poolDurationSoFar = 0;
+    // Cible large (1.5x la durée du segment) : donne à la sélection gloutonne
+    // (bin-packing) un vrai choix parmi plusieurs combinaisons possibles, plutôt
+    // que tout juste de quoi remplir le segment sans marge.
+    const targetPoolDuration = segment.durationSeconds * 1.5;
+    const MAX_PAGES = 4; // garde-fou : borne le pire cas (genre très pauvre) en appels réseau/latence
+
+    for (let page = 0; page < MAX_PAGES; page++) {
+      if (poolDurationSoFar >= targetPoolDuration) break; // déjà assez de matière
+
+      const stubsByGenre = await Promise.all(genresForQuery.map(async (g) => {
+        const keyword = DEEZER_GENRE_KEYWORDS[g] || '';
+        const q = `bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
+        // Décalage aléatoire dans le classement Deezer, avec repli sur l'index 0
+        // si la page est vide (voir searchDeezerPage) — pour explorer une tranche
+        // différente à chaque page plutôt que retomber sur les mêmes titres.
+        return await searchDeezerPage(q, 40, 150);
+      }));
+      const newStubs = [];
+      for (let i = 0; i < 40; i++) {
+        let addedThisRound = false;
+        for (const arr of stubsByGenre) {
+          if (i < arr.length) {
+            const s = arr[i];
+            if (!seenStubIds.has(s.id) && !seenIds.has(`deezer-${s.id}`)) { seenStubIds.add(s.id); newStubs.push(s); }
+            addedThisRound = true;
+          }
+        }
+        if (!addedThisRound) break;
+      }
+      if (newStubs.length === 0) break; // plus aucun nouveau titre à explorer, inutile de continuer
+
+      const details = await fetchInBatches(newStubs.slice(0, detailFetchCap), 10, async (s) => {
+        const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
+        return full;
+      });
+      const resolved = await resolveBpmForCandidates(details.filter(Boolean), minBpm, maxBpm);
+      if (resolved.length === 0) break; // cette page n'a rien apporté de valide : le filon semble tari ici
+
+      allResolvedCandidates.push(...resolved);
+      poolDurationSoFar += resolved.reduce((sum, t) => sum + (t.duration || 180), 0);
+    }
+
+    for (const full of allResolvedCandidates) {
       // Genre volontairement PAS résolu ici : ça coûte 2-3 appels réseau par
       // titre, et la plupart des candidats du pool ne seront jamais retenus par
       // la sélection ci-dessous — autant ne le faire QUE pour les titres
