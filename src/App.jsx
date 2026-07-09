@@ -171,11 +171,9 @@ const detectBpmFromPreview = async (previewUrl, minBpm, maxBpm) => {
     const tempo = await analyze(audioBuffer, { minTempo: Math.max(1, minBpm - 5), maxTempo: maxBpm + 5 });
     return tempo;
   } catch (e) {
-    // LOG DE DIAGNOSTIC TEMPORAIRE (à retirer une fois le souci identifié) : cet
-    // échec était jusqu'ici totalement silencieux, impossible de savoir si la
-    // détection audio échoue systématiquement (et pourquoi — CORS ? décodage ?)
-    // ou si elle marche mais ne trouve simplement rien dans la fenêtre demandée.
-    console.warn('[TempoFit DEBUG] détection audio échouée pour', previewUrl, '—', e && e.message ? e.message : e);
+    // Échec silencieux (CORS, format non décodable, extrait trop court pour une
+    // détection fiable...) : le titre est simplement écarté, comme s'il n'avait
+    // pas de BPM du tout — jamais bloquant pour le reste de la génération.
     return null;
   } finally {
     if (audioContext) audioContext.close();
@@ -209,12 +207,6 @@ const resolveBpmForCandidates = async (details, minBpm, maxBpm) => {
     }
     return null;
   });
-
-  // LOG DE DIAGNOSTIC TEMPORAIRE (à retirer une fois le souci identifié) : dit
-  // exactement, pour CE lot de candidats, combien avaient déjà un BPM Deezer
-  // valide dans la fenêtre, combien en manquaient (donc tentaient une détection
-  // audio), et combien de ces détections ont réellement abouti.
-  console.log(`[TempoFit DEBUG] fenêtre ${minBpm}-${maxBpm} BPM : ${details.length} titres reçus, ${withDeezerBpm.length} avec BPM Deezer valide, ${missingBpm.length} sans BPM (détection tentée), ${detected.filter(Boolean).length} détections réussies`);
 
   return [...withDeezerBpm, ...detected.filter(Boolean)];
 };
@@ -605,13 +597,6 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   localPool
     .filter(t => t.bpm >= minBpm && t.bpm <= maxBpm && !localExcludeIds.includes(t.youtubeId))
     .forEach(addIfValid);
-
-  // LOG DE DIAGNOSTIC TEMPORAIRE (à retirer une fois le souci identifié) : montre
-  // la composition RÉELLE du pool juste avant la sélection — permet de savoir si
-  // le pool manque vraiment de candidats Deezer (donc un vrai trou de couverture),
-  // ou s'il y en a assez mais que l'algorithme choisit quand même du local pour
-  // une autre raison (ex. durée mieux ajustée).
-  console.log(`[TempoFit DEBUG] segment ${segment.bpm}±${config.bpmTolerance} BPM, ${segment.durationSeconds}s : pool total = ${pool.length} (dont ${pool.filter(t => t._bpmSource).length} Deezer/détectés, ${pool.length - pool.filter(t => t._bpmSource).length} favoris/Spotify/local)`);
 
   // Sélection gloutonne SUR TOUT LE POOL : à chaque étape, on compare le temps
   // restant à TOUS les candidats encore disponibles (pas 2-3), et on retire celui
