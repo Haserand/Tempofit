@@ -1,19 +1,16 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Dumbbell, Bike, Footprints, Flame, Heart, MoreHorizontal, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, Target, History, Wind, MessageCircle, ExternalLink, GripVertical, MoreVertical } from 'lucide-react';
+import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Footprints, Flame, Heart, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, Target, History, MessageCircle, ExternalLink, GripVertical, MoreVertical } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine, ReferenceArea, PieChart, Pie, Cell } from 'recharts';
 import { DATABASE_MUSIQUES, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, DEEZER_GENRE_KEYWORDS, getGenreLocalDepthWarning } from './musicCatalog';
+import { TROPHIES_DATA, NAUGHTY_ROUTINE_NAMES, WORKOUT_TYPES, NAUGHTY_WORKOUT_LABELS, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_ORDER, WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appConfig';
 
 // =====================================================================================
 // CONSTANTES GLOBALES & CONFIGURATION
 // =====================================================================================
 
-// --- ASTUCE ANTI-FILTRE POUR LES URLS SPOTIFY ---
-// Ces URLs sont construites en 2 morceaux joints par .join('') pour éviter qu'un
-// filtre de contenu / linter ne les détecte comme une chaîne d'URL brute.
-// Ça n'a aucun effet fonctionnel : le résultat est exactement la même URL qu'en dur.
-const SPOTIFY_API_BASE = ['https:/', '/api.spotify.com/v1'].join('');
-const SPOTIFY_AUTH_BASE = ['https:/', '/accounts.spotify.com/authorize?'].join('');
-const SPOTIFY_TOKEN_BASE = ['https:/', '/accounts.spotify.com/api/token'].join('');
+const SPOTIFY_API_BASE = 'https://api.spotify.com/v1';
+const SPOTIFY_AUTH_BASE = 'https://accounts.spotify.com/authorize?';
+const SPOTIFY_TOKEN_BASE = 'https://accounts.spotify.com/api/token';
 
 // --- CLÉ API GETSONGBPM ---
 // Déplacée côté serveur (api/getsongbpm.js) : la clé n'apparaît plus du tout dans
@@ -23,116 +20,16 @@ const SPOTIFY_TOKEN_BASE = ['https:/', '/accounts.spotify.com/api/token'].join('
 // précédents — même retirée du code, elle reste visible dans l'historique du
 // dépôt. Vaut le coup de la régénérer côté GetSongBPM plutôt que de considérer
 // le problème réglé par ce seul changement.
+// Configuration applicative (trophées, types d'activité, libellés/icônes du mode
+// Intime, valeurs par défaut du wizard, icônes de routine...) : voir appConfig.js
+// (importé en haut de ce fichier).
 
-
-
-
-// Définition des trophées débloquables et de leur condition de déblocage.
-// `requirement.type` détermine comment `checkTrophies` évalue la condition :
-//   - 'total'   : nombre total de sessions terminées >= count
-//   - 'naughty' : nombre de sessions "mode intime" terminées >= count
-//   - 'data'    : nombre d'imports CSV (Garmin/Strava) >= count
-//   - 'replace' : nombre de remplacements de titres >= count
-//   - 'custom'  : un flag booléen arbitraire dans userStats (ex. hasMarathon)
-const TROPHIES_DATA = [
-  { id: 't_first', name: 'Premier Pas', desc: 'Complète ta toute 1ère session d\'entraînement.', icon: '🥉', requirement: { type: 'total', count: 1 } },
-  { id: 't_regular', name: 'Athlète Régulier', desc: 'Complète 5 sessions. La constance est la clé !', icon: '🥈', requirement: { type: 'total', count: 5 } },
-  { id: 't_machine', name: 'La Machine', desc: 'Complète 30 sessions. Un mois entier d\'efforts.', icon: '🏆', requirement: { type: 'total', count: 30 } },
-  { id: 't_lover', name: 'Tempo Lover', desc: 'Complète une session avec le mode "Intime".', icon: '🔥', requirement: { type: 'naughty', count: 1 } },
-  { id: 't_data', name: 'Data Scientist', desc: 'Importe tes données réelles (cadence PPM et/ou fréquence cardiaque, via Garmin/Strava) pour analyse.', icon: '📊', requirement: { type: 'data', count: 1 } },
-  { id: 't_marathon', name: 'Le Marathonien', desc: 'Génère une session de plus de 42 km ou 4 heures.', icon: '🏅', requirement: { type: 'custom', key: 'hasMarathon' } },
-  { id: 't_bolt', name: 'La Foudre', desc: 'Génère une session avec un rythme extrême (> 180 BPM ou < 4:00/km).', icon: '⚡', requirement: { type: 'custom', key: 'hasBolt' } },
-  { id: 't_hiit', name: 'Maître du HIIT', desc: 'Génère une session fractionnée complexe (5 portions ou plus).', icon: '📈', requirement: { type: 'custom', key: 'hasHiitMaster' } },
-  { id: 't_dj', name: 'Le Mixeur', desc: 'Utilise le bouton "Remplacer" 3 fois pour parfaire tes playlists.', icon: '🎛️', requirement: { type: 'replace', count: 3 } },
-  { id: 't_night', name: 'Oiseau de Nuit', desc: 'Complète une session entre 22h et 5h du matin.', icon: '🦉', requirement: { type: 'custom', key: 'hasNightOwl' } },
-  { id: 't_rickroll', name: 'Never Gonna Give You Up', desc: 'Tu as trouvé le secret ultime de l\'application.', icon: '🕺', requirement: { type: 'custom', key: 'hasRickroll' } }
-];
-
-const NAUGHTY_ROUTINE_NAMES = ["🍑 Cardio Horizontal", "🔥 Entraînement au lit", "💦 Session Sous la Couette", "😈 Sprint Nocturne"];
-
-const WORKOUT_TYPES = [
-  { id: 'Course à pied', icon: Footprints },
-  { id: 'Musculation', icon: Dumbbell },
-  { id: 'Cyclisme', icon: Bike },
-  { id: 'Autre', icon: MoreHorizontal } 
-];
-
-// Libellés affichés à la place des noms d'activité classiques quand le mode Intime
-// est actif — purement cosmétique : la valeur `id` ci-dessus (utilisée par toute la
-// logique de génération/sauvegarde) ne change jamais, seul le texte affiché à l'écran
-// est substitué. Construits comme un vrai gradient d'intensité (pas juste des noms
-// rigolos indépendants) : Douceur (Cyclisme) → Passion (Course à pied) → Intensité
-// (Musculation). "Autre" reste neutre, car c'est la porte d'entrée du mode Intime
-// lui-même (via l'icône flamme), pas un échelon de cette échelle.
-const NAUGHTY_WORKOUT_LABELS = {
-  'Cyclisme': 'Douceur',
-  'Course à pied': 'Passion',
-  'Musculation': 'Intensité',
-  'Autre': 'Autre'
-};
-// Icônes assorties au même gradient (vent doux → cœur → flamme), remplaçant les
-// icônes de sport classiques (vélo/course/haltère) qui n'évoquaient rien de ce thème.
-const NAUGHTY_WORKOUT_ICONS = {
-  'Cyclisme': Wind,
-  'Course à pied': Heart,
-  'Musculation': Flame,
-  'Autre': MoreHorizontal
-};
-// Ordre d'affichage spécifique au mode Intime, pour que la grille se lise de gauche
-// à droite / haut en bas comme une progression douceur → intensité. Le mode standard
-// garde l'ordre d'origine de WORKOUT_TYPES, inchangé.
-const NAUGHTY_WORKOUT_ORDER = ['Cyclisme', 'Course à pied', 'Musculation', 'Autre'];
-
-// BPM proposé par défaut selon l'activité choisie à l'étape 1 — avant, choisir
-// Course à pied, Musculation ou Cyclisme n'avait strictement aucun effet sur le
-// BPM proposé ensuite (toujours la même valeur par défaut, peu importe le choix).
-// Deux jeux de valeurs : un pour le mode standard, un pour le mode Intime (dont la
-// plage de BPM utilisable est différente — 40-130 contre 80-200 en standard, voir
-// le slider de l'étape 3). "Autre" garde une valeur neutre dans les deux cas,
-// puisque l'activité réelle est alors définie librement par l'utilisateur.
-const WORKOUT_DEFAULT_BPM = {
-  standard: { 'Course à pied': 160, 'Musculation': 120, 'Cyclisme': 140, 'Autre': 140 },
-  naughty: { 'Cyclisme': 70, 'Course à pied': 95, 'Musculation': 115, 'Autre': 85 }
-};
-
-// Mode (temps/distance) et durée ou distance proposés par défaut selon l'activité
-// et le mode actif — même logique que WORKOUT_DEFAULT_BPM ci-dessus, appliquée
-// cette fois à l'étape 2/3 du wizard plutôt qu'au BPM. La distance ne fait sens
-// qu'en mode standard (le mode Intime force déjà le temps, voir toggleNaughtyMode) :
-// Course à pied et Cyclisme y sont donc en distance, avec des kilométrages réalistes
-// différents (le vélo couvre naturellement plus de distance que la course à pied
-// pour un effort comparable). En mode Intime, la durée varie avec l'intensité :
-// plus longue et détendue pour "Douceur", plus courte et intense pour "Intensité".
-const WORKOUT_DEFAULT_TARGET = {
-  standard: {
-    'Course à pied': { targetMode: 'distance', distanceVal: 5, distanceUnit: 'km' },
-    'Cyclisme':      { targetMode: 'distance', distanceVal: 20, distanceUnit: 'km' },
-    'Musculation':   { targetMode: 'time', hours: 0, minutes: 45 },
-    'Autre':         { targetMode: 'time', hours: 0, minutes: 45 }
-  },
-  naughty: {
-    'Cyclisme':      { targetMode: 'time', hours: 0, minutes: 45 },
-    'Course à pied': { targetMode: 'time', hours: 0, minutes: 30 },
-    'Musculation':   { targetMode: 'time', hours: 0, minutes: 20 },
-    'Autre':         { targetMode: 'time', hours: 0, minutes: 30 }
-  }
-};
-
-// Liste des styles proposés à la génération/aux favoris — voir musicCatalog.js
-// pour le détail (taxonomie Deezer, critère de tri principal/secondaire, etc.).
-const AVAILABLE_ICONS = ["🏃‍♂️", "🚴‍♀️", "🏋️‍♂️", "🧘‍♀️", "🔥", "⚡", "🎵", "🏆", "🎧", "🎸", "🥁", "🎹", "🍑", "🍆", "🕺"];
-const AUTO_GEN_OPTIONS = ["Manuel", "1 fois / jour", "2 fois / jour", "1 fois / semaine"];
-
-const TRANSLATIONS = {
-  fr: {
-    creation: "Création", library: "Bibliothèque", config: "Configuration",
-    generateMenu: "Générer", routinesMenu: "Mes Routines", playlistsMenu: "Historique & Playlists",
-    favoritesMenu: "Mes Favoris", trophiesMenu: "Mes Trophées", settingsMenu: "Options & Comptes",
-    prepareMoment: "Prépare l'ambiance...", buildSession: "Sculpte ta séance",
-    subtitleGen: "Laisse l'algorithme générer la bande-son ultime pour pulvériser tes objectifs.",
-    tooltipMemorize: "Sauvegarde ces réglages pour relancer cette session en un claquement de doigts la prochaine fois."
-  }
-};
+// NOTE : un système `TRANSLATIONS`/`const t = TRANSLATIONS['fr']` existait ici,
+// mais n'était utilisé qu'à UN SEUL endroit (`t.tooltipMemorize` plus bas) alors
+// que tout le reste de l'app — des centaines de textes — est directement en
+// français codé en dur dans le JSX. Ça ressemblait à un début de système de
+// traduction jamais poursuivi. Retiré pour rester cohérent avec le reste : le
+// texte est maintenant écrit en dur à son unique point d'usage.
 
 // =====================================================================================
 // MOTEUR DE SÉLECTION MUSICALE PAR BPM
@@ -140,7 +37,9 @@ const TRANSLATIONS = {
 
 /**
  * Trouve UN morceau dont le BPM correspond à `targetBpm` (± tolerance).
- * Stratégie en cascade, du plus pertinent/personnel au plus générique :
+ * Stratégie en cascade, du plus pertinent/personnel au plus générique — mise à
+ * jour pour refléter la cascade RÉELLE actuelle (ce commentaire avait fini par
+ * décrire une version périmée du code après plusieurs réécritures successives) :
  *
  *   1. Priorité ABSOLUE aux morceaux mis en Favoris par l'utilisateur (`favorites.tracks`)
  *      — ce sont des choix explicites, donc plus fiables que tout le reste.
@@ -149,20 +48,30 @@ const TRANSLATIONS = {
  *      effet réel sur la génération, uniquement un rôle d'affichage.
  *   2. Puis les morceaux de la bibliothèque Spotify synchronisée (`spotifyTrackPool`),
  *      déjà analysés en BPM via `resolveRealBPM`.
- *   3. Une recherche Deezer en direct (filtre bpm_min/bpm_max + mot-clé de genre) :
- *      prioritaire sur la base locale statique car elle fournit systématiquement un
- *      extrait audio écoutable dans l'app, contrairement aux morceaux codés en dur.
- *   4. Si Deezer ne renvoie rien (hors-ligne, proxy down...), on pioche dans la base
- *      de données musicale locale (`DATABASE_MUSIQUES`), filtrée par genres sélectionnés.
- *   5. Si la base locale ne renvoie rien non plus, on interroge l'API GetSongBPM
- *      (`/tempo/`) en dernier recours réseau.
- *   6. En tout dernier recours absolu (tout est hors ligne), on retourne le morceau
- *      local dont le BPM est le plus PROCHE de la cible, même s'il est hors tolérance
- *      — pour ne jamais laisser un "trou" dans la playlist générée.
+ *   3. Une recherche Deezer en direct, tolérance exacte (`searchDeezerForGenres`,
+ *      multi-genres, BPM résolu via `resolveBpmForCandidates` — valeur Deezer si
+ *      connue, sinon détection audio en direct sur l'extrait, voir
+ *      `detectBpmFromPreview`) : prioritaire sur la base locale statique car elle
+ *      fournit un extrait audio écoutable, contrairement aux morceaux codés en dur.
+ *   3.5. Deezer à nouveau, tolérance ÉLARGIE (×2, plafonnée à ±40 BPM) : un vrai
+ *      titre écoutable légèrement hors tempo sert mieux l'usage réel qu'un repli
+ *      qui ne s'écoute pas du tout — priorité délibérée sur la base locale.
+ *   4. Si Deezer ne renvoie toujours rien (ni exact, ni élargi), on pioche dans la
+ *      base locale (`DATABASE_MUSIQUES`), filtrée par genres sélectionnés, à
+ *      tolérance exacte. Cette base est exemptée de l'historique inter-génération
+ *      (`historyExcludeIds`) — trop réduite pour servir de source de "nouveauté"
+ *      sans se vider — mais reste dédoublonnée sur la playlist en cours.
+ *   5. En tout dernier recours (GetSongBPM RETIRÉ de cette cascade : durée
+ *      inventée, jamais d'extrait, artiste souvent "Inconnu" — moins fiable que
+ *      ce qui suit), on retourne le morceau LOCAL dont le BPM est le plus proche
+ *      de la cible, même hors tolérance — d'abord dans le genre demandé, puis
+ *      élargi à toute la base si besoin — pour ne jamais laisser un "trou" dans
+ *      la playlist générée.
  *
  * `excludeYoutubeIds` sert à éviter de proposer deux fois le même morceau dans
  * une même playlist (utilisé aussi bien à la génération initiale qu'au
- * remplacement manuel d'un titre).
+ * remplacement manuel d'un titre) ; `historyExcludeIds` porte spécifiquement sur
+ * l'historique inter-génération d'une routine (voir `executeGeneration`).
  */
 // Fetch + parsing JSON "sûr" : ne lève JAMAIS d'exception pour un corps vide
 // ou invalide (contrairement à res.json() classique), seulement pour une
@@ -1505,7 +1414,6 @@ export default function App() {
   const [selectedMetric, setSelectedMetric] = useState('cadence');
 
   const availableGenres = isNaughtyMode ? NAUGHTY_GENRES : STANDARD_GENRES;
-  const t = TRANSLATIONS['fr'];
   // Sous-titre du générateur adapté au mode Intime — avant, le titre changeait déjà
   // ("Prépare l'ambiance...") mais le sous-titre juste en dessous restait le texte
   // générique fitness ("pulvériser tes objectifs"), ce qui jurait avec l'ambiance
@@ -3268,7 +3176,7 @@ export default function App() {
                               </div>
                             </button>
                             <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 w-64 p-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-medium text-center rounded-xl shadow-2xl opacity-0 group-hover/memorize:opacity-100 transition-opacity pointer-events-none z-20">
-                              {t.tooltipMemorize}
+                              {"Sauvegarde ces réglages pour relancer cette session en un claquement de doigts la prochaine fois."}
                             </div>
                           </div>
                         </div>
