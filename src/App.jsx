@@ -1154,6 +1154,12 @@ export default function App() {
     ]
   }]);
   const [isGenerating, setIsGenerating] = useState(false);
+  // Nombre total de playlists du lot en cours de génération, et combien sont déjà
+  // terminées — sert uniquement à afficher un message de progression rassurant
+  // pendant la génération (voir le bandeau fixe plus bas), pas à la logique de
+  // génération elle-même.
+  const [generatingTotal, setGeneratingTotal] = useState(0);
+  const [generatingDone, setGeneratingDone] = useState(0);
 
   const [shareData, setShareData] = useState(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -1772,6 +1778,8 @@ export default function App() {
     }
 
     setIsGenerating(true);
+    setGeneratingTotal(count);
+    setGeneratingDone(0);
     let statsUpdated = false;
     let newStats = { ...userStats };
 
@@ -1807,6 +1815,7 @@ export default function App() {
       const pl = await createPlaylistData(config, rollingExcludeIds);
       if (count > 1) pl.name = `${pl.name} (Session ${i + 1})`;
       generatedPlaylists.push(pl);
+      setGeneratingDone(i + 1);
       // Les titres de CETTE playlist s'ajoutent immédiatement à l'exclusion pour
       // les sessions SUIVANTES du même lot (ex. "générer 6 fois d'un coup") — sans
       // ça, un lot généré en une fois aurait le même problème de répétition que
@@ -2694,6 +2703,25 @@ export default function App() {
              toast.variant === 'error' ? <AlertCircle size={18} className="text-red-500" /> :
              <Check size={18} className={textColorClass} />}
             <span className={`font-medium ${toast.variant === 'error' ? 'text-red-600 dark:text-red-400' : textHighlight}`}>{toast.message}</span>
+          </div>
+        )}
+
+        {/* Bandeau rassurant pendant une génération : le moteur fait maintenant
+            beaucoup plus de travail par titre qu'avant (recherche multi-genres,
+            tolérance élargie, détection audio en direct sur l'extrait quand Deezer
+            n'a pas de BPM renseigné...), donc une génération peut prendre plusieurs
+            secondes — et plusieurs dizaines de secondes pour un gros lot (+1s de
+            pause volontaire entre chaque playlist, voir executeGeneration). Sans ce
+            message, ce délai pouvait donner l'impression que l'app est bloquée.
+            Fixé en bas (pas en haut, pour ne pas se superposer au toast). */}
+        {isGenerating && (
+          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-[80] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl px-6 py-3 rounded-full flex items-center space-x-3 animate-in slide-in-from-bottom-4 fade-in duration-300">
+            <Loader2 size={18} className={`animate-spin ${textColorClass}`} />
+            <span className={`font-medium text-sm ${textHighlight}`}>
+              {generatingTotal > 1
+                ? `Génération ${generatingDone}/${generatingTotal}... ça peut prendre un moment (recherche des meilleurs titres + vérification audio)`
+                : "Génération en cours... ça peut prendre quelques secondes (recherche des meilleurs titres + vérification audio)"}
+            </span>
           </div>
         )}
 
