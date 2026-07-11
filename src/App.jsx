@@ -678,10 +678,6 @@ export default function App() {
   // Décalage (paramètre `index` de l'API Deezer) pour le PROCHAIN appel "Voir
   // plus" — pas la page actuellement affichée, mais celle qu'il reste à charger.
   const [searchResultsOffset, setSearchResultsOffset] = useState(0);
-  // Décalage séparé pour la requête scopée artiste (voir searchWorldMusicApi) —
-  // utilisée en COMPLÉMENT de la recherche générale (jamais à sa place, voir
-  // l'incident du 1er essai de cette refonte), donc paginée indépendamment.
-  const [searchArtistResultsOffset, setSearchArtistResultsOffset] = useState(0);
   // true tant que Deezer indique qu'il reste des résultats au-delà de ceux déjà chargés.
   const [searchHasMoreResults, setSearchHasMoreResults] = useState(false);
   // Spinner dédié au bouton "Voir plus" — distinct de isWorldSearching (qui vide
@@ -689,11 +685,17 @@ export default function App() {
   // résultats déjà affichés pendant qu'on en charge d'autres à la suite.
   const [isLoadingMoreResults, setIsLoadingMoreResults] = useState(false);
   // Non-null seulement si la recherche initiale a identifié avec confiance un
-  // artiste correspondant au texte tapé (voir isConfidentArtistMatch) — mémorisé
-  // ici pour que le bouton "Voir plus" sache s'il doit continuer à paginer sur CET
-  // artiste (requête scopée `artist:"Nom"`) ou sur la recherche texte générale.
+  // artiste correspondant au texte tapé (voir isConfidentArtistMatch).
   const [searchActiveArtistId, setSearchActiveArtistId] = useState(null);
   const [searchActiveArtistName, setSearchActiveArtistName] = useState(null);
+  // Réserve CACHÉE des titres qui matchent le texte tapé mais PAS l'artiste
+  // identifié (ex. "Starboy" pour "daft punk", où Daft Punk n'est que
+  // co-producteur) — voir searchWorldMusicApi. Jamais affichée tant qu'il reste
+  // de vrais titres de l'artiste à montrer ou des pages Deezer non explorées ;
+  // révélée seulement une fois la recherche générale épuisée (voir le rendu de
+  // la modale) — pour ne jamais faire disparaître totalement ces titres non plus,
+  // au cas où l'utilisateur les cherchait vraiment.
+  const [worldSearchOtherResults, setWorldSearchOtherResults] = useState([]);
   // Édition du nom d'une playlist générée — avant, le nom auto-généré (ex. "Depuis :
   // 🏃‍♂️ Mon 5km Quotidien") n'était jamais modifiable, ce qui devenait vite peu
   // pratique pour s'y retrouver une fois plusieurs playlists sauvegardées.
@@ -790,61 +792,55 @@ export default function App() {
    *  2. Seuls 8 résultats étaient jamais accessibles, sans aucun moyen d'en voir
    *     plus, même quand Deezer en avait beaucoup plus à proposer.
    *
-   * ⚠️ REVU une 2e fois après un premier essai raté : la toute première version
-   * de cette refonte basculait vers une requête Deezer scopée `artist:"Nom"`
-   * SEULE (sans autre filtre) dès qu'un artiste était identifié avec confiance —
-   * pari jamais vérifié en conditions réelles (pas d'accès réseau pour tester
-   * depuis l'environnement de dev), qui s'est avéré casser la recherche : cette
-   * requête scopée seule semble remonter des titres (rééditions, live, compils)
-   * moins bien pourvus en métadonnée BPM que la recherche texte générale, qui
-   * elle privilégie naturellement les versions les plus populaires/canoniques.
-   * Résultat : "aucun titre avec un BPM connu" alors que la recherche
-   * fonctionnait très bien avant.
+   * ⚠️ HISTORIQUE DE CETTE FONCTION (3 versions avant la bonne, gardé pour ne
+   * pas retomber dans les mêmes pièges) :
+   *  - v1 : basculait ENTIÈREMENT vers une requête scopée `artist:"Nom"` dès
+   *    qu'un artiste était identifié — cassait la recherche (titres sans BPM connu).
+   *  - v2 : ajoutait cette même requête scopée EN PLUS de la recherche générale
+   *    (au lieu de la remplacer) — semblait plus sûr, mais les LOGS DE PRODUCTION
+   *    (voir ci-dessous) ont montré que cette requête ne renvoie tout simplement
+   *    PAS les bons titres : pour "daft punk", elle remontait "Pan Da Punk",
+   *    "Punk Mbedzi", "Digital Punk"... Deezer semble tokeniser "Daft"/"Punk"
+   *    séparément plutôt que de chercher la phrase exacte via `artist:"..."`
+   *    sans autre filtre. Confirmé AUCUN vrai titre de l'artiste apporté par
+   *    cette requête sur 2 pages testées : elle ne faisait qu'ajouter du coût
+   *    réseau pour du bruit filtré après coup. Purement et simplement retirée.
+   *  - v3 (celle-ci) : repose ENTIÈREMENT sur la recherche texte générale
+   *    (`/search?q=...`), seule source dont on ait la preuve qu'elle renvoie les
+   *    bons titres. Le problème résiduel signalé (Starboy/The Weeknd visibles
+   *    dès la 1ère page, juste triés en dernier) est réglé autrement : les
+   *    titres qui ne correspondent PAS à l'artiste identifié ne sont plus
+   *    seulement triés en fin de liste, ils sont CACHÉS (stockés à part dans
+   *    `worldSearchOtherResults`) tant qu'il reste de vrais titres de l'artiste
+   *    à montrer OU des pages Deezer non explorées. Une fois la recherche texte
+   *    générale épuisée (`searchHasMoreResults` devient false) et s'il reste des
+   *    titres en réserve, ils sont révélés en bas de liste avec un séparateur
+   *    clair (voir le rendu de la modale) — jamais perdus, juste relégués tout
+   *    en bas, après avoir vraiment tout vu de l'artiste demandé.
    *
-   * Version corrigée, qui ne repose plus que sur le chemin ÉPROUVÉ (la
-   * recherche texte générale, dont on sait par les captures d'écran qu'elle
-   * trouve bien les bons titres avec BPM) :
-   *  - Recherche d'ARTISTE (`/search/artist`) et recherche de TITRE (`/search`)
-   *    lancées en parallèle, mais SEULE la recherche texte fournit les
-   *    candidats réels — la recherche d'artiste ne sert qu'à DÉTECTER le nom
-   *    exact à privilégier, jamais à remplacer la source des résultats.
+   * Stratégie :
+   *  - Recherche d'ARTISTE (`/search/artist`, détection seulement) et recherche
+   *    de TITRE (`/search`, seule source de résultats réels) lancées en
+   *    parallèle à la recherche initiale.
    *  - Si le texte tapé correspond avec confiance à l'artiste trouvé (voir
-   *    `isConfidentArtistMatch`), les titres dont le champ `artist` correspond
-   *    exactement à ce nom sont triés EN TÊTE de la liste (tri côté client,
-   *    stable — l'ordre relatif Deezer est conservé à l'intérieur de chaque
-   *    groupe) : Get Lucky/Instant Crush (artist = "Daft Punk") passent ainsi
-   *    devant Starboy (artist = "The Weeknd"), sans dépendre d'un comportement
-   *    Deezer non vérifié.
-   *  - Pagination via le paramètre `index` de l'API Deezer, sur cette même
-   *    recherche texte générale : `reset = true` repart de l'index 0 et vide la
-   *    liste ; `reset = false` (bouton "Voir plus") ajoute la page suivante et
-   *    réapplique le même tri de priorité sur l'ensemble cumulé.
-   *
-   * ⚠️ AJUSTEMENT (retour utilisateur : seuls 6 titres de Daft Punk sur 10
-   * résultats avant de retomber sur The Weeknd) : la recherche texte générale
-   * seule limite le nombre de VRAIS titres de l'artiste visibles par page, car
-   * Deezer y mélange des featurings/productions avec les titres où l'artiste
-   * est vraiment le titulaire. Une requête scopée `artist:"Nom"` est donc
-   * relancée EN PLUS de la recherche générale (jamais à sa place — voir
-   * l'incident du tout premier essai de cette refonte, plus haut) dès qu'un
-   * artiste est identifié avec confiance, à la recherche initiale ET à chaque
-   * "Voir plus" (paginée séparément via `searchArtistResultsOffset`). Les deux
-   * sources sont fusionnées et dédupliquées par id Deezer avant tri : si la
-   * requête scopée échoue ou ne renvoie que des titres sans BPM connu, ça ne
-   * change rien au pire des cas — la recherche générale reste le filet de
-   * sécurité garanti non-vide.
+   *    `isConfidentArtistMatch`), chaque page de résultats est scindée en 2 :
+   *    ceux dont `artist` correspond exactement à ce nom (affichés normalement,
+   *    dans `worldSearchResults`) et les autres (mis de côté dans
+   *    `worldSearchOtherResults`, révélés seulement une fois épuisé).
+   *  - Pagination via le paramètre `index` de l'API Deezer sur cette recherche
+   *    texte générale : `reset = true` repart de l'index 0 et vide tout ;
+   *    `reset = false` (bouton "Voir plus") ajoute la page suivante des 2 côtés.
    */
   const searchWorldMusicApi = async (reset = true) => {
     if (!searchQuery.trim()) return;
     const generalOffset = reset ? 0 : searchResultsOffset;
-    const artistOffset = reset ? 0 : searchArtistResultsOffset;
     if (reset) {
       setIsWorldSearching(true);
       setWorldSearchResults([]);
+      setWorldSearchOtherResults([]);
       setResultsContextLabel(null);
       setNoUsableResultsHint(false);
       setSearchHasMoreResults(false);
-      setSearchArtistResultsOffset(0);
     } else {
       setIsLoadingMoreResults(true);
     }
@@ -852,11 +848,9 @@ export default function App() {
     try {
       let generalStubs = [];
       let generalTotal = 0;
-      let artistStubs = [];
-      let artistTotal = 0;
-      // Nom d'artiste à faire remonter en tête des résultats (tri plus bas) —
-      // déterminé à la recherche initiale, réutilisé tel quel pour "Voir plus"
-      // (mémorisé dans searchActiveArtistName pour ne pas le redétecter à chaque page).
+      // Nom d'artiste utilisé pour scinder chaque page en "correspond"/"reste
+      // de côté" — déterminé à la recherche initiale, réutilisé tel quel pour
+      // "Voir plus" (mémorisé dans searchActiveArtistName entre 2 appels).
       let priorityArtistName = reset ? null : searchActiveArtistName;
 
       if (reset) {
@@ -867,62 +861,29 @@ export default function App() {
         const artist = (artistRes.data && Array.isArray(artistRes.data.data)) ? artistRes.data.data[0] : null;
         generalStubs = (textRes.data && Array.isArray(textRes.data.data)) ? textRes.data.data : [];
         generalTotal = (textRes.data && typeof textRes.data.total === 'number') ? textRes.data.total : generalStubs.length;
-        // --- LOG DEBUG TEMPORAIRE (à retirer une fois le souci de doublons diagnostiqué) ---
-        console.log('[TempoFit DEBUG] artiste détecté :', artist ? artist.name : null, '| match confiant avec la recherche :', artist ? isConfidentArtistMatch(searchQuery, artist.name) : false);
-        console.log('[TempoFit DEBUG] recherche générale — stubs bruts :', generalStubs.map(s => ({ id: s.id, title: s.title, artist: s.artist ? s.artist.name : '?' })));
 
         if (artist && isConfidentArtistMatch(searchQuery, artist.name)) {
           priorityArtistName = artist.name;
           setSearchActiveArtistId(artist.id);
           setSearchActiveArtistName(artist.name);
-          try {
-            const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(`artist:"${artist.name}"`)}&limit=${SEARCH_PAGE_SIZE}&index=0`);
-            artistStubs = (data && Array.isArray(data.data)) ? data.data : [];
-            artistTotal = (data && typeof data.total === 'number') ? data.total : artistStubs.length;
-            // --- LOG DEBUG TEMPORAIRE ---
-            console.log('[TempoFit DEBUG] recherche scopée artist:"' + artist.name + '" — stubs bruts :', artistStubs.map(s => ({ id: s.id, title: s.title, artist: s.artist ? s.artist.name : '?' })));
-          } catch (e) {
-            console.log('[TempoFit DEBUG] recherche scopée artiste : ÉCHEC', e);
-            // Échec silencieux du complément : generalStubs suffit à ne pas planter la recherche.
-          }
         } else {
           setSearchActiveArtistId(null);
           setSearchActiveArtistName(null);
         }
       } else {
-        // "Voir plus" : on pagine la recherche générale, ET la requête scopée
-        // artiste si un artiste est actif — chacune avec son propre décalage.
-        const fetches = [deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(searchQuery)}&limit=${SEARCH_PAGE_SIZE}&index=${generalOffset}`)];
-        if (priorityArtistName) {
-          fetches.push(deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(`artist:"${priorityArtistName}"`)}&limit=${SEARCH_PAGE_SIZE}&index=${artistOffset}`));
-        }
-        const [textRes, artistRes2] = await Promise.all(fetches);
-        generalStubs = (textRes.data && Array.isArray(textRes.data.data)) ? textRes.data.data : [];
-        generalTotal = (textRes.data && typeof textRes.data.total === 'number') ? textRes.data.total : (generalOffset + generalStubs.length);
-        if (priorityArtistName && artistRes2) {
-          artistStubs = (artistRes2.data && Array.isArray(artistRes2.data.data)) ? artistRes2.data.data : [];
-          artistTotal = (artistRes2.data && typeof artistRes2.data.total === 'number') ? artistRes2.data.total : (artistOffset + artistStubs.length);
-        }
-        // --- LOG DEBUG TEMPORAIRE ---
-        console.log('[TempoFit DEBUG] "Voir plus" — generalStubs:', generalStubs.map(s => s.title + ' / ' + (s.artist ? s.artist.name : '?')), 'artistStubs:', artistStubs.map(s => s.title + ' / ' + (s.artist ? s.artist.name : '?')));
+        const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(searchQuery)}&limit=${SEARCH_PAGE_SIZE}&index=${generalOffset}`);
+        generalStubs = (data && Array.isArray(data.data)) ? data.data : [];
+        generalTotal = (data && typeof data.total === 'number') ? data.total : (generalOffset + generalStubs.length);
       }
 
-      // Fusion + dédoublonnage des 2 sources par id Deezer AVANT le détail/BPM,
-      // pour ne pas payer 2x le coût réseau sur un même titre trouvé des 2 côtés.
-      const seenStubIds = new Set();
-      const mergedStubs = [];
-      [...generalStubs, ...artistStubs].forEach(s => { if (s && !seenStubIds.has(s.id)) { seenStubIds.add(s.id); mergedStubs.push(s); } });
-      // --- LOG DEBUG TEMPORAIRE ---
-      console.log('[TempoFit DEBUG] fusion dédupliquée (par id Deezer) :', mergedStubs.map(s => ({ id: s.id, title: s.title, artist: s.artist ? s.artist.name : '?' })));
-
-      if (mergedStubs.length === 0 && reset) {
+      if (generalStubs.length === 0 && reset) {
         setNoUsableResultsHint(true);
         setIsWorldSearching(false);
         return;
       }
 
       // Un appel par titre pour récupérer son BPM (absent des listes de résultats)
-      const detailedTracks = await Promise.all(mergedStubs.map(async (stub) => {
+      const detailedTracks = await Promise.all(generalStubs.map(async (stub) => {
         const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
         return full;
       }));
@@ -943,32 +904,25 @@ export default function App() {
             };
           })
       );
-      // --- LOG DEBUG TEMPORAIRE ---
-      console.log('[TempoFit DEBUG] formattedResults (après filtre BPM connu) :', formattedResults.map(t => `${t.title} — ${t.artist} — ${t.bpm} BPM — id=${t.youtubeId}`));
 
-      setWorldSearchResults(prev => {
-        const combined = reset ? formattedResults : [...prev, ...formattedResults];
-        // Dédoublonnage : un même titre peut réapparaître sur 2 pages consécutives
-        // si le classement Deezer bouge légèrement entre 2 appels successifs.
+      const norm = priorityArtistName ? normalizeForArtistMatch(priorityArtistName) : null;
+      const isPriorityMatch = (t) => norm && normalizeForArtistMatch(t.artist) === norm;
+      const dedupeAppend = (prev, incoming) => {
+        const combined = reset ? incoming : [...prev, ...incoming];
         const seen = new Set();
-        const deduped = combined.filter(t => { if (seen.has(t.youtubeId)) return false; seen.add(t.youtubeId); return true; });
-        if (!priorityArtistName) return deduped;
-        // Tri de priorité : titres de l'artiste identifié en tête (tri stable,
-        // donc l'ordre Deezer d'origine est conservé À L'INTÉRIEUR de chaque groupe).
-        const norm = normalizeForArtistMatch(priorityArtistName);
-        const isPriorityMatch = (t) => normalizeForArtistMatch(t.artist) === norm;
-        const finalList = [...deduped.filter(isPriorityMatch), ...deduped.filter(t => !isPriorityMatch(t))];
-        // --- LOG DEBUG TEMPORAIRE ---
-        console.log('[TempoFit DEBUG] liste finale triée :', finalList.map(t => `${t.title} — ${t.artist} — ${t.bpm} BPM`));
-        return finalList;
-      });
-      if (reset) setResultsContextLabel(priorityArtistName ? `Titres de ${priorityArtistName} en tête` : null);
+        return combined.filter(t => { if (seen.has(t.youtubeId)) return false; seen.add(t.youtubeId); return true; });
+      };
+
+      if (priorityArtistName) {
+        setWorldSearchResults(prev => dedupeAppend(prev, formattedResults.filter(isPriorityMatch)));
+        setWorldSearchOtherResults(prev => dedupeAppend(prev, formattedResults.filter(t => !isPriorityMatch(t))));
+      } else {
+        setWorldSearchResults(prev => dedupeAppend(prev, formattedResults));
+      }
+
+      if (reset) setResultsContextLabel(priorityArtistName ? `Titres de ${priorityArtistName}` : null);
       setSearchResultsOffset(generalOffset + generalStubs.length);
-      setSearchArtistResultsOffset(artistOffset + artistStubs.length);
-      setSearchHasMoreResults(
-        (generalStubs.length > 0 && (generalOffset + generalStubs.length) < generalTotal) ||
-        (artistStubs.length > 0 && (artistOffset + artistStubs.length) < artistTotal)
-      );
+      setSearchHasMoreResults(generalStubs.length > 0 && (generalOffset + generalStubs.length) < generalTotal);
       if (reset && formattedResults.length === 0) setNoUsableResultsHint(true); // titres trouvés mais aucun n'a de BPM connu
     } catch(e) {
       // Erreur réseau réelle (proxy CORS injoignable, hors-ligne...) — safeFetchJson
@@ -981,18 +935,71 @@ export default function App() {
 
   // Ferme la modale de recherche et réinitialise tout son état — centralisé ici
   // (au lieu d'être dupliqué sur le clic du fond et sur le bouton X) pour que
-  // l'ajout de l'état de pagination/mode-artiste (searchResultsOffset,
-  // searchArtistResultsOffset, searchHasMoreResults, searchActiveArtistId/Name)
-  // n'oublie aucun des 2 endroits.
+  // l'ajout de nouvel état (searchResultsOffset, searchHasMoreResults,
+  // searchActiveArtistId/Name, worldSearchOtherResults) n'oublie aucun des 2 endroits.
+  // (voir sa définition juste après renderSearchResultRow ci-dessous)
+
+  // Une seule ligne de résultat de recherche (bouton extrait + ajout/favori) —
+  // extraite en fonction réutilisable pour être partagée entre la liste
+  // principale (worldSearchResults) et la réserve "autres résultats" révélée en
+  // bas une fois la recherche épuisée (voir worldSearchOtherResults).
+  const renderSearchResultRow = (track, key) => (
+    <div key={key} className={"flex items-center gap-2 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border border-transparent hover:" + cardBorder}>
+      {/* Bouton lecture/pause de l'extrait audio 30s (Deezer). Désactivé si aucun extrait disponible. */}
+      <button
+        onClick={() => togglePreview(track)}
+        disabled={!track.preview}
+        title={track.preview ? "Écouter un extrait" : "Extrait non disponible pour ce titre (source sans aperçu audio)"}
+        className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
+      >
+        {playingPreviewId === track.youtubeId ? <Pause size={16} fill="currentColor"/> : <Play size={16} fill="currentColor" className="ml-0.5"/>}
+      </button>
+
+      {(() => {
+        const isAlreadyFavorited = !currentPlaylist && favorites.tracks.some(t => t.youtubeId === track.youtubeId);
+        return (
+          <button onClick={() => {
+              // Si on est dans la vue Playlist, on l'ajoute. Sinon, ça bascule dans les Favoris !
+              if (currentPlaylist) handleAddManualTrack(track);
+              else if (isAlreadyFavorited) {
+                 setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.youtubeId !== track.youtubeId) }));
+                 showToast("Retiré de tes favoris.");
+              } else {
+                 setFavorites(prev => ({
+                   ...prev,
+                   artists: Array.from(new Set([...prev.artists, track.artist])),
+                   tracks: [...prev.tracks, track]
+                 }));
+                 showToast("🎵 Ajouté à tes favoris !");
+              }
+          }} className="flex-1 min-w-0 text-left flex items-center justify-between gap-3">
+            <div className="truncate">
+              <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
+              <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${normalizeGenreForDisplay(track.genre)}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé.">⚠️ Genre non confirmé</span>}</div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className={"font-mono text-sm font-bold " + textColorClass}>{track.bpm} BPM</span>
+              {isAlreadyFavorited ? (
+                <Check size={16} className="text-green-500" />
+              ) : (
+                <Plus size={16} className={textMuted}/>
+              )}
+            </div>
+          </button>
+        );
+      })()}
+    </div>
+  );
+
   const closeSearchModal = () => {
     setIsSearchModalOpen(false);
     setSearchQuery("");
     setIsBpmSearchMode(false);
     setWorldSearchResults([]);
+    setWorldSearchOtherResults([]);
     setResultsContextLabel(null);
     setNoUsableResultsHint(false);
     setSearchResultsOffset(0);
-    setSearchArtistResultsOffset(0);
     setSearchHasMoreResults(false);
     setSearchActiveArtistId(null);
     setSearchActiveArtistName(null);
@@ -4235,58 +4242,12 @@ export default function App() {
                     <Loader2 className="animate-spin" size={20}/>
                     <span>Recherche en cours...</span>
                   </div>
-                ) : worldSearchResults.length > 0 ? (
+                ) : (worldSearchResults.length > 0 || (!searchHasMoreResults && worldSearchOtherResults.length > 0)) ? (
                   <>
-                    {resultsContextLabel && !isBpmSearchMode && (
+                    {resultsContextLabel && !isBpmSearchMode && worldSearchResults.length > 0 && (
                       <div className={`text-xs font-bold uppercase tracking-wider mb-2 px-1 ${textMuted}`}>{resultsContextLabel}</div>
                     )}
-                    {worldSearchResults.map((track, i) => (
-                      <div key={i} className={"flex items-center gap-2 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border border-transparent hover:" + cardBorder}>
-                        {/* Bouton lecture/pause de l'extrait audio 30s (Deezer). Désactivé si aucun extrait disponible. */}
-                        <button
-                          onClick={() => togglePreview(track)}
-                          disabled={!track.preview}
-                          title={track.preview ? "Écouter un extrait" : "Extrait non disponible pour ce titre (source sans aperçu audio)"}
-                          className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
-                        >
-                          {playingPreviewId === track.youtubeId ? <Pause size={16} fill="currentColor"/> : <Play size={16} fill="currentColor" className="ml-0.5"/>}
-                        </button>
-
-                        {(() => {
-                          const isAlreadyFavorited = !currentPlaylist && favorites.tracks.some(t => t.youtubeId === track.youtubeId);
-                          return (
-                            <button onClick={() => {
-                                // Si on est dans la vue Playlist, on l'ajoute. Sinon, ça bascule dans les Favoris !
-                                if (currentPlaylist) handleAddManualTrack(track);
-                                else if (isAlreadyFavorited) {
-                                   setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.youtubeId !== track.youtubeId) }));
-                                   showToast("Retiré de tes favoris.");
-                                } else {
-                                   setFavorites(prev => ({
-                                     ...prev,
-                                     artists: Array.from(new Set([...prev.artists, track.artist])),
-                                     tracks: [...prev.tracks, track]
-                                   }));
-                                   showToast("🎵 Ajouté à tes favoris !");
-                                }
-                            }} className="flex-1 min-w-0 text-left flex items-center justify-between gap-3">
-                              <div className="truncate">
-                                <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
-                                <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${normalizeGenreForDisplay(track.genre)}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé.">⚠️ Genre non confirmé</span>}</div>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className={"font-mono text-sm font-bold " + textColorClass}>{track.bpm} BPM</span>
-                                {isAlreadyFavorited ? (
-                                  <Check size={16} className="text-green-500" />
-                                ) : (
-                                  <Plus size={16} className={textMuted}/>
-                                )}
-                              </div>
-                            </button>
-                          );
-                        })()}
-                      </div>
-                    ))}
+                    {worldSearchResults.map((track, i) => renderSearchResultRow(track, i))}
                     {searchHasMoreResults && !isBpmSearchMode && (
                       <button
                         onClick={() => searchWorldMusicApi(false)}
@@ -4296,6 +4257,16 @@ export default function App() {
                         {isLoadingMoreResults ? <Loader2 className="animate-spin" size={16}/> : <ChevronDown size={16}/>}
                         <span>{isLoadingMoreResults ? "Chargement..." : "Voir plus de résultats"}</span>
                       </button>
+                    )}
+                    {/* Réserve "autres résultats" (titres qui matchent le texte tapé
+                        mais pas l'artiste identifié, ex. Starboy pour "daft punk") —
+                        révélée seulement une fois la recherche générale épuisée
+                        (searchHasMoreResults = false), jamais avant : voir searchWorldMusicApi. */}
+                    {!searchHasMoreResults && !isBpmSearchMode && worldSearchOtherResults.length > 0 && (
+                      <>
+                        <div className={`text-xs font-bold uppercase tracking-wider mt-4 mb-2 px-1 ${textMuted}`}>Autres résultats pour "{searchQuery}" (pas {searchActiveArtistName})</div>
+                        {worldSearchOtherResults.map((track, i) => renderSearchResultRow(track, `other-${i}`))}
+                      </>
                     )}
                   </>
                 ) : (
