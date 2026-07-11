@@ -140,11 +140,14 @@ const DEEZER_GENRE_KEYWORDS = {
  * maintenant de la vraie discographie Deezer de ces artistes, pas d'une liste
  * figée) — un seul artiste avec une grande discographie peut suffire à couvrir
  * beaucoup de BPM différents, donc ce seuil est plus tolérant qu'avant.
+ * SEUIL AJUSTÉ (l'ancien "≤ 2" ne se déclenchait plus jamais en pratique — le
+ * catalogue le plus mince, K-pop/Musique brésilienne, a 4 artistes minimum
+ * depuis les gros lots ajoutés cette session) : relevé à 5 pour redevenir utile.
  */
 const getGenreLocalDepthWarning = (genre) => {
   const count = (ARTIST_CATALOG[genre] || []).length;
   if (count === 0) return "Aucun artiste de secours listé pour ce genre : si Deezer est indisponible ou n'a pas de BPM fiable pour ce style, la génération peut échouer à bien remplir ce style.";
-  if (count <= 2) return `Seulement ${count} artiste${count > 1 ? 's' : ''} de secours listé${count > 1 ? 's' : ''} pour ce genre — filet de sécurité limité si la recherche généraliste ne suffit pas.`;
+  if (count <= 5) return `Seulement ${count} artistes de secours listés pour ce genre — filet de sécurité plus limité si la recherche généraliste ne suffit pas.`;
   return null;
 };
 
