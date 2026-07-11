@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Footprints, Flame, Heart, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, Target, History, MessageCircle, ExternalLink, GripVertical, MoreVertical } from 'lucide-react';
+import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Footprints, Flame, Heart, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Target, History, MessageCircle, ExternalLink, GripVertical, MoreVertical } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine, ReferenceArea, PieChart, Pie, Cell } from 'recharts';
 import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, DEEZER_GENRE_KEYWORDS, getGenreLocalDepthWarning, GENRE_EQUIVALENCE_GROUPS, isDirectGenreMatch, genreRoughlyMatches, TITLE_STYLE_OVERRIDE_KEYWORDS, detectTitleStyleConflict, normalizeGenreForDisplay } from './musicCatalog';
 import { TROPHIES_DATA, NAUGHTY_ROUTINE_NAMES, WORKOUT_TYPES, NAUGHTY_WORKOUT_LABELS, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_ORDER, WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appConfig';
@@ -3343,7 +3343,18 @@ export default function App() {
                                     <div className="flex items-center">
                                       <input type="number" min="1" max="15" value={paceMin} onChange={(e) => setPaceMin(e.target.value)} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-none text-right`} />
                                       <span className={`${textHighlight} mx-1 font-bold text-xl`}>:</span>
-                                      <input type="number" min="0" max="59" value={paceSec} onChange={(e) => setPaceSec(e.target.value)} className={`bg-transparent w-12 text-2xl font-bold ${textHighlight} outline-none`} />
+                                      {/* Flèches personnalisées (voir le champ Minutes de la durée de
+                                          session pour le détail) : 59 + "+" doit reboucler à 0, pas
+                                          rester bloqué comme le ferait le spinner natif. */}
+                                      <input type="number" min="0" max="59" value={paceSec} onChange={(e) => setPaceSec(e.target.value)} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
+                                      <div className="flex flex-col mr-1">
+                                        <button type="button" onClick={() => setPaceSec(s => { const v = (parseInt(s) || 0) + 1; return v > 59 ? 0 : v; })} className={`${textMuted} hover:${textHighlight}`}>
+                                          <ChevronUp size={12} />
+                                        </button>
+                                        <button type="button" onClick={() => setPaceSec(s => { const v = (parseInt(s) || 0) - 1; return v < 0 ? 59 : v; })} className={`${textMuted} hover:${textHighlight}`}>
+                                          <ChevronDown size={12} />
+                                        </button>
+                                      </div>
                                       <span className={`text-sm font-bold ${textMuted} ml-1`}>/{distanceUnit}</span>
                                     </div>
                                   </div>
@@ -3360,8 +3371,22 @@ export default function App() {
                                     <span className={`font-bold text-lg ${textMuted}`}>Heures</span>
                                   </div>
                                   <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-6 py-4`}>
-                                    <input type="number" min="0" max="59" value={minutes} onChange={(e) => setMinutes(e.target.value)} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-none`} />
-                                    <span className={`font-bold text-lg ${textMuted}`}>Min</span>
+                                    {/* Flèches personnalisées plutôt que le spinner natif du navigateur :
+                                        un input number natif s'arrête bêtement à 59 (ou 0) au lieu de
+                                        boucler — arriver à 59 min et cliquer "+" devrait repartir à 0,
+                                        et inversement à 0 avec "-" devrait repartir à 59. Impossible à
+                                        obtenir avec le spinner natif (pas d'événement standard pour
+                                        intercepter son clic), d'où ces boutons dédiés. */}
+                                    <input type="number" min="0" max="59" value={minutes} onChange={(e) => setMinutes(e.target.value)} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
+                                    <span className={`font-bold text-lg ${textMuted} mr-2`}>Min</span>
+                                    <div className="flex flex-col">
+                                      <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) + 1; return v > 59 ? 0 : v; })} className={`p-0.5 rounded ${textMuted} hover:${textHighlight} hover:bg-black/5 dark:hover:bg-white/10`}>
+                                        <ChevronUp size={16} />
+                                      </button>
+                                      <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) - 1; return v < 0 ? 59 : v; })} className={`p-0.5 rounded ${textMuted} hover:${textHighlight} hover:bg-black/5 dark:hover:bg-white/10`}>
+                                        <ChevronDown size={16} />
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -4912,8 +4937,16 @@ export default function App() {
                       <span className={`text-sm font-bold ${textMuted}`}>Heures</span>
                     </div>
                     <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-3 justify-between`}>
-                      <input type="number" min="0" max="59" value={editingRoutine.minutes} onChange={e => setEditingRoutine({...editingRoutine, minutes: e.target.value})} className={`bg-transparent w-full font-bold outline-none ${textHighlight}`} />
-                      <span className={`text-sm font-bold ${textMuted}`}>Min</span>
+                      <input type="number" min="0" max="59" value={editingRoutine.minutes} onChange={e => setEditingRoutine({...editingRoutine, minutes: e.target.value})} className={`bg-transparent w-full font-bold outline-none ${textHighlight} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
+                      <span className={`text-sm font-bold ${textMuted} mr-1`}>Min</span>
+                      <div className="flex flex-col">
+                        <button type="button" onClick={() => setEditingRoutine(r => ({...r, minutes: (parseInt(r.minutes) || 0) + 1 > 59 ? 0 : (parseInt(r.minutes) || 0) + 1}))} className={`${textMuted} hover:${textHighlight}`}>
+                          <ChevronUp size={14} />
+                        </button>
+                        <button type="button" onClick={() => setEditingRoutine(r => ({...r, minutes: (parseInt(r.minutes) || 0) - 1 < 0 ? 59 : (parseInt(r.minutes) || 0) - 1}))} className={`${textMuted} hover:${textHighlight}`}>
+                          <ChevronDown size={14} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
