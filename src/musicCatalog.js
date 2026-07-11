@@ -254,6 +254,30 @@ const detectTitleStyleConflict = (title, requestedGenres) => {
   return null;
 };
 
+/**
+ * Harmonise l'AFFICHAGE d'un genre — trouvé après un test réel : "Métal"
+ * apparaissait deux fois dans le graphique de répartition (une fois pour les
+ * titres du catalogue d'artistes, étiquetés avec notre nom interne "Métal"
+ * accentué, une fois pour les titres résolus en direct via Deezer, étiquetés
+ * avec le nom BRUT renvoyé par Deezer lui-même — "Metal" sans accent, ou
+ * parfois un nom composé comme "Rap/Hip Hop" au lieu de "Rap" tout court, vu
+ * concrètement dans les logs de diagnostic de cette session). Réutilise
+ * `isDirectGenreMatch` (déjà éprouvée pour la génération) plutôt qu'une
+ * comparaison dédiée, pour n'avoir qu'un seul endroit à corriger si un autre
+ * cas de nommage apparaît. Volontairement PAS `genreRoughlyMatches` (qui
+ * inclut l'équivalence Rock/Métal) : un titre accepté par équivalence doit
+ * continuer à s'AFFICHER sous son VRAI genre Deezer — utile de voir la vraie
+ * proportion — seules les variantes d'ÉCRITURE du même genre fusionnent ici.
+ * Utilisée PARTOUT où un genre est affiché dans l'app (liste de titres,
+ * graphiques...), pas seulement à un endroit, pour un affichage cohérent.
+ */
+const normalizeGenreForDisplay = (rawGenre) => {
+  if (!rawGenre) return 'Genre inconnu';
+  const allKnownGenres = [...new Set([...STANDARD_GENRES, ...NAUGHTY_GENRES, ...EXTRA_GENRES])];
+  const match = allKnownGenres.find(g => isDirectGenreMatch(rawGenre, g));
+  return match || rawGenre;
+};
+
 export {
   ARTIST_CATALOG,
   STANDARD_GENRES,
@@ -265,5 +289,6 @@ export {
   isDirectGenreMatch,
   genreRoughlyMatches,
   TITLE_STYLE_OVERRIDE_KEYWORDS,
-  detectTitleStyleConflict
+  detectTitleStyleConflict,
+  normalizeGenreForDisplay
 };
