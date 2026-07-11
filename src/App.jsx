@@ -943,9 +943,13 @@ export default function App() {
           const queryStr = "song:" + cleanTitle + " artist:" + cleanArtist;
           const res = await fetch(`/api/getsongbpm?type=both&lookup=${encodeURIComponent(queryStr)}`);
           const data = await res.json();
+          // --- LOG DEBUG TEMPORAIRE (à retirer une fois le souci diagnostiqué) ---
+          console.log('[TempoFit DEBUG] GetSongBPM — requête pour', JSON.stringify(queryStr), '| statut HTTP:', res.status, '| réponse brute:', data);
           const tempo = (data && data.search && data.search.length > 0) ? parseInt(data.search[0].tempo) : null;
+          console.log('[TempoFit DEBUG] GetSongBPM — tempo extrait pour "' + t.title + '" :', tempo);
           return (tempo && tempo > 0) ? { ...t, _resolvedBpm: tempo, _bpmSource: 'getsongbpm' } : null;
         } catch (e) {
+          console.log('[TempoFit DEBUG] GetSongBPM — ÉCHEC pour "' + t.title + '" :', e);
           return null; // échec silencieux : ce titre retombe simplement au niveau 3 ci-dessous
         }
       }))).filter(Boolean);
