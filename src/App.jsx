@@ -867,6 +867,9 @@ export default function App() {
         const artist = (artistRes.data && Array.isArray(artistRes.data.data)) ? artistRes.data.data[0] : null;
         generalStubs = (textRes.data && Array.isArray(textRes.data.data)) ? textRes.data.data : [];
         generalTotal = (textRes.data && typeof textRes.data.total === 'number') ? textRes.data.total : generalStubs.length;
+        // --- LOG DEBUG TEMPORAIRE (à retirer une fois le souci de doublons diagnostiqué) ---
+        console.log('[TempoFit DEBUG] artiste détecté :', artist ? artist.name : null, '| match confiant avec la recherche :', artist ? isConfidentArtistMatch(searchQuery, artist.name) : false);
+        console.log('[TempoFit DEBUG] recherche générale — stubs bruts :', generalStubs.map(s => ({ id: s.id, title: s.title, artist: s.artist ? s.artist.name : '?' })));
 
         if (artist && isConfidentArtistMatch(searchQuery, artist.name)) {
           priorityArtistName = artist.name;
@@ -876,7 +879,10 @@ export default function App() {
             const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(`artist:"${artist.name}"`)}&limit=${SEARCH_PAGE_SIZE}&index=0`);
             artistStubs = (data && Array.isArray(data.data)) ? data.data : [];
             artistTotal = (data && typeof data.total === 'number') ? data.total : artistStubs.length;
+            // --- LOG DEBUG TEMPORAIRE ---
+            console.log('[TempoFit DEBUG] recherche scopée artist:"' + artist.name + '" — stubs bruts :', artistStubs.map(s => ({ id: s.id, title: s.title, artist: s.artist ? s.artist.name : '?' })));
           } catch (e) {
+            console.log('[TempoFit DEBUG] recherche scopée artiste : ÉCHEC', e);
             // Échec silencieux du complément : generalStubs suffit à ne pas planter la recherche.
           }
         } else {
@@ -897,6 +903,8 @@ export default function App() {
           artistStubs = (artistRes2.data && Array.isArray(artistRes2.data.data)) ? artistRes2.data.data : [];
           artistTotal = (artistRes2.data && typeof artistRes2.data.total === 'number') ? artistRes2.data.total : (artistOffset + artistStubs.length);
         }
+        // --- LOG DEBUG TEMPORAIRE ---
+        console.log('[TempoFit DEBUG] "Voir plus" — generalStubs:', generalStubs.map(s => s.title + ' / ' + (s.artist ? s.artist.name : '?')), 'artistStubs:', artistStubs.map(s => s.title + ' / ' + (s.artist ? s.artist.name : '?')));
       }
 
       // Fusion + dédoublonnage des 2 sources par id Deezer AVANT le détail/BPM,
@@ -904,6 +912,8 @@ export default function App() {
       const seenStubIds = new Set();
       const mergedStubs = [];
       [...generalStubs, ...artistStubs].forEach(s => { if (s && !seenStubIds.has(s.id)) { seenStubIds.add(s.id); mergedStubs.push(s); } });
+      // --- LOG DEBUG TEMPORAIRE ---
+      console.log('[TempoFit DEBUG] fusion dédupliquée (par id Deezer) :', mergedStubs.map(s => ({ id: s.id, title: s.title, artist: s.artist ? s.artist.name : '?' })));
 
       if (mergedStubs.length === 0 && reset) {
         setNoUsableResultsHint(true);
@@ -933,6 +943,8 @@ export default function App() {
             };
           })
       );
+      // --- LOG DEBUG TEMPORAIRE ---
+      console.log('[TempoFit DEBUG] formattedResults (après filtre BPM connu) :', formattedResults.map(t => `${t.title} — ${t.artist} — ${t.bpm} BPM — id=${t.youtubeId}`));
 
       setWorldSearchResults(prev => {
         const combined = reset ? formattedResults : [...prev, ...formattedResults];
@@ -945,7 +957,10 @@ export default function App() {
         // donc l'ordre Deezer d'origine est conservé À L'INTÉRIEUR de chaque groupe).
         const norm = normalizeForArtistMatch(priorityArtistName);
         const isPriorityMatch = (t) => normalizeForArtistMatch(t.artist) === norm;
-        return [...deduped.filter(isPriorityMatch), ...deduped.filter(t => !isPriorityMatch(t))];
+        const finalList = [...deduped.filter(isPriorityMatch), ...deduped.filter(t => !isPriorityMatch(t))];
+        // --- LOG DEBUG TEMPORAIRE ---
+        console.log('[TempoFit DEBUG] liste finale triée :', finalList.map(t => `${t.title} — ${t.artist} — ${t.bpm} BPM`));
+        return finalList;
       });
       if (reset) setResultsContextLabel(priorityArtistName ? `Titres de ${priorityArtistName} en tête` : null);
       setSearchResultsOffset(generalOffset + generalStubs.length);
