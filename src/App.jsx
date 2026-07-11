@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Footprints, Flame, Heart, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, Target, History, MessageCircle, ExternalLink, GripVertical, MoreVertical } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine, ReferenceArea, PieChart, Pie, Cell } from 'recharts';
-import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, DEEZER_GENRE_KEYWORDS, getGenreLocalDepthWarning, GENRE_EQUIVALENCE_GROUPS, isDirectGenreMatch, genreRoughlyMatches, TITLE_STYLE_OVERRIDE_KEYWORDS, detectTitleStyleConflict } from './musicCatalog';
+import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, DEEZER_GENRE_KEYWORDS, getGenreLocalDepthWarning, GENRE_EQUIVALENCE_GROUPS, isDirectGenreMatch, genreRoughlyMatches, TITLE_STYLE_OVERRIDE_KEYWORDS, detectTitleStyleConflict, normalizeGenreForDisplay } from './musicCatalog';
 import { TROPHIES_DATA, NAUGHTY_ROUTINE_NAMES, WORKOUT_TYPES, NAUGHTY_WORKOUT_LABELS, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_ORDER, WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appConfig';
 
 // =====================================================================================
@@ -2805,11 +2805,16 @@ export default function App() {
   // titre → album → genre_id → nom (voir resolveDeezerGenre) plutôt qu'hérité du
   // mot-clé de recherche — sans ça, ce graphique aurait surtout affiché le
   // critère de recherche utilisé, pas le vrai style du morceau.
+  //
+  // normalizeGenreForDisplay : voir musicCatalog.js (importée en haut de ce
+  // fichier) — utilisée ici ET partout où un genre est affiché dans l'app, pour
+  // fusionner les variantes d'écriture du même genre (accents, casse, noms
+  // composés type "Rap/Hip Hop") en un seul et même libellé cohérent.
   const genreDistributionData = useMemo(() => {
     if (!currentPlaylist) return [];
     const buckets = {};
     currentPlaylist.tracks.forEach(t => {
-      const g = t.genre || 'Genre inconnu';
+      const g = normalizeGenreForDisplay(t.genre);
       buckets[g] = (buckets[g] || 0) + t.duration;
     });
     return Object.entries(buckets).map(([name, value]) => ({ name, value }));
@@ -4070,7 +4075,7 @@ export default function App() {
                             </button>
                             <div className="flex-1 min-w-0">
                               <div className={`font-bold text-sm truncate ${textHighlight}`}>{track.title}</div>
-                              <div className={`text-xs truncate ${textMuted}`}>{track.artist}{track.genre ? ` · ${track.genre}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé — le pool de candidats n'avait rien de mieux disponible.">⚠️ Genre non confirmé</span>}</div>
+                              <div className={`text-xs truncate ${textMuted}`}>{track.artist}{track.genre ? ` · ${normalizeGenreForDisplay(track.genre)}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé — le pool de candidats n'avait rien de mieux disponible.">⚠️ Genre non confirmé</span>}</div>
                             </div>
                             {track.bpm ? <span className={`font-mono text-xs font-bold shrink-0 ${textColorClass}`}>{track.bpm} BPM</span> : null}
                             <button onClick={() => setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.youtubeId !== track.youtubeId) }))} className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
@@ -4378,7 +4383,7 @@ export default function App() {
                         </button>
                         <div className="flex-1 min-w-0">
                           <div className={`font-bold text-sm truncate ${textHighlight}`}>{trackSegments[selectedSegmentIdx].track.title}</div>
-                          <div className={`text-xs truncate ${textMuted}`}>{trackSegments[selectedSegmentIdx].track.artist}{trackSegments[selectedSegmentIdx].track.genre ? ` · ${trackSegments[selectedSegmentIdx].track.genre}` : ''}{trackSegments[selectedSegmentIdx].track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé.">⚠️ Genre non confirmé</span>}</div>
+                          <div className={`text-xs truncate ${textMuted}`}>{trackSegments[selectedSegmentIdx].track.artist}{trackSegments[selectedSegmentIdx].track.genre ? ` · ${normalizeGenreForDisplay(trackSegments[selectedSegmentIdx].track.genre)}` : ''}{trackSegments[selectedSegmentIdx].track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé.">⚠️ Genre non confirmé</span>}</div>
                         </div>
                         <div className={`text-xs font-mono ${textMuted} shrink-0`}>
                           Début : {formatDuration(trackSegments[selectedSegmentIdx].startTime)}<br/>
@@ -4510,7 +4515,7 @@ export default function App() {
                         </button>
                         <div className="flex-1 px-2 min-w-0">
                           <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
-                          <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${track.genre}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé — le pool de candidats n'avait rien de mieux disponible.">⚠️ Genre non confirmé</span>}</div>
+                          <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${normalizeGenreForDisplay(track.genre)}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé — le pool de candidats n'avait rien de mieux disponible.">⚠️ Genre non confirmé</span>}</div>
                         </div>
                         <div className="w-28 text-center shrink-0">
                           <div className={"font-mono font-bold text-sm " + textColorClass}>{track.bpm} <span className={`text-[10px] font-normal ${textMuted}`}>BPM</span></div>
@@ -4742,7 +4747,7 @@ export default function App() {
                             }} className="flex-1 min-w-0 text-left flex items-center justify-between gap-3">
                               <div className="truncate">
                                 <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
-                                <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${track.genre}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé.">⚠️ Genre non confirmé</span>}</div>
+                                <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${normalizeGenreForDisplay(track.genre)}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé.">⚠️ Genre non confirmé</span>}</div>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 <span className={"font-mono text-sm font-bold " + textColorClass}>{track.bpm} BPM</span>
