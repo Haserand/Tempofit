@@ -345,7 +345,9 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYout
     const realGenre = await resolveDeezerGenre(candidate.id);
     candidate._resolvedGenre = realGenre || 'Genre inconnu';
     attempted.push(candidate);
-    if (genresForQuery.some(g => genreRoughlyMatches(realGenre, g))) {
+    const matches = genresForQuery.some(g => genreRoughlyMatches(realGenre, g));
+    console.log(`[TempoFit DEBUG][searchDeezerForGenres] "${candidate.title}" (${candidate.artist ? candidate.artist.name : '?'}) — genre réel="${realGenre}", demandé=[${genresForQuery.join(', ')}] → ${matches ? 'MATCH ✅' : 'REJETÉ ❌'}`);
+    if (matches) {
       full = candidate;
       break;
     }
@@ -353,6 +355,7 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYout
   if (!full) {
     full = attempted[0] || ordered[0];
     genreMismatch = true;
+    console.warn(`[TempoFit DEBUG][searchDeezerForGenres] Aucun match genre après ${attempted.length} essais — repli sur "${full.title}" marqué _genreMismatch`);
   }
 
   return {
@@ -403,22 +406,33 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
         const stubs = (data && Array.isArray(data.data)) ? data.data : [];
         return stubs.filter(s => !excludeYoutubeIds.includes(`deezer-${s.id}`));
       }));
-      const candidateStubs = stubsByArtist.flat();
-      if (candidateStubs.length > 0) {
-        const pick = candidateStubs[Math.floor(Math.random() * candidateStubs.length)];
-        const { data: full } = await deezerFetch(`https://api.deezer.com/track/${pick.id}`);
+      const candidateStubs = stubsByArtist.flat().sort(() => Math.random() - 0.5);
+      // GARDE-FOU GENRE (trou trouvé après un test réel : "Stan" d'Eminem et
+      // "Thinking Out Loud" d'Ed Sheeran s'invitaient dans des playlists
+      // Métal/Rock via ce chemin précis) : un artiste favori totalement hors du
+      // genre demandé ne devrait pas s'inviter juste parce qu'un de ses titres
+      // tombe dans la bonne fenêtre BPM — le nom de l'artiste seul ne dit rien du
+      // genre du titre trouvé. Contrairement aux autres étapes de la cascade, si
+      // aucun candidat ne correspond ici, on NE FORCE PAS un mauvais choix : cette
+      // étape est un bonus de priorité précoce (pas un dernier recours), donc on
+      // laisse simplement la main aux étapes suivantes, qui chercheront un genre correct.
+      for (let attempt = 0; attempt < Math.min(5, candidateStubs.length); attempt++) {
+        const stub = candidateStubs[attempt];
+        const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
         if (full && full.bpm && parseFloat(full.bpm) >= minBpm && parseFloat(full.bpm) <= maxBpm) {
           const realGenre = await resolveDeezerGenre(full.id);
-          return {
-            youtubeId: `deezer-${full.id}`,
-            title: full.title,
-            artist: full.artist ? full.artist.name : 'Inconnu',
-            bpm: Math.round(parseFloat(full.bpm)),
-            duration: full.duration || 180,
-            isEmbeddable: true,
-            genre: realGenre || 'Genre inconnu',
-            preview: full.preview || null
-          };
+          if (selectedGenres.some(g => genreRoughlyMatches(realGenre, g))) {
+            return {
+              youtubeId: `deezer-${full.id}`,
+              title: full.title,
+              artist: full.artist ? full.artist.name : 'Inconnu',
+              bpm: Math.round(parseFloat(full.bpm)),
+              duration: full.duration || 180,
+              isEmbeddable: true,
+              genre: realGenre || 'Genre inconnu',
+              preview: full.preview || null
+            };
+          }
         }
       }
     } catch (e) {
@@ -705,13 +719,16 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
       const candidate = availablePool[attempt];
       if (!candidate._deezerId) {
         // Favoris / Spotify / local : genre déjà assigné, on fait confiance directement.
+        console.log(`[TempoFit DEBUG][pool] "${candidate.title}" — source non-Deezer (favoris/local/Spotify), accepté sans vérification, genre=${candidate.genre}`);
         pick = candidate;
         break;
       }
       const realGenre = await resolveDeezerGenre(candidate._deezerId);
       candidate.genre = realGenre || 'Genre inconnu';
       attempted.push(candidate);
-      if (effectiveGenres.some(g => genreRoughlyMatches(realGenre, g))) {
+      const matches = effectiveGenres.some(g => genreRoughlyMatches(realGenre, g));
+      console.log(`[TempoFit DEBUG][pool] "${candidate.title}" (${candidate.artist}) — genre réel="${realGenre}", demandé=[${effectiveGenres.join(', ')}] → ${matches ? 'MATCH ✅' : 'REJETÉ ❌'}`);
+      if (matches) {
         pick = candidate;
         break;
       }
@@ -723,6 +740,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
       pick = attempted[0] || availablePool[0];
       pick._genreMismatch = true;
       pick._isFallback = true;
+      console.warn(`[TempoFit DEBUG][pool] Aucun match genre après ${attempted.length} essais — repli sur "${pick.title}" marqué _genreMismatch`);
     }
 
     availablePool = availablePool.filter(t => t !== pick);
@@ -1888,6 +1906,13 @@ export default function App() {
                 title: randomTrack.title, artist: randomTrack.artist, genre: randomTrack.genre,
                 bpm: randomTrack.bpm, duration: randomTrack.duration, youtubeId: randomTrack.youtubeId,
                 preview: randomTrack.preview || null, // extrait audio 30s si disponible (Favoris/Spotify/Deezer)
+                // BUG CORRIGÉ : ces deux marqueurs n'étaient jamais copiés ici, alors
+                // que c'est CET objet (pas `randomTrack`) qui finit dans la playlist
+                // affichée — le badge "⚠️ Genre non confirmé" ne pouvait donc
+                // JAMAIS s'afficher, peu importe si la vérification de genre avait
+                // réellement détecté un problème ou non.
+                _genreMismatch: randomTrack._genreMismatch || false,
+                _isFallback: randomTrack._isFallback || false,
             });
             usedYoutubeIds.push(randomTrack.youtubeId);
         });
@@ -2106,7 +2131,12 @@ export default function App() {
       ...newTracks[indexToReplace], title: newRawTrack.title, artist: newRawTrack.artist,
       genre: newRawTrack.genre, bpm: newRawTrack.bpm, duration: newRawTrack.duration,
       youtubeId: newRawTrack.youtubeId, id: `track-replaced-${Date.now()}`,
-      preview: newRawTrack.preview || null
+      preview: newRawTrack.preview || null,
+      // Même bug corrigé qu'à la génération initiale : ces marqueurs n'étaient
+      // jamais copiés ici, donc le badge ne pouvait pas s'afficher après un
+      // remplacement même si la vérification de genre avait échoué.
+      _genreMismatch: newRawTrack._genreMismatch || false,
+      _isFallback: newRawTrack._isFallback || false,
     };
 
     let updatedPlaylist = { ...currentPlaylist, tracks: newTracks };
@@ -2137,6 +2167,7 @@ export default function App() {
 
     let newRawTrack = null;
     try {
+      const requestedGenres = currentPlaylist.config?.selectedGenres || ['Métal'];
       const q = `artist:"${oldTrack.artist}" bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"`;
       const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=8`);
       const stubs = (data && Array.isArray(data.data) ? data.data : []).filter(s => !usedIds.includes(`deezer-${s.id}`));
@@ -2145,14 +2176,28 @@ export default function App() {
           const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
           return full;
         }));
-        const valid = details.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm);
-        if (valid.length > 0) {
-          const pick = valid[Math.floor(Math.random() * valid.length)];
-          const realGenre = await resolveDeezerGenre(pick.id);
+        const valid = details.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm).sort(() => Math.random() - 0.5);
+        // Même garde-fou genre que le reste du moteur : même en restant sur le
+        // MÊME artiste, un artiste peut avoir des titres de genres différents
+        // (featurings, évolution de style...) — on vérifie avant de valider,
+        // jusqu'à 5 essais parmi les candidats déjà récupérés.
+        let pick = null;
+        let genreMismatch = false;
+        const attempted = [];
+        for (let attempt = 0; attempt < Math.min(5, valid.length); attempt++) {
+          const candidate = valid[attempt];
+          const realGenre = await resolveDeezerGenre(candidate.id);
+          candidate._resolvedGenre = realGenre || 'Genre inconnu';
+          attempted.push(candidate);
+          if (requestedGenres.some(g => genreRoughlyMatches(realGenre, g))) { pick = candidate; break; }
+        }
+        if (!pick && attempted.length > 0) { pick = attempted[0]; genreMismatch = true; }
+        if (pick) {
           newRawTrack = {
             title: pick.title, artist: pick.artist ? pick.artist.name : oldTrack.artist,
-            genre: realGenre || 'Genre inconnu', bpm: Math.round(parseFloat(pick.bpm)), duration: pick.duration || 180,
-            youtubeId: `deezer-${pick.id}`, preview: pick.preview || null
+            genre: pick._resolvedGenre || 'Genre inconnu', bpm: Math.round(parseFloat(pick.bpm)), duration: pick.duration || 180,
+            youtubeId: `deezer-${pick.id}`, preview: pick.preview || null,
+            ...(genreMismatch ? { _genreMismatch: true, _isFallback: true } : {})
           };
         }
       }
@@ -2175,7 +2220,12 @@ export default function App() {
       ...newTracks[indexToReplace], title: newRawTrack.title, artist: newRawTrack.artist,
       genre: newRawTrack.genre, bpm: newRawTrack.bpm, duration: newRawTrack.duration,
       youtubeId: newRawTrack.youtubeId, id: `track-replaced-${Date.now()}`,
-      preview: newRawTrack.preview || null
+      preview: newRawTrack.preview || null,
+      // Même bug corrigé qu'à la génération initiale : ces marqueurs n'étaient
+      // jamais copiés ici, donc le badge ne pouvait pas s'afficher après un
+      // remplacement même si la vérification de genre avait échoué.
+      _genreMismatch: newRawTrack._genreMismatch || false,
+      _isFallback: newRawTrack._isFallback || false,
     };
 
     let updatedPlaylist = { ...currentPlaylist, tracks: newTracks };
