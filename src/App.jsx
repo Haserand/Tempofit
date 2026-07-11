@@ -3446,7 +3446,7 @@ export default function App() {
                                     <div className={`px-4 pb-4 border-t ${inputBorder} pt-3`}>
                                       <div className="flex items-center justify-between mb-2">
                                         <span className={`text-xs font-bold ${textMuted}`}>
-                                          {hasOverride ? "Genre spécifique à cette portion" : "Aucun override — utilise le genre global de la séance"}
+                                          {hasOverride ? "Style personnalisé pour cette portion" : "Suit le style musical de toute la séance"}
                                         </span>
                                         {hasOverride && (
                                           <button onClick={() => resetSegmentGenre(segment.id)} className={`text-xs font-bold underline ${textMuted} hover:${textHighlight}`}>
