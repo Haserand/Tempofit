@@ -14,13 +14,32 @@
 // Sert de filet de sécurité quand ni les favoris Spotify ni l'API mondiale
 // ne remontent de résultat satisfaisant.
 const DATABASE_MUSIQUES = {
+  // Lot ajouté après un test réel révélant que Deezer classe la quasi-totalité du
+  // metal en "Rock" dans son propre système de genres (System of a Down, Guns N'
+  // Roses... tous résolus "Rock", jamais "Metal" — voir GENRE_EQUIVALENCE_GROUPS
+  // dans App.jsx) — un vrai filet de secours local pour "Métal" a donc du sens
+  // ici, puisqu'il ne dépend pas de la classification Deezer. BPM recoupés sur
+  // 2-3 sources (SongBPM, GetSongBPM, Tunebat) par titre, valeur commune retenue
+  // — pas une mesure officielle vérifiée par mes soins (même réserve que le reste
+  // de cette base). "Iron Man" (Black Sabbath) volontairement écarté : données de
+  // tempo trop contradictoires d'une source à l'autre (77 à 187 BPM selon la
+  // source) pour retenir une valeur fiable.
   'Métal': [
     { youtubeId: 'CSvFpBOe8eY', title: 'Chop Suey!', artist: 'System Of A Down', album: 'Toxicity', bpm: 128, duration: 210, isEmbeddable: false },
     { youtubeId: 'uRyAIyq53FY', title: 'Master of Puppets', artist: 'Metallica', album: 'Master of Puppets', bpm: 212, duration: 515, isEmbeddable: false },
     { youtubeId: 'L_jWHffIx5E', title: 'Smash', artist: 'The Offspring', album: 'Smash', bpm: 180, duration: 170, isEmbeddable: false },
     { youtubeId: 'v2H4l9RpkwM', title: 'Duality', artist: 'Slipknot', album: 'Vol. 3', bpm: 145, duration: 252, isEmbeddable: false },
     { youtubeId: 'kNGNLo8K6Fk', title: 'Numb', artist: 'Linkin Park', album: 'Meteora', bpm: 108, duration: 187, isEmbeddable: false },
-    { youtubeId: 'W3q8Od5qJio', title: 'Du Hast', artist: 'Rammstein', album: 'Sehnsucht', bpm: 125, duration: 234, isEmbeddable: false }
+    { youtubeId: 'W3q8Od5qJio', title: 'Du Hast', artist: 'Rammstein', album: 'Sehnsucht', bpm: 125, duration: 234, isEmbeddable: false },
+    { youtubeId: 'local-metal-01', title: 'Enter Sandman', artist: 'Metallica', album: 'Metallica (The Black Album)', bpm: 123, duration: 332, isEmbeddable: false },
+    { youtubeId: 'local-metal-02', title: 'Freak On a Leash', artist: 'Korn', album: 'Follow the Leader', bpm: 103, duration: 256, isEmbeddable: false },
+    { youtubeId: 'local-metal-03', title: 'Killing In The Name', artist: 'Rage Against the Machine', album: 'Rage Against the Machine', bpm: 89, duration: 314, isEmbeddable: false },
+    { youtubeId: 'local-metal-04', title: 'Bodies', artist: 'Drowning Pool', album: 'Sinner', bpm: 131, duration: 202, isEmbeddable: false },
+    { youtubeId: 'local-metal-05', title: 'Down with the Sickness', artist: 'Disturbed', album: 'The Sickness', bpm: 90, duration: 279, isEmbeddable: false },
+    { youtubeId: 'local-metal-06', title: 'Raining Blood', artist: 'Slayer', album: 'Reign in Blood', bpm: 178, duration: 254, isEmbeddable: false },
+    { youtubeId: 'local-metal-07', title: 'Walk', artist: 'Pantera', album: 'Vulgar Display of Power', bpm: 118, duration: 315, isEmbeddable: false },
+    { youtubeId: 'local-metal-08', title: 'Toxicity', artist: 'System Of A Down', album: 'Toxicity', bpm: 117, duration: 219, isEmbeddable: false },
+    { youtubeId: 'local-metal-09', title: 'Paranoid', artist: 'Black Sabbath', album: 'Paranoid', bpm: 163, duration: 168, isEmbeddable: false }
   ],
   'Rock': [
     { youtubeId: 'hTWKbfoikeg', title: 'Smells Like Teen Spirit', artist: 'Nirvana', album: 'Nevermind', bpm: 116, duration: 301, isEmbeddable: false },
