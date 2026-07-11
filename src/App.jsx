@@ -739,48 +739,39 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   // Métal/Rock) : la recherche Deezer utilise le genre comme mot-clé flou dans une
   // requête texte, pas comme un filtre strict — un titre peut matcher le BPM sans
   // vraiment correspondre au genre demandé. Le genre de chaque candidat Deezer est
-  // maintenant déjà résolu PENDANT la construction du pool ci-dessus (plus besoin
-  // de le refaire ici) — on vérifie juste qu'il correspond avant d'accepter. S'il
-  // ne correspond à aucun des genres demandés, on essaie le candidat suivant du
-  // pool (déjà récupéré, aucun appel réseau) — jusqu'à 5 essais. Si les 5
-  // échouent, on garde quand même le meilleur candidat (le plus proche en durée)
-  // plutôt que de laisser un trou dans la playlist, mais marqué `_genreMismatch`
-  // pour que ce soit visible dans l'interface plutôt que découvert après coup.
+  // déjà résolu PENDANT la construction du pool ci-dessus, donc filtrer par genre
+  // ici ne coûte plus rien en réseau.
+  //
+  // BUG CORRIGÉ (trouvé après un test réel où ~1/3 des titres restaient en repli
+  // malgré des candidats du bon genre disponibles ailleurs dans le pool) : la
+  // version précédente triait TOUT le pool par proximité de durée, puis
+  // n'examinait que les 5 plus proches pour le genre — abandonnant si ces 5-là
+  // étaient mauvais, même si un bon candidat existait plus loin dans la liste
+  // triée par durée. Le bon ordre est l'inverse : d'abord filtrer TOUT le pool
+  // pour ne garder que les titres du bon genre (gratuit, déjà résolu), PUIS
+  // trier par proximité de durée à l'intérieur de ce sous-ensemble. Si vraiment
+  // aucun candidat du pool n'a le bon genre, on retombe sur le pool complet
+  // (mieux qu'un trou dans la playlist), marqué `_genreMismatch`.
   // Les titres favoris/Spotify/locaux gardent leur genre déjà assigné, jamais
   // revérifiés ici (ce sont des choix délibérés, pas des résultats de recherche floue).
-  const MAX_GENRE_CHECK_ATTEMPTS = 5;
   const selected = [];
   let remaining = segment.durationSeconds;
   let availablePool = [...pool];
 
   while (remaining > 30 && availablePool.length > 0) {
-    availablePool.sort((a, b) => Math.abs(a.duration - remaining) - Math.abs(b.duration - remaining));
+    const genreOkPool = availablePool.filter(t => !t._deezerId || effectiveGenres.some(g => genreRoughlyMatches(t.genre, g)));
+    const hasGenreMatch = genreOkPool.length > 0;
+    const searchPool = hasGenreMatch ? genreOkPool : availablePool;
 
-    let pick = null;
-    const attempted = [];
-    for (let attempt = 0; attempt < Math.min(MAX_GENRE_CHECK_ATTEMPTS, availablePool.length); attempt++) {
-      const candidate = availablePool[attempt];
-      if (!candidate._deezerId) {
-        // Favoris / Spotify / local : genre déjà assigné, on fait confiance directement.
-        pick = candidate;
-        break;
-      }
-      attempted.push(candidate);
-      const matches = effectiveGenres.some(g => genreRoughlyMatches(candidate.genre, g));
-      console.log(`[TempoFit DEBUG][pool] "${candidate.title}" (${candidate.artist}) — genre réel="${candidate.genre}", demandé=[${effectiveGenres.join(', ')}] → ${matches ? 'MATCH ✅' : 'REJETÉ ❌'}`);
-      if (matches) {
-        pick = candidate;
-        break;
-      }
-      // Sinon : genre déjà connu mais ne correspond pas, on essaie le candidat suivant.
-    }
-    if (!pick) {
-      // Aucun des candidats testés ne correspondait au genre demandé : on garde
-      // quand même le premier (le plus proche en durée), marqué explicitement.
-      pick = attempted[0] || availablePool[0];
+    searchPool.sort((a, b) => Math.abs(a.duration - remaining) - Math.abs(b.duration - remaining));
+    const pick = searchPool[0];
+
+    if (!hasGenreMatch) {
       pick._genreMismatch = true;
       pick._isFallback = true;
-      console.warn(`[TempoFit DEBUG][pool] Aucun match genre après ${attempted.length} essais — repli sur "${pick.title}" marqué _genreMismatch`);
+      console.warn(`[TempoFit DEBUG][pool] Aucun candidat du bon genre dans tout le pool restant (${availablePool.length} titres) — repli sur "${pick.title}" (genre="${pick.genre}") marqué _genreMismatch`);
+    } else {
+      console.log(`[TempoFit DEBUG][pool] "${pick.title}" (${pick.artist}) — genre réel="${pick.genre}", demandé=[${effectiveGenres.join(', ')}] → MATCH ✅ (parmi ${genreOkPool.length} candidats valides)`);
     }
 
     availablePool = availablePool.filter(t => t !== pick);
