@@ -109,10 +109,13 @@ const deezerFetch = (deezerUrl) => safeFetchJson(DEEZER_CORS_PROXY + encodeURICo
  * décide alors d'afficher "Genre inconnu" plutôt qu'une fausse valeur.
  */
 const _deezerAlbumGenreCache = {};
-const resolveDeezerGenre = async (deezerTrackId) => {
+const resolveDeezerGenre = async (deezerTrackId, knownAlbumId = null) => {
   try {
-    const { data: trackData } = await deezerFetch(`https://api.deezer.com/track/${deezerTrackId}`);
-    const albumId = trackData && trackData.album ? trackData.album.id : null;
+    let albumId = knownAlbumId;
+    if (!albumId) {
+      const { data: trackData } = await deezerFetch(`https://api.deezer.com/track/${deezerTrackId}`);
+      albumId = trackData && trackData.album ? trackData.album.id : null;
+    }
     if (!albumId) return null;
     if (_deezerAlbumGenreCache[albumId] !== undefined) return _deezerAlbumGenreCache[albumId];
     const { data: albumData } = await deezerFetch(`https://api.deezer.com/album/${albumId}`);
@@ -600,27 +603,37 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   // BOUCLE ADAPTATIVE : une seule page (plafonnée à 25-60 titres détaillés) pouvait
   // être insuffisante pour couvrir une longue séance (marathon, plusieurs heures),
   // forçant un repli local même quand Deezer avait encore de la matière plus loin
-  // dans son classement. On va donc chercher une page Deezer SUPPLÉMENTAIRE tant
-  // que : (a) le pool ne couvre pas encore confortablement la durée du segment, ET
-  // (b) la dernière page a effectivement apporté de nouveaux titres valides. Dès
-  // que l'une des deux conditions cesse d'être vraie — assez de matière, ou le
-  // filon Deezer semble tari pour ce genre/BPM — on s'arrête et on laisse la main
-  // aux filets de secours (base locale, etc.), plutôt que de continuer à interroger
-  // Deezer indéfiniment sur un genre déjà épuisé.
+  // dans son classement.
+  //
+  // RAFFINEMENT (après un test réel sur "Métal" seul à 150 BPM : la moitié du pool
+  // récupéré était en fait du Rock/Alternative/Pop/Rap, rejeté par la vérification
+  // de genre — la boucle s'arrêtait parce qu'elle avait "assez de durée", sans
+  // savoir que la moitié de cette durée ne comptait pas vraiment) : le genre de
+  // chaque candidat est maintenant résolu ICI, pendant la construction du pool
+  // (pas différé à la sélection comme avant), et c'est la durée CUMULÉE DES
+  // TITRES QUI CORRESPONDENT VRAIMENT AU GENRE qui sert de critère d'arrêt — pas
+  // juste la durée brute BPM-valide. On continue donc à chercher tant que : (a) le
+  // pool "bon genre" ne couvre pas encore confortablement la durée du segment, ET
+  // (b) la dernière page a apporté de nouveaux titres valides (n'importe lequel,
+  // bon ou mauvais genre — un titre hors-genre sert quand même de dernier recours
+  // si vraiment rien de mieux n'existe). Coût réseau plus élevé qu'avant (le genre
+  // est résolu pour TOUS les candidats BPM-valides, pas seulement les quelques
+  // retenus), mais optimisé : l'ID d'album est déjà connu depuis le détail du
+  // titre, donc resolveDeezerGenre saute un appel réseau redondant.
   try {
     const genresForQuery = (effectiveGenres && effectiveGenres.length > 0) ? effectiveGenres : ['Autre'];
     const detailFetchCap = Math.min(Math.max(25, genresForQuery.length * 6), 60);
     const seenStubIds = new Set();
     let allResolvedCandidates = [];
-    let poolDurationSoFar = 0;
+    let genreValidDurationSoFar = 0;
     // Cible large (1.5x la durée du segment) : donne à la sélection gloutonne
     // (bin-packing) un vrai choix parmi plusieurs combinaisons possibles, plutôt
     // que tout juste de quoi remplir le segment sans marge.
     const targetPoolDuration = segment.durationSeconds * 1.5;
-    const MAX_PAGES = 4; // garde-fou : borne le pire cas (genre très pauvre) en appels réseau/latence
+    const MAX_PAGES = 6; // relevé de 4 à 6 : la vérification de genre est plus stricte que le seul BPM, peut légitimement demander plus de pages pour atteindre une couverture "bon genre" suffisante
 
     for (let page = 0; page < MAX_PAGES; page++) {
-      if (poolDurationSoFar >= targetPoolDuration) break; // déjà assez de matière
+      if (genreValidDurationSoFar >= targetPoolDuration) break; // déjà assez de matière DU BON GENRE
 
       const stubsByGenre = await Promise.all(genresForQuery.map(async (g) => {
         const keyword = DEEZER_GENRE_KEYWORDS[g] || '';
@@ -651,20 +664,29 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
       const resolved = await resolveBpmForCandidates(details.filter(Boolean), minBpm, maxBpm);
       if (resolved.length === 0) break; // cette page n'a rien apporté de valide : le filon semble tari ici
 
+      // Résolution du genre MAINTENANT (pas différée) — voir le raffinement
+      // expliqué plus haut. `full.album.id` est déjà connu, donc pas d'appel
+      // réseau supplémentaire juste pour le retrouver.
+      await fetchInBatches(resolved, 10, async (full) => {
+        const albumId = full.album ? full.album.id : null;
+        full._resolvedGenre = (await resolveDeezerGenre(full.id, albumId)) || 'Genre inconnu';
+        return full;
+      });
+
       allResolvedCandidates.push(...resolved);
-      poolDurationSoFar += resolved.reduce((sum, t) => sum + (t.duration || 180), 0);
+      resolved.forEach(t => {
+        if (genresForQuery.some(g => genreRoughlyMatches(t._resolvedGenre, g))) {
+          genreValidDurationSoFar += (t.duration || 180);
+        }
+      });
     }
 
     for (const full of allResolvedCandidates) {
-      // Genre volontairement PAS résolu ici : ça coûte 2-3 appels réseau par
-      // titre, et la plupart des candidats du pool ne seront jamais retenus par
-      // la sélection ci-dessous — autant ne le faire QUE pour les titres
-      // effectivement choisis (voir la boucle après la sélection gloutonne).
       addIfValid({
         youtubeId: `deezer-${full.id}`, title: full.title,
         artist: full.artist ? full.artist.name : 'Inconnu',
         bpm: full._resolvedBpm, duration: full.duration || 180,
-        genre: null, _deezerId: full.id, preview: full.preview || null,
+        genre: full._resolvedGenre, _deezerId: full.id, preview: full.preview || null,
         _bpmSource: full._bpmSource
       });
     }
@@ -695,11 +717,11 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   // GARDE-FOU GENRE (ajouté après le cas "Stan" d'Eminem retenu dans une playlist
   // Métal/Rock) : la recherche Deezer utilise le genre comme mot-clé flou dans une
   // requête texte, pas comme un filtre strict — un titre peut matcher le BPM sans
-  // vraiment correspondre au genre demandé. Pour chaque candidat venant de Deezer
-  // (`_deezerId` présent), on vérifie maintenant son VRAI genre (résolu via
-  // resolveDeezerGenre) AVANT de l'accepter définitivement. S'il ne correspond à
-  // aucun des genres demandés, on essaie le candidat suivant du pool (déjà
-  // récupéré, donc sans nouvel appel de recherche) — jusqu'à 5 essais. Si les 5
+  // vraiment correspondre au genre demandé. Le genre de chaque candidat Deezer est
+  // maintenant déjà résolu PENDANT la construction du pool ci-dessus (plus besoin
+  // de le refaire ici) — on vérifie juste qu'il correspond avant d'accepter. S'il
+  // ne correspond à aucun des genres demandés, on essaie le candidat suivant du
+  // pool (déjà récupéré, aucun appel réseau) — jusqu'à 5 essais. Si les 5
   // échouent, on garde quand même le meilleur candidat (le plus proche en durée)
   // plutôt que de laisser un trou dans la playlist, mais marqué `_genreMismatch`
   // pour que ce soit visible dans l'interface plutôt que découvert après coup.
@@ -719,20 +741,17 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
       const candidate = availablePool[attempt];
       if (!candidate._deezerId) {
         // Favoris / Spotify / local : genre déjà assigné, on fait confiance directement.
-        console.log(`[TempoFit DEBUG][pool] "${candidate.title}" — source non-Deezer (favoris/local/Spotify), accepté sans vérification, genre=${candidate.genre}`);
         pick = candidate;
         break;
       }
-      const realGenre = await resolveDeezerGenre(candidate._deezerId);
-      candidate.genre = realGenre || 'Genre inconnu';
       attempted.push(candidate);
-      const matches = effectiveGenres.some(g => genreRoughlyMatches(realGenre, g));
-      console.log(`[TempoFit DEBUG][pool] "${candidate.title}" (${candidate.artist}) — genre réel="${realGenre}", demandé=[${effectiveGenres.join(', ')}] → ${matches ? 'MATCH ✅' : 'REJETÉ ❌'}`);
+      const matches = effectiveGenres.some(g => genreRoughlyMatches(candidate.genre, g));
+      console.log(`[TempoFit DEBUG][pool] "${candidate.title}" (${candidate.artist}) — genre réel="${candidate.genre}", demandé=[${effectiveGenres.join(', ')}] → ${matches ? 'MATCH ✅' : 'REJETÉ ❌'}`);
       if (matches) {
         pick = candidate;
         break;
       }
-      // Sinon : genre confirmé mais ne correspond pas, on essaie le candidat suivant.
+      // Sinon : genre déjà connu mais ne correspond pas, on essaie le candidat suivant.
     }
     if (!pick) {
       // Aucun des candidats testés ne correspondait au genre demandé : on garde
