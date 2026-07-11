@@ -239,20 +239,26 @@ const pickByDurationProximity = (candidates, preferredDuration) => {
 };
 
 /**
- * Complète un titre venu de la base locale (DATABASE_MUSIQUES — jamais d'extrait
- * audio par nature) avec un extrait Deezer réel, en cherchant CE titre précis
+ * Vérifie ET enrichit un titre venu de la base locale (DATABASE_MUSIQUES —
+ * jamais d'extrait audio par nature) en cherchant CE titre précis sur Deezer,
  * par titre+artiste. Une recherche titre+artiste est beaucoup plus fiable que la
- * recherche par genre/BPM flous utilisée ailleurs dans ce moteur — normal, on ne
- * demande plus à Deezer "trouve-moi un titre qui correspond", juste "as-tu CE
- * titre précis", ce qu'il fait très bien. Vérifie aussi, si Deezer connaît un BPM
- * pour ce titre, qu'il n'est pas trop éloigné de celui codé en dur dans notre
- * base (juste un avertissement en console, ne bloque jamais le résultat — la
- * valeur locale reste la référence puisqu'elle a été vérifiée manuellement par
- * recherche croisée, voir les commentaires de DATABASE_MUSIQUES). Si Deezer n'a
- * pas ce titre du tout, le track repart sans extrait, comme avant — pas de perte
- * par rapport au comportement précédent, seulement un gain quand ça marche.
+ * recherche par genre/BPM flous utilisée ailleurs dans ce moteur — on ne demande
+ * plus à Deezer "trouve-moi un titre qui correspond", juste "as-tu CE titre
+ * précis", ce qu'il fait très bien.
+ *
+ * RENFORCÉ EN VRAI FILTRE (avant, un écart de BPM ne faisait qu'un avertissement
+ * en console, le titre était accepté quand même) : si Deezer connaît un BPM pour
+ * ce titre et qu'il tombe clairement en dehors de la fenêtre demandée
+ * (`minBpm`/`maxBpm`, avec une marge de ±15 pour ne pas être trop strict sur des
+ * différences mineures de mesure), le titre est REJETÉ (retourne `null`) plutôt
+ * que d'être gardé avec un BPM douteux. Ça permet d'être moins pointilleux sur la
+ * vérification manuelle en amont lors de l'ajout de nouveaux titres au
+ * catalogue : Deezer sert de garde-fou automatique au moment de la génération.
+ * Si Deezer n'a pas ce titre du tout (ou en cas d'erreur réseau), le titre est
+ * gardé tel quel avec la valeur locale, faute de pouvoir la vérifier — pas de
+ * rejet par excès de prudence sur un simple échec technique.
  */
-const enrichLocalTrackWithDeezerPreview = async (track) => {
+const verifyAndEnrichLocalTrack = async (track, minBpm, maxBpm) => {
   try {
     const q = `artist:"${track.artist}" track:"${track.title}"`;
     const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=1`);
@@ -260,8 +266,12 @@ const enrichLocalTrackWithDeezerPreview = async (track) => {
     if (!stub) return track;
     const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
     if (!full) return track;
-    if (full.bpm && Math.abs(parseFloat(full.bpm) - track.bpm) > 15) {
-      console.warn(`[TempoFit] Écart notable entre le BPM local (${track.bpm}) et celui trouvé sur Deezer (${full.bpm}) pour "${track.title}" — valeur locale conservée telle quelle.`);
+    if (full.bpm && parseFloat(full.bpm) > 0) {
+      const deezerBpm = parseFloat(full.bpm);
+      if (deezerBpm < minBpm - 15 || deezerBpm > maxBpm + 15) {
+        console.warn(`[TempoFit] "${track.title}" REJETÉ : BPM local (${track.bpm}) contredit par Deezer (${deezerBpm}), hors fenêtre ${minBpm}-${maxBpm} (±15).`);
+        return null;
+      }
     }
     return full.preview ? { ...track, preview: full.preview } : track;
   } catch (e) {
@@ -528,7 +538,16 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   let suitable = availableTracks.filter(t => t.bpm >= minBpm && t.bpm <= maxBpm && !localExcludeIds.includes(t.youtubeId));
 
   if (suitable.length > 0) {
-      return await enrichLocalTrackWithDeezerPreview(pickByDurationProximity(suitable, preferredDuration));
+      // Vérification AVANT de choisir (pas après) : un titre dont le BPM local est
+      // contredit par Deezer est écarté ici — voir verifyAndEnrichLocalTrack. Si
+      // aucun candidat ne survit à la vérification, on continue vers le repli
+      // extrême ci-dessous plutôt que de forcer un mauvais choix.
+      const verifiedSuitable = (await fetchInBatches(suitable, 5, async (t) => {
+        return await verifyAndEnrichLocalTrack(t, minBpm, maxBpm);
+      })).filter(Boolean);
+      if (verifiedSuitable.length > 0) {
+        return pickByDurationProximity(verifiedSuitable, preferredDuration);
+      }
   }
 
   // GetSongBPM SUPPRIMÉ ICI (ancienne étape 5) : ne fournissait jamais d'extrait
@@ -562,8 +581,17 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
     if (fallbackPool.length === 0) fallbackPool = allTracksFlat; // vraiment tout épuisé : on autorise la répétition en tout dernier recours
   }
   const sortedByProximity = [...fallbackPool].sort((a, b) => Math.abs(a.bpm - targetBpm) - Math.abs(b.bpm - targetBpm));
-  const topCandidates = sortedByProximity.slice(0, 3);
-  const picked = await enrichLocalTrackWithDeezerPreview(pickByDurationProximity(topCandidates, preferredDuration));
+  // Dernier recours garanti : on tente quand même la vérification Deezer sur les
+  // 8 candidats les plus proches en BPM, mais SANS jamais renvoyer `null` — si
+  // aucun ne passe la vérification, on accepte le meilleur candidat non vérifié
+  // plutôt que de laisser un trou dans la playlist (c'est littéralement le rôle
+  // de cette étape : ne jamais échouer).
+  const topCandidatesForCheck = sortedByProximity.slice(0, 8);
+  const verifiedCandidates = (await fetchInBatches(topCandidatesForCheck, 5, async (t) => {
+    return await verifyAndEnrichLocalTrack(t, targetBpm - tolerance, targetBpm + tolerance);
+  })).filter(Boolean);
+  const finalCandidates = verifiedCandidates.length > 0 ? verifiedCandidates : sortedByProximity.slice(0, 3);
+  const picked = pickByDurationProximity(finalCandidates, preferredDuration);
   return { ...picked, _isFallback: true };
 };
 
@@ -772,14 +800,16 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   let localPool = [];
   const validGenres = effectiveGenres && effectiveGenres.length > 0 ? effectiveGenres : ['Métal'];
   validGenres.forEach(g => { if (DATABASE_MUSIQUES[g]) localPool = [...localPool, ...DATABASE_MUSIQUES[g].map(t => ({ ...t, genre: g }))]; });
-  localPool
-    .filter(t => t.bpm >= minBpm && t.bpm <= maxBpm && !localExcludeIds.includes(t.youtubeId))
-    // `_isLocalDB` : sert uniquement à repérer, après la sélection, quels titres
-    // méritent une recherche Deezer titre+artiste pour récupérer un extrait
-    // audio (voir enrichLocalTrackWithDeezerPreview) — pas la peine de le faire
-    // pour tout le pool, seulement pour les titres réellement retenus.
-    .map(t => ({ ...t, _isLocalDB: true }))
-    .forEach(addIfValid);
+  const localCandidates = localPool.filter(t => t.bpm >= minBpm && t.bpm <= maxBpm && !localExcludeIds.includes(t.youtubeId));
+  // Vérification + extrait AVANT d'entrer dans le pool de sélection (pas après-coup) :
+  // un titre dont le BPM codé en dur est contredit par Deezer est écarté ici, avant
+  // même de pouvoir être choisi — voir verifyAndEnrichLocalTrack pour le détail du
+  // rejet. Ça permet d'être moins pointilleux sur la vérification manuelle en amont
+  // en confiant ce contrôle à Deezer au moment de la génération.
+  const verifiedLocal = (await fetchInBatches(localCandidates, 5, async (t) => {
+    return await verifyAndEnrichLocalTrack(t, minBpm, maxBpm);
+  })).filter(Boolean);
+  verifiedLocal.forEach(addIfValid);
 
   // Sélection gloutonne SUR TOUT LE POOL : à chaque étape, on compare le temps
   // restant à TOUS les candidats encore disponibles (pas 2-3), et on retire celui
@@ -867,22 +897,9 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
     selected.push(extra);
   }
 
-  // Le genre est maintenant résolu EN AMONT, pendant la sélection elle-même (voir
-  // la vérification de genre ci-dessus) — plus besoin de le résoudre après coup ici.
-  //
-  // ENRICHISSEMENT AUDIO DES TITRES LOCAUX : maintenant que la sélection est
-  // arrêtée, on cherche un extrait Deezer pour chaque titre venu de la base
-  // locale (`_isLocalDB`) — recherche titre+artiste, fiable, pas la recherche
-  // floue par genre/BPM utilisée ailleurs. Uniquement sur les titres RETENUS,
-  // pas tout le pool de candidats écartés, pour ne pas payer le coût réseau pour
-  // rien (même logique que la résolution de genre différée plus haut).
-  await fetchInBatches(selected.filter(t => t._isLocalDB), 5, async (t) => {
-    const enriched = await enrichLocalTrackWithDeezerPreview(t);
-    t.preview = enriched.preview;
-    return t;
-  });
-
-  selected.forEach(t => { delete t._deezerId; delete t._isLocalDB; });
+  // Le genre ET la vérification/extrait des titres locaux sont maintenant résolus
+  // EN AMONT, avant même la sélection (voir plus haut) — plus rien à faire après coup ici.
+  selected.forEach(t => { delete t._deezerId; });
 
   return selected;
 };
