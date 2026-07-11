@@ -918,17 +918,42 @@ export default function App() {
         return full;
       }));
 
-      // Fenêtre large (40-220 BPM, quasi tout le spectre musical courant) : cette
-      // recherche n'a pas de BPM cible comme le moteur de génération, donc on ne
-      // peut pas resserrer la fenêtre de détection — mais c'est quand même bien
-      // mieux que d'écarter purement et simplement tout titre sans BPM connu chez
-      // Deezer. Réutilise `resolveBpmForCandidates` (musicEngine.js), déjà écrite
-      // et éprouvée pour le moteur de génération, jamais utilisée jusqu'ici dans
-      // cette recherche manuelle — trou trouvé après un retour utilisateur :
-      // "Baby Lasagna" (Eurovision 2024, existe bien sur Deezer avec un extrait)
-      // n'avait simplement pas de BPM renseigné par Deezer, donc il était
-      // purement invisible malgré un extrait audio disponible pour le détecter.
-      const resolvedCandidates = await resolveBpmForCandidates(detailedTracks.filter(Boolean), 40, 220);
+      // 3 niveaux de résolution BPM, du plus fiable au plus incertain :
+      //   1. Deezer (déjà dans `full.bpm` si renseigné) — la source la plus fiable.
+      //   2. GetSongBPM — vraie base de données communautaire (titre + artiste),
+      //      DÉJÀ utilisée ailleurs dans l'app (`resolveRealBPM`, pour la synchro
+      //      Spotify) mais jamais réutilisée ici jusqu'à présent : c'est cette
+      //      même source qui donne 128 BPM pour "Rim Tim Tagi Dim" (vérifié), pas
+      //      une estimation — un vrai chiffre indexé, pas un pari sur une octave.
+      //   3. Détection audio en direct (voir plus haut, `resolveBpmForCandidates`)
+      //      — dernier recours SEULEMENT si les 2 sources fiables au-dessus n'ont
+      //      rien donné, gardée pour ne jamais laisser un titre invisible si
+      //      aucune base ne le connaît, mais son ambiguïté d'octave documentée
+      //      reste entière (voir `_bpmSource` exposé à l'affichage plus bas).
+      const validDetailedTracks = detailedTracks.filter(Boolean);
+      const withDeezerBpm = validDetailedTracks
+        .filter(t => t.bpm && parseFloat(t.bpm) > 0)
+        .map(t => ({ ...t, _resolvedBpm: Math.round(parseFloat(t.bpm)), _bpmSource: 'deezer' }));
+      const missingBpm = validDetailedTracks.filter(t => !t.bpm || parseFloat(t.bpm) <= 0);
+
+      const withGetSongBpm = (await Promise.all(missingBpm.map(async (t) => {
+        try {
+          const cleanTitle = (t.title || '').replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').split('-')[0].trim();
+          const cleanArtist = (t.artist ? t.artist.name : '').split(',')[0].split('&')[0].trim();
+          const queryStr = "song:" + cleanTitle + " artist:" + cleanArtist;
+          const res = await fetch(`/api/getsongbpm?type=both&lookup=${encodeURIComponent(queryStr)}`);
+          const data = await res.json();
+          const tempo = (data && data.search && data.search.length > 0) ? parseInt(data.search[0].tempo) : null;
+          return (tempo && tempo > 0) ? { ...t, _resolvedBpm: tempo, _bpmSource: 'getsongbpm' } : null;
+        } catch (e) {
+          return null; // échec silencieux : ce titre retombe simplement au niveau 3 ci-dessous
+        }
+      }))).filter(Boolean);
+
+      const stillMissing = missingBpm.filter(t => !withGetSongBpm.some(g => g.id === t.id));
+      const detectedCandidates = await resolveBpmForCandidates(stillMissing, 40, 220);
+
+      const resolvedCandidates = [...withDeezerBpm, ...withGetSongBpm, ...detectedCandidates];
 
       const formattedResults = await Promise.all(
         resolvedCandidates.map(async (t) => {
@@ -1019,7 +1044,9 @@ export default function App() {
               <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${normalizeGenreForDisplay(track.genre)}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé.">⚠️ Genre non confirmé</span>}</div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <span className={"font-mono text-sm font-bold " + textColorClass}>{track.bpm} BPM</span>
+              <span className={"font-mono text-sm font-bold " + textColorClass} title={track._bpmSource === 'detected' ? "BPM estimé par analyse audio (Deezer n'a pas cette donnée pour ce titre) — peut être imprécis, y compris d'un facteur 2 dans de rares cas (rythme deux fois trop lent ou trop rapide détecté)." : undefined}>
+                {track._bpmSource === 'detected' ? '~' : ''}{track.bpm} BPM
+              </span>
               {isAlreadyFavorited ? (
                 <Check size={16} className="text-green-500" />
               ) : (
