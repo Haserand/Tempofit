@@ -809,7 +809,10 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   const verifiedLocal = (await fetchInBatches(localCandidates, 5, async (t) => {
     return await verifyAndEnrichLocalTrack(t, minBpm, maxBpm);
   })).filter(Boolean);
-  verifiedLocal.forEach(addIfValid);
+  // `_isLocalDB` : distingue ce catalogue codé en dur des favoris/Spotify (eux
+  // aussi sans `_deezerId`, mais ce sont des choix explicites de l'utilisateur,
+  // pas un filet de secours) — nécessaire pour la priorité à 4 niveaux ci-dessous.
+  verifiedLocal.map(t => ({ ...t, _isLocalDB: true })).forEach(addIfValid);
 
   // Sélection gloutonne SUR TOUT LE POOL : à chaque étape, on compare le temps
   // restant à TOUS les candidats encore disponibles (pas 2-3), et on retire celui
@@ -833,29 +836,31 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   // aucun candidat du pool n'a le bon genre, on retombe sur le pool complet
   // (mieux qu'un trou dans la playlist), marqué `_genreMismatch`.
   //
-  // PRIORITÉ RAFFINÉE (trouvé après un autre test réel : une fois l'équivalence
-  // Rock/Métal ajoutée, la playlist se remplissait presque entièrement de "Rock"
-  // accepté par équivalence, alors que le catalogue local "Métal" fraîchement
-  // enrichi — 15 vrais titres metal — n'était quasiment jamais utilisé). Trois
-  // niveaux de priorité, du meilleur au pire :
-  //   1. Match DIRECT (`isDirectGenreMatch`) : genre Deezer vraiment "Metal", ou
-  //      titre du catalogue local (déjà assigné au bon genre par construction).
-  //   2. Match par ÉQUIVALENCE uniquement (Rock accepté pour Métal) : utilisé
-  //      SEULEMENT si le niveau 1 n'a pas assez de candidats pour ce segment.
-  //   3. Repli genre non confirmé (comme avant) si vraiment rien ne correspond.
-  // Les titres favoris/Spotify/locaux comptent comme niveau 1 sans revérification
-  // (ce sont des choix délibérés ou déjà assignés au bon genre).
+  // PRIORITÉ RAFFINÉE UNE 2E FOIS (sur demande explicite : "je veux que Deezer en
+  // direct soit toujours privilégié sur mon catalogue codé en dur, qui ne doit
+  // servir qu'en dernier recours dans sa propre catégorie") — 4 niveaux maintenant :
+  //   1. FAVORIS/Spotify : choix explicites de l'utilisateur, jamais concurrencés.
+  //   2. Deezer EN DIRECT, genre confirmé : la vraie source "fraîche", privilégiée
+  //      sur le catalogue local même quand les deux ont un genre tout aussi valide.
+  //   3. CATALOGUE LOCAL (déjà vérifié par Deezer, voir plus haut) : utilisé
+  //      SEULEMENT si Deezer en direct n'a pas assez de candidats pour ce segment.
+  //   4. Équivalence uniquement (Rock accepté pour Métal) : dernier filet avant
+  //      le repli "genre non confirmé".
   const selected = [];
   let remaining = segment.durationSeconds;
   let availablePool = [...pool];
 
   while (remaining > 30 && availablePool.length > 0) {
-    const directMatchPool = availablePool.filter(t => !t._deezerId || effectiveGenres.some(g => isDirectGenreMatch(t.genre, g)));
-    const equivalenceMatchPool = availablePool.filter(t => t._deezerId && !directMatchPool.includes(t) && effectiveGenres.some(g => genreRoughlyMatches(t.genre, g)));
+    const favoritesPool = availablePool.filter(t => !t._deezerId && !t._isLocalDB);
+    const deezerDirectPool = availablePool.filter(t => t._deezerId && effectiveGenres.some(g => isDirectGenreMatch(t.genre, g)));
+    const localPoolMatches = availablePool.filter(t => t._isLocalDB);
+    const equivalencePool = availablePool.filter(t => t._deezerId && !deezerDirectPool.includes(t) && effectiveGenres.some(g => genreRoughlyMatches(t.genre, g)));
 
     let searchPool, matchLevel;
-    if (directMatchPool.length > 0) { searchPool = directMatchPool; matchLevel = 'direct'; }
-    else if (equivalenceMatchPool.length > 0) { searchPool = equivalenceMatchPool; matchLevel = 'equivalence'; }
+    if (favoritesPool.length > 0) { searchPool = favoritesPool; matchLevel = 'favoris'; }
+    else if (deezerDirectPool.length > 0) { searchPool = deezerDirectPool; matchLevel = 'deezer-direct'; }
+    else if (localPoolMatches.length > 0) { searchPool = localPoolMatches; matchLevel = 'local'; }
+    else if (equivalencePool.length > 0) { searchPool = equivalencePool; matchLevel = 'equivalence'; }
     else { searchPool = availablePool; matchLevel = 'none'; }
 
     searchPool.sort((a, b) => Math.abs(a.duration - remaining) - Math.abs(b.duration - remaining));
@@ -865,10 +870,8 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
       pick._genreMismatch = true;
       pick._isFallback = true;
       console.warn(`[TempoFit DEBUG][pool] Aucun candidat du bon genre dans tout le pool restant (${availablePool.length} titres) — repli sur "${pick.title}" (genre="${pick.genre}") marqué _genreMismatch`);
-    } else if (matchLevel === 'equivalence') {
-      console.log(`[TempoFit DEBUG][pool] "${pick.title}" (${pick.artist}) — genre réel="${pick.genre}", demandé=[${effectiveGenres.join(', ')}] → MATCH par équivalence uniquement (${directMatchPool.length} match direct dispo, ${equivalenceMatchPool.length} par équivalence)`);
     } else {
-      console.log(`[TempoFit DEBUG][pool] "${pick.title}" (${pick.artist}) — genre réel="${pick.genre}", demandé=[${effectiveGenres.join(', ')}] → MATCH DIRECT ✅ (parmi ${directMatchPool.length} candidats directs)`);
+      console.log(`[TempoFit DEBUG][pool] "${pick.title}" (${pick.artist}) — genre réel="${pick.genre}", demandé=[${effectiveGenres.join(', ')}] → niveau "${matchLevel}" (favoris:${favoritesPool.length}, deezer direct:${deezerDirectPool.length}, local:${localPoolMatches.length}, équivalence:${equivalencePool.length})`);
     }
 
     availablePool = availablePool.filter(t => t !== pick);
@@ -899,7 +902,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
 
   // Le genre ET la vérification/extrait des titres locaux sont maintenant résolus
   // EN AMONT, avant même la sélection (voir plus haut) — plus rien à faire après coup ici.
-  selected.forEach(t => { delete t._deezerId; });
+  selected.forEach(t => { delete t._deezerId; delete t._isLocalDB; });
 
   return selected;
 };
