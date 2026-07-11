@@ -553,6 +553,23 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
  * extrême) pour terminer, qui garantit qu'on ne reste jamais bloqué.
  */
 /**
+ * Genres traités comme équivalents pour la VÉRIFICATION uniquement (pas pour la
+ * sélection dans l'UI, qui reste séparée) — constaté en pratique via les logs de
+ * diagnostic : Deezer classe la quasi-totalité de ce qu'on appellerait "metal"
+ * sous "Rock" dans son propre système de genres (System of a Down, Guns N'
+ * Roses... tous résolus "Rock" chez Deezer, jamais "Metal"). Sans cette
+ * équivalence, "Métal" seul devenait un genre presque impossible à satisfaire
+ * strictement via Deezer, peu importe le nombre de pages explorées — pas un bug,
+ * une vraie limite de la taxonomie Deezer par rapport à la nôtre. Choix assumé :
+ * l'utilisateur garde de toute façon le contrôle via le BPM et le remplacement
+ * manuel d'un titre si le résultat ne lui convient pas.
+ */
+const GENRE_EQUIVALENCE_GROUPS = {
+  'Métal': ['metal', 'rock'],
+  'Rock': ['rock', 'metal'],
+};
+
+/**
  * Compare le VRAI genre Deezer d'un titre (résolu via resolveDeezerGenre — chaîne
  * officielle titre → album → genre_id → nom) au genre interne demandé par
  * l'utilisateur (ex. "Métal", "Rap"). Comparaison tolérante (accents/casse
@@ -560,7 +577,8 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
  * ne correspondent pas toujours exactement aux nôtres (ex. Deezer catégorise
  * parfois "Rap/Hip Hop" en un seul intitulé). S'appuie sur DEEZER_GENRE_KEYWORDS
  * plutôt que sur le nom interne brut, puisque c'est déjà la correspondance
- * qu'on maintient entre nos genres et le vocabulaire Deezer.
+ * qu'on maintient entre nos genres et le vocabulaire Deezer. Complétée par
+ * GENRE_EQUIVALENCE_GROUPS pour le cas Rock/Métal (voir ci-dessus).
  */
 const genreRoughlyMatches = (realGenre, requestedGenre) => {
   if (!realGenre) return false;
@@ -568,7 +586,10 @@ const genreRoughlyMatches = (realGenre, requestedGenre) => {
   const real = normalize(realGenre);
   const requested = normalize(requestedGenre);
   const keyword = normalize(DEEZER_GENRE_KEYWORDS[requestedGenre] || requestedGenre);
-  return real.includes(keyword) || keyword.includes(real) || real.includes(requested) || requested.includes(real);
+  const directMatch = real.includes(keyword) || keyword.includes(real) || real.includes(requested) || requested.includes(real);
+  if (directMatch) return true;
+  const equivalents = GENRE_EQUIVALENCE_GROUPS[requestedGenre];
+  return equivalents ? equivalents.some(eq => real.includes(eq) || eq.includes(real)) : false;
 };
 
 const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites, spotifyTrackPool, historyExcludeIds = []) => {
