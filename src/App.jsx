@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Footprints, Flame, Heart, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, Target, History, MessageCircle, ExternalLink, GripVertical, MoreVertical } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine, ReferenceArea, PieChart, Pie, Cell } from 'recharts';
-import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, DEEZER_GENRE_KEYWORDS, getGenreLocalDepthWarning } from './musicCatalog';
+import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, DEEZER_GENRE_KEYWORDS, getGenreLocalDepthWarning, GENRE_EQUIVALENCE_GROUPS, isDirectGenreMatch, genreRoughlyMatches, TITLE_STYLE_OVERRIDE_KEYWORDS, detectTitleStyleConflict } from './musicCatalog';
 import { TROPHIES_DATA, NAUGHTY_ROUTINE_NAMES, WORKOUT_TYPES, NAUGHTY_WORKOUT_LABELS, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_ORDER, WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appConfig';
 
 // =====================================================================================
@@ -228,6 +228,12 @@ const resolveBpmForCandidates = async (details, minBpm, maxBpm) => {
  * déterministe et répétitif. Si `preferredDuration` n'est pas fourni, comportement
  * inchangé (choix uniformément aléatoire).
  */
+// Seuil "titre long" utilisé par l'option allowLongTracks — 6 minutes, au-delà
+// desquelles un titre peut monopoliser une grosse partie d'une séance courte
+// juste parce que sa durée comble bien ce qu'il reste à remplir (voir addIfValid
+// dans buildSegmentTracks et les filtres équivalents dans getSingleMatchingTrack).
+const MAX_TRACK_DURATION = 360;
+
 const pickByDurationProximity = (candidates, preferredDuration) => {
   if (!preferredDuration || candidates.length <= 1) {
     return candidates[Math.floor(Math.random() * candidates.length)];
@@ -335,7 +341,7 @@ const searchDeezerPage = async (q, limit, maxIndex = 100) => {
   return stubs;
 };
 
-const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYoutubeIds, preferredDuration, candidateCap) => {
+const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYoutubeIds, preferredDuration, candidateCap, allowLongTracks = false) => {
   const stubsByGenre = await Promise.all(genresForQuery.map(async (g) => {
     const keyword = DEEZER_GENRE_KEYWORDS[g] || '';
     const q = `bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
@@ -364,7 +370,11 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYout
     const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
     return full;
   });
-  const validCandidates = await resolveBpmForCandidates(detailedCandidates.filter(Boolean), minBpm, maxBpm);
+  let validCandidates = await resolveBpmForCandidates(detailedCandidates.filter(Boolean), minBpm, maxBpm);
+  // Filtre de durée (voir MAX_TRACK_DURATION) : même logique que addIfValid dans
+  // buildSegmentTracks, appliquée ici pour que le remplacement manuel d'un titre
+  // et la cascade de repli respectent aussi ce réglage.
+  if (!allowLongTracks) validCandidates = validCandidates.filter(c => (c.duration || 0) <= MAX_TRACK_DURATION);
   if (validCandidates.length === 0) return null;
 
   // Même garde-fou genre que dans buildSegmentTracks (voir le commentaire détaillé
@@ -386,8 +396,13 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYout
     const realGenre = await resolveDeezerGenre(candidate.id);
     candidate._resolvedGenre = realGenre || 'Genre inconnu';
     attempted.push(candidate);
-    const matches = genresForQuery.some(g => genreRoughlyMatches(realGenre, g));
-    console.log(`[TempoFit DEBUG][searchDeezerForGenres] "${candidate.title}" (${candidate.artist ? candidate.artist.name : '?'}) — genre réel="${realGenre}", demandé=[${genresForQuery.join(', ')}] → ${matches ? 'MATCH ✅' : 'REJETÉ ❌'}`);
+    // GARDE-FOU TITRE : même vérification que dans buildSegmentTracks (voir
+    // detectTitleStyleConflict) — un titre peut explicitement indiquer un style
+    // différent (remix hardstyle, version acoustique...) même si le genre_id de
+    // l'album dit le contraire.
+    const titleConflict = detectTitleStyleConflict(candidate.title, genresForQuery);
+    const matches = !titleConflict && genresForQuery.some(g => genreRoughlyMatches(realGenre, g));
+    console.log(`[TempoFit DEBUG][searchDeezerForGenres] "${candidate.title}" (${candidate.artist ? candidate.artist.name : '?'}) — genre réel="${realGenre}", demandé=[${genresForQuery.join(', ')}]${titleConflict ? ` — conflit de titre ("${titleConflict}")` : ''} → ${matches ? 'MATCH ✅' : 'REJETÉ ❌'}`);
     if (matches) {
       full = candidate;
       break;
@@ -413,7 +428,7 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYout
   };
 };
 
-const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excludeYoutubeIds = [], favorites = null, spotifyTrackPool = [], preferredDuration = null, historyExcludeIds = []) => {
+const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excludeYoutubeIds = [], favorites = null, spotifyTrackPool = [], preferredDuration = null, historyExcludeIds = [], allowLongTracks = false) => {
   const minBpm = targetBpm - tolerance;
   const maxBpm = targetBpm + tolerance;
 
@@ -495,7 +510,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   const genresForQuery = (selectedGenres && selectedGenres.length > 0) ? selectedGenres : ['Autre'];
   const candidateCap = Math.min(Math.max(8, genresForQuery.length * 3), 24);
   try {
-    const exactMatch = await searchDeezerForGenres(genresForQuery, minBpm, maxBpm, excludeYoutubeIds, preferredDuration, candidateCap);
+    const exactMatch = await searchDeezerForGenres(genresForQuery, minBpm, maxBpm, excludeYoutubeIds, preferredDuration, candidateCap, allowLongTracks);
     if (exactMatch) return exactMatch;
   } catch (e) {
     // Échec silencieux (proxy indisponible, hors-ligne...) : on continue vers la tentative suivante.
@@ -508,7 +523,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   //      s'écoute pas du tout. Marqué `_isFallback`.
   try {
     const widenedTolerance = Math.min(tolerance * 2, 40);
-    const widenedMatch = await searchDeezerForGenres(genresForQuery, targetBpm - widenedTolerance, targetBpm + widenedTolerance, excludeYoutubeIds, preferredDuration, candidateCap);
+    const widenedMatch = await searchDeezerForGenres(genresForQuery, targetBpm - widenedTolerance, targetBpm + widenedTolerance, excludeYoutubeIds, preferredDuration, candidateCap, allowLongTracks);
     if (widenedMatch) return { ...widenedMatch, _isFallback: true };
   } catch (e) {
     // Échec silencieux : on continue vers le fallback local.
@@ -531,10 +546,15 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   try {
     const stubs = await searchArtistsForBpm(catalogArtists, minBpm, maxBpm, localExcludeIds, 6, 5);
     if (stubs.length > 0) {
-      const details = (await fetchInBatches(stubs.slice(0, 20), 10, async (s) => {
+      let details = (await fetchInBatches(stubs.slice(0, 20), 10, async (s) => {
         const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
         return full;
       })).filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm && f.preview);
+      // GARDE-FOU TITRE (voir detectTitleStyleConflict) : même si l'artiste est
+      // choisi comme représentatif du genre, un remix/une version particulière
+      // de ce titre peut être dans un tout autre style (ex. remix hardstyle).
+      details = details.filter(f => !detectTitleStyleConflict(f.title, validGenres));
+      if (!allowLongTracks) details = details.filter(f => (f.duration || 0) <= MAX_TRACK_DURATION);
       if (details.length > 0) {
         const picked = pickByDurationProximity(details, preferredDuration);
         return {
@@ -570,7 +590,13 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
         return full;
       })).filter(f => f && f.bpm && parseFloat(f.bpm) > 0);
       if (details.length > 0) {
-        const sortedByProximity = [...details].sort((a, b) => Math.abs(parseFloat(a.bpm) - targetBpm) - Math.abs(parseFloat(b.bpm) - targetBpm));
+        // Comme pour les autres derniers recours de cette cascade : on essaie de
+        // respecter le filtre de durée, mais on l'ignore plutôt que de renvoyer
+        // un trou si vraiment aucun candidat de cet artiste ne le respecte —
+        // cette étape est garantie non-vide, ça reste la priorité absolue.
+        const durationFiltered = allowLongTracks ? details : details.filter(f => (f.duration || 0) <= MAX_TRACK_DURATION);
+        const finalDetails = durationFiltered.length > 0 ? durationFiltered : details;
+        const sortedByProximity = [...finalDetails].sort((a, b) => Math.abs(parseFloat(a.bpm) - targetBpm) - Math.abs(parseFloat(b.bpm) - targetBpm));
         const picked = pickByDurationProximity(sortedByProximity.slice(0, 3), preferredDuration);
         return {
           youtubeId: `deezer-${picked.id}`, title: picked.title,
@@ -596,6 +622,11 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   };
 };
 
+// GENRE_EQUIVALENCE_GROUPS, TITLE_STYLE_OVERRIDE_KEYWORDS, isDirectGenreMatch,
+// genreRoughlyMatches, detectTitleStyleConflict : voir musicCatalog.js (importés
+// en haut de ce fichier) — donnée pure + fonctions de lecture pure, déplacées là
+// où elles auraient dû être dès le départ, aux côtés de DEEZER_GENRE_KEYWORDS.
+
 /**
  * Construit l'ensemble des titres d'un SEGMENT (une phase de la séance à un BPM
  * donné), en visant sa durée cible comme un vrai problème de "somme de
@@ -612,60 +643,6 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
  * durée cible, on retombe sur `getSingleMatchingTrack` (GetSongBPM + repli
  * extrême) pour terminer, qui garantit qu'on ne reste jamais bloqué.
  */
-/**
- * Genres traités comme équivalents pour la VÉRIFICATION uniquement (pas pour la
- * sélection dans l'UI, qui reste séparée) — constaté en pratique via les logs de
- * diagnostic : Deezer classe la quasi-totalité de ce qu'on appellerait "metal"
- * sous "Rock" dans son propre système de genres (System of a Down, Guns N'
- * Roses... tous résolus "Rock" chez Deezer, jamais "Metal"). Sans cette
- * équivalence, "Métal" seul devenait un genre presque impossible à satisfaire
- * strictement via Deezer, peu importe le nombre de pages explorées — pas un bug,
- * une vraie limite de la taxonomie Deezer par rapport à la nôtre. Choix assumé :
- * l'utilisateur garde de toute façon le contrôle via le BPM et le remplacement
- * manuel d'un titre si le résultat ne lui convient pas.
- */
-const GENRE_EQUIVALENCE_GROUPS = {
-  'Métal': ['metal', 'rock'],
-  'Rock': ['rock', 'metal'],
-};
-
-/**
- * Correspondance DIRECTE entre le VRAI genre Deezer d'un titre (résolu via
- * resolveDeezerGenre) et le genre interne demandé (ex. "Métal", "Rap").
- * Comparaison tolérante (accents/casse ignorés, correspondance partielle dans un
- * sens ou l'autre) car les noms Deezer ne correspondent pas toujours exactement
- * aux nôtres (ex. Deezer catégorise parfois "Rap/Hip Hop" en un seul intitulé).
- * Ne tient PAS compte de GENRE_EQUIVALENCE_GROUPS — voir `genreRoughlyMatches`
- * pour la version élargie. Séparée pour permettre de prioriser les vrais matchs
- * (ceux-ci, ou le catalogue local) sur les matchs d'équivalence uniquement
- * (voir la sélection dans buildSegmentTracks).
- */
-const isDirectGenreMatch = (realGenre, requestedGenre) => {
-  if (!realGenre) return false;
-  const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const real = normalize(realGenre);
-  const requested = normalize(requestedGenre);
-  const keyword = normalize(DEEZER_GENRE_KEYWORDS[requestedGenre] || requestedGenre);
-  return real.includes(keyword) || keyword.includes(real) || real.includes(requested) || requested.includes(real);
-};
-
-/**
- * Version élargie de isDirectGenreMatch, qui accepte aussi les équivalences
- * définies dans GENRE_EQUIVALENCE_GROUPS (ex. Rock accepté pour une demande
- * Métal, vu que Deezer classe la quasi-totalité du metal en "Rock"). À utiliser
- * pour la validation finale (accepter/rejeter un candidat), PAS pour décider
- * quels candidats prioriser entre eux — voir buildSegmentTracks, où les matchs
- * directs sont préférés aux matchs d'équivalence quand les deux sont disponibles.
- */
-const genreRoughlyMatches = (realGenre, requestedGenre) => {
-  if (isDirectGenreMatch(realGenre, requestedGenre)) return true;
-  if (!realGenre) return false;
-  const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const real = normalize(realGenre);
-  const equivalents = GENRE_EQUIVALENCE_GROUPS[requestedGenre];
-  return equivalents ? equivalents.some(eq => real.includes(eq) || eq.includes(real)) : false;
-};
-
 const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites, spotifyTrackPool, historyExcludeIds = []) => {
   const minBpm = segment.bpm - config.bpmTolerance;
   const maxBpm = segment.bpm + config.bpmTolerance;
@@ -676,8 +653,15 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   // séance (config.selectedGenres) — sinon comportement inchangé.
   const effectiveGenres = (segment.selectedGenres && segment.selectedGenres.length > 0) ? segment.selectedGenres : config.selectedGenres;
 
+  // Filtre de durée : si l'utilisateur n'autorise pas les titres de plus de
+  // 6 minutes (option par défaut), on les écarte ici — point de passage central
+  // pour TOUTES les sources (favoris, Spotify, Deezer, catalogue d'artistes),
+  // pour ne jamais laisser un morceau atypiquement long (ex. "April" de Deep
+  // Purple, ~12 min) monopoliser une grosse partie de la séance juste parce
+  // qu'il comble bien le temps restant.
   const addIfValid = (t) => {
     if (t && typeof t.bpm === 'number' && t.bpm >= minBpm && t.bpm <= maxBpm && t.duration && t.youtubeId && !seenIds.has(t.youtubeId)) {
+      if (!config.allowLongTracks && t.duration > MAX_TRACK_DURATION) return;
       pool.push(t);
       seenIds.add(t.youtubeId); // évite aussi les doublons À L'INTÉRIEUR du pool lui-même
     }
@@ -864,10 +848,17 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   let availablePool = [...pool];
 
   while (remaining > 30 && availablePool.length > 0) {
+    // GARDE-FOU TITRE (trouvé après un test réel : "Let Her Go (Selecta Hardstyle
+    // Remix Edit)" accepté comme Métal/Rock parce que l'album d'origine était
+    // classé ainsi chez Deezer, alors que le titre dit explicitement "hardstyle"
+    // — voir detectTitleStyleConflict) : appliqué à toutes les sources SAUF les
+    // favoris explicites (choix délibéré de l'utilisateur, jamais annulé par un
+    // mot dans le titre).
+    const titleConflictFree = (t) => (!t._deezerId && !t._isLocalDB) || !detectTitleStyleConflict(t.title, effectiveGenres);
     const favoritesPool = availablePool.filter(t => !t._deezerId && !t._isLocalDB);
-    const deezerDirectPool = availablePool.filter(t => t._deezerId && effectiveGenres.some(g => isDirectGenreMatch(t.genre, g)));
-    const localPoolMatches = availablePool.filter(t => t._isLocalDB);
-    const equivalencePool = availablePool.filter(t => t._deezerId && !deezerDirectPool.includes(t) && effectiveGenres.some(g => genreRoughlyMatches(t.genre, g)));
+    const deezerDirectPool = availablePool.filter(t => t._deezerId && titleConflictFree(t) && effectiveGenres.some(g => isDirectGenreMatch(t.genre, g)));
+    const localPoolMatches = availablePool.filter(t => t._isLocalDB && titleConflictFree(t));
+    const equivalencePool = availablePool.filter(t => t._deezerId && titleConflictFree(t) && !deezerDirectPool.includes(t) && effectiveGenres.some(g => genreRoughlyMatches(t.genre, g)));
 
     let searchPool, matchLevel;
     if (favoritesPool.length > 0) { searchPool = favoritesPool; matchLevel = 'favoris'; }
@@ -900,7 +891,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   // information transmise à l'utilisateur après génération (voir createPlaylistData).
   while (remaining > 30) {
     const usedSoFar = [...excludeYoutubeIds, ...selected.map(t => t.youtubeId)];
-    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, effectiveGenres, usedSoFar, favorites, spotifyTrackPool, remaining, historyExcludeIds);
+    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, effectiveGenres, usedSoFar, favorites, spotifyTrackPool, remaining, historyExcludeIds, config.allowLongTracks);
     extra._isFallback = true;
     selected.push(extra);
     remaining -= extra.duration;
@@ -908,7 +899,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
 
   // Filet de sécurité ultime : un segment ne doit jamais rester totalement vide.
   if (selected.length === 0) {
-    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, effectiveGenres, excludeYoutubeIds, favorites, spotifyTrackPool, segment.durationSeconds, historyExcludeIds);
+    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, effectiveGenres, excludeYoutubeIds, favorites, spotifyTrackPool, segment.durationSeconds, historyExcludeIds, config.allowLongTracks);
     extra._isFallback = true;
     selected.push(extra);
   }
@@ -1413,6 +1404,14 @@ export default function App() {
   const [crossfade, setCrossfade] = useState(2);
   const [bpm, setBpm] = useState(160);
   const [isIntervalMode, setIsIntervalMode] = useState(false);
+  // Autorise ou non les titres de plus de 6 minutes dans la génération — sans
+  // ça, l'algorithme de remplissage (qui choisit le titre dont la durée colle
+  // le mieux au temps restant) pouvait piocher un morceau atypiquement long
+  // (ex. "April" de Deep Purple, ~12 min) juste parce qu'il comblait bien la
+  // séance, au détriment de la variété (4 titres pour 45 minutes au lieu d'une
+  // dizaine). Off par défaut : la plupart des séances veulent de la variété,
+  // pas quelques épiques qui monopolisent tout le temps.
+  const [allowLongTracks, setAllowLongTracks] = useState(false);
   
   const [targetMode, setTargetMode] = useState('time'); 
   const [hours, setHours] = useState(0);
@@ -1889,7 +1888,7 @@ export default function App() {
     const newRoutine = {
       id: `routine-${Date.now()}`, name: finalName, workoutType,
       customActivity: workoutType === 'Autre' ? customActivity : '', isIntervalMode, bpm,
-      targetMode, distanceVal, distanceUnit, paceMin, paceSec, hours, minutes, selectedGenres, bpmTolerance, crossfade,
+      targetMode, distanceVal, distanceUnit, paceMin, paceSec, hours, minutes, selectedGenres, bpmTolerance, crossfade, allowLongTracks,
       segments: isIntervalMode ? [...segments] : [], coverIcon: newRoutineIcon, autoGenFreq: newRoutineFreq,
       manualGenerations: 0, recentTrackIds: [], createdAt: new Date().toLocaleDateString()
     };
@@ -2229,7 +2228,7 @@ export default function App() {
     const usedIds = currentPlaylist.tracks.map(t => t.youtubeId);
     
     // Requête asynchrone modifiée pour taper dans l'API si nécessaire
-    const newRawTrack = await getSingleMatchingTrack(oldTrack.targetSegmentBpm, currentPlaylist.tolerance || 10, currentPlaylist.config?.selectedGenres || ['Métal'], usedIds, favorites, spotifyTrackPool);
+    const newRawTrack = await getSingleMatchingTrack(oldTrack.targetSegmentBpm, currentPlaylist.tolerance || 10, currentPlaylist.config?.selectedGenres || ['Métal'], usedIds, favorites, spotifyTrackPool, null, [], currentPlaylist.config?.allowLongTracks || false);
 
     const newTracks = [...currentPlaylist.tracks];
     newTracks[indexToReplace] = {
@@ -2312,7 +2311,7 @@ export default function App() {
 
     // Repli sur la recherche large habituelle si aucun autre titre de cet artiste n'a été trouvé.
     if (!newRawTrack) {
-      newRawTrack = await getSingleMatchingTrack(oldTrack.targetSegmentBpm, currentPlaylist.tolerance || 10, currentPlaylist.config?.selectedGenres || ['Métal'], usedIds, favorites, spotifyTrackPool);
+      newRawTrack = await getSingleMatchingTrack(oldTrack.targetSegmentBpm, currentPlaylist.tolerance || 10, currentPlaylist.config?.selectedGenres || ['Métal'], usedIds, favorites, spotifyTrackPool, null, [], currentPlaylist.config?.allowLongTracks || false);
       showToast(`Aucun autre titre de ${oldTrack.artist} à ce BPM — recherche élargie utilisée.`);
     } else {
       let stats = { ...userStats, replacedTracks: userStats.replacedTracks + 1 };
@@ -3498,6 +3497,25 @@ export default function App() {
                               'accent-rose-500' : 'accent-red-500'}`} />
                             <p className={`text-xs ${textMuted}`}>Élimine les blancs entre les morceaux pour une énergie constante.</p>
                           </div>
+
+                          {/* Sans ce filtre, un titre atypiquement long (ex. "April" de Deep
+                              Purple, ~12 min) pouvait monopoliser une grosse partie d'une
+                              séance courte, juste parce que sa durée comblait bien le temps
+                              restant — au détriment de la variété. Off par défaut. */}
+                          <div className={`flex items-center justify-between p-5 rounded-2xl ${inputBg} border ${inputBorder}`}>
+                            <div>
+                              <label className={`text-sm font-bold flex items-center space-x-2 ${textMuted}`}>
+                                <Clock size={18} /><span>Titres de plus de 6 min</span>
+                              </label>
+                              <p className={`text-xs mt-1 ${textMuted}`}>Autorise les morceaux longs (épiques, prog...) dans la sélection.</p>
+                            </div>
+                            <button
+                              onClick={() => setAllowLongTracks(!allowLongTracks)}
+                              className={`relative w-14 h-8 rounded-full transition-colors shrink-0 ml-4 ${allowLongTracks ? (isNaughtyMode ? 'bg-rose-500' : 'bg-red-500') : 'bg-gray-300 dark:bg-gray-600'}`}
+                            >
+                              <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${allowLongTracks ? 'translate-x-6' : ''}`} />
+                            </button>
+                          </div>
                         </div>
 
                         {/* Exploration manuelle : voir les titres qui matchent pile ce BPM + ces genres,
@@ -3517,7 +3535,7 @@ export default function App() {
 
                         {/* Boutons finaux : génération immédiate, ou sauvegarde en routine réutilisable */}
                         <div className="flex flex-col sm:flex-row gap-4 pt-6 mt-6 border-t border-gray-100 dark:border-gray-800">
-                          <button onClick={() => executeGeneration({ isIntervalMode, targetMode, distanceVal, distanceUnit, paceMin, paceSec, segments, bpm, hours, minutes, selectedGenres, bpmTolerance, crossfade, workoutName: getActiveWorkoutName() })} disabled={isGenerating} className={`flex-1 text-xl font-black py-5 rounded-2xl flex items-center justify-center space-x-3 transition-transform active:scale-95 shadow-xl ${isNaughtyMode ?
+                          <button onClick={() => executeGeneration({ isIntervalMode, targetMode, distanceVal, distanceUnit, paceMin, paceSec, segments, bpm, hours, minutes, selectedGenres, bpmTolerance, crossfade, allowLongTracks, workoutName: getActiveWorkoutName() })} disabled={isGenerating} className={`flex-1 text-xl font-black py-5 rounded-2xl flex items-center justify-center space-x-3 transition-transform active:scale-95 shadow-xl ${isNaughtyMode ?
                             'bg-rose-500 hover:bg-rose-600 text-white' : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200'}`}>
                             {isGenerating ? <Loader2 size={28} className="animate-spin" /> : <><Zap size={28} /><span>Générer ma Playlist</span></>}
                           </button>
