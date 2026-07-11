@@ -326,8 +326,35 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYout
   const validCandidates = await resolveBpmForCandidates(detailedCandidates.filter(Boolean), minBpm, maxBpm);
   if (validCandidates.length === 0) return null;
 
-  const full = pickByDurationProximity(validCandidates, preferredDuration);
-  const realGenre = await resolveDeezerGenre(full.id);
+  // Même garde-fou genre que dans buildSegmentTracks (voir le commentaire détaillé
+  // là-bas) : ce chemin était le TROU non couvert qui laissait passer "Paranoid
+  // Android" (Radiohead, genre réel "Alternative") ou "You Don't Love Me" (Dawn
+  // Penn, genre réel "Pop" — même pas un genre demandé !) dans une playlist
+  // Métal/Rock. Utilisé par getSingleMatchingTrack (tolérance exacte ET élargie,
+  // les deux passent par cette fonction) et par le remplacement manuel d'un titre.
+  const ordered = preferredDuration
+    ? [...validCandidates].sort((a, b) => Math.abs((a.duration || 180) - preferredDuration) - Math.abs((b.duration || 180) - preferredDuration))
+    : [...validCandidates].sort(() => Math.random() - 0.5);
+
+  const MAX_GENRE_CHECK_ATTEMPTS = 5;
+  let full = null;
+  let genreMismatch = false;
+  const attempted = [];
+  for (let attempt = 0; attempt < Math.min(MAX_GENRE_CHECK_ATTEMPTS, ordered.length); attempt++) {
+    const candidate = ordered[attempt];
+    const realGenre = await resolveDeezerGenre(candidate.id);
+    candidate._resolvedGenre = realGenre || 'Genre inconnu';
+    attempted.push(candidate);
+    if (genresForQuery.some(g => genreRoughlyMatches(realGenre, g))) {
+      full = candidate;
+      break;
+    }
+  }
+  if (!full) {
+    full = attempted[0] || ordered[0];
+    genreMismatch = true;
+  }
+
   return {
     youtubeId: `deezer-${full.id}`,
     title: full.title,
@@ -335,9 +362,10 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYout
     bpm: full._resolvedBpm,
     duration: full.duration || 180,
     isEmbeddable: true,
-    genre: realGenre || 'Genre inconnu',
+    genre: full._resolvedGenre || 'Genre inconnu',
     preview: full.preview || null,
-    _bpmSource: full._bpmSource
+    _bpmSource: full._bpmSource,
+    ...(genreMismatch ? { _genreMismatch: true, _isFallback: true } : {})
   };
 };
 
