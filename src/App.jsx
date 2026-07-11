@@ -432,8 +432,10 @@ export default function App() {
   // manipuler ces options dès le premier lancement (les découvrir passivement,
   // sans avoir à d'abord chercher/ajouter quoi que ce soit soi-même). Les deux
   // titres sont des valeurs figées à la main (pas tirées d'un catalogue), donc
-  // leur BPM est fiable, mais ils n'ont pas d'extrait audio par défaut (bouton
-  // grisé) — pas d'appel réseau Deezer nécessaire juste pour peupler l'exemple.
+  // leur BPM est fiable. `preview: null` ici par défaut, résolu séparément au
+  // montage (voir le useEffect dédié après celui du <title>, même principe que
+  // pour la playlist d'exemple — une URL d'extrait Deezer expire, impossible de
+  // la coder en dur ici sans qu'elle finisse par casser silencieusement).
   const [favorites, setFavorites] = useState({
     useFavorites: true,
     artists: ['Metallica', 'System Of A Down'],
@@ -603,9 +605,12 @@ export default function App() {
   const [currentPlaylist, setCurrentPlaylist] = useState(null);
   // Playlist d'exemple pré-remplie, même principe que la routine et les favoris de
   // départ — clairement nommée "Exemple" pour ne pas laisser penser qu'elle a été
-  // vraiment générée, construite sur des titres de la base locale (pas d'appel
-  // Deezer nécessaire au premier chargement), et laissée en statut "à faire" pour
-  // que la découverte du bouton "marquer comme terminée" reste naturelle.
+  // vraiment générée, et laissée en statut "à faire" pour que la découverte du
+  // bouton "marquer comme terminée" reste naturelle. `preview: null` ici par
+  // défaut : le vrai extrait Deezer est résolu séparément au montage (voir le
+  // useEffect dédié plus bas, après celui du <title>) plutôt que codé en dur —
+  // une URL d'extrait Deezer expire au bout de quelques heures, donc la figer
+  // ici casserait le bouton d'écoute silencieusement après coup.
   const [savedPlaylists, setSavedPlaylists] = useState([{
     id: 'playlist-example-1',
     name: '🏃 Exemple : Session Rock/Métal',
@@ -950,6 +955,70 @@ export default function App() {
   useEffect(() => {
     document.title = isNaughtyMode ? 'TempoIntime' : 'TempoFit';
   }, [isNaughtyMode]);
+
+  // Les titres de démonstration (playlist d'exemple + favoris pré-remplis, voir
+  // leurs déclarations plus haut) sont fixés à la main avec `preview: null` —
+  // le bouton d'écoute y restait donc grisé au premier lancement, ce qui ne
+  // donnait pas envie de les essayer alors que ce sont les premiers titres que
+  // l'utilisateur voit dans l'app.
+  //
+  // ⚠️ Piège découvert en corrigeant ça : l'URL d'extrait Deezer n'est PAS
+  // permanente — elle est signée avec une expiration courte (paramètre
+  // `hdnea=exp=...` dans l'URL, de l'ordre de quelques heures). Impossible donc
+  // de la coder en dur une bonne fois pour toutes : le lien finirait par ne
+  // plus jouer, silencieusement, sans qu'aucune erreur ne le signale. On résout
+  // donc l'extrait EN DIRECT au montage de l'app plutôt qu'une valeur figée —
+  // mais toujours par une recherche `track:"X" artist:"Y"` exacte (pas par BPM
+  // ni au hasard), donc c'est TOUJOURS le même morceau qui est retrouvé à
+  // chaque chargement, comme souhaité (comportement déterministe côté contenu,
+  // même si l'URL elle-même change d'une session à l'autre).
+  //
+  // Ne touche jamais une vraie playlist générée ni une playlist d'exemple déjà
+  // modifiée par l'utilisateur (vérifie l'id ET la présence des ids `ex-track-*`
+  // avant d'écrire quoi que ce soit) — et ne s'exécute qu'une fois au montage.
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveDemoPreview = async (title, artist) => {
+      try {
+        const q = `track:"${title}" artist:"${artist}"`;
+        const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=1`);
+        const hit = data && Array.isArray(data.data) ? data.data[0] : null;
+        return hit ? (hit.preview || null) : null;
+      } catch (e) {
+        return null;
+      }
+    };
+
+    const fillDemoPreviews = async () => {
+      const example = savedPlaylists.find(p => p.id === 'playlist-example-1');
+      if (example && example.tracks.some(t => t.id && t.id.startsWith('ex-track-') && !t.preview)) {
+        const resolved = await Promise.all(example.tracks.map(async (t) => {
+          if (!t.id || !t.id.startsWith('ex-track-') || t.preview) return t;
+          const preview = await resolveDemoPreview(t.title, t.artist);
+          return preview ? { ...t, preview } : t;
+        }));
+        if (!cancelled) {
+          setSavedPlaylists(prev => prev.map(p => p.id === 'playlist-example-1' ? { ...p, tracks: resolved } : p));
+        }
+      }
+
+      const demoTrackIds = ['uRyAIyq53FY', 'CSvFpBOe8eY'];
+      if (favorites.tracks.some(t => demoTrackIds.includes(t.youtubeId) && !t.preview)) {
+        const resolvedFavs = await Promise.all(favorites.tracks.map(async (t) => {
+          if (!demoTrackIds.includes(t.youtubeId) || t.preview) return t;
+          const preview = await resolveDemoPreview(t.title, t.artist);
+          return preview ? { ...t, preview } : t;
+        }));
+        if (!cancelled) {
+          setFavorites(prev => ({ ...prev, tracks: resolvedFavs }));
+        }
+      }
+    };
+
+    fillDemoPreviews();
+    return () => { cancelled = true; };
+  }, []); // une seule fois au montage, voir le commentaire ci-dessus
 
   // Affiche un toast temporaire. `variant` détermine le style et la durée :
   //   - 'default' (3s) : confirmation neutre (icône check)
