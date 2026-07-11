@@ -756,12 +756,14 @@ export default function App() {
 
   const SEARCH_PAGE_SIZE = 10;
 
-  // Compare le texte tapé au nom d'un artiste Deezer, insensible à la casse et
-  // aux accents (ex. "beyonce" doit matcher "Beyoncé"). Le critère est volontai-
-  // rement strict — égalité complète, ou préfixe de MOT ENTIER dans un sens ou
-  // l'autre ("daft" matche "daft punk", mais "punk" seul ne matche ni
-  // "daft punk" ni l'inverse) — pour éviter de basculer à tort en mode artiste
-  // sur un mot trop générique qui matcherait plein de noms sans rapport.
+  // Compare le texte tapé au nom d'un artiste Deezer, insensible à la casse,
+  // aux accents (ex. "beyonce" doit matcher "Beyoncé"), aux articles de tête
+  // (ex. "beatles" doit matcher "The Beatles") et — depuis un retour utilisateur
+  // sur "dat punk" — aux petites fautes de frappe (voir isConfidentArtistMatch,
+  // 3 passes progressives : égalité exacte, puis sans article, puis tolérance
+  // Levenshtein bornée). Reste volontairement strict sur les mots courts/génériques
+  // ("punk" seul ne doit matcher ni "daft punk" ni l'inverse) pour éviter de
+  // basculer à tort en mode artiste sur un terme trop générique.
   const normalizeForArtistMatch = (str) => (str || '')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase().trim();
@@ -770,6 +772,21 @@ export default function App() {
   // évidents qu'on puisse taper), parce que ni l'un ni l'autre n'est un
   // préfixe de mot entier de l'autre une fois l'article laissé en place.
   const stripLeadingArticle = (s) => s.replace(/^(the|les?|la)\s+/, '');
+  // Distance de Levenshtein classique (nb minimal d'insertions/suppressions/
+  // substitutions pour passer d'une chaîne à l'autre) — utilisée ci-dessous
+  // comme filet de tolérance aux fautes de frappe, en dernier recours seulement.
+  const levenshteinDistance = (a, b) => {
+    const m = a.length, n = b.length;
+    const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+    for (let i = 0; i <= m; i++) dp[i][0] = i;
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+      }
+    }
+    return dp[m][n];
+  };
   const isConfidentArtistMatch = (query, artistName) => {
     const q = normalizeForArtistMatch(query);
     const aFull = normalizeForArtistMatch(artistName);
@@ -777,7 +794,20 @@ export default function App() {
     const matches = (x, y) => x === y || x.startsWith(y + ' ') || y.startsWith(x + ' ');
     if (matches(aFull, q)) return true;
     // 2e passe, articles retirés des deux côtés ("the beatles"/"beatles" → "beatles"/"beatles")
-    return matches(stripLeadingArticle(aFull), stripLeadingArticle(q));
+    const aStripped = stripLeadingArticle(aFull);
+    const qStripped = stripLeadingArticle(q);
+    if (matches(aStripped, qStripped)) return true;
+    // 3e passe, TOLÉRANCE AUX FAUTES DE FRAPPE (ex. "dat punk" doit quand même
+    // matcher "Daft Punk") : les 2 passes précédentes sont des comparaisons
+    // EXACTES (à l'article près), donc une simple lettre manquante/inversée les
+    // fait échouer. On autorise ici un petit nombre d'éditions (Levenshtein),
+    // proportionnel à la longueur du plus court des 2 textes — borné pour rester
+    // strict sur les mots courts (là où une "petite" faute change complètement
+    // le sens) et plus tolérant sur les noms longs. Ex. "dat punk" (8) vs
+    // "daft punk" (9) → 1 édition autorisée, distance réelle = 1 → match.
+    const shortestLen = Math.min(qStripped.length, aStripped.length);
+    const maxAllowedEdits = Math.min(3, Math.max(1, Math.floor(shortestLen / 4)));
+    return levenshteinDistance(qStripped, aStripped) <= maxAllowedEdits;
   };
 
   /**
