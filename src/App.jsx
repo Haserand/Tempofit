@@ -678,6 +678,10 @@ export default function App() {
   // Décalage (paramètre `index` de l'API Deezer) pour le PROCHAIN appel "Voir
   // plus" — pas la page actuellement affichée, mais celle qu'il reste à charger.
   const [searchResultsOffset, setSearchResultsOffset] = useState(0);
+  // Décalage séparé pour la requête scopée artiste (voir searchWorldMusicApi) —
+  // utilisée en COMPLÉMENT de la recherche générale (jamais à sa place, voir
+  // l'incident du 1er essai de cette refonte), donc paginée indépendamment.
+  const [searchArtistResultsOffset, setSearchArtistResultsOffset] = useState(0);
   // true tant que Deezer indique qu'il reste des résultats au-delà de ceux déjà chargés.
   const [searchHasMoreResults, setSearchHasMoreResults] = useState(false);
   // Spinner dédié au bouton "Voir plus" — distinct de isWorldSearching (qui vide
@@ -815,23 +819,41 @@ export default function App() {
    *    recherche texte générale : `reset = true` repart de l'index 0 et vide la
    *    liste ; `reset = false` (bouton "Voir plus") ajoute la page suivante et
    *    réapplique le même tri de priorité sur l'ensemble cumulé.
+   *
+   * ⚠️ AJUSTEMENT (retour utilisateur : seuls 6 titres de Daft Punk sur 10
+   * résultats avant de retomber sur The Weeknd) : la recherche texte générale
+   * seule limite le nombre de VRAIS titres de l'artiste visibles par page, car
+   * Deezer y mélange des featurings/productions avec les titres où l'artiste
+   * est vraiment le titulaire. Une requête scopée `artist:"Nom"` est donc
+   * relancée EN PLUS de la recherche générale (jamais à sa place — voir
+   * l'incident du tout premier essai de cette refonte, plus haut) dès qu'un
+   * artiste est identifié avec confiance, à la recherche initiale ET à chaque
+   * "Voir plus" (paginée séparément via `searchArtistResultsOffset`). Les deux
+   * sources sont fusionnées et dédupliquées par id Deezer avant tri : si la
+   * requête scopée échoue ou ne renvoie que des titres sans BPM connu, ça ne
+   * change rien au pire des cas — la recherche générale reste le filet de
+   * sécurité garanti non-vide.
    */
   const searchWorldMusicApi = async (reset = true) => {
     if (!searchQuery.trim()) return;
-    const offset = reset ? 0 : searchResultsOffset;
+    const generalOffset = reset ? 0 : searchResultsOffset;
+    const artistOffset = reset ? 0 : searchArtistResultsOffset;
     if (reset) {
       setIsWorldSearching(true);
       setWorldSearchResults([]);
       setResultsContextLabel(null);
       setNoUsableResultsHint(false);
       setSearchHasMoreResults(false);
+      setSearchArtistResultsOffset(0);
     } else {
       setIsLoadingMoreResults(true);
     }
 
     try {
-      let trackStubs = [];
-      let total = 0;
+      let generalStubs = [];
+      let generalTotal = 0;
+      let artistStubs = [];
+      let artistTotal = 0;
       // Nom d'artiste à faire remonter en tête des résultats (tri plus bas) —
       // déterminé à la recherche initiale, réutilisé tel quel pour "Voir plus"
       // (mémorisé dans searchActiveArtistName pour ne pas le redétecter à chaque page).
@@ -843,32 +865,54 @@ export default function App() {
           deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(searchQuery)}&limit=${SEARCH_PAGE_SIZE}&index=0`)
         ]);
         const artist = (artistRes.data && Array.isArray(artistRes.data.data)) ? artistRes.data.data[0] : null;
-        trackStubs = (textRes.data && Array.isArray(textRes.data.data)) ? textRes.data.data : [];
-        total = (textRes.data && typeof textRes.data.total === 'number') ? textRes.data.total : trackStubs.length;
+        generalStubs = (textRes.data && Array.isArray(textRes.data.data)) ? textRes.data.data : [];
+        generalTotal = (textRes.data && typeof textRes.data.total === 'number') ? textRes.data.total : generalStubs.length;
 
         if (artist && isConfidentArtistMatch(searchQuery, artist.name)) {
           priorityArtistName = artist.name;
           setSearchActiveArtistId(artist.id);
           setSearchActiveArtistName(artist.name);
+          try {
+            const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(`artist:"${artist.name}"`)}&limit=${SEARCH_PAGE_SIZE}&index=0`);
+            artistStubs = (data && Array.isArray(data.data)) ? data.data : [];
+            artistTotal = (data && typeof data.total === 'number') ? data.total : artistStubs.length;
+          } catch (e) {
+            // Échec silencieux du complément : generalStubs suffit à ne pas planter la recherche.
+          }
         } else {
           setSearchActiveArtistId(null);
           setSearchActiveArtistName(null);
         }
       } else {
-        // "Voir plus" : on continue de paginer la MÊME recherche texte générale.
-        const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(searchQuery)}&limit=${SEARCH_PAGE_SIZE}&index=${offset}`);
-        trackStubs = (data && Array.isArray(data.data)) ? data.data : [];
-        total = (data && typeof data.total === 'number') ? data.total : (offset + trackStubs.length);
+        // "Voir plus" : on pagine la recherche générale, ET la requête scopée
+        // artiste si un artiste est actif — chacune avec son propre décalage.
+        const fetches = [deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(searchQuery)}&limit=${SEARCH_PAGE_SIZE}&index=${generalOffset}`)];
+        if (priorityArtistName) {
+          fetches.push(deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(`artist:"${priorityArtistName}"`)}&limit=${SEARCH_PAGE_SIZE}&index=${artistOffset}`));
+        }
+        const [textRes, artistRes2] = await Promise.all(fetches);
+        generalStubs = (textRes.data && Array.isArray(textRes.data.data)) ? textRes.data.data : [];
+        generalTotal = (textRes.data && typeof textRes.data.total === 'number') ? textRes.data.total : (generalOffset + generalStubs.length);
+        if (priorityArtistName && artistRes2) {
+          artistStubs = (artistRes2.data && Array.isArray(artistRes2.data.data)) ? artistRes2.data.data : [];
+          artistTotal = (artistRes2.data && typeof artistRes2.data.total === 'number') ? artistRes2.data.total : (artistOffset + artistStubs.length);
+        }
       }
 
-      if (trackStubs.length === 0 && reset) {
+      // Fusion + dédoublonnage des 2 sources par id Deezer AVANT le détail/BPM,
+      // pour ne pas payer 2x le coût réseau sur un même titre trouvé des 2 côtés.
+      const seenStubIds = new Set();
+      const mergedStubs = [];
+      [...generalStubs, ...artistStubs].forEach(s => { if (s && !seenStubIds.has(s.id)) { seenStubIds.add(s.id); mergedStubs.push(s); } });
+
+      if (mergedStubs.length === 0 && reset) {
         setNoUsableResultsHint(true);
         setIsWorldSearching(false);
         return;
       }
 
       // Un appel par titre pour récupérer son BPM (absent des listes de résultats)
-      const detailedTracks = await Promise.all(trackStubs.map(async (stub) => {
+      const detailedTracks = await Promise.all(mergedStubs.map(async (stub) => {
         const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
         return full;
       }));
@@ -904,8 +948,12 @@ export default function App() {
         return [...deduped.filter(isPriorityMatch), ...deduped.filter(t => !isPriorityMatch(t))];
       });
       if (reset) setResultsContextLabel(priorityArtistName ? `Titres de ${priorityArtistName} en tête` : null);
-      setSearchResultsOffset(offset + trackStubs.length);
-      setSearchHasMoreResults(trackStubs.length > 0 && (offset + trackStubs.length) < total);
+      setSearchResultsOffset(generalOffset + generalStubs.length);
+      setSearchArtistResultsOffset(artistOffset + artistStubs.length);
+      setSearchHasMoreResults(
+        (generalStubs.length > 0 && (generalOffset + generalStubs.length) < generalTotal) ||
+        (artistStubs.length > 0 && (artistOffset + artistStubs.length) < artistTotal)
+      );
       if (reset && formattedResults.length === 0) setNoUsableResultsHint(true); // titres trouvés mais aucun n'a de BPM connu
     } catch(e) {
       // Erreur réseau réelle (proxy CORS injoignable, hors-ligne...) — safeFetchJson
@@ -919,7 +967,8 @@ export default function App() {
   // Ferme la modale de recherche et réinitialise tout son état — centralisé ici
   // (au lieu d'être dupliqué sur le clic du fond et sur le bouton X) pour que
   // l'ajout de l'état de pagination/mode-artiste (searchResultsOffset,
-  // searchHasMoreResults, searchActiveArtistId/Name) n'oublie aucun des 2 endroits.
+  // searchArtistResultsOffset, searchHasMoreResults, searchActiveArtistId/Name)
+  // n'oublie aucun des 2 endroits.
   const closeSearchModal = () => {
     setIsSearchModalOpen(false);
     setSearchQuery("");
@@ -928,6 +977,7 @@ export default function App() {
     setResultsContextLabel(null);
     setNoUsableResultsHint(false);
     setSearchResultsOffset(0);
+    setSearchArtistResultsOffset(0);
     setSearchHasMoreResults(false);
     setSearchActiveArtistId(null);
     setSearchActiveArtistName(null);
