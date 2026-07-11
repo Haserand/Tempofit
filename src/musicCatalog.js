@@ -107,7 +107,16 @@ const ARTIST_CATALOG = {
 ARTIST_CATALOG['R&B'] = ARTIST_CATALOG['R&B Sensuel'];
 
 // Liste des styles proposés à la génération/aux favoris.
-const STANDARD_GENRES = ['Métal', 'Rock', 'Electro', 'Pop', 'Rap', 'Autre'];
+// Ordre du plus simple au plus difficile à satisfaire correctement (constaté en
+// pratique cette session, pas une hiérarchie théorique) : Pop/Rap/Electro ont une
+// bonne couverture Deezer directe (genre_id fiable, beaucoup de BPM renseignés).
+// Rock vient ensuite — large, mais c'est aussi le genre qui "absorbe" une bonne
+// partie de ce qu'on appellerait Métal chez Deezer (voir GENRE_EQUIVALENCE_GROUPS
+// dans musicCatalog.js), donc lui-même reste assez simple à remplir. Métal est le
+// plus dur : Deezer classe la quasi-totalité du metal en "Rock", jamais "Metal" —
+// d'où le renfort du catalogue d'artistes sur ce genre précis. Autre en dernier,
+// catch-all sans mot-clé de recherche (DEEZER_GENRE_KEYWORDS['Autre'] est vide).
+const STANDARD_GENRES = ['Pop', 'Rap', 'Electro', 'Rock', 'Métal', 'Autre'];
 const NAUGHTY_GENRES = ['R&B Sensuel', 'Pop', 'Latino', 'Jazz', 'Autre'];
 const EXTRA_GENRES = ['Techno', 'R&B', 'Reggae', 'Country', 'Jazz', 'Latino', 'Musique africaine', 'Musique asiatique', 'Blues', 'Musique brésilienne', 'Classique', 'Dance & EDM', 'Folk', 'Indie', 'K-pop', 'Soul & Funk', 'Bandes originales'];
 
