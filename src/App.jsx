@@ -918,19 +918,30 @@ export default function App() {
         return full;
       }));
 
+      // Fenêtre large (40-220 BPM, quasi tout le spectre musical courant) : cette
+      // recherche n'a pas de BPM cible comme le moteur de génération, donc on ne
+      // peut pas resserrer la fenêtre de détection — mais c'est quand même bien
+      // mieux que d'écarter purement et simplement tout titre sans BPM connu chez
+      // Deezer. Réutilise `resolveBpmForCandidates` (musicEngine.js), déjà écrite
+      // et éprouvée pour le moteur de génération, jamais utilisée jusqu'ici dans
+      // cette recherche manuelle — trou trouvé après un retour utilisateur :
+      // "Baby Lasagna" (Eurovision 2024, existe bien sur Deezer avec un extrait)
+      // n'avait simplement pas de BPM renseigné par Deezer, donc il était
+      // purement invisible malgré un extrait audio disponible pour le détecter.
+      const resolvedCandidates = await resolveBpmForCandidates(detailedTracks.filter(Boolean), 40, 220);
+
       const formattedResults = await Promise.all(
-        detailedTracks
-          .filter(t => t && t.bpm && parseFloat(t.bpm) > 0)
-          .map(async (t) => {
+        resolvedCandidates.map(async (t) => {
             const realGenre = await resolveDeezerGenre(t.id);
             return {
               youtubeId: `deezer-${t.id}`,
               title: t.title,
               artist: t.artist ? t.artist.name : 'Inconnu',
-              bpm: Math.round(parseFloat(t.bpm)),
+              bpm: t._resolvedBpm,
               duration: t.duration || 180,
               genre: realGenre || 'Genre inconnu',
-              preview: t.preview || null // extrait MP3 de 30s fourni par Deezer, lisible sans clé ni CORS
+              preview: t.preview || null, // extrait MP3 de 30s fourni par Deezer, lisible sans clé ni CORS
+              _bpmSource: t._bpmSource // 'deezer' (renseigné) ou 'detected' (analysé en direct sur l'extrait)
             };
           })
       );
