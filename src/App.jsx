@@ -272,7 +272,17 @@ const pickByDurationProximity = (candidates, preferredDuration) => {
  */
 const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeYoutubeIds, maxArtistsToTry = 4, candidatesPerArtist = 6) => {
   if (!artistNames || artistNames.length === 0) return [];
-  const sampled = [...artistNames].sort(() => Math.random() - 0.5).slice(0, maxArtistsToTry);
+  // BIAISÉ vers le DÉBUT de la liste (voir ARTIST_CATALOG dans musicCatalog.js,
+  // trié des artistes les plus connus aux moins connus) : avant, un mélange
+  // complet de toute la liste avant de piocher rendait cet ordre totalement
+  // sans effet — un artiste obscur en fin de liste avait exactement la même
+  // chance d'être tiré qu'un artiste très connu en tête. On tire maintenant dans
+  // une fenêtre limitée aux ~2x premiers artistes nécessaires (mélangée entre
+  // eux pour garder un peu de variété), sans aller piocher dans la queue de la
+  // liste sauf si le genre a trop peu d'artistes pour remplir cette fenêtre.
+  const windowSize = Math.min(artistNames.length, Math.max(maxArtistsToTry * 2, 6));
+  const window = artistNames.slice(0, windowSize);
+  const sampled = [...window].sort(() => Math.random() - 0.5).slice(0, maxArtistsToTry);
   const stubsByArtist = await Promise.all(sampled.map(async (artistName) => {
     const q = `artist:"${artistName}" bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"`;
     const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=${candidatesPerArtist}`);
@@ -1465,6 +1475,18 @@ export default function App() {
   // génération elle-même.
   const [generatingTotal, setGeneratingTotal] = useState(0);
   const [generatingDone, setGeneratingDone] = useState(0);
+  // Chrono affiché dans le bandeau de génération — avant, le message restait
+  // statique tout du long d'UNE playlist (seul le spinner tournait), ce qui
+  // pouvait sembler figé/ennuyeux sur une génération un peu longue. Démarre à 0
+  // dès que isGenerating passe à true (voir le useEffect ci-dessous), pas après
+  // un délai.
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  useEffect(() => {
+    if (!isGenerating) { setElapsedSeconds(0); return; }
+    setElapsedSeconds(0);
+    const interval = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
+    return () => clearInterval(interval);
+  }, [isGenerating]);
 
   const [shareData, setShareData] = useState(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -3045,8 +3067,11 @@ export default function App() {
             <Loader2 size={18} className={`animate-spin ${textColorClass}`} />
             <span className={`font-medium text-sm ${textHighlight}`}>
               {generatingTotal > 1
-                ? `Génération ${generatingDone}/${generatingTotal}... ça peut prendre un moment (recherche des meilleurs titres + vérification audio)`
-                : "Génération en cours... ça peut prendre quelques secondes (recherche des meilleurs titres + vérification audio)"}
+                ? `Génération ${generatingDone}/${generatingTotal}...`
+                : "Génération en cours..."}
+            </span>
+            <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-full ${textMuted} bg-black/5 dark:bg-white/10`}>
+              {Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, '0')}
             </span>
           </div>
         )}
