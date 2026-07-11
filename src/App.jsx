@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Footprints, Flame, Heart, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, Target, History, MessageCircle, ExternalLink, GripVertical, MoreVertical } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine, ReferenceArea, PieChart, Pie, Cell } from 'recharts';
-import { DATABASE_MUSIQUES, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, DEEZER_GENRE_KEYWORDS, getGenreLocalDepthWarning } from './musicCatalog';
+import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, DEEZER_GENRE_KEYWORDS, getGenreLocalDepthWarning } from './musicCatalog';
 import { TROPHIES_DATA, NAUGHTY_ROUTINE_NAMES, WORKOUT_TYPES, NAUGHTY_WORKOUT_LABELS, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_ORDER, WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appConfig';
 
 // =====================================================================================
@@ -38,35 +38,36 @@ const SPOTIFY_TOKEN_BASE = 'https://accounts.spotify.com/api/token';
 /**
  * Trouve UN morceau dont le BPM correspond à `targetBpm` (± tolerance).
  * Stratégie en cascade, du plus pertinent/personnel au plus générique — mise à
- * jour pour refléter la cascade RÉELLE actuelle (ce commentaire avait fini par
- * décrire une version périmée du code après plusieurs réécritures successives) :
+ * jour après le passage à ARTIST_CATALOG (voir musicCatalog.js), qui remplace
+ * l'ancienne base de titres codés en dur (DATABASE_MUSIQUES) :
  *
  *   1. Priorité ABSOLUE aux morceaux mis en Favoris par l'utilisateur (`favorites.tracks`)
  *      — ce sont des choix explicites, donc plus fiables que tout le reste.
- *   1.5. Recherche Deezer sur tes artistes favoris (`favorites.artists`) dans la
- *      fourchette de BPM demandée — sans cette étape, "Top Artistes" n'avait aucun
- *      effet réel sur la génération, uniquement un rôle d'affichage.
+ *   1.5. Recherche Deezer sur tes artistes favoris (`favorites.artists`), via
+ *      `searchArtistsForBpm` — genre revérifié ici (contrairement à l'étape 4,
+ *      un artiste favori personnel n'est pas garanti coller au genre demandé).
  *   2. Puis les morceaux de la bibliothèque Spotify synchronisée (`spotifyTrackPool`),
  *      déjà analysés en BPM via `resolveRealBPM`.
  *   3. Une recherche Deezer en direct, tolérance exacte (`searchDeezerForGenres`,
  *      multi-genres, BPM résolu via `resolveBpmForCandidates` — valeur Deezer si
  *      connue, sinon détection audio en direct sur l'extrait, voir
- *      `detectBpmFromPreview`) : prioritaire sur la base locale statique car elle
- *      fournit un extrait audio écoutable, contrairement aux morceaux codés en dur.
+ *      `detectBpmFromPreview`).
  *   3.5. Deezer à nouveau, tolérance ÉLARGIE (×2, plafonnée à ±40 BPM) : un vrai
  *      titre écoutable légèrement hors tempo sert mieux l'usage réel qu'un repli
- *      qui ne s'écoute pas du tout — priorité délibérée sur la base locale.
- *   4. Si Deezer ne renvoie toujours rien (ni exact, ni élargi), on pioche dans la
- *      base locale (`DATABASE_MUSIQUES`), filtrée par genres sélectionnés, à
- *      tolérance exacte. Cette base est exemptée de l'historique inter-génération
- *      (`historyExcludeIds`) — trop réduite pour servir de source de "nouveauté"
- *      sans se vider — mais reste dédoublonnée sur la playlist en cours.
- *   5. En tout dernier recours (GetSongBPM RETIRÉ de cette cascade : durée
- *      inventée, jamais d'extrait, artiste souvent "Inconnu" — moins fiable que
- *      ce qui suit), on retourne le morceau LOCAL dont le BPM est le plus proche
- *      de la cible, même hors tolérance — d'abord dans le genre demandé, puis
- *      élargi à toute la base si besoin — pour ne jamais laisser un "trou" dans
- *      la playlist générée.
+ *      qui ne s'écoute pas du tout.
+ *   4. Si Deezer ne renvoie toujours rien (ni exact, ni élargi) via la recherche
+ *      généraliste par mot-clé de genre, on retente via ARTIST_CATALOG (une
+ *      liste d'artistes représentatifs par genre, voir musicCatalog.js) avec
+ *      `searchArtistsForBpm` — recherche par ARTISTE, pas par mot-clé flou, donc
+ *      pas besoin de revérifier le genre. Tout vient réellement de Deezer (BPM,
+ *      durée, extrait), rien n'est deviné. Exempté de l'historique inter-génération
+ *      (`historyExcludeIds`) — mieux vaut réutiliser un artiste déjà vu que de
+ *      forcer un mauvais genre.
+ *   5. En tout dernier recours (garanti non-vide, GetSongBPM RETIRÉ de cette
+ *      cascade : durée inventée, jamais d'extrait, artiste souvent "Inconnu"),
+ *      même catalogue d'artistes mais SANS filtre BPM — on prend ce que Deezer a
+ *      de ces artistes et on trie par proximité avec la cible. Un tout dernier
+ *      repli minimal (sans extrait) protège contre un échec réseau total.
  *
  * `excludeYoutubeIds` sert à éviter de proposer deux fois le même morceau dans
  * une même playlist (utilisé aussi bien à la génération initiale qu'au
@@ -239,53 +240,40 @@ const pickByDurationProximity = (candidates, preferredDuration) => {
 };
 
 /**
- * Vérifie ET enrichit un titre venu de la base locale (DATABASE_MUSIQUES —
- * jamais d'extrait audio par nature) en cherchant CE titre précis sur Deezer,
- * par titre+artiste. Une recherche titre+artiste est beaucoup plus fiable que la
- * recherche par genre/BPM flous utilisée ailleurs dans ce moteur — on ne demande
- * plus à Deezer "trouve-moi un titre qui correspond", juste "as-tu CE titre
- * précis", ce qu'il fait très bien.
+ * Cherche des titres parmi une liste d'ARTISTES donnée, dans une fenêtre BPM
+ * précise — recherche Deezer `artist:"X" bpm_min:Y bpm_max:Z` (fiable, pas la
+ * recherche floue par mot-clé de genre utilisée ailleurs dans ce moteur).
  *
- * DEUX MOTIFS DE REJET (retourne `null`) :
- *  1. BPM contredit : si Deezer connaît un BPM pour ce titre et qu'il tombe
- *     clairement en dehors de la fenêtre demandée (`minBpm`/`maxBpm`, marge de
- *     ±15 pour ne pas être trop strict sur des différences mineures de mesure).
- *  2. PAS D'EXTRAIT TROUVÉ (le but même de cette fonction, pas un bonus) : si
- *     Deezer n'a pas ce titre précis, ou l'a mais sans extrait audio disponible,
- *     le titre est rejeté plutôt que gardé silencieusement muet — l'intérêt
- *     d'un catalogue local n'est pas d'avoir un titre "correct sur le papier"
- *     mais inécoutable, c'est justement d'obtenir un extrait réel via Deezer.
- * Dans les deux cas, le rejet permet d'être moins pointilleux sur la
- * vérification manuelle en amont lors de l'ajout de nouveaux titres au
- * catalogue : Deezer sert de garde-fou automatique au moment de la génération.
- * Seul un échec RÉSEAU (pas une vraie réponse de Deezer) garde le titre tel
- * quel par prudence — pas de rejet sur un simple problème technique passager.
+ * REMPLACE l'ancien mécanisme basé sur une liste de TITRES codés en dur
+ * (`DATABASE_MUSIQUES` + `verifyAndEnrichLocalTrack`, qui devinait un BPM et
+ * une durée à la main puis les faisait vérifier par Deezer après coup). Ici,
+ * tout vient de Deezer EN DIRECT — BPM, durée et extrait sont réels par
+ * construction, rien à deviner ni à vérifier après coup. Seule hypothèse
+ * posée : un artiste choisi comme représentatif d'un genre (voir
+ * ARTIST_CATALOG dans musicCatalog.js) fait globalement partie de ce genre —
+ * une hypothèse bien plus fiable que la classification Deezer au niveau du
+ * TITRE (voir GENRE_EQUIVALENCE_GROUPS, qui documente pourquoi cette dernière
+ * s'est révélée peu fiable en pratique).
+ *
+ * Utilisée à la fois pour les artistes FAVORIS de l'utilisateur et pour
+ * ARTIST_CATALOG (le filet de secours par genre) — même mécanisme, deux
+ * sources de noms d'artistes différentes.
+ *
+ * Retourne une liste de STUBS Deezer (pas encore les détails complets) —
+ * l'appelant doit encore récupérer les détails (bpm réel, durée, extrait) via
+ * /track/{id} pour les stubs qui l'intéressent, plutôt que de tout récupérer
+ * en une fois (coût réseau proportionnel à ce qui est vraiment utilisé).
  */
-const verifyAndEnrichLocalTrack = async (track, minBpm, maxBpm) => {
-  try {
-    const q = `artist:"${track.artist}" track:"${track.title}"`;
-    const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=1`);
-    const stub = (data && Array.isArray(data.data)) ? data.data[0] : null;
-    if (!stub) {
-      console.warn(`[TempoFit] "${track.title}" REJETÉ : introuvable sur Deezer, donc aucun extrait possible.`);
-      return null;
-    }
-    const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
-    if (!full || !full.preview) {
-      console.warn(`[TempoFit] "${track.title}" REJETÉ : trouvé sur Deezer mais sans extrait audio disponible.`);
-      return null;
-    }
-    if (full.bpm && parseFloat(full.bpm) > 0) {
-      const deezerBpm = parseFloat(full.bpm);
-      if (deezerBpm < minBpm - 15 || deezerBpm > maxBpm + 15) {
-        console.warn(`[TempoFit] "${track.title}" REJETÉ : BPM local (${track.bpm}) contredit par Deezer (${deezerBpm}), hors fenêtre ${minBpm}-${maxBpm} (±15).`);
-        return null;
-      }
-    }
-    return { ...track, preview: full.preview };
-  } catch (e) {
-    return track;
-  }
+const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeYoutubeIds, maxArtistsToTry = 4, candidatesPerArtist = 6) => {
+  if (!artistNames || artistNames.length === 0) return [];
+  const sampled = [...artistNames].sort(() => Math.random() - 0.5).slice(0, maxArtistsToTry);
+  const stubsByArtist = await Promise.all(sampled.map(async (artistName) => {
+    const q = `artist:"${artistName}" bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"`;
+    const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=${candidatesPerArtist}`);
+    const stubs = (data && Array.isArray(data.data)) ? data.data : [];
+    return stubs.filter(s => !excludeYoutubeIds.includes(`deezer-${s.id}`));
+  }));
+  return stubsByArtist.flat().sort(() => Math.random() - 0.5);
 };
 
 /**
@@ -447,28 +435,23 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   //      jamais utilisé nulle part dans ce moteur — un vrai trou fonctionnel entre
   //      ce que la page Favoris laissait penser et ce qui se passait réellement.
   //      On cherche maintenant sur Deezer des titres de ces artistes qui tombent
-  //      dans la fourchette de BPM demandée (filtre combiné artist:/bpm_min/bpm_max).
-  //      Limité à 3 artistes tirés au hasard par appel pour contenir le nombre de
-  //      requêtes réseau (un utilisateur peut avoir des dizaines d'artistes favoris).
+  //      dans la fourchette de BPM demandée, via searchArtistsForBpm (même
+  //      mécanisme que ARTIST_CATALOG, réutilisé ici pour les artistes PERSONNELS
+  //      de l'utilisateur plutôt qu'une liste choisie par genre).
   if (favorites && Array.isArray(favorites.artists) && favorites.artists.length > 0) {
     try {
-      const sampledArtists = [...favorites.artists].sort(() => Math.random() - 0.5).slice(0, 3);
-      const stubsByArtist = await Promise.all(sampledArtists.map(async (artistName) => {
-        const q = `artist:"${artistName}" bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"`;
-        const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=5`);
-        const stubs = (data && Array.isArray(data.data)) ? data.data : [];
-        return stubs.filter(s => !excludeYoutubeIds.includes(`deezer-${s.id}`));
-      }));
-      const candidateStubs = stubsByArtist.flat().sort(() => Math.random() - 0.5);
+      const candidateStubs = await searchArtistsForBpm(favorites.artists, minBpm, maxBpm, excludeYoutubeIds, 3, 5);
       // GARDE-FOU GENRE (trou trouvé après un test réel : "Stan" d'Eminem et
       // "Thinking Out Loud" d'Ed Sheeran s'invitaient dans des playlists
-      // Métal/Rock via ce chemin précis) : un artiste favori totalement hors du
-      // genre demandé ne devrait pas s'inviter juste parce qu'un de ses titres
-      // tombe dans la bonne fenêtre BPM — le nom de l'artiste seul ne dit rien du
-      // genre du titre trouvé. Contrairement aux autres étapes de la cascade, si
-      // aucun candidat ne correspond ici, on NE FORCE PAS un mauvais choix : cette
-      // étape est un bonus de priorité précoce (pas un dernier recours), donc on
-      // laisse simplement la main aux étapes suivantes, qui chercheront un genre correct.
+      // Métal/Rock via ce chemin précis) : contrairement à ARTIST_CATALOG (choisi
+      // PAR genre, donc le genre est présupposé fiable), les artistes favoris de
+      // l'utilisateur ne sont pas garantis correspondre au genre demandé — un
+      // artiste favori totalement hors du genre demandé ne devrait pas s'inviter
+      // juste parce qu'un de ses titres tombe dans la bonne fenêtre BPM. On
+      // vérifie donc encore le genre ici. Contrairement aux autres étapes de la
+      // cascade, si aucun candidat ne correspond, on NE FORCE PAS un mauvais
+      // choix : cette étape est un bonus de priorité précoce (pas un dernier
+      // recours), donc on laisse simplement la main aux étapes suivantes.
       for (let attempt = 0; attempt < Math.min(5, candidateStubs.length); attempt++) {
         const stub = candidateStubs[attempt];
         const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
@@ -507,8 +490,8 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
 
   // 3. DEEZER EN DIRECT, tolérance exacte : mot-clé de CHAQUE genre sélectionné, une
   //    recherche par genre entrelacée round-robin (voir searchDeezerForGenres) —
-  //    prioritaire sur la base locale statique car Deezer/la détection audio
-  //    fournissent un extrait écoutable, ce que DATABASE_MUSIQUES ne peut jamais offrir.
+  //    essayée en premier car elle explore beaucoup plus large que le catalogue
+  //    d'artistes de l'étape 4 (tout Deezer, pas juste une liste d'artistes choisis).
   const genresForQuery = (selectedGenres && selectedGenres.length > 0) ? selectedGenres : ['Autre'];
   const candidateCap = Math.min(Math.max(8, genresForQuery.length * 3), 24);
   try {
@@ -531,32 +514,39 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
     // Échec silencieux : on continue vers le fallback local.
   }
 
-  // 4. BACKUP LOCAL, tolérance exacte : Deezer n'a rien donné (ni exact, ni élargi).
-  //    Cette base est exemptée de l'historique inter-génération (`historyExcludeIds`)
-  //    — trop réduite pour servir de source de "nouveauté" sans se vider — mais reste
-  //    dédoublonnée SUR LA PLAYLIST EN COURS.
-  let availableTracks = [];
+  // 4. BACKUP CATALOGUE D'ARTISTES, tolérance exacte : Deezer n'a rien donné (ni
+  //    exact, ni élargi) via la recherche généraliste par mot-clé de genre. On
+  //    retente ici via ARTIST_CATALOG (voir musicCatalog.js et searchArtistsForBpm)
+  //    — une recherche par ARTISTE représentatif du genre plutôt que par mot-clé
+  //    flou, donc pas besoin de revérifier le genre (l'artiste EST le choix de
+  //    genre). Exempté de l'historique inter-génération (`historyExcludeIds`) —
+  //    même logique que l'ancienne base de titres : mieux vaut réutiliser un
+  //    artiste déjà vu que de forcer un mauvais genre.
   const validGenres = selectedGenres.length > 0 ? selectedGenres : ['Métal'];
   const localExcludeIds = excludeYoutubeIds.filter(id => !historyExcludeIds.includes(id));
+  let catalogArtists = [];
+  validGenres.forEach(g => { if (ARTIST_CATALOG[g]) catalogArtists = [...catalogArtists, ...ARTIST_CATALOG[g]]; });
+  if (catalogArtists.length === 0) catalogArtists = ARTIST_CATALOG['Pop'];
 
-  validGenres.forEach(g => {
-    if (DATABASE_MUSIQUES[g]) availableTracks = [...availableTracks, ...DATABASE_MUSIQUES[g].map(t => ({...t, genre: g}))];
-  });
-  if (availableTracks.length === 0) availableTracks = DATABASE_MUSIQUES['Pop'].map(t => ({...t, genre: 'Pop'}));
-
-  let suitable = availableTracks.filter(t => t.bpm >= minBpm && t.bpm <= maxBpm && !localExcludeIds.includes(t.youtubeId));
-
-  if (suitable.length > 0) {
-      // Vérification AVANT de choisir (pas après) : un titre dont le BPM local est
-      // contredit par Deezer est écarté ici — voir verifyAndEnrichLocalTrack. Si
-      // aucun candidat ne survit à la vérification, on continue vers le repli
-      // extrême ci-dessous plutôt que de forcer un mauvais choix.
-      const verifiedSuitable = (await fetchInBatches(suitable, 5, async (t) => {
-        return await verifyAndEnrichLocalTrack(t, minBpm, maxBpm);
-      })).filter(Boolean);
-      if (verifiedSuitable.length > 0) {
-        return pickByDurationProximity(verifiedSuitable, preferredDuration);
+  try {
+    const stubs = await searchArtistsForBpm(catalogArtists, minBpm, maxBpm, localExcludeIds, 6, 5);
+    if (stubs.length > 0) {
+      const details = (await fetchInBatches(stubs.slice(0, 20), 10, async (s) => {
+        const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
+        return full;
+      })).filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm && f.preview);
+      if (details.length > 0) {
+        const picked = pickByDurationProximity(details, preferredDuration);
+        return {
+          youtubeId: `deezer-${picked.id}`, title: picked.title,
+          artist: picked.artist ? picked.artist.name : 'Inconnu',
+          bpm: Math.round(parseFloat(picked.bpm)), duration: picked.duration || 180,
+          isEmbeddable: true, genre: validGenres[0], preview: picked.preview
+        };
       }
+    }
+  } catch (e) {
+    // Échec silencieux : on continue vers le repli extrême ci-dessous.
   }
 
   // GetSongBPM SUPPRIMÉ ICI (ancienne étape 5) : ne fournissait jamais d'extrait
@@ -564,44 +554,46 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   // "Inconnu" — moins fiable que le repli extrême ci-dessous (vrai titre, vraie
   // durée, juste hors tolérance BPM), qui est de toute façon garanti non-vide.
 
-  // 5. FALLBACK EXTRÊME (dernier recours) :
-  //    On cherche parmi les morceaux locaux dont le BPM est le plus proche de la cible,
-  //    tolérance ignorée. Trois corrections par rapport à l'ancienne version :
-  //      - Si le genre sélectionné est épuisé (tous ses titres déjà utilisés dans la
-  //        playlist), on élargit à TOUTE la base locale plutôt que de retomber sur un
-  //        pool vide qui forçait la réutilisation du même titre.
-  //      - Le choix final est aléatoire PARMI les 3 titres les plus proches en BPM,
-  //        plutôt que strictement déterministe (toujours LE plus proche) — c'est ce
-  //        déterminisme qui causait des répétitions en boucle du même titre une fois
-  //        le stock épuisé (ex. "Duality" répété 10 fois d'affilée).
-  //      - BUG CORRIGÉ : cette étape utilisait `excludeYoutubeIds` (qui inclut
-  //        l'historique inter-génération) au lieu de `localExcludeIds` (qui l'exempte).
-  //        Résultat concret observé : au bout de quelques générations, les titres
-  //        locaux du genre demandé finissaient tous marqués "déjà utilisés" par
-  //        l'historique, et le code élargissait alors à TOUT le catalogue local
-  //        (Country, R&B, Electro...) au lieu de rester sur le genre sélectionné —
-  //        exactement le genre de fuite que l'exemption d'historique était censée
-  //        éviter, oubliée sur cette seule étape.
-  let fallbackPool = availableTracks.filter(t => !localExcludeIds.includes(t.youtubeId));
-  if (fallbackPool.length === 0) {
-    const allTracksFlat = [];
-    Object.keys(DATABASE_MUSIQUES).forEach(g => DATABASE_MUSIQUES[g].forEach(t => allTracksFlat.push({...t, genre: g})));
-    fallbackPool = allTracksFlat.filter(t => !localExcludeIds.includes(t.youtubeId));
-    if (fallbackPool.length === 0) fallbackPool = allTracksFlat; // vraiment tout épuisé : on autorise la répétition en tout dernier recours
+  // 5. FALLBACK EXTRÊME (dernier recours, garanti non-vide) : même catalogue
+  //    d'artistes, mais SANS filtre BPM strict — on prend ce que Deezer a de ces
+  //    artistes, peu importe le tempo, et on trie par proximité avec la cible.
+  //    Pour un artiste réel avec une vraie discographie sur Deezer, ça trouve
+  //    presque toujours quelque chose — contrairement à l'ancienne base de
+  //    titres figée, qui pouvait littéralement être vide pour un genre donné.
+  try {
+    const q = `artist:"${catalogArtists[Math.floor(Math.random() * catalogArtists.length)]}"`;
+    const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=25`);
+    const stubs = (data && Array.isArray(data.data) ? data.data : []).filter(s => !localExcludeIds.includes(`deezer-${s.id}`));
+    if (stubs.length > 0) {
+      const details = (await fetchInBatches(stubs, 10, async (s) => {
+        const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
+        return full;
+      })).filter(f => f && f.bpm && parseFloat(f.bpm) > 0);
+      if (details.length > 0) {
+        const sortedByProximity = [...details].sort((a, b) => Math.abs(parseFloat(a.bpm) - targetBpm) - Math.abs(parseFloat(b.bpm) - targetBpm));
+        const picked = pickByDurationProximity(sortedByProximity.slice(0, 3), preferredDuration);
+        return {
+          youtubeId: `deezer-${picked.id}`, title: picked.title,
+          artist: picked.artist ? picked.artist.name : 'Inconnu',
+          bpm: Math.round(parseFloat(picked.bpm)), duration: picked.duration || 180,
+          isEmbeddable: true, genre: validGenres[0], preview: picked.preview || null,
+          _isFallback: true
+        };
+      }
+    }
+  } catch (e) {
+    // Échec réseau total : voir le tout dernier repli ci-dessous.
   }
-  const sortedByProximity = [...fallbackPool].sort((a, b) => Math.abs(a.bpm - targetBpm) - Math.abs(b.bpm - targetBpm));
-  // Dernier recours garanti : on tente quand même la vérification Deezer sur les
-  // 8 candidats les plus proches en BPM, mais SANS jamais renvoyer `null` — si
-  // aucun ne passe la vérification, on accepte le meilleur candidat non vérifié
-  // plutôt que de laisser un trou dans la playlist (c'est littéralement le rôle
-  // de cette étape : ne jamais échouer).
-  const topCandidatesForCheck = sortedByProximity.slice(0, 8);
-  const verifiedCandidates = (await fetchInBatches(topCandidatesForCheck, 5, async (t) => {
-    return await verifyAndEnrichLocalTrack(t, targetBpm - tolerance, targetBpm + tolerance);
-  })).filter(Boolean);
-  const finalCandidates = verifiedCandidates.length > 0 ? verifiedCandidates : sortedByProximity.slice(0, 3);
-  const picked = pickByDurationProximity(finalCandidates, preferredDuration);
-  return { ...picked, _isFallback: true };
+
+  // Repli du repli, en cas d'échec réseau total sur TOUT ce qui précède (offline,
+  // proxy indisponible...) : un objet minimal sans extrait, pour ne jamais planter
+  // la génération même dans le pire des cas.
+  return {
+    youtubeId: `fallback-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+    title: 'Titre indisponible', artist: catalogArtists[0] || 'Inconnu',
+    bpm: targetBpm, duration: preferredDuration || 200,
+    isEmbeddable: false, genre: validGenres[0], preview: null, _isFallback: true
+  };
 };
 
 /**
@@ -797,31 +789,43 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
     // Échec silencieux : le pool s'appuiera sur les autres sources (favoris/Spotify/local).
   }
 
-  // Base locale statique (jamais d'extrait audio, mais toujours disponible hors-ligne).
-  // Volontairement épargnée de l'historique inter-génération (`historyExcludeIds`) :
-  // cette base ne contient que quelques titres par genre au total, c'est un filet de
-  // sécurité minimal, pas une source de nouveauté — l'exclure sur tout l'historique
-  // des générations précédentes la viderait en quelques séances et forcerait un repli
-  // vers une source moins fiable juste pour "garantir" une variété que cette petite
-  // base n'a jamais eu vocation à fournir. Elle reste en revanche dédoublonnée sur LA
-  // PLAYLIST EN COURS (pas de titre local répété deux fois dans la même séance).
+  // CATALOGUE D'ARTISTES (remplace l'ancienne base de titres codés en dur) :
+  // recherche Deezer EN DIRECT sur une liste d'artistes représentatifs du genre
+  // (ARTIST_CATALOG, voir musicCatalog.js et searchArtistsForBpm) — BPM, durée et
+  // extrait viennent tous réellement de Deezer, rien n'est deviné ni à vérifier
+  // après coup. Volontairement épargné de l'historique inter-génération
+  // (`historyExcludeIds`) : mieux vaut réutiliser un artiste déjà vu dans une
+  // génération précédente que de forcer un mauvais genre en élargissant trop.
+  // Reste dédoublonné sur LA PLAYLIST EN COURS (pas de titre répété deux fois
+  // dans la même séance).
   const localExcludeIds = excludeYoutubeIds.filter(id => !historyExcludeIds.includes(id));
-  let localPool = [];
   const validGenres = effectiveGenres && effectiveGenres.length > 0 ? effectiveGenres : ['Métal'];
-  validGenres.forEach(g => { if (DATABASE_MUSIQUES[g]) localPool = [...localPool, ...DATABASE_MUSIQUES[g].map(t => ({ ...t, genre: g }))]; });
-  const localCandidates = localPool.filter(t => t.bpm >= minBpm && t.bpm <= maxBpm && !localExcludeIds.includes(t.youtubeId));
-  // Vérification + extrait AVANT d'entrer dans le pool de sélection (pas après-coup) :
-  // un titre dont le BPM codé en dur est contredit par Deezer est écarté ici, avant
-  // même de pouvoir être choisi — voir verifyAndEnrichLocalTrack pour le détail du
-  // rejet. Ça permet d'être moins pointilleux sur la vérification manuelle en amont
-  // en confiant ce contrôle à Deezer au moment de la génération.
-  const verifiedLocal = (await fetchInBatches(localCandidates, 5, async (t) => {
-    return await verifyAndEnrichLocalTrack(t, minBpm, maxBpm);
-  })).filter(Boolean);
-  // `_isLocalDB` : distingue ce catalogue codé en dur des favoris/Spotify (eux
-  // aussi sans `_deezerId`, mais ce sont des choix explicites de l'utilisateur,
-  // pas un filet de secours) — nécessaire pour la priorité à 4 niveaux ci-dessous.
-  verifiedLocal.map(t => ({ ...t, _isLocalDB: true })).forEach(addIfValid);
+  let catalogArtists = [];
+  validGenres.forEach(g => { if (ARTIST_CATALOG[g]) catalogArtists = [...catalogArtists, ...ARTIST_CATALOG[g]]; });
+
+  if (catalogArtists.length > 0) {
+    try {
+      const stubs = await searchArtistsForBpm(catalogArtists, minBpm, maxBpm, localExcludeIds, 8, 6);
+      const details = await fetchInBatches(stubs.slice(0, 30), 10, async (s) => {
+        const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
+        return full;
+      });
+      details.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm && f.preview).forEach(full => {
+        // `_isLocalDB` : nom conservé pour la priorité à 4 niveaux ci-dessous
+        // (distingue ce filet de secours par artiste des favoris/Spotify — ce
+        // sont des choix explicites de l'utilisateur, pas un filet de secours —
+        // et du reste de Deezer en recherche généraliste).
+        addIfValid({
+          youtubeId: `deezer-${full.id}`, title: full.title,
+          artist: full.artist ? full.artist.name : 'Inconnu',
+          bpm: Math.round(parseFloat(full.bpm)), duration: full.duration || 180,
+          genre: validGenres[0], preview: full.preview, _isLocalDB: true
+        });
+      });
+    } catch (e) {
+      // Échec silencieux : le pool s'appuiera sur les autres sources.
+    }
+  }
 
   // Sélection gloutonne SUR TOUT LE POOL : à chaque étape, on compare le temps
   // restant à TOUS les candidats encore disponibles (pas 2-3), et on retire celui
@@ -1023,49 +1027,23 @@ export default function App() {
   const [theme, setTheme] = useState('dark'); 
 
   /**
-   * "Moteur de vérité BPM" : détermine le BPM réel d'un morceau externe (ex.
-   * un titre liké sur Spotify dont on ne connaît pas encore le tempo).
-   * Ordre de résolution :
-   *   1. Recherche approximative (inclusion de chaîne dans les 2 sens) dans
-   *      la base locale DATABASE_MUSIQUES — rapide, gratuit, pas d'appel réseau.
-   *   2. Requête à l'API GetSongBPM `/search/` avec titre + artiste nettoyés
-   *      (suppression des parenthèses/crochets, ne garde que le 1er artiste
-   *      en cas de featuring séparé par "," ou "&").
-   *   3. Si la recherche combinée titre+artiste ne donne rien, on retente en
-   *      cherchant uniquement par titre (`type=song`), plus permissif.
-   *   4. Si l'API échoue ou ne trouve rien : fallback mathématique arbitraire
-   *      (100 + longueur du titre modulo 80) — approximatif mais garantit
-   *      qu'un BPM (même faux) est toujours renvoyé, pour ne jamais bloquer
-   *      la synchronisation Spotify.
-   */
-  /**
    * "Moteur de vérité BPM" : détermine le BPM réel (et l'extrait audio, si dispo)
    * d'un morceau externe (ex. un titre liké sur Spotify dont on ne connaît pas
    * encore le tempo). Renvoie toujours { bpm, preview }, jamais juste un nombre.
    * Ordre de résolution :
-   *   1. Recherche approximative (inclusion de chaîne dans les 2 sens) dans
-   *      la base locale DATABASE_MUSIQUES — rapide, gratuit, pas d'appel réseau
-   *      (mais jamais d'extrait audio pour ces entrées codées en dur).
-   *   2. Recherche Deezer (titre + artiste, filtre avancé track:/artist:) via notre
-   *      relais /api/deezer — c'est la source principale désormais : plus fiable
-   *      que GetSongBPM (voir tout l'historique de debug de cette app) ET fournit
-   *      systématiquement un extrait audio écoutable dans l'app.
-   *   3. Si Deezer échoue, on retente sur GetSongBPM en dernier filet de sécurité.
-   *   4. Fallback mathématique arbitraire (100 + longueur du titre modulo 80) si
+   *   1. Recherche Deezer (titre + artiste, filtre avancé track:/artist:) via notre
+   *      relais /api/deezer — la source principale : plus fiable que GetSongBPM
+   *      (voir tout l'historique de debug de cette app) ET fournit systématiquement
+   *      un extrait audio écoutable dans l'app.
+   *   2. Si Deezer échoue, on retente sur GetSongBPM en dernier filet de sécurité.
+   *   3. Fallback mathématique arbitraire (100 + longueur du titre modulo 80) si
    *      absolument rien n'a fonctionné — approximatif mais garantit qu'un BPM
    *      (même faux) est toujours renvoyé, pour ne jamais bloquer la synchro.
+   * (L'ancienne étape 1 « recherche dans la base locale » a disparu avec le passage
+   * à ARTIST_CATALOG : plus de liste de titres codés en dur à consulter ici — voir
+   * musicCatalog.js pour le détail de ce changement d'architecture.)
    */
   const resolveRealBPM = async (title, artist) => {
-    const allLocalTracks = [];
-    Object.values(DATABASE_MUSIQUES).forEach(tracks => allLocalTracks.push(...tracks));
-    
-    const exactMatch = allLocalTracks.find(t => 
-      t.title.toLowerCase().includes(title.toLowerCase()) || 
-      title.toLowerCase().includes(t.title.toLowerCase())
-    );
-
-    if (exactMatch) return { bpm: exactMatch.bpm, preview: null };
-
     const cleanTitle = title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').split('-')[0].trim();
     const cleanArtist = artist.split(',')[0].split('&')[0].trim();
 
@@ -1337,7 +1315,7 @@ export default function App() {
   // Titres et artistes de démonstration pré-remplis pour inciter l'utilisateur à
   // manipuler ces options dès le premier lancement (les découvrir passivement,
   // sans avoir à d'abord chercher/ajouter quoi que ce soit soi-même). Les deux
-  // titres viennent de la base locale (mêmes youtubeId que DATABASE_MUSIQUES) donc
+  // titres sont des valeurs figées à la main (pas tirées d'un catalogue), donc
   // leur BPM est fiable, mais ils n'ont pas d'extrait audio par défaut (bouton
   // grisé) — pas d'appel réseau Deezer nécessaire juste pour peupler l'exemple.
   const [favorites, setFavorites] = useState({
@@ -1714,23 +1692,12 @@ export default function App() {
     setIsWorldSearching(false);
   };
   
-  // Liste à plat de tous les morceaux de la base locale (mémoïsée, ne change jamais
-  // en pratique puisque DATABASE_MUSIQUES est une constante).
-  const allTracksDb = useMemo(() => {
-    let list = [];
-    Object.keys(DATABASE_MUSIQUES).forEach(genre => {
-        DATABASE_MUSIQUES[genre].forEach(t => list.push({...t, genre}));
-    });
-    return list;
-  }, []);
-
-  // Recherche locale simple (titre/artiste) dans la base interne — pas d'appel réseau.
-  // Distincte de searchWorldMusicApi qui interroge l'API mondiale.
-  const searchResults = useMemo(() => {
-    if(!searchQuery.trim()) return [];
-    const q = searchQuery.toLowerCase();
-    return allTracksDb.filter(t => t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q));
-  }, [searchQuery, allTracksDb]);
+  // NOTE : un bloc "recherche locale simple (titre/artiste)" existait ici
+  // (allTracksDb + searchResults), construit sur l'ancienne base de titres
+  // codés en dur. Code mort trouvé au passage : son résultat (`searchResults`)
+  // n'était en fait lu nulle part ailleurs dans l'interface — retiré, d'autant
+  // qu'il n'a plus de fondation avec le passage à ARTIST_CATALOG (qui ne liste
+  // que des noms d'artistes, pas de titres à chercher).
 
   const [dataOffset, setDataOffset] = useState(0);
   const fileInputRef = useRef(null);
