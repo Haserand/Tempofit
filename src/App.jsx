@@ -759,11 +759,19 @@ export default function App() {
   const normalizeForArtistMatch = (str) => (str || '')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase().trim();
+  // Retire un article de tête ("the", "la", "le", "les") avant comparaison —
+  // sans ça, "beatles" ne matchait pas "The Beatles" (un des cas les plus
+  // évidents qu'on puisse taper), parce que ni l'un ni l'autre n'est un
+  // préfixe de mot entier de l'autre une fois l'article laissé en place.
+  const stripLeadingArticle = (s) => s.replace(/^(the|les?|la)\s+/, '');
   const isConfidentArtistMatch = (query, artistName) => {
     const q = normalizeForArtistMatch(query);
-    const a = normalizeForArtistMatch(artistName);
-    if (!q || !a) return false;
-    return a === q || a.startsWith(q + ' ') || q.startsWith(a + ' ');
+    const aFull = normalizeForArtistMatch(artistName);
+    if (!q || !aFull) return false;
+    const matches = (x, y) => x === y || x.startsWith(y + ' ') || y.startsWith(x + ' ');
+    if (matches(aFull, q)) return true;
+    // 2e passe, articles retirés des deux côtés ("the beatles"/"beatles" → "beatles"/"beatles")
+    return matches(stripLeadingArticle(aFull), stripLeadingArticle(q));
   };
 
   /**
