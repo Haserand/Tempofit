@@ -507,6 +507,25 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
  * durée cible, on retombe sur `getSingleMatchingTrack` (GetSongBPM + repli
  * extrême) pour terminer, qui garantit qu'on ne reste jamais bloqué.
  */
+/**
+ * Compare le VRAI genre Deezer d'un titre (résolu via resolveDeezerGenre — chaîne
+ * officielle titre → album → genre_id → nom) au genre interne demandé par
+ * l'utilisateur (ex. "Métal", "Rap"). Comparaison tolérante (accents/casse
+ * ignorés, correspondance partielle dans un sens ou l'autre) car les noms Deezer
+ * ne correspondent pas toujours exactement aux nôtres (ex. Deezer catégorise
+ * parfois "Rap/Hip Hop" en un seul intitulé). S'appuie sur DEEZER_GENRE_KEYWORDS
+ * plutôt que sur le nom interne brut, puisque c'est déjà la correspondance
+ * qu'on maintient entre nos genres et le vocabulaire Deezer.
+ */
+const genreRoughlyMatches = (realGenre, requestedGenre) => {
+  if (!realGenre) return false;
+  const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const real = normalize(realGenre);
+  const requested = normalize(requestedGenre);
+  const keyword = normalize(DEEZER_GENRE_KEYWORDS[requestedGenre] || requestedGenre);
+  return real.includes(keyword) || keyword.includes(real) || real.includes(requested) || requested.includes(real);
+};
+
 const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites, spotifyTrackPool, historyExcludeIds = []) => {
   const minBpm = segment.bpm - config.bpmTolerance;
   const maxBpm = segment.bpm + config.bpmTolerance;
@@ -630,13 +649,55 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   // Sélection gloutonne SUR TOUT LE POOL : à chaque étape, on compare le temps
   // restant à TOUS les candidats encore disponibles (pas 2-3), et on retire celui
   // qui s'en rapproche le plus — un vrai "bin packing" plutôt qu'un tirage local.
+  //
+  // GARDE-FOU GENRE (ajouté après le cas "Stan" d'Eminem retenu dans une playlist
+  // Métal/Rock) : la recherche Deezer utilise le genre comme mot-clé flou dans une
+  // requête texte, pas comme un filtre strict — un titre peut matcher le BPM sans
+  // vraiment correspondre au genre demandé. Pour chaque candidat venant de Deezer
+  // (`_deezerId` présent), on vérifie maintenant son VRAI genre (résolu via
+  // resolveDeezerGenre) AVANT de l'accepter définitivement. S'il ne correspond à
+  // aucun des genres demandés, on essaie le candidat suivant du pool (déjà
+  // récupéré, donc sans nouvel appel de recherche) — jusqu'à 5 essais. Si les 5
+  // échouent, on garde quand même le meilleur candidat (le plus proche en durée)
+  // plutôt que de laisser un trou dans la playlist, mais marqué `_genreMismatch`
+  // pour que ce soit visible dans l'interface plutôt que découvert après coup.
+  // Les titres favoris/Spotify/locaux gardent leur genre déjà assigné, jamais
+  // revérifiés ici (ce sont des choix délibérés, pas des résultats de recherche floue).
+  const MAX_GENRE_CHECK_ATTEMPTS = 5;
   const selected = [];
   let remaining = segment.durationSeconds;
   let availablePool = [...pool];
 
   while (remaining > 30 && availablePool.length > 0) {
     availablePool.sort((a, b) => Math.abs(a.duration - remaining) - Math.abs(b.duration - remaining));
-    const pick = availablePool.shift();
+
+    let pick = null;
+    const attempted = [];
+    for (let attempt = 0; attempt < Math.min(MAX_GENRE_CHECK_ATTEMPTS, availablePool.length); attempt++) {
+      const candidate = availablePool[attempt];
+      if (!candidate._deezerId) {
+        // Favoris / Spotify / local : genre déjà assigné, on fait confiance directement.
+        pick = candidate;
+        break;
+      }
+      const realGenre = await resolveDeezerGenre(candidate._deezerId);
+      candidate.genre = realGenre || 'Genre inconnu';
+      attempted.push(candidate);
+      if (effectiveGenres.some(g => genreRoughlyMatches(realGenre, g))) {
+        pick = candidate;
+        break;
+      }
+      // Sinon : genre confirmé mais ne correspond pas, on essaie le candidat suivant.
+    }
+    if (!pick) {
+      // Aucun des candidats testés ne correspondait au genre demandé : on garde
+      // quand même le premier (le plus proche en durée), marqué explicitement.
+      pick = attempted[0] || availablePool[0];
+      pick._genreMismatch = true;
+      pick._isFallback = true;
+    }
+
+    availablePool = availablePool.filter(t => t !== pick);
     selected.push(pick);
     remaining -= pick.duration;
   }
@@ -662,15 +723,11 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
     selected.push(extra);
   }
 
-  // Résolution du genre différée à MAINTENANT : seuls les titres réellement
-  // retenus payent le coût des appels réseau supplémentaires (album + genre),
-  // pas tout le pool de candidats écartés par la sélection ci-dessus.
-  await Promise.all(selected.map(async (t) => {
-    if (t.genre === null && t._deezerId) {
-      t.genre = (await resolveDeezerGenre(t._deezerId)) || 'Genre inconnu';
-      delete t._deezerId;
-    }
-  }));
+  // Le genre est maintenant résolu EN AMONT, pendant la sélection elle-même (voir
+  // la vérification de genre ci-dessus) — plus besoin de le résoudre après coup ici.
+  // Reste juste à nettoyer le champ technique `_deezerId`, inutile une fois la
+  // sélection terminée.
+  selected.forEach(t => { delete t._deezerId; });
 
   return selected;
 };
@@ -3787,7 +3844,7 @@ export default function App() {
                             </button>
                             <div className="flex-1 min-w-0">
                               <div className={`font-bold text-sm truncate ${textHighlight}`}>{track.title}</div>
-                              <div className={`text-xs truncate ${textMuted}`}>{track.artist}</div>
+                              <div className={`text-xs truncate ${textMuted}`}>{track.artist}{track.genre ? ` · ${track.genre}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé — le pool de candidats n'avait rien de mieux disponible.">⚠️ Genre non confirmé</span>}</div>
                             </div>
                             {track.bpm ? <span className={`font-mono text-xs font-bold shrink-0 ${textColorClass}`}>{track.bpm} BPM</span> : null}
                             <button onClick={() => setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.youtubeId !== track.youtubeId) }))} className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
@@ -4095,7 +4152,7 @@ export default function App() {
                         </button>
                         <div className="flex-1 min-w-0">
                           <div className={`font-bold text-sm truncate ${textHighlight}`}>{trackSegments[selectedSegmentIdx].track.title}</div>
-                          <div className={`text-xs truncate ${textMuted}`}>{trackSegments[selectedSegmentIdx].track.artist}</div>
+                          <div className={`text-xs truncate ${textMuted}`}>{trackSegments[selectedSegmentIdx].track.artist}{trackSegments[selectedSegmentIdx].track.genre ? ` · ${trackSegments[selectedSegmentIdx].track.genre}` : ''}{trackSegments[selectedSegmentIdx].track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé.">⚠️ Genre non confirmé</span>}</div>
                         </div>
                         <div className={`text-xs font-mono ${textMuted} shrink-0`}>
                           Début : {formatDuration(trackSegments[selectedSegmentIdx].startTime)}<br/>
@@ -4227,7 +4284,7 @@ export default function App() {
                         </button>
                         <div className="flex-1 px-2 min-w-0">
                           <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
-                          <div className={"text-xs truncate " + textMuted}>{track.artist}</div>
+                          <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${track.genre}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé — le pool de candidats n'avait rien de mieux disponible.">⚠️ Genre non confirmé</span>}</div>
                         </div>
                         <div className="w-28 text-center shrink-0">
                           <div className={"font-mono font-bold text-sm " + textColorClass}>{track.bpm} <span className={`text-[10px] font-normal ${textMuted}`}>BPM</span></div>
@@ -4459,7 +4516,7 @@ export default function App() {
                             }} className="flex-1 min-w-0 text-left flex items-center justify-between gap-3">
                               <div className="truncate">
                                 <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
-                                <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${track.genre}` : ''}</div>
+                                <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${track.genre}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé.">⚠️ Genre non confirmé</span>}</div>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
                                 <span className={"font-mono text-sm font-bold " + textColorClass}>{track.bpm} BPM</span>
