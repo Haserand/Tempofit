@@ -570,24 +570,38 @@ const GENRE_EQUIVALENCE_GROUPS = {
 };
 
 /**
- * Compare le VRAI genre Deezer d'un titre (résolu via resolveDeezerGenre — chaîne
- * officielle titre → album → genre_id → nom) au genre interne demandé par
- * l'utilisateur (ex. "Métal", "Rap"). Comparaison tolérante (accents/casse
- * ignorés, correspondance partielle dans un sens ou l'autre) car les noms Deezer
- * ne correspondent pas toujours exactement aux nôtres (ex. Deezer catégorise
- * parfois "Rap/Hip Hop" en un seul intitulé). S'appuie sur DEEZER_GENRE_KEYWORDS
- * plutôt que sur le nom interne brut, puisque c'est déjà la correspondance
- * qu'on maintient entre nos genres et le vocabulaire Deezer. Complétée par
- * GENRE_EQUIVALENCE_GROUPS pour le cas Rock/Métal (voir ci-dessus).
+ * Correspondance DIRECTE entre le VRAI genre Deezer d'un titre (résolu via
+ * resolveDeezerGenre) et le genre interne demandé (ex. "Métal", "Rap").
+ * Comparaison tolérante (accents/casse ignorés, correspondance partielle dans un
+ * sens ou l'autre) car les noms Deezer ne correspondent pas toujours exactement
+ * aux nôtres (ex. Deezer catégorise parfois "Rap/Hip Hop" en un seul intitulé).
+ * Ne tient PAS compte de GENRE_EQUIVALENCE_GROUPS — voir `genreRoughlyMatches`
+ * pour la version élargie. Séparée pour permettre de prioriser les vrais matchs
+ * (ceux-ci, ou le catalogue local) sur les matchs d'équivalence uniquement
+ * (voir la sélection dans buildSegmentTracks).
  */
-const genreRoughlyMatches = (realGenre, requestedGenre) => {
+const isDirectGenreMatch = (realGenre, requestedGenre) => {
   if (!realGenre) return false;
   const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const real = normalize(realGenre);
   const requested = normalize(requestedGenre);
   const keyword = normalize(DEEZER_GENRE_KEYWORDS[requestedGenre] || requestedGenre);
-  const directMatch = real.includes(keyword) || keyword.includes(real) || real.includes(requested) || requested.includes(real);
-  if (directMatch) return true;
+  return real.includes(keyword) || keyword.includes(real) || real.includes(requested) || requested.includes(real);
+};
+
+/**
+ * Version élargie de isDirectGenreMatch, qui accepte aussi les équivalences
+ * définies dans GENRE_EQUIVALENCE_GROUPS (ex. Rock accepté pour une demande
+ * Métal, vu que Deezer classe la quasi-totalité du metal en "Rock"). À utiliser
+ * pour la validation finale (accepter/rejeter un candidat), PAS pour décider
+ * quels candidats prioriser entre eux — voir buildSegmentTracks, où les matchs
+ * directs sont préférés aux matchs d'équivalence quand les deux sont disponibles.
+ */
+const genreRoughlyMatches = (realGenre, requestedGenre) => {
+  if (isDirectGenreMatch(realGenre, requestedGenre)) return true;
+  if (!realGenre) return false;
+  const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const real = normalize(realGenre);
   const equivalents = GENRE_EQUIVALENCE_GROUPS[requestedGenre];
   return equivalents ? equivalents.some(eq => real.includes(eq) || eq.includes(real)) : false;
 };
@@ -752,26 +766,43 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   // trier par proximité de durée à l'intérieur de ce sous-ensemble. Si vraiment
   // aucun candidat du pool n'a le bon genre, on retombe sur le pool complet
   // (mieux qu'un trou dans la playlist), marqué `_genreMismatch`.
-  // Les titres favoris/Spotify/locaux gardent leur genre déjà assigné, jamais
-  // revérifiés ici (ce sont des choix délibérés, pas des résultats de recherche floue).
+  //
+  // PRIORITÉ RAFFINÉE (trouvé après un autre test réel : une fois l'équivalence
+  // Rock/Métal ajoutée, la playlist se remplissait presque entièrement de "Rock"
+  // accepté par équivalence, alors que le catalogue local "Métal" fraîchement
+  // enrichi — 15 vrais titres metal — n'était quasiment jamais utilisé). Trois
+  // niveaux de priorité, du meilleur au pire :
+  //   1. Match DIRECT (`isDirectGenreMatch`) : genre Deezer vraiment "Metal", ou
+  //      titre du catalogue local (déjà assigné au bon genre par construction).
+  //   2. Match par ÉQUIVALENCE uniquement (Rock accepté pour Métal) : utilisé
+  //      SEULEMENT si le niveau 1 n'a pas assez de candidats pour ce segment.
+  //   3. Repli genre non confirmé (comme avant) si vraiment rien ne correspond.
+  // Les titres favoris/Spotify/locaux comptent comme niveau 1 sans revérification
+  // (ce sont des choix délibérés ou déjà assignés au bon genre).
   const selected = [];
   let remaining = segment.durationSeconds;
   let availablePool = [...pool];
 
   while (remaining > 30 && availablePool.length > 0) {
-    const genreOkPool = availablePool.filter(t => !t._deezerId || effectiveGenres.some(g => genreRoughlyMatches(t.genre, g)));
-    const hasGenreMatch = genreOkPool.length > 0;
-    const searchPool = hasGenreMatch ? genreOkPool : availablePool;
+    const directMatchPool = availablePool.filter(t => !t._deezerId || effectiveGenres.some(g => isDirectGenreMatch(t.genre, g)));
+    const equivalenceMatchPool = availablePool.filter(t => t._deezerId && !directMatchPool.includes(t) && effectiveGenres.some(g => genreRoughlyMatches(t.genre, g)));
+
+    let searchPool, matchLevel;
+    if (directMatchPool.length > 0) { searchPool = directMatchPool; matchLevel = 'direct'; }
+    else if (equivalenceMatchPool.length > 0) { searchPool = equivalenceMatchPool; matchLevel = 'equivalence'; }
+    else { searchPool = availablePool; matchLevel = 'none'; }
 
     searchPool.sort((a, b) => Math.abs(a.duration - remaining) - Math.abs(b.duration - remaining));
     const pick = searchPool[0];
 
-    if (!hasGenreMatch) {
+    if (matchLevel === 'none') {
       pick._genreMismatch = true;
       pick._isFallback = true;
       console.warn(`[TempoFit DEBUG][pool] Aucun candidat du bon genre dans tout le pool restant (${availablePool.length} titres) — repli sur "${pick.title}" (genre="${pick.genre}") marqué _genreMismatch`);
+    } else if (matchLevel === 'equivalence') {
+      console.log(`[TempoFit DEBUG][pool] "${pick.title}" (${pick.artist}) — genre réel="${pick.genre}", demandé=[${effectiveGenres.join(', ')}] → MATCH par équivalence uniquement (${directMatchPool.length} match direct dispo, ${equivalenceMatchPool.length} par équivalence)`);
     } else {
-      console.log(`[TempoFit DEBUG][pool] "${pick.title}" (${pick.artist}) — genre réel="${pick.genre}", demandé=[${effectiveGenres.join(', ')}] → MATCH ✅ (parmi ${genreOkPool.length} candidats valides)`);
+      console.log(`[TempoFit DEBUG][pool] "${pick.title}" (${pick.artist}) — genre réel="${pick.genre}", demandé=[${effectiveGenres.join(', ')}] → MATCH DIRECT ✅ (parmi ${directMatchPool.length} candidats directs)`);
     }
 
     availablePool = availablePool.filter(t => t !== pick);
