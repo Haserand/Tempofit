@@ -657,14 +657,47 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
  * extrême) pour terminer, qui garantit qu'on ne reste jamais bloqué.
  */
 const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites, spotifyTrackPool, historyExcludeIds = []) => {
-  const minBpm = segment.bpm - config.bpmTolerance;
-  const maxBpm = segment.bpm + config.bpmTolerance;
-  const pool = [];
-  const seenIds = new Set(excludeYoutubeIds);
   // Genre effectif pour CE segment : si la portion a un genre spécifique défini
   // (override manuel à l'étape 3 du wizard), il prime sur le genre global de la
   // séance (config.selectedGenres) — sinon comportement inchangé.
   const effectiveGenres = (segment.selectedGenres && segment.selectedGenres.length > 0) ? segment.selectedGenres : config.selectedGenres;
+
+  // RÉPARTITION PONDÉRÉE ENTRE GENRES : si plusieurs genres sont sélectionnés
+  // ENSEMBLE avec des % définis (config.genreWeights), on découpe la durée de CE
+  // segment en sous-budgets proportionnels à ces %, et on remplit chaque
+  // sous-budget avec UN SEUL genre à la fois (appel récursif de cette même
+  // fonction, avec `selectedGenres` réduit à 1 genre — la condition ci-dessous ne
+  // se redéclenche donc pas, `effectiveGenres.length` vaudra 1 au rappel). Chaque
+  // sous-segment garde le même BPM et la même tolérance que le segment d'origine
+  // — seule la DURÉE est répartie, pas le tempo. Volontairement approximatif, pas
+  // garanti au titre près : voir executeGeneration pour l'avertissement si l'écart
+  // final est important.
+  //
+  // Ne s'applique QUE sur le genre GLOBAL de la séance (pas sur un override de
+  // genre propre à une portion en mode Fractionné) : les % sont configurés pour
+  // la sélection globale, un override peut porter sur une liste de genres
+  // complètement différente pour laquelle aucun poids n'existe.
+  const usingGlobalGenres = !segment.selectedGenres || segment.selectedGenres.length === 0;
+  if (usingGlobalGenres && effectiveGenres.length > 1 && config.genreWeights && Object.keys(config.genreWeights).length > 1) {
+    let allSelected = [];
+    let runningExcludeIds = [...excludeYoutubeIds];
+    for (const genre of effectiveGenres) {
+      const weight = config.genreWeights[genre];
+      if (!weight || weight <= 0) continue; // un genre mis à 0% est simplement ignoré
+      const subDurationSeconds = segment.durationSeconds * (weight / 100);
+      if (subDurationSeconds < 20) continue; // trop court pour espérer y caser un titre
+      const subSegment = { ...segment, durationSeconds: subDurationSeconds, selectedGenres: [genre] };
+      const subTracks = await buildSegmentTracks(subSegment, config, runningExcludeIds, favorites, spotifyTrackPool, historyExcludeIds);
+      allSelected = [...allSelected, ...subTracks];
+      runningExcludeIds = [...runningExcludeIds, ...subTracks.map(t => t.youtubeId)];
+    }
+    return allSelected;
+  }
+
+  const minBpm = segment.bpm - config.bpmTolerance;
+  const maxBpm = segment.bpm + config.bpmTolerance;
+  const pool = [];
+  const seenIds = new Set(excludeYoutubeIds);
 
   // Filtre de durée : si l'utilisateur n'autorise pas les titres de plus de
   // 6 minutes (option par défaut), on les écarte ici — point de passage central
@@ -1404,6 +1437,53 @@ export default function App() {
   // --- État du wizard de génération (4 étapes) ---
   const [wizardStep, setWizardStep] = useState(1);
   const [selectedGenres, setSelectedGenres] = useState(['Métal']);
+  // Répartition en % entre les genres sélectionnés ENSEMBLE (utile uniquement à
+  // partir de 2 genres) — voir setGenreWeight pour la logique de verrouillage :
+  // un genre modifié manuellement se fige à sa valeur, seuls les genres jamais
+  // touchés se repartagent ce qui reste, à parts égales entre eux.
+  const [genreWeights, setGenreWeights] = useState({ 'Métal': 100 });
+  const [lockedGenreWeights, setLockedGenreWeights] = useState(new Set());
+
+  // Répartit 100% à parts égales entre les genres donnés (reste éventuel affecté
+  // au dernier, pour que la somme tombe toujours pile sur 100 malgré les
+  // arrondis — ex. 3 genres → 33/33/34, pas 33/33/33 qui ne totaliserait que 99).
+  const equalSplitWeights = (genres) => {
+    if (genres.length === 0) return {};
+    const base = Math.floor(100 / genres.length);
+    const result = {};
+    genres.forEach(g => { result[g] = base; });
+    result[genres[genres.length - 1]] += 100 - base * genres.length;
+    return result;
+  };
+
+  /**
+   * Modifie le % d'UN genre, verrouille sa valeur, et redistribue ce qu'il reste
+   * à parts égales entre les genres PAS ENCORE verrouillés — jamais en touchant
+   * aux genres déjà fixés manuellement avant (ex. Métal fixé à 70% reste à 70%
+   * même si on ajuste Rock ensuite ; seul le dernier genre non verrouillé absorbe
+   * la différence). La valeur saisie est plafonnée pour ne jamais dépasser ce qui
+   * reste disponible une fois les autres genres déjà verrouillés retirés.
+   */
+  const setGenreWeight = (genre, rawValue) => {
+    const otherLockedSum = [...lockedGenreWeights].filter(g => g !== genre).reduce((s, g) => s + (genreWeights[g] || 0), 0);
+    const maxAllowed = Math.max(0, 100 - otherLockedSum);
+    const value = Math.min(Math.max(0, parseInt(rawValue) || 0), maxAllowed);
+
+    const newLocked = new Set(lockedGenreWeights);
+    newLocked.add(genre);
+    setLockedGenreWeights(newLocked);
+
+    const unlockedGenres = selectedGenres.filter(g => !newLocked.has(g));
+    const remainder = 100 - otherLockedSum - value;
+    const newWeights = { ...genreWeights, [genre]: value };
+    if (unlockedGenres.length > 0) {
+      const base = Math.floor(remainder / unlockedGenres.length);
+      unlockedGenres.forEach(g => { newWeights[g] = base; });
+      newWeights[unlockedGenres[unlockedGenres.length - 1]] += remainder - base * unlockedGenres.length;
+    }
+    setGenreWeights(newWeights);
+  };
+
   // Affiche ou non le reste de la taxonomie Deezer (EXTRA_GENRES) sous les 3 sélecteurs
   // de genre (wizard étape 4, page Favoris, édition de routine) — un seul état partagé
   // puisque c'est une simple préférence d'affichage, pas une donnée métier par écran.
@@ -1861,24 +1941,32 @@ export default function App() {
       // isIntervalMode n'est plus forcé à false ici : le mode Fractionné reste
       // proposé en mode Intime (voir étape 2 du wizard), donc son état ne doit
       // plus être écrasé silencieusement à l'activation du mode.
-      setBpm(85); setBpmTolerance(15); setSelectedGenres(['R&B Sensuel']); setTargetMode('time');
+      setBpm(85); setBpmTolerance(15); setSelectedGenres(['R&B Sensuel']); setGenreWeights({ 'R&B Sensuel': 100 }); setLockedGenreWeights(new Set()); setTargetMode('time');
       setCrossfade(5); 
       showToast("Ambiance intime activée...", 'special');
     } else {
       setIsNaughtyMode(false);
-      setBpm(160); setBpmTolerance(10); setSelectedGenres(['Métal']); setCrossfade(2);
+      setBpm(160); setBpmTolerance(10); setSelectedGenres(['Métal']); setGenreWeights({ 'Métal': 100 }); setLockedGenreWeights(new Set()); setCrossfade(2);
       showToast("Retour au mode Standard !");
     }
   };
 
   // Ajoute/retire un genre de la sélection, en empêchant de désélectionner le dernier
   // genre restant (il en faut toujours au moins un pour générer une playlist).
+  // La répartition des % repart à zéro (équirépartition, tout déverrouillé) dès que
+  // l'ENSEMBLE des genres change — plus simple et plus prévisible que d'essayer de
+  // faire persister des poids/verrouillages à travers un ajout/retrait de genre.
   const toggleGenre = (genre) => {
+    let newGenres;
     if (selectedGenres.includes(genre)) {
-      if (selectedGenres.length > 1) setSelectedGenres(selectedGenres.filter(g => g !== genre));
+      if (selectedGenres.length <= 1) return;
+      newGenres = selectedGenres.filter(g => g !== genre);
     } else {
-      setSelectedGenres([...selectedGenres, genre]);
+      newGenres = [...selectedGenres, genre];
     }
+    setSelectedGenres(newGenres);
+    setGenreWeights(equalSplitWeights(newGenres));
+    setLockedGenreWeights(new Set());
   };
 
   // Ajoute/retire un genre du genre SPÉCIFIQUE d'une portion en mode Fractionné
@@ -1911,7 +1999,7 @@ export default function App() {
     const newRoutine = {
       id: `routine-${Date.now()}`, name: finalName, workoutType,
       customActivity: workoutType === 'Autre' ? customActivity : '', isIntervalMode, bpm,
-      targetMode, distanceVal, distanceUnit, paceMin, paceSec, hours, minutes, selectedGenres, bpmTolerance, crossfade, allowLongTracks,
+      targetMode, distanceVal, distanceUnit, paceMin, paceSec, hours, minutes, selectedGenres, bpmTolerance, crossfade, allowLongTracks, genreWeights,
       segments: isIntervalMode ? [...segments] : [], coverIcon: newRoutineIcon, autoGenFreq: newRoutineFreq,
       manualGenerations: 0, recentTrackIds: [], createdAt: new Date().toLocaleDateString()
     };
@@ -2182,6 +2270,10 @@ export default function App() {
       if (pl.tracks.length > 0 && pl.fallbackTrackCount / pl.tracks.length >= 0.34) {
         showToast(`⚠️ Peu de titres trouvés à ce BPM/style précis — ${pl.fallbackTrackCount} sur ${pl.tracks.length} viennent d'un choix de secours approximatif.`, 'error');
       }
+      const deviations = checkGenreWeightDeviation(pl.tracks, config.genreWeights);
+      if (deviations) {
+        showToast(`⚠️ Répartition entre genres différente de ce qui était visé : ${deviations.join(', ')}.`, 'error');
+      }
     } else {
       setSavedPlaylists([...generatedPlaylists, ...savedPlaylists]);
       changeView('playlists');
@@ -2191,7 +2283,40 @@ export default function App() {
       if (totalTracks > 0 && totalFallback / totalTracks >= 0.34) {
         showToast(`⚠️ Peu de titres trouvés à ce BPM/style précis sur cette série — pas mal de choix de secours approximatifs.`, 'error');
       }
+      const allTracksInBatch = generatedPlaylists.flatMap(p => p.tracks);
+      const batchDeviations = checkGenreWeightDeviation(allTracksInBatch, config.genreWeights);
+      if (batchDeviations) {
+        showToast(`⚠️ Répartition entre genres différente de ce qui était visé sur cette série : ${batchDeviations.join(', ')}.`, 'error');
+      }
     }
+  };
+
+  /**
+   * Compare la répartition RÉELLEMENT obtenue (durée par genre dans la playlist)
+   * à la répartition en % DEMANDÉE (config.genreWeights) — approximatif par
+   * nature (voir le message dans l'UI de répartition), donc on ne signale que
+   * les écarts vraiment significatifs (≥ 15 points de %), pas la moindre
+   * fluctuation. Retourne la liste des genres trop éloignés de leur cible, ou
+   * `null` si rien à signaler (pas de poids configurés, ou tout est proche).
+   */
+  const checkGenreWeightDeviation = (tracks, weights) => {
+    if (!weights || Object.keys(weights).length <= 1) return null;
+    const totalDuration = tracks.reduce((s, t) => s + t.duration, 0);
+    if (totalDuration === 0) return null;
+    const actualByGenre = {};
+    tracks.forEach(t => {
+      const g = normalizeGenreForDisplay(t.genre);
+      actualByGenre[g] = (actualByGenre[g] || 0) + t.duration;
+    });
+    const deviations = [];
+    Object.entries(weights).forEach(([genre, targetPct]) => {
+      if (!targetPct) return;
+      const actualPct = Math.round(((actualByGenre[genre] || 0) / totalDuration) * 100);
+      if (Math.abs(actualPct - targetPct) >= 15) {
+        deviations.push(`${genre} : ${actualPct}% obtenu (visé ${targetPct}%)`);
+      }
+    });
+    return deviations.length > 0 ? deviations : null;
   };
 
   // Retire un morceau de la playlist en cours et recalcule la timeline en conséquence.
@@ -3534,6 +3659,31 @@ export default function App() {
                               })}
                             </div>
                           )}
+
+                          {/* Répartition en % entre plusieurs genres sélectionnés ensemble — voir
+                              setGenreWeight pour la logique de verrouillage. N'apparaît qu'à partir
+                              de 2 genres : avec un seul, la question ne se pose pas. */}
+                          {selectedGenres.length > 1 && (
+                            <div className={`flex flex-wrap items-center gap-3 pt-2 p-4 rounded-2xl ${inputBg} border ${inputBorder}`}>
+                              <span className={`text-xs font-bold ${textMuted} w-full`}>Répartition entre les genres choisis :</span>
+                              {selectedGenres.map(genre => (
+                                <div key={genre} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${cardBg} border ${cardBorder}`}>
+                                  <span className={`text-sm font-bold ${textHighlight}`}>{genre}</span>
+                                  <input
+                                    type="number" min="0" max="100"
+                                    value={genreWeights[genre] ?? 0}
+                                    onChange={(e) => setGenreWeight(genre, e.target.value)}
+                                    className={`w-12 bg-transparent text-right font-mono font-bold ${textColorClass} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                                  />
+                                  <span className={`text-xs ${textMuted}`}>%</span>
+                                </div>
+                              ))}
+                              <button onClick={() => { setGenreWeights(equalSplitWeights(selectedGenres)); setLockedGenreWeights(new Set()); }} className={`text-xs font-bold underline ${textMuted} hover:${textHighlight}`}>
+                                Répartition égale
+                              </button>
+                              <p className={`text-xs w-full ${textMuted}`}>Répartition indicative : le moteur essaie de s'en rapprocher, mais un genre avec moins de titres disponibles peut finir légèrement sous-représenté (un avertissement s'affichera si l'écart est important).</p>
+                            </div>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3599,7 +3749,7 @@ export default function App() {
 
                         {/* Boutons finaux : génération immédiate, ou sauvegarde en routine réutilisable */}
                         <div className="flex flex-col sm:flex-row gap-4 pt-6 mt-6 border-t border-gray-100 dark:border-gray-800">
-                          <button onClick={() => executeGeneration({ isIntervalMode, targetMode, distanceVal, distanceUnit, paceMin, paceSec, segments, bpm, hours, minutes, selectedGenres, bpmTolerance, crossfade, allowLongTracks, workoutName: getActiveWorkoutName() })} disabled={isGenerating} className={`flex-1 text-xl font-black py-5 rounded-2xl flex items-center justify-center space-x-3 transition-transform active:scale-95 shadow-xl ${isNaughtyMode ?
+                          <button onClick={() => executeGeneration({ isIntervalMode, targetMode, distanceVal, distanceUnit, paceMin, paceSec, segments, bpm, hours, minutes, selectedGenres, bpmTolerance, crossfade, allowLongTracks, genreWeights, workoutName: getActiveWorkoutName() })} disabled={isGenerating} className={`flex-1 text-xl font-black py-5 rounded-2xl flex items-center justify-center space-x-3 transition-transform active:scale-95 shadow-xl ${isNaughtyMode ?
                             'bg-rose-500 hover:bg-rose-600 text-white' : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200'}`}>
                             {isGenerating ? <Loader2 size={28} className="animate-spin" /> : <><Zap size={28} /><span>Générer ma Playlist</span></>}
                           </button>
