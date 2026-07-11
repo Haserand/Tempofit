@@ -139,11 +139,122 @@ const getGenreLocalDepthWarning = (genre) => {
   return null;
 };
 
+/**
+ * Genres traités comme équivalents pour la VÉRIFICATION uniquement (pas pour la
+ * sélection dans l'UI, qui reste séparée) — constaté en pratique via les logs de
+ * diagnostic : Deezer classe la quasi-totalité de ce qu'on appellerait "metal"
+ * sous "Rock" dans son propre système de genres (System of a Down, Guns N'
+ * Roses... tous résolus "Rock" chez Deezer, jamais "Metal"). Sans cette
+ * équivalence, "Métal" seul devenait un genre presque impossible à satisfaire
+ * strictement via Deezer, peu importe le nombre de pages explorées — pas un bug,
+ * une vraie limite de la taxonomie Deezer par rapport à la nôtre. Choix assumé :
+ * l'utilisateur garde de toute façon le contrôle via le BPM et le remplacement
+ * manuel d'un titre si le résultat ne lui convient pas.
+ */
+const GENRE_EQUIVALENCE_GROUPS = {
+  'Métal': ['metal', 'rock'],
+  'Rock': ['rock', 'metal'],
+};
+
+/**
+ * Correspondance DIRECTE entre le VRAI genre Deezer d'un titre (résolu via
+ * resolveDeezerGenre) et le genre interne demandé (ex. "Métal", "Rap").
+ * Comparaison tolérante (accents/casse ignorés, correspondance partielle dans un
+ * sens ou l'autre) car les noms Deezer ne correspondent pas toujours exactement
+ * aux nôtres (ex. Deezer catégorise parfois "Rap/Hip Hop" en un seul intitulé).
+ * Ne tient PAS compte de GENRE_EQUIVALENCE_GROUPS — voir `genreRoughlyMatches`
+ * pour la version élargie. Séparée pour permettre de prioriser les vrais matchs
+ * (ceux-ci, ou le catalogue d'artistes) sur les matchs d'équivalence uniquement
+ * (voir la sélection dans buildSegmentTracks, App.jsx).
+ */
+const isDirectGenreMatch = (realGenre, requestedGenre) => {
+  if (!realGenre) return false;
+  const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const real = normalize(realGenre);
+  const requested = normalize(requestedGenre);
+  const keyword = normalize(DEEZER_GENRE_KEYWORDS[requestedGenre] || requestedGenre);
+  return real.includes(keyword) || keyword.includes(real) || real.includes(requested) || requested.includes(real);
+};
+
+/**
+ * Version élargie de isDirectGenreMatch, qui accepte aussi les équivalences
+ * définies dans GENRE_EQUIVALENCE_GROUPS (ex. Rock accepté pour une demande
+ * Métal, vu que Deezer classe la quasi-totalité du metal en "Rock"). À utiliser
+ * pour la validation finale (accepter/rejeter un candidat), PAS pour décider
+ * quels candidats prioriser entre eux — voir buildSegmentTracks (App.jsx), où
+ * les matchs directs sont préférés aux matchs d'équivalence quand les deux sont
+ * disponibles.
+ */
+const genreRoughlyMatches = (realGenre, requestedGenre) => {
+  if (isDirectGenreMatch(realGenre, requestedGenre)) return true;
+  if (!realGenre) return false;
+  const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const real = normalize(realGenre);
+  const equivalents = GENRE_EQUIVALENCE_GROUPS[requestedGenre];
+  return equivalents ? equivalents.some(eq => real.includes(eq) || eq.includes(real)) : false;
+};
+
+/**
+ * Mots-clés dans le TITRE qui trahissent un style différent du genre demandé,
+ * même si le genre_id Deezer de l'ALBUM dit le contraire (trouvé après un test
+ * réel : "Let Her Go (Selecta Hardstyle Remix Edit)" accepté comme Métal/Rock
+ * parce que l'album/artiste d'origine était classé ainsi chez Deezer — alors
+ * que le titre indique explicitement un remix hardstyle, un style totalement
+ * différent). Le genre_id d'album ne descend pas toujours au niveau du titre
+ * précis ; le titre, lui, le dit souvent explicitement quand un remix/une
+ * reprise change radicalement de style. Volontairement composé de mots-clés
+ * SPÉCIFIQUES et univoques (pas juste "remix" seul, trop générique — un remix
+ * peut très bien rester dans le même genre) pour éviter les faux positifs.
+ */
+const TITLE_STYLE_OVERRIDE_KEYWORDS = {
+  'hardstyle': ['Techno', 'Electro', 'Dance & EDM'],
+  'dubstep': ['Electro', 'Dance & EDM'],
+  'gabber': ['Techno'],
+  'acoustic': ['Folk'],
+  'unplugged': ['Folk'],
+  'a cappella': [],
+  'piano version': ['Classique'],
+  'orchestral version': ['Classique'],
+  'salsa version': ['Latino'],
+  'bachata version': ['Latino'],
+  'reggae version': ['Reggae'],
+  'reggae remix': ['Reggae'],
+  'trap remix': ['Rap'],
+  'jazz version': ['Jazz'],
+  'lo-fi': [],
+  'bluegrass version': ['Country', 'Folk']
+};
+
+/**
+ * Détecte un conflit entre le TITRE d'un morceau et les genres demandés — voir
+ * TITLE_STYLE_OVERRIDE_KEYWORDS. Retourne le mot-clé trouvé (pour le log) ou
+ * `null` si aucun conflit. Un mot-clé associé à une liste VIDE (ex. "a cappella",
+ * "lo-fi") signale toujours un conflit, quel que soit le genre demandé — ce sont
+ * des styles qui ne collent structurellement à aucun de nos genres internes.
+ */
+const detectTitleStyleConflict = (title, requestedGenres) => {
+  if (!title) return null;
+  const t = title.toLowerCase();
+  for (const [keyword, impliedGenres] of Object.entries(TITLE_STYLE_OVERRIDE_KEYWORDS)) {
+    if (t.includes(keyword)) {
+      if (impliedGenres.length === 0) return keyword;
+      const overlap = requestedGenres.some(rg => impliedGenres.some(ig => genreRoughlyMatches(ig, rg) || ig === rg));
+      if (!overlap) return keyword;
+    }
+  }
+  return null;
+};
+
 export {
   ARTIST_CATALOG,
   STANDARD_GENRES,
   NAUGHTY_GENRES,
   EXTRA_GENRES,
   DEEZER_GENRE_KEYWORDS,
-  getGenreLocalDepthWarning
+  getGenreLocalDepthWarning,
+  GENRE_EQUIVALENCE_GROUPS,
+  isDirectGenreMatch,
+  genreRoughlyMatches,
+  TITLE_STYLE_OVERRIDE_KEYWORDS,
+  detectTitleStyleConflict
 };
