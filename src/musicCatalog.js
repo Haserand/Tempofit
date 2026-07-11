@@ -39,7 +39,14 @@ const DATABASE_MUSIQUES = {
     { youtubeId: 'local-metal-06', title: 'Raining Blood', artist: 'Slayer', album: 'Reign in Blood', bpm: 178, duration: 254, isEmbeddable: false },
     { youtubeId: 'local-metal-07', title: 'Walk', artist: 'Pantera', album: 'Vulgar Display of Power', bpm: 118, duration: 315, isEmbeddable: false },
     { youtubeId: 'local-metal-08', title: 'Toxicity', artist: 'System Of A Down', album: 'Toxicity', bpm: 117, duration: 219, isEmbeddable: false },
-    { youtubeId: 'local-metal-09', title: 'Paranoid', artist: 'Black Sabbath', album: 'Paranoid', bpm: 163, duration: 168, isEmbeddable: false }
+    { youtubeId: 'local-metal-09', title: 'Paranoid', artist: 'Black Sabbath', album: 'Paranoid', bpm: 163, duration: 168, isEmbeddable: false },
+    // Deuxième lot, ciblé cette fois sur la zone 140-210 BPM — sous-représentée
+    // dans le premier lot (volontairement étalé sur toute la plage), alors que
+    // c'est la zone la plus testée en pratique (course à pied rapide/HIIT).
+    { youtubeId: 'local-metal-10', title: 'Cochise', artist: 'Audioslave', album: 'Audioslave', bpm: 160, duration: 222, isEmbeddable: false },
+    { youtubeId: 'local-metal-11', title: 'B.Y.O.B.', artist: 'System Of A Down', album: 'Mezmerize', bpm: 204, duration: 257, isEmbeddable: false },
+    { youtubeId: 'local-metal-12', title: 'Cult of Personality', artist: 'Living Colour', album: 'Vivid', bpm: 184, duration: 293, isEmbeddable: false },
+    { youtubeId: 'local-metal-13', title: 'Wait and Bleed', artist: 'Slipknot', album: 'Slipknot', bpm: 186, duration: 148, isEmbeddable: false }
   ],
   'Rock': [
     { youtubeId: 'hTWKbfoikeg', title: 'Smells Like Teen Spirit', artist: 'Nirvana', album: 'Nevermind', bpm: 116, duration: 301, isEmbeddable: false },
