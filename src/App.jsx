@@ -412,7 +412,6 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYout
     // l'album dit le contraire.
     const titleConflict = detectTitleStyleConflict(candidate.title, genresForQuery);
     const matches = !titleConflict && genresForQuery.some(g => genreRoughlyMatches(realGenre, g));
-    console.log(`[TempoFit DEBUG][searchDeezerForGenres] "${candidate.title}" (${candidate.artist ? candidate.artist.name : '?'}) — genre réel="${realGenre}", demandé=[${genresForQuery.join(', ')}]${titleConflict ? ` — conflit de titre ("${titleConflict}")` : ''} → ${matches ? 'MATCH ✅' : 'REJETÉ ❌'}`);
     if (matches) {
       full = candidate;
       break;
@@ -421,7 +420,6 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYout
   if (!full) {
     full = attempted[0] || ordered[0];
     genreMismatch = true;
-    console.warn(`[TempoFit DEBUG][searchDeezerForGenres] Aucun match genre après ${attempted.length} essais — repli sur "${full.title}" marqué _genreMismatch`);
   }
 
   return {
@@ -430,7 +428,6 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYout
     artist: full.artist ? full.artist.name : 'Inconnu',
     bpm: full._resolvedBpm,
     duration: full.duration || 180,
-    isEmbeddable: true,
     genre: full._resolvedGenre || 'Genre inconnu',
     preview: full.preview || null,
     _bpmSource: full._bpmSource,
@@ -489,7 +486,6 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
               artist: full.artist ? full.artist.name : 'Inconnu',
               bpm: Math.round(parseFloat(full.bpm)),
               duration: full.duration || 180,
-              isEmbeddable: true,
               genre: realGenre || 'Genre inconnu',
               preview: full.preview || null
             };
@@ -549,9 +545,15 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   //    artiste déjà vu que de forcer un mauvais genre.
   const validGenres = selectedGenres.length > 0 ? selectedGenres : ['Métal'];
   const localExcludeIds = excludeYoutubeIds.filter(id => !historyExcludeIds.includes(id));
-  let catalogArtists = [];
-  validGenres.forEach(g => { if (ARTIST_CATALOG[g]) catalogArtists = [...catalogArtists, ...ARTIST_CATALOG[g]]; });
-  if (catalogArtists.length === 0) catalogArtists = ARTIST_CATALOG['Pop'];
+  // Correspondance artiste → genre D'ORIGINE (pas juste une liste plate de noms) :
+  // sans ça, un titre trouvé via un artiste de la 2e/3e liste de genres
+  // sélectionnés (ex. "Rock" quand on a coché Métal+Rock) s'affichait quand même
+  // comme "Métal" (toujours validGenres[0]) — les genres sélectionnés ensemble
+  // doivent être traités à ÉGALITÉ, pas biaisés vers le premier de la liste.
+  const artistGenreMap = new Map();
+  validGenres.forEach(g => { if (ARTIST_CATALOG[g]) ARTIST_CATALOG[g].forEach(a => { if (!artistGenreMap.has(a)) artistGenreMap.set(a, g); }); });
+  let catalogArtists = [...artistGenreMap.keys()];
+  if (catalogArtists.length === 0) { catalogArtists = ARTIST_CATALOG['Pop']; ARTIST_CATALOG['Pop'].forEach(a => artistGenreMap.set(a, 'Pop')); }
 
   try {
     const stubs = await searchArtistsForBpm(catalogArtists, minBpm, maxBpm, localExcludeIds, 6, 5);
@@ -571,7 +573,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
           youtubeId: `deezer-${picked.id}`, title: picked.title,
           artist: picked.artist ? picked.artist.name : 'Inconnu',
           bpm: Math.round(parseFloat(picked.bpm)), duration: picked.duration || 180,
-          isEmbeddable: true, genre: validGenres[0], preview: picked.preview
+          genre: artistGenreMap.get(picked.artist ? picked.artist.name : '') || validGenres[0], preview: picked.preview
         };
       }
     }
@@ -591,7 +593,8 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   //    presque toujours quelque chose — contrairement à l'ancienne base de
   //    titres figée, qui pouvait littéralement être vide pour un genre donné.
   try {
-    const q = `artist:"${catalogArtists[Math.floor(Math.random() * catalogArtists.length)]}"`;
+    const pickedArtist = catalogArtists[Math.floor(Math.random() * catalogArtists.length)];
+    const q = `artist:"${pickedArtist}"`;
     const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=25`);
     const stubs = (data && Array.isArray(data.data) ? data.data : []).filter(s => !localExcludeIds.includes(`deezer-${s.id}`));
     if (stubs.length > 0) {
@@ -612,7 +615,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
           youtubeId: `deezer-${picked.id}`, title: picked.title,
           artist: picked.artist ? picked.artist.name : 'Inconnu',
           bpm: Math.round(parseFloat(picked.bpm)), duration: picked.duration || 180,
-          isEmbeddable: true, genre: validGenres[0], preview: picked.preview || null,
+          genre: artistGenreMap.get(picked.artist ? picked.artist.name : '') || artistGenreMap.get(pickedArtist) || validGenres[0], preview: picked.preview || null,
           _isFallback: true
         };
       }
@@ -628,7 +631,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
     youtubeId: `fallback-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
     title: 'Titre indisponible', artist: catalogArtists[0] || 'Inconnu',
     bpm: targetBpm, duration: preferredDuration || 200,
-    isEmbeddable: false, genre: validGenres[0], preview: null, _isFallback: true
+    genre: artistGenreMap.get(catalogArtists[0]) || validGenres[0], preview: null, _isFallback: true
   };
 };
 
@@ -794,8 +797,12 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   // dans la même séance).
   const localExcludeIds = excludeYoutubeIds.filter(id => !historyExcludeIds.includes(id));
   const validGenres = effectiveGenres && effectiveGenres.length > 0 ? effectiveGenres : ['Métal'];
-  let catalogArtists = [];
-  validGenres.forEach(g => { if (ARTIST_CATALOG[g]) catalogArtists = [...catalogArtists, ...ARTIST_CATALOG[g]]; });
+  // Correspondance artiste → genre D'ORIGINE (voir getSingleMatchingTrack pour le
+  // même correctif) : les genres sélectionnés ensemble doivent être traités à
+  // ÉGALITÉ pour l'affichage, pas biaisés vers le premier de la liste.
+  const artistGenreMap = new Map();
+  validGenres.forEach(g => { if (ARTIST_CATALOG[g]) ARTIST_CATALOG[g].forEach(a => { if (!artistGenreMap.has(a)) artistGenreMap.set(a, g); }); });
+  let catalogArtists = [...artistGenreMap.keys()];
 
   if (catalogArtists.length > 0) {
     try {
@@ -813,7 +820,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
           youtubeId: `deezer-${full.id}`, title: full.title,
           artist: full.artist ? full.artist.name : 'Inconnu',
           bpm: Math.round(parseFloat(full.bpm)), duration: full.duration || 180,
-          genre: validGenres[0], preview: full.preview, _isLocalDB: true
+          genre: artistGenreMap.get(full.artist ? full.artist.name : '') || validGenres[0], preview: full.preview, _isLocalDB: true
         });
       });
     } catch (e) {
@@ -883,9 +890,6 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
     if (matchLevel === 'none') {
       pick._genreMismatch = true;
       pick._isFallback = true;
-      console.warn(`[TempoFit DEBUG][pool] Aucun candidat du bon genre dans tout le pool restant (${availablePool.length} titres) — repli sur "${pick.title}" (genre="${pick.genre}") marqué _genreMismatch`);
-    } else {
-      console.log(`[TempoFit DEBUG][pool] "${pick.title}" (${pick.artist}) — genre réel="${pick.genre}", demandé=[${effectiveGenres.join(', ')}] → niveau "${matchLevel}" (favoris:${favoritesPool.length}, deezer direct:${deezerDirectPool.length}, local:${localPoolMatches.length}, équivalence:${equivalencePool.length})`);
     }
 
     availablePool = availablePool.filter(t => t !== pick);
@@ -1261,7 +1265,6 @@ export default function App() {
             album: track.album ? track.album.name : 'Album',
             bpm: resolved.bpm, 
             duration: Math.round(track.duration_ms / 1000),
-            isEmbeddable: true,
             isFromPlatform: 'Spotify',
             preview: track.preview_url || resolved.preview || null // extrait Spotify natif si dispo, sinon celui trouvé via Deezer
          };
@@ -1323,8 +1326,8 @@ export default function App() {
     useFavorites: true,
     artists: ['Metallica', 'System Of A Down'],
     tracks: [
-      { youtubeId: 'uRyAIyq53FY', title: 'Master of Puppets', artist: 'Metallica', bpm: 212, duration: 515, isEmbeddable: false, preview: null, genre: 'Métal' },
-      { youtubeId: 'CSvFpBOe8eY', title: 'Chop Suey!', artist: 'System Of A Down', bpm: 128, duration: 210, isEmbeddable: false, preview: null, genre: 'Métal' }
+      { youtubeId: 'uRyAIyq53FY', title: 'Master of Puppets', artist: 'Metallica', bpm: 212, duration: 515, preview: null, genre: 'Métal' },
+      { youtubeId: 'CSvFpBOe8eY', title: 'Chop Suey!', artist: 'System Of A Down', bpm: 128, duration: 210, preview: null, genre: 'Métal' }
     ]
   });
   // Réglages du sélecteur BPM/genre propre à la page Cœur & Favoris (indépendant
@@ -1621,7 +1624,6 @@ export default function App() {
               artist: t.artist ? t.artist.name : 'Inconnu',
               bpm: Math.round(parseFloat(t.bpm)),
               duration: t.duration || 180,
-              isEmbeddable: true,
               genre: realGenre || 'Genre inconnu',
               preview: t.preview || null // extrait MP3 de 30s fourni par Deezer, lisible sans clé ni CORS
             };
@@ -1698,7 +1700,6 @@ export default function App() {
               artist: t.artist ? t.artist.name : 'Inconnu',
               bpm: Math.round(parseFloat(t.bpm)),
               duration: t.duration || 180,
-              isEmbeddable: true,
               genre: realGenre || 'Genre inconnu',
               preview: t.preview || null
             };
@@ -2302,7 +2303,15 @@ export default function App() {
           const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
           return full;
         }));
-        const valid = details.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm).sort(() => Math.random() - 0.5);
+        const allowLong = currentPlaylist.config?.allowLongTracks || false;
+        let valid = details.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm);
+        // Filtre de durée et de conflit de titre : oubliés ici jusqu'ici, alors
+        // qu'ils s'appliquaient déjà partout ailleurs dans le moteur — ce bouton
+        // précis pouvait donc encore ramener un titre de 12 minutes ou un
+        // "Hardstyle Remix" malgré les réglages actifs.
+        if (!allowLong) valid = valid.filter(f => (f.duration || 0) <= MAX_TRACK_DURATION);
+        valid = valid.filter(f => !detectTitleStyleConflict(f.title, requestedGenres));
+        valid = valid.sort(() => Math.random() - 0.5);
         // Même garde-fou genre que le reste du moteur : même en restant sur le
         // MÊME artiste, un artiste peut avoir des titres de genres différents
         // (featurings, évolution de style...) — on vérifie avant de valider,
@@ -4503,8 +4512,8 @@ export default function App() {
                         </div>
                         <div className={"w-6 text-center font-medium text-xs " + textMuted}>{index + 1}</div>
                         {/* Bouton lecture d'extrait : toujours affiché (pas seulement au survol),
-                            désactivé si le titre n'a pas d'extrait disponible (ex. venant de la BDD
-                            locale ou de GetSongBPM, qui n'en fournissent pas). */}
+                            désactivé si le titre n'a pas d'extrait disponible (ex. résolu via
+                            GetSongBPM en dernier recours dans resolveRealBPM, qui n'en fournit pas). */}
                         <button
                           onClick={() => togglePreview(track)}
                           disabled={!track.preview}
@@ -4666,10 +4675,10 @@ export default function App() {
 
         {/* ============================= MODALS ============================= */}
 
-        {/* RECHERCHE MANUELLE DE TITRE VIA API STRICTE (GetSongBPM) : n'affiche que
-            des titres dont le tempo est certifié par l'API. Si une playlist est
-            actuellement affichée, le titre choisi y est ajouté ; sinon, il est
-            ajouté aux favoris (utile pour "nourrir" l'algorithme de génération). */}
+        {/* RECHERCHE MANUELLE DE TITRE VIA DEEZER : n'affiche que des titres dont le
+            tempo est certifié par l'API. Si une playlist est actuellement affichée,
+            le titre choisi y est ajouté ; sinon, il est ajouté aux favoris (utile
+            pour "nourrir" l'algorithme de génération). */}
         {isSearchModalOpen && (
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => {setIsSearchModalOpen(false); setSearchQuery(""); setIsBpmSearchMode(false);}}>
             <div className={"p-6 md:p-8 rounded-3xl w-full max-w-lg shadow-2xl flex flex-col max-h-[80vh] border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
