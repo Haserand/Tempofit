@@ -782,35 +782,39 @@ export default function App() {
    *  1. Taper un nom d'ARTISTE remontait des titres d'AUTRES artistes en premier
    *     (ex. "Starboy" de The Weeknd, où Daft Punk n'est que co-producteur) —
    *     parce que la recherche texte générale de Deezer (/search) matche aussi
-   *     les crédits/featurings, pas seulement l'artiste principal du titre, et
-   *     que l'ancienne version ne tentait la recherche par ARTISTE qu'en tout
-   *     dernier recours (si la recherche texte ne trouvait vraiment RIEN) — un
-   *     cas qui n'arrive presque jamais, "daft punk" trouvant toujours quelque
-   *     chose via la recherche texte générale.
+   *     les crédits/featurings, pas seulement l'artiste principal du titre.
    *  2. Seuls 8 résultats étaient jamais accessibles, sans aucun moyen d'en voir
    *     plus, même quand Deezer en avait beaucoup plus à proposer.
    *
-   * Nouvelle stratégie :
-   *  - Recherche d'ARTISTE et recherche de TITRE lancées EN PARALLÈLE dès le
-   *    premier appel (pas l'une après l'autre conditionnellement comme avant) —
-   *    coût réseau légèrement plus élevé dans le cas "mode artiste" (la
-   *    recherche texte générale, lancée en parallèle, s'avère alors inutilisée),
-   *    mais sans impact sur la latence perçue puisque les deux partent en même
-   *    temps, et ça simplifie nettement la logique par rapport à un enchaînement
-   *    conditionnel.
-   *  - Si le nom tapé correspond avec confiance à l'artiste trouvé (voir
-   *    `isConfidentArtistMatch`), on bascule en "mode artiste" : on requête
-   *    Deezer avec `artist:"Nom"`, qui ne renvoie QUE les titres de cet artiste,
-   *    triés par popularité Deezer — les tubes (Get Lucky, One More Time...)
-   *    remontent donc naturellement en tête, sans tri manuel de notre côté.
-   *  - Sinon, on reste en recherche texte générale (comportement précédent).
-   *  - Dans les deux cas, pagination via le paramètre `index` de l'API Deezer :
-   *    `reset = true` (recherche initiale, ou nouvelle recherche) vide la liste
-   *    et repart de l'index 0 ; `reset = false` (bouton "Voir plus") ajoute à la
-   *    suite des résultats déjà affichés sans les remplacer, en restant dans le
-   *    MÊME mode (artiste ou général) que la recherche initiale — mémorisé dans
-   *    `searchActiveArtistId`/`searchActiveArtistName` pour ne pas avoir à
-   *    redétecter l'intention de la recherche à chaque page suivante.
+   * ⚠️ REVU une 2e fois après un premier essai raté : la toute première version
+   * de cette refonte basculait vers une requête Deezer scopée `artist:"Nom"`
+   * SEULE (sans autre filtre) dès qu'un artiste était identifié avec confiance —
+   * pari jamais vérifié en conditions réelles (pas d'accès réseau pour tester
+   * depuis l'environnement de dev), qui s'est avéré casser la recherche : cette
+   * requête scopée seule semble remonter des titres (rééditions, live, compils)
+   * moins bien pourvus en métadonnée BPM que la recherche texte générale, qui
+   * elle privilégie naturellement les versions les plus populaires/canoniques.
+   * Résultat : "aucun titre avec un BPM connu" alors que la recherche
+   * fonctionnait très bien avant.
+   *
+   * Version corrigée, qui ne repose plus que sur le chemin ÉPROUVÉ (la
+   * recherche texte générale, dont on sait par les captures d'écran qu'elle
+   * trouve bien les bons titres avec BPM) :
+   *  - Recherche d'ARTISTE (`/search/artist`) et recherche de TITRE (`/search`)
+   *    lancées en parallèle, mais SEULE la recherche texte fournit les
+   *    candidats réels — la recherche d'artiste ne sert qu'à DÉTECTER le nom
+   *    exact à privilégier, jamais à remplacer la source des résultats.
+   *  - Si le texte tapé correspond avec confiance à l'artiste trouvé (voir
+   *    `isConfidentArtistMatch`), les titres dont le champ `artist` correspond
+   *    exactement à ce nom sont triés EN TÊTE de la liste (tri côté client,
+   *    stable — l'ordre relatif Deezer est conservé à l'intérieur de chaque
+   *    groupe) : Get Lucky/Instant Crush (artist = "Daft Punk") passent ainsi
+   *    devant Starboy (artist = "The Weeknd"), sans dépendre d'un comportement
+   *    Deezer non vérifié.
+   *  - Pagination via le paramètre `index` de l'API Deezer, sur cette même
+   *    recherche texte générale : `reset = true` repart de l'index 0 et vide la
+   *    liste ; `reset = false` (bouton "Voir plus") ajoute la page suivante et
+   *    réapplique le même tri de priorité sur l'ensemble cumulé.
    */
   const searchWorldMusicApi = async (reset = true) => {
     if (!searchQuery.trim()) return;
@@ -828,7 +832,10 @@ export default function App() {
     try {
       let trackStubs = [];
       let total = 0;
-      let contextLabel = null;
+      // Nom d'artiste à faire remonter en tête des résultats (tri plus bas) —
+      // déterminé à la recherche initiale, réutilisé tel quel pour "Voir plus"
+      // (mémorisé dans searchActiveArtistName pour ne pas le redétecter à chaque page).
+      let priorityArtistName = reset ? null : searchActiveArtistName;
 
       if (reset) {
         const [artistRes, textRes] = await Promise.all([
@@ -836,31 +843,22 @@ export default function App() {
           deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(searchQuery)}&limit=${SEARCH_PAGE_SIZE}&index=0`)
         ]);
         const artist = (artistRes.data && Array.isArray(artistRes.data.data)) ? artistRes.data.data[0] : null;
+        trackStubs = (textRes.data && Array.isArray(textRes.data.data)) ? textRes.data.data : [];
+        total = (textRes.data && typeof textRes.data.total === 'number') ? textRes.data.total : trackStubs.length;
 
         if (artist && isConfidentArtistMatch(searchQuery, artist.name)) {
-          // MODE ARTISTE : on ignore le résultat de la recherche texte générale
-          // (déjà en main mais moins pertinent) et on requête directement les
-          // titres DE cet artiste, triés par popularité Deezer.
-          const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(`artist:"${artist.name}"`)}&limit=${SEARCH_PAGE_SIZE}&index=0`);
-          trackStubs = (data && Array.isArray(data.data)) ? data.data : [];
-          total = (data && typeof data.total === 'number') ? data.total : trackStubs.length;
-          contextLabel = `Titres de ${artist.name}`;
+          priorityArtistName = artist.name;
           setSearchActiveArtistId(artist.id);
           setSearchActiveArtistName(artist.name);
         } else {
-          // MODE GÉNÉRAL : le résultat de recherche texte déjà récupéré ci-dessus est réutilisé tel quel.
-          trackStubs = (textRes.data && Array.isArray(textRes.data.data)) ? textRes.data.data : [];
-          total = (textRes.data && typeof textRes.data.total === 'number') ? textRes.data.total : trackStubs.length;
           setSearchActiveArtistId(null);
           setSearchActiveArtistName(null);
         }
       } else {
-        // "Voir plus" : on reste dans le MÊME mode que la recherche initiale.
-        const q = searchActiveArtistId ? `artist:"${searchActiveArtistName}"` : searchQuery;
-        const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=${SEARCH_PAGE_SIZE}&index=${offset}`);
+        // "Voir plus" : on continue de paginer la MÊME recherche texte générale.
+        const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(searchQuery)}&limit=${SEARCH_PAGE_SIZE}&index=${offset}`);
         trackStubs = (data && Array.isArray(data.data)) ? data.data : [];
         total = (data && typeof data.total === 'number') ? data.total : (offset + trackStubs.length);
-        contextLabel = searchActiveArtistName ? `Titres de ${searchActiveArtistName}` : null;
       }
 
       if (trackStubs.length === 0 && reset) {
@@ -897,9 +895,15 @@ export default function App() {
         // Dédoublonnage : un même titre peut réapparaître sur 2 pages consécutives
         // si le classement Deezer bouge légèrement entre 2 appels successifs.
         const seen = new Set();
-        return combined.filter(t => { if (seen.has(t.youtubeId)) return false; seen.add(t.youtubeId); return true; });
+        const deduped = combined.filter(t => { if (seen.has(t.youtubeId)) return false; seen.add(t.youtubeId); return true; });
+        if (!priorityArtistName) return deduped;
+        // Tri de priorité : titres de l'artiste identifié en tête (tri stable,
+        // donc l'ordre Deezer d'origine est conservé À L'INTÉRIEUR de chaque groupe).
+        const norm = normalizeForArtistMatch(priorityArtistName);
+        const isPriorityMatch = (t) => normalizeForArtistMatch(t.artist) === norm;
+        return [...deduped.filter(isPriorityMatch), ...deduped.filter(t => !isPriorityMatch(t))];
       });
-      if (reset) setResultsContextLabel(contextLabel);
+      if (reset) setResultsContextLabel(priorityArtistName ? `Titres de ${priorityArtistName} en tête` : null);
       setSearchResultsOffset(offset + trackStubs.length);
       setSearchHasMoreResults(trackStubs.length > 0 && (offset + trackStubs.length) < total);
       if (reset && formattedResults.length === 0) setNoUsableResultsHint(true); // titres trouvés mais aucun n'a de BPM connu
