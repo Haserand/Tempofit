@@ -246,26 +246,35 @@ const pickByDurationProximity = (candidates, preferredDuration) => {
  * plus à Deezer "trouve-moi un titre qui correspond", juste "as-tu CE titre
  * précis", ce qu'il fait très bien.
  *
- * RENFORCÉ EN VRAI FILTRE (avant, un écart de BPM ne faisait qu'un avertissement
- * en console, le titre était accepté quand même) : si Deezer connaît un BPM pour
- * ce titre et qu'il tombe clairement en dehors de la fenêtre demandée
- * (`minBpm`/`maxBpm`, avec une marge de ±15 pour ne pas être trop strict sur des
- * différences mineures de mesure), le titre est REJETÉ (retourne `null`) plutôt
- * que d'être gardé avec un BPM douteux. Ça permet d'être moins pointilleux sur la
+ * DEUX MOTIFS DE REJET (retourne `null`) :
+ *  1. BPM contredit : si Deezer connaît un BPM pour ce titre et qu'il tombe
+ *     clairement en dehors de la fenêtre demandée (`minBpm`/`maxBpm`, marge de
+ *     ±15 pour ne pas être trop strict sur des différences mineures de mesure).
+ *  2. PAS D'EXTRAIT TROUVÉ (le but même de cette fonction, pas un bonus) : si
+ *     Deezer n'a pas ce titre précis, ou l'a mais sans extrait audio disponible,
+ *     le titre est rejeté plutôt que gardé silencieusement muet — l'intérêt
+ *     d'un catalogue local n'est pas d'avoir un titre "correct sur le papier"
+ *     mais inécoutable, c'est justement d'obtenir un extrait réel via Deezer.
+ * Dans les deux cas, le rejet permet d'être moins pointilleux sur la
  * vérification manuelle en amont lors de l'ajout de nouveaux titres au
  * catalogue : Deezer sert de garde-fou automatique au moment de la génération.
- * Si Deezer n'a pas ce titre du tout (ou en cas d'erreur réseau), le titre est
- * gardé tel quel avec la valeur locale, faute de pouvoir la vérifier — pas de
- * rejet par excès de prudence sur un simple échec technique.
+ * Seul un échec RÉSEAU (pas une vraie réponse de Deezer) garde le titre tel
+ * quel par prudence — pas de rejet sur un simple problème technique passager.
  */
 const verifyAndEnrichLocalTrack = async (track, minBpm, maxBpm) => {
   try {
     const q = `artist:"${track.artist}" track:"${track.title}"`;
     const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=1`);
     const stub = (data && Array.isArray(data.data)) ? data.data[0] : null;
-    if (!stub) return track;
+    if (!stub) {
+      console.warn(`[TempoFit] "${track.title}" REJETÉ : introuvable sur Deezer, donc aucun extrait possible.`);
+      return null;
+    }
     const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
-    if (!full) return track;
+    if (!full || !full.preview) {
+      console.warn(`[TempoFit] "${track.title}" REJETÉ : trouvé sur Deezer mais sans extrait audio disponible.`);
+      return null;
+    }
     if (full.bpm && parseFloat(full.bpm) > 0) {
       const deezerBpm = parseFloat(full.bpm);
       if (deezerBpm < minBpm - 15 || deezerBpm > maxBpm + 15) {
@@ -273,7 +282,7 @@ const verifyAndEnrichLocalTrack = async (track, minBpm, maxBpm) => {
         return null;
       }
     }
-    return full.preview ? { ...track, preview: full.preview } : track;
+    return { ...track, preview: full.preview };
   } catch (e) {
     return track;
   }
