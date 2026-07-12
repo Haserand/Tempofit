@@ -688,6 +688,22 @@ export default function App() {
   // artiste correspondant au texte tapé (voir isConfidentArtistMatch).
   const [searchActiveArtistId, setSearchActiveArtistId] = useState(null);
   const [searchActiveArtistName, setSearchActiveArtistName] = useState(null);
+  // youtubeId du titre actuellement en cours de correction manuelle de BPM dans
+  // la modale de recherche (voir renderSearchResultRow / commitBpmEdit) — null
+  // si aucune édition en cours.
+  const [editingBpmId, setEditingBpmId] = useState(null);
+  // Message affiché pendant la recherche — tiré au sort à chaque nouvelle
+  // recherche (reset=true) parmi une petite liste, pour rester dans le ton
+  // ludique déjà présent ailleurs dans l'app (trophées, Mode Intime...) plutôt
+  // qu'un "Recherche en cours..." neutre et répété à chaque clic.
+  const SEARCH_LOADING_MESSAGES = [
+    "Recherche en cours...",
+    "On fouille chez Deezer...",
+    "Ça arrive, promis...",
+    "Un peu de patience, le rythme se cherche...",
+    "On compte les BPM..."
+  ];
+  const [searchLoadingMessage, setSearchLoadingMessage] = useState(SEARCH_LOADING_MESSAGES[0]);
   // Réserve CACHÉE des titres qui matchent le texte tapé mais PAS l'artiste
   // identifié (ex. "Starboy" pour "daft punk", où Daft Punk n'est que
   // co-producteur) — voir searchWorldMusicApi. Jamais affichée tant qu'il reste
@@ -866,6 +882,7 @@ export default function App() {
     const generalOffset = reset ? 0 : searchResultsOffset;
     if (reset) {
       setIsWorldSearching(true);
+      setSearchLoadingMessage(SEARCH_LOADING_MESSAGES[Math.floor(Math.random() * SEARCH_LOADING_MESSAGES.length)]);
       setWorldSearchResults([]);
       setWorldSearchOtherResults([]);
       setResultsContextLabel(null);
@@ -922,54 +939,33 @@ export default function App() {
       }));
       console.log('[TempoFit DEBUG] Étape 1 — generalStubs:', generalStubs.length, '| detailedTracks (dont null):', detailedTracks.length, '| null count:', detailedTracks.filter(t => !t).length);
 
-      // 4 niveaux de résolution BPM, du plus fiable au plus incertain :
+      // 3 niveaux de résolution BPM, du plus fiable au plus incertain :
       //   1. Deezer (déjà dans `full.bpm` si renseigné) — la source la plus fiable.
-      //   2. FreqBlog (freqblog.com) — remplaçant maintenu de l'ancien endpoint
-      //      Spotify `audio-features` (tué par Spotify fin 2024), requête directe
-      //      par titre+artiste, chaîne de sources en cascade côté FreqBlog (leur
-      //      propre catalogue + AcousticBrainz + Million Song Dataset + FMA), avec
-      //      backfill automatique si absent. Ajouté après un vrai constat : sur un
-      //      artiste très récent (Baby Lasagna, Eurovision 2024), GetSongBPM seul
-      //      n'avait AUCUNE donnée alors qu'un service plus activement tenu à jour
-      //      en a de bonnes chances d'avoir. Non vérifié en profondeur (site
-      //      bloquant les requêtes automatisées côté environnement de dev), donc
-      //      sa fiabilité réelle reste à confirmer à l'usage.
-      //   3. GetSongBPM — vraie base de données communautaire (titre + artiste),
+      //   2. GetSongBPM — vraie base de données communautaire (titre + artiste),
       //      DÉJÀ utilisée ailleurs dans l'app (`resolveRealBPM`, pour la synchro
       //      Spotify) — c'est cette même source qui donne 128 BPM pour "Rim Tim
       //      Tagi Dim" (vérifié), pas une estimation.
-      //   4. Détection audio en direct (voir plus haut, `resolveBpmForCandidates`)
-      //      — dernier recours SEULEMENT si les 3 sources fiables au-dessus n'ont
+      //   3. Détection audio en direct (voir plus haut, `resolveBpmForCandidates`)
+      //      — dernier recours SEULEMENT si les 2 sources fiables au-dessus n'ont
       //      rien donné, gardée pour ne jamais laisser un titre invisible si
       //      aucune base ne le connaît, mais son ambiguïté d'octave documentée
       //      reste entière (voir `_bpmSource` exposé à l'affichage plus bas).
+      //
+      // ⚠️ Un 4e niveau (FreqBlog, freqblog.com) a été essayé puis retiré : son
+      // quota gratuit s'est avéré inutilisable en pratique — statut 429 (limite
+      // atteinte) dès la toute première requête réelle, bien avant les 1000/mois
+      // annoncés. Aucun gain constaté sur les cas testés de toute façon (butait
+      // sur la même nouveauté de catalogue que GetSongBPM). Fichier
+      // `api/freqblog.js` laissé de côté dans le projet mais plus appelé ici —
+      // peut être supprimé du dépôt si vous voulez faire le ménage.
       const validDetailedTracks = detailedTracks.filter(Boolean);
       const withDeezerBpm = validDetailedTracks
         .filter(t => t.bpm && parseFloat(t.bpm) > 0)
         .map(t => ({ ...t, _resolvedBpm: Math.round(parseFloat(t.bpm)), _bpmSource: 'deezer' }));
       const missingBpm = validDetailedTracks.filter(t => !t.bpm || parseFloat(t.bpm) <= 0);
-      console.log('[TempoFit DEBUG] Étape 2 — withDeezerBpm:', withDeezerBpm.length, '| missingBpm (à résoudre via FreqBlog/GetSongBPM/détection):', missingBpm.length);
+      console.log('[TempoFit DEBUG] Étape 2 — withDeezerBpm:', withDeezerBpm.length, '| missingBpm (à résoudre via GetSongBPM/détection):', missingBpm.length);
 
-      const withFreqBlog = (await Promise.all(missingBpm.map(async (t) => {
-        try {
-          const cleanTitle = (t.title || '').replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').split('-')[0].trim();
-          const cleanArtist = (t.artist ? t.artist.name : '').split(',')[0].split('&')[0].trim();
-          const res = await fetch(`/api/freqblog?track=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}`);
-          const data = await res.json();
-          console.log('[TempoFit DEBUG] FreqBlog — requête pour "' + cleanTitle + '" / "' + cleanArtist + '" | statut:', res.status, '| réponse:', data);
-          const rawBpm = data && (typeof data.bpm === 'number' || typeof data.bpm === 'string') ? parseFloat(data.bpm) : null;
-          const bpm = (rawBpm && rawBpm > 0) ? Math.round(rawBpm) : null;
-          return bpm ? { ...t, _resolvedBpm: bpm, _bpmSource: 'freqblog' } : null;
-        } catch (e) {
-          console.log('[TempoFit DEBUG] FreqBlog — exception pour "' + t.title + '" :', e);
-          return null; // échec silencieux : ce titre retombe simplement au niveau suivant
-        }
-      }))).filter(Boolean);
-      console.log('[TempoFit DEBUG] Étape 2b — withFreqBlog résolus:', withFreqBlog.length, withFreqBlog.map(t => t.title + ' : ' + t._resolvedBpm));
-
-      const stillMissingAfterFreqBlog = missingBpm.filter(t => !withFreqBlog.some(g => g.id === t.id));
-
-      const withGetSongBpm = (await Promise.all(stillMissingAfterFreqBlog.map(async (t) => {
+      const withGetSongBpm = (await Promise.all(missingBpm.map(async (t) => {
         try {
           const cleanTitle = (t.title || '').replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').split('-')[0].trim();
           const cleanArtist = (t.artist ? t.artist.name : '').split(',')[0].split('&')[0].trim();
@@ -985,7 +981,7 @@ export default function App() {
       }))).filter(Boolean);
       console.log('[TempoFit DEBUG] Étape 3 — withGetSongBpm résolus:', withGetSongBpm.length, withGetSongBpm.map(t => t.title + ' : ' + t._resolvedBpm));
 
-      const stillMissing = stillMissingAfterFreqBlog.filter(t => !withGetSongBpm.some(g => g.id === t.id));
+      const stillMissing = missingBpm.filter(t => !withGetSongBpm.some(g => g.id === t.id));
       console.log('[TempoFit DEBUG] Étape 4 — stillMissing (passe en détection audio):', stillMissing.length, stillMissing.map(t => t.title + ' (preview:' + !!t.preview + ')'));
       // Fenêtre resserrée pour CE dernier recours uniquement — réduit la fréquence
       // des erreurs d'octave en empêchant l'algorithme de même considérer des
@@ -1027,7 +1023,7 @@ export default function App() {
       // le BPM passait devant. Le niveau de résolution (Deezer/GetSongBPM/
       // détection) ne doit influencer QUE la fiabilité affichée (`_bpmSource`),
       // jamais la position dans la liste.
-      const resolvedById = new Map([...withDeezerBpm, ...withFreqBlog, ...withGetSongBpm, ...detectedCandidates].map(t => [t.id, t]));
+      const resolvedById = new Map([...withDeezerBpm, ...withGetSongBpm, ...detectedCandidates].map(t => [t.id, t]));
       const resolvedCandidates = validDetailedTracks.map(t => resolvedById.get(t.id)).filter(Boolean);
       console.log('[TempoFit DEBUG] Étape 6 — resolvedCandidates total:', resolvedCandidates.length, '(ordre Deezer préservé)');
 
@@ -1106,11 +1102,44 @@ export default function App() {
   // searchActiveArtistId/Name, worldSearchOtherResults) n'oublie aucun des 2 endroits.
   // (voir sa définition juste après renderSearchResultRow ci-dessous)
 
+  // Corrige le BPM d'un titre à la main (voir editingBpmId) — met à jour les 2
+  // listes possibles (résultats visibles ET réserve cachée, un titre pouvant
+  // être dans l'une ou l'autre) puisqu'on ne sait pas laquelle le contient sans
+  // le revérifier. `_bpmSource: 'manual'` retire le "~" (l'utilisateur devient
+  // lui-même la source la plus fiable qui soit sur SON propre correctif).
+  const commitBpmEdit = (track, rawValue) => {
+    setEditingBpmId(null);
+    const parsed = parseInt(rawValue, 10);
+    if (!parsed || parsed <= 0 || parsed === track.bpm) return; // valeur invalide ou inchangée : rien à faire
+    const updateList = (list) => list.map(t => t.youtubeId === track.youtubeId ? { ...t, bpm: parsed, _bpmSource: 'manual' } : t);
+    setWorldSearchResults(prev => updateList(prev));
+    setWorldSearchOtherResults(prev => updateList(prev));
+    showToast(`BPM corrigé : ${parsed}`);
+  };
+
   // Une seule ligne de résultat de recherche (bouton extrait + ajout/favori) —
   // extraite en fonction réutilisable pour être partagée entre la liste
   // principale (worldSearchResults) et la réserve "autres résultats" révélée en
   // bas une fois la recherche épuisée (voir worldSearchOtherResults).
-  const renderSearchResultRow = (track, key) => (
+  const renderSearchResultRow = (track, key) => {
+    const isEditingThisBpm = editingBpmId === track.youtubeId;
+    const isAlreadyFavorited = !currentPlaylist && favorites.tracks.some(t => t.youtubeId === track.youtubeId);
+    const addOrToggleFavorite = () => {
+      // Si on est dans la vue Playlist, on l'ajoute. Sinon, ça bascule dans les Favoris !
+      if (currentPlaylist) handleAddManualTrack(track);
+      else if (isAlreadyFavorited) {
+         setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.youtubeId !== track.youtubeId) }));
+         showToast("Retiré de tes favoris.");
+      } else {
+         setFavorites(prev => ({
+           ...prev,
+           artists: Array.from(new Set([...prev.artists, track.artist])),
+           tracks: [...prev.tracks, track]
+         }));
+         showToast("🎵 Ajouté à tes favoris !");
+      }
+    };
+    return (
     <div key={key} className={"flex items-center gap-2 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border border-transparent hover:" + cardBorder}>
       {/* Bouton lecture/pause de l'extrait audio 30s (Deezer). Désactivé si aucun extrait disponible. */}
       <button
@@ -1122,43 +1151,59 @@ export default function App() {
         {playingPreviewId === track.youtubeId ? <Pause size={16} fill="currentColor"/> : <Play size={16} fill="currentColor" className="ml-0.5"/>}
       </button>
 
-      {(() => {
-        const isAlreadyFavorited = !currentPlaylist && favorites.tracks.some(t => t.youtubeId === track.youtubeId);
-        return (
-          <button onClick={() => {
-              // Si on est dans la vue Playlist, on l'ajoute. Sinon, ça bascule dans les Favoris !
-              if (currentPlaylist) handleAddManualTrack(track);
-              else if (isAlreadyFavorited) {
-                 setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.youtubeId !== track.youtubeId) }));
-                 showToast("Retiré de tes favoris.");
-              } else {
-                 setFavorites(prev => ({
-                   ...prev,
-                   artists: Array.from(new Set([...prev.artists, track.artist])),
-                   tracks: [...prev.tracks, track]
-                 }));
-                 showToast("🎵 Ajouté à tes favoris !");
-              }
-          }} className="flex-1 min-w-0 text-left flex items-center justify-between gap-3">
-            <div className="truncate">
-              <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
-              <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${normalizeGenreForDisplay(track.genre)}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé.">⚠️ Genre non confirmé</span>}</div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className={"font-mono text-sm font-bold " + textColorClass} title={track._bpmSource === 'detected' ? "BPM estimé par analyse audio (Deezer n'a pas cette donnée pour ce titre) — peut être imprécis, y compris d'un facteur 2 dans de rares cas (rythme deux fois trop lent ou trop rapide détecté)." : undefined}>
-                {track._bpmSource === 'detected' ? '~' : ''}{track.bpm} BPM
-              </span>
-              {isAlreadyFavorited ? (
-                <Check size={16} className="text-green-500" />
-              ) : (
-                <Plus size={16} className={textMuted}/>
-              )}
-            </div>
+      <button onClick={addOrToggleFavorite} className="flex-1 min-w-0 text-left">
+        <div className="truncate">
+          <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
+          <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${normalizeGenreForDisplay(track.genre)}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé.">⚠️ Genre non confirmé</span>}</div>
+        </div>
+      </button>
+
+      <div className="flex items-center gap-1.5 shrink-0">
+        {isEditingThisBpm ? (
+          <input
+            type="number"
+            autoFocus
+            defaultValue={track.bpm}
+            onFocus={(e) => e.target.select()}
+            onBlur={(e) => commitBpmEdit(track, e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur();
+              if (e.key === 'Escape') setEditingBpmId(null);
+            }}
+            className={`w-16 text-right font-mono text-sm font-bold bg-transparent border-b outline-none ${textColorClass} ${inputBorder}`}
+          />
+        ) : (
+          // Titre choisi avec soin : "~" seul (déjà présent) signale l'incertitude
+          // sans expliquer quoi faire. Le texte au survol dit maintenant
+          // explicitement qu'un clic permet de corriger — la seule vraie parade
+          // à une détection audio par nature ambiguë (voir le long historique de
+          // cette fonction plus haut) est de laisser l'utilisateur trancher
+          // lui-même quand il connaît la vraie valeur.
+          <button
+            onClick={() => setEditingBpmId(track.youtubeId)}
+            title={
+              track._bpmSource === 'detected'
+                ? "BPM estimé par analyse audio (aucune base ne connaît ce titre) — possiblement faux, y compris d'un facteur 2 (deux fois trop lent ou trop rapide). Clique pour corriger si tu connais la vraie valeur."
+                : track._bpmSource === 'manual'
+                  ? "BPM corrigé manuellement. Clique pour modifier à nouveau."
+                  : "Clique pour corriger le BPM si besoin."
+            }
+            className={"font-mono text-sm font-bold hover:underline decoration-dotted " + textColorClass}
+          >
+            {track._bpmSource === 'detected' ? '~' : ''}{track.bpm} BPM
           </button>
-        );
-      })()}
+        )}
+        <button onClick={addOrToggleFavorite} title={isAlreadyFavorited ? "Retirer des favoris" : "Ajouter"}>
+          {isAlreadyFavorited ? (
+            <Check size={16} className="text-green-500" />
+          ) : (
+            <Plus size={16} className={textMuted}/>
+          )}
+        </button>
+      </div>
     </div>
-  );
+    );
+  };
 
   const closeSearchModal = () => {
     setIsSearchModalOpen(false);
@@ -1172,6 +1217,7 @@ export default function App() {
     setSearchHasMoreResults(false);
     setSearchActiveArtistId(null);
     setSearchActiveArtistName(null);
+    setEditingBpmId(null); // évite qu'un champ d'édition BPM reste "ouvert" en mémoire après fermeture
   };
 
   /**
@@ -2050,8 +2096,11 @@ export default function App() {
 
     setCurrentPlaylist(updatedPlaylist);
     setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
-    setIsSearchModalOpen(false);
-    setSearchQuery("");
+    closeSearchModal(); // ferme ET réinitialise tout l'état de recherche (voir sa définition) —
+    // avant, seuls isSearchModalOpen et searchQuery étaient remis à zéro ici,
+    // laissant worldSearchResults et le reste trainer en mémoire jusqu'à la
+    // prochaine recherche, avec un risque de flash de résultats obsolètes à la
+    // réouverture de la modale.
     showToast("🎵 Titre ajouté avec succès !");
   };
 
@@ -4409,7 +4458,7 @@ export default function App() {
                 {isWorldSearching && worldSearchResults.length === 0 ? (
                   <div className={`text-center py-8 font-medium ${textMuted} flex flex-col items-center gap-2`}>
                     <Loader2 className="animate-spin" size={20}/>
-                    <span>Recherche en cours...</span>
+                    <span>{searchLoadingMessage}</span>
                   </div>
                 ) : (worldSearchResults.length > 0 || (!searchHasMoreResults && worldSearchOtherResults.length > 0)) ? (
                   <>
