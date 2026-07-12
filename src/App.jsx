@@ -962,8 +962,19 @@ export default function App() {
       const detectedCandidates = await resolveBpmForCandidates(stillMissing, 40, 220);
       console.log('[TempoFit DEBUG] Étape 5 — detectedCandidates:', detectedCandidates.length, detectedCandidates.map(t => t.title + ' : ' + t._resolvedBpm));
 
-      const resolvedCandidates = [...withDeezerBpm, ...withGetSongBpm, ...detectedCandidates];
-      console.log('[TempoFit DEBUG] Étape 6 — resolvedCandidates total:', resolvedCandidates.length);
+      // Reconstitue l'ordre D'ORIGINE de Deezer (= son classement par pertinence/
+      // popularité, voir Étape 0) plutôt que de garder les 3 groupes concaténés
+      // dans l'ordre où ils ont été résolus. Sans ça, un titre pourtant très
+      // populaire (ex. "Bohemian Rhapsody" de Queen, classé en tête par Deezer)
+      // pouvait se retrouver en fin de liste simplement parce que SON bpm à lui
+      // n'était pas renseigné chez Deezer et a dû être résolu par GetSongBPM/
+      // détection — alors qu'un titre bien moins populaire mais dont Deezer AVAIT
+      // le BPM passait devant. Le niveau de résolution (Deezer/GetSongBPM/
+      // détection) ne doit influencer QUE la fiabilité affichée (`_bpmSource`),
+      // jamais la position dans la liste.
+      const resolvedById = new Map([...withDeezerBpm, ...withGetSongBpm, ...detectedCandidates].map(t => [t.id, t]));
+      const resolvedCandidates = validDetailedTracks.map(t => resolvedById.get(t.id)).filter(Boolean);
+      console.log('[TempoFit DEBUG] Étape 6 — resolvedCandidates total:', resolvedCandidates.length, '(ordre Deezer préservé)');
 
       const formattedResults = await Promise.all(
         resolvedCandidates.map(async (t) => {
@@ -993,9 +1004,28 @@ export default function App() {
       if (priorityArtistName) {
         const matched = formattedResults.filter(isPriorityMatch);
         const other = formattedResults.filter(t => !isPriorityMatch(t));
-        console.log('[TempoFit DEBUG] Split priorité artiste "' + priorityArtistName + '" — matched (visibles):', matched.length, '| other (cachés, révélés seulement si recherche épuisée):', other.length, '| searchHasMoreResults actuel:', searchHasMoreResults);
-        setWorldSearchResults(prev => dedupeAppend(prev, matched));
-        setWorldSearchOtherResults(prev => dedupeAppend(prev, other));
+        console.log('[TempoFit DEBUG] Split priorité artiste "' + priorityArtistName + '" — matched (visibles):', matched.length, '| other (cachés, révélés seulement si recherche épuisée):', other.length);
+
+        if (reset && matched.length === 0 && other.length > 0) {
+          // FAUX POSITIF DE DÉTECTION D'ARTISTE (confirmé sur un vrai cas : Deezer
+          // a une fiche "artiste" appelée littéralement "Bohemian Rhapsody" — sans
+          // doute une compilation/hommage/karaoké, pas le vrai groupe recherché —
+          // qui matchait le texte tapé à l'identique). Si le filtrage par cet
+          // "artiste" éliminerait la TOTALITÉ des titres trouvés, c'est le signe
+          // que la détection était fausse : on annule le mode priorité pour cette
+          // recherche plutôt que de cacher des résultats bien réels derrière un
+          // artiste fantôme. Uniquement sur la 1ère page (reset) — sur "Voir
+          // plus", une page sans résultat de l'artiste est normale, pas un signal
+          // d'erreur (l'artiste a déjà été confirmé légitime par une page précédente).
+          console.log('[TempoFit DEBUG] → Faux positif détecté, annulation du mode priorité artiste pour cette recherche.');
+          priorityArtistName = null;
+          setSearchActiveArtistId(null);
+          setSearchActiveArtistName(null);
+          setWorldSearchResults(prev => dedupeAppend(prev, formattedResults));
+        } else {
+          setWorldSearchResults(prev => dedupeAppend(prev, matched));
+          setWorldSearchOtherResults(prev => dedupeAppend(prev, other));
+        }
       } else {
         setWorldSearchResults(prev => dedupeAppend(prev, formattedResults));
       }
