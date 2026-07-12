@@ -907,16 +907,19 @@ export default function App() {
       }
 
       if (generalStubs.length === 0 && reset) {
+        console.log('[TempoFit DEBUG] Étape 0 — recherche Deezer générale pour "' + searchQuery + '" : 0 stub. noUsableResultsHint = true, arrêt ici.');
         setNoUsableResultsHint(true);
         setIsWorldSearching(false);
         return;
       }
+      console.log('[TempoFit DEBUG] Étape 0 — recherche Deezer générale pour "' + searchQuery + '" :', generalStubs.length, 'stubs |', generalStubs.map(s => s.title + ' / ' + (s.artist ? s.artist.name : '?')));
 
       // Un appel par titre pour récupérer son BPM (absent des listes de résultats)
       const detailedTracks = await Promise.all(generalStubs.map(async (stub) => {
         const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
         return full;
       }));
+      console.log('[TempoFit DEBUG] Étape 1 — generalStubs:', generalStubs.length, '| detailedTracks (dont null):', detailedTracks.length, '| null count:', detailedTracks.filter(t => !t).length);
 
       // 3 niveaux de résolution BPM, du plus fiable au plus incertain :
       //   1. Deezer (déjà dans `full.bpm` si renseigné) — la source la plus fiable.
@@ -935,6 +938,7 @@ export default function App() {
         .filter(t => t.bpm && parseFloat(t.bpm) > 0)
         .map(t => ({ ...t, _resolvedBpm: Math.round(parseFloat(t.bpm)), _bpmSource: 'deezer' }));
       const missingBpm = validDetailedTracks.filter(t => !t.bpm || parseFloat(t.bpm) <= 0);
+      console.log('[TempoFit DEBUG] Étape 2 — withDeezerBpm:', withDeezerBpm.length, '| missingBpm (à résoudre via GetSongBPM/détection):', missingBpm.length);
 
       const withGetSongBpm = (await Promise.all(missingBpm.map(async (t) => {
         try {
@@ -946,14 +950,19 @@ export default function App() {
           const tempo = (data && data.search && data.search.length > 0) ? parseInt(data.search[0].tempo) : null;
           return (tempo && tempo > 0) ? { ...t, _resolvedBpm: tempo, _bpmSource: 'getsongbpm' } : null;
         } catch (e) {
+          console.log('[TempoFit DEBUG] GetSongBPM — exception pour "' + t.title + '" :', e);
           return null; // échec silencieux : ce titre retombe simplement au niveau 3 ci-dessous
         }
       }))).filter(Boolean);
+      console.log('[TempoFit DEBUG] Étape 3 — withGetSongBpm résolus:', withGetSongBpm.length, withGetSongBpm.map(t => t.title + ' : ' + t._resolvedBpm));
 
       const stillMissing = missingBpm.filter(t => !withGetSongBpm.some(g => g.id === t.id));
+      console.log('[TempoFit DEBUG] Étape 4 — stillMissing (passe en détection audio):', stillMissing.length, stillMissing.map(t => t.title + ' (preview:' + !!t.preview + ')'));
       const detectedCandidates = await resolveBpmForCandidates(stillMissing, 40, 220);
+      console.log('[TempoFit DEBUG] Étape 5 — detectedCandidates:', detectedCandidates.length, detectedCandidates.map(t => t.title + ' : ' + t._resolvedBpm));
 
       const resolvedCandidates = [...withDeezerBpm, ...withGetSongBpm, ...detectedCandidates];
+      console.log('[TempoFit DEBUG] Étape 6 — resolvedCandidates total:', resolvedCandidates.length);
 
       const formattedResults = await Promise.all(
         resolvedCandidates.map(async (t) => {
@@ -970,6 +979,7 @@ export default function App() {
             };
           })
       );
+      console.log('[TempoFit DEBUG] Étape 7 — formattedResults final:', formattedResults.length);
 
       const norm = priorityArtistName ? normalizeForArtistMatch(priorityArtistName) : null;
       const isPriorityMatch = (t) => norm && normalizeForArtistMatch(t.artist) === norm;
@@ -991,8 +1001,10 @@ export default function App() {
       setSearchHasMoreResults(generalStubs.length > 0 && (generalOffset + generalStubs.length) < generalTotal);
       if (reset && formattedResults.length === 0) setNoUsableResultsHint(true); // titres trouvés mais aucun n'a de BPM connu
     } catch(e) {
-      // Erreur réseau réelle (proxy CORS injoignable, hors-ligne...) — safeFetchJson
-      // absorbe déjà les corps vides/invalides sans lever d'exception.
+      // --- LOG DEBUG TEMPORAIRE : l'erreur réelle n'était jamais loggée avant,
+      // donc une exception ici retombait silencieusement sur "Aucun résultat."
+      // générique sans aucune trace exploitable. Gardé jusqu'à résolution complète. ---
+      console.error('[TempoFit DEBUG] EXCEPTION dans searchWorldMusicApi :', e);
       showToast("Erreur réseau lors de la recherche.", 'error');
     }
     setIsWorldSearching(false);
