@@ -891,6 +891,7 @@ export default function App() {
         const artist = (artistRes.data && Array.isArray(artistRes.data.data)) ? artistRes.data.data[0] : null;
         generalStubs = (textRes.data && Array.isArray(textRes.data.data)) ? textRes.data.data : [];
         generalTotal = (textRes.data && typeof textRes.data.total === 'number') ? textRes.data.total : generalStubs.length;
+        console.log('[TempoFit DEBUG] Détection artiste pour "' + searchQuery + '" — artiste trouvé:', artist ? artist.name : null, '| match confiant:', artist ? isConfidentArtistMatch(searchQuery, artist.name) : false);
 
         if (artist && isConfidentArtistMatch(searchQuery, artist.name)) {
           priorityArtistName = artist.name;
@@ -990,8 +991,11 @@ export default function App() {
       };
 
       if (priorityArtistName) {
-        setWorldSearchResults(prev => dedupeAppend(prev, formattedResults.filter(isPriorityMatch)));
-        setWorldSearchOtherResults(prev => dedupeAppend(prev, formattedResults.filter(t => !isPriorityMatch(t))));
+        const matched = formattedResults.filter(isPriorityMatch);
+        const other = formattedResults.filter(t => !isPriorityMatch(t));
+        console.log('[TempoFit DEBUG] Split priorité artiste "' + priorityArtistName + '" — matched (visibles):', matched.length, '| other (cachés, révélés seulement si recherche épuisée):', other.length, '| searchHasMoreResults actuel:', searchHasMoreResults);
+        setWorldSearchResults(prev => dedupeAppend(prev, matched));
+        setWorldSearchOtherResults(prev => dedupeAppend(prev, other));
       } else {
         setWorldSearchResults(prev => dedupeAppend(prev, formattedResults));
       }
