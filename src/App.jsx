@@ -922,15 +922,24 @@ export default function App() {
       }));
       console.log('[TempoFit DEBUG] Étape 1 — generalStubs:', generalStubs.length, '| detailedTracks (dont null):', detailedTracks.length, '| null count:', detailedTracks.filter(t => !t).length);
 
-      // 3 niveaux de résolution BPM, du plus fiable au plus incertain :
+      // 4 niveaux de résolution BPM, du plus fiable au plus incertain :
       //   1. Deezer (déjà dans `full.bpm` si renseigné) — la source la plus fiable.
-      //   2. GetSongBPM — vraie base de données communautaire (titre + artiste),
+      //   2. FreqBlog (freqblog.com) — remplaçant maintenu de l'ancien endpoint
+      //      Spotify `audio-features` (tué par Spotify fin 2024), requête directe
+      //      par titre+artiste, chaîne de sources en cascade côté FreqBlog (leur
+      //      propre catalogue + AcousticBrainz + Million Song Dataset + FMA), avec
+      //      backfill automatique si absent. Ajouté après un vrai constat : sur un
+      //      artiste très récent (Baby Lasagna, Eurovision 2024), GetSongBPM seul
+      //      n'avait AUCUNE donnée alors qu'un service plus activement tenu à jour
+      //      en a de bonnes chances d'avoir. Non vérifié en profondeur (site
+      //      bloquant les requêtes automatisées côté environnement de dev), donc
+      //      sa fiabilité réelle reste à confirmer à l'usage.
+      //   3. GetSongBPM — vraie base de données communautaire (titre + artiste),
       //      DÉJÀ utilisée ailleurs dans l'app (`resolveRealBPM`, pour la synchro
-      //      Spotify) mais jamais réutilisée ici jusqu'à présent : c'est cette
-      //      même source qui donne 128 BPM pour "Rim Tim Tagi Dim" (vérifié), pas
-      //      une estimation — un vrai chiffre indexé, pas un pari sur une octave.
-      //   3. Détection audio en direct (voir plus haut, `resolveBpmForCandidates`)
-      //      — dernier recours SEULEMENT si les 2 sources fiables au-dessus n'ont
+      //      Spotify) — c'est cette même source qui donne 128 BPM pour "Rim Tim
+      //      Tagi Dim" (vérifié), pas une estimation.
+      //   4. Détection audio en direct (voir plus haut, `resolveBpmForCandidates`)
+      //      — dernier recours SEULEMENT si les 3 sources fiables au-dessus n'ont
       //      rien donné, gardée pour ne jamais laisser un titre invisible si
       //      aucune base ne le connaît, mais son ambiguïté d'octave documentée
       //      reste entière (voir `_bpmSource` exposé à l'affichage plus bas).
@@ -939,9 +948,28 @@ export default function App() {
         .filter(t => t.bpm && parseFloat(t.bpm) > 0)
         .map(t => ({ ...t, _resolvedBpm: Math.round(parseFloat(t.bpm)), _bpmSource: 'deezer' }));
       const missingBpm = validDetailedTracks.filter(t => !t.bpm || parseFloat(t.bpm) <= 0);
-      console.log('[TempoFit DEBUG] Étape 2 — withDeezerBpm:', withDeezerBpm.length, '| missingBpm (à résoudre via GetSongBPM/détection):', missingBpm.length);
+      console.log('[TempoFit DEBUG] Étape 2 — withDeezerBpm:', withDeezerBpm.length, '| missingBpm (à résoudre via FreqBlog/GetSongBPM/détection):', missingBpm.length);
 
-      const withGetSongBpm = (await Promise.all(missingBpm.map(async (t) => {
+      const withFreqBlog = (await Promise.all(missingBpm.map(async (t) => {
+        try {
+          const cleanTitle = (t.title || '').replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').split('-')[0].trim();
+          const cleanArtist = (t.artist ? t.artist.name : '').split(',')[0].split('&')[0].trim();
+          const res = await fetch(`/api/freqblog?track=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}`);
+          const data = await res.json();
+          console.log('[TempoFit DEBUG] FreqBlog — requête pour "' + cleanTitle + '" / "' + cleanArtist + '" | statut:', res.status, '| réponse:', data);
+          const rawBpm = data && (typeof data.bpm === 'number' || typeof data.bpm === 'string') ? parseFloat(data.bpm) : null;
+          const bpm = (rawBpm && rawBpm > 0) ? Math.round(rawBpm) : null;
+          return bpm ? { ...t, _resolvedBpm: bpm, _bpmSource: 'freqblog' } : null;
+        } catch (e) {
+          console.log('[TempoFit DEBUG] FreqBlog — exception pour "' + t.title + '" :', e);
+          return null; // échec silencieux : ce titre retombe simplement au niveau suivant
+        }
+      }))).filter(Boolean);
+      console.log('[TempoFit DEBUG] Étape 2b — withFreqBlog résolus:', withFreqBlog.length, withFreqBlog.map(t => t.title + ' : ' + t._resolvedBpm));
+
+      const stillMissingAfterFreqBlog = missingBpm.filter(t => !withFreqBlog.some(g => g.id === t.id));
+
+      const withGetSongBpm = (await Promise.all(stillMissingAfterFreqBlog.map(async (t) => {
         try {
           const cleanTitle = (t.title || '').replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').split('-')[0].trim();
           const cleanArtist = (t.artist ? t.artist.name : '').split(',')[0].split('&')[0].trim();
@@ -952,27 +980,39 @@ export default function App() {
           return (tempo && tempo > 0) ? { ...t, _resolvedBpm: tempo, _bpmSource: 'getsongbpm' } : null;
         } catch (e) {
           console.log('[TempoFit DEBUG] GetSongBPM — exception pour "' + t.title + '" :', e);
-          return null; // échec silencieux : ce titre retombe simplement au niveau 3 ci-dessous
+          return null; // échec silencieux : ce titre retombe simplement au niveau suivant
         }
       }))).filter(Boolean);
       console.log('[TempoFit DEBUG] Étape 3 — withGetSongBpm résolus:', withGetSongBpm.length, withGetSongBpm.map(t => t.title + ' : ' + t._resolvedBpm));
 
-      const stillMissing = missingBpm.filter(t => !withGetSongBpm.some(g => g.id === t.id));
+      const stillMissing = stillMissingAfterFreqBlog.filter(t => !withGetSongBpm.some(g => g.id === t.id));
       console.log('[TempoFit DEBUG] Étape 4 — stillMissing (passe en détection audio):', stillMissing.length, stillMissing.map(t => t.title + ' (preview:' + !!t.preview + ')'));
       // Fenêtre resserrée pour CE dernier recours uniquement — réduit la fréquence
-      // des erreurs d'octave (64 au lieu de 128, cas réel confirmé sur "Rim Tim
-      // Tagi Dim") en empêchant l'algorithme de même considérer des tempos hors
-      // plage comme candidats, plutôt que de deviner après coup lequel est le bon.
-      // Adaptée au mode actif plutôt qu'une valeur fixe : le Mode Intime vise
-      // volontairement des BPM plus bas (40-130, voir appConfig.js —
-      // WORKOUT_DEFAULT_BPM/WORKOUT_DEFAULT_TARGET) pour des genres comme "R&B
-      // Sensuel" ; y appliquer la fenêtre resserrée du mode standard (70-200)
-      // aurait recréé exactement le problème qu'on vient de corriger ailleurs
-      // (doubler à tort un titre volontairement lent). Reste un compromis : un
-      // titre vraiment lent (< 40 BPM) ou vraiment rapide (> 200) échapperait aux
-      // deux fenêtres, mais aucun des 2 modes de l'app n'en a besoin aujourd'hui.
-      const detectionMinBpm = isNaughtyMode ? 40 : 70;
-      const detectionMaxBpm = isNaughtyMode ? 130 : 200;
+      // des erreurs d'octave en empêchant l'algorithme de même considérer des
+      // tempos hors plage comme candidats, plutôt que de deviner après coup lequel
+      // est le bon.
+      //
+      // ⚠️ 1er essai (70-200) insuffisant : confirmé sur un vrai cas ("End The
+      // Party" détecté à 75 BPM alors que la description officielle du titre —
+      // "high-energy", "crushing riffs", "moshing/headbanging" — est incompatible
+      // avec un tempo aussi lent ; 150 ÷ 2 = 75 reste dans une fenêtre 70-200).
+      // Rétrécir la fenêtre n'aide QUE si le vrai tempo est sous le double du
+      // minimum choisi — inutile pour un titre réellement rapide.
+      //
+      // Val réelle, tirée de la documentation officielle de `web-audio-beat-
+      // detector` (la librairie utilisée ici) plutôt que d'une nouvelle
+      // supposition : "by default the bpm are expected to be between 90 and 180
+      // bpm" — c'est la plage sur laquelle l'algorithme est réellement calibré.
+      // Remonter le minimum à 90 en mode standard exclut mécaniquement 75 comme
+      // candidat pour un titre réellement à ~150, sans deviner après coup.
+      //
+      // Le Mode Intime reste hors de cette plage calibrée par construction (il a
+      // besoin de BPM sous 90, voir appConfig.js) — la détection y est donc
+      // structurellement moins fiable, sans solution locale : la librairie n'expose
+      // aucun score de confiance ni plusieurs candidats, impossible de compenser
+      // par du code. Compromis assumé, pas résolu.
+      const detectionMinBpm = isNaughtyMode ? 40 : 90;
+      const detectionMaxBpm = isNaughtyMode ? 130 : 180;
       console.log('[TempoFit DEBUG] Fenêtre de détection audio — mode:', isNaughtyMode ? 'Intime' : 'Standard', '| plage:', detectionMinBpm + '-' + detectionMaxBpm);
       const detectedCandidates = await resolveBpmForCandidates(stillMissing, detectionMinBpm, detectionMaxBpm);
       console.log('[TempoFit DEBUG] Étape 5 — detectedCandidates:', detectedCandidates.length, detectedCandidates.map(t => t.title + ' : ' + t._resolvedBpm));
@@ -987,7 +1027,7 @@ export default function App() {
       // le BPM passait devant. Le niveau de résolution (Deezer/GetSongBPM/
       // détection) ne doit influencer QUE la fiabilité affichée (`_bpmSource`),
       // jamais la position dans la liste.
-      const resolvedById = new Map([...withDeezerBpm, ...withGetSongBpm, ...detectedCandidates].map(t => [t.id, t]));
+      const resolvedById = new Map([...withDeezerBpm, ...withFreqBlog, ...withGetSongBpm, ...detectedCandidates].map(t => [t.id, t]));
       const resolvedCandidates = validDetailedTracks.map(t => resolvedById.get(t.id)).filter(Boolean);
       console.log('[TempoFit DEBUG] Étape 6 — resolvedCandidates total:', resolvedCandidates.length, '(ordre Deezer préservé)');
 
