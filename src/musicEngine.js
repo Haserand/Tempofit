@@ -528,10 +528,23 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   //    exact, ni élargi) via la recherche généraliste par mot-clé de genre. On
   //    retente ici via ARTIST_CATALOG (voir musicCatalog.js et searchArtistsForBpm)
   //    — une recherche par ARTISTE représentatif du genre plutôt que par mot-clé
-  //    flou, donc pas besoin de revérifier le genre (l'artiste EST le choix de
-  //    genre). Exempté de l'historique inter-génération (`historyExcludeIds`) —
+  //    flou. Exempté de l'historique inter-génération (`historyExcludeIds`) —
   //    même logique que l'ancienne base de titres : mieux vaut réutiliser un
   //    artiste déjà vu que de forcer un mauvais genre.
+  //
+  // ⚠️ Le genre du titre choisi EST revérifié ci-dessous (album Deezer réel via
+  // `resolveDeezerGenre`), contrairement à une version précédente qui faisait
+  // confiance au genre du catalogue sans vérification ("l'artiste EST le choix
+  // de genre"). Ce raisonnement ne tient pas pour un artiste éclectique dont les
+  // albums couvrent plusieurs genres chez Deezer (cas réel rencontré : Baby
+  // Lasagna, catalogué "Métal/Alternative" mais dont certains singles sont
+  // taggés Pop côté Deezer) — sans cette vérification, un tel titre aurait pu
+  // être étiqueté avec le genre du catalogue sans que ce soit vraiment le sien,
+  // sans le moindre avertissement. Même mécanisme que plus haut dans ce fichier
+  // (voir `getSingleMatchingTrack`, la boucle `MAX_GENRE_CHECK_ATTEMPTS`) :
+  // quelques candidats sont essayés dans l'ordre de proximité de durée, le
+  // premier dont le VRAI genre correspond est retenu ; sinon, dernier recours,
+  // le premier candidat testé est gardé quand même mais marqué `_genreMismatch`.
   const validGenres = selectedGenres.length > 0 ? selectedGenres : ['Métal'];
   const localExcludeIds = excludeYoutubeIds.filter(id => !historyExcludeIds.includes(id));
   // Correspondance artiste → genre D'ORIGINE (pas juste une liste plate de noms) :
@@ -539,6 +552,8 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   // sélectionnés (ex. "Rock" quand on a coché Métal+Rock) s'affichait quand même
   // comme "Métal" (toujours validGenres[0]) — les genres sélectionnés ensemble
   // doivent être traités à ÉGALITÉ, pas biaisés vers le premier de la liste.
+  // Sert maintenant seulement de repli d'AFFICHAGE si `resolveDeezerGenre`
+  // échoue techniquement (erreur réseau) — la vérité vient du genre réel ci-dessous.
   const artistGenreMap = new Map();
   validGenres.forEach(g => { if (ARTIST_CATALOG[g]) ARTIST_CATALOG[g].forEach(a => { if (!artistGenreMap.has(a)) artistGenreMap.set(a, g); }); });
   let catalogArtists = [...artistGenreMap.keys()];
@@ -557,12 +572,39 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
       details = details.filter(f => !detectTitleStyleConflict(f.title, validGenres));
       if (!allowLongTracks) details = details.filter(f => (f.duration || 0) <= MAX_TRACK_DURATION);
       if (details.length > 0) {
-        const picked = pickByDurationProximity(details, preferredDuration);
+        const ordered = preferredDuration
+          ? [...details].sort((a, b) => Math.abs((a.duration || 180) - preferredDuration) - Math.abs((b.duration || 180) - preferredDuration))
+          : [...details].sort(() => Math.random() - 0.5);
+
+        const MAX_CATALOG_GENRE_CHECK_ATTEMPTS = 5;
+        let picked = null;
+        let pickedRealGenre = null;
+        let genreMismatch = false;
+        const attempted = [];
+        for (let attempt = 0; attempt < Math.min(MAX_CATALOG_GENRE_CHECK_ATTEMPTS, ordered.length); attempt++) {
+          const candidate = ordered[attempt];
+          const realGenre = await resolveDeezerGenre(candidate.id);
+          attempted.push({ candidate, realGenre });
+          if (realGenre && validGenres.some(g => genreRoughlyMatches(realGenre, g))) {
+            picked = candidate;
+            pickedRealGenre = realGenre;
+            break;
+          }
+        }
+        if (!picked) {
+          const fallback = attempted[0] || { candidate: ordered[0], realGenre: null };
+          picked = fallback.candidate;
+          pickedRealGenre = fallback.realGenre;
+          genreMismatch = true;
+        }
+
         return {
           youtubeId: `deezer-${picked.id}`, title: picked.title,
           artist: picked.artist ? picked.artist.name : 'Inconnu',
           bpm: Math.round(parseFloat(picked.bpm)), duration: picked.duration || 180,
-          genre: artistGenreMap.get(picked.artist ? picked.artist.name : '') || validGenres[0], preview: picked.preview
+          genre: pickedRealGenre || artistGenreMap.get(picked.artist ? picked.artist.name : '') || validGenres[0],
+          preview: picked.preview,
+          ...(genreMismatch ? { _genreMismatch: true, _isFallback: true } : {})
         };
       }
     }
@@ -833,7 +875,28 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
         const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
         return full;
       });
-      details.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm && f.preview).forEach(full => {
+      const validDetails = details.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm && f.preview);
+      // VÉRIFICATION DU VRAI GENRE (album Deezer) pour chaque candidat, plutôt
+      // que de lui coller tel quel le genre supposé par le catalogue — même
+      // correctif que dans `getSingleMatchingTrack` plus haut, pour la même
+      // raison : un artiste éclectique (ex. Baby Lasagna, dont les albums vont
+      // du Pop au Rock/Alternative chez Deezer) rend faux le raisonnement
+      // "l'artiste EST le choix de genre". Sans ça, le garde-fou genre plus bas
+      // dans cette fonction (`isDirectGenreMatch`/`genreRoughlyMatches` contre
+      // `effectiveGenres`) ne servait à rien pour CES candidats précis : leur
+      // champ `genre` valait toujours déjà l'un des genres demandés par
+      // construction (`artistGenreMap.get(...) || validGenres[0]`), donc la
+      // comparaison était tautologique — elle "matchait" à coup sûr, qu'elle
+      // soit vraie ou non. `_genreMismatch` est maintenant posé ici s'il y a
+      // lieu, comme pour toutes les autres sources du pool.
+      // ⚠️ Coût assumé : jusqu'à 30 appels `resolveDeezerGenre` de plus par
+      // segment — mis en cache par album (voir `_deezerAlbumGenreCache`), donc
+      // moindre en pratique dès qu'un même album revient sur plusieurs titres,
+      // mais réel sur un premier appel. `fetchInBatches` limite déjà le débit
+      // (lots de 10, pause 250ms entre lots), comme pour tout le reste du pool.
+      await fetchInBatches(validDetails, 10, async (full) => {
+        const realGenre = await resolveDeezerGenre(full.id);
+        const genreMismatch = !realGenre || !validGenres.some(g => genreRoughlyMatches(realGenre, g));
         // `_isLocalDB` : nom conservé pour la priorité à 4 niveaux ci-dessous
         // (distingue ce filet de secours par artiste des favoris/Spotify — ce
         // sont des choix explicites de l'utilisateur, pas un filet de secours —
@@ -842,8 +905,11 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
           youtubeId: `deezer-${full.id}`, title: full.title,
           artist: full.artist ? full.artist.name : 'Inconnu',
           bpm: Math.round(parseFloat(full.bpm)), duration: full.duration || 180,
-          genre: artistGenreMap.get(full.artist ? full.artist.name : '') || validGenres[0], preview: full.preview, _isLocalDB: true
+          genre: realGenre || artistGenreMap.get(full.artist ? full.artist.name : '') || validGenres[0],
+          preview: full.preview, _isLocalDB: true,
+          ...(genreMismatch ? { _genreMismatch: true } : {})
         });
+        return null;
       });
     } catch (e) {
       // Échec silencieux : le pool s'appuiera sur les autres sources.
