@@ -1166,44 +1166,51 @@ export default function App() {
             }}
             className={`w-16 text-right font-mono text-sm font-bold bg-transparent border-b outline-none ${textColorClass} ${inputBorder}`}
           />
-        ) : (
+        ) : (track._bpmSource === 'detected' || track._bpmSource === 'manual') ? (
+          // L'édition n'est proposée QUE là où il y a un doute réel à corriger :
+          // `detected` (deviné par analyse audio, ambiguïté d'octave documentée
+          // plus haut) et `manual` (pour pouvoir se corriger à nouveau soi-même).
+          //
+          // ⚠️ Décision prise après retour utilisateur : au départ, TOUS les BPM
+          // étaient éditables, y compris ceux fournis directement par Deezer —
+          // ce qui n'a pas de sens ("corriger" une valeur qu'on n'a aucune
+          // raison de mettre en doute), et affaiblissait le signal du crayon
+          // pour les cas où il compte vraiment. Un titre `deezer`/`getsongbpm`
+          // s'affiche donc maintenant en texte simple, sans bouton ni crayon —
+          // le risque, sinon, est qu'un utilisateur tape un chiffre erroné sur
+          // un titre déjà fiable, et fausse silencieusement le matching BPM
+          // plus tard (le générateur choisirait ce titre pour un tempo qu'il
+          // n'a en réalité pas, puisque seule la métadonnée aurait changé, pas
+          // l'audio réel).
+          //
           // Titre choisi avec soin : "~" seul (déjà présent) signale l'incertitude
-          // sans expliquer quoi faire. Le texte au survol dit maintenant
-          // explicitement qu'un clic permet de corriger — la seule vraie parade
-          // à une détection audio par nature ambiguë (voir le long historique de
+          // sans expliquer quoi faire. Le texte au survol dit explicitement
+          // qu'un clic permet de corriger — la seule vraie parade à une
+          // détection audio par nature ambiguë (voir le long historique de
           // cette fonction plus haut) est de laisser l'utilisateur trancher
           // lui-même quand il connaît la vraie valeur.
           //
-          // ⚠️ Correction après retour utilisateur : le `title` (infobulle
-          // native) ET le `hover:underline` sont TOUS LES DEUX invisibles sur
-          // écran tactile (pas de survol au doigt) — donc sur mobile, ce bouton
-          // ne se distinguait pas de texte normal, aucun indice qu'il est
-          // cliquable. Ajout d'une icône crayon TOUJOURS visible (pas seulement
-          // au survol) pour que l'affordance fonctionne aussi bien au doigt qu'à
-          // la souris. Le `title` reste en plus, pour ceux qui survolent au
-          // clavier/souris.
-          //
-          // ⚠️ 2e correction (retour utilisateur) : le texte initial mentionnait
-          // encore le risque "d'un facteur 2" — exact avant le resserrement de la
-          // fenêtre de détection (90-180 en mode standard, voir plus haut), mais
-          // trompeur depuis puisque ce cas précis est désormais exclu par
-          // construction pour la plupart des titres. Texte raccourci et
-          // dédramatisé en conséquence — reste honnête ("pas garanti") sans
-          // ressasser un risque qu'on vient de réduire.
+          // Icône crayon TOUJOURS visible (pas seulement au survol) : le `title`
+          // (infobulle native) et un simple `hover:underline` sont tous les deux
+          // invisibles sur écran tactile (pas de survol au doigt) — sans indice
+          // visuel permanent, ce bouton ne se distinguait pas de texte normal
+          // sur mobile. Le `title` reste en plus, pour la souris/clavier.
           <button
             onClick={() => setEditingBpmId(track.youtubeId)}
             title={
               track._bpmSource === 'detected'
                 ? "BPM deviné, pas garanti — touche pour corriger."
-                : track._bpmSource === 'manual'
-                  ? "BPM corrigé à la main. Touche pour modifier."
-                  : "Touche pour corriger le BPM."
+                : "BPM corrigé à la main. Touche pour modifier."
             }
             className={"flex items-center gap-1 font-mono text-sm font-bold " + textColorClass}
           >
             <span>{track._bpmSource === 'detected' ? '~' : ''}{track.bpm} BPM</span>
             <Edit3 size={12} className="opacity-50"/>
           </button>
+        ) : (
+          // Source fiable (Deezer ou GetSongBPM) : pas d'affordance d'édition —
+          // voir le commentaire ci-dessus pour le raisonnement complet.
+          <span className={"font-mono text-sm font-bold " + textColorClass}>{track.bpm} BPM</span>
         )}
         <button onClick={addOrToggleFavorite} title={isAlreadyFavorited ? "Retirer des favoris" : "Ajouter"}>
           {isAlreadyFavorited ? (
