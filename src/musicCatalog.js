@@ -53,7 +53,16 @@ const ARTIST_CATALOG = {
   'Indie': ['Franz Ferdinand', 'The Strokes', 'The Killers', 'MGMT', 'Modest Mouse', 'Florence + the Machine', 'Phoenix', 'Vampire Weekend', 'Arcade Fire', 'The National', 'Bon Iver', 'Fleet Foxes', 'Tame Impala', 'Alt-J', 'Foster the People', 'Two Door Cinema Club', 'Wolf Alice', 'The 1975', 'Glass Animals', 'Cage the Elephant', 'Portugal. The Man', 'Local Natives', 'Grizzly Bear', 'Beach House', 'Real Estate', 'Deerhunter', 'Interpol', 'Yeah Yeah Yeahs', 'Spoon', 'Wilco', 'Death Cab for Cutie', 'Bright Eyes', 'Sufjan Stevens', 'Beirut', 'The Shins', 'Broken Social Scene', 'Bloc Party'],
   'K-pop': ['BLACKPINK', 'BTS', 'TWICE', 'Girls\' Generation', 'EXO', 'NCT', 'Stray Kids', 'SEVENTEEN', 'ATEEZ', 'ENHYPEN', 'TXT', 'ITZY', 'aespa', 'NewJeans', 'IVE', 'LE SSERAFIM', '(G)I-DLE', 'Red Velvet', 'MAMAMOO', '2NE1', 'Big Bang', 'SHINee', 'Super Junior', 'Wonder Girls', 'Sistar', 'f(x)', 'INFINITE', 'Monsta X', 'GOT7', 'iKON', 'WINNER', 'Apink', 'Oh My Girl', 'Loona'],
   'Soul & Funk': ['Stevie Wonder', 'KC and the Sunshine Band', 'Chic', 'James Brown', 'Wild Cherry', 'Parliament', 'Commodores', 'Prince', 'Marvin Gaye', 'Aretha Franklin', 'Otis Redding', 'Sam Cooke', 'Al Green', 'Curtis Mayfield', 'Isaac Hayes', 'Wilson Pickett', 'The Temptations', 'The Supremes', 'Smokey Robinson', 'The Four Tops', 'Gladys Knight', 'Diana Ross', 'Earth Wind & Fire', 'Sly and the Family Stone', 'Bootsy Collins', 'George Clinton', 'Rick James', 'The Isley Brothers', 'Roy Ayers', 'Kool & the Gang', 'The Gap Band', 'Cameo', 'Zapp', 'Betty Wright', 'Ann Peebles', 'Bill Withers', 'Donny Hathaway', 'Teddy Pendergrass'],
-  'Bandes originales': ['Kenny Loggins', 'Ray Parker Jr.', 'Klaus Badelt', 'Carl Douglas', 'Joe Esposito', 'Paul Engemann', 'Bill Conti', 'Irene Cara', 'Bonnie Tyler', 'John Williams', 'Hans Zimmer', 'Ennio Morricone', 'Danny Elfman', 'Alan Silvestri', 'James Horner', 'Howard Shore', 'Michael Giacchino', 'Alexandre Desplat', 'Thomas Newman', 'Randy Newman', 'John Barry', 'Vangelis', 'Jerry Goldsmith', 'Basil Poledouris', 'James Newton Howard', 'Harry Gregson-Williams', 'Ramin Djawadi', 'Trent Reznor', 'Lorne Balfe', 'Junkie XL', 'Ludwig Göransson', 'Nick Cave', 'Clint Mansell', 'Cliff Martinez']
+  'Bandes originales': ['Kenny Loggins', 'Ray Parker Jr.', 'Klaus Badelt', 'Carl Douglas', 'Joe Esposito', 'Paul Engemann', 'Bill Conti', 'Irene Cara', 'Bonnie Tyler', 'John Williams', 'Hans Zimmer', 'Ennio Morricone', 'Danny Elfman', 'Alan Silvestri', 'James Horner', 'Howard Shore', 'Michael Giacchino', 'Alexandre Desplat', 'Thomas Newman', 'Randy Newman', 'John Barry', 'Vangelis', 'Jerry Goldsmith', 'Basil Poledouris', 'James Newton Howard', 'Harry Gregson-Williams', 'Ramin Djawadi', 'Trent Reznor', 'Lorne Balfe', 'Junkie XL', 'Ludwig Göransson', 'Nick Cave', 'Clint Mansell', 'Cliff Martinez'],
+  // Ajouté après un constat concret (pas une supposition) : Deezer classe
+  // certains titres "Alternative" sans qu'aucun genre existant ne corresponde
+  // (ex. Baby Lasagna) — contrairement à "Rock"/"Métal", ce n'est pas juste une
+  // variante d'écriture du même genre (voir isDirectGenreMatch), c'est un vrai
+  // genre à part chez Deezer. Baby Lasagna volontairement inclus, l'artiste qui
+  // a déclenché cet ajout. Beaucoup de recoupement avec Rock/Métal/Indie ci-dessus
+  // (même logique que le reste du catalogue : un artiste peut représenter
+  // plusieurs genres à la fois, ex. Bring Me the Horizon déjà dans Métal).
+  'Alternative': ['Radiohead', 'Nirvana', 'R.E.M.', 'The Smashing Pumpkins', 'Weezer', 'Pixies', 'Sonic Youth', 'Beck', 'Placebo', 'Garbage', 'No Doubt', 'Bush', 'Live', 'Silverchair', 'Incubus', 'Twenty One Pilots', 'Cage the Elephant', 'Portugal. The Man', 'Wolf Alice', 'IDLES', 'Fontaines D.C.', 'girl in red', 'beabadoobee', 'Baby Lasagna', 'Yungblud', 'Nova Twins', 'Bring Me the Horizon', 'grandson', 'Waterparks', 'PVRIS', 'The Neighbourhood', 'Two Door Cinema Club', 'Glass Animals', 'AJR', 'X Ambassadors', 'American Authors', 'The Wombats', 'alt-J', 'Foals', 'Everything Everything', 'Bastille']
 };
 // "R&B" (genre standard général) réutilise les mêmes artistes que "R&B Sensuel"
 // (mode Intime) plutôt que d'en dupliquer.
@@ -79,7 +88,7 @@ const NAUGHTY_GENRES = ['R&B Sensuel', 'Pop', 'Latino', 'Jazz', 'Autre'];
 // dernier recours substituait silencieusement des artistes Pop dès que la
 // recherche Deezer générique échouait — quelqu'un demandant du Classique
 // pouvait se retrouver avec un résultat totalement hors sujet, sans le savoir.
-const EXTRA_GENRES = ['Techno', 'R&B', 'Reggae', 'Country', 'Jazz', 'Latino', 'Musique africaine', 'Musique asiatique', 'Blues', 'Musique brésilienne', 'Dance & EDM', 'Folk', 'Indie', 'K-pop', 'Soul & Funk', 'Bandes originales'];
+const EXTRA_GENRES = ['Techno', 'R&B', 'Reggae', 'Country', 'Jazz', 'Latino', 'Musique africaine', 'Musique asiatique', 'Blues', 'Musique brésilienne', 'Dance & EDM', 'Folk', 'Indie', 'K-pop', 'Soul & Funk', 'Bandes originales', 'Alternative'];
 
 // Correspondance approximative entre les genres internes de l'app et des mots-clés
 // Deezer (recherche floue) — voir le détail de cette limite dans searchTracksByBpm.
@@ -91,7 +100,12 @@ const DEEZER_GENRE_KEYWORDS = {
   'Musique africaine': 'african', 'Musique asiatique': 'asian', 'Blues': 'blues',
   'Musique brésilienne': 'brazilian', 'Dance & EDM': 'dance',
   'Folk': 'folk', 'Indie': 'indie', 'K-pop': 'k-pop', 'Soul & Funk': 'soul',
-  'Bandes originales': 'soundtrack'
+  // Plusieurs mots-clés possibles : Deezer renvoie "Films/Games" en anglais pour
+  // ce genre (constaté en pratique, voir commentaire sur isDirectGenreMatch),
+  // jamais littéralement "soundtrack" — gardé en plus au cas où une autre partie
+  // du catalogue Deezer utilise cette forme.
+  'Bandes originales': ['soundtrack', 'films/games', 'film', 'games'],
+  'Alternative': 'alternative'
 };
 
 /**
@@ -145,8 +159,16 @@ const isDirectGenreMatch = (realGenre, requestedGenre) => {
   const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const real = normalize(realGenre);
   const requested = normalize(requestedGenre);
-  const keyword = normalize(DEEZER_GENRE_KEYWORDS[requestedGenre] || requestedGenre);
-  return real.includes(keyword) || keyword.includes(real) || real.includes(requested) || requested.includes(real);
+  // Un genre peut avoir PLUSIEURS mots-clés Deezer possibles (voir DEEZER_GENRE_
+  // KEYWORDS, "Bandes originales" par exemple) — cas découvert en pratique :
+  // Deezer renvoie littéralement "Films/Games" en anglais pour ce qu'on appelle
+  // "Bandes originales", qui ne contient jamais le mot "soundtrack" utilisé
+  // jusqu'ici comme unique mot-clé, donc le rapprochement échouait toujours.
+  // Rétrocompatible : une entrée simple (chaîne) continue de fonctionner comme avant.
+  const rawKeywords = DEEZER_GENRE_KEYWORDS[requestedGenre];
+  const keywordList = Array.isArray(rawKeywords) ? rawKeywords : [rawKeywords || requestedGenre];
+  const keywordMatch = keywordList.some(k => { const kw = normalize(k); return kw && (real.includes(kw) || kw.includes(real)); });
+  return keywordMatch || real.includes(requested) || requested.includes(real);
 };
 
 /**
