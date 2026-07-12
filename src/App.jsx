@@ -943,9 +943,6 @@ export default function App() {
           const queryStr = "song:" + cleanTitle + " artist:" + cleanArtist;
           const res = await fetch(`/api/getsongbpm?type=both&lookup=${encodeURIComponent(queryStr)}`);
           const data = await res.json();
-          // --- LOG DEBUG TEMPORAIRE (JSON complet, pas la version repliée par la
-          // console, pour trancher entre "tableau vide" et "vraiment aucune donnée") ---
-          console.log('[TempoFit DEBUG] GetSongBPM JSON complet pour "' + t.title + '" :', JSON.stringify(data));
           const tempo = (data && data.search && data.search.length > 0) ? parseInt(data.search[0].tempo) : null;
           return (tempo && tempo > 0) ? { ...t, _resolvedBpm: tempo, _bpmSource: 'getsongbpm' } : null;
         } catch (e) {
