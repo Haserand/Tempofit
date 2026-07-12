@@ -697,13 +697,21 @@ export default function App() {
   // ludique déjà présent ailleurs dans l'app (trophées, Mode Intime...) plutôt
   // qu'un "Recherche en cours..." neutre et répété à chaque clic.
   const SEARCH_LOADING_MESSAGES = [
-    "Recherche en cours...",
     "On fouille chez Deezer...",
     "Ça arrive, promis...",
     "Un peu de patience, le rythme se cherche...",
-    "On compte les BPM..."
+    "On compte les BPM...",
+    "On tend l'oreille...",
+    "Ça chauffe les enceintes...",
+    "Recherche du bon tempo en cours..."
   ];
   const [searchLoadingMessage, setSearchLoadingMessage] = useState(SEARCH_LOADING_MESSAGES[0]);
+  // Chrono affiché pendant le chargement (voir l'effet dédié plus bas) — repart
+  // de 0 à chaque nouvelle recherche, incrémente chaque seconde tant que
+  // isWorldSearching est vrai. Rassure sur une recherche un peu longue (plusieurs
+  // appels réseau en cascade : Deezer, puis GetSongBPM/détection par titre
+  // manquant) plutôt que de laisser un spinner muet sans indication de progression.
+  const [searchElapsedSeconds, setSearchElapsedSeconds] = useState(0);
   // Réserve CACHÉE des titres qui matchent le texte tapé mais PAS l'artiste
   // identifié (ex. "Starboy" pour "daft punk", où Daft Punk n'est que
   // co-producteur) — voir searchWorldMusicApi. Jamais affichée tant qu'il reste
@@ -1154,7 +1162,7 @@ export default function App() {
       <button onClick={addOrToggleFavorite} className="flex-1 min-w-0 text-left">
         <div className="truncate">
           <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
-          <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${normalizeGenreForDisplay(track.genre)}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé.">⚠️ Genre non confirmé</span>}</div>
+          <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${normalizeGenreForDisplay(track.genre)}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé.">⚠️ Genre non confirmé</span>}{track._bpmSource === 'detected' && <span className="ml-1 text-amber-500 font-bold" title="BPM estimé par analyse audio, aucune base ne connaît ce titre — possiblement faux, y compris d'un facteur 2.">⚠️ BPM estimé</span>}</div>
         </div>
       </button>
 
@@ -1179,18 +1187,28 @@ export default function App() {
           // à une détection audio par nature ambiguë (voir le long historique de
           // cette fonction plus haut) est de laisser l'utilisateur trancher
           // lui-même quand il connaît la vraie valeur.
+          //
+          // ⚠️ Correction après retour utilisateur : le `title` (infobulle
+          // native) ET le `hover:underline` sont TOUS LES DEUX invisibles sur
+          // écran tactile (pas de survol au doigt) — donc sur mobile, ce bouton
+          // ne se distinguait pas de texte normal, aucun indice qu'il est
+          // cliquable. Ajout d'une icône crayon TOUJOURS visible (pas seulement
+          // au survol) pour que l'affordance fonctionne aussi bien au doigt qu'à
+          // la souris. Le `title` reste en plus, pour ceux qui survolent au
+          // clavier/souris.
           <button
             onClick={() => setEditingBpmId(track.youtubeId)}
             title={
               track._bpmSource === 'detected'
-                ? "BPM estimé par analyse audio (aucune base ne connaît ce titre) — possiblement faux, y compris d'un facteur 2 (deux fois trop lent ou trop rapide). Clique pour corriger si tu connais la vraie valeur."
+                ? "BPM estimé par analyse audio (aucune base ne connaît ce titre) — possiblement faux, y compris d'un facteur 2 (deux fois trop lent ou trop rapide). Touche pour corriger si tu connais la vraie valeur."
                 : track._bpmSource === 'manual'
-                  ? "BPM corrigé manuellement. Clique pour modifier à nouveau."
-                  : "Clique pour corriger le BPM si besoin."
+                  ? "BPM corrigé manuellement. Touche pour modifier à nouveau."
+                  : "Touche pour corriger le BPM si besoin."
             }
-            className={"font-mono text-sm font-bold hover:underline decoration-dotted " + textColorClass}
+            className={"flex items-center gap-1 font-mono text-sm font-bold " + textColorClass}
           >
-            {track._bpmSource === 'detected' ? '~' : ''}{track.bpm} BPM
+            <span>{track._bpmSource === 'detected' ? '~' : ''}{track.bpm} BPM</span>
+            <Edit3 size={12} className="opacity-50"/>
           </button>
         )}
         <button onClick={addOrToggleFavorite} title={isAlreadyFavorited ? "Retirer des favoris" : "Ajouter"}>
@@ -1204,6 +1222,16 @@ export default function App() {
     </div>
     );
   };
+
+  // Fait tourner le chrono de chargement (voir searchElapsedSeconds) tant que
+  // isWorldSearching est vrai — repart de 0 à chaque nouvelle recherche, s'arrête
+  // et se nettoie dès que la recherche se termine (ou que le composant démonte).
+  useEffect(() => {
+    if (!isWorldSearching) return;
+    setSearchElapsedSeconds(0);
+    const interval = setInterval(() => setSearchElapsedSeconds(s => s + 1), 1000);
+    return () => clearInterval(interval);
+  }, [isWorldSearching]);
 
   const closeSearchModal = () => {
     setIsSearchModalOpen(false);
@@ -4459,13 +4487,30 @@ export default function App() {
                   <div className={`text-center py-8 font-medium ${textMuted} flex flex-col items-center gap-2`}>
                     <Loader2 className="animate-spin" size={20}/>
                     <span>{searchLoadingMessage}</span>
+                    <span className="text-xs font-mono opacity-60">{searchElapsedSeconds}s</span>
                   </div>
                 ) : (worldSearchResults.length > 0 || (!searchHasMoreResults && worldSearchOtherResults.length > 0)) ? (
                   <>
                     {resultsContextLabel && !isBpmSearchMode && worldSearchResults.length > 0 && (
                       <div className={`text-xs font-bold uppercase tracking-wider mb-2 px-1 ${textMuted}`}>{resultsContextLabel}</div>
                     )}
-                    {worldSearchResults.map((track, i) => renderSearchResultRow(track, i))}
+                    {(() => {
+                      // Filtre les titres déjà en favoris — pas la peine de les
+                      // remontrer à chaque nouvelle recherche identique. Uniquement
+                      // hors contexte playlist : dans une playlist, un titre déjà
+                      // en favoris reste pertinent à ajouter, la notion de
+                      // "favori" n'a rien à voir avec ce qu'on cherche à faire ici.
+                      const isAlreadyFav = (t) => !currentPlaylist && favorites.tracks.some(f => f.youtubeId === t.youtubeId);
+                      const visibleMainResults = worldSearchResults.filter(t => !isAlreadyFav(t));
+                      return (
+                        <>
+                          {worldSearchResults.length > 0 && visibleMainResults.length === 0 && (
+                            <div className={`text-xs italic px-1 pb-1 ${textMuted}`}>Tous les titres trouvés ici sont déjà dans tes favoris.</div>
+                          )}
+                          {visibleMainResults.map((track, i) => renderSearchResultRow(track, i))}
+                        </>
+                      );
+                    })()}
                     {searchHasMoreResults && !isBpmSearchMode && (
                       <button
                         onClick={() => searchWorldMusicApi(false)}
@@ -4483,7 +4528,7 @@ export default function App() {
                     {!searchHasMoreResults && !isBpmSearchMode && worldSearchOtherResults.length > 0 && (
                       <>
                         <div className={`text-xs font-bold uppercase tracking-wider mt-4 mb-2 px-1 ${textMuted}`}>Autres résultats pour "{searchQuery}" (pas {searchActiveArtistName})</div>
-                        {worldSearchOtherResults.map((track, i) => renderSearchResultRow(track, `other-${i}`))}
+                        {worldSearchOtherResults.filter(t => !(!currentPlaylist && favorites.tracks.some(f => f.youtubeId === t.youtubeId))).map((track, i) => renderSearchResultRow(track, `other-${i}`))}
                       </>
                     )}
                   </>
