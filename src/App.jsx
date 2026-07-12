@@ -686,7 +686,6 @@ export default function App() {
   const [isLoadingMoreResults, setIsLoadingMoreResults] = useState(false);
   // Non-null seulement si la recherche initiale a identifié avec confiance un
   // artiste correspondant au texte tapé (voir isConfidentArtistMatch).
-  const [searchActiveArtistId, setSearchActiveArtistId] = useState(null);
   const [searchActiveArtistName, setSearchActiveArtistName] = useState(null);
   // youtubeId du titre actuellement en cours de correction manuelle de BPM dans
   // la modale de recherche (voir renderSearchResultRow / commitBpmEdit) — null
@@ -919,10 +918,8 @@ export default function App() {
 
         if (artist && isConfidentArtistMatch(searchQuery, artist.name)) {
           priorityArtistName = artist.name;
-          setSearchActiveArtistId(artist.id);
           setSearchActiveArtistName(artist.name);
         } else {
-          setSearchActiveArtistId(null);
           setSearchActiveArtistName(null);
         }
       } else {
@@ -1064,7 +1061,6 @@ export default function App() {
           // plus", une page sans résultat de l'artiste est normale, pas un signal
           // d'erreur (l'artiste a déjà été confirmé légitime par une page précédente).
           priorityArtistName = null;
-          setSearchActiveArtistId(null);
           setSearchActiveArtistName(null);
           setWorldSearchResults(prev => dedupeAppend(prev, formattedResults));
         } else {
@@ -1093,7 +1089,7 @@ export default function App() {
   // Ferme la modale de recherche et réinitialise tout son état — centralisé ici
   // (au lieu d'être dupliqué sur le clic du fond et sur le bouton X) pour que
   // l'ajout de nouvel état (searchResultsOffset, searchHasMoreResults,
-  // searchActiveArtistId/Name, worldSearchOtherResults) n'oublie aucun des 2 endroits.
+  // searchActiveArtistName, worldSearchOtherResults) n'oublie aucun des 2 endroits.
   // (voir sa définition juste après renderSearchResultRow ci-dessous)
 
   // Corrige le BPM d'un titre à la main (voir editingBpmId) — met à jour les 2
@@ -1244,7 +1240,6 @@ export default function App() {
     setNoUsableResultsHint(false);
     setSearchResultsOffset(0);
     setSearchHasMoreResults(false);
-    setSearchActiveArtistId(null);
     setSearchActiveArtistName(null);
     setEditingBpmId(null); // évite qu'un champ d'édition BPM reste "ouvert" en mémoire après fermeture
   };
@@ -1922,6 +1917,31 @@ export default function App() {
 
     setCurrentPlaylist(updatedPlaylist);
     setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
+  };
+
+  // Ajoute/retire un titre (et son artiste) des favoris DEPUIS une playlist déjà
+  // générée — distinct de "Retirer de la proposition" (handleRemoveTrack, qui
+  // enlève le titre de CETTE playlist) : ici on ne touche pas à la playlist en
+  // cours, seulement à la liste de favoris. Réutilise exactement la même logique
+  // que le bouton favori déjà éprouvé dans la modale de recherche
+  // (`addOrToggleFavorite`, voir renderSearchResultRow) plutôt que d'en écrire
+  // une nouvelle version : même asymétrie assumée — ajouter un titre ajoute
+  // aussi son artiste aux artistes favoris, mais retirer un titre NE retire PAS
+  // l'artiste (on peut très bien vouloir garder l'artiste en favori tout en
+  // retirant un titre précis qui ne convient pas).
+  const toggleTrackFavorite = (track) => {
+    const isFav = favorites.tracks.some(t => t.youtubeId === track.youtubeId);
+    if (isFav) {
+      setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.youtubeId !== track.youtubeId) }));
+      showToast("Retiré de tes favoris.");
+    } else {
+      setFavorites(prev => ({
+        ...prev,
+        artists: Array.from(new Set([...prev.artists, track.artist])),
+        tracks: [...prev.tracks, track]
+      }));
+      showToast("⭐ Ajouté à tes favoris !");
+    }
   };
 
   // handleMoveTrack (flèches ↑/↓) supprimée : remplacée par le glisser-déposer
@@ -4312,6 +4332,21 @@ export default function App() {
                             Durée : {formatDuration(track.duration)}
                           </div>
                         </div>
+
+                        {/* Bouton favori — voir toggleTrackFavorite : n'affecte que la liste de
+                            favoris, jamais la playlist en cours (contrairement au X ci-dessous). */}
+                        {(() => {
+                          const isFav = favorites.tracks.some(t => t.youtubeId === track.youtubeId);
+                          return (
+                            <button
+                              onClick={() => toggleTrackFavorite(track)}
+                              className={`p-2 rounded-lg transition-colors shrink-0 ${isFav ? 'text-amber-500' : textMuted + ' hover:text-amber-500'}`}
+                              title={isFav ? "Retirer des favoris" : "Ajouter aux favoris"}
+                            >
+                              <Star size={16} fill={isFav ? 'currentColor' : 'none'}/>
+                            </button>
+                          );
+                        })()}
 
                         {/* Menu d'options unique (Dupliquer / Remplacer large / Remplacer même
                             artiste) — regroupe ce qui prenait avant 3 icônes permanentes. */}
