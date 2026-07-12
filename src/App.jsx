@@ -916,7 +916,6 @@ export default function App() {
         const artist = (artistRes.data && Array.isArray(artistRes.data.data)) ? artistRes.data.data[0] : null;
         generalStubs = (textRes.data && Array.isArray(textRes.data.data)) ? textRes.data.data : [];
         generalTotal = (textRes.data && typeof textRes.data.total === 'number') ? textRes.data.total : generalStubs.length;
-        console.log('[TempoFit DEBUG] Détection artiste pour "' + searchQuery + '" — artiste trouvé:', artist ? artist.name : null, '| match confiant:', artist ? isConfidentArtistMatch(searchQuery, artist.name) : false);
 
         if (artist && isConfidentArtistMatch(searchQuery, artist.name)) {
           priorityArtistName = artist.name;
@@ -933,19 +932,16 @@ export default function App() {
       }
 
       if (generalStubs.length === 0 && reset) {
-        console.log('[TempoFit DEBUG] Étape 0 — recherche Deezer générale pour "' + searchQuery + '" : 0 stub. noUsableResultsHint = true, arrêt ici.');
         setNoUsableResultsHint(true);
         setIsWorldSearching(false);
         return;
       }
-      console.log('[TempoFit DEBUG] Étape 0 — recherche Deezer générale pour "' + searchQuery + '" :', generalStubs.length, 'stubs |', generalStubs.map(s => s.title + ' / ' + (s.artist ? s.artist.name : '?')));
 
       // Un appel par titre pour récupérer son BPM (absent des listes de résultats)
       const detailedTracks = await Promise.all(generalStubs.map(async (stub) => {
         const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
         return full;
       }));
-      console.log('[TempoFit DEBUG] Étape 1 — generalStubs:', generalStubs.length, '| detailedTracks (dont null):', detailedTracks.length, '| null count:', detailedTracks.filter(t => !t).length);
 
       // 3 niveaux de résolution BPM, du plus fiable au plus incertain :
       //   1. Deezer (déjà dans `full.bpm` si renseigné) — la source la plus fiable.
@@ -971,7 +967,6 @@ export default function App() {
         .filter(t => t.bpm && parseFloat(t.bpm) > 0)
         .map(t => ({ ...t, _resolvedBpm: Math.round(parseFloat(t.bpm)), _bpmSource: 'deezer' }));
       const missingBpm = validDetailedTracks.filter(t => !t.bpm || parseFloat(t.bpm) <= 0);
-      console.log('[TempoFit DEBUG] Étape 2 — withDeezerBpm:', withDeezerBpm.length, '| missingBpm (à résoudre via GetSongBPM/détection):', missingBpm.length);
 
       const withGetSongBpm = (await Promise.all(missingBpm.map(async (t) => {
         try {
@@ -983,14 +978,11 @@ export default function App() {
           const tempo = (data && data.search && data.search.length > 0) ? parseInt(data.search[0].tempo) : null;
           return (tempo && tempo > 0) ? { ...t, _resolvedBpm: tempo, _bpmSource: 'getsongbpm' } : null;
         } catch (e) {
-          console.log('[TempoFit DEBUG] GetSongBPM — exception pour "' + t.title + '" :', e);
           return null; // échec silencieux : ce titre retombe simplement au niveau suivant
         }
       }))).filter(Boolean);
-      console.log('[TempoFit DEBUG] Étape 3 — withGetSongBpm résolus:', withGetSongBpm.length, withGetSongBpm.map(t => t.title + ' : ' + t._resolvedBpm));
 
       const stillMissing = missingBpm.filter(t => !withGetSongBpm.some(g => g.id === t.id));
-      console.log('[TempoFit DEBUG] Étape 4 — stillMissing (passe en détection audio):', stillMissing.length, stillMissing.map(t => t.title + ' (preview:' + !!t.preview + ')'));
       // Fenêtre resserrée pour CE dernier recours uniquement — réduit la fréquence
       // des erreurs d'octave en empêchant l'algorithme de même considérer des
       // tempos hors plage comme candidats, plutôt que de deviner après coup lequel
@@ -1017,9 +1009,7 @@ export default function App() {
       // par du code. Compromis assumé, pas résolu.
       const detectionMinBpm = isNaughtyMode ? 40 : 90;
       const detectionMaxBpm = isNaughtyMode ? 130 : 180;
-      console.log('[TempoFit DEBUG] Fenêtre de détection audio — mode:', isNaughtyMode ? 'Intime' : 'Standard', '| plage:', detectionMinBpm + '-' + detectionMaxBpm);
       const detectedCandidates = await resolveBpmForCandidates(stillMissing, detectionMinBpm, detectionMaxBpm);
-      console.log('[TempoFit DEBUG] Étape 5 — detectedCandidates:', detectedCandidates.length, detectedCandidates.map(t => t.title + ' : ' + t._resolvedBpm));
 
       // Reconstitue l'ordre D'ORIGINE de Deezer (= son classement par pertinence/
       // popularité, voir Étape 0) plutôt que de garder les 3 groupes concaténés
@@ -1033,7 +1023,6 @@ export default function App() {
       // jamais la position dans la liste.
       const resolvedById = new Map([...withDeezerBpm, ...withGetSongBpm, ...detectedCandidates].map(t => [t.id, t]));
       const resolvedCandidates = validDetailedTracks.map(t => resolvedById.get(t.id)).filter(Boolean);
-      console.log('[TempoFit DEBUG] Étape 6 — resolvedCandidates total:', resolvedCandidates.length, '(ordre Deezer préservé)');
 
       const formattedResults = await Promise.all(
         resolvedCandidates.map(async (t) => {
@@ -1050,7 +1039,6 @@ export default function App() {
             };
           })
       );
-      console.log('[TempoFit DEBUG] Étape 7 — formattedResults final:', formattedResults.length);
 
       const norm = priorityArtistName ? normalizeForArtistMatch(priorityArtistName) : null;
       const isPriorityMatch = (t) => norm && normalizeForArtistMatch(t.artist) === norm;
@@ -1063,7 +1051,6 @@ export default function App() {
       if (priorityArtistName) {
         const matched = formattedResults.filter(isPriorityMatch);
         const other = formattedResults.filter(t => !isPriorityMatch(t));
-        console.log('[TempoFit DEBUG] Split priorité artiste "' + priorityArtistName + '" — matched (visibles):', matched.length, '| other (cachés, révélés seulement si recherche épuisée):', other.length);
 
         if (reset && matched.length === 0 && other.length > 0) {
           // FAUX POSITIF DE DÉTECTION D'ARTISTE (confirmé sur un vrai cas : Deezer
@@ -1076,7 +1063,6 @@ export default function App() {
           // artiste fantôme. Uniquement sur la 1ère page (reset) — sur "Voir
           // plus", une page sans résultat de l'artiste est normale, pas un signal
           // d'erreur (l'artiste a déjà été confirmé légitime par une page précédente).
-          console.log('[TempoFit DEBUG] → Faux positif détecté, annulation du mode priorité artiste pour cette recherche.');
           priorityArtistName = null;
           setSearchActiveArtistId(null);
           setSearchActiveArtistName(null);
@@ -1094,10 +1080,10 @@ export default function App() {
       setSearchHasMoreResults(generalStubs.length > 0 && (generalOffset + generalStubs.length) < generalTotal);
       if (reset && formattedResults.length === 0) setNoUsableResultsHint(true); // titres trouvés mais aucun n'a de BPM connu
     } catch(e) {
-      // --- LOG DEBUG TEMPORAIRE : l'erreur réelle n'était jamais loggée avant,
-      // donc une exception ici retombait silencieusement sur "Aucun résultat."
-      // générique sans aucune trace exploitable. Gardé jusqu'à résolution complète. ---
-      console.error('[TempoFit DEBUG] EXCEPTION dans searchWorldMusicApi :', e);
+      // Erreur réseau réelle (proxy CORS injoignable, hors-ligne...) — loggée en
+      // console (pas de tag DEBUG, permanent) pour ne pas retomber sur "Aucun
+      // résultat." sans aucune trace exploitable si ça se reproduit un jour.
+      console.error('[TempoFit] Erreur dans searchWorldMusicApi :', e);
       showToast("Erreur réseau lors de la recherche.", 'error');
     }
     setIsWorldSearching(false);
@@ -1162,7 +1148,7 @@ export default function App() {
       <button onClick={addOrToggleFavorite} className="flex-1 min-w-0 text-left">
         <div className="truncate">
           <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
-          <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${normalizeGenreForDisplay(track.genre)}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé.">⚠️ Genre non confirmé</span>}{track._bpmSource === 'detected' && <span className="ml-1 text-amber-500 font-bold" title="BPM estimé par analyse audio, aucune base ne connaît ce titre — possiblement faux, y compris d'un facteur 2.">⚠️ BPM estimé</span>}</div>
+          <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${normalizeGenreForDisplay(track.genre)}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé.">⚠️ Genre non confirmé</span>}{track._bpmSource === 'detected' && <span className="ml-1 text-amber-500 font-bold" title="BPM deviné par l'app, pas garanti.">⚠️ BPM estimé</span>}</div>
         </div>
       </button>
 
@@ -1196,14 +1182,22 @@ export default function App() {
           // au survol) pour que l'affordance fonctionne aussi bien au doigt qu'à
           // la souris. Le `title` reste en plus, pour ceux qui survolent au
           // clavier/souris.
+          //
+          // ⚠️ 2e correction (retour utilisateur) : le texte initial mentionnait
+          // encore le risque "d'un facteur 2" — exact avant le resserrement de la
+          // fenêtre de détection (90-180 en mode standard, voir plus haut), mais
+          // trompeur depuis puisque ce cas précis est désormais exclu par
+          // construction pour la plupart des titres. Texte raccourci et
+          // dédramatisé en conséquence — reste honnête ("pas garanti") sans
+          // ressasser un risque qu'on vient de réduire.
           <button
             onClick={() => setEditingBpmId(track.youtubeId)}
             title={
               track._bpmSource === 'detected'
-                ? "BPM estimé par analyse audio (aucune base ne connaît ce titre) — possiblement faux, y compris d'un facteur 2 (deux fois trop lent ou trop rapide). Touche pour corriger si tu connais la vraie valeur."
+                ? "BPM deviné, pas garanti — touche pour corriger."
                 : track._bpmSource === 'manual'
-                  ? "BPM corrigé manuellement. Touche pour modifier à nouveau."
-                  : "Touche pour corriger le BPM si besoin."
+                  ? "BPM corrigé à la main. Touche pour modifier."
+                  : "Touche pour corriger le BPM."
             }
             className={"flex items-center gap-1 font-mono text-sm font-bold " + textColorClass}
           >
