@@ -959,7 +959,22 @@ export default function App() {
 
       const stillMissing = missingBpm.filter(t => !withGetSongBpm.some(g => g.id === t.id));
       console.log('[TempoFit DEBUG] Étape 4 — stillMissing (passe en détection audio):', stillMissing.length, stillMissing.map(t => t.title + ' (preview:' + !!t.preview + ')'));
-      const detectedCandidates = await resolveBpmForCandidates(stillMissing, 40, 220);
+      // Fenêtre resserrée pour CE dernier recours uniquement — réduit la fréquence
+      // des erreurs d'octave (64 au lieu de 128, cas réel confirmé sur "Rim Tim
+      // Tagi Dim") en empêchant l'algorithme de même considérer des tempos hors
+      // plage comme candidats, plutôt que de deviner après coup lequel est le bon.
+      // Adaptée au mode actif plutôt qu'une valeur fixe : le Mode Intime vise
+      // volontairement des BPM plus bas (40-130, voir appConfig.js —
+      // WORKOUT_DEFAULT_BPM/WORKOUT_DEFAULT_TARGET) pour des genres comme "R&B
+      // Sensuel" ; y appliquer la fenêtre resserrée du mode standard (70-200)
+      // aurait recréé exactement le problème qu'on vient de corriger ailleurs
+      // (doubler à tort un titre volontairement lent). Reste un compromis : un
+      // titre vraiment lent (< 40 BPM) ou vraiment rapide (> 200) échapperait aux
+      // deux fenêtres, mais aucun des 2 modes de l'app n'en a besoin aujourd'hui.
+      const detectionMinBpm = isNaughtyMode ? 40 : 70;
+      const detectionMaxBpm = isNaughtyMode ? 130 : 200;
+      console.log('[TempoFit DEBUG] Fenêtre de détection audio — mode:', isNaughtyMode ? 'Intime' : 'Standard', '| plage:', detectionMinBpm + '-' + detectionMaxBpm);
+      const detectedCandidates = await resolveBpmForCandidates(stillMissing, detectionMinBpm, detectionMaxBpm);
       console.log('[TempoFit DEBUG] Étape 5 — detectedCandidates:', detectedCandidates.length, detectedCandidates.map(t => t.title + ' : ' + t._resolvedBpm));
 
       // Reconstitue l'ordre D'ORIGINE de Deezer (= son classement par pertinence/
