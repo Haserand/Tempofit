@@ -3832,13 +3832,19 @@ export default function App() {
 
               savedPlaylists.forEach(pl => {
                 if (!pl.completions || pl.completions.length === 0) return;
-                const genres = (pl.selectedGenres && pl.selectedGenres.length > 0) ? pl.selectedGenres : ['Autre'];
+                // BUG CORRIGÉ : `createPlaylistData` stocke `selectedGenres` et `bpm`
+                // DANS `config` (`config: { ...config }`), jamais au niveau racine de
+                // l'objet playlist — lire `pl.selectedGenres`/`pl.bpm` directement (1ère
+                // version de cette vue) ne trouvait donc jamais rien sur une vraie
+                // playlist générée, d'où "Autre" et un BPM moyen à "—" alors que la
+                // playlist affichait bien "Rock, Métal" et "150 BPM" sur sa carte.
+                const genres = (pl.config?.selectedGenres && pl.config.selectedGenres.length > 0) ? pl.config.selectedGenres : ['Autre'];
                 const perGenreSeconds = (pl.totalDuration || 0) / genres.length;
 
                 pl.completions.forEach(dateStr => {
                   totalSessions += 1;
                   totalSeconds += pl.totalDuration || 0;
-                  if (pl.bpm) { bpmSum += pl.bpm; bpmCount += 1; }
+                  if (pl.config?.bpm) { bpmSum += pl.config.bpm; bpmCount += 1; }
                   genres.forEach(g => {
                     genreSeconds[g] = (genreSeconds[g] || 0) + perGenreSeconds;
                     genreSessions[g] = (genreSessions[g] || 0) + 1;
