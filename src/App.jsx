@@ -4788,10 +4788,20 @@ export default function App() {
 
               <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 min-h-[200px]">
                 {isWorldSearching && worldSearchResults.length === 0 ? (
-                  <div className={`text-center py-8 font-medium ${textMuted} flex flex-col items-center gap-2`}>
-                    <Loader2 className="animate-spin" size={20}/>
-                    <span>{searchLoadingMessage}</span>
-                    <span className="text-xs font-mono opacity-60">{searchElapsedSeconds}s</span>
+                  // Standardisé sur le même visuel "pilule" que l'indicateur de génération
+                  // (voir plus haut, "Génération en cours...") — retour utilisateur : les
+                  // indicateurs de chargement de l'app étaient trop différents d'un endroit
+                  // à l'autre (ici, un gros bloc vertical centré vs une pilule horizontale
+                  // ailleurs). Même structure exacte reprise : icône + texte + puce
+                  // chronomètre au format M:SS, plutôt qu'un simple "Xs" comme avant.
+                  <div className="flex justify-center py-8">
+                    <div className={`${cardBg} border ${cardBorder} shadow-2xl px-6 py-3 rounded-full flex items-center space-x-3`}>
+                      <Loader2 size={18} className={`animate-spin ${textColorClass}`} />
+                      <span className={`font-medium text-sm ${textHighlight}`}>{searchLoadingMessage}</span>
+                      <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-full ${textMuted} bg-black/5 dark:bg-white/10`}>
+                        {Math.floor(searchElapsedSeconds / 60)}:{String(searchElapsedSeconds % 60).padStart(2, '0')}
+                      </span>
+                    </div>
                   </div>
                 ) : (worldSearchResults.length > 0 || (!searchHasMoreResults && worldSearchOtherResults.length > 0)) ? (
                   <>
