@@ -3908,7 +3908,18 @@ export default function App() {
                 // playlist affichait bien "Rock, Métal" et "150 BPM" sur sa carte.
                 const genres = (pl.config?.selectedGenres && pl.config.selectedGenres.length > 0) ? pl.config.selectedGenres : ['Autre'];
                 const perGenreSeconds = (pl.totalDuration || 0) / genres.length;
-                const activity = pl.workoutType || 'Autre';
+                // En Mode Intime, `pl.workoutType` vaut toujours "Ambiance" (voir
+                // createPlaylistData — écrasé volontairement pour la discrétion sur les
+                // cartes de playlist). Mais l'activité RÉELLE (Cyclisme/Course à
+                // pied/Musculation) est toujours là dans `pl.config.workoutName` — c'est
+                // `getActiveWorkoutName()` qui la fournit à la génération, jamais le
+                // libellé Douceur/Passion/Intensité (celui-ci n'habille QUE les boutons
+                // du wizard, jamais la donnée transmise). On la récupère donc ici plutôt
+                // que d'abandonner à "Ambiance" — pas une fuite de discrétion : cette vue
+                // n'apparaît déjà que sur bascule explicite vers les stats Mode Intime.
+                const activity = pl.isNaughty
+                  ? (NAUGHTY_WORKOUT_LABELS[pl.config?.workoutName] || pl.config?.workoutName || 'Autre')
+                  : (pl.workoutType || 'Autre');
 
                 pl.completions.forEach(dateStr => {
                   totalSessions += 1;
@@ -4080,13 +4091,29 @@ export default function App() {
                     </div>
                     {/* Bascule discrète, séparée du bouton "détail complet" plus bas pour
                         ne pas les confondre — jamais montré en avant, jamais mélangé aux
-                        stats par défaut (voir playlistsForStats plus haut). */}
-                    <button
-                      onClick={() => setStatsMode(statsMode === 'naughty' ? 'standard' : 'naughty')}
-                      className={`shrink-0 text-xs font-bold px-3 py-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800`}
-                    >
-                      {statsMode === 'naughty' ? '← Stats standards' : 'Stats Mode Intime →'}
-                    </button>
+                        stats par défaut (voir playlistsForStats plus haut). Icône flamme
+                        plutôt qu'un texte "Stats Mode Intime" (retour utilisateur) : c'est
+                        déjà l'icône utilisée ailleurs dans l'app pour ce mode (voir le
+                        bouton flamme sur les routines) — un simple rappel visuel, pas un
+                        texte qui nomme le mode en toutes lettres sur l'écran principal.
+                        Le chemin retour (une fois dedans) reste en texte : là, aucune
+                        discrétion à préserver, on est déjà dans la vue Intime. */}
+                    {statsMode === 'naughty' ? (
+                      <button
+                        onClick={() => setStatsMode('standard')}
+                        className={`shrink-0 text-xs font-bold px-3 py-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800`}
+                      >
+                        ← Stats standards
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setStatsMode('naughty')}
+                        title="Stats Mode Intime"
+                        className="shrink-0 p-2 rounded-lg text-gray-400 hover:text-rose-500 transition-colors cursor-pointer"
+                      >
+                        <Flame size={18} />
+                      </button>
+                    )}
                   </div>
 
                   {totalSessions === 0 ? (
@@ -4156,37 +4183,39 @@ export default function App() {
                         </div>
                       )}
 
-                      {/* Répartition par genre + par BPM, côte à côte — retour utilisateur :
-                          les deux donuts doivent se répondre visuellement plutôt que d'avoir
-                          un donut pour l'un et des barres pour l'autre. */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
-                          <h3 className={`font-bold mb-4 ${textHighlight}`}>Tes styles</h3>
-                          <div className="flex flex-col items-center gap-4">
-                            <ResponsiveContainer width="100%" height={180}>
-                              <PieChart>
-                                <Pie data={genreBreakdown} dataKey="seconds" nameKey="genre" innerRadius={45} outerRadius={80} paddingAngle={2}>
-                                  {genreBreakdown.map((entry, i) => <Cell key={entry.genre} fill={COLORS[i % COLORS.length]} />)}
-                                </Pie>
-                                <RechartsTooltip formatter={(value, name) => [formatDuration(Math.round(value)), name]} />
-                              </PieChart>
-                            </ResponsiveContainer>
-                            <div className="w-full space-y-2">
-                              {genreBreakdown.map((g, i) => (
-                                <div key={g.genre} className="flex items-center justify-between text-sm">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }}></span>
-                                    <span className={`truncate font-semibold ${textHighlight}`}>{g.genre}</span>
-                                  </div>
-                                  <span className={`shrink-0 ${textMuted}`}>{g.sessions} séance{g.sessions > 1 ? 's' : ''} · {formatDuration(Math.round(g.seconds))}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
+                      {/* Ordre des 3 blocs suivants aligné sur celui du wizard de génération
+                          (retour utilisateur) : Activité (étape 1) → BPM (étape 3) → Genre
+                          (étape 4) — pas un ordre arbitraire choisi pour cette page seule. */}
 
-                        {/* "Répartition des BPM" — même format donut que "Tes styles" ci-contre
-                            (retour utilisateur), plus parlant qu'un seul "BPM moyen" (gros
+                      {/* Répartition par activité — barres horizontales (pas un donut, pour
+                          ne pas en avoir 3 côte à côte — genre et BPM ci-dessous suffisent
+                          pour l'effet "coup d'œil visuel", l'activité reste en liste). */}
+                      <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
+                        <h3 className={`font-bold mb-4 ${textHighlight}`}>Tes activités</h3>
+                        <div className="space-y-3">
+                          {activityBreakdown.map((a, i) => {
+                            const maxSeconds = activityBreakdown[0].seconds;
+                            const pct = maxSeconds > 0 ? Math.max(4, Math.round((a.seconds / maxSeconds) * 100)) : 0;
+                            return (
+                              <div key={a.activity}>
+                                <div className="flex items-center justify-between text-sm mb-1">
+                                  <span className={`font-semibold ${textHighlight}`}>{a.activity}</span>
+                                  <span className={textMuted}>{a.sessions} séance{a.sessions > 1 ? 's' : ''} · {formatDuration(Math.round(a.seconds))}</span>
+                                </div>
+                                <div className="h-2 rounded-full bg-black/5 dark:bg-white/10 overflow-hidden">
+                                  <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }}></div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* BPM + genre, côte à côte (retour utilisateur : les deux donuts
+                          doivent se répondre visuellement) — BPM en premier (colonne de
+                          gauche) pour respecter l'ordre du wizard, genre juste après. */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* "Répartition des BPM" — plus parlant qu'un seul "BPM moyen" (gros
                             chiffres plus haut) qui peut cacher un mélange de séances très
                             lentes et très rapides. */}
                         {bpmDistribution.length > 0 && (
@@ -4215,29 +4244,30 @@ export default function App() {
                             </div>
                           </div>
                         )}
-                      </div>
 
-                      {/* Répartition par activité — barres horizontales (pas un 3e donut,
-                          pour ne pas surcharger la page — genre et BPM ci-dessus suffisent
-                          pour l'effet "coup d'œil visuel", l'activité reste en liste). */}
-                      <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
-                        <h3 className={`font-bold mb-4 ${textHighlight}`}>Tes activités</h3>
-                        <div className="space-y-3">
-                          {activityBreakdown.map((a, i) => {
-                            const maxSeconds = activityBreakdown[0].seconds;
-                            const pct = maxSeconds > 0 ? Math.max(4, Math.round((a.seconds / maxSeconds) * 100)) : 0;
-                            return (
-                              <div key={a.activity}>
-                                <div className="flex items-center justify-between text-sm mb-1">
-                                  <span className={`font-semibold ${textHighlight}`}>{a.activity}</span>
-                                  <span className={textMuted}>{a.sessions} séance{a.sessions > 1 ? 's' : ''} · {formatDuration(Math.round(a.seconds))}</span>
+                        <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
+                          <h3 className={`font-bold mb-4 ${textHighlight}`}>Tes styles</h3>
+                          <div className="flex flex-col items-center gap-4">
+                            <ResponsiveContainer width="100%" height={180}>
+                              <PieChart>
+                                <Pie data={genreBreakdown} dataKey="seconds" nameKey="genre" innerRadius={45} outerRadius={80} paddingAngle={2}>
+                                  {genreBreakdown.map((entry, i) => <Cell key={entry.genre} fill={COLORS[i % COLORS.length]} />)}
+                                </Pie>
+                                <RechartsTooltip formatter={(value, name) => [formatDuration(Math.round(value)), name]} />
+                              </PieChart>
+                            </ResponsiveContainer>
+                            <div className="w-full space-y-2">
+                              {genreBreakdown.map((g, i) => (
+                                <div key={g.genre} className="flex items-center justify-between text-sm">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }}></span>
+                                    <span className={`truncate font-semibold ${textHighlight}`}>{g.genre}</span>
+                                  </div>
+                                  <span className={`shrink-0 ${textMuted}`}>{g.sessions} séance{g.sessions > 1 ? 's' : ''} · {formatDuration(Math.round(g.seconds))}</span>
                                 </div>
-                                <div className="h-2 rounded-full bg-black/5 dark:bg-white/10 overflow-hidden">
-                                  <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }}></div>
-                                </div>
-                              </div>
-                            );
-                          })}
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       </div>
 
