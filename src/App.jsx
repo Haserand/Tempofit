@@ -2230,8 +2230,20 @@ export default function App() {
   // interne (nécessaire pour pouvoir les éditer via un vrai sélecteur de date),
   // et seulement formatées au moment de l'affichage.
   const formatCompletionDate = (isoStr) => {
-    const d = new Date(isoStr + 'T00:00:00');
-    return isNaN(d.getTime()) ? isoStr : d.toLocaleDateString();
+    // Rétrocompatible avec le format "date seule" (YYYY-MM-DD, celui de "Ajouter
+    // une date" ci-dessous, où l'heure n'a pas de sens pour une saisie manuelle
+    // rétroactive) ET le nouvel horodatage complet utilisé par "Marquer comme
+    // faite" — nécessaire depuis qu'une playlist peut être complétée plusieurs
+    // fois le même jour (retour utilisateur : matin + soir, un cas réel et
+    // légitime, pas une erreur à empêcher). L'heure ne s'affiche que pour ce 2e
+    // format, seul cas où elle est réellement connue et utile pour distinguer
+    // 2 séances du même jour.
+    const hasTime = isoStr.length > 10;
+    const d = hasTime ? new Date(isoStr) : new Date(isoStr + 'T00:00:00');
+    if (isNaN(d.getTime())) return isoStr;
+    return hasTime
+      ? `${d.toLocaleDateString()} à ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+      : d.toLocaleDateString();
   };
 
   const markPlaylistAsCompleted = (e, playlistId) => {
@@ -2239,15 +2251,25 @@ export default function App() {
     const pl = savedPlaylists.find(p => p.id === playlistId);
     if (!pl) return;
 
-    const todayIso = new Date().toISOString().split('T')[0];
+    // CORRIGÉ après retour utilisateur : bloquer purement et simplement une 2e
+    // complétion le même JOUR calendaire n'a pas de sens — une vraie double
+    // séance le même jour (matin + soir) est un cas réel et légitime, pas une
+    // erreur. Le vrai problème que la version précédente essayait de résoudre
+    // (un double-clic accidentel sur ce bouton) se règle mieux avec un
+    // horodatage complet (pas juste la date) et une fenêtre anti-rebond courte :
+    // si la dernière complétion enregistrée date de moins de 10 secondes, on
+    // suppose un clic répété par erreur ; au-delà, on suppose une vraie 2e séance.
+    const nowIso = new Date().toISOString();
     const existingCompletions = pl.completions || [];
-    // Évite d'empiler plusieurs entrées identiques si on clique par erreur deux
-    // fois le même jour — une seule entrée par jour a du sens.
-    if (existingCompletions.includes(todayIso)) {
-      showToast("Déjà marquée comme faite aujourd'hui !");
-      return;
+    const lastCompletion = existingCompletions.length > 0 ? existingCompletions[existingCompletions.length - 1] : null;
+    if (lastCompletion) {
+      const lastDate = new Date(lastCompletion);
+      if (!isNaN(lastDate.getTime()) && (Date.now() - lastDate.getTime()) < 10000) {
+        showToast("Déjà marquée à l'instant !");
+        return;
+      }
     }
-    const updatedCompletions = [...existingCompletions, todayIso].sort();
+    const updatedCompletions = [...existingCompletions, nowIso].sort();
 
     setSavedPlaylists(savedPlaylists.map(p => p.id === playlistId ? { ...p, completions: updatedCompletions } : p));
 
