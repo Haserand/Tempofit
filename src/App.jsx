@@ -2128,6 +2128,24 @@ export default function App() {
   };
   const handleTrackDragEnd = () => setDraggedTrackIndex(null);
 
+  // Ajoute/retire UNIQUEMENT l'artiste des favoris (pas le titre) — complète
+  // toggleTrackFavorite ci-dessus, qui lui favorise toujours titre+artiste
+  // ensemble. Cas réel visé : un artiste qui plaît globalement, sans que CE
+  // titre précis de la playlist soit un coup de cœur — jusqu'ici, impossible
+  // à exprimer depuis une playlist sans quitter la vue pour retaper le nom
+  // dans Favoris. Placé dans le menu "..." plutôt qu'une icône dédiée : plus
+  // rare que le vedettage d'un titre, pas de raison d'alourdir la ligne pour ça.
+  const toggleArtistFavorite = (artistName) => {
+    const isFav = favorites.artists.includes(artistName);
+    if (isFav) {
+      setFavorites(prev => ({ ...prev, artists: prev.artists.filter(a => a !== artistName) }));
+      showToast(`"${artistName}" retiré des artistes favoris.`);
+    } else {
+      setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, artistName])) }));
+      showToast(`⭐ "${artistName}" ajouté aux artistes favoris.`);
+    }
+  };
+
   // Menu d'options par titre (Dupliquer / Remplacer large / Remplacer même artiste),
   // regroupées derrière une seule icône "⋮" plutôt que plusieurs boutons permanents.
   const [openTrackMenuIndex, setOpenTrackMenuIndex] = useState(null);
@@ -2877,6 +2895,11 @@ export default function App() {
             <button onClick={() => changeView('history')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors ${view === 'history' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
               <History size={18} />
               <span className="font-bold text-sm">Historique</span>
+            </button>
+
+            <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors ${view === 'stats' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
+              <Activity size={18} />
+              <span className="font-bold text-sm">Statistiques</span>
             </button>
 
             <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors ${view === 'favorites' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
@@ -3781,6 +3804,158 @@ export default function App() {
               );
             })()}
 
+            {/* ===================== VIEW: STATISTIQUES ("Wrapped") =====================
+                Volontairement une couche de LECTURE/AGRÉGATION sur des données qui
+                existaient déjà (savedPlaylists + leurs completions) — pas un nouveau
+                système de tracking. Chaque playlist connaît déjà son genre, son BPM
+                cible, sa durée totale, et ses dates de complétion (une entrée par
+                fois qu'elle a été marquée "faite") ; cette vue se contente de les
+                recompter/resommer sous un autre angle.
+                ⚠️ Limite assumée, à garder en tête : la "durée écoutée" ci-dessous
+                est une ESTIMATION (durée totale de la playlist × nombre de fois
+                marquée faite), pas un suivi réel seconde par seconde de l'écoute —
+                si un titre est zappé en cours de route, il compte quand même en
+                entier. Un suivi précis demanderait une instrumentation neuve
+                (écouter `timeupdate` sur l'audio en direct), volontairement pas
+                fait ici : mieux vaut une estimation honnête et immédiate qu'un
+                chantier de tracking neuf pour une 1ère version. */}
+            {view === 'stats' && (() => {
+              const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b'];
+
+              const genreSeconds = {};
+              const genreSessions = {};
+              let totalSessions = 0;
+              let totalSeconds = 0;
+              let bpmSum = 0;
+              let bpmCount = 0;
+              const sessionsByMonth = {};
+
+              savedPlaylists.forEach(pl => {
+                if (!pl.completions || pl.completions.length === 0) return;
+                const genres = (pl.selectedGenres && pl.selectedGenres.length > 0) ? pl.selectedGenres : ['Autre'];
+                const perGenreSeconds = (pl.totalDuration || 0) / genres.length;
+
+                pl.completions.forEach(dateStr => {
+                  totalSessions += 1;
+                  totalSeconds += pl.totalDuration || 0;
+                  if (pl.bpm) { bpmSum += pl.bpm; bpmCount += 1; }
+                  genres.forEach(g => {
+                    genreSeconds[g] = (genreSeconds[g] || 0) + perGenreSeconds;
+                    genreSessions[g] = (genreSessions[g] || 0) + 1;
+                  });
+                  // Regroupement par mois (année-mois) plutôt que par semaine ISO —
+                  // plus simple à calculer sans librairie de dates dédiée, et bien
+                  // assez lisible tant que l'historique reste modeste.
+                  const d = new Date(dateStr);
+                  if (!isNaN(d)) {
+                    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    sessionsByMonth[key] = (sessionsByMonth[key] || 0) + 1;
+                  }
+                });
+              });
+
+              const genreBreakdown = Object.entries(genreSeconds)
+                .map(([genre, seconds]) => ({ genre, seconds, sessions: genreSessions[genre] }))
+                .sort((a, b) => b.seconds - a.seconds);
+
+              const monthLabels = { '01':'Jan','02':'Fév','03':'Mar','04':'Avr','05':'Mai','06':'Juin','07':'Juil','08':'Août','09':'Sep','10':'Oct','11':'Nov','12':'Déc' };
+              const timeline = Object.entries(sessionsByMonth)
+                .sort((a, b) => a[0].localeCompare(b[0]))
+                .map(([key, count]) => { const [y, m] = key.split('-'); return { label: `${monthLabels[m]} ${y}`, count }; });
+
+              const avgBpm = bpmCount > 0 ? Math.round(bpmSum / bpmCount) : null;
+
+              return (
+                <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
+                  <div className={`border-b ${cardBorder} pb-6`}>
+                    <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}><Activity className={textColorClass} size={36} /> <span>Statistiques</span></h1>
+                    <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Ce que tu as écouté, séance après séance.</p>
+                  </div>
+
+                  {totalSessions === 0 ? (
+                    <div className={`py-16 text-center border-2 border-dashed ${cardBorder} rounded-2xl`}>
+                      <Activity size={48} className="mx-auto mb-4 text-gray-300 dark:text-gray-700" />
+                      <h3 className={`text-lg font-bold mb-2 ${textHighlight}`}>Rien à montrer pour l'instant</h3>
+                      <p className={`text-sm mb-6 max-w-sm mx-auto ${textMuted}`}>Génère des playlists et marque-les comme faites (voir "Historique") — les stats se rempliront au fur et à mesure.</p>
+                      <button onClick={() => changeView('generator')} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
+                        Générer ma première playlist
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Gros chiffres — l'effet "Wrapped" tient surtout à ça : quelques
+                          nombres marquants, pas un tableau de données brutes. */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className={`${cardBg} rounded-2xl p-4 border ${cardBorder} text-center`}>
+                          <div className={`text-3xl font-black ${textHighlight}`}>{totalSessions}</div>
+                          <div className={`text-xs font-bold uppercase tracking-wide mt-1 ${textMuted}`}>Séances</div>
+                        </div>
+                        <div className={`${cardBg} rounded-2xl p-4 border ${cardBorder} text-center`}>
+                          <div className={`text-3xl font-black ${textHighlight}`}>{formatDuration(totalSeconds)}</div>
+                          <div className={`text-xs font-bold uppercase tracking-wide mt-1 ${textMuted}`}>Écoute estimée</div>
+                        </div>
+                        <div className={`${cardBg} rounded-2xl p-4 border ${cardBorder} text-center`}>
+                          <div className={`text-3xl font-black ${textHighlight}`}>{avgBpm ?? '—'}</div>
+                          <div className={`text-xs font-bold uppercase tracking-wide mt-1 ${textMuted}`}>BPM moyen</div>
+                        </div>
+                        <div className={`${cardBg} rounded-2xl p-4 border ${cardBorder} text-center`}>
+                          <div className={`text-3xl font-black ${textHighlight}`}>{genreBreakdown.length}</div>
+                          <div className={`text-xs font-bold uppercase tracking-wide mt-1 ${textMuted}`}>Styles différents</div>
+                        </div>
+                      </div>
+
+                      {/* Répartition par genre */}
+                      <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
+                        <h3 className={`font-bold mb-4 ${textHighlight}`}>Tes styles</h3>
+                        <div className="flex flex-col md:flex-row items-center gap-6">
+                          <ResponsiveContainer width="100%" height={220} className="md:max-w-[220px]">
+                            <PieChart>
+                              <Pie data={genreBreakdown} dataKey="seconds" nameKey="genre" innerRadius={50} outerRadius={90} paddingAngle={2}>
+                                {genreBreakdown.map((entry, i) => <Cell key={entry.genre} fill={COLORS[i % COLORS.length]} />)}
+                              </Pie>
+                              <RechartsTooltip formatter={(value, name) => [formatDuration(Math.round(value)), name]} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                          <div className="flex-1 w-full space-y-2">
+                            {genreBreakdown.map((g, i) => (
+                              <div key={g.genre} className="flex items-center justify-between text-sm">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }}></span>
+                                  <span className={`truncate font-semibold ${textHighlight}`}>{g.genre}</span>
+                                </div>
+                                <span className={textMuted}>{g.sessions} séance{g.sessions > 1 ? 's' : ''} · {formatDuration(Math.round(g.seconds))}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Évolution dans le temps — seulement si on a au moins 2 mois
+                          distincts, sinon un graphe à 1 point n'apporte rien. */}
+                      {timeline.length > 1 && (
+                        <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
+                          <h3 className={`font-bold mb-4 ${textHighlight}`}>Ton évolution</h3>
+                          <ResponsiveContainer width="100%" height={220}>
+                            <LineChart data={timeline}>
+                              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                              <XAxis dataKey="label" fontSize={12} />
+                              <YAxis allowDecimals={false} fontSize={12} />
+                              <RechartsTooltip formatter={(value) => [`${value} séance${value > 1 ? 's' : ''}`, '']} />
+                              <Line type="monotone" dataKey="count" stroke={bgAccentClass.includes('rose') ? '#f43f5e' : '#ef4444'} strokeWidth={3} dot={{ r: 4 }} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      )}
+
+                      <p className={`text-xs italic text-center ${textMuted}`}>
+                        "Écoute estimée" = durée totale des playlists × nombre de fois marquées faites — pas un chrono seconde par seconde de ce que tu as vraiment écouté.
+                      </p>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* ===================== VIEW: SETTINGS (OPTIONS ET COMPTES) ===================== */}
             {view === 'settings' && (
               <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
@@ -4377,6 +4552,15 @@ export default function App() {
                                 <button onClick={() => { handleReplaceTrack(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
                                   <RefreshCw size={16} className="text-blue-500"/> Remplacer (recherche large)
                                 </button>
+                                <div className={`h-px my-1 ${cardBorder} border-t`}></div>
+                                {(() => {
+                                  const artistIsFav = favorites.artists.includes(track.artist);
+                                  return (
+                                    <button onClick={() => { toggleArtistFavorite(track.artist); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                                      <Star size={16} className="text-amber-500" fill={artistIsFav ? 'currentColor' : 'none'}/> {artistIsFav ? `Retirer ${track.artist} des favoris` : `Favoriser l'artiste (${track.artist})`}
+                                    </button>
+                                  );
+                                })()}
                               </div>
                             </>
                           )}
