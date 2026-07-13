@@ -1,22 +1,23 @@
-import { History, Music, CheckCircle, List, Activity } from 'lucide-react';
+import { History } from 'lucide-react';
+import PlaylistCard from './PlaylistCard';
 
 /**
  * HistoryView — vue "Historique" (journal des séances marquées comme terminées).
  *
- * Extrait de App.jsx (bloc `view === 'history'`). Distincte de "Mes Playlists"
- * (PlaylistsView, à extraire ensuite) qui liste TOUTES les playlists
+ * Distincte de "Mes Playlists" (PlaylistsView) qui liste TOUTES les playlists
  * sauvegardées, terminées ou non — voir le commentaire d'origine dans
  * App.jsx sur la raison d'être de cette vue séparée.
  *
  * Le tri (par date de dernière complétion) et le classement (par nombre de
  * complétions, pour la médaille or/argent/bronze) sont calculés ici à partir
- * de `savedPlaylists`, sans dupliquer d'état.
+ * de `savedPlaylists`, sans dupliquer d'état. Le rendu de chaque carte est
+ * délégué à PlaylistCard (partagé avec PlaylistsView).
  */
 export default function HistoryView({
   theme, isNaughtyMode, savedPlaylists, getRankStyle,
   setCurrentPlaylist, changeView, renderConfigInfoLine, renderCompletionsList,
 }) {
-  const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
+  const { cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
 
   // Triées par utilisation la PLUS RÉCENTE (pas par ordre de création).
   const completedPlaylists = savedPlaylists
@@ -66,53 +67,13 @@ export default function HistoryView({
             const rank = completionRanks.indexOf(playlist.id);
             const rankStyle = getRankStyle(rank);
             return (
-            <div key={playlist.id} className={`${cardBg} rounded-2xl p-4 border ${rankStyle ? rankStyle.border : 'border-green-500/30'} bg-green-50/30 dark:bg-green-900/10 shadow-sm flex flex-col hover:border-gray-400 transition-colors cursor-pointer select-none relative`} onClick={() => { setCurrentPlaylist(playlist); changeView('playlist'); }}>
-              {rankStyle && <span className="absolute -top-2 -right-2 text-xl" title={`${playlist.completions.length} fois — la ${rank === 0 ? 'plus' : rank === 1 ? '2e plus' : '3e plus'} utilisée`}>{rankStyle.emoji}</span>}
-              <div className="flex items-start justify-between mb-3">
-                <div className={`w-14 h-14 rounded-xl flex items-center justify-center bg-gradient-to-br ${isNaughtyMode ? 'from-rose-400 to-rose-600' : 'from-gray-800 to-black dark:from-gray-200 dark:to-white'} shrink-0 text-2xl`}>
-                  {playlist.coverIcon || <Music size={20} className={isNaughtyMode ? 'text-white' : 'text-white dark:text-black'} />}
-                </div>
-                <div className="flex items-center text-green-600 dark:text-green-400 text-xs font-bold bg-green-100 dark:bg-green-900/30 px-3 py-1.5 rounded-lg">
-                  <CheckCircle size={14} className="mr-1.5"/> Terminée
-                </div>
-              </div>
-              <h3 className={`font-bold text-lg flex items-center gap-2 ${textHighlight}`}>
-                {playlist.name}
-                {playlist.config?.isIntervalMode && (
-                  <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full text-white shrink-0 ${bgAccentClass}`}>
-                    Fractionné
-                  </span>
-                )}
-              </h3>
-              {(() => {
-                const cfg = playlist.config || {};
-                const genres = cfg.selectedGenres && cfg.selectedGenres.length > 0
-                  ? cfg.selectedGenres
-                  : Array.from(new Set(playlist.tracks.map(t => t.genre).filter(g => g && g !== 'Genre inconnu')));
-                const infoSource = {
-                  workoutType: playlist.workoutType, customActivity: cfg.customActivity,
-                  targetMode: cfg.targetMode,
-                  distanceVal: playlist.avgPace ? Math.round((playlist.totalDuration / playlist.avgPace) * 10) / 10 : 0,
-                  distanceUnit: playlist.distanceUnit || cfg.distanceUnit,
-                  hours: Math.floor(playlist.totalDuration / 3600),
-                  minutes: Math.round((playlist.totalDuration % 3600) / 60),
-                  bpm: cfg.bpm, isIntervalMode: cfg.isIntervalMode, segments: cfg.segments,
-                  selectedGenres: genres
-                };
-                return renderConfigInfoLine(infoSource, (
-                  <div className="flex items-center space-x-1"><List size={14}/><span>{playlist.tracks.length} titres</span></div>
-                ));
-              })()}
-              {playlist.actualDataByDate && Object.keys(playlist.actualDataByDate).length > 0 && (
-                <div className="flex items-center justify-center w-full py-2 mt-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-lg text-xs font-bold">
-                  <Activity size={14} className="mr-2"/> {Object.keys(playlist.actualDataByDate).length} séance{Object.keys(playlist.actualDataByDate).length > 1 ? 's' : ''} avec données Garmin importées (cadence/FC)
-                </div>
-              )}
-              <div className="mt-auto pt-3 border-t border-gray-100 dark:border-gray-800">
-                <div className={`text-[10px] uppercase font-bold tracking-wider mb-1.5 ${textMuted}`}>Créée le {playlist.createdAt}</div>
-                {renderCompletionsList(playlist)}
-              </div>
-            </div>
+              <PlaylistCard
+                key={playlist.id}
+                theme={theme} isNaughtyMode={isNaughtyMode} playlist={playlist} rankStyle={rankStyle} rank={rank}
+                onClick={() => { setCurrentPlaylist(playlist); changeView('playlist'); }}
+                showActions={false}
+                renderConfigInfoLine={renderConfigInfoLine} renderCompletionsList={renderCompletionsList}
+              />
             );
           })}
         </div>
