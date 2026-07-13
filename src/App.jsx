@@ -3829,6 +3829,15 @@ export default function App() {
               let bpmSum = 0;
               let bpmCount = 0;
               const sessionsByMonth = {};
+              // Comptage par artiste et par titre — clé sur "titre|||artiste" plutôt
+              // que sur youtubeId : un même morceau peut être résolu vers un ID Deezer
+              // différent d'une génération à l'autre (édition radio vs album, remix...),
+              // youtubeId sous-compterait donc le même titre comme plusieurs entrées
+              // distinctes. Compte à chaque COMPLÉTION (pas juste à chaque apparition
+              // dans une playlist sauvegardée) : rejouer 3x la même playlist compte ses
+              // titres 3x — cohérent avec le reste de cette page (voir "Écoute estimée").
+              const artistCounts = {};
+              const trackCounts = {}; // clé "titre|||artiste" -> { title, artist, count }
 
               savedPlaylists.forEach(pl => {
                 if (!pl.completions || pl.completions.length === 0) return;
@@ -3848,6 +3857,13 @@ export default function App() {
                   genres.forEach(g => {
                     genreSeconds[g] = (genreSeconds[g] || 0) + perGenreSeconds;
                     genreSessions[g] = (genreSessions[g] || 0) + 1;
+                  });
+                  (pl.tracks || []).forEach(t => {
+                    if (!t.artist) return;
+                    artistCounts[t.artist] = (artistCounts[t.artist] || 0) + 1;
+                    const key = `${t.title}|||${t.artist}`;
+                    if (!trackCounts[key]) trackCounts[key] = { title: t.title, artist: t.artist, count: 0 };
+                    trackCounts[key].count += 1;
                   });
                   // Regroupement par mois (année-mois) plutôt que par semaine ISO —
                   // plus simple à calculer sans librairie de dates dédiée, et bien
@@ -3870,6 +3886,14 @@ export default function App() {
                 .map(([key, count]) => { const [y, m] = key.split('-'); return { label: `${monthLabels[m]} ${y}`, count }; });
 
               const avgBpm = bpmCount > 0 ? Math.round(bpmSum / bpmCount) : null;
+
+              const topArtists = Object.entries(artistCounts)
+                .map(([artist, count]) => ({ artist, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5);
+              const topTracks = Object.values(trackCounts)
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5);
 
               return (
                 <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
@@ -3933,6 +3957,54 @@ export default function App() {
                               </div>
                             ))}
                           </div>
+                        </div>
+                      </div>
+
+                      {/* Top artistes / top titres — comptés à chaque COMPLÉTION d'une
+                          playlist qui les contient, pas juste à leur 1ère apparition (voir
+                          le commentaire sur artistCounts/trackCounts plus haut). Aucun seuil
+                          caché pour "gonfler" un classement pauvre : si peu de données,
+                          le classement reste court et les chiffres réels s'affichent tels
+                          quels — cohérent avec le reste de cette page. */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
+                          <h3 className={`font-bold mb-4 ${textHighlight}`}>Artistes les plus écoutés</h3>
+                          {topArtists.length === 0 ? (
+                            <p className={`text-sm ${textMuted}`}>Pas encore assez de données.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {topArtists.map((a, i) => (
+                                <div key={a.artist} className="flex items-center justify-between text-sm">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className={`w-5 shrink-0 font-black text-xs ${textMuted}`}>#{i + 1}</span>
+                                    <span className={`truncate font-semibold ${textHighlight}`}>{a.artist}</span>
+                                  </div>
+                                  <span className={`shrink-0 ${textMuted}`}>{a.count} écoute{a.count > 1 ? 's' : ''}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
+                          <h3 className={`font-bold mb-4 ${textHighlight}`}>Titres les plus écoutés</h3>
+                          {topTracks.length === 0 ? (
+                            <p className={`text-sm ${textMuted}`}>Pas encore assez de données.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {topTracks.map((t, i) => (
+                                <div key={t.title + t.artist} className="flex items-center justify-between text-sm gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className={`w-5 shrink-0 font-black text-xs ${textMuted}`}>#{i + 1}</span>
+                                    <div className="min-w-0">
+                                      <div className={`truncate font-semibold ${textHighlight}`}>{t.title}</div>
+                                      <div className={`truncate text-xs ${textMuted}`}>{t.artist}</div>
+                                    </div>
+                                  </div>
+                                  <span className={`shrink-0 ${textMuted}`}>{t.count}x</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
 
