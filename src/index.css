@@ -9,3 +9,24 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Règle globale (retour utilisateur) : le texte à l'intérieur d'un <button>
+   reste sélectionnable comme du texte normal par défaut, donc le curseur
+   affiche un I-beam (texte éditable) au survol du LABEL lui-même — trompeur,
+   même si le clic fonctionnait déjà correctement partout. Corrigé ici une
+   seule fois pour les ~120 boutons de l'app, plutôt qu'en ajoutant `select-none`
+   bouton par bouton (fait d'abord sur les 7 boutons du menu latéral, mais ça ne
+   pouvait pas garantir une couverture complète vu le nombre de boutons ailleurs
+   dans l'app — cette règle-ci les couvre tous, y compris les futurs). */
+button {
+  user-select: none;
+  cursor: pointer;
+}
+/* Sans ça, un bouton désactivé (disabled) aurait aussi affiché "pointer" à
+   cause de la règle ci-dessus, alors que le navigateur montre normalement un
+   curseur "interdit" dessus — utile pour signaler visuellement l'état désactivé
+   même quand la classe Tailwind `disabled:opacity-*` seule ne suffit pas à le
+   voir immédiatement (ex. sur un fond déjà sombre). */
+button:disabled {
+  cursor: not-allowed;
+}
