@@ -144,6 +144,13 @@ export default function App() {
   // quand cette vue est active, donc un `useState` dedans violerait les règles des
   // Hooks (appelés dans un ordre non garanti d'un rendu à l'autre).
   const [showAdvancedStats, setShowAdvancedStats] = useState(false);
+  // 'standard' | 'naughty' — quelles playlists nourrissent la page Statistiques.
+  // Séparé plutôt que mélangé (voir la discussion) : le Mode Intime est déjà
+  // traité avec discrétion ailleurs dans l'app (noms différents, pas de mélange
+  // visuel) — les stats par défaut n'incluent DONC JAMAIS les séances Intime,
+  // uniquement sur bascule explicite. Un seul pipeline de calcul/rendu pour les
+  // deux (voir playlistsForStats plus bas), pas 2 pages dupliquées à maintenir.
+  const [statsMode, setStatsMode] = useState('standard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [theme, setTheme] = useState('dark'); 
@@ -3831,7 +3838,15 @@ export default function App() {
                 fait ici : mieux vaut une estimation honnête et immédiate qu'un
                 chantier de tracking neuf pour une 1ère version. */}
             {view === 'stats' && (() => {
-              const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b'];
+              // Palette adaptée au mode consulté — rose pour Mode Intime (cohérent avec
+              // son habillage ailleurs dans l'app), rouge/orange sinon.
+              const COLORS = statsMode === 'naughty'
+                ? ['#f43f5e', '#fb7185', '#e11d48', '#fda4af', '#be123c', '#ec4899', '#f472b6', '#db2777', '#9f1239']
+                : ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b'];
+              // Seules les playlists du mode consulté nourrissent tout ce qui suit —
+              // voir statsMode plus haut. `!!p.isNaughty` normalise undefined/false
+              // en un booléen propre avant comparaison (playlists anciennes sans champ).
+              const playlistsForStats = savedPlaylists.filter(p => !!p.isNaughty === (statsMode === 'naughty'));
 
               const genreSeconds = {};
               const genreSessions = {};
@@ -3878,8 +3893,12 @@ export default function App() {
               // lentes et très rapides.
               const bpmBuckets = { '< 90': 0, '90-119': 0, '120-149': 0, '150-179': 0, '180+': 0 };
               const bpmBucketLabel = (bpm) => bpm < 90 ? '< 90' : bpm < 120 ? '90-119' : bpm < 150 ? '120-149' : bpm < 180 ? '150-179' : '180+';
+              // Genre × activité — même mécanisme que artistActivityCounts plus haut,
+              // pour la vue détaillée (voir showAdvancedStats) : quelle activité
+              // domine/se répartit pour chaque genre écouté.
+              const genreActivityCounts = {}; // genre -> { activité -> count }
 
-              savedPlaylists.forEach(pl => {
+              playlistsForStats.forEach(pl => {
                 if (!pl.completions || pl.completions.length === 0) return;
                 // BUG CORRIGÉ : `createPlaylistData` stocke `selectedGenres` et `bpm`
                 // DANS `config` (`config: { ...config }`), jamais au niveau racine de
@@ -3898,6 +3917,8 @@ export default function App() {
                   genres.forEach(g => {
                     genreSeconds[g] = (genreSeconds[g] || 0) + perGenreSeconds;
                     genreSessions[g] = (genreSessions[g] || 0) + 1;
+                    if (!genreActivityCounts[g]) genreActivityCounts[g] = {};
+                    genreActivityCounts[g][activity] = (genreActivityCounts[g][activity] || 0) + 1;
                   });
                   activitySeconds[activity] = (activitySeconds[activity] || 0) + (pl.totalDuration || 0);
                   activitySessions[activity] = (activitySessions[activity] || 0) + 1;
@@ -4036,40 +4057,53 @@ export default function App() {
                 })
                 .sort((a, b) => b.count - a.count);
 
+              // Genre × activité, pour la vue détaillée — même mécanisme que artiste ×
+              // activité au-dessus, symétrique.
+              const allGenresDetailed = Object.entries(genreSeconds)
+                .map(([genre, seconds]) => ({
+                  genre, seconds, sessions: genreSessions[genre],
+                  activitiesLabel: formatActivities(genreActivityCounts[genre])
+                }))
+                .sort((a, b) => b.seconds - a.seconds);
+
               return (
                 <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
-                  <div className={`border-b ${cardBorder} pb-6`}>
-                    <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}><Activity className={textColorClass} size={36} /> <span>Statistiques</span></h1>
-                    <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Ce que tu as écouté, séance après séance.</p>
+                  <div className={`border-b ${cardBorder} pb-6 flex items-start justify-between gap-4`}>
+                    <div>
+                      <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${statsMode === 'naughty' ? 'text-rose-500' : textHighlight}`}>
+                        <Activity className={statsMode === 'naughty' ? 'text-rose-500' : textColorClass} size={36} />
+                        <span>{statsMode === 'naughty' ? 'Statistiques · Intime' : 'Statistiques'}</span>
+                      </h1>
+                      <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+                        {statsMode === 'naughty' ? "Ce que tu as écouté en mode Intime, à part du reste." : "Ce que tu as écouté, séance après séance."}
+                      </p>
+                    </div>
+                    {/* Bascule discrète, séparée du bouton "détail complet" plus bas pour
+                        ne pas les confondre — jamais montré en avant, jamais mélangé aux
+                        stats par défaut (voir playlistsForStats plus haut). */}
+                    <button
+                      onClick={() => setStatsMode(statsMode === 'naughty' ? 'standard' : 'naughty')}
+                      className={`shrink-0 text-xs font-bold px-3 py-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800`}
+                    >
+                      {statsMode === 'naughty' ? '← Stats standards' : 'Stats Mode Intime →'}
+                    </button>
                   </div>
 
                   {totalSessions === 0 ? (
                     <div className={`py-16 text-center border-2 border-dashed ${cardBorder} rounded-2xl`}>
                       <Activity size={48} className="mx-auto mb-4 text-gray-300 dark:text-gray-700" />
                       <h3 className={`text-lg font-bold mb-2 ${textHighlight}`}>Rien à montrer pour l'instant</h3>
-                      <p className={`text-sm mb-6 max-w-sm mx-auto ${textMuted}`}>Génère des playlists et marque-les comme faites (voir "Historique") — les stats se rempliront au fur et à mesure.</p>
+                      <p className={`text-sm mb-6 max-w-sm mx-auto ${textMuted}`}>
+                        {statsMode === 'naughty'
+                          ? "Aucune séance Mode Intime marquée comme faite pour l'instant."
+                          : 'Génère des playlists et marque-les comme faites (voir "Historique") — les stats se rempliront au fur et à mesure.'}
+                      </p>
                       <button onClick={() => changeView('generator')} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
                         Générer ma première playlist
                       </button>
                     </div>
                   ) : (
                     <>
-                      {/* Bascule vers la vue détaillée (voir showAdvancedStats) — proposée
-                          en option, pas montrée d'office : la vue simple ci-dessous reste
-                          la vue par défaut pour tout le monde, pensée pour se lire d'un
-                          coup d'œil ; celle-ci est pour qui veut vraiment creuser (tous les
-                          artistes/titres, pas que le top 5, avec la répartition complète
-                          par activité — pas juste l'activité dominante). */}
-                      <div className="flex justify-end">
-                        <button
-                          onClick={() => setShowAdvancedStats(!showAdvancedStats)}
-                          className={`text-sm font-bold flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800`}
-                        >
-                          {showAdvancedStats ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
-                          {showAdvancedStats ? "Revenir à la vue simple" : "Voir le détail complet"}
-                        </button>
-                      </div>
-
                       {/* Gros chiffres — l'effet "Wrapped" tient surtout à ça : quelques
                           nombres marquants, pas un tableau de données brutes. */}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -4122,35 +4156,70 @@ export default function App() {
                         </div>
                       )}
 
-                      {/* Répartition par genre */}
-                      <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
-                        <h3 className={`font-bold mb-4 ${textHighlight}`}>Tes styles</h3>
-                        <div className="flex flex-col md:flex-row items-center gap-6">
-                          <ResponsiveContainer width="100%" height={220} className="md:max-w-[220px]">
-                            <PieChart>
-                              <Pie data={genreBreakdown} dataKey="seconds" nameKey="genre" innerRadius={50} outerRadius={90} paddingAngle={2}>
-                                {genreBreakdown.map((entry, i) => <Cell key={entry.genre} fill={COLORS[i % COLORS.length]} />)}
-                              </Pie>
-                              <RechartsTooltip formatter={(value, name) => [formatDuration(Math.round(value)), name]} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                          <div className="flex-1 w-full space-y-2">
-                            {genreBreakdown.map((g, i) => (
-                              <div key={g.genre} className="flex items-center justify-between text-sm">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }}></span>
-                                  <span className={`truncate font-semibold ${textHighlight}`}>{g.genre}</span>
+                      {/* Répartition par genre + par BPM, côte à côte — retour utilisateur :
+                          les deux donuts doivent se répondre visuellement plutôt que d'avoir
+                          un donut pour l'un et des barres pour l'autre. */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
+                          <h3 className={`font-bold mb-4 ${textHighlight}`}>Tes styles</h3>
+                          <div className="flex flex-col items-center gap-4">
+                            <ResponsiveContainer width="100%" height={180}>
+                              <PieChart>
+                                <Pie data={genreBreakdown} dataKey="seconds" nameKey="genre" innerRadius={45} outerRadius={80} paddingAngle={2}>
+                                  {genreBreakdown.map((entry, i) => <Cell key={entry.genre} fill={COLORS[i % COLORS.length]} />)}
+                                </Pie>
+                                <RechartsTooltip formatter={(value, name) => [formatDuration(Math.round(value)), name]} />
+                              </PieChart>
+                            </ResponsiveContainer>
+                            <div className="w-full space-y-2">
+                              {genreBreakdown.map((g, i) => (
+                                <div key={g.genre} className="flex items-center justify-between text-sm">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }}></span>
+                                    <span className={`truncate font-semibold ${textHighlight}`}>{g.genre}</span>
+                                  </div>
+                                  <span className={`shrink-0 ${textMuted}`}>{g.sessions} séance{g.sessions > 1 ? 's' : ''} · {formatDuration(Math.round(g.seconds))}</span>
                                 </div>
-                                <span className={textMuted}>{g.sessions} séance{g.sessions > 1 ? 's' : ''} · {formatDuration(Math.round(g.seconds))}</span>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
                         </div>
+
+                        {/* "Répartition des BPM" — même format donut que "Tes styles" ci-contre
+                            (retour utilisateur), plus parlant qu'un seul "BPM moyen" (gros
+                            chiffres plus haut) qui peut cacher un mélange de séances très
+                            lentes et très rapides. */}
+                        {bpmDistribution.length > 0 && (
+                          <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
+                            <h3 className={`font-bold mb-4 ${textHighlight}`}>Tes BPM</h3>
+                            <div className="flex flex-col items-center gap-4">
+                              <ResponsiveContainer width="100%" height={180}>
+                                <PieChart>
+                                  <Pie data={bpmDistribution} dataKey="count" nameKey="label" innerRadius={45} outerRadius={80} paddingAngle={2}>
+                                    {bpmDistribution.map((entry, i) => <Cell key={entry.label} fill={COLORS[i % COLORS.length]} />)}
+                                  </Pie>
+                                  <RechartsTooltip formatter={(value, name) => [`${value} titre${value > 1 ? 's' : ''}`, `${name} BPM`]} />
+                                </PieChart>
+                              </ResponsiveContainer>
+                              <div className="w-full space-y-2">
+                                {bpmDistribution.map((b, i) => (
+                                  <div key={b.label} className="flex items-center justify-between text-sm">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }}></span>
+                                      <span className={`truncate font-semibold ${textHighlight}`}>{b.label} BPM</span>
+                                    </div>
+                                    <span className={`shrink-0 ${textMuted}`}>{b.count} titre{b.count > 1 ? 's' : ''}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Répartition par activité — barres horizontales plutôt qu'un 2e
-                          donut : la page en aurait eu 2 côte à côte pour "genre" et
-                          "activité", ce qui aurait dilué l'effet plutôt que de l'ajouter. */}
+                      {/* Répartition par activité — barres horizontales (pas un 3e donut,
+                          pour ne pas surcharger la page — genre et BPM ci-dessus suffisent
+                          pour l'effet "coup d'œil visuel", l'activité reste en liste). */}
                       <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
                         <h3 className={`font-bold mb-4 ${textHighlight}`}>Tes activités</h3>
                         <div className="space-y-3">
@@ -4171,28 +4240,6 @@ export default function App() {
                           })}
                         </div>
                       </div>
-
-                      {/* Répartition des BPM par tranche — plus parlant qu'un seul "BPM
-                          moyen" (voir les gros chiffres plus haut) qui peut cacher un
-                          mélange de séances très lentes et très rapides. */}
-                      {bpmDistribution.length > 0 && (
-                        <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
-                          <h3 className={`font-bold mb-4 ${textHighlight}`}>Répartition des BPM</h3>
-                          <div className="space-y-3">
-                            {bpmDistribution.map((b, i) => (
-                              <div key={b.label}>
-                                <div className="flex items-center justify-between text-sm mb-1">
-                                  <span className={`font-semibold ${textHighlight}`}>{b.label} BPM</span>
-                                  <span className={textMuted}>{b.count} titre{b.count > 1 ? 's' : ''}</span>
-                                </div>
-                                <div className="h-2 rounded-full bg-black/5 dark:bg-white/10 overflow-hidden">
-                                  <div className="h-full rounded-full" style={{ width: `${Math.max(4, Math.round((b.count / maxBpmBucketCount) * 100))}%`, backgroundColor: COLORS[i % COLORS.length] }}></div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
 
                       {/* Top artistes / top titres — comptés à chaque COMPLÉTION d'une
                           playlist qui les contient, pas juste à leur 1ère apparition (voir
@@ -4291,6 +4338,18 @@ export default function App() {
                         </div>
                       )}
 
+                      {/* Bascule vers la vue détaillée — déplacée en bas (retour utilisateur) :
+                          plus de sens de la proposer APRÈS avoir lu le résumé simple plutôt
+                          qu'avant même de l'avoir vu. Bouton plus visible qu'avant (CTA pleine
+                          largeur façon bouton d'action, pas un simple lien en coin de page). */}
+                      <button
+                        onClick={() => setShowAdvancedStats(!showAdvancedStats)}
+                        className={`w-full py-4 rounded-2xl border-2 border-dashed ${cardBorder} flex items-center justify-center gap-2 font-bold transition-colors ${textMuted} hover:${textHighlight} hover:border-gray-400`}
+                      >
+                        {showAdvancedStats ? <ChevronUp size={20}/> : <ChevronDown size={20}/>}
+                        {showAdvancedStats ? "Revenir à la vue simple" : "Voir le détail complet"}
+                      </button>
+
                       {/* Vue détaillée — voir le bouton plus haut. TOUS les artistes/titres
                           (pas un top 5), avec la répartition COMPLÈTE par activité plutôt
                           que la seule activité dominante affichée ci-dessus. C'est
@@ -4298,6 +4357,30 @@ export default function App() {
                           cohérent avec le fait qu'on choisit ici d'aller la consulter. */}
                       {showAdvancedStats && (
                         <div className="space-y-6">
+                          <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder} overflow-x-auto`}>
+                            <h3 className={`font-bold mb-4 ${textHighlight}`}>Détail par genre ({allGenresDetailed.length})</h3>
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className={`text-left border-b ${cardBorder} ${textMuted}`}>
+                                  <th className="pb-2 pr-3 font-semibold">Genre</th>
+                                  <th className="pb-2 pr-3 font-semibold">Séances</th>
+                                  <th className="pb-2 pr-3 font-semibold">Durée</th>
+                                  <th className="pb-2 font-semibold">Activités</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {allGenresDetailed.map(g => (
+                                  <tr key={g.genre} className={`border-b last:border-0 ${cardBorder}`}>
+                                    <td className={`py-2 pr-3 font-semibold ${textHighlight}`}>{g.genre}</td>
+                                    <td className={`py-2 pr-3 ${textMuted}`}>{g.sessions}</td>
+                                    <td className={`py-2 pr-3 ${textMuted}`}>{formatDuration(Math.round(g.seconds))}</td>
+                                    <td className={`py-2 ${textMuted}`}>{g.activitiesLabel}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+
                           <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder} overflow-x-auto`}>
                             <h3 className={`font-bold mb-4 ${textHighlight}`}>Détail par artiste ({allArtistsDetailed.length})</h3>
                             <table className="w-full text-sm">
