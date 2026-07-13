@@ -2875,39 +2875,45 @@ export default function App() {
              <button className="md:hidden text-gray-500 hover:text-gray-900 dark:hover:text-white" onClick={() => setIsMobileMenuOpen(false)}><X size={20} /></button>
           </div>
           
+          {/* `select-none` sur chaque bouton ci-dessous (retour utilisateur) : sans ça,
+              le texte des libellés (ex. "Historique") reste sélectionnable comme du
+              texte normal, donc le curseur affiche un I-beam (texte éditable) au survol
+              du label — trompeur pour un bouton, même si le clic fonctionnait déjà
+              correctement partout. `cursor-pointer` ajouté en plus par sécurité (déjà
+              le comportement par défaut d'un <button>, mais explicite plutôt qu'implicite). */}
           <nav className="flex-1 px-4 py-6 space-y-3 overflow-y-auto no-scrollbar">
             
-            <button onClick={() => changeView('generator')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
+            <button onClick={() => changeView('generator')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
               <Zap size={18} className={view === 'generator' ? 'text-white' : textColorClass} />
               <span className="font-bold text-sm">Générer</span>
             </button>
 
-            <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors ${view === 'routines' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
+            <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
               <ListPlus size={18} />
               <span className="font-bold text-sm">Mes Routines</span>
             </button>
             
-            <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors ${view === 'playlists' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
+            <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
               <List size={18} />
               <span className="font-bold text-sm">Mes Playlists</span>
             </button>
 
-            <button onClick={() => changeView('history')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors ${view === 'history' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
+            <button onClick={() => changeView('history')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'history' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
               <History size={18} />
               <span className="font-bold text-sm">Historique</span>
             </button>
 
-            <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors ${view === 'stats' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
+            <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
               <Activity size={18} />
               <span className="font-bold text-sm">Statistiques</span>
             </button>
 
-            <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors ${view === 'favorites' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
+            <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
               <Star size={18} className={favorites.useFavorites && favorites.artists.length > 0 ? "text-yellow-500 fill-yellow-500/20" : ""} />
               <span className="font-bold text-sm">Mes Favoris</span>
             </button>
 
-            <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors ${view === 'settings' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
+            <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'settings' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
               <Settings size={18} />
               <span className="font-bold text-sm">Options & Comptes</span>
             </button>
@@ -3053,7 +3059,7 @@ export default function App() {
                             s'enchaînent — le principe colle en fait très bien au thème), avec un
                             libellé adapté. Avant, cette option était entièrement masquée en mode
                             Intime, sans vraie raison de fond de l'en priver. */}
-                        <div className={`flex items-center justify-between p-5 ${inputBg} border-2 ${isIntervalMode ? borderAccentClass : inputBorder} rounded-2xl transition-colors cursor-pointer`} onClick={() => setIsIntervalMode(!isIntervalMode)}>
+                        <div className={`flex items-center justify-between p-5 ${inputBg} border-2 ${isIntervalMode ? borderAccentClass : inputBorder} rounded-2xl transition-colors cursor-pointer select-none`} onClick={() => setIsIntervalMode(!isIntervalMode)}>
                           <div className="flex items-center space-x-4">
                             <div className={`p-3 rounded-xl ${isIntervalMode ? bgAccentClass : 'bg-gray-200 dark:bg-gray-700'}`}>
                               <ListPlus size={24} className={isIntervalMode ? 'text-white' : textMuted} />
@@ -3597,7 +3603,7 @@ export default function App() {
                       const rankStyle = getRankStyle(rank);
                       return (
                   <div key={playlist.id} className={`${cardBg} rounded-2xl p-4 border ${rankStyle ? rankStyle.border : (playlist.completions && playlist.completions.length > 0 ?
-                    'border-green-500/30 bg-green-50/30 dark:bg-green-900/10' : cardBorder)} shadow-sm flex flex-col group hover:border-gray-400 transition-colors cursor-pointer relative`} onClick={() => { setCurrentPlaylist(playlist); changeView('playlist'); }}>
+                    'border-green-500/30 bg-green-50/30 dark:bg-green-900/10' : cardBorder)} shadow-sm flex flex-col group hover:border-gray-400 transition-colors cursor-pointer select-none relative`} onClick={() => { setCurrentPlaylist(playlist); changeView('playlist'); }}>
                     {rankStyle && <span className="absolute -top-2 -right-2 text-xl" title={`${playlist.completions.length} fois — la ${rank === 0 ? 'plus' : rank === 1 ? '2e plus' : '3e plus'} utilisée`}>{rankStyle.emoji}</span>}
                       <div className="flex items-start justify-between mb-3">
                         <div className={`w-16 h-16 rounded-xl flex items-center justify-center bg-gradient-to-br ${isNaughtyMode ? 'from-rose-400 to-rose-600' : 'from-gray-800 to-black dark:from-gray-200 dark:to-white'} shrink-0 text-3xl`}>
@@ -3746,7 +3752,7 @@ export default function App() {
                         const rank = completionRanks.indexOf(playlist.id);
                         const rankStyle = getRankStyle(rank);
                         return (
-                        <div key={playlist.id} className={`${cardBg} rounded-2xl p-4 border ${rankStyle ? rankStyle.border : 'border-green-500/30'} bg-green-50/30 dark:bg-green-900/10 shadow-sm flex flex-col hover:border-gray-400 transition-colors cursor-pointer relative`} onClick={() => { setCurrentPlaylist(playlist); changeView('playlist'); }}>
+                        <div key={playlist.id} className={`${cardBg} rounded-2xl p-4 border ${rankStyle ? rankStyle.border : 'border-green-500/30'} bg-green-50/30 dark:bg-green-900/10 shadow-sm flex flex-col hover:border-gray-400 transition-colors cursor-pointer select-none relative`} onClick={() => { setCurrentPlaylist(playlist); changeView('playlist'); }}>
                           {rankStyle && <span className="absolute -top-2 -right-2 text-xl" title={`${playlist.completions.length} fois — la ${rank === 0 ? 'plus' : rank === 1 ? '2e plus' : '3e plus'} utilisée`}>{rankStyle.emoji}</span>}
                           <div className="flex items-start justify-between mb-3">
                             <div className={`w-14 h-14 rounded-xl flex items-center justify-center bg-gradient-to-br ${isNaughtyMode ? 'from-rose-400 to-rose-600' : 'from-gray-800 to-black dark:from-gray-200 dark:to-white'} shrink-0 text-2xl`}>
