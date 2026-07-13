@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Footprints, Flame, Heart, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, MapPin, Upload, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Target, History, MessageCircle, ExternalLink, GripVertical, MoreVertical } from 'lucide-react';
+import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Footprints, Flame, Heart, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Info, Edit3, Copy, CheckCircle, Circle, Trophy, MapPin, Upload, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Target, History, MessageCircle, ExternalLink, GripVertical, MoreVertical } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine, ReferenceArea, PieChart, Pie, Cell } from 'recharts';
 import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, DEEZER_GENRE_KEYWORDS, getGenreLocalDepthWarning, GENRE_EQUIVALENCE_GROUPS, isDirectGenreMatch, genreRoughlyMatches, TITLE_STYLE_OVERRIDE_KEYWORDS, detectTitleStyleConflict, normalizeGenreForDisplay } from './musicCatalog';
 import { TROPHIES_DATA, NAUGHTY_ROUTINE_NAMES, WORKOUT_TYPES, NAUGHTY_WORKOUT_LABELS, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_ORDER, WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appConfig';
@@ -36,6 +36,7 @@ import { useTheme } from './hooks/useTheme';
 import SettingsView from './components/views/SettingsView';
 import FavoritesView from './components/views/FavoritesView';
 import TrophiesView from './components/views/TrophiesView';
+import RoutinesView from './components/views/RoutinesView';
 // Début du découpage de App.jsx en composants de vue (voir passation) : chaque
 // vue extraite vit dans src/components/views/, et consomme le hook useTheme
 // plutôt que de redéfinir ses propres classes de couleur.
@@ -3482,124 +3483,15 @@ export default function App() {
               </div>
             )}
 
-            {/* ===================== VIEW: ROUTINES ===================== */}
             {view === 'routines' && (
-              <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
-                <div className={`border-b ${cardBorder} pb-6`}>
-                  <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}><ListPlus className={textColorClass} size={36} /> <span>Mes Routines</span></h1>
-                  <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Génère instantanément des playlists à partir de tes configurations.</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {routines.length === 0 ? (
-                    <div className={`col-span-full py-16 text-center border-2 border-dashed ${cardBorder} rounded-2xl`}>
-                      <ListPlus size={48} className={`mx-auto mb-4 text-gray-300 dark:text-gray-700`} />
-                      <h3 className={`text-lg font-bold mb-2 ${textHighlight}`}>Aucune routine pour l'instant</h3>
-                      <p className={`text-sm mb-6 max-w-sm mx-auto ${textMuted}`}>Génère une première playlist et sauvegarde-la comme routine pour la relancer en un clic la prochaine fois.</p>
-                      <button onClick={() => changeView('generator')} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
-                        Créer ma première playlist
-                      </button>
-                    </div>
-                  ) : (
-                    // Tuile "+" toujours visible (même avec des routines existantes) — même principe
-                    // que la tuile "+" de "Titres Favoris" : incite à en ajouter une nouvelle sans
-                    // dupliquer le lien "Générer" déjà présent dans la sidebar.
-                    <button onClick={() => changeView('generator')} className={`rounded-2xl border-2 border-dashed ${cardBorder} flex flex-col items-center justify-center gap-2 py-10 font-bold transition-colors ${textMuted} hover:${textHighlight} hover:border-gray-400`}>
-                      <Plus size={28} />
-                      <span>Créer une nouvelle routine</span>
-                    </button>
-                  )}
-                  {(() => {
-                    // Triées par nombre de générations manuelles décroissant — les plus
-                    // utilisées remontent en premier. À égalité, ordre inchangé.
-                    const sortedRoutines = [...routines].sort((a, b) => (b.manualGenerations || 0) - (a.manualGenerations || 0));
-                    const routineRanks = [...routines]
-                      .filter(r => (r.manualGenerations || 0) > 0)
-                      .sort((a, b) => (b.manualGenerations || 0) - (a.manualGenerations || 0))
-                      .map(r => r.id);
-
-                    return sortedRoutines.map(routine => {
-                    const batchCount = routineBatchCounts[routine.id] || 1;
-                    const rank = routineRanks.indexOf(routine.id);
-                    const rankStyle = getRankStyle(rank);
-                    return (
-                      <div key={routine.id} className={`${cardBg} rounded-2xl p-6 border ${rankStyle ? rankStyle.border : cardBorder} shadow-sm relative group overflow-hidden flex flex-col`}>
-                        {rankStyle && <span className="absolute -top-2 -right-2 text-xl" title={`${routine.manualGenerations} générations — la ${rank === 0 ? 'plus' : rank === 1 ? '2e plus' : '3e plus'} utilisée`}>{rankStyle.emoji}</span>}
-                        <div className="flex items-start justify-between mb-4">
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl bg-gray-100 dark:bg-gray-800`}>
-                            {getDisplayRoutineIcon(routine)}
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            {/* Badge "génération auto" : calcule combien de générations manuelles il reste
-                                à faire aujourd'hui/cette semaine par rapport à la fréquence configurée.
-                                Note : la génération automatique en tâche de fond n'est pas implémentée ici,
-                                seul l'affichage du badge "restant" l'est (fonctionnalité marquée "Premium"). */}
-                            {routine.autoGenFreq && routine.autoGenFreq !== 'Manuel' && (() => {
-                              let target = 0; let label = "ajd";
-                              if (routine.autoGenFreq === '1 fois / jour') target = 1;
-                              if (routine.autoGenFreq === '2 fois / jour') target = 2;
-                              if (routine.autoGenFreq === '1 fois / semaine') { target = 1; label = "cette sem."; }
-                              const remaining = Math.max(0, target - (routine.manualGenerations || 0));
-                              return (
-                                <div className="text-[10px] font-bold uppercase px-2 py-1 bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-md">
-                                  Auto : {remaining} restante{remaining > 1 ? 's' : ''} {label}
-                                </div>
-                              )
-                            })()}
-                            <button onClick={() => { setEditingRoutine({ ...routine }); setIsEditRoutineModalOpen(true); }} className={`p-2 rounded-lg text-gray-400 hover:text-blue-500 transition-colors`} title="Éditer cette routine">
-                              <Edit3 size={16} />
-                            </button>
-                            <button onClick={() => setRoutines(routines.filter(r => r.id !== routine.id))} className={`p-2 rounded-lg text-gray-400 hover:text-red-500 transition-colors`} title="Supprimer cette routine">
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </div>
-                        <h3 className={`font-bold text-xl mb-1 flex items-center gap-2 ${textHighlight}`}>
-                          {getDisplayRoutineName(routine)}
-                          {routine.isIntervalMode && (
-                            <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full text-white shrink-0 ${bgAccentClass}`}>
-                              Fractionné
-                            </span>
-                          )}
-                        </h3>
-                        <div>{renderConfigInfoLine(routine)}</div>
-                        <div className="mt-auto pt-4 border-t border-gray-100 dark:border-gray-800">
-                          <div className="flex gap-2 mb-2">
-                            <div className={`flex items-center ${inputBg} border ${inputBorder} rounded-xl px-2`} title="Génère plusieurs versions différentes en un clic, pour choisir celle que tu préfères.">
-                              <Layers size={16} className={`${textMuted} mr-1`} />
-                              <select
-                                value={batchCount} onChange={(e) => setRoutineBatchCounts({...routineBatchCounts, [routine.id]: parseInt(e.target.value)})}
-                                className={`bg-transparent text-sm font-bold outline-none text-blue-600 dark:text-blue-400 cursor-pointer py-3 appearance-none pl-1 pr-2`}
-                              >
-                                <option value={1} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">x1</option>
-                                <option value={3} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">x3</option>
-                                <option value={5} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">x5</option>
-                                <option value={10} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">x10</option>
-                              </select>
-                              {/* Icône Info visible plutôt qu'un simple attribut title invisible sur
-                                  un div — l'ancienne version était peu découvrable (aucun indice
-                                  visuel qu'une infobulle existait). */}
-                              <Info size={13} className={`${textMuted} ml-0.5 mr-1 shrink-0`} />
-                            </div>
-                            <button onClick={() => { executeGeneration({ ...routine, workoutName: routine.customActivity || routine.workoutType, routineName: routine.name }, batchCount, routine.id);
-                            }} className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${bgAccentClass} text-white hover:brightness-110 active:scale-95`}>
-                              {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <PlaySquare size={18} fill="currentColor"/>}
-                              <span>Générer</span>
-                            </button>
-                          </div>
-                          {/* Date de création déplacée en pied de carte — avant, elle était
-                              juste après les infos, alors que sur les cartes Playlist/Historique
-                              elle est en bas. Même position partout désormais. */}
-                          {routine.createdAt && (
-                            <div className={`text-[10px] uppercase font-bold tracking-wider ${textMuted}`}>Créée le {routine.createdAt}</div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                    });
-                  })()}
-                </div>
-              </div>
+              <RoutinesView
+                theme={themeTokens} routines={routines} setRoutines={setRoutines}
+                routineBatchCounts={routineBatchCounts} setRoutineBatchCounts={setRoutineBatchCounts}
+                getDisplayRoutineIcon={getDisplayRoutineIcon} getDisplayRoutineName={getDisplayRoutineName}
+                renderConfigInfoLine={renderConfigInfoLine} getRankStyle={getRankStyle}
+                setEditingRoutine={setEditingRoutine} setIsEditRoutineModalOpen={setIsEditRoutineModalOpen}
+                executeGeneration={executeGeneration} isGenerating={isGenerating} changeView={changeView}
+              />
             )}
 
             {/* ===================== VIEW: PLAYLISTS (Historique) ===================== */}
