@@ -139,6 +139,11 @@ const RealDataDot = (props) => {
 export default function App() {
   // --- Navigation & état d'affichage global ---
   const [view, setView] = useState('generator');
+  // Bascule "vue détaillée" de la page Statistiques — voir plus bas. Volontairement
+  // hors du bloc `view === 'stats' && (() => {...})()` : ce bloc ne s'exécute que
+  // quand cette vue est active, donc un `useState` dedans violerait les règles des
+  // Hooks (appelés dans un ordre non garanti d'un rendu à l'autre).
+  const [showAdvancedStats, setShowAdvancedStats] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [theme, setTheme] = useState('dark'); 
@@ -3844,6 +3849,35 @@ export default function App() {
               // titres 3x — cohérent avec le reste de cette page (voir "Écoute estimée").
               const artistCounts = {};
               const trackCounts = {}; // clé "titre|||artiste" -> { title, artist, count }
+              // Répartition par type d'activité — même logique que genreSeconds/genreSessions
+              // ci-dessus, mais un seul workoutType par playlist (contrairement aux genres,
+              // pas de partage à égalité entre plusieurs valeurs nécessaire).
+              const activitySeconds = {};
+              const activitySessions = {};
+              // Pour chaque artiste/titre : quelle activité domine ses écoutes, et à quel
+              // BPM réel — pas un vrai tableau croisé (voir le raisonnement dans le
+              // commentaire au-dessus de cette vue), juste de quoi afficher UNE ligne
+              // contextuelle du style "principalement en Course à pied · ~150 BPM" sous
+              // chaque entrée du top 5, sans transformer la page en tableau de bord.
+              const artistActivityCounts = {}; // artiste -> { activité -> count }
+              const artistBpmSum = {}; const artistBpmCount = {};
+              const trackBpmSum = {}; const trackBpmCount = {};
+              const trackActivityCounts = {}; // clé titre|||artiste -> { activité -> count }
+              // Une entrée par COMPLÉTION (pas par playlist) — sert aux "records" plus
+              // bas (séance la plus longue, BPM le plus élevé...) : chaque rejeu d'une
+              // même playlist est une séance à part entière, pas un doublon à ignorer.
+              const allSessions = [];
+              // Jour de la semaine le plus fréquent, et jours uniques (Set, dédupliqués)
+              // pour calculer la plus longue série de jours consécutifs avec au moins
+              // une séance — deux mesures de RÉGULARITÉ, différentes du simple volume
+              // déjà montré par "Ton évolution" (courbe mensuelle).
+              const weekdayCounts = {}; // 0 (dimanche) à 6 (samedi) -> count
+              const uniqueDays = new Set();
+              // Répartition des BPM réels des titres joués, par tranche — plus parlant
+              // qu'un seul "BPM moyen" qui peut cacher un mélange de séances très
+              // lentes et très rapides.
+              const bpmBuckets = { '< 90': 0, '90-119': 0, '120-149': 0, '150-179': 0, '180+': 0 };
+              const bpmBucketLabel = (bpm) => bpm < 90 ? '< 90' : bpm < 120 ? '90-119' : bpm < 150 ? '120-149' : bpm < 180 ? '150-179' : '180+';
 
               savedPlaylists.forEach(pl => {
                 if (!pl.completions || pl.completions.length === 0) return;
@@ -3855,6 +3889,7 @@ export default function App() {
                 // playlist affichait bien "Rock, Métal" et "150 BPM" sur sa carte.
                 const genres = (pl.config?.selectedGenres && pl.config.selectedGenres.length > 0) ? pl.config.selectedGenres : ['Autre'];
                 const perGenreSeconds = (pl.totalDuration || 0) / genres.length;
+                const activity = pl.workoutType || 'Autre';
 
                 pl.completions.forEach(dateStr => {
                   totalSessions += 1;
@@ -3864,12 +3899,24 @@ export default function App() {
                     genreSeconds[g] = (genreSeconds[g] || 0) + perGenreSeconds;
                     genreSessions[g] = (genreSessions[g] || 0) + 1;
                   });
+                  activitySeconds[activity] = (activitySeconds[activity] || 0) + (pl.totalDuration || 0);
+                  activitySessions[activity] = (activitySessions[activity] || 0) + 1;
+                  allSessions.push({ date: dateStr, duration: pl.totalDuration || 0, bpm: pl.config?.bpm || null, activity, genres, name: pl.name });
                   (pl.tracks || []).forEach(t => {
                     if (!t.artist) return;
                     artistCounts[t.artist] = (artistCounts[t.artist] || 0) + 1;
                     const key = `${t.title}|||${t.artist}`;
                     if (!trackCounts[key]) trackCounts[key] = { title: t.title, artist: t.artist, count: 0 };
                     trackCounts[key].count += 1;
+
+                    if (!artistActivityCounts[t.artist]) artistActivityCounts[t.artist] = {};
+                    artistActivityCounts[t.artist][activity] = (artistActivityCounts[t.artist][activity] || 0) + 1;
+                    if (t.bpm) { artistBpmSum[t.artist] = (artistBpmSum[t.artist] || 0) + t.bpm; artistBpmCount[t.artist] = (artistBpmCount[t.artist] || 0) + 1; }
+
+                    if (!trackActivityCounts[key]) trackActivityCounts[key] = {};
+                    trackActivityCounts[key][activity] = (trackActivityCounts[key][activity] || 0) + 1;
+                    if (t.bpm) { trackBpmSum[key] = (trackBpmSum[key] || 0) + t.bpm; trackBpmCount[key] = (trackBpmCount[key] || 0) + 1; }
+                    if (t.bpm) bpmBuckets[bpmBucketLabel(t.bpm)] += 1;
                   });
                   // Regroupement par mois (année-mois) plutôt que par semaine ISO —
                   // plus simple à calculer sans librairie de dates dédiée, et bien
@@ -3878,6 +3925,8 @@ export default function App() {
                   if (!isNaN(d)) {
                     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
                     sessionsByMonth[key] = (sessionsByMonth[key] || 0) + 1;
+                    weekdayCounts[d.getDay()] = (weekdayCounts[d.getDay()] || 0) + 1;
+                    uniqueDays.add(d.toISOString().slice(0, 10));
                   }
                 });
               });
@@ -3886,6 +3935,42 @@ export default function App() {
                 .map(([genre, seconds]) => ({ genre, seconds, sessions: genreSessions[genre] }))
                 .sort((a, b) => b.seconds - a.seconds);
 
+              const activityBreakdown = Object.entries(activitySeconds)
+                .map(([activity, seconds]) => ({ activity, seconds, sessions: activitySessions[activity] }))
+                .sort((a, b) => b.seconds - a.seconds);
+
+              // Records — coup d'œil narratif plutôt qu'un chiffre froid de plus ;
+              // aucune donnée nouvelle, juste un tri sur ce qui existe déjà (durée,
+              // BPM, date) sur `allSessions` (une entrée par complétion).
+              const formatSessionDate = (dateStr) => {
+                const d = new Date(dateStr);
+                return isNaN(d) ? dateStr : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+              };
+              const longestSession = allSessions.length > 0 ? [...allSessions].sort((a, b) => b.duration - a.duration)[0] : null;
+              const sessionsWithBpm = allSessions.filter(s => s.bpm);
+              const fastestSession = sessionsWithBpm.length > 0 ? [...sessionsWithBpm].sort((a, b) => b.bpm - a.bpm)[0] : null;
+              const firstSession = allSessions.length > 0 ? [...allSessions].sort((a, b) => a.date.localeCompare(b.date))[0] : null;
+
+              // Régularité — jour de la semaine le plus fréquent, et plus longue série
+              // de jours CONSÉCUTIFS avec au moins une séance (pas juste un volume total,
+              // déjà montré par "Ton évolution" — ici, un axe de rythme/constance).
+              const weekdayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+              const topWeekdayEntry = Object.entries(weekdayCounts).sort((a, b) => b[1] - a[1])[0];
+              const topWeekday = topWeekdayEntry ? { name: weekdayNames[parseInt(topWeekdayEntry[0])], count: topWeekdayEntry[1] } : null;
+
+              const sortedDays = [...uniqueDays].sort();
+              let longestStreak = sortedDays.length > 0 ? 1 : 0;
+              let currentStreak = sortedDays.length > 0 ? 1 : 0;
+              for (let i = 1; i < sortedDays.length; i++) {
+                const diffDays = Math.round((new Date(sortedDays[i]) - new Date(sortedDays[i - 1])) / 86400000);
+                if (diffDays === 1) { currentStreak += 1; longestStreak = Math.max(longestStreak, currentStreak); }
+                else if (diffDays > 1) { currentStreak = 1; }
+              }
+
+              const bpmBucketOrder = ['< 90', '90-119', '120-149', '150-179', '180+'];
+              const bpmDistribution = bpmBucketOrder.map(label => ({ label, count: bpmBuckets[label] })).filter(b => b.count > 0);
+              const maxBpmBucketCount = Math.max(1, ...bpmDistribution.map(b => b.count));
+
               const monthLabels = { '01':'Jan','02':'Fév','03':'Mar','04':'Avr','05':'Mai','06':'Juin','07':'Juil','08':'Août','09':'Sep','10':'Oct','11':'Nov','12':'Déc' };
               const timeline = Object.entries(sessionsByMonth)
                 .sort((a, b) => a[0].localeCompare(b[0]))
@@ -3893,13 +3978,63 @@ export default function App() {
 
               const avgBpm = bpmCount > 0 ? Math.round(bpmSum / bpmCount) : null;
 
+              // Activité qui revient le plus souvent pour un artiste/titre donné —
+              // un simple "mode" statistique (l'entrée la plus fréquente), pas une
+              // vraie répartition affichée : voir le raisonnement plus haut sur
+              // pourquoi on évite un tableau croisé complet ici.
+              const dominantActivity = (counts) => {
+                const entries = Object.entries(counts || {});
+                if (entries.length === 0) return null;
+                return entries.sort((a, b) => b[1] - a[1])[0][0];
+              };
+
               const topArtists = Object.entries(artistCounts)
-                .map(([artist, count]) => ({ artist, count }))
+                .map(([artist, count]) => ({
+                  artist, count,
+                  activity: dominantActivity(artistActivityCounts[artist]),
+                  avgBpm: artistBpmCount[artist] ? Math.round(artistBpmSum[artist] / artistBpmCount[artist]) : null
+                }))
                 .sort((a, b) => b.count - a.count)
                 .slice(0, 5);
               const topTracks = Object.values(trackCounts)
+                .map(t => {
+                  const key = `${t.title}|||${t.artist}`;
+                  return {
+                    ...t,
+                    activity: dominantActivity(trackActivityCounts[key]),
+                    avgBpm: trackBpmCount[key] ? Math.round(trackBpmSum[key] / trackBpmCount[key]) : null
+                  };
+                })
                 .sort((a, b) => b.count - a.count)
                 .slice(0, 5);
+
+              // Données complètes pour la "vue détaillée" (voir showAdvancedStats) —
+              // TOUS les artistes/titres, pas juste le top 5, avec la répartition
+              // d'activité ENTIÈRE (pas que la dominante) : c'est la vraie table
+              // analytique que la vue simple évite volontairement de montrer d'office.
+              const formatActivities = (counts) => Object.entries(counts || {})
+                .sort((a, b) => b[1] - a[1])
+                .map(([act, n]) => `${act} (${n})`)
+                .join(', ');
+
+              const allArtistsDetailed = Object.entries(artistCounts)
+                .map(([artist, count]) => ({
+                  artist, count,
+                  activitiesLabel: formatActivities(artistActivityCounts[artist]),
+                  avgBpm: artistBpmCount[artist] ? Math.round(artistBpmSum[artist] / artistBpmCount[artist]) : null
+                }))
+                .sort((a, b) => b.count - a.count);
+
+              const allTracksDetailed = Object.values(trackCounts)
+                .map(t => {
+                  const key = `${t.title}|||${t.artist}`;
+                  return {
+                    ...t,
+                    activitiesLabel: formatActivities(trackActivityCounts[key]),
+                    avgBpm: trackBpmCount[key] ? Math.round(trackBpmSum[key] / trackBpmCount[key]) : null
+                  };
+                })
+                .sort((a, b) => b.count - a.count);
 
               return (
                 <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
@@ -3919,6 +4054,22 @@ export default function App() {
                     </div>
                   ) : (
                     <>
+                      {/* Bascule vers la vue détaillée (voir showAdvancedStats) — proposée
+                          en option, pas montrée d'office : la vue simple ci-dessous reste
+                          la vue par défaut pour tout le monde, pensée pour se lire d'un
+                          coup d'œil ; celle-ci est pour qui veut vraiment creuser (tous les
+                          artistes/titres, pas que le top 5, avec la répartition complète
+                          par activité — pas juste l'activité dominante). */}
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => setShowAdvancedStats(!showAdvancedStats)}
+                          className={`text-sm font-bold flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800`}
+                        >
+                          {showAdvancedStats ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
+                          {showAdvancedStats ? "Revenir à la vue simple" : "Voir le détail complet"}
+                        </button>
+                      </div>
+
                       {/* Gros chiffres — l'effet "Wrapped" tient surtout à ça : quelques
                           nombres marquants, pas un tableau de données brutes. */}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -3939,6 +4090,37 @@ export default function App() {
                           <div className={`text-xs font-bold uppercase tracking-wide mt-1 ${textMuted}`}>Styles différents</div>
                         </div>
                       </div>
+
+                      {/* Records — pas une nouvelle donnée, juste un tri narratif sur ce
+                          qui existe déjà (durée, BPM, date des séances). */}
+                      {(longestSession || fastestSession || firstSession) && (
+                        <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
+                          <h3 className={`font-bold mb-4 ${textHighlight}`}>Tes records</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                            {longestSession && (
+                              <div>
+                                <div className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>Séance la plus longue</div>
+                                <div className={`font-semibold ${textHighlight}`}>{formatDuration(longestSession.duration)} · {longestSession.activity}</div>
+                                <div className={textMuted}>{formatSessionDate(longestSession.date)}</div>
+                              </div>
+                            )}
+                            {fastestSession && (
+                              <div>
+                                <div className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>BPM le plus élevé</div>
+                                <div className={`font-semibold ${textHighlight}`}>{fastestSession.bpm} BPM · {fastestSession.activity}</div>
+                                <div className={textMuted}>{formatSessionDate(fastestSession.date)}</div>
+                              </div>
+                            )}
+                            {firstSession && (
+                              <div>
+                                <div className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>Ta toute première séance</div>
+                                <div className={`font-semibold ${textHighlight}`}>{firstSession.activity}</div>
+                                <div className={textMuted}>{formatSessionDate(firstSession.date)}</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Répartition par genre */}
                       <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
@@ -3966,6 +4148,52 @@ export default function App() {
                         </div>
                       </div>
 
+                      {/* Répartition par activité — barres horizontales plutôt qu'un 2e
+                          donut : la page en aurait eu 2 côte à côte pour "genre" et
+                          "activité", ce qui aurait dilué l'effet plutôt que de l'ajouter. */}
+                      <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
+                        <h3 className={`font-bold mb-4 ${textHighlight}`}>Tes activités</h3>
+                        <div className="space-y-3">
+                          {activityBreakdown.map((a, i) => {
+                            const maxSeconds = activityBreakdown[0].seconds;
+                            const pct = maxSeconds > 0 ? Math.max(4, Math.round((a.seconds / maxSeconds) * 100)) : 0;
+                            return (
+                              <div key={a.activity}>
+                                <div className="flex items-center justify-between text-sm mb-1">
+                                  <span className={`font-semibold ${textHighlight}`}>{a.activity}</span>
+                                  <span className={textMuted}>{a.sessions} séance{a.sessions > 1 ? 's' : ''} · {formatDuration(Math.round(a.seconds))}</span>
+                                </div>
+                                <div className="h-2 rounded-full bg-black/5 dark:bg-white/10 overflow-hidden">
+                                  <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }}></div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Répartition des BPM par tranche — plus parlant qu'un seul "BPM
+                          moyen" (voir les gros chiffres plus haut) qui peut cacher un
+                          mélange de séances très lentes et très rapides. */}
+                      {bpmDistribution.length > 0 && (
+                        <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
+                          <h3 className={`font-bold mb-4 ${textHighlight}`}>Répartition des BPM</h3>
+                          <div className="space-y-3">
+                            {bpmDistribution.map((b, i) => (
+                              <div key={b.label}>
+                                <div className="flex items-center justify-between text-sm mb-1">
+                                  <span className={`font-semibold ${textHighlight}`}>{b.label} BPM</span>
+                                  <span className={textMuted}>{b.count} titre{b.count > 1 ? 's' : ''}</span>
+                                </div>
+                                <div className="h-2 rounded-full bg-black/5 dark:bg-white/10 overflow-hidden">
+                                  <div className="h-full rounded-full" style={{ width: `${Math.max(4, Math.round((b.count / maxBpmBucketCount) * 100))}%`, backgroundColor: COLORS[i % COLORS.length] }}></div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Top artistes / top titres — comptés à chaque COMPLÉTION d'une
                           playlist qui les contient, pas juste à leur 1ère apparition (voir
                           le commentaire sur artistCounts/trackCounts plus haut). Aucun seuil
@@ -3980,10 +4208,17 @@ export default function App() {
                           ) : (
                             <div className="space-y-2">
                               {topArtists.map((a, i) => (
-                                <div key={a.artist} className="flex items-center justify-between text-sm">
+                                <div key={a.artist} className="flex items-center justify-between text-sm gap-2">
                                   <div className="flex items-center gap-2 min-w-0">
                                     <span className={`w-5 shrink-0 font-black text-xs ${textMuted}`}>#{i + 1}</span>
-                                    <span className={`truncate font-semibold ${textHighlight}`}>{a.artist}</span>
+                                    <div className="min-w-0">
+                                      <div className={`truncate font-semibold ${textHighlight}`}>{a.artist}</div>
+                                      {a.activity && (
+                                        <div className={`truncate text-xs ${textMuted}`}>
+                                          Surtout en {a.activity}{a.avgBpm ? ` · ~${a.avgBpm} BPM` : ''}
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                   <span className={`shrink-0 ${textMuted}`}>{a.count} écoute{a.count > 1 ? 's' : ''}</span>
                                 </div>
@@ -4003,7 +4238,9 @@ export default function App() {
                                     <span className={`w-5 shrink-0 font-black text-xs ${textMuted}`}>#{i + 1}</span>
                                     <div className="min-w-0">
                                       <div className={`truncate font-semibold ${textHighlight}`}>{t.title}</div>
-                                      <div className={`truncate text-xs ${textMuted}`}>{t.artist}</div>
+                                      <div className={`truncate text-xs ${textMuted}`}>
+                                        {t.artist}{t.activity ? ` · ${t.activity}` : ''}{t.avgBpm ? ` · ~${t.avgBpm} BPM` : ''}
+                                      </div>
                                     </div>
                                   </div>
                                   <span className={`shrink-0 ${textMuted}`}>{t.count}x</span>
@@ -4028,6 +4265,88 @@ export default function App() {
                               <Line type="monotone" dataKey="count" stroke={bgAccentClass.includes('rose') ? '#f43f5e' : '#ef4444'} strokeWidth={3} dot={{ r: 4 }} />
                             </LineChart>
                           </ResponsiveContainer>
+                        </div>
+                      )}
+
+                      {/* Régularité — jour de la semaine dominant + plus longue série de
+                          jours consécutifs avec au moins une séance. Axe différent de la
+                          courbe "Ton évolution" ci-dessus (qui montre le VOLUME dans le
+                          temps, pas le RYTHME/la constance). */}
+                      {(topWeekday || longestStreak > 1) && (
+                        <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
+                          <h3 className={`font-bold mb-4 ${textHighlight}`}>Ta régularité</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            {topWeekday && (
+                              <div>
+                                <div className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>Jour préféré</div>
+                                <div className={`font-semibold ${textHighlight}`}>{topWeekday.name}</div>
+                                <div className={textMuted}>{topWeekday.count} séance{topWeekday.count > 1 ? 's' : ''}</div>
+                              </div>
+                            )}
+                            <div>
+                              <div className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>Plus longue série</div>
+                              <div className={`font-semibold ${textHighlight}`}>{longestStreak} jour{longestStreak > 1 ? 's' : ''} d'affilée</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Vue détaillée — voir le bouton plus haut. TOUS les artistes/titres
+                          (pas un top 5), avec la répartition COMPLÈTE par activité plutôt
+                          que la seule activité dominante affichée ci-dessus. C'est
+                          délibérément une vraie table à lire, pas une carte à survoler —
+                          cohérent avec le fait qu'on choisit ici d'aller la consulter. */}
+                      {showAdvancedStats && (
+                        <div className="space-y-6">
+                          <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder} overflow-x-auto`}>
+                            <h3 className={`font-bold mb-4 ${textHighlight}`}>Détail par artiste ({allArtistsDetailed.length})</h3>
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className={`text-left border-b ${cardBorder} ${textMuted}`}>
+                                  <th className="pb-2 pr-3 font-semibold">Artiste</th>
+                                  <th className="pb-2 pr-3 font-semibold">Écoutes</th>
+                                  <th className="pb-2 pr-3 font-semibold">Activités</th>
+                                  <th className="pb-2 font-semibold">BPM moyen</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {allArtistsDetailed.map(a => (
+                                  <tr key={a.artist} className={`border-b last:border-0 ${cardBorder}`}>
+                                    <td className={`py-2 pr-3 font-semibold ${textHighlight}`}>{a.artist}</td>
+                                    <td className={`py-2 pr-3 ${textMuted}`}>{a.count}</td>
+                                    <td className={`py-2 pr-3 ${textMuted}`}>{a.activitiesLabel}</td>
+                                    <td className={`py-2 ${textMuted}`}>{a.avgBpm ?? '—'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder} overflow-x-auto`}>
+                            <h3 className={`font-bold mb-4 ${textHighlight}`}>Détail par titre ({allTracksDetailed.length})</h3>
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className={`text-left border-b ${cardBorder} ${textMuted}`}>
+                                  <th className="pb-2 pr-3 font-semibold">Titre</th>
+                                  <th className="pb-2 pr-3 font-semibold">Artiste</th>
+                                  <th className="pb-2 pr-3 font-semibold">Écoutes</th>
+                                  <th className="pb-2 pr-3 font-semibold">Activités</th>
+                                  <th className="pb-2 font-semibold">BPM</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {allTracksDetailed.map(t => (
+                                  <tr key={t.title + t.artist} className={`border-b last:border-0 ${cardBorder}`}>
+                                    <td className={`py-2 pr-3 font-semibold ${textHighlight}`}>{t.title}</td>
+                                    <td className={`py-2 pr-3 ${textMuted}`}>{t.artist}</td>
+                                    <td className={`py-2 pr-3 ${textMuted}`}>{t.count}</td>
+                                    <td className={`py-2 pr-3 ${textMuted}`}>{t.activitiesLabel}</td>
+                                    <td className={`py-2 ${textMuted}`}>{t.avgBpm ?? '—'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
                       )}
 
