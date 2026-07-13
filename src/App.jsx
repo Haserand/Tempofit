@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Footprints, Flame, Heart, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Link as LinkIcon, Zap, BookmarkPlus, Menu, RefreshCw, Globe, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Target, History, MessageCircle, ExternalLink, GripVertical, MoreVertical } from 'lucide-react';
+import { Activity, Clock, Music, Save, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Footprints, Flame, Heart, SlidersHorizontal, ListPlus, Loader2, User, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Info, PlaySquare, Edit3, Copy, CheckCircle, Circle, Layers, Trophy, Award, MapPin, Upload, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Target, History, MessageCircle, ExternalLink, GripVertical, MoreVertical } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, ReferenceLine, ReferenceArea, PieChart, Pie, Cell } from 'recharts';
 import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, DEEZER_GENRE_KEYWORDS, getGenreLocalDepthWarning, GENRE_EQUIVALENCE_GROUPS, isDirectGenreMatch, genreRoughlyMatches, TITLE_STYLE_OVERRIDE_KEYWORDS, detectTitleStyleConflict, normalizeGenreForDisplay } from './musicCatalog';
 import { TROPHIES_DATA, NAUGHTY_ROUTINE_NAMES, WORKOUT_TYPES, NAUGHTY_WORKOUT_LABELS, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_ORDER, WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appConfig';
@@ -32,6 +32,11 @@ const SPOTIFY_TOKEN_BASE = 'https://accounts.spotify.com/api/token';
 // texte est maintenant écrit en dur à son unique point d'usage.
 
 import { safeFetchJson, deezerFetch, resolveDeezerGenre, detectBpmFromPreview, resolveBpmForCandidates, MAX_TRACK_DURATION, pickByDurationProximity, searchArtistsForBpm, fetchInBatches, searchDeezerPage, searchDeezerForGenres, getSingleMatchingTrack, buildSegmentTracks } from './musicEngine';
+import { useTheme } from './hooks/useTheme';
+import SettingsView from './components/views/SettingsView';
+// Début du découpage de App.jsx en composants de vue (voir passation) : chaque
+// vue extraite vit dans src/components/views/, et consomme le hook useTheme
+// plutôt que de redéfinir ses propres classes de couleur.
 // Le moteur de génération (recherche Deezer, résolution de genre/BPM, catalogue
 // d'artistes, construction des segments) est maintenant dans musicEngine.js —
 // importé ci-dessus, plus rien à charger ici pour y toucher.
@@ -2830,24 +2835,14 @@ export default function App() {
   }, [currentPlaylist, currentActualData, selectedMetric, dataOffset]);
 
   // --- Tokens de thème (couleurs Tailwind conditionnées par le mode Intime / clair-sombre) ---
-  const themeColor = isNaughtyMode ? 'rose' : 'red';
-  const bgMainApp = isNaughtyMode ? 'bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-rose-50 to-white dark:from-gray-900 dark:via-rose-950/20 dark:to-black' : 'bg-gray-50 dark:bg-gray-950';
-  const textMain = 'text-gray-900 dark:text-gray-100';
-  const textColorClass = isNaughtyMode ? 'text-rose-500 dark:text-rose-400' : 'text-red-500 dark:text-red-500';
-  const bgAccentClass = isNaughtyMode ? 'bg-rose-500 dark:bg-rose-600' : 'bg-red-500 dark:bg-red-600';
-  const borderAccentClass = isNaughtyMode ? 'border-rose-500' : 'border-red-500';
-
-  const cardBg = "bg-white dark:bg-gray-900";
-  const cardBorder = "border-gray-200 dark:border-gray-800";
-  const inputBg = "bg-gray-50 dark:bg-gray-950";
-  const inputBorder = "border-gray-300 dark:border-gray-700";
-  // BUG DE CONTRASTE CORRIGÉ : le mode Intime éclaircit le fond en mode clair
-  // (dégradé rose très pâle/blanc, voir bgMainApp), mais le texte "muted" gardait
-  // le même gris clair que le fond neutre standard — illisible dans ce contexte
-  // plus pâle. On fonce ce gris uniquement en clair + Intime, où le contraste
-  // manquait vraiment ; le mode sombre n'était pas concerné (fond toujours foncé).
-  const textMuted = isNaughtyMode ? "text-gray-500 dark:text-gray-500" : "text-gray-400 dark:text-gray-500";
-  const textHighlight = "text-gray-900 dark:text-white";
+  // Extrait dans src/hooks/useTheme.js (voir passation) — déstructuré ici avec
+  // les mêmes noms qu'avant pour ne rien casser dans le reste du fichier, qui
+  // n'est pas encore entièrement découpé en composants de vue.
+  const themeTokens = useTheme(isNaughtyMode);
+  const {
+    themeColor, bgMainApp, textMain, textColorClass, bgAccentClass, borderAccentClass,
+    cardBg, cardBorder, inputBg, inputBorder, textMuted, textHighlight,
+  } = themeTokens;
 
   return (
     <div className={`${theme === 'dark' ? 'dark' : ''}`}>
@@ -4668,45 +4663,7 @@ export default function App() {
 
             {/* ===================== VIEW: SETTINGS (OPTIONS ET COMPTES) ===================== */}
             {view === 'settings' && (
-              <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
-                <div className={`border-b ${cardBorder} pb-6`}>
-                  <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}>
-                    <Settings className={textColorClass} size={36} /> <span>Options & Comptes</span>
-                  </h1>
-                  <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Connecte tes plateformes pour utiliser de vraies musiques.</p>
-                </div>
-
-                <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
-                  <h3 className={`font-bold text-xl mb-6 ${textHighlight}`}>Comptes connectés</h3>
-
-                  <div className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${spotifyToken ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : inputBorder + ' ' + inputBg}`}>
-                    <div className="flex items-center space-x-4">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${spotifyToken ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'}`}>
-                        <LinkIcon size={24} />
-                      </div>
-                      <div>
-                        <h4 className={`font-bold text-lg ${textHighlight}`}>Spotify</h4>
-                        <p className={`text-sm ${textMuted}`}>{spotifyToken ? 'Connecté (Accès à 100M de titres)' : 'Non connecté'}</p>
-                      </div>
-                    </div>
-
-                    {!spotifyToken ? (
-                      <button onClick={loginSpotify} className="px-6 py-3 bg-[#1DB954] hover:bg-[#1ed760] text-black font-black rounded-xl shadow-md transition-all flex items-center space-x-2">
-                        <span>Lier mon compte</span>
-                      </button>
-                    ) : (
-                      <button onClick={() => { window.localStorage.removeItem("spotify_token"); setSpotifyToken(null); }} className={`px-4 py-2 bg-gray-200 dark:bg-gray-800 font-bold rounded-lg hover:bg-red-100 hover:text-red-500 transition-all text-gray-500`}>
-                        Déconnecter
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="h-4"></div>
-                  <div className="p-4 rounded-2xl border border-green-500 bg-green-50 dark:bg-green-900/10 text-sm font-bold text-green-600 dark:text-green-400 flex items-center gap-2">
-                    <Globe size={18}/> <span>Base musicale mondiale : connectée</span>
-                  </div>
-                </div>
-              </div>
+              <SettingsView theme={themeTokens} spotifyToken={spotifyToken} loginSpotify={loginSpotify} setSpotifyToken={setSpotifyToken} />
             )}
 
             {/* ===================== VIEW: FAVORITES ===================== */}
