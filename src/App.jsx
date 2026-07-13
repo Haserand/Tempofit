@@ -2690,7 +2690,7 @@ export default function App() {
               <button
                 onClick={(e) => triggerCSVUpload(e, playlist, iso)}
                 className={hasData ? "text-purple-500 hover:text-purple-600 transition-colors" : "text-gray-400 hover:text-blue-500 transition-colors"}
-                title={hasData ? "Données déjà importées pour cette séance (cadence et/ou FC) — cliquer pour remplacer" : "Importer les données Garmin/Strava de cette séance (cadence et/ou fréquence cardiaque)"}
+                title={hasData ? "Données déjà importées — cliquer pour remplacer" : "Importer Garmin/Strava (cadence/FC)"}
               >
                 <Upload size={12}/>
               </button>
@@ -4234,6 +4234,22 @@ export default function App() {
                           <div className={`text-xs font-bold uppercase tracking-wide mt-1 ${textMuted}`}>Styles différents</div>
                         </div>
                       </div>
+
+                      {/* Donnée réelle importée (cadence/FC Garmin-Strava) — n'existait
+                          jusqu'ici QUE dans le graphique "Cible vs Réalité" de chaque
+                          playlist prise individuellement, nulle part en vue d'ensemble
+                          (retour utilisateur). Réutilise `userStats.dataImports`, déjà
+                          suivi pour le trophée "Data Scientist" mais jamais affiché nulle
+                          part — pas une nouvelle donnée à calculer, juste la rendre visible.
+                          Volontairement léger (une ligne, pas une 5e grosse carte qui aurait
+                          cassé la grille à 4 colonnes) : le détail complet reste dans "Mes
+                          Playlists"/l'historique, ici c'est juste un rappel que ça existe. */}
+                      {userStats.dataImports > 0 && (
+                        <div className={`flex items-center gap-2 text-sm ${textMuted}`}>
+                          <Upload size={14}/>
+                          <span>{userStats.dataImports} import{userStats.dataImports > 1 ? 's' : ''} de données réelles (cadence/FC Garmin-Strava) — détail dans "Mes Playlists".</span>
+                        </div>
+                      )}
 
                       {/* Records — pas une nouvelle donnée, juste un tri narratif sur ce
                           qui existe déjà (durée, BPM, date des séances). */}
