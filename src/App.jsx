@@ -151,6 +151,16 @@ export default function App() {
   // uniquement sur bascule explicite. Un seul pipeline de calcul/rendu pour les
   // deux (voir playlistsForStats plus bas), pas 2 pages dupliquées à maintenir.
   const [statsMode, setStatsMode] = useState('standard');
+  // Genre/tranche BPM actuellement "ouvert" dans les donuts de la page Statistiques
+  // (clic sur une part = aperçu ciblé dessous) — voir plus bas pour le détail.
+  const [selectedStatsGenre, setSelectedStatsGenre] = useState(null);
+  const [selectedStatsBpmBucket, setSelectedStatsBpmBucket] = useState(null);
+  // Ligne actuellement dépliée dans les tables de la vue détaillée (genre ou
+  // artiste) — voir plus bas. Contrairement au zoom léger de la vue simple
+  // (plafonné à 3), ici la liste dépliée est COMPLÈTE, cohérent avec le principe
+  // déjà établi pour cette vue ("aucun seuil caché pour gonfler un classement pauvre").
+  const [expandedDetailGenre, setExpandedDetailGenre] = useState(null);
+  const [expandedDetailArtist, setExpandedDetailArtist] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [theme, setTheme] = useState('dark'); 
@@ -3878,6 +3888,10 @@ export default function App() {
               const artistBpmSum = {}; const artistBpmCount = {};
               const trackBpmSum = {}; const trackBpmCount = {};
               const trackActivityCounts = {}; // clé titre|||artiste -> { activité -> count }
+              // artiste -> { clé titre|||artiste -> {title, count} } — pour déplier une
+              // ligne "Détail par artiste" (vue avancée) et voir TOUS ses titres, pas
+              // juste les 3 du zoom léger de la vue simple.
+              const artistTrackCounts = {};
               // Une entrée par COMPLÉTION (pas par playlist) — sert aux "records" plus
               // bas (séance la plus longue, BPM le plus élevé...) : chaque rejeu d'une
               // même playlist est une séance à part entière, pas un doublon à ignorer.
@@ -3893,6 +3907,16 @@ export default function App() {
               // lentes et très rapides.
               const bpmBuckets = { '< 90': 0, '90-119': 0, '120-149': 0, '150-179': 0, '180+': 0 };
               const bpmBucketLabel = (bpm) => bpm < 90 ? '< 90' : bpm < 120 ? '90-119' : bpm < 150 ? '120-149' : bpm < 180 ? '150-179' : '180+';
+              // Données de "zoom" au clic sur une part de donut (genre ou tranche BPM) —
+              // voir selectedStatsGenre/selectedStatsBpmBucket. Même principe que les
+              // autres tallies imbriqués de cette page, juste une clé de plus (le genre,
+              // ou la tranche BPM) avant d'arriver à artiste/titre.
+              const genreArtistCounts = {}; // genre -> { artiste -> count }
+              const genreTrackCounts = {}; // genre -> { clé titre|||artiste -> {title, artist, count} }
+              const genreBpmBuckets = {}; // genre -> { tranche BPM -> count }
+              const bpmBucketArtistCounts = {}; // tranche -> { artiste -> count }
+              const bpmBucketTrackCounts = {}; // tranche -> { clé titre|||artiste -> {title, artist, count} }
+              const bpmBucketGenreCounts = {}; // tranche -> { genre -> count }
               // Genre × activité — même mécanisme que artistActivityCounts plus haut,
               // pour la vue détaillée (voir showAdvancedStats) : quelle activité
               // domine/se répartit pour chaque genre écouté.
@@ -3944,11 +3968,43 @@ export default function App() {
                     if (!artistActivityCounts[t.artist]) artistActivityCounts[t.artist] = {};
                     artistActivityCounts[t.artist][activity] = (artistActivityCounts[t.artist][activity] || 0) + 1;
                     if (t.bpm) { artistBpmSum[t.artist] = (artistBpmSum[t.artist] || 0) + t.bpm; artistBpmCount[t.artist] = (artistBpmCount[t.artist] || 0) + 1; }
+                    if (!artistTrackCounts[t.artist]) artistTrackCounts[t.artist] = {};
+                    if (!artistTrackCounts[t.artist][key]) artistTrackCounts[t.artist][key] = { title: t.title, count: 0 };
+                    artistTrackCounts[t.artist][key].count += 1;
 
                     if (!trackActivityCounts[key]) trackActivityCounts[key] = {};
                     trackActivityCounts[key][activity] = (trackActivityCounts[key][activity] || 0) + 1;
                     if (t.bpm) { trackBpmSum[key] = (trackBpmSum[key] || 0) + t.bpm; trackBpmCount[key] = (trackBpmCount[key] || 0) + 1; }
-                    if (t.bpm) bpmBuckets[bpmBucketLabel(t.bpm)] += 1;
+
+                    // Zoom par genre : chaque genre sélectionné pour CETTE séance (pas le
+                    // genre réel du titre — cohérent avec genreSeconds/genreSessions qui
+                    // se basent déjà sur `genres`, pas sur `t.genre`) reçoit ce titre.
+                    genres.forEach(g => {
+                      if (!genreArtistCounts[g]) genreArtistCounts[g] = {};
+                      genreArtistCounts[g][t.artist] = (genreArtistCounts[g][t.artist] || 0) + 1;
+                      if (!genreTrackCounts[g]) genreTrackCounts[g] = {};
+                      if (!genreTrackCounts[g][key]) genreTrackCounts[g][key] = { title: t.title, artist: t.artist, count: 0 };
+                      genreTrackCounts[g][key].count += 1;
+                      if (t.bpm) {
+                        if (!genreBpmBuckets[g]) genreBpmBuckets[g] = {};
+                        const b = bpmBucketLabel(t.bpm);
+                        genreBpmBuckets[g][b] = (genreBpmBuckets[g][b] || 0) + 1;
+                      }
+                    });
+
+                    if (t.bpm) {
+                      const bucket = bpmBucketLabel(t.bpm);
+                      bpmBuckets[bucket] += 1;
+                      if (!bpmBucketArtistCounts[bucket]) bpmBucketArtistCounts[bucket] = {};
+                      bpmBucketArtistCounts[bucket][t.artist] = (bpmBucketArtistCounts[bucket][t.artist] || 0) + 1;
+                      if (!bpmBucketTrackCounts[bucket]) bpmBucketTrackCounts[bucket] = {};
+                      if (!bpmBucketTrackCounts[bucket][key]) bpmBucketTrackCounts[bucket][key] = { title: t.title, artist: t.artist, count: 0 };
+                      bpmBucketTrackCounts[bucket][key].count += 1;
+                      genres.forEach(g => {
+                        if (!bpmBucketGenreCounts[bucket]) bpmBucketGenreCounts[bucket] = {};
+                        bpmBucketGenreCounts[bucket][g] = (bpmBucketGenreCounts[bucket][g] || 0) + 1;
+                      });
+                    }
                   });
                   // Regroupement par mois (année-mois) plutôt que par semaine ISO —
                   // plus simple à calculer sans librairie de dates dédiée, et bien
@@ -4002,6 +4058,11 @@ export default function App() {
               const bpmBucketOrder = ['< 90', '90-119', '120-149', '150-179', '180+'];
               const bpmDistribution = bpmBucketOrder.map(label => ({ label, count: bpmBuckets[label] })).filter(b => b.count > 0);
               const maxBpmBucketCount = Math.max(1, ...bpmDistribution.map(b => b.count));
+
+              // Aperçu au clic (voir selectedStatsGenre/selectedStatsBpmBucket plus bas) —
+              // top 3 seulement : un aperçu, pas un doublon de la vue détaillée existante.
+              const topNEntries = (counts, n = 3) => Object.entries(counts || {}).sort((a, b) => b[1] - a[1]).slice(0, n);
+              const topNTracksFromMap = (tracksMap, n = 3) => Object.values(tracksMap || {}).sort((a, b) => b.count - a.count).slice(0, n);
 
               const monthLabels = { '01':'Jan','02':'Fév','03':'Mar','04':'Avr','05':'Mai','06':'Juin','07':'Juil','08':'Août','09':'Sep','10':'Oct','11':'Nov','12':'Déc' };
               const timeline = Object.entries(sessionsByMonth)
@@ -4100,14 +4161,14 @@ export default function App() {
                         discrétion à préserver, on est déjà dans la vue Intime. */}
                     {statsMode === 'naughty' ? (
                       <button
-                        onClick={() => setStatsMode('standard')}
+                        onClick={() => { setStatsMode('standard'); setSelectedStatsGenre(null); setSelectedStatsBpmBucket(null); }}
                         className={`shrink-0 text-xs font-bold px-3 py-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800`}
                       >
                         ← Stats standards
                       </button>
                     ) : (
                       <button
-                        onClick={() => setStatsMode('naughty')}
+                        onClick={() => { setStatsMode('naughty'); setSelectedStatsGenre(null); setSelectedStatsBpmBucket(null); }}
                         title="Stats Mode Intime"
                         className="shrink-0 p-2 rounded-lg text-gray-400 hover:text-rose-500 transition-colors cursor-pointer"
                       >
@@ -4211,10 +4272,66 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* BPM + genre, côte à côte (retour utilisateur : les deux donuts
-                          doivent se répondre visuellement) — BPM en premier (colonne de
-                          gauche) pour respecter l'ordre du wizard, genre juste après. */}
+                      {/* Styles + BPM, côte à côte (retour utilisateur : les deux donuts
+                          doivent se répondre visuellement) — ordre inversé (styles d'abord)
+                          par rapport à une version précédente qui suivait strictement l'ordre
+                          du wizard ; gardé simple ici, le wizard reste respecté pour "Tes
+                          activités" au-dessus. Chaque part est cliquable (voir
+                          selectedStatsGenre/selectedStatsBpmBucket) : un aperçu ciblé
+                          (top 3 artistes/titres + répartition BPM ou genre) s'ouvre en
+                          dessous — volontairement un simple aperçu, pas un nouveau tableau de
+                          bord imbriqué (la vue détaillée plus bas sert déjà à creuser vraiment). */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
+                          <h3 className={`font-bold mb-4 ${textHighlight}`}>Tes styles</h3>
+                          <div className="flex flex-col items-center gap-4">
+                            <ResponsiveContainer width="100%" height={180}>
+                              <PieChart>
+                                <Pie
+                                  data={genreBreakdown} dataKey="seconds" nameKey="genre" innerRadius={45} outerRadius={80} paddingAngle={2}
+                                  onClick={(entry) => setSelectedStatsGenre(prev => prev === entry.genre ? null : entry.genre)}
+                                  style={{ cursor: 'pointer' }}
+                                >
+                                  {genreBreakdown.map((entry, i) => (
+                                    <Cell key={entry.genre} fill={COLORS[i % COLORS.length]} opacity={selectedStatsGenre && selectedStatsGenre !== entry.genre ? 0.35 : 1} />
+                                  ))}
+                                </Pie>
+                                <RechartsTooltip formatter={(value, name) => [formatDuration(Math.round(value)), name]} />
+                              </PieChart>
+                            </ResponsiveContainer>
+                            <div className="w-full space-y-2">
+                              {genreBreakdown.map((g, i) => (
+                                <button
+                                  key={g.genre}
+                                  onClick={() => setSelectedStatsGenre(prev => prev === g.genre ? null : g.genre)}
+                                  className={`w-full flex items-center justify-between text-sm rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedStatsGenre === g.genre ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }}></span>
+                                    <span className={`truncate font-semibold ${textHighlight}`}>{g.genre}</span>
+                                  </div>
+                                  <span className={`shrink-0 ${textMuted}`}>{g.sessions} séance{g.sessions > 1 ? 's' : ''} · {formatDuration(Math.round(g.seconds))}</span>
+                                </button>
+                              ))}
+                            </div>
+                            {/* Aperçu ciblé — voir le commentaire au-dessus de cette grille. */}
+                            {selectedStatsGenre && (
+                              <div className={`w-full text-sm space-y-1.5 pt-3 border-t ${cardBorder}`}>
+                                <div className={`font-bold ${textHighlight}`}>Zoom : {selectedStatsGenre}</div>
+                                <div className={textMuted}>
+                                  <span className="font-semibold">Artistes</span> : {topNEntries(genreArtistCounts[selectedStatsGenre]).map(([a, c]) => `${a} (${c})`).join(', ') || '—'}
+                                </div>
+                                <div className={textMuted}>
+                                  <span className="font-semibold">Titres</span> : {topNTracksFromMap(genreTrackCounts[selectedStatsGenre]).map(t => `${t.title} (${t.count})`).join(', ') || '—'}
+                                </div>
+                                <div className={textMuted}>
+                                  <span className="font-semibold">BPM</span> : {bpmBucketOrder.filter(b => (genreBpmBuckets[selectedStatsGenre] || {})[b]).map(b => `${b} (${genreBpmBuckets[selectedStatsGenre][b]})`).join(', ') || '—'}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
                         {/* "Répartition des BPM" — plus parlant qu'un seul "BPM moyen" (gros
                             chiffres plus haut) qui peut cacher un mélange de séances très
                             lentes et très rapides. */}
@@ -4224,52 +4341,53 @@ export default function App() {
                             <div className="flex flex-col items-center gap-4">
                               <ResponsiveContainer width="100%" height={180}>
                                 <PieChart>
-                                  <Pie data={bpmDistribution} dataKey="count" nameKey="label" innerRadius={45} outerRadius={80} paddingAngle={2}>
-                                    {bpmDistribution.map((entry, i) => <Cell key={entry.label} fill={COLORS[i % COLORS.length]} />)}
+                                  <Pie
+                                    data={bpmDistribution} dataKey="count" nameKey="label" innerRadius={45} outerRadius={80} paddingAngle={2}
+                                    onClick={(entry) => setSelectedStatsBpmBucket(prev => prev === entry.label ? null : entry.label)}
+                                    style={{ cursor: 'pointer' }}
+                                  >
+                                    {bpmDistribution.map((entry, i) => (
+                                      <Cell key={entry.label} fill={COLORS[i % COLORS.length]} opacity={selectedStatsBpmBucket && selectedStatsBpmBucket !== entry.label ? 0.35 : 1} />
+                                    ))}
                                   </Pie>
                                   <RechartsTooltip formatter={(value, name) => [`${value} titre${value > 1 ? 's' : ''}`, `${name} BPM`]} />
                                 </PieChart>
                               </ResponsiveContainer>
                               <div className="w-full space-y-2">
                                 {bpmDistribution.map((b, i) => (
-                                  <div key={b.label} className="flex items-center justify-between text-sm">
+                                  <button
+                                    key={b.label}
+                                    onClick={() => setSelectedStatsBpmBucket(prev => prev === b.label ? null : b.label)}
+                                    className={`w-full flex items-center justify-between text-sm rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedStatsBpmBucket === b.label ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+                                  >
                                     <div className="flex items-center gap-2 min-w-0">
                                       <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }}></span>
                                       <span className={`truncate font-semibold ${textHighlight}`}>{b.label} BPM</span>
                                     </div>
                                     <span className={`shrink-0 ${textMuted}`}>{b.count} titre{b.count > 1 ? 's' : ''}</span>
-                                  </div>
+                                  </button>
                                 ))}
                               </div>
+                              {/* Aperçu ciblé — même principe que pour les styles ci-contre. */}
+                              {selectedStatsBpmBucket && (
+                                <div className={`w-full text-sm space-y-1.5 pt-3 border-t ${cardBorder}`}>
+                                  <div className={`font-bold ${textHighlight}`}>Zoom : {selectedStatsBpmBucket} BPM</div>
+                                  <div className={textMuted}>
+                                    <span className="font-semibold">Artistes</span> : {topNEntries(bpmBucketArtistCounts[selectedStatsBpmBucket]).map(([a, c]) => `${a} (${c})`).join(', ') || '—'}
+                                  </div>
+                                  <div className={textMuted}>
+                                    <span className="font-semibold">Titres</span> : {topNTracksFromMap(bpmBucketTrackCounts[selectedStatsBpmBucket]).map(t => `${t.title} (${t.count})`).join(', ') || '—'}
+                                  </div>
+                                  <div className={textMuted}>
+                                    <span className="font-semibold">Styles</span> : {topNEntries(bpmBucketGenreCounts[selectedStatsBpmBucket]).map(([g, c]) => `${g} (${c})`).join(', ') || '—'}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}
-
-                        <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
-                          <h3 className={`font-bold mb-4 ${textHighlight}`}>Tes styles</h3>
-                          <div className="flex flex-col items-center gap-4">
-                            <ResponsiveContainer width="100%" height={180}>
-                              <PieChart>
-                                <Pie data={genreBreakdown} dataKey="seconds" nameKey="genre" innerRadius={45} outerRadius={80} paddingAngle={2}>
-                                  {genreBreakdown.map((entry, i) => <Cell key={entry.genre} fill={COLORS[i % COLORS.length]} />)}
-                                </Pie>
-                                <RechartsTooltip formatter={(value, name) => [formatDuration(Math.round(value)), name]} />
-                              </PieChart>
-                            </ResponsiveContainer>
-                            <div className="w-full space-y-2">
-                              {genreBreakdown.map((g, i) => (
-                                <div key={g.genre} className="flex items-center justify-between text-sm">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }}></span>
-                                    <span className={`truncate font-semibold ${textHighlight}`}>{g.genre}</span>
-                                  </div>
-                                  <span className={`shrink-0 ${textMuted}`}>{g.sessions} séance{g.sessions > 1 ? 's' : ''} · {formatDuration(Math.round(g.seconds))}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
                       </div>
+
 
                       {/* Top artistes / top titres — comptés à chaque COMPLÉTION d'une
                           playlist qui les contient, pas juste à leur 1ère apparition (voir
@@ -4399,14 +4517,35 @@ export default function App() {
                                 </tr>
                               </thead>
                               <tbody>
-                                {allGenresDetailed.map(g => (
-                                  <tr key={g.genre} className={`border-b last:border-0 ${cardBorder}`}>
-                                    <td className={`py-2 pr-3 font-semibold ${textHighlight}`}>{g.genre}</td>
-                                    <td className={`py-2 pr-3 ${textMuted}`}>{g.sessions}</td>
-                                    <td className={`py-2 pr-3 ${textMuted}`}>{formatDuration(Math.round(g.seconds))}</td>
-                                    <td className={`py-2 ${textMuted}`}>{g.activitiesLabel}</td>
-                                  </tr>
-                                ))}
+                                {allGenresDetailed.map(g => {
+                                  const isExpanded = expandedDetailGenre === g.genre;
+                                  return (
+                                  <React.Fragment key={g.genre}>
+                                    <tr
+                                      onClick={() => setExpandedDetailGenre(isExpanded ? null : g.genre)}
+                                      className={`border-b last:border-0 ${cardBorder} cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${isExpanded ? 'bg-black/5 dark:bg-white/5' : ''}`}
+                                    >
+                                      <td className={`py-2 pr-3 font-semibold ${textHighlight} flex items-center gap-1.5`}>
+                                        {isExpanded ? <ChevronUp size={14}/> : <ChevronDown size={14}/>} {g.genre}
+                                      </td>
+                                      <td className={`py-2 pr-3 ${textMuted}`}>{g.sessions}</td>
+                                      <td className={`py-2 pr-3 ${textMuted}`}>{formatDuration(Math.round(g.seconds))}</td>
+                                      <td className={`py-2 ${textMuted}`}>{g.activitiesLabel}</td>
+                                    </tr>
+                                    {isExpanded && (
+                                      <tr className={`border-b last:border-0 ${cardBorder}`}>
+                                        <td colSpan={4} className="py-3 px-2 text-xs space-y-1.5">
+                                          {/* Liste COMPLÈTE, pas plafonnée à 3 comme dans la vue simple —
+                                              c'est tout l'intérêt de cette vue avancée. */}
+                                          <div className={textMuted}><span className={`font-semibold ${textHighlight}`}>Tous les artistes</span> : {topNEntries(genreArtistCounts[g.genre], Infinity).map(([a, c]) => `${a} (${c})`).join(', ') || '—'}</div>
+                                          <div className={textMuted}><span className={`font-semibold ${textHighlight}`}>Tous les titres</span> : {topNTracksFromMap(genreTrackCounts[g.genre], Infinity).map(t => `${t.title} (${t.count})`).join(', ') || '—'}</div>
+                                          <div className={textMuted}><span className={`font-semibold ${textHighlight}`}>BPM</span> : {bpmBucketOrder.filter(b => (genreBpmBuckets[g.genre] || {})[b]).map(b => `${b} (${genreBpmBuckets[g.genre][b]})`).join(', ') || '—'}</div>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </React.Fragment>
+                                  );
+                                })}
                               </tbody>
                             </table>
                           </div>
@@ -4423,14 +4562,31 @@ export default function App() {
                                 </tr>
                               </thead>
                               <tbody>
-                                {allArtistsDetailed.map(a => (
-                                  <tr key={a.artist} className={`border-b last:border-0 ${cardBorder}`}>
-                                    <td className={`py-2 pr-3 font-semibold ${textHighlight}`}>{a.artist}</td>
-                                    <td className={`py-2 pr-3 ${textMuted}`}>{a.count}</td>
-                                    <td className={`py-2 pr-3 ${textMuted}`}>{a.activitiesLabel}</td>
-                                    <td className={`py-2 ${textMuted}`}>{a.avgBpm ?? '—'}</td>
-                                  </tr>
-                                ))}
+                                {allArtistsDetailed.map(a => {
+                                  const isExpanded = expandedDetailArtist === a.artist;
+                                  return (
+                                  <React.Fragment key={a.artist}>
+                                    <tr
+                                      onClick={() => setExpandedDetailArtist(isExpanded ? null : a.artist)}
+                                      className={`border-b last:border-0 ${cardBorder} cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${isExpanded ? 'bg-black/5 dark:bg-white/5' : ''}`}
+                                    >
+                                      <td className={`py-2 pr-3 font-semibold ${textHighlight} flex items-center gap-1.5`}>
+                                        {isExpanded ? <ChevronUp size={14}/> : <ChevronDown size={14}/>} {a.artist}
+                                      </td>
+                                      <td className={`py-2 pr-3 ${textMuted}`}>{a.count}</td>
+                                      <td className={`py-2 pr-3 ${textMuted}`}>{a.activitiesLabel}</td>
+                                      <td className={`py-2 ${textMuted}`}>{a.avgBpm ?? '—'}</td>
+                                    </tr>
+                                    {isExpanded && (
+                                      <tr className={`border-b last:border-0 ${cardBorder}`}>
+                                        <td colSpan={4} className="py-3 px-2 text-xs">
+                                          <div className={textMuted}><span className={`font-semibold ${textHighlight}`}>Tous les titres de {a.artist}</span> : {topNTracksFromMap(artistTrackCounts[a.artist], Infinity).map(t => `${t.title} (${t.count})`).join(', ') || '—'}</div>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </React.Fragment>
+                                  );
+                                })}
                               </tbody>
                             </table>
                           </div>
