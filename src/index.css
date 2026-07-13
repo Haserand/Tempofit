@@ -30,3 +30,24 @@ button {
 button:disabled {
   cursor: not-allowed;
 }
+
+/* Correctif plus large (retour utilisateur : le curseur I-beam restait visible
+   "à plein d'endroits" après le fix ci-dessus) — la règle sur <button> ne
+   couvrait QUE les boutons, mais TOUT texte HTML est sélectionnable par défaut :
+   n'importe quel titre, label ou texte de carte affichait donc encore un
+   curseur texte au survol, même sans être cliquable. Pour une app qui se veut
+   "native" (pas un document qu'on lit/sélectionne), on désactive la sélection
+   de texte PARTOUT par défaut, puis on la réactive explicitement seulement là
+   où elle sert vraiment : les champs de saisie (renommer une playlist,
+   rechercher un titre, taper un BPM...). Sans cette réactivation ciblée, les
+   inputs eux-mêmes perdraient leur curseur de saisie ET la sélection au
+   glisser-déposer dans le texte tapé — cassant l'édition, pas juste le survol. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
