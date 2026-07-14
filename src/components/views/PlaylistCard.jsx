@@ -1,4 +1,4 @@
-import { Music, Trash2, CheckCircle, Circle, Activity, List, ListOrdered } from 'lucide-react';
+import { Music, Trash2, CheckCircle, Circle, Activity, List, Calendar, GripVertical } from 'lucide-react';
 
 /**
  * PlaylistCard — carte d'une playlist, partagée entre PlaylistsView
@@ -21,7 +21,8 @@ export default function PlaylistCard({
   theme, isNaughtyMode, playlist, rankStyle, rank,
   onClick, onDelete, showActions,
   renderConfigInfoLine, renderCompletionsList, markPlaylistAsCompleted,
-  isQueued, onToggleQueue,
+  onSetPlannedDate,
+  draggable, onDragStart, onDragEnter, onDragEnd, isDragging,
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, bgAccentClass, inputBg, inputBorder } = theme;
   const isCompleted = playlist.completions && playlist.completions.length > 0;
@@ -61,25 +62,44 @@ export default function PlaylistCard({
 
   return (
     <div
-      className={`${cardBg} rounded-2xl p-4 border ${borderClasses} shadow-sm flex flex-col group hover:border-gray-400 transition-colors cursor-pointer select-none relative`}
+      className={`${cardBg} rounded-2xl p-4 border ${borderClasses} shadow-sm flex flex-col group hover:border-gray-400 transition-colors cursor-pointer select-none relative ${isDragging ? 'opacity-40' : ''}`}
       onClick={onClick}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnter={onDragEnter}
+      onDragOver={draggable ? (e) => e.preventDefault() : undefined}
+      onDragEnd={onDragEnd}
     >
       {rankStyle && <span className="absolute -top-2 -right-2 text-xl" title={`${playlist.completions.length} fois — la ${rank === 0 ? 'plus' : rank === 1 ? '2e plus' : '3e plus'} utilisée`}>{rankStyle.emoji}</span>}
 
       <div className="flex items-start justify-between mb-3">
-        <div className={`${iconBoxSize} rounded-xl flex items-center justify-center bg-gradient-to-br ${isNaughtyMode ? 'from-rose-400 to-rose-600' : 'from-gray-800 to-black dark:from-gray-200 dark:to-white'} shrink-0`}>
-          {playlist.coverIcon || <Music size={iconSize} className={isNaughtyMode ? 'text-white' : 'text-white dark:text-black'} />}
+        <div className="flex items-center gap-2 min-w-0">
+          {draggable && (
+            <div className="shrink-0 cursor-grab active:cursor-grabbing text-gray-400" title="Glisser pour réordonner">
+              <GripVertical size={16}/>
+            </div>
+          )}
+          <div className={`${iconBoxSize} rounded-xl flex items-center justify-center bg-gradient-to-br ${isNaughtyMode ? 'from-rose-400 to-rose-600' : 'from-gray-800 to-black dark:from-gray-200 dark:to-white'} shrink-0`}>
+            {playlist.coverIcon || <Music size={iconSize} className={isNaughtyMode ? 'text-white' : 'text-white dark:text-black'} />}
+          </div>
         </div>
         {showActions ? (
           <div className="flex items-center gap-1">
-            {onToggleQueue && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onToggleQueue(playlist.id); }}
-                className={`p-2 rounded-lg transition-colors ${isQueued ? 'text-amber-500' : 'text-gray-400 opacity-0 group-hover:opacity-100 hover:text-amber-500'}`}
-                title={isQueued ? "Dans la file d'attente — retirer" : "Ajouter à la file d'attente"}
+            {onSetPlannedDate && (
+              <label
+                onClick={(e) => e.stopPropagation()}
+                className={`relative flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors ${playlist.plannedDate ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 opacity-0 group-hover:opacity-100 hover:text-amber-500'}`}
+                title={playlist.plannedDate ? "Date planifiée — modifier" : "Planifier une date (optionnel, sert juste à trier)"}
               >
-                <ListOrdered size={18} />
-              </button>
+                <Calendar size={16} />
+                {playlist.plannedDate && <span>{new Date(playlist.plannedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
+                <input
+                  type="date"
+                  value={playlist.plannedDate || ''}
+                  onChange={(e) => onSetPlannedDate(playlist.id, e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+              </label>
             )}
             <button onClick={(e) => { e.stopPropagation(); onDelete(playlist.id); }} className="p-2 rounded-lg text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100">
               <Trash2 size={18} />
@@ -112,6 +132,28 @@ export default function PlaylistCard({
                 </div>
                 <span className={`text-[10px] uppercase font-bold tracking-wider ${textMuted}`}>Créée le {playlist.createdAt}</span>
               </div>
+              {/* Compare la date PLANIFIÉE (intention, optionnelle) à la date RÉELLE
+                  de la dernière complétion — deux choses distinctes qui coexistent :
+                  plannedDate ne se met jamais à jour toute seule quand on marque la
+                  playlist comme faite, donc l'écart reste visible après coup plutôt
+                  que d'être silencieusement écrasé. */}
+              {playlist.plannedDate && (() => {
+                const lastIso = playlist.completions[playlist.completions.length - 1];
+                const lastDateOnly = lastIso.slice(0, 10);
+                const plannedFormatted = new Date(playlist.plannedDate + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+                let comparison;
+                if (lastDateOnly === playlist.plannedDate) {
+                  comparison = 'faite comme prévu';
+                } else {
+                  const diffDays = Math.round((new Date(lastDateOnly) - new Date(playlist.plannedDate)) / 86400000);
+                  comparison = diffDays > 0 ? `faite ${diffDays}j plus tard` : `faite ${Math.abs(diffDays)}j plus tôt`;
+                }
+                return (
+                  <div className={`text-xs ${textMuted}`}>
+                    Planifiée le {plannedFormatted} · {comparison}
+                  </div>
+                );
+              })()}
               {renderCompletionsList(playlist)}
               <button onClick={(e) => markPlaylistAsCompleted(e, playlist.id)} className={`flex items-center justify-center w-full py-2 text-xs font-bold ${inputBg} hover:bg-green-100 dark:hover:bg-green-900/20 hover:text-green-600 rounded-lg transition-colors border ${inputBorder}`}>
                 <Circle size={14} className="mr-1.5"/> Marquer comme refaite aujourd'hui
