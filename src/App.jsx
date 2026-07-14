@@ -32,6 +32,7 @@ const SPOTIFY_TOKEN_BASE = 'https://accounts.spotify.com/api/token';
 
 import { safeFetchJson, deezerFetch, resolveDeezerGenre, detectBpmFromPreview, resolveBpmForCandidates, MAX_TRACK_DURATION, pickByDurationProximity, searchArtistsForBpm, fetchInBatches, searchDeezerPage, searchDeezerForGenres, getSingleMatchingTrack, buildSegmentTracks } from './musicEngine';
 import { useTheme } from './hooks/useTheme';
+import { useToast } from './hooks/useToast';
 import { useFavorites } from './hooks/useFavorites';
 import { useRoutines } from './hooks/useRoutines';
 import { useUserStats } from './hooks/useUserStats';
@@ -375,15 +376,7 @@ export default function App() {
   // --- FIN : MOTEUR SPOTIFY ---
 
   const [isNaughtyMode, setIsNaughtyMode] = useState(false);
-  const [toast, setToast] = useState(null);
-  // Affiche un toast temporaire. `variant` détermine le style et la durée :
-  //   - 'default' (3s) : confirmation neutre (icône check)
-  //   - 'special'  (5s) : mise en avant positive, ex. déblocage de trophée (icône trophée dorée)
-  //   - 'error'    (5s) : échec/erreur à signaler clairement (icône alerte rouge)
-  const showToast = (message, variant = 'default') => {
-    setToast({ message, variant });
-    setTimeout(() => setToast(null), variant === 'default' ? 3000 : 5000);
-  };
+  const { toast, showToast } = useToast();
 
   // Pool de morceaux Spotify de l'utilisateur, déjà résolus en BPM (voir syncSpotifyFavorites).
   const [spotifyTrackPool, setSpotifyTrackPool] = useState([]);
