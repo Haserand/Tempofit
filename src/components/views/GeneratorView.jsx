@@ -27,7 +27,6 @@ export default function GeneratorView({
   setBpm, setTargetMode, setDistanceVal, setDistanceUnit, setHours, setMinutes,
   targetMode, isIntervalMode, isCrescendoMode, structureMode, setStructureMode,
   crescendoWarmupPct, setCrescendoWarmupPct, crescendoCooldownPct, setCrescendoCooldownPct, CRESCENDO_MIN_MAIN_PCT,
-  crescendoManualBpm, setCrescendoManualBpm,
   crescendoWarmupBpm, setCrescendoWarmupBpm, crescendoCooldownBpm, setCrescendoCooldownBpm,
   hours, minutes, distanceVal, distanceUnit, paceMin, setPaceMin, paceSec, setPaceSec,
   bpm,
@@ -55,21 +54,38 @@ export default function GeneratorView({
   // barre de défilement est volontairement masquée pour l'esthétique), donc
   // rien n'indiquait visuellement qu'il y avait plus de contenu en dessous —
   // repéré après l'ajout du mode Crescendo, qui allonge le contenu de cette
-  // étape. `showScrollHint` ne s'active QUE si le contenu déborde réellement
-  // (mesuré via ResizeObserver, qui se redéclenche si le contenu change de
-  // hauteur — ex. passage Constante ↔ Crescendo ↔ Fractionné, ou ouverture
-  // du panneau BPM manuel).
+  // étape. `showScrollHint` s'active si le contenu déborde réellement (mesuré
+  // via ResizeObserver, qui se redéclenche si le contenu change de hauteur —
+  // ex. passage Constante ↔ Crescendo ↔ Fractionné), ET se désactive dès que
+  // l'utilisateur commence à scroller (retour direct : le pill restait
+  // affiché en `sticky` pendant tout le scroll et finissait par chevaucher le
+  // contenu, ex. le curseur BPM Retour au calme — son seul rôle est de
+  // signaler qu'il y a plus à voir AVANT que l'utilisateur ne le découvre lui-
+  // même en scrollant, pas de rester affiché indéfiniment une fois qu'il a
+  // compris).
   const step3ScrollRef = useRef(null);
   const [showScrollHint, setShowScrollHint] = useState(false);
   useEffect(() => {
     const el = step3ScrollRef.current;
     if (!el) { setShowScrollHint(false); return; }
-    const checkOverflow = () => setShowScrollHint(el.scrollHeight > el.clientHeight + 2);
+    const checkOverflow = () => {
+      // Ne (re)montre le pill que si on est encore tout en haut — un
+      // changement de contenu (ex. ouverture du panneau BPM) ne doit pas le
+      // faire réapparaître si l'utilisateur avait déjà scrollé.
+      if (el.scrollTop <= 2) setShowScrollHint(el.scrollHeight > el.clientHeight + 2);
+    };
+    const handleScroll = () => {
+      if (el.scrollTop > 2) setShowScrollHint(false);
+    };
     checkOverflow();
+    el.addEventListener('scroll', handleScroll);
     const observer = new ResizeObserver(checkOverflow);
     observer.observe(el);
-    return () => observer.disconnect();
-  }, [wizardStep, structureMode, targetMode, crescendoManualBpm]);
+    return () => {
+      el.removeEventListener('scroll', handleScroll);
+      observer.disconnect();
+    };
+  }, [wizardStep, structureMode, targetMode]);
 
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
@@ -410,26 +426,9 @@ export default function GeneratorView({
                       </div>
 
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className={`text-xs ${textMuted}`}>
-                            {crescendoManualBpm ? 'BPM personnalisé pour ces 2 phases :' : 'BPM déduit automatiquement du rythme au pic :'}
-                          </p>
-                          <button
-                            onClick={() => setCrescendoManualBpm(!crescendoManualBpm)}
-                            className={`text-xs font-bold underline shrink-0 ${textMuted} hover:${textHighlight}`}
-                          >
-                            {crescendoManualBpm ? 'Revenir au calcul auto' : '⚙️ Ajuster manuellement'}
-                          </button>
-                        </div>
+                        <p className={`text-xs ${textMuted}`}>BPM personnalisé pour ces 2 phases :</p>
 
-                        {/* Divulgation progressive : masqué par défaut (le BPM des 2 phases est
-                            déduit automatiquement du rythme au pic, voir deduceCrescendoBpm dans
-                            musicEngine.js) — ne s'affiche que si l'utilisateur clique sur "Ajuster
-                            manuellement" ci-dessus. Échauffement borné à [plancher, BPM cible] et
-                            retour au calme borné à [plancher, BPM échauffement] pour garder une
-                            vraie forme crescendo même en réglage expert. */}
-                        {crescendoManualBpm && (
-                          <div className={`space-y-4 p-4 rounded-xl ${inputBg} border ${inputBorder}`}>
+                        <div className={`space-y-4 p-4 rounded-xl ${inputBg} border ${inputBorder}`}>
                             <div>
                               <div className="flex justify-between items-center mb-1">
                                 <span className="text-xs font-bold text-sky-500 dark:text-sky-400">BPM Échauffement</span>
@@ -454,8 +453,7 @@ export default function GeneratorView({
                                 className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                               />
                             </div>
-                          </div>
-                        )}
+                        </div>
 
                         <p className={`text-xs ${textMuted} pt-1`}>Traduit en direct pour ta séance :</p>
                         {segments.map((segment) => (
