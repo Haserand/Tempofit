@@ -19,6 +19,13 @@ export function useUserStats(showToast) {
     totalCompleted: 0, naughtyCompleted: 0, dataImports: 0,
     replacedTracks: 0, hasMarathon: false, hasBolt: false,
     hasHiitMaster: false, hasNightOwl: false, hasRickroll: false,
+    // Nouveaux trophées (passe de mise à jour — Crescendo, planification, mode
+    // clair n'avaient encore aucun trophée) :
+    usedStructureKinds: [], hasAllStructures: false,
+    hasCrescendoCompleted: false, hasOnTimeCompletion: false,
+    completedWorkoutTypes: [], hasAllWorkoutTypes: false,
+    totalDistanceKm: 0, has100km: false,
+    hasLightMode: false, hasStreak3: false,
     unlockedTrophies: []
   }));
 
