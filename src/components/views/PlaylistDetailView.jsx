@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, LineChart, CartesianGrid, ReferenceArea, ReferenceLine, XAxis, YAxis,
   Tooltip as RechartsTooltip, Legend, Line, PieChart, Pie, Cell,
 } from 'recharts';
-import { normalizeGenreForDisplay } from '../../musicCatalog';
+import { getGenresForDisplay } from '../../musicCatalog';
 import { formatDuration } from '../../utils/format';
 
 // Couleurs des 2 donuts en bas de page (répartition BPM / style) — statique,
@@ -156,7 +156,7 @@ export default function PlaylistDetailView({
               return genres.length > 0 && (
                 <>
                   <span>•</span>
-                  <div className="flex items-center space-x-1"><Music size={16}/><span>{genres.map(normalizeGenreForDisplay).join(', ')}</span></div>
+                  <div className="flex items-center space-x-1"><Music size={16}/><span>{Array.from(new Set(genres.flatMap(getGenresForDisplay))).join(', ')}</span></div>
                 </>
               );
             })()}
@@ -260,7 +260,7 @@ export default function PlaylistDetailView({
               </button>
               <div className="flex-1 min-w-0">
                 <div className={`font-bold text-sm truncate ${textHighlight}`}>{trackSegments[selectedSegmentIdx].track.title}</div>
-                <div className={`text-xs truncate ${textMuted}`}>{trackSegments[selectedSegmentIdx].track.artist}{trackSegments[selectedSegmentIdx].track.genre ? ` · ${normalizeGenreForDisplay(trackSegments[selectedSegmentIdx].track.genre)}` : ''}{trackSegments[selectedSegmentIdx].track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Genre Deezer différent — peut quand même correspondre.">⚠️ Genre non confirmé</span>}</div>
+                <div className={`text-xs truncate ${textMuted}`}>{trackSegments[selectedSegmentIdx].track.artist}{trackSegments[selectedSegmentIdx].track.genre ? ` · ${getGenresForDisplay(trackSegments[selectedSegmentIdx].track.genre).join(', ')}` : ''}{trackSegments[selectedSegmentIdx].track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Genre Deezer différent — peut quand même correspondre.">⚠️ Genre non confirmé</span>}</div>
               </div>
               <div className={`text-xs font-mono ${textMuted} shrink-0`}>
                 Début : {formatDuration(trackSegments[selectedSegmentIdx].startTime)}<br/>
@@ -384,7 +384,7 @@ export default function PlaylistDetailView({
               </button>
               <div className="flex-1 px-2 min-w-0">
                 <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
-                <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${normalizeGenreForDisplay(track.genre)}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Genre Deezer différent — peut quand même correspondre.">⚠️ Genre non confirmé</span>}</div>
+                <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${getGenresForDisplay(track.genre).join(', ')}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Genre Deezer différent — peut quand même correspondre.">⚠️ Genre non confirmé</span>}</div>
               </div>
               <div className="w-28 text-center shrink-0">
                 <div className={"font-mono font-bold text-sm " + textColorClass}>{track.bpm} <span className={`text-[10px] font-normal ${textMuted}`}>BPM</span></div>
