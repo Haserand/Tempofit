@@ -1046,11 +1046,27 @@ export default function App() {
    * — voir son unique appel plus bas, dans executeGeneration.
    */
 
-  // Ajoute la playlist en cours d'affichage à l'historique (si pas déjà sauvegardée).
+  // Ajoute la playlist en cours d'affichage à "Mes Séances" (si pas déjà sauvegardée).
   const handleSavePlaylist = () => {
     if (currentPlaylist && !savedPlaylists.find(p => p.id === currentPlaylist.id)) {
       setSavedPlaylists([{...currentPlaylist, status: 'pending'}, ...savedPlaylists]);
-      showToast("Playlist ajoutée à ta bibliothèque !");
+      showToast("Playlist ajoutée à Mes Séances !");
+    }
+  };
+
+  /**
+   * Retire la playlist en cours d'affichage de "Mes Séances" — pendant du bouton
+   * "Sauvegarder", devenu cliquable une fois sauvegardé (retour direct : un badge
+   * de confirmation statique et non décochable était trompeur). Même mécanisme
+   * que le bouton supprimer de PlaylistCard (aucune confirmation demandée, pour
+   * rester cohérent avec ce comportement déjà établi ailleurs dans l'appli) —
+   * ATTENTION : si cette playlist a déjà des complétions ou des données
+   * Garmin/Strava importées, cet historique est perdu avec elle, silencieusement.
+   */
+  const handleUnsavePlaylist = () => {
+    if (currentPlaylist) {
+      setSavedPlaylists(savedPlaylists.filter(p => p.id !== currentPlaylist.id));
+      showToast("Playlist retirée de Mes Séances.");
     }
   };
 
@@ -2180,7 +2196,7 @@ export default function App() {
                 isEditingPlaylistName={isEditingPlaylistName} setIsEditingPlaylistName={setIsEditingPlaylistName}
                 editedPlaylistName={editedPlaylistName} setEditedPlaylistName={setEditedPlaylistName}
                 handleRenamePlaylist={handleRenamePlaylist}
-                handleSavePlaylist={handleSavePlaylist} handleShare={handleShare}
+                handleSavePlaylist={handleSavePlaylist} handleUnsavePlaylist={handleUnsavePlaylist} handleShare={handleShare}
                 currentActualData={currentActualData} selectedMetric={selectedMetric} setSelectedMetric={setSelectedMetric}
                 analysisStats={analysisStats}
                 selectedAnalysisDate={selectedAnalysisDate} setSelectedAnalysisDate={setSelectedAnalysisDate}
