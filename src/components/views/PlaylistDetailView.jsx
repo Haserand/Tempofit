@@ -1,6 +1,6 @@
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Pause, Play,
-  GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X,
+  GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, ListOrdered,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, CartesianGrid, ReferenceArea, ReferenceLine, XAxis, YAxis,
@@ -100,6 +100,7 @@ export default function PlaylistDetailView({
   handleDuplicateTrack, handleReplaceTrackSameArtist, handleReplaceTrack, handleRemoveTrack,
   setIsBpmSearchMode, setIsSearchModalOpen,
   bpmDistributionData, genreDistributionData,
+  isInQueue, addToQueue, removeFromQueue,
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass, borderAccentClass, inputBg, inputBorder } = theme;
 
@@ -168,9 +169,23 @@ export default function PlaylistDetailView({
                 <Save size={16} /> <span>Sauvegarder la Playlist</span>
               </button>
             ) : (
-              <div className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800">
-                <CheckCircle size={16} /> <span>Sauvegardée dans tes playlists</span>
-              </div>
+              <>
+                <div className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800">
+                  <CheckCircle size={16} /> <span>Sauvegardée dans tes playlists</span>
+                </div>
+                {/* Ajout/retrait de la file d'attente — n'a de sens qu'une fois la
+                    playlist sauvegardée (la file référence des playlists par ID,
+                    voir useQueue.js). */}
+                {isInQueue(currentPlaylist.id) ? (
+                  <button onClick={() => removeFromQueue(currentPlaylist.id)} className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/40">
+                    <ListOrdered size={16} /> <span>Dans la file — retirer</span>
+                  </button>
+                ) : (
+                  <button onClick={() => addToQueue(currentPlaylist.id)} className={"flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors border bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 " + cardBorder + " " + textHighlight}>
+                    <ListOrdered size={16} /> <span>Ajouter à la file</span>
+                  </button>
+                )}
+              </>
             )}
             <button onClick={() => handleShare('playlist', currentPlaylist)} className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40">
               <Share2 size={16} /> <span>Partager</span>
