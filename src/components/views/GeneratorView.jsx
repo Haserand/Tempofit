@@ -26,6 +26,7 @@ export default function GeneratorView({
   workoutType, setWorkoutType, customActivity, handleOpenCustomActivityModal, toggleNaughtyMode,
   setBpm, setTargetMode, setDistanceVal, setDistanceUnit, setHours, setMinutes,
   targetMode, isIntervalMode, isCrescendoMode, structureMode, setStructureMode,
+  crescendoWarmupPct, setCrescendoWarmupPct, crescendoCooldownPct, setCrescendoCooldownPct, CRESCENDO_MIN_MAIN_PCT,
   hours, minutes, distanceVal, distanceUnit, paceMin, setPaceMin, paceSec, setPaceSec,
   bpm,
   segments, setSegments, expandedSegmentGenreId, setExpandedSegmentGenreId,
@@ -350,12 +351,57 @@ export default function GeneratorView({
                   )}
 
                   {isCrescendoMode && (
-                    <div className="space-y-2 mt-6">
-                      <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
-                        <TrendingUp className={textColorClass} size={24} /> <span>Courbe d'effort générée</span>
-                      </label>
-                      <p className={`text-xs ${textMuted}`}>Recalculée selon le BPM et la durée ci-dessus.</p>
+                    <div className="space-y-6 mt-6">
+                      <div className="space-y-3">
+                        <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
+                          <TrendingUp className={textColorClass} size={24} /> <span>Répartition de l'effort</span>
+                        </label>
+                        <div className="flex justify-between text-xs font-bold">
+                          <span className="text-sky-500 dark:text-sky-400">Échauffement {crescendoWarmupPct}%</span>
+                          <span className={textColorClass}>Cœur {100 - crescendoWarmupPct - crescendoCooldownPct}%</span>
+                          <span className="text-emerald-500 dark:text-emerald-400">Retour au calme {crescendoCooldownPct}%</span>
+                        </div>
+                        {/* Curseur double : 2 <input type="range"> superposés sur la même
+                            piste, chacun ne captant le clic/drag que sur sa propre poignée
+                            (input rendu invisible sauf le thumb, via pointer-events-none sur
+                            le champ et pointer-events-auto seulement sur ::-webkit/moz
+                            -slider-thumb). La piste colorée en dessous est purement visuelle.
+                            Poignée 1 = fin de l'échauffement (crescendoWarmupPct). Poignée 2 =
+                            début du retour au calme, exprimée comme position sur la piste
+                            (100 - crescendoCooldownPct). Les bornes min/max de chaque input
+                            garantissent en plus que le cœur de séance ne peut jamais
+                            descendre sous CRESCENDO_MIN_MAIN_PCT (10%), même en poussant les
+                            2 poignées l'une vers l'autre. Limite connue : si les 2 poignées
+                            finissent pile à la même position, seule celle du dessus
+                            (z-index le plus élevé) réagit au clic — cas rare en pratique,
+                            les bornes ci-dessus les empêchent normalement de se croiser. */}
+                        <div className="relative h-8 flex items-center select-none">
+                          <div className="absolute inset-x-0 h-2.5 rounded-full overflow-hidden flex pointer-events-none">
+                            <div className="h-full bg-sky-400 dark:bg-sky-500" style={{ width: `${crescendoWarmupPct}%` }} />
+                            <div className={`h-full ${bgAccentClass}`} style={{ width: `${100 - crescendoWarmupPct - crescendoCooldownPct}%` }} />
+                            <div className="h-full bg-emerald-400 dark:bg-emerald-500" style={{ width: `${crescendoCooldownPct}%` }} />
+                          </div>
+                          <input
+                            type="range" min="0" max={100 - CRESCENDO_MIN_MAIN_PCT - crescendoCooldownPct} step="1"
+                            value={crescendoWarmupPct}
+                            onChange={(e) => setCrescendoWarmupPct(parseInt(e.target.value) || 0)}
+                            aria-label="Part de l'échauffement"
+                            className="absolute inset-x-0 w-full h-8 m-0 appearance-none bg-transparent cursor-pointer pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-[3px] [&::-webkit-slider-thumb]:border-sky-500 [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-[3px] [&::-moz-range-thumb]:border-sky-500 [&::-moz-range-thumb]:shadow-md"
+                            style={{ zIndex: 2 }}
+                          />
+                          <input
+                            type="range" min={crescendoWarmupPct + CRESCENDO_MIN_MAIN_PCT} max="100" step="1"
+                            value={100 - crescendoCooldownPct}
+                            onChange={(e) => setCrescendoCooldownPct(100 - (parseInt(e.target.value) || 0))}
+                            aria-label="Part du retour au calme"
+                            className="absolute inset-x-0 w-full h-8 m-0 appearance-none bg-transparent cursor-pointer pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-[3px] [&::-webkit-slider-thumb]:border-emerald-500 [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-[3px] [&::-moz-range-thumb]:border-emerald-500 [&::-moz-range-thumb]:shadow-md"
+                            style={{ zIndex: 3 }}
+                          />
+                        </div>
+                      </div>
+
                       <div className="space-y-2">
+                        <p className={`text-xs ${textMuted}`}>Traduit en direct pour ta séance :</p>
                         {segments.map((segment) => (
                           <div key={segment.id} className={`flex items-center gap-3 p-3 rounded-xl ${inputBg} border ${inputBorder}`}>
                             <div className={`p-1.5 rounded-lg ${bgAccentClass} text-white shrink-0`}>
