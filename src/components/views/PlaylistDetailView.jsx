@@ -88,7 +88,7 @@ export default function PlaylistDetailView({
   theme, colorMode, isNaughtyMode,
   currentPlaylist, savedPlaylists,
   isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
-  handleSavePlaylist, handleShare,
+  handleSavePlaylist, handleUnsavePlaylist, handleShare,
   currentActualData, selectedMetric, setSelectedMetric, analysisStats,
   selectedAnalysisDate, setSelectedAnalysisDate, formatCompletionDate, availableMetrics,
   dataOffset, setDataOffset,
@@ -169,16 +169,31 @@ export default function PlaylistDetailView({
 
           <div className="flex items-center justify-center md:justify-start gap-3 mt-4">
             {!savedPlaylists.find(p => p.id === currentPlaylist.id) ? (
-              <button onClick={handleSavePlaylist} className={"flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors border bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 " + cardBorder + " " + textHighlight}>
+              <button
+                onClick={handleSavePlaylist}
+                title="Ajoute cette séance à 'Mes Séances', ton journal de séances (passées et à venir)."
+                className={"flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors border bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 " + cardBorder + " " + textHighlight}
+              >
                 <Save size={16} /> <span>Sauvegarder la Playlist</span>
               </button>
             ) : (
               <>
-                <div className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800">
-                  <CheckCircle size={16} /> <span>Sauvegardée dans tes playlists</span>
-                </div>
+                {/* Badge devenu cliquable (retour direct : un badge de confirmation
+                    statique et non décochable était trompeur). Swap icône/texte au
+                    survol (groupe Tailwind) pour signaler clairement que le clic
+                    retire la playlist, pas juste une redite de "c'est sauvegardé". */}
+                <button
+                  onClick={handleUnsavePlaylist}
+                  title="Retirer de 'Mes Séances' — si cette playlist a déjà été faite ou a des données importées, cet historique sera perdu avec elle."
+                  className="group flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 dark:hover:text-red-400 border border-green-200 dark:border-green-800 hover:border-red-200 dark:hover:border-red-800"
+                >
+                  <CheckCircle size={16} className="group-hover:hidden" />
+                  <X size={16} className="hidden group-hover:block" />
+                  <span className="group-hover:hidden">Sauvegardée dans Mes Séances</span>
+                  <span className="hidden group-hover:block">Retirer de Mes Séances</span>
+                </button>
                 {/* Date optionnelle, sert uniquement de clé de tri dans "Mes
-                    Playlists" (section "Planifiées") — jamais obligatoire. */}
+                    Séances" (section "Planifiées") — jamais obligatoire. */}
                 <label
                   className={`relative flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors border cursor-pointer bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 ${cardBorder} ${textHighlight}`}
                   title="Planifier une date pour cette séance (optionnel — sert juste à trier 'Mes Séances')"
