@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Activity, Clock, Music, Play, List, Plus, Check, Settings, Pause, Search, X, Heart, ListPlus, ListOrdered, Loader2, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Edit3, Copy, Trophy, Upload, ChevronUp, ChevronDown, Target, History, MessageCircle, ExternalLink } from 'lucide-react';
-import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, genreRoughlyMatches, detectTitleStyleConflict, normalizeGenreForDisplay, getGenresForDisplay } from './musicCatalog';
+import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, normalizeGenreForDisplay, getGenresForDisplay } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appConfig';
 
 // =====================================================================================
@@ -30,7 +30,7 @@ const SPOTIFY_TOKEN_BASE = 'https://accounts.spotify.com/api/token';
 // traduction jamais poursuivi. Retiré pour rester cohérent avec le reste : le
 // texte est maintenant écrit en dur à son unique point d'usage.
 
-import { safeFetchJson, deezerFetch, resolveDeezerGenre, MAX_TRACK_DURATION, getSingleMatchingTrack, buildSegmentTracks, recalculateTimeline, createPlaylistData } from './musicEngine';
+import { safeFetchJson, deezerFetch, resolveDeezerGenre, getSingleMatchingTrack, buildSegmentTracks, findSameArtistReplacement, recalculateTimeline, createPlaylistData } from './musicEngine';
 import { dedupeAppend, fetchWorldSearchResults, fetchBpmSearchResults } from './searchEngine';
 import { useTheme } from './hooks/useTheme';
 import { useToast } from './hooks/useToast';
@@ -1287,58 +1287,14 @@ export default function App() {
     const usedIds = currentPlaylist.tracks.map(t => t.youtubeId);
     const minBpm = oldTrack.targetSegmentBpm - (currentPlaylist.tolerance || 10);
     const maxBpm = oldTrack.targetSegmentBpm + (currentPlaylist.tolerance || 10);
+    const requestedGenres = currentPlaylist.config?.selectedGenres || ['Métal'];
+    const allowLong = currentPlaylist.config?.allowLongTracks || false;
 
-    let newRawTrack = null;
-    try {
-      const requestedGenres = currentPlaylist.config?.selectedGenres || ['Métal'];
-      const q = `artist:"${oldTrack.artist}" bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"`;
-      const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=8`);
-      const stubs = (data && Array.isArray(data.data) ? data.data : []).filter(s => !usedIds.includes(`deezer-${s.id}`));
-      if (stubs.length > 0) {
-        const details = await Promise.all(stubs.map(async (s) => {
-          const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
-          return full;
-        }));
-        const allowLong = currentPlaylist.config?.allowLongTracks || false;
-        let valid = details.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm);
-        // Filtre de durée et de conflit de titre : oubliés ici jusqu'ici, alors
-        // qu'ils s'appliquaient déjà partout ailleurs dans le moteur — ce bouton
-        // précis pouvait donc encore ramener un titre de 12 minutes ou un
-        // "Hardstyle Remix" malgré les réglages actifs.
-        if (!allowLong) valid = valid.filter(f => (f.duration || 0) <= MAX_TRACK_DURATION);
-        valid = valid.filter(f => !detectTitleStyleConflict(f.title, requestedGenres));
-        valid = valid.sort(() => Math.random() - 0.5);
-        // Même garde-fou genre que le reste du moteur : même en restant sur le
-        // MÊME artiste, un artiste peut avoir des titres de genres différents
-        // (featurings, évolution de style...) — on vérifie avant de valider,
-        // jusqu'à 5 essais parmi les candidats déjà récupérés.
-        let pick = null;
-        let genreMismatch = false;
-        const attempted = [];
-        for (let attempt = 0; attempt < Math.min(5, valid.length); attempt++) {
-          const candidate = valid[attempt];
-          const realGenre = await resolveDeezerGenre(candidate.id);
-          candidate._resolvedGenre = realGenre || 'Genre inconnu';
-          attempted.push(candidate);
-          if (requestedGenres.some(g => genreRoughlyMatches(realGenre, g))) { pick = candidate; break; }
-        }
-        if (!pick && attempted.length > 0) { pick = attempted[0]; genreMismatch = true; }
-        if (pick) {
-          newRawTrack = {
-            title: pick.title, artist: pick.artist ? pick.artist.name : oldTrack.artist,
-            genre: pick._resolvedGenre || 'Genre inconnu', bpm: Math.round(parseFloat(pick.bpm)), duration: pick.duration || 180,
-            youtubeId: `deezer-${pick.id}`, preview: pick.preview || null,
-            ...(genreMismatch ? { _genreMismatch: true, _isFallback: true } : {})
-          };
-        }
-      }
-    } catch (e) {
-      // Échec silencieux : on retombe sur la recherche large ci-dessous.
-    }
+    let newRawTrack = await findSameArtistReplacement(oldTrack.artist, minBpm, maxBpm, usedIds, requestedGenres, allowLong);
 
     // Repli sur la recherche large habituelle si aucun autre titre de cet artiste n'a été trouvé.
     if (!newRawTrack) {
-      newRawTrack = await getSingleMatchingTrack(oldTrack.targetSegmentBpm, currentPlaylist.tolerance || 10, currentPlaylist.config?.selectedGenres || ['Métal'], usedIds, favorites, spotifyTrackPool, null, [], currentPlaylist.config?.allowLongTracks || false);
+      newRawTrack = await getSingleMatchingTrack(oldTrack.targetSegmentBpm, currentPlaylist.tolerance || 10, requestedGenres, usedIds, favorites, spotifyTrackPool, null, [], allowLong);
       showToast(`Aucun autre titre de ${oldTrack.artist} à ce BPM — recherche élargie utilisée.`);
     } else {
       let stats = { ...userStats, replacedTracks: userStats.replacedTracks + 1 };
