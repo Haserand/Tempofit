@@ -36,6 +36,7 @@ import { useFavorites } from './hooks/useFavorites';
 import { useRoutines } from './hooks/useRoutines';
 import { useUserStats } from './hooks/useUserStats';
 import { useAudioPreview } from './hooks/useAudioPreview';
+import { useShare } from './hooks/useShare';
 import SettingsView from './components/views/SettingsView';
 import FavoritesView from './components/views/FavoritesView';
 import TrophiesView from './components/views/TrophiesView';
@@ -560,8 +561,12 @@ export default function App() {
     return () => clearInterval(interval);
   }, [isGenerating]);
 
-  const [shareData, setShareData] = useState(null);
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const {
+    shareData, setShareData,
+    isShareModalOpen, setIsShareModalOpen,
+    handleShare, copyToClipboard, shareNative,
+    shareToWhatsApp, shareToTwitter, shareToFacebook, shareViaEmail,
+  } = useShare(showToast);
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
 
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
@@ -2205,70 +2210,6 @@ export default function App() {
     };
     reader.readAsText(file);
     e.target.value = '';
-  };
-
-  // Prépare le contenu à partager (playlist ou trophée) et ouvre la modale de partage.
-  const handleShare = (type, item) => {
-    if (type === 'playlist') {
-      setShareData({
-        type: 'playlist', title: item.name,
-        text: `Je viens de générer la session musicale parfaite de ${formatDuration(item.totalDuration)} pour mon entraînement sur TempoFit ! 💪🎧`,
-        url: window.location.href
-      });
-    } else if (type === 'trophy') {
-      setShareData({
-        type: 'trophy', title: item.name,
-        text: `J'ai débloqué le trophée "${item.name}" ${item.icon} sur TempoFit ! 🔥 Rejoins-moi !`,
-        url: window.location.href
-      });
-    }
-    setIsShareModalOpen(true);
-  };
-
-  // Copie le texte de partage dans le presse-papier via l'ancienne API execCommand
-  // (fallback compatible même sans HTTPS/contexte sécurisé, contrairement à navigator.clipboard).
-  const copyToClipboard = () => {
-    if (!shareData) return;
-    const textToCopy = `${shareData.text} ${shareData.url}`;
-    const textArea = document.createElement("textarea");
-    textArea.value = textToCopy;
-    textArea.style.top = "0"; textArea.style.left = "0"; textArea.style.position = "fixed";
-    document.body.appendChild(textArea);
-    textArea.focus(); textArea.select();
-    try { document.execCommand('copy'); showToast("Lien copié dans le presse-papier !"); } catch (err) {}
-    document.body.removeChild(textArea);
-    setIsShareModalOpen(false);
-  };
-
-  // Partage natif du téléphone/OS (menu "Partager" habituel avec toutes les apps
-  // installées) — disponible sur mobile et certains navigateurs desktop récents,
-  // pas partout. D'où les boutons de partage direct ci-dessous en complément, qui
-  // fonctionnent eux partout puisqu'ils ouvrent juste une URL classique.
-  const shareNative = async () => {
-    if (!shareData || !navigator.share) return;
-    try {
-      await navigator.share({ title: shareData.title, text: shareData.text, url: shareData.url });
-      setIsShareModalOpen(false);
-    } catch (e) {
-      // L'utilisateur a annulé le partage, ou l'API a échoué : on ne fait rien de spécial.
-    }
-  };
-
-  const shareToWhatsApp = () => {
-    if (!shareData) return;
-    window.open(`https://wa.me/?text=${encodeURIComponent(shareData.text + ' ' + shareData.url)}`, '_blank');
-  };
-  const shareToTwitter = () => {
-    if (!shareData) return;
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareData.text)}&url=${encodeURIComponent(shareData.url)}`, '_blank');
-  };
-  const shareToFacebook = () => {
-    if (!shareData) return;
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareData.url)}`, '_blank');
-  };
-  const shareViaEmail = () => {
-    if (!shareData) return;
-    window.location.href = `mailto:?subject=${encodeURIComponent(shareData.title)}&body=${encodeURIComponent(shareData.text + ' ' + shareData.url)}`;
   };
 
   // BUG CORRIGÉ : la valeur par défaut était 'musique', qui ne correspond à aucun
