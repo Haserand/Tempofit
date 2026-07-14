@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Activity, Clock, Music, Play, List, Plus, Check, Settings, Trash2, Pause, Search, X, Flame, Heart, ListPlus, Loader2, User, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Info, Edit3, Copy, CheckCircle, Trophy, Upload, ChevronUp, ChevronDown, Target, History, MessageCircle, ExternalLink } from 'lucide-react';
 import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, DEEZER_GENRE_KEYWORDS, getGenreLocalDepthWarning, GENRE_EQUIVALENCE_GROUPS, isDirectGenreMatch, genreRoughlyMatches, TITLE_STYLE_OVERRIDE_KEYWORDS, detectTitleStyleConflict, normalizeGenreForDisplay } from './musicCatalog';
-import { TROPHIES_DATA, NAUGHTY_ROUTINE_NAMES, WORKOUT_TYPES, NAUGHTY_WORKOUT_LABELS, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_ORDER, WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appConfig';
+import { NAUGHTY_ROUTINE_NAMES, WORKOUT_TYPES, NAUGHTY_WORKOUT_LABELS, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_ORDER, WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appConfig';
 
 // =====================================================================================
 // CONSTANTES GLOBALES & CONFIGURATION
@@ -34,6 +34,7 @@ import { safeFetchJson, deezerFetch, resolveDeezerGenre, detectBpmFromPreview, r
 import { useTheme } from './hooks/useTheme';
 import { useFavorites } from './hooks/useFavorites';
 import { useRoutines } from './hooks/useRoutines';
+import { useUserStats } from './hooks/useUserStats';
 import SettingsView from './components/views/SettingsView';
 import FavoritesView from './components/views/FavoritesView';
 import TrophiesView from './components/views/TrophiesView';
@@ -416,13 +417,7 @@ export default function App() {
     addRoutine, updateRoutine,
   } = useRoutines(isNaughtyMode, showToast);
 
-  // Statistiques utilisateur servant à débloquer les trophées (voir checkTrophies).
-  const [userStats, setUserStats] = useState({ 
-    totalCompleted: 0, naughtyCompleted: 0, dataImports: 0, 
-    replacedTracks: 0, hasMarathon: false, hasBolt: false, 
-    hasHiitMaster: false, hasNightOwl: false, hasRickroll: false,
-    unlockedTrophies: [] 
-  });
+  const { userStats, setUserStats, checkTrophies } = useUserStats(showToast);
 
   // --- État du wizard de génération (4 étapes) ---
   const [wizardStep, setWizardStep] = useState(1);
@@ -2013,28 +2008,6 @@ export default function App() {
     // prochaine recherche, avec un risque de flash de résultats obsolètes à la
     // réouverture de la modale.
     showToast("🎵 Titre ajouté avec succès !");
-  };
-
-  // Compare newStats aux conditions de TROPHIES_DATA et débloque les nouveaux
-  // trophées éligibles. N'affiche qu'un seul toast même si plusieurs trophées
-  // sont débloqués d'un coup (affiche le premier de la liste).
-  const checkTrophies = (newStats) => {
-    const newlyUnlocked = TROPHIES_DATA.filter(t => {
-      if (newStats.unlockedTrophies.includes(t.id)) return false;
-      if (t.requirement.type === 'total' && newStats.totalCompleted >= t.requirement.count) return true;
-      if (t.requirement.type === 'naughty' && newStats.naughtyCompleted >= t.requirement.count) return true;
-      if (t.requirement.type === 'data' && newStats.dataImports >= t.requirement.count) return true;
-      if (t.requirement.type === 'replace' && newStats.replacedTracks >= t.requirement.count) return true;
-      if (t.requirement.type === 'custom' && newStats[t.requirement.key]) return true;
-      return false;
-    });
-
-    if (newlyUnlocked.length > 0) {
-      setUserStats({ ...newStats, unlockedTrophies: [...newStats.unlockedTrophies, ...newlyUnlocked.map(t => t.id)] });
-      showToast(`🏆 Trophée débloqué : ${newlyUnlocked[0].name} !`, 'special');
-    } else {
-      setUserStats(newStats);
-    }
   };
 
   // Marque une playlist de l'historique comme "faite", met à jour les stats
