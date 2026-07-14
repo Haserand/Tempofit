@@ -58,7 +58,7 @@ export default function FavoritesView({
                   </button>
                   <div className="flex-1 min-w-0">
                     <div className={`font-bold text-sm truncate ${textHighlight}`}>{track.title}</div>
-                    <div className={`text-xs truncate ${textMuted}`}>{track.artist}{track.genre ? ` · ${normalizeGenreForDisplay(track.genre)}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Ce titre a été retenu malgré un genre différent de celui demandé — le pool de candidats n'avait rien de mieux disponible.">⚠️ Genre non confirmé</span>}</div>
+                    <div className={`text-xs truncate ${textMuted}`}>{track.artist}{track.genre ? ` · ${normalizeGenreForDisplay(track.genre)}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Genre Deezer différent — peut quand même correspondre.">⚠️ Genre non confirmé</span>}</div>
                   </div>
                   {track.bpm ? <span className={`font-mono text-xs font-bold shrink-0 ${textColorClass}`}>{track.bpm} BPM</span> : null}
                   <button onClick={() => setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.youtubeId !== track.youtubeId) }))} className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
