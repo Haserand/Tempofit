@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { usePersistentState } from './usePersistentState';
 
 /**
  * useQueue — "Ma file d'attente" : un ORDRE logique de playlists déjà
@@ -15,7 +15,7 @@ import { useState } from 'react';
  * ignorée à l'affichage (voir QueueView) plutôt que de planter.
  */
 export function useQueue() {
-  const [queue, setQueue] = useState([]); // tableau d'IDs de playlist, dans l'ordre
+  const [queue, setQueue] = usePersistentState('queue', []); // tableau d'IDs de playlist, dans l'ordre
 
   // Ajoute en fin de file (prochaine séance après tout ce qui est déjà prévu).
   // Ignore silencieusement si déjà présente, plutôt que de la dupliquer.
