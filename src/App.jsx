@@ -34,6 +34,7 @@ import { fetchSpotifyRawData, resolveTracksBpm } from './spotifyEngine';
 import { parseGarminCsv } from './workoutDataEngine';
 import { dedupeAppend, fetchWorldSearchResults, fetchBpmSearchResults } from './searchEngine';
 import { useTheme } from './hooks/useTheme';
+import { usePersistentState } from './hooks/usePersistentState';
 import { useToast } from './hooks/useToast';
 import { useCustomActivity } from './hooks/useCustomActivity';
 import { useGeneratorForm } from './hooks/useGeneratorForm';
@@ -379,7 +380,7 @@ export default function App() {
   // useEffect dédié plus bas, après celui du <title>) plutôt que codé en dur —
   // une URL d'extrait Deezer expire au bout de quelques heures, donc la figer
   // ici casserait le bouton d'écoute silencieusement après coup.
-  const [savedPlaylists, setSavedPlaylists] = useState([{
+  const [savedPlaylists, setSavedPlaylists] = usePersistentState('savedPlaylists', () => [{
     id: 'playlist-example-1',
     name: '🏃 Exemple : Session Rock/Métal',
     workoutType: 'Course à pied',
