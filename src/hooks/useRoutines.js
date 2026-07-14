@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { NAUGHTY_ROUTINE_NAMES } from '../appConfig';
+import { usePersistentState } from './usePersistentState';
 
 // Hash simple et stable (même routine → toujours le même résultat, pas
 // aléatoire à chaque re-render) utilisé pour attribuer un nom/icône "Intime"
@@ -27,7 +28,7 @@ function simpleHash(str) {
  * routine éditée (`updateRoutine`).
  */
 export function useRoutines(isNaughtyMode, showToast) {
-  const [routines, setRoutines] = useState([{
+  const [routines, setRoutines] = usePersistentState('routines', () => [{
     id: 'routine-1', name: '🏃‍♂️ Mon 5km Quotidien', workoutType: 'Course à pied', customActivity: '',
     isIntervalMode: false, bpm: 160, selectedGenres: ['Métal', 'Rock'], bpmTolerance: 10, crossfade: 2,
     segments: [], coverIcon: '🏃‍♂️', autoGenFreq: 'Manuel', manualGenerations: 0, recentTrackIds: [],
