@@ -1135,22 +1135,27 @@ const findSameArtistReplacement = async (artistName, minBpm, maxBpm, excludeYout
  *
  * Pure : aucun setState, aucune lecture de state React — reçoit tout en
  * paramètres (mêmes valeurs que l'étape 2/3 du wizard : bpm cible, durée ou
- * distance, allure), renvoie un tableau de segments.
+ * distance, allure, + les 2 curseurs échauffement/retour au calme de l'étape
+ * 3), renvoie un tableau de segments.
  *
- * Logique de répartition (proportionnelle, pas des minutes fixes, pour rester
- * cohérente sur une séance de 15 min comme sur une de 3h) :
- *   - Échauffement ≈ 20% de la durée totale (borné entre 3 et 12 min)
- *   - Retour au calme ≈ 12% de la durée totale (borné entre 2 et 8 min)
- *   - Cœur de séance = le reste, au BPM cible demandé
+ * `warmupPct`/`cooldownPct` : réglables par l'utilisateur via les 2 poignées
+ * du curseur double de l'étape 3 (voir GeneratorView) — PAS des ratios fixes
+ * imposés par l'algorithme. Le cœur de séance obtient le reste
+ * (100 - warmupPct - cooldownPct). Fonctionne à l'identique en mode Temps ou
+ * Distance : les % s'appliquent à la durée totale calculée (une distance est
+ * d'abord convertie en minutes via l'allure, voir `unitPaceSecs`), donc
+ * l'utilisateur raisonne toujours en "part de sa séance", jamais en minutes
+ * absolues à recalculer lui-même.
+ *
  * En dessous de 10 minutes au total, distinguer 3 phases n'a plus de sens
  * (portions ridiculement courtes) : un seul segment au BPM cible, comme en
- * mode Allure Constante.
+ * mode Allure Constante — quels que soient warmupPct/cooldownPct.
  *
  * `bpmFloor` : plancher BPM (80 en mode standard, 40 en mode Intime — mêmes
  * bornes que le curseur BPM de l'étape 3) pour ne jamais proposer un
  * échauffement/retour au calme à un BPM absurdement bas.
  */
-const buildCrescendoSegments = (targetMode, bpm, hours, minutes, distanceVal, paceMin, paceSec, bpmFloor = 80) => {
+const buildCrescendoSegments = (targetMode, bpm, hours, minutes, distanceVal, paceMin, paceSec, bpmFloor = 80, warmupPct = 15, cooldownPct = 15) => {
   const unitPaceSecs = (parseInt(paceMin) || 0) * 60 + (parseInt(paceSec) || 0) || 330;
   const totalMinutes = targetMode === 'distance'
     ? ((parseFloat(distanceVal) || 0) * unitPaceSecs) / 60
@@ -1173,25 +1178,26 @@ const buildCrescendoSegments = (targetMode, bpm, hours, minutes, distanceVal, pa
     return [{ id: 1, bpm: mainBpm, durationValue: toDurationValue(totalMinutes) }];
   }
 
-  let warmupMin = Math.min(12, Math.max(3, Math.round(totalMinutes * 0.2)));
-  let cooldownMin = Math.min(8, Math.max(2, Math.round(totalMinutes * 0.12)));
+  // GeneratorView contraint déjà warmupPct + cooldownPct à laisser au moins
+  // 10% au cœur de séance (voir MIN_MAIN_PCT), mais on reclamp ici quand même
+  // — cette fonction doit rester sûre même appelée avec des valeurs qui
+  // n'auraient pas transité par ce garde-fou (ex. routine importée/éditée à
+  // la main dans le localStorage).
+  const safeWarmupPct = Math.max(0, Math.min(90, warmupPct));
+  const safeCooldownPct = Math.max(0, Math.min(90 - safeWarmupPct, cooldownPct));
 
-  // Filet de sécurité : sur une séance courte (10-15 min), les bornes
-  // ci-dessus pourraient laisser un cœur de séance trop maigre — on réduit
-  // alors échauffement/retour au calme proportionnellement plutôt que
-  // d'empiéter sur le cœur de séance (qui doit rester majoritaire, ≥ 40%).
-  if (totalMinutes - warmupMin - cooldownMin < totalMinutes * 0.4) {
-    const scale = (totalMinutes * 0.6) / (warmupMin + cooldownMin);
-    warmupMin = Math.max(1, Math.round(warmupMin * scale));
-    cooldownMin = Math.max(1, Math.round(cooldownMin * scale));
-  }
+  const warmupMin = (totalMinutes * safeWarmupPct) / 100;
+  const cooldownMin = (totalMinutes * safeCooldownPct) / 100;
   const mainMin = totalMinutes - warmupMin - cooldownMin;
 
-  return [
-    { id: 1, bpm: warmupBpm, durationValue: toDurationValue(warmupMin), _crescendoLabel: 'Échauffement' },
-    { id: 2, bpm: mainBpm, durationValue: toDurationValue(mainMin), _crescendoLabel: 'Cœur de séance' },
-    { id: 3, bpm: cooldownBpm, durationValue: toDurationValue(cooldownMin), _crescendoLabel: 'Retour au calme' },
-  ];
+  // Une portion à 0% (poignée poussée jusqu'au bout) n'a plus de raison
+  // d'exister comme segment séparé — on la retire plutôt que de générer un
+  // segment de durée nulle, que le moteur de génération gérerait mal.
+  const result = [];
+  if (warmupMin >= 0.5) result.push({ id: 1, bpm: warmupBpm, durationValue: toDurationValue(warmupMin), _crescendoLabel: 'Échauffement' });
+  result.push({ id: 2, bpm: mainBpm, durationValue: toDurationValue(mainMin), _crescendoLabel: 'Cœur de séance' });
+  if (cooldownMin >= 0.5) result.push({ id: 3, bpm: cooldownBpm, durationValue: toDurationValue(cooldownMin), _crescendoLabel: 'Retour au calme' });
+  return result;
 };
 
 /**
