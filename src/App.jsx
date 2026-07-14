@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Play, List, Plus, Check, Settings, Pause, Search, X, Heart, ListPlus, ListOrdered, Loader2, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Edit3, Copy, Trophy, Upload, ChevronUp, ChevronDown, Target, History, MessageCircle, ExternalLink } from 'lucide-react';
+import { Activity, Clock, Music, Play, List, Plus, Check, Settings, Pause, Search, X, Heart, ListPlus, Loader2, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Edit3, Copy, Trophy, Upload, ChevronUp, ChevronDown, Target, History, MessageCircle, ExternalLink } from 'lucide-react';
 import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, normalizeGenreForDisplay, getGenresForDisplay } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appConfig';
 
@@ -42,7 +42,6 @@ import { useTrackSearch, SEARCH_LOADING_MESSAGES } from './hooks/useTrackSearch'
 import { useFavorites } from './hooks/useFavorites';
 import { useRoutines } from './hooks/useRoutines';
 import { useUserStats } from './hooks/useUserStats';
-import { useQueue } from './hooks/useQueue';
 import { useAudioPreview } from './hooks/useAudioPreview';
 import { useShare } from './hooks/useShare';
 import { useElapsedTimer } from './hooks/useElapsedTimer';
@@ -53,7 +52,6 @@ import TrophiesView from './components/views/TrophiesView';
 import RoutinesView from './components/views/RoutinesView';
 import HistoryView from './components/views/HistoryView';
 import PlaylistsView from './components/views/PlaylistsView';
-import QueueView from './components/views/QueueView';
 import StatsView from './components/views/StatsView';
 import GeneratorView from './components/views/GeneratorView';
 import PlaylistDetailView from './components/views/PlaylistDetailView';
@@ -335,7 +333,6 @@ export default function App() {
   } = useRoutines(isNaughtyMode, showToast);
 
   const { userStats, setUserStats, checkTrophies } = useUserStats(showToast);
-  const { queue, addToQueue, removeFromQueue, isInQueue, moveInQueue } = useQueue();
 
   const [workoutType, setWorkoutType] = useState('Course à pied');
   const {
@@ -1148,6 +1145,19 @@ export default function App() {
     setIsEditingPlaylistName(false);
   };
 
+  // Planifie (ou déplanifie, si dateStr est vide) une date optionnelle pour une
+  // playlist — sert uniquement de clé de TRI dans "Mes Playlists" (section
+  // "Planifiées"), jamais une contrainte bloquante : une playlist sans date
+  // reste utilisable normalement, juste triable manuellement à la place (voir
+  // PlaylistsView, glisser-déposer de la section "À planifier").
+  const setPlaylistPlannedDate = (playlistId, dateStr) => {
+    const value = dateStr || null;
+    setSavedPlaylists(savedPlaylists.map(p => p.id === playlistId ? { ...p, plannedDate: value } : p));
+    if (currentPlaylist && currentPlaylist.id === playlistId) {
+      setCurrentPlaylist({ ...currentPlaylist, plannedDate: value });
+    }
+  };
+
   // Remplace un morceau par un autre correspondant au même BPM cible (utilise
   // à nouveau la cascade Spotify → local → API mondiale → fallback le plus proche).
   const handleReplaceTrack = async (indexToReplace) => {
@@ -1337,9 +1347,6 @@ export default function App() {
     const updatedCompletions = [...existingCompletions, nowIso].sort();
 
     setSavedPlaylists(savedPlaylists.map(p => p.id === playlistId ? { ...p, completions: updatedCompletions } : p));
-    // Une séance faite n'a plus rien à faire "à venir" — retrait automatique
-    // de la file d'attente (sans effet si elle n'y était pas).
-    removeFromQueue(playlistId);
 
     const hour = new Date().getHours();
     const isNight = hour >= 22 || hour <= 4;
@@ -1909,14 +1916,6 @@ export default function App() {
               <span className="font-bold text-sm">Mes Playlists</span>
             </button>
 
-            <button onClick={() => changeView('queue')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'queue' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
-              <ListOrdered size={18} />
-              <span className="font-bold text-sm flex-1 text-left">Ma File</span>
-              {queue.length > 0 && (
-                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full text-white ${bgAccentClass}`}>{queue.length}</span>
-              )}
-            </button>
-
             <button onClick={() => changeView('history')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'history' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
               <History size={18} />
               <span className="font-bold text-sm">Historique</span>
@@ -2021,19 +2020,10 @@ export default function App() {
               <PlaylistsView
                 theme={themeTokens} isNaughtyMode={isNaughtyMode}
                 savedPlaylists={savedPlaylists} setSavedPlaylists={setSavedPlaylists}
+                setPlaylistPlannedDate={setPlaylistPlannedDate}
                 getRankStyle={getRankStyle} setCurrentPlaylist={setCurrentPlaylist} changeView={changeView}
                 renderConfigInfoLine={renderConfigInfoLine} renderCompletionsList={renderCompletionsList}
                 markPlaylistAsCompleted={markPlaylistAsCompleted}
-                isInQueue={isInQueue} addToQueue={addToQueue} removeFromQueue={removeFromQueue}
-              />
-            )}
-
-            {view === 'queue' && (
-              <QueueView
-                theme={themeTokens} isNaughtyMode={isNaughtyMode}
-                queue={queue} savedPlaylists={savedPlaylists}
-                removeFromQueue={removeFromQueue} moveInQueue={moveInQueue}
-                setCurrentPlaylist={setCurrentPlaylist} changeView={changeView}
               />
             )}
 
@@ -2120,7 +2110,7 @@ export default function App() {
                 handleReplaceTrack={handleReplaceTrack} handleRemoveTrack={handleRemoveTrack}
                 setIsBpmSearchMode={setIsBpmSearchMode} setIsSearchModalOpen={setIsSearchModalOpen}
                 bpmDistributionData={bpmDistributionData} genreDistributionData={genreDistributionData}
-                isInQueue={isInQueue} addToQueue={addToQueue} removeFromQueue={removeFromQueue}
+                setPlaylistPlannedDate={setPlaylistPlannedDate}
               />
             )}
           </main>
