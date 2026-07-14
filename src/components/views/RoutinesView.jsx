@@ -83,7 +83,7 @@ export default function RoutinesView({
                 {getDisplayRoutineName(routine)}
                 {routine.isIntervalMode && (
                   <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full text-white shrink-0 ${bgAccentClass}`}>
-                    Fractionné
+                    {routine.isCrescendoMode ? 'Crescendo' : 'Fractionné'}
                   </span>
                 )}
               </h3>
