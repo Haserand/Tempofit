@@ -136,9 +136,23 @@ export default function PlaylistDetailView({
             <div className="flex items-center space-x-1"><Music size={16}/><span>{currentPlaylist.tracks.length} titres</span></div>
             {(() => {
               const cfg = currentPlaylist.config || {};
-              const genres = cfg.selectedGenres && cfg.selectedGenres.length > 0
-                ? cfg.selectedGenres
-                : Array.from(new Set(currentPlaylist.tracks.map(t => t.genre).filter(g => g && g !== 'Genre inconnu')));
+              // Les genres SÉLECTIONNÉS (cfg.selectedGenres) sont déjà des noms
+              // canoniques de l'app (ex. "K-pop") — ne JAMAIS les repasser dans
+              // normalizeGenreForDisplay (prévu pour nettoyer un genre BRUT venu
+              // de Deezer). Bug rencontré : "K-pop" contient le mot "pop", donc
+              // normalizeGenreForDisplay('K-pop') matchait "Pop" en premier et
+              // affichait le mauvais genre. Seul le repli (genres réels des
+              // titres, quand aucun genre n'a été explicitement sélectionné) a
+              // besoin de cette normalisation.
+              if (cfg.selectedGenres && cfg.selectedGenres.length > 0) {
+                return (
+                  <>
+                    <span>•</span>
+                    <div className="flex items-center space-x-1"><Music size={16}/><span>{cfg.selectedGenres.join(', ')}</span></div>
+                  </>
+                );
+              }
+              const genres = Array.from(new Set(currentPlaylist.tracks.map(t => t.genre).filter(g => g && g !== 'Genre inconnu')));
               return genres.length > 0 && (
                 <>
                   <span>•</span>
