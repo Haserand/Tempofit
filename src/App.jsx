@@ -112,6 +112,17 @@ export default function App() {
   // nulle part pour appeler `setTheme`).
   const [theme, setTheme] = usePersistentState('theme', 'dark');
 
+  // "Adepte de la Lumière" — activer le mode clair au moins une fois. Wrapper
+  // autour de `setTheme` plutôt qu'un appel direct dans le JSX du bouton, pour
+  // garder la détection de trophée au même endroit que la bascule elle-même.
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    if (next === 'light' && !userStats.hasLightMode) {
+      checkTrophies({ ...userStats, hasLightMode: true });
+    }
+  };
+
   /**
    * "Moteur de vérité BPM" : détermine le BPM réel (et l'extrait audio, si dispo)
    * d'un morceau externe (ex. un titre liké sur Spotify dont on ne connaît pas
@@ -1177,6 +1188,21 @@ export default function App() {
     if (config.workoutName && config.workoutName.toLowerCase().includes('rick astley')) {
       if (!newStats.hasRickroll) { newStats.hasRickroll = true; statsUpdated = true; }
     }
+
+    // "Les 3 Visages de l'Effort" — génère au moins une fois chacune des 3
+    // structures (Constante / Crescendo / Fractionné). `config` ne porte pas
+    // directement `structureMode` (c'est un concept du wizard, voir
+    // useGeneratorForm.js) — on le redérive ici à partir des 2 booléens que
+    // `config` porte déjà, qui suffisent à distinguer les 3 cas sans ambiguïté.
+    const structureKind = !config.isIntervalMode ? 'constant' : (config.isCrescendoMode ? 'crescendo' : 'interval');
+    const usedKinds = new Set(newStats.usedStructureKinds || []);
+    if (!usedKinds.has(structureKind)) {
+      usedKinds.add(structureKind);
+      newStats.usedStructureKinds = Array.from(usedKinds);
+      statsUpdated = true;
+      if (!newStats.hasAllStructures && usedKinds.size >= 3) { newStats.hasAllStructures = true; }
+    }
+
     if (statsUpdated) checkTrophies(newStats);
 
     // Historique glissant des titres déjà utilisés par CETTE routine (toutes
@@ -1520,6 +1546,60 @@ export default function App() {
       naughtyCompleted: userStats.naughtyCompleted + (pl.isNaughty ? 1 : 0),
       hasNightOwl: userStats.hasNightOwl || isNight
     };
+
+    // "Le Grimpeur" — compléter une séance en mode Crescendo.
+    if (pl.config?.isCrescendoMode) stats.hasCrescendoCompleted = true;
+
+    // "Pile à l'Heure" — la complétion tombe EXACTEMENT le jour planifié (même
+    // comparaison que le texte "faite comme prévu" déjà affiché sur les
+    // cartes, voir PlaylistCard.jsx — juste jamais exploitée pour un trophée).
+    if (pl.plannedDate && nowIso.slice(0, 10) === pl.plannedDate) {
+      stats.hasOnTimeCompletion = true;
+    }
+
+    // "Touche-à-Tout" — au moins une séance complétée de chacun des 3 types
+    // d'activité "classiques" (volontairement PAS "Autre", qui est une case
+    // fourre-tout sans identité propre).
+    const trackedWorkoutTypes = new Set(stats.completedWorkoutTypes || []);
+    if (['Course à pied', 'Musculation', 'Cyclisme'].includes(pl.workoutType)) {
+      trackedWorkoutTypes.add(pl.workoutType);
+      stats.completedWorkoutTypes = Array.from(trackedWorkoutTypes);
+      if (trackedWorkoutTypes.size >= 3) stats.hasAllWorkoutTypes = true;
+    }
+
+    // "100 Bornes au Compteur" — distance CUMULÉE sur l'ensemble des séances
+    // complétées (contrairement au Marathonien, qui porte sur une seule
+    // séance ≥ 42km). Une séance basée sur le Temps (pas la Distance) a quand
+    // même une distance implicite via son allure moyenne (`avgPace`, en
+    // secondes/unité) — même calcul que celui déjà utilisé pour l'affichage
+    // dans PlaylistCard.jsx. Conversion en km si l'unité de la playlist est
+    // les miles, pour cumuler dans une seule unité cohérente.
+    if (pl.avgPace) {
+      const distInUnit = pl.totalDuration / pl.avgPace;
+      const distKm = pl.distanceUnit === 'mi' ? distInUnit * 1.60934 : distInUnit;
+      stats.totalDistanceKm = (stats.totalDistanceKm || 0) + distKm;
+      if (stats.totalDistanceKm >= 100) stats.has100km = true;
+    }
+
+    // "Sur ta Lancée" — une séance complétée 3 jours calendaires D'AFFILÉE,
+    // tous types et toutes playlists confondus. Reconstruit l'ensemble des
+    // jours distincts ayant au moins une complétion (celle qu'on vient
+    // d'ajouter incluse) à partir de TOUTES les playlists sauvegardées,
+    // plutôt que de suivre un compteur séparé — plus simple et toujours exact,
+    // même si des complétions sont retirées/ajoutées après coup ailleurs.
+    const allCompletionDays = new Set();
+    savedPlaylists.forEach(p => {
+      const completions = p.id === playlistId ? updatedCompletions : (p.completions || []);
+      completions.forEach(iso => allCompletionDays.add(iso.slice(0, 10)));
+    });
+    const sortedDays = Array.from(allCompletionDays).sort();
+    let consecutive = 1;
+    for (let i = 1; i < sortedDays.length; i++) {
+      const diffDays = Math.round((new Date(sortedDays[i]) - new Date(sortedDays[i - 1])) / 86400000);
+      consecutive = diffDays === 1 ? consecutive + 1 : 1;
+      if (consecutive >= 3) { stats.hasStreak3 = true; break; }
+    }
+
     checkTrophies(stats);
     if(stats.unlockedTrophies.length === userStats.unlockedTrophies.length) {
       showToast(updatedCompletions.length > 1 ? `Séance re-marquée comme faite ! (${updatedCompletions.length}e fois) 💪` : "Session marquée comme terminée ! 💪");
@@ -2056,7 +2136,7 @@ export default function App() {
              </div>
              <div className="flex items-center gap-1">
                <button
-                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                 onClick={toggleTheme}
                  title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
                  className={`p-2 rounded-lg transition-colors ${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}
                >
