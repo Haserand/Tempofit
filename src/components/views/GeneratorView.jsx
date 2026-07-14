@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import {
   Activity, Heart, Clock, Footprints, ListPlus, MapPin, SlidersHorizontal, Music, Trash2, Plus,
   Target, Loader2, Zap, BookmarkPlus, Info, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Flame,
@@ -40,6 +41,25 @@ export default function GeneratorView({
     cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass,
     borderAccentClass, bgMainApp, inputBg, inputBorder,
   } = theme;
+
+  // Étape 3 : conteneur en hauteur fixe + `overflow-y-auto no-scrollbar` (la
+  // barre de défilement est volontairement masquée pour l'esthétique), donc
+  // rien n'indiquait visuellement qu'il y avait plus de contenu en dessous —
+  // repéré après l'ajout du mode Crescendo, qui allonge le contenu de cette
+  // étape. `showScrollHint` ne s'active QUE si le contenu déborde réellement
+  // (mesuré via ResizeObserver, qui se redéclenche si le contenu change de
+  // hauteur — ex. passage Constante ↔ Crescendo ↔ Fractionné).
+  const step3ScrollRef = useRef(null);
+  const [showScrollHint, setShowScrollHint] = useState(false);
+  useEffect(() => {
+    const el = step3ScrollRef.current;
+    if (!el) { setShowScrollHint(false); return; }
+    const checkOverflow = () => setShowScrollHint(el.scrollHeight > el.clientHeight + 2);
+    checkOverflow();
+    const observer = new ResizeObserver(checkOverflow);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [wizardStep, structureMode, targetMode]);
 
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
@@ -257,7 +277,7 @@ export default function GeneratorView({
 
           {/* ETAPE 3 : REGLAGES DU RYTHME (BPM simple/distance/temps, ou découpage HIIT) */}
           {wizardStep === 3 && (
-            <div className="space-y-8 animate-in slide-in-from-right-8 duration-300 h-[300px] overflow-y-auto no-scrollbar pb-10">
+            <div ref={step3ScrollRef} className="space-y-8 animate-in slide-in-from-right-8 duration-300 h-[300px] overflow-y-auto no-scrollbar pb-10">
 
               {(!isIntervalMode || isCrescendoMode) ? (
                 <>
@@ -330,16 +350,16 @@ export default function GeneratorView({
                   )}
 
                   {isCrescendoMode && (
-                    <div className="space-y-3 mt-8">
+                    <div className="space-y-2 mt-6">
                       <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
                         <TrendingUp className={textColorClass} size={24} /> <span>Courbe d'effort générée</span>
                       </label>
-                      <p className={`text-xs ${textMuted}`}>Recalculée automatiquement selon le BPM et la durée ci-dessus — rien à régler ici.</p>
+                      <p className={`text-xs ${textMuted}`}>Recalculée selon le BPM et la durée ci-dessus.</p>
                       <div className="space-y-2">
                         {segments.map((segment) => (
-                          <div key={segment.id} className={`flex items-center gap-4 p-4 rounded-xl ${inputBg} border ${inputBorder}`}>
-                            <div className={`p-2 rounded-lg ${bgAccentClass} text-white shrink-0`}>
-                              <TrendingUp size={18} />
+                          <div key={segment.id} className={`flex items-center gap-3 p-3 rounded-xl ${inputBg} border ${inputBorder}`}>
+                            <div className={`p-1.5 rounded-lg ${bgAccentClass} text-white shrink-0`}>
+                              <TrendingUp size={16} />
                             </div>
                             <div className="flex-1">
                               <div className={`font-bold text-sm ${textHighlight}`}>{segment._crescendoLabel || 'Portion'}</div>
@@ -451,6 +471,14 @@ export default function GeneratorView({
                   <button onClick={() => setSegments([...segments, { id: Date.now(), bpm: segments[segments.length - 1].bpm, durationValue: targetMode==='distance'?1:10 }])} className={`w-full py-4 mt-4 border-2 border-dashed ${inputBorder} rounded-xl flex items-center justify-center gap-2 font-bold transition-colors ${textMuted} hover:${textHighlight} hover:border-gray-400 bg-gray-50 dark:bg-gray-800/50`}>
                     <Plus size={20} /><span>Ajouter une portion</span>
                   </button>
+                </div>
+              )}
+
+              {showScrollHint && (
+                <div className="sticky bottom-0 left-0 right-0 flex justify-center pt-2 pointer-events-none">
+                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold shadow-lg animate-bounce ${bgAccentClass} text-white`}>
+                    <ChevronDown size={12} /> <span>Fais défiler pour tout voir</span>
+                  </div>
                 </div>
               )}
             </div>
