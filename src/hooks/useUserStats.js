@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { TROPHIES_DATA } from '../appConfig';
+import { usePersistentState } from './usePersistentState';
 
 /**
  * useUserStats — regroupe les statistiques utilisateur servant à débloquer
@@ -15,12 +15,12 @@ import { TROPHIES_DATA } from '../appConfig';
  * condition individuelle (qui reste au plus près du code métier concerné).
  */
 export function useUserStats(showToast) {
-  const [userStats, setUserStats] = useState({
+  const [userStats, setUserStats] = usePersistentState('userStats', () => ({
     totalCompleted: 0, naughtyCompleted: 0, dataImports: 0,
     replacedTracks: 0, hasMarathon: false, hasBolt: false,
     hasHiitMaster: false, hasNightOwl: false, hasRickroll: false,
     unlockedTrophies: []
-  });
+  }));
 
   // Compare newStats aux conditions de TROPHIES_DATA et débloque les nouveaux
   // trophées éligibles. N'affiche qu'un seul toast même si plusieurs trophées
