@@ -29,7 +29,17 @@ const TROPHIES_DATA = [
   { id: 't_hiit', name: 'Maître du HIIT', desc: 'Génère une session fractionnée complexe (5 portions ou plus).', icon: '📈', requirement: { type: 'custom', key: 'hasHiitMaster' } },
   { id: 't_dj', name: 'Le Mixeur', desc: 'Utilise le bouton "Remplacer" 3 fois pour parfaire tes playlists.', icon: '🎛️', requirement: { type: 'replace', count: 3 } },
   { id: 't_night', name: 'Oiseau de Nuit', desc: 'Complète une session entre 22h et 5h du matin.', icon: '🦉', requirement: { type: 'custom', key: 'hasNightOwl' } },
-  { id: 't_rickroll', name: 'Never Gonna Give You Up', desc: 'Tu as trouvé le secret ultime de l\'application.', icon: '🕺', requirement: { type: 'custom', key: 'hasRickroll' } }
+  { id: 't_rickroll', name: 'Never Gonna Give You Up', desc: 'Tu as trouvé le secret ultime de l\'application.', icon: '🕺', requirement: { type: 'custom', key: 'hasRickroll' } },
+  // --- Ajoutés lors d'une passe de mise à jour, pour couvrir des fonctionnalités
+  // (Crescendo, planification, mode clair) arrivées après le premier jeu de
+  // trophées et jamais reflétées ici depuis. ---
+  { id: 't_structures', name: 'Les 3 Visages de l\'Effort', desc: 'Génère au moins une fois chacune des 3 structures : Allure Constante, Crescendo et Fractionné.', icon: '🎭', requirement: { type: 'custom', key: 'hasAllStructures' } },
+  { id: 't_crescendo', name: 'Le Grimpeur', desc: 'Complète une séance en mode Crescendo.', icon: '⛰️', requirement: { type: 'custom', key: 'hasCrescendoCompleted' } },
+  { id: 't_onTime', name: 'Pile à l\'Heure', desc: 'Complète une séance exactement à la date que tu avais planifiée.', icon: '🎯', requirement: { type: 'custom', key: 'hasOnTimeCompletion' } },
+  { id: 't_allTypes', name: 'Touche-à-Tout', desc: 'Complète au moins une séance de Course à pied, Musculation ET Cyclisme.', icon: '🤹', requirement: { type: 'custom', key: 'hasAllWorkoutTypes' } },
+  { id: 't_100km', name: '100 Bornes au Compteur', desc: 'Cumule 100 km parcourus sur l\'ensemble de tes séances.', icon: '🛣️', requirement: { type: 'custom', key: 'has100km' } },
+  { id: 't_lightMode', name: 'Adepte de la Lumière', desc: 'Active le mode clair au moins une fois. Bienvenue de l\'autre côté.', icon: '☀️', requirement: { type: 'custom', key: 'hasLightMode' } },
+  { id: 't_streak', name: 'Sur ta Lancée', desc: 'Complète une séance 3 jours d\'affilée.', icon: '🔗', requirement: { type: 'custom', key: 'hasStreak3' } },
 ];
 
 const NAUGHTY_ROUTINE_NAMES = ["🍑 Cardio Horizontal", "🔥 Entraînement au lit", "💦 Session Sous la Couette", "😈 Sprint Nocturne"];
