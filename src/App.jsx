@@ -355,6 +355,8 @@ export default function App() {
     structureMode, setStructureMode, isIntervalMode, isCrescendoMode,
     crescendoWarmupPct, setCrescendoWarmupPct, crescendoCooldownPct, setCrescendoCooldownPct,
     CRESCENDO_MIN_MAIN_PCT,
+    crescendoManualBpm, setCrescendoManualBpm,
+    crescendoWarmupBpm, setCrescendoWarmupBpm, crescendoCooldownBpm, setCrescendoCooldownBpm,
     allowLongTracks, setAllowLongTracks,
     targetMode, setTargetMode,
     hours, setHours,
@@ -959,7 +961,7 @@ export default function App() {
     const newRoutine = {
       id: `routine-${Date.now()}`, name: finalName, workoutType,
       customActivity: workoutType === 'Autre' ? customActivity : '', isIntervalMode, isCrescendoMode, bpm,
-      crescendoWarmupPct, crescendoCooldownPct,
+      crescendoWarmupPct, crescendoCooldownPct, crescendoManualBpm, crescendoWarmupBpm, crescendoCooldownBpm,
       targetMode, distanceVal, distanceUnit, paceMin, paceSec, hours, minutes, selectedGenres, bpmTolerance, crossfade, allowLongTracks, genreWeights,
       segments: isIntervalMode ? [...segments] : [], coverIcon: newRoutineIcon, autoGenFreq: newRoutineFreq,
       manualGenerations: 0, recentTrackIds: [], createdAt: new Date().toLocaleDateString()
@@ -2036,6 +2038,9 @@ export default function App() {
                 crescendoWarmupPct={crescendoWarmupPct} setCrescendoWarmupPct={setCrescendoWarmupPct}
                 crescendoCooldownPct={crescendoCooldownPct} setCrescendoCooldownPct={setCrescendoCooldownPct}
                 CRESCENDO_MIN_MAIN_PCT={CRESCENDO_MIN_MAIN_PCT}
+                crescendoManualBpm={crescendoManualBpm} setCrescendoManualBpm={setCrescendoManualBpm}
+                crescendoWarmupBpm={crescendoWarmupBpm} setCrescendoWarmupBpm={setCrescendoWarmupBpm}
+                crescendoCooldownBpm={crescendoCooldownBpm} setCrescendoCooldownBpm={setCrescendoCooldownBpm}
                 hours={hours} minutes={minutes} distanceVal={distanceVal} distanceUnit={distanceUnit}
                 paceMin={paceMin} setPaceMin={setPaceMin} paceSec={paceSec} setPaceSec={setPaceSec}
                 bpm={bpm}
