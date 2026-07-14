@@ -181,7 +181,7 @@ export default function PlaylistDetailView({
                     Playlists" (section "Planifiées") — jamais obligatoire. */}
                 <label
                   className={`relative flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors border cursor-pointer bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 ${cardBorder} ${textHighlight}`}
-                  title="Planifier une date pour cette séance (optionnel — sert juste à trier 'Mes Playlists')"
+                  title="Planifier une date pour cette séance (optionnel — sert juste à trier 'Mes Séances')"
                 >
                   <Calendar size={16} />
                   <span>{currentPlaylist.plannedDate ? new Date(currentPlaylist.plannedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : 'Planifier'}</span>
