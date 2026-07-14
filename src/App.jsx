@@ -1066,19 +1066,17 @@ export default function App() {
   };
 
   /**
-   * Retire la playlist en cours d'affichage de "Mes Séances" — pendant du bouton
-   * "Sauvegarder", devenu cliquable une fois sauvegardé (retour direct : un badge
-   * de confirmation statique et non décochable était trompeur). Même mécanisme
-   * que le bouton supprimer de PlaylistCard (aucune confirmation demandée, pour
-   * rester cohérent avec ce comportement déjà établi ailleurs dans l'appli) —
-   * ATTENTION : si cette playlist a déjà des complétions ou des données
-   * Garmin/Strava importées, cet historique est perdu avec elle, silencieusement.
+   * Retire une playlist de "Mes Séances" par id — fonction UNIQUE utilisée à
+   * la fois par le bouton "Sauvegardée..." de la vue détail (retrait) et par
+   * la poubelle des cartes dans "Mes Séances" (PlaylistsView/PlaylistCard) :
+   * c'est littéralement la même opération (retirer un id de `savedPlaylists`),
+   * pas la peine de la dupliquer. `playlistId` plutôt que `currentPlaylist`
+   * pour fonctionner aussi bien depuis la liste (pas de "playlist courante"
+   * là-bas) que depuis le détail.
    */
-  const handleUnsavePlaylist = () => {
-    if (currentPlaylist) {
-      setSavedPlaylists(savedPlaylists.filter(p => p.id !== currentPlaylist.id));
-      showToast("Playlist retirée de Mes Séances.");
-    }
+  const removeSavedPlaylist = (playlistId) => {
+    setSavedPlaylists(savedPlaylists.filter(p => p.id !== playlistId));
+    showToast("Playlist retirée de Mes Séances.");
   };
 
   // A-t-elle du VRAI historique à perdre (pas juste "jamais utilisée") ?
@@ -1088,18 +1086,29 @@ export default function App() {
   );
 
   /**
-   * Point d'entrée du bouton "Sauvegardée dans Mes Séances" une fois cliqué —
-   * demande confirmation UNIQUEMENT si la playlist a déjà des complétions ou
-   * des données importées (une playlist "fraîche", jamais faite, est retirée
-   * directement, sans friction inutile).
+   * Point d'entrée commun du retrait/suppression, avec confirmation
+   * UNIQUEMENT si la playlist a déjà des complétions ou des données
+   * importées (une playlist "fraîche", jamais faite, est retirée
+   * directement, sans friction inutile) — que ce soit depuis le bouton
+   * "Sauvegardée dans Mes Séances" de la vue détail ou depuis la poubelle
+   * d'une carte dans "Mes Séances" : même garde-fou aux deux endroits
+   * (retour direct après un audit de cohérence — l'un avait la confirmation,
+   * l'autre pas, pour la même perte de données possible).
    */
-  const requestUnsavePlaylist = () => {
-    if (!currentPlaylist) return;
-    if (playlistHasHistory(currentPlaylist)) {
-      setPendingUnsavePlaylist(currentPlaylist);
+  const requestRemoveSavedPlaylist = (playlistId) => {
+    const playlist = savedPlaylists.find(p => p.id === playlistId);
+    if (!playlist) return;
+    if (playlistHasHistory(playlist)) {
+      setPendingUnsavePlaylist(playlist);
     } else {
-      handleUnsavePlaylist();
+      removeSavedPlaylist(playlistId);
     }
+  };
+
+  // Pendant de requestRemoveSavedPlaylist, spécifique à la vue détail : pas
+  // d'id à transmettre depuis là-bas, juste `currentPlaylist`.
+  const requestUnsavePlaylist = () => {
+    if (currentPlaylist) requestRemoveSavedPlaylist(currentPlaylist.id);
   };
 
   /**
@@ -2167,6 +2176,7 @@ export default function App() {
               <PlaylistsView
                 theme={themeTokens} isNaughtyMode={isNaughtyMode}
                 savedPlaylists={savedPlaylists} setSavedPlaylists={setSavedPlaylists}
+                requestRemoveSavedPlaylist={requestRemoveSavedPlaylist}
                 setPlaylistPlannedDate={setPlaylistPlannedDate}
                 getRankStyle={getRankStyle} setCurrentPlaylist={setCurrentPlaylist} changeView={changeView}
                 renderConfigInfoLine={renderConfigInfoLine} renderCompletionsList={renderCompletionsList}
@@ -2437,7 +2447,7 @@ export default function App() {
                 </div>
               </div>
               <div className="flex flex-col gap-2 mt-6">
-                <button onClick={() => { handleUnsavePlaylist(); setPendingUnsavePlaylist(null); }} className="w-full px-6 py-3 font-bold rounded-xl border border-red-200 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                <button onClick={() => { removeSavedPlaylist(pendingUnsavePlaylist.id); setPendingUnsavePlaylist(null); }} className="w-full px-6 py-3 font-bold rounded-xl border border-red-200 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                   Retirer quand même
                 </button>
                 <button onClick={() => setPendingUnsavePlaylist(null)} className={"w-full px-6 py-3 font-medium hover:" + textHighlight + " " + textMuted}>
