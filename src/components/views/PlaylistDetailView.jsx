@@ -456,40 +456,6 @@ export default function PlaylistDetailView({
           titre, pas juste un compte de titres. */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className={`${cardBg} rounded-3xl p-6 border ${cardBorder} shadow-xl`}>
-          <h3 className={`font-bold text-lg mb-4 flex items-center gap-2 ${textHighlight}`}><Activity className={textColorClass} size={20}/> Répartition par BPM</h3>
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={bpmDistributionData} dataKey="value" nameKey="name"
-                  cx="50%" cy="50%" innerRadius={55} outerRadius={85}
-                  paddingAngle={3} cornerRadius={4} stroke="none"
-                >
-                  {bpmDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} />)}
-                </Pie>
-                <RechartsTooltip formatter={(value, name) => {
-                  const total = bpmDistributionData.reduce((s, e) => s + e.value, 0);
-                  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-                  return [`${formatDuration(value)} (${pct}%)`, `${name} BPM`];
-                }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2">
-            {bpmDistributionData.map((entry, i) => {
-              const total = bpmDistributionData.reduce((s, e) => s + e.value, 0);
-              const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
-              return (
-                <div key={i} className="flex items-center gap-1.5 text-xs font-bold">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }}></span>
-                  <span className={textHighlight}>{entry.name}</span>
-                  <span className={textMuted}>{pct}%</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        <div className={`${cardBg} rounded-3xl p-6 border ${cardBorder} shadow-xl`}>
           <h3 className={`font-bold text-lg mb-4 flex items-center gap-2 ${textHighlight}`}><Music className={textColorClass} size={20}/> Répartition par style</h3>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
@@ -512,6 +478,40 @@ export default function PlaylistDetailView({
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2">
             {genreDistributionData.map((entry, i) => {
               const total = genreDistributionData.reduce((s, e) => s + e.value, 0);
+              const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
+              return (
+                <div key={i} className="flex items-center gap-1.5 text-xs font-bold">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }}></span>
+                  <span className={textHighlight}>{entry.name}</span>
+                  <span className={textMuted}>{pct}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className={`${cardBg} rounded-3xl p-6 border ${cardBorder} shadow-xl`}>
+          <h3 className={`font-bold text-lg mb-4 flex items-center gap-2 ${textHighlight}`}><Activity className={textColorClass} size={20}/> Répartition par BPM</h3>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={bpmDistributionData} dataKey="value" nameKey="name"
+                  cx="50%" cy="50%" innerRadius={55} outerRadius={85}
+                  paddingAngle={3} cornerRadius={4} stroke="none"
+                >
+                  {bpmDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} />)}
+                </Pie>
+                <RechartsTooltip formatter={(value, name) => {
+                  const total = bpmDistributionData.reduce((s, e) => s + e.value, 0);
+                  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+                  return [`${formatDuration(value)} (${pct}%)`, `${name} BPM`];
+                }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2">
+            {bpmDistributionData.map((entry, i) => {
+              const total = bpmDistributionData.reduce((s, e) => s + e.value, 0);
               const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
               return (
                 <div key={i} className="flex items-center gap-1.5 text-xs font-bold">
