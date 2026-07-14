@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Pause, Play,
-  GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, ListOrdered, ChevronDown, ChevronUp,
+  GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, Calendar, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, CartesianGrid, ReferenceArea, ReferenceLine, XAxis, YAxis,
@@ -101,7 +101,7 @@ export default function PlaylistDetailView({
   handleDuplicateTrack, handleReplaceTrackSameArtist, handleReplaceTrack, handleRemoveTrack,
   setIsBpmSearchMode, setIsSearchModalOpen,
   bpmDistributionData, genreDistributionData,
-  isInQueue, addToQueue, removeFromQueue,
+  setPlaylistPlannedDate,
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass, borderAccentClass, inputBg, inputBorder } = theme;
   // Replié par défaut : ce tableau ne sert qu'à vérifier ponctuellement une
@@ -177,18 +177,21 @@ export default function PlaylistDetailView({
                 <div className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800">
                   <CheckCircle size={16} /> <span>Sauvegardée dans tes playlists</span>
                 </div>
-                {/* Ajout/retrait de la file d'attente — n'a de sens qu'une fois la
-                    playlist sauvegardée (la file référence des playlists par ID,
-                    voir useQueue.js). */}
-                {isInQueue(currentPlaylist.id) ? (
-                  <button onClick={() => removeFromQueue(currentPlaylist.id)} className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/40">
-                    <ListOrdered size={16} /> <span>Dans la file — retirer</span>
-                  </button>
-                ) : (
-                  <button onClick={() => addToQueue(currentPlaylist.id)} className={"flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors border bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 " + cardBorder + " " + textHighlight}>
-                    <ListOrdered size={16} /> <span>Ajouter à la file</span>
-                  </button>
-                )}
+                {/* Date optionnelle, sert uniquement de clé de tri dans "Mes
+                    Playlists" (section "Planifiées") — jamais obligatoire. */}
+                <label
+                  className={`relative flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors border cursor-pointer bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 ${cardBorder} ${textHighlight}`}
+                  title="Planifier une date pour cette séance (optionnel — sert juste à trier 'Mes Playlists')"
+                >
+                  <Calendar size={16} />
+                  <span>{currentPlaylist.plannedDate ? new Date(currentPlaylist.plannedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : 'Planifier'}</span>
+                  <input
+                    type="date"
+                    value={currentPlaylist.plannedDate || ''}
+                    onChange={(e) => setPlaylistPlannedDate(currentPlaylist.id, e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                  />
+                </label>
               </>
             )}
             <button onClick={() => handleShare('playlist', currentPlaylist)} className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40">
