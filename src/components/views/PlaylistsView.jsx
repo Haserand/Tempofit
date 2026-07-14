@@ -51,7 +51,7 @@ const usePageSlice = (items, page) => {
 };
 
 export default function PlaylistsView({
-  theme, isNaughtyMode, savedPlaylists, setSavedPlaylists, setPlaylistPlannedDate, getRankStyle,
+  theme, isNaughtyMode, savedPlaylists, setSavedPlaylists, requestRemoveSavedPlaylist, setPlaylistPlannedDate, getRankStyle,
   setCurrentPlaylist, changeView, renderConfigInfoLine, renderCompletionsList, markPlaylistAsCompleted,
 }) {
   const { cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
@@ -108,7 +108,7 @@ export default function PlaylistsView({
         key={playlist.id}
         theme={theme} isNaughtyMode={isNaughtyMode} playlist={playlist} rankStyle={rankStyle} rank={rank}
         onClick={() => { setCurrentPlaylist(playlist); changeView('playlist'); }}
-        onDelete={(id) => setSavedPlaylists(savedPlaylists.filter(p => p.id !== id))}
+        onDelete={requestRemoveSavedPlaylist}
         renderConfigInfoLine={renderConfigInfoLine} renderCompletionsList={renderCompletionsList}
         markPlaylistAsCompleted={markPlaylistAsCompleted}
         onSetPlannedDate={setPlaylistPlannedDate}
