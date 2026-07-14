@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Activity, Clock, Music, Play, List, Plus, Check, Settings, Pause, Search, X, Heart, ListPlus, ListOrdered, Loader2, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Edit3, Copy, Trophy, Upload, ChevronUp, ChevronDown, Target, History, MessageCircle, ExternalLink } from 'lucide-react';
-import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, DEEZER_GENRE_KEYWORDS, getGenreLocalDepthWarning, genreRoughlyMatches, detectTitleStyleConflict, normalizeGenreForDisplay, getGenresForDisplay } from './musicCatalog';
+import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, genreRoughlyMatches, detectTitleStyleConflict, normalizeGenreForDisplay, getGenresForDisplay } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appConfig';
 
 // =====================================================================================
@@ -30,7 +30,8 @@ const SPOTIFY_TOKEN_BASE = 'https://accounts.spotify.com/api/token';
 // traduction jamais poursuivi. Retiré pour rester cohérent avec le reste : le
 // texte est maintenant écrit en dur à son unique point d'usage.
 
-import { safeFetchJson, deezerFetch, resolveDeezerGenre, resolveBpmForCandidates, MAX_TRACK_DURATION, getSingleMatchingTrack, buildSegmentTracks } from './musicEngine';
+import { safeFetchJson, deezerFetch, resolveDeezerGenre, MAX_TRACK_DURATION, getSingleMatchingTrack, buildSegmentTracks } from './musicEngine';
+import { dedupeAppend, fetchWorldSearchResults, fetchBpmSearchResults } from './searchEngine';
 import { useTheme } from './hooks/useTheme';
 import { useToast } from './hooks/useToast';
 import { useCustomActivity } from './hooks/useCustomActivity';
@@ -557,61 +558,10 @@ export default function App() {
   // direct (voir plus bas : ça garantit des extraits audio disponibles sur les
   // morceaux générés, ce que la base locale statique ne permettait pas).
 
-  const SEARCH_PAGE_SIZE = 10;
-
-  // Compare le texte tapé au nom d'un artiste Deezer, insensible à la casse,
-  // aux accents (ex. "beyonce" doit matcher "Beyoncé"), aux articles de tête
-  // (ex. "beatles" doit matcher "The Beatles") et — depuis un retour utilisateur
-  // sur "dat punk" — aux petites fautes de frappe (voir isConfidentArtistMatch,
-  // 3 passes progressives : égalité exacte, puis sans article, puis tolérance
-  // Levenshtein bornée). Reste volontairement strict sur les mots courts/génériques
-  // ("punk" seul ne doit matcher ni "daft punk" ni l'inverse) pour éviter de
-  // basculer à tort en mode artiste sur un terme trop générique.
-  const normalizeForArtistMatch = (str) => (str || '')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase().trim();
-  // Retire un article de tête ("the", "la", "le", "les") avant comparaison —
-  // sans ça, "beatles" ne matchait pas "The Beatles" (un des cas les plus
-  // évidents qu'on puisse taper), parce que ni l'un ni l'autre n'est un
-  // préfixe de mot entier de l'autre une fois l'article laissé en place.
-  const stripLeadingArticle = (s) => s.replace(/^(the|les?|la)\s+/, '');
-  // Distance de Levenshtein classique (nb minimal d'insertions/suppressions/
-  // substitutions pour passer d'une chaîne à l'autre) — utilisée ci-dessous
-  // comme filet de tolérance aux fautes de frappe, en dernier recours seulement.
-  const levenshteinDistance = (a, b) => {
-    const m = a.length, n = b.length;
-    const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
-    for (let i = 0; i <= m; i++) dp[i][0] = i;
-    for (let j = 0; j <= n; j++) dp[0][j] = j;
-    for (let i = 1; i <= m; i++) {
-      for (let j = 1; j <= n; j++) {
-        dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-      }
-    }
-    return dp[m][n];
-  };
-  const isConfidentArtistMatch = (query, artistName) => {
-    const q = normalizeForArtistMatch(query);
-    const aFull = normalizeForArtistMatch(artistName);
-    if (!q || !aFull) return false;
-    const matches = (x, y) => x === y || x.startsWith(y + ' ') || y.startsWith(x + ' ');
-    if (matches(aFull, q)) return true;
-    // 2e passe, articles retirés des deux côtés ("the beatles"/"beatles" → "beatles"/"beatles")
-    const aStripped = stripLeadingArticle(aFull);
-    const qStripped = stripLeadingArticle(q);
-    if (matches(aStripped, qStripped)) return true;
-    // 3e passe, TOLÉRANCE AUX FAUTES DE FRAPPE (ex. "dat punk" doit quand même
-    // matcher "Daft Punk") : les 2 passes précédentes sont des comparaisons
-    // EXACTES (à l'article près), donc une simple lettre manquante/inversée les
-    // fait échouer. On autorise ici un petit nombre d'éditions (Levenshtein),
-    // proportionnel à la longueur du plus court des 2 textes — borné pour rester
-    // strict sur les mots courts (là où une "petite" faute change complètement
-    // le sens) et plus tolérant sur les noms longs. Ex. "dat punk" (8) vs
-    // "daft punk" (9) → 1 édition autorisée, distance réelle = 1 → match.
-    const shortestLen = Math.min(qStripped.length, aStripped.length);
-    const maxAllowedEdits = Math.min(3, Math.max(1, Math.floor(shortestLen / 4)));
-    return levenshteinDistance(qStripped, aStripped) <= maxAllowedEdits;
-  };
+  // SEARCH_PAGE_SIZE, normalizeForArtistMatch, stripLeadingArticle,
+  // levenshteinDistance et isConfidentArtistMatch sont désormais dans
+  // searchEngine.js (voir import en haut de fichier) — extraites avec
+  // fetchWorldSearchResults/fetchBpmSearchResults, qui en dépendent aussi.
 
   /**
    * Recherche manuelle utilisée dans la modale "Rechercher un titre".
@@ -664,9 +614,15 @@ export default function App() {
    *    texte générale : `reset = true` repart de l'index 0 et vide tout ;
    *    `reset = false` (bouton "Voir plus") ajoute la page suivante des 2 côtés.
    */
+  // Le calcul (appels Deezer/GetSongBPM, résolution BPM en cascade, tri
+  // artiste prioritaire/reste) vit désormais dans fetchWorldSearchResults
+  // (searchEngine.js) — voir ce fichier pour tout l'historique/raisonnement
+  // (3 versions successives, cas "Bohemian Rhapsody" faux positif d'artiste,
+  // etc.). Cette fonction ne fait plus que l'orchestration React : spinners,
+  // puis application du résultat reçu sur le state, à l'identique du
+  // comportement d'origine.
   const searchWorldMusicApi = async (reset = true) => {
     if (!searchQuery.trim()) return;
-    const generalOffset = reset ? 0 : searchResultsOffset;
     if (reset) {
       setIsWorldSearching(true);
       setSearchLoadingMessage(SEARCH_LOADING_MESSAGES[Math.floor(Math.random() * SEARCH_LOADING_MESSAGES.length)]);
@@ -680,181 +636,25 @@ export default function App() {
     }
 
     try {
-      let generalStubs = [];
-      let generalTotal = 0;
-      // Nom d'artiste utilisé pour scinder chaque page en "correspond"/"reste
-      // de côté" — déterminé à la recherche initiale, réutilisé tel quel pour
-      // "Voir plus" (mémorisé dans searchActiveArtistName entre 2 appels).
-      let priorityArtistName = reset ? null : searchActiveArtistName;
+      const result = await fetchWorldSearchResults(searchQuery, {
+        reset,
+        offset: searchResultsOffset,
+        activeArtistName: searchActiveArtistName,
+        isNaughtyMode,
+      });
 
-      if (reset) {
-        const [artistRes, textRes] = await Promise.all([
-          deezerFetch(`https://api.deezer.com/search/artist?q=${encodeURIComponent(searchQuery)}&limit=1`),
-          deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(searchQuery)}&limit=${SEARCH_PAGE_SIZE}&index=0`)
-        ]);
-        const artist = (artistRes.data && Array.isArray(artistRes.data.data)) ? artistRes.data.data[0] : null;
-        generalStubs = (textRes.data && Array.isArray(textRes.data.data)) ? textRes.data.data : [];
-        generalTotal = (textRes.data && typeof textRes.data.total === 'number') ? textRes.data.total : generalStubs.length;
+      setSearchActiveArtistName(result.activeArtistName);
 
-        if (artist && isConfidentArtistMatch(searchQuery, artist.name)) {
-          priorityArtistName = artist.name;
-          setSearchActiveArtistName(artist.name);
-        } else {
-          setSearchActiveArtistName(null);
-        }
-      } else {
-        const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(searchQuery)}&limit=${SEARCH_PAGE_SIZE}&index=${generalOffset}`);
-        generalStubs = (data && Array.isArray(data.data)) ? data.data : [];
-        generalTotal = (data && typeof data.total === 'number') ? data.total : (generalOffset + generalStubs.length);
-      }
-
-      if (generalStubs.length === 0 && reset) {
+      if (result.noResults) {
         setNoUsableResultsHint(true);
-        setIsWorldSearching(false);
-        return;
-      }
-
-      // Un appel par titre pour récupérer son BPM (absent des listes de résultats)
-      const detailedTracks = await Promise.all(generalStubs.map(async (stub) => {
-        const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
-        return full;
-      }));
-
-      // 3 niveaux de résolution BPM, du plus fiable au plus incertain :
-      //   1. Deezer (déjà dans `full.bpm` si renseigné) — la source la plus fiable.
-      //   2. GetSongBPM — vraie base de données communautaire (titre + artiste),
-      //      DÉJÀ utilisée ailleurs dans l'app (`resolveRealBPM`, pour la synchro
-      //      Spotify) — c'est cette même source qui donne 128 BPM pour "Rim Tim
-      //      Tagi Dim" (vérifié), pas une estimation.
-      //   3. Détection audio en direct (voir plus haut, `resolveBpmForCandidates`)
-      //      — dernier recours SEULEMENT si les 2 sources fiables au-dessus n'ont
-      //      rien donné, gardée pour ne jamais laisser un titre invisible si
-      //      aucune base ne le connaît, mais son ambiguïté d'octave documentée
-      //      reste entière (voir `_bpmSource` exposé à l'affichage plus bas).
-      //
-      // ⚠️ Un 4e niveau (FreqBlog, freqblog.com) a été essayé puis retiré : son
-      // quota gratuit s'est avéré inutilisable en pratique — statut 429 (limite
-      // atteinte) dès la toute première requête réelle, bien avant les 1000/mois
-      // annoncés. Aucun gain constaté sur les cas testés de toute façon (butait
-      // sur la même nouveauté de catalogue que GetSongBPM). Fichier
-      // `api/freqblog.js` laissé de côté dans le projet mais plus appelé ici —
-      // peut être supprimé du dépôt si vous voulez faire le ménage.
-      const validDetailedTracks = detailedTracks.filter(Boolean);
-      const withDeezerBpm = validDetailedTracks
-        .filter(t => t.bpm && parseFloat(t.bpm) > 0)
-        .map(t => ({ ...t, _resolvedBpm: Math.round(parseFloat(t.bpm)), _bpmSource: 'deezer' }));
-      const missingBpm = validDetailedTracks.filter(t => !t.bpm || parseFloat(t.bpm) <= 0);
-
-      const withGetSongBpm = (await Promise.all(missingBpm.map(async (t) => {
-        try {
-          const cleanTitle = (t.title || '').replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').split('-')[0].trim();
-          const cleanArtist = (t.artist ? t.artist.name : '').split(',')[0].split('&')[0].trim();
-          const queryStr = "song:" + cleanTitle + " artist:" + cleanArtist;
-          const res = await fetch(`/api/getsongbpm?type=both&lookup=${encodeURIComponent(queryStr)}`);
-          const data = await res.json();
-          const tempo = (data && data.search && data.search.length > 0) ? parseInt(data.search[0].tempo) : null;
-          return (tempo && tempo > 0) ? { ...t, _resolvedBpm: tempo, _bpmSource: 'getsongbpm' } : null;
-        } catch (e) {
-          return null; // échec silencieux : ce titre retombe simplement au niveau suivant
-        }
-      }))).filter(Boolean);
-
-      const stillMissing = missingBpm.filter(t => !withGetSongBpm.some(g => g.id === t.id));
-      // Fenêtre resserrée pour CE dernier recours uniquement — réduit la fréquence
-      // des erreurs d'octave en empêchant l'algorithme de même considérer des
-      // tempos hors plage comme candidats, plutôt que de deviner après coup lequel
-      // est le bon.
-      //
-      // ⚠️ 1er essai (70-200) insuffisant : confirmé sur un vrai cas ("End The
-      // Party" détecté à 75 BPM alors que la description officielle du titre —
-      // "high-energy", "crushing riffs", "moshing/headbanging" — est incompatible
-      // avec un tempo aussi lent ; 150 ÷ 2 = 75 reste dans une fenêtre 70-200).
-      // Rétrécir la fenêtre n'aide QUE si le vrai tempo est sous le double du
-      // minimum choisi — inutile pour un titre réellement rapide.
-      //
-      // Val réelle, tirée de la documentation officielle de `web-audio-beat-
-      // detector` (la librairie utilisée ici) plutôt que d'une nouvelle
-      // supposition : "by default the bpm are expected to be between 90 and 180
-      // bpm" — c'est la plage sur laquelle l'algorithme est réellement calibré.
-      // Remonter le minimum à 90 en mode standard exclut mécaniquement 75 comme
-      // candidat pour un titre réellement à ~150, sans deviner après coup.
-      //
-      // Le Mode Intime reste hors de cette plage calibrée par construction (il a
-      // besoin de BPM sous 90, voir appConfig.js) — la détection y est donc
-      // structurellement moins fiable, sans solution locale : la librairie n'expose
-      // aucun score de confiance ni plusieurs candidats, impossible de compenser
-      // par du code. Compromis assumé, pas résolu.
-      const detectionMinBpm = isNaughtyMode ? 40 : 90;
-      const detectionMaxBpm = isNaughtyMode ? 130 : 180;
-      const detectedCandidates = await resolveBpmForCandidates(stillMissing, detectionMinBpm, detectionMaxBpm);
-
-      // Reconstitue l'ordre D'ORIGINE de Deezer (= son classement par pertinence/
-      // popularité, voir Étape 0) plutôt que de garder les 3 groupes concaténés
-      // dans l'ordre où ils ont été résolus. Sans ça, un titre pourtant très
-      // populaire (ex. "Bohemian Rhapsody" de Queen, classé en tête par Deezer)
-      // pouvait se retrouver en fin de liste simplement parce que SON bpm à lui
-      // n'était pas renseigné chez Deezer et a dû être résolu par GetSongBPM/
-      // détection — alors qu'un titre bien moins populaire mais dont Deezer AVAIT
-      // le BPM passait devant. Le niveau de résolution (Deezer/GetSongBPM/
-      // détection) ne doit influencer QUE la fiabilité affichée (`_bpmSource`),
-      // jamais la position dans la liste.
-      const resolvedById = new Map([...withDeezerBpm, ...withGetSongBpm, ...detectedCandidates].map(t => [t.id, t]));
-      const resolvedCandidates = validDetailedTracks.map(t => resolvedById.get(t.id)).filter(Boolean);
-
-      const formattedResults = await Promise.all(
-        resolvedCandidates.map(async (t) => {
-            const realGenre = await resolveDeezerGenre(t.id);
-            return {
-              youtubeId: `deezer-${t.id}`,
-              title: t.title,
-              artist: t.artist ? t.artist.name : 'Inconnu',
-              bpm: t._resolvedBpm,
-              duration: t.duration || 180,
-              genre: realGenre || 'Genre inconnu',
-              preview: t.preview || null, // extrait MP3 de 30s fourni par Deezer, lisible sans clé ni CORS
-              _bpmSource: t._bpmSource // 'deezer' (renseigné) ou 'detected' (analysé en direct sur l'extrait)
-            };
-          })
-      );
-
-      const norm = priorityArtistName ? normalizeForArtistMatch(priorityArtistName) : null;
-      const isPriorityMatch = (t) => norm && normalizeForArtistMatch(t.artist) === norm;
-      const dedupeAppend = (prev, incoming) => {
-        const combined = reset ? incoming : [...prev, ...incoming];
-        const seen = new Set();
-        return combined.filter(t => { if (seen.has(t.youtubeId)) return false; seen.add(t.youtubeId); return true; });
-      };
-
-      if (priorityArtistName) {
-        const matched = formattedResults.filter(isPriorityMatch);
-        const other = formattedResults.filter(t => !isPriorityMatch(t));
-
-        if (reset && matched.length === 0 && other.length > 0) {
-          // FAUX POSITIF DE DÉTECTION D'ARTISTE (confirmé sur un vrai cas : Deezer
-          // a une fiche "artiste" appelée littéralement "Bohemian Rhapsody" — sans
-          // doute une compilation/hommage/karaoké, pas le vrai groupe recherché —
-          // qui matchait le texte tapé à l'identique). Si le filtrage par cet
-          // "artiste" éliminerait la TOTALITÉ des titres trouvés, c'est le signe
-          // que la détection était fausse : on annule le mode priorité pour cette
-          // recherche plutôt que de cacher des résultats bien réels derrière un
-          // artiste fantôme. Uniquement sur la 1ère page (reset) — sur "Voir
-          // plus", une page sans résultat de l'artiste est normale, pas un signal
-          // d'erreur (l'artiste a déjà été confirmé légitime par une page précédente).
-          priorityArtistName = null;
-          setSearchActiveArtistName(null);
-          setWorldSearchResults(prev => dedupeAppend(prev, formattedResults));
-        } else {
-          setWorldSearchResults(prev => dedupeAppend(prev, matched));
-          setWorldSearchOtherResults(prev => dedupeAppend(prev, other));
-        }
       } else {
-        setWorldSearchResults(prev => dedupeAppend(prev, formattedResults));
+        setWorldSearchResults(prev => dedupeAppend(prev, result.matched, reset));
+        setWorldSearchOtherResults(prev => dedupeAppend(prev, result.other, reset));
+        if (reset) setResultsContextLabel(result.contextLabel);
+        setSearchResultsOffset(result.newOffset);
+        setSearchHasMoreResults(result.hasMore);
+        if (reset && result.emptyAfterFormatting) setNoUsableResultsHint(true); // titres trouvés mais aucun n'a de BPM connu
       }
-
-      if (reset) setResultsContextLabel(priorityArtistName ? `Titres de ${priorityArtistName}` : null);
-      setSearchResultsOffset(generalOffset + generalStubs.length);
-      setSearchHasMoreResults(generalStubs.length > 0 && (generalOffset + generalStubs.length) < generalTotal);
-      if (reset && formattedResults.length === 0) setNoUsableResultsHint(true); // titres trouvés mais aucun n'a de BPM connu
     } catch(e) {
       // Erreur réseau réelle (proxy CORS injoignable, hors-ligne...) — loggée en
       // console (pas de tag DEBUG, permanent) pour ne pas retomber sur "Aucun
@@ -1026,6 +826,9 @@ export default function App() {
    * cette fonction soit réutilisable depuis plusieurs endroits de l'app : le générateur
    * (étape 4) ET la page Cœur & Favoris, qui ont chacun leurs propres réglages BPM/genres.
    */
+  // Calcul déplacé dans fetchBpmSearchResults (searchEngine.js) — cette
+  // fonction ne fait plus que l'orchestration React (spinners + application
+  // du résultat), comportement inchangé par rapport à l'original.
   const searchTracksByBpm = async (targetBpm, tolerance, genres) => {
     setBpmSearchParams({ bpm: targetBpm, tolerance, genres: genres || [] });
     setIsWorldSearching(true);
@@ -1033,54 +836,9 @@ export default function App() {
     setResultsContextLabel(`${targetBpm} BPM ± ${tolerance}`);
     setNoUsableResultsHint(false);
     try {
-      const minBpm = Math.max(1, targetBpm - tolerance);
-      const maxBpm = targetBpm + tolerance;
-      const genresToQuery = genres && genres.length > 0 ? genres : ['Autre'];
-
-      const stubsByGenre = await Promise.all(genresToQuery.map(async (genre) => {
-        const keyword = DEEZER_GENRE_KEYWORDS[genre] || '';
-        const q = `bpm_min:"${minBpm}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
-        const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=6`);
-        const stubs = (data && Array.isArray(data.data)) ? data.data : [];
-        return stubs.map(s => ({ ...s, matchedGenre: genre }));
-      }));
-
-      // Fusion + déduplication par id de titre (un même titre peut remonter pour plusieurs genres)
-      const merged = new Map();
-      stubsByGenre.flat().forEach(s => { if (!merged.has(s.id)) merged.set(s.id, s); });
-      const uniqueStubs = Array.from(merged.values()).slice(0, 15);
-
-      if (uniqueStubs.length === 0) {
-         setNoUsableResultsHint(true);
-         setIsWorldSearching(false);
-         return;
-      }
-
-      // Un appel par titre pour confirmer le BPM exact et récupérer l'extrait audio
-      const detailedTracks = await Promise.all(uniqueStubs.map(async (stub) => {
-         const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
-         return full ? { ...full, matchedGenre: stub.matchedGenre } : null;
-      }));
-
-      const formattedResults = (await Promise.all(
-        detailedTracks
-          .filter(t => t && t.bpm && parseFloat(t.bpm) >= minBpm && parseFloat(t.bpm) <= maxBpm)
-          .map(async (t) => {
-            const realGenre = await resolveDeezerGenre(t.id);
-            return {
-              youtubeId: `deezer-${t.id}`,
-              title: t.title,
-              artist: t.artist ? t.artist.name : 'Inconnu',
-              bpm: Math.round(parseFloat(t.bpm)),
-              duration: t.duration || 180,
-              genre: realGenre || 'Genre inconnu',
-              preview: t.preview || null
-            };
-          })
-      ));
-
-      setWorldSearchResults(formattedResults);
-      if (formattedResults.length === 0) setNoUsableResultsHint(true);
+      const { results } = await fetchBpmSearchResults(targetBpm, tolerance, genres);
+      setWorldSearchResults(results);
+      if (results.length === 0) setNoUsableResultsHint(true);
     } catch(e) {
       showToast("Erreur réseau lors de la recherche.", 'error');
     }
