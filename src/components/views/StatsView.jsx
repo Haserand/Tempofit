@@ -317,7 +317,7 @@ export default function StatsView({
           <p className={`text-sm mb-6 max-w-sm mx-auto ${textMuted}`}>
             {statsMode === 'naughty'
               ? "Aucune séance Mode Intime marquée comme faite pour l'instant."
-              : 'Génère des playlists et marque-les comme faites (voir "Historique") — les stats se rempliront au fur et à mesure.'}
+              : 'Génère des playlists et marque-les comme faites (voir "Mes Séances") — les stats se rempliront au fur et à mesure.'}
           </p>
           <button onClick={() => changeView('generator')} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
             Générer ma première playlist
@@ -351,7 +351,7 @@ export default function StatsView({
           {userStats.dataImports > 0 && (
             <div className={`flex items-center gap-2 text-sm ${textMuted}`}>
               <Upload size={14}/>
-              <span>{userStats.dataImports} import{userStats.dataImports > 1 ? 's' : ''} de données réelles (cadence/FC Garmin-Strava) — détail dans "Mes Playlists".</span>
+              <span>{userStats.dataImports} import{userStats.dataImports > 1 ? 's' : ''} de données réelles (cadence/FC Garmin-Strava) — détail dans "Mes Séances".</span>
             </div>
           )}
 
