@@ -1062,6 +1062,70 @@ const recalculateTimeline = (playlistToUpdate) => {
 };
 
 /**
+ * Cœur de `handleReplaceTrackSameArtist` (App.jsx) — cherche un autre titre du
+ * MÊME artiste correspondant au BPM cible (recherche Deezer combinée
+ * artist:/bpm_min/bpm_max), avec les mêmes garde-fous que le reste du moteur
+ * (durée, conflit de titre, vérification de genre par équivalence, jusqu'à 5
+ * essais avant repli sur le premier candidat avec `_genreMismatch: true`).
+ *
+ * Pure : aucun setState, aucune lecture de state React. Renvoie `null` si
+ * aucun titre de cet artiste n'a été trouvé dans la fourchette BPM — à
+ * l'appelant de retomber sur `getSingleMatchingTrack` (recherche large) dans
+ * ce cas, comme le faisait déjà App.jsx.
+ *
+ * Extrait de App.jsx suite à la demande explicite de découpage des grosses
+ * fonctions de recherche/génération en fichiers utilitaires séparés (même
+ * chantier que fetchWorldSearchResults/fetchBpmSearchResults dans
+ * searchEngine.js, et createPlaylistData ci-dessous) — laissé dans
+ * musicEngine.js plutôt que searchEngine.js : ceci concerne le remplacement
+ * d'un titre DANS une playlist déjà générée, pas la recherche manuelle libre.
+ */
+const findSameArtistReplacement = async (artistName, minBpm, maxBpm, excludeYoutubeIds, requestedGenres, allowLongTracks = false) => {
+  try {
+    const q = `artist:"${artistName}" bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"`;
+    const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=8`);
+    const stubs = (data && Array.isArray(data.data) ? data.data : []).filter(s => !excludeYoutubeIds.includes(`deezer-${s.id}`));
+    if (stubs.length === 0) return null;
+
+    const details = await Promise.all(stubs.map(async (s) => {
+      const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
+      return full;
+    }));
+    let valid = details.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm);
+    if (!allowLongTracks) valid = valid.filter(f => (f.duration || 0) <= MAX_TRACK_DURATION);
+    valid = valid.filter(f => !detectTitleStyleConflict(f.title, requestedGenres));
+    valid = valid.sort(() => Math.random() - 0.5);
+
+    // Même garde-fou genre que le reste du moteur : même en restant sur le MÊME
+    // artiste, un artiste peut avoir des titres de genres différents
+    // (featurings, évolution de style...) — on vérifie avant de valider,
+    // jusqu'à 5 essais parmi les candidats déjà récupérés.
+    let pick = null;
+    let genreMismatch = false;
+    const attempted = [];
+    for (let attempt = 0; attempt < Math.min(5, valid.length); attempt++) {
+      const candidate = valid[attempt];
+      const realGenre = await resolveDeezerGenre(candidate.id);
+      candidate._resolvedGenre = realGenre || 'Genre inconnu';
+      attempted.push(candidate);
+      if (requestedGenres.some(g => genreRoughlyMatches(realGenre, g))) { pick = candidate; break; }
+    }
+    if (!pick && attempted.length > 0) { pick = attempted[0]; genreMismatch = true; }
+    if (!pick) return null;
+
+    return {
+      title: pick.title, artist: pick.artist ? pick.artist.name : artistName,
+      genre: pick._resolvedGenre || 'Genre inconnu', bpm: Math.round(parseFloat(pick.bpm)), duration: pick.duration || 180,
+      youtubeId: `deezer-${pick.id}`, preview: pick.preview || null,
+      ...(genreMismatch ? { _genreMismatch: true, _isFallback: true } : {})
+    };
+  } catch (e) {
+    // Échec silencieux : l'appelant retombe sur la recherche large (voir docstring).
+    return null;
+  }
+};
+
+/**
  * Génère une playlist complète à partir d'une config de wizard/routine.
  * 1. Découpe la séance en "segments" (1 seul segment en mode simple, un par
  *    portion en mode fractionné), chacun avec un BPM cible et une durée en secondes.
@@ -1165,6 +1229,7 @@ export {
   searchDeezerForGenres,
   getSingleMatchingTrack,
   buildSegmentTracks,
+  findSameArtistReplacement,
   recalculateTimeline,
   createPlaylistData
 };
