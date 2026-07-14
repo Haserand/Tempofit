@@ -46,7 +46,7 @@ export default function PlaylistCard({
       distanceUnit: playlist.distanceUnit || cfg.distanceUnit,
       hours: Math.floor(playlist.totalDuration / 3600),
       minutes: Math.round((playlist.totalDuration % 3600) / 60),
-      bpm: cfg.bpm, isIntervalMode: cfg.isIntervalMode, segments: cfg.segments,
+      bpm: cfg.bpm, isIntervalMode: cfg.isIntervalMode, isCrescendoMode: cfg.isCrescendoMode, segments: cfg.segments,
       selectedGenres: genres
     };
     return renderConfigInfoLine(infoSource, (
@@ -116,7 +116,7 @@ export default function PlaylistCard({
         {playlist.name}
         {playlist.config?.isIntervalMode && (
           <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full text-white shrink-0 ${bgAccentClass}`}>
-            Fractionné
+            {playlist.config?.isCrescendoMode ? 'Crescendo' : 'Fractionné'}
           </span>
         )}
       </h3>
