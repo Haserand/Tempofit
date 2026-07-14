@@ -7,7 +7,6 @@ import { NAUGHTY_ROUTINE_NAMES, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appC
 // CONSTANTES GLOBALES & CONFIGURATION
 // =====================================================================================
 
-const SPOTIFY_API_BASE = 'https://api.spotify.com/v1';
 const SPOTIFY_AUTH_BASE = 'https://accounts.spotify.com/authorize?';
 const SPOTIFY_TOKEN_BASE = 'https://accounts.spotify.com/api/token';
 
@@ -31,6 +30,7 @@ const SPOTIFY_TOKEN_BASE = 'https://accounts.spotify.com/api/token';
 // texte est maintenant écrit en dur à son unique point d'usage.
 
 import { safeFetchJson, deezerFetch, resolveDeezerGenre, getSingleMatchingTrack, buildSegmentTracks, findSameArtistReplacement, recalculateTimeline, createPlaylistData } from './musicEngine';
+import { fetchSpotifyRawData, resolveTracksBpm } from './spotifyEngine';
 import { dedupeAppend, fetchWorldSearchResults, fetchBpmSearchResults } from './searchEngine';
 import { useTheme } from './hooks/useTheme';
 import { useToast } from './hooks/useToast';
@@ -123,50 +123,6 @@ export default function App() {
    * à ARTIST_CATALOG : plus de liste de titres codés en dur à consulter ici — voir
    * musicCatalog.js pour le détail de ce changement d'architecture.)
    */
-  const resolveRealBPM = async (title, artist) => {
-    const cleanTitle = title.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').split('-')[0].trim();
-    const cleanArtist = artist.split(',')[0].split('&')[0].trim();
-
-    // Recherche Deezer en priorité
-    try {
-      const q = `track:"${cleanTitle}" artist:"${cleanArtist}"`;
-      const { data: searchData } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=1`);
-      const stub = (searchData && Array.isArray(searchData.data)) ? searchData.data[0] : null;
-      if (stub) {
-        const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
-        if (full && full.bpm && parseFloat(full.bpm) > 0) {
-          return { bpm: Math.round(parseFloat(full.bpm)), preview: full.preview || null };
-        }
-      }
-    } catch(e) {
-      // On continue vers le fallback GetSongBPM ci-dessous.
-    }
-
-    // Filet de sécurité : GetSongBPM, désormais via /api/getsongbpm (la clé reste
-    // côté serveur, voir api/getsongbpm.js — avant, elle était en clair dans ce
-    // fichier et donc visible par n'importe qui dans le bundle JS envoyé au navigateur).
-    try {
-        const queryStr = "song:" + cleanTitle + " artist:" + cleanArtist;
-        let res = await fetch(`/api/getsongbpm?type=both&lookup=${encodeURIComponent(queryStr)}`);
-        let data = await res.json();
-        if (data.search && data.search.length > 0 && data.search[0].tempo) {
-            return { bpm: parseInt(data.search[0].tempo), preview: null };
-        }
-
-        // Fallback: chercher uniquement par titre
-        res = await fetch(`/api/getsongbpm?type=song&lookup=${encodeURIComponent(cleanTitle)}`);
-        data = await res.json();
-        if (data.search && data.search.length > 0 && data.search[0].tempo) {
-            return { bpm: parseInt(data.search[0].tempo), preview: null };
-        }
-    } catch(e) {
-        console.error("Erreur API GetSongBPM:", e);
-    }
-
-    // Fallback mathématique si la musique est totalement inconnue
-    return { bpm: 100 + (title.length % 80), preview: null };
-  };
-
   // --- DÉBUT : MOTEUR SPOTIFY (Version Unifiée & Sécurisée) ---
   // Authentification OAuth2 PKCE (Proof Key for Code Exchange) : flow adapté
   // aux apps 100% front-end car il ne nécessite pas de "client secret" caché
@@ -267,20 +223,6 @@ export default function App() {
    * rate-limiting côté Deezer/GetSongBPM. 200 est un compromis raisonnable ;
    * augmente cette valeur si besoin, en gardant en tête le coût en requêtes.
    */
-  const fetchAllLikedTracks = async (token, maxTracks = 200) => {
-    let allTracks = [];
-    let url = SPOTIFY_API_BASE + '/me/tracks?limit=50';
-    while (url && allTracks.length < maxTracks) {
-      const res = await fetch(url, { headers: { Authorization: "Bearer " + token } });
-      if (res.status === 401 || res.status === 403) throw new Error("Token expiré");
-      const data = await res.json();
-      const items = data.items ? data.items.map(i => i.track) : [];
-      allTracks = allTracks.concat(items);
-      url = data.next; // Spotify fournit directement l'URL de la page suivante, ou null si terminé
-    }
-    return allTracks.slice(0, maxTracks);
-  };
-
   /**
    * Récupère les titres likés ET les artistes suivis de l'utilisateur sur Spotify,
    * résout le BPM réel (+ extrait audio) de chaque titre via `resolveRealBPM`, et
@@ -300,27 +242,11 @@ export default function App() {
   const syncSpotifyFavorites = async (tokenToUse) => {
     const token = tokenToUse || spotifyToken;
     if (!token || token === "undefined" || token === "null") return;
-    
+
     try {
       showToast("⚡ Récupération de ta bibliothèque Spotify...");
-      
-      const rawTracks = await fetchAllLikedTracks(token);
 
-
-      // Récupération des artistes réellement SUIVIS (distinct des artistes des titres likés).
-      let followedArtistNames = [];
-      try {
-        const followedRes = await fetch(SPOTIFY_API_BASE + '/me/following?type=artist&limit=50', {
-          headers: { Authorization: "Bearer " + token }
-        });
-        if (followedRes.ok) {
-          const followedData = await followedRes.json();
-          const items = followedData.artists && followedData.artists.items ? followedData.artists.items : [];
-          followedArtistNames = items.map(a => a.name);
-        }
-      } catch (e) {
-        // Échec silencieux : on garde au moins les artistes déduits des titres likés ci-dessous.
-      }
+      const { rawTracks, followedArtistNames } = await fetchSpotifyRawData(token);
 
       if (rawTracks.length === 0 && followedArtistNames.length === 0) {
         showToast("Synchro terminée (Aucun titre liké ni artiste suivi trouvé).");
@@ -328,23 +254,7 @@ export default function App() {
       }
 
       showToast("🔍 Interrogation du Moteur de Vérité BPM TempoFit...");
-
-      const analyzedPool = await Promise.all(rawTracks.map(async (track) => {
-         const artistName = track.artists && track.artists[0] ? track.artists[0].name : 'Artiste inconnu';
-         const resolved = await resolveRealBPM(track.name, artistName);
-         
-         return {
-            youtubeId: track.id, 
-            title: track.name,
-            artist: artistName,
-            album: track.album ? track.album.name : 'Album',
-            bpm: resolved.bpm, 
-            duration: Math.round(track.duration_ms / 1000),
-            isFromPlatform: 'Spotify',
-            preview: track.preview_url || resolved.preview || null // extrait Spotify natif si dispo, sinon celui trouvé via Deezer
-         };
-      }));
-
+      const analyzedPool = await resolveTracksBpm(rawTracks);
       setSpotifyTrackPool(analyzedPool);
 
       // Fusion avec les favoris déjà présents (ajoutés manuellement ou via une
