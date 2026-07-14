@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Play, List, Plus, Check, Settings, Pause, Search, X, Heart, ListPlus, Loader2, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Edit3, Copy, Trophy, Upload, ChevronUp, ChevronDown, Target, History, MessageCircle, ExternalLink } from 'lucide-react';
+import { Activity, Clock, Music, Play, List, Plus, Check, Settings, Pause, Search, X, Heart, ListPlus, Loader2, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Edit3, Copy, Trophy, Upload, ChevronUp, ChevronDown, Target, MessageCircle, ExternalLink } from 'lucide-react';
 import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, normalizeGenreForDisplay, getGenresForDisplay } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appConfig';
 
@@ -29,7 +29,7 @@ const SPOTIFY_TOKEN_BASE = 'https://accounts.spotify.com/api/token';
 // traduction jamais poursuivi. Retiré pour rester cohérent avec le reste : le
 // texte est maintenant écrit en dur à son unique point d'usage.
 
-import { safeFetchJson, deezerFetch, resolveDeezerGenre, getSingleMatchingTrack, buildSegmentTracks, findSameArtistReplacement, recalculateTimeline, createPlaylistData } from './musicEngine';
+import { safeFetchJson, deezerFetch, resolveDeezerGenre, getSingleMatchingTrack, buildSegmentTracks, deduceCrescendoBpm, buildCrescendoSegments, findSameArtistReplacement, recalculateTimeline, createPlaylistData } from './musicEngine';
 import { fetchSpotifyRawData, resolveTracksBpm } from './spotifyEngine';
 import { parseGarminCsv } from './workoutDataEngine';
 import { dedupeAppend, fetchWorldSearchResults, fetchBpmSearchResults } from './searchEngine';
@@ -50,7 +50,6 @@ import SettingsView from './components/views/SettingsView';
 import FavoritesView from './components/views/FavoritesView';
 import TrophiesView from './components/views/TrophiesView';
 import RoutinesView from './components/views/RoutinesView';
-import HistoryView from './components/views/HistoryView';
 import PlaylistsView from './components/views/PlaylistsView';
 import StatsView from './components/views/StatsView';
 import GeneratorView from './components/views/GeneratorView';
@@ -912,9 +911,9 @@ export default function App() {
   const getActiveWorkoutName = () => (workoutType === 'Autre' && customActivity.trim() !== '') ? customActivity : workoutType;
 
   /**
-   * Ligne d'infos partagée par les cartes de Routine, Playlist (Mes Playlists) et
-   * Historique — avant, chacune affichait un mélange différent de champs, dans un
-   * ordre différent, ce qui rendait les trois vues incohérentes entre elles. Ordre
+   * Ligne d'infos partagée par les cartes de Routine et de Playlist (vue "Mes
+   * Séances") — avant, chacune affichait un mélange différent de champs, dans un
+   * ordre différent, ce qui rendait les vues incohérentes entre elles. Ordre
    * unique désormais : Activité → Distance/Durée → BPM (ou phases si Fractionné)
    * → Style musical, partout. `extra` permet d'ajouter un élément propre à un
    * contexte précis (ex. le nombre de titres, qui n'existe que pour une playlist
@@ -994,6 +993,44 @@ export default function App() {
     setIsEditRoutineModalOpen(false);
     setEditingRoutine(null);
   };
+
+  /**
+   * Tant que la modale d'édition de routine est ouverte sur une routine en
+   * mode Crescendo, ses segments (échauffement/cœur de séance/retour au
+   * calme) sont recalculés automatiquement à chaque changement de BPM,
+   * durée/distance, répartition (%) ou override BPM manuel — même logique
+   * que le wizard (voir l'effet équivalent dans useGeneratorForm.js),
+   * dupliquée ici car `editingRoutine` est un objet plat indépendant du state
+   * du wizard : une routine en cours d'édition ne doit pas partager son state
+   * avec le générateur (l'utilisateur peut avoir un brouillon de génération
+   * en cours par ailleurs, les deux ne doivent pas s'écraser mutuellement).
+   * Comparaison JSON avant `setEditingRoutine` pour éviter une boucle de
+   * setState inutile (l'effet re-déclenche sur `editingRoutine.segments`
+   * indirectement via la ré-exécution du composant, mais le contenu ne
+   * change alors plus, donc pas de nouvelle mise à jour).
+   */
+  useEffect(() => {
+    if (!isEditRoutineModalOpen || !editingRoutine || !editingRoutine.isCrescendoMode) return;
+    const bpmFloor = isNaughtyMode ? 40 : 80;
+    const newSegments = buildCrescendoSegments(
+      editingRoutine.targetMode, editingRoutine.bpm, editingRoutine.hours, editingRoutine.minutes,
+      editingRoutine.distanceVal, editingRoutine.paceMin, editingRoutine.paceSec, bpmFloor,
+      editingRoutine.crescendoWarmupPct ?? 15, editingRoutine.crescendoCooldownPct ?? 15,
+      editingRoutine.crescendoManualBpm ? editingRoutine.crescendoWarmupBpm : null,
+      editingRoutine.crescendoManualBpm ? editingRoutine.crescendoCooldownBpm : null,
+    );
+    if (JSON.stringify(newSegments) !== JSON.stringify(editingRoutine.segments)) {
+      setEditingRoutine(prev => prev ? { ...prev, segments: newSegments } : prev);
+    }
+  }, [
+    isEditRoutineModalOpen, editingRoutine?.isCrescendoMode,
+    editingRoutine?.targetMode, editingRoutine?.bpm, editingRoutine?.hours, editingRoutine?.minutes,
+    editingRoutine?.distanceVal, editingRoutine?.paceMin, editingRoutine?.paceSec,
+    editingRoutine?.crescendoWarmupPct, editingRoutine?.crescendoCooldownPct,
+    editingRoutine?.crescendoManualBpm, editingRoutine?.crescendoWarmupBpm, editingRoutine?.crescendoCooldownBpm,
+    isNaughtyMode,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ]);
 
   // recalculateTimeline est désormais dans musicEngine.js (voir import en
   // haut de fichier), déplacée avec createPlaylistData — comportement inchangé,
@@ -1198,7 +1235,7 @@ export default function App() {
   };
 
   // Planifie (ou déplanifie, si dateStr est vide) une date optionnelle pour une
-  // playlist — sert uniquement de clé de TRI dans "Mes Playlists" (section
+  // playlist — sert uniquement de clé de TRI dans "Mes Séances" (section
   // "Planifiées"), jamais une contrainte bloquante : une playlist sans date
   // reste utilisable normalement, juste triable manuellement à la place (voir
   // PlaylistsView, glisser-déposer de la section "À planifier").
@@ -1350,7 +1387,7 @@ export default function App() {
    * "faite/pas faite". Ce choix permet de marquer la MÊME playlist comme faite
    * plusieurs fois (une entrée par vraie utilisation), sans dupliquer toute la
    * playlist à chaque fois — ce qui aurait recréé inutilement les mêmes titres et
-   * pollué "Mes Playlists" d'un doublon par séance.
+   * pollué "Mes Séances" d'un doublon par séance.
    */
   // Formate une date ISO (YYYY-MM-DD, format natif de <input type="date">) en
   // date lisible localement — les completions sont désormais stockées en ISO en
@@ -1432,12 +1469,12 @@ export default function App() {
 
   /**
    * Retire une date de complétion précise. Si c'était la DERNIÈRE restante, la
-   * playlist n'a alors plus aucune complétion : elle disparaît de l'Historique et
-   * retourne dans "Mes Playlists" (son statut n'est plus que dérivé de la présence
-   * ou non de complétions, voir plus haut). On prévient clairement de cette
-   * conséquence plutôt que de laisser l'utilisateur la découvrir après coup —
-   * mais on laisse quand même l'action se faire, puisque c'est explicitement ce
-   * qui est demandé.
+   * playlist n'a alors plus aucune complétion : elle quitte la section
+   * "Terminées" et retourne dans "À planifier" (son statut n'est plus que
+   * dérivé de la présence ou non de complétions, voir plus haut). On prévient
+   * clairement de cette conséquence plutôt que de laisser l'utilisateur la
+   * découvrir après coup — mais on laisse quand même l'action se faire,
+   * puisque c'est explicitement ce qui est demandé.
    */
   const removeCompletionDate = (playlistId, isoDate) => {
     const pl = savedPlaylists.find(p => p.id === playlistId);
@@ -1452,7 +1489,7 @@ export default function App() {
     setSavedPlaylists(savedPlaylists.map(p => p.id === playlistId ? { ...p, completions: remaining, actualDataByDate: remainingActualData } : p));
 
     if (remaining.length === 0) {
-      showToast("Dernière date retirée : cette playlist n'a plus aucune complétion, elle repasse dans \"Mes Playlists\".", 'error');
+      showToast("Dernière date retirée : cette playlist n'a plus aucune complétion, elle repasse dans \"Mes Séances\".", 'error');
     }
   };
 
@@ -1684,10 +1721,11 @@ export default function App() {
   const [editingCompletion, setEditingCompletion] = useState(null); // {playlistId, isoDate} | null
 
   /**
-   * Liste interactive des dates de complétion d'une playlist — partagée entre
-   * "Mes Playlists" et "Historique" pour rester cohérente. Chaque date : clic
-   * pour modifier (ouvre un vrai sélecteur de date), croix pour retirer. Une
-   * tuile en pointillés permet d'ajouter une date précise (pas seulement
+   * Liste interactive des dates de complétion d'une playlist — utilisée par
+   * PlaylistCard, partagée par les 3 sections de "Mes Séances" (à planifier /
+   * planifiées / terminées) pour rester cohérente. Chaque date : clic pour
+   * modifier (ouvre un vrai sélecteur de date), croix pour retirer. Une tuile
+   * en pointillés permet d'ajouter une date précise (pas seulement
    * "aujourd'hui", pour les séances renseignées après coup).
    */
   // Bordure + badge pour les éléments les plus utilisés (routines, playlists,
@@ -1946,7 +1984,7 @@ export default function App() {
           </div>
           
           {/* `select-none` sur chaque bouton ci-dessous (retour utilisateur) : sans ça,
-              le texte des libellés (ex. "Historique") reste sélectionnable comme du
+              le texte des libellés (ex. "Mes Séances") reste sélectionnable comme du
               texte normal, donc le curseur affiche un I-beam (texte éditable) au survol
               du label — trompeur pour un bouton, même si le clic fonctionnait déjà
               correctement partout. `cursor-pointer` ajouté en plus par sécurité (déjà
@@ -1965,12 +2003,7 @@ export default function App() {
             
             <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
               <List size={18} />
-              <span className="font-bold text-sm">Mes Playlists</span>
-            </button>
-
-            <button onClick={() => changeView('history')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'history' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
-              <History size={18} />
-              <span className="font-bold text-sm">Historique</span>
+              <span className="font-bold text-sm">Mes Séances</span>
             </button>
 
             <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
@@ -2074,7 +2107,14 @@ export default function App() {
               />
             )}
 
-            {/* ===================== VIEW: PLAYLISTS (Historique) ===================== */}
+            {/* ===================== VIEW: PLAYLISTS / MES SÉANCES ===================== */}
+            {/* Fusionne planification (à venir) ET historique (terminées) sur un seul
+                écran chronologique — voir PlaylistsView pour le détail des 3 sections.
+                L'ancien onglet séparé "Historique" (HistoryView.jsx) a été retiré : il
+                faisait doublon avec cette vue depuis que le système de planification/
+                dates y a été intégré. Le fichier HistoryView.jsx n'est plus importé
+                nulle part — à supprimer manuellement du disque au prochain audit (même
+                remarque que pour useQueue.js/QueueView.jsx lors d'un chantier précédent). */}
             {view === 'playlists' && (
               <PlaylistsView
                 theme={themeTokens} isNaughtyMode={isNaughtyMode}
@@ -2083,14 +2123,6 @@ export default function App() {
                 getRankStyle={getRankStyle} setCurrentPlaylist={setCurrentPlaylist} changeView={changeView}
                 renderConfigInfoLine={renderConfigInfoLine} renderCompletionsList={renderCompletionsList}
                 markPlaylistAsCompleted={markPlaylistAsCompleted}
-              />
-            )}
-
-            {view === 'history' && (
-              <HistoryView
-                theme={themeTokens} isNaughtyMode={isNaughtyMode} savedPlaylists={savedPlaylists}
-                getRankStyle={getRankStyle} setCurrentPlaylist={setCurrentPlaylist} changeView={changeView}
-                renderConfigInfoLine={renderConfigInfoLine} renderCompletionsList={renderCompletionsList}
               />
             )}
 
@@ -2498,11 +2530,121 @@ export default function App() {
                 </div>
 
                 {editingRoutine.isIntervalMode && (
-                  <div className={`text-xs p-3 rounded-xl ${inputBg} border ${inputBorder} ${textMuted}`}>
-                    {editingRoutine.isCrescendoMode
-                      ? "Cette routine est en mode Crescendo : les 3 portions (échauffement / cœur de séance / retour au calme) sont recalculées automatiquement à partir du BPM cible et de la durée/distance ci-dessus, pas éditables une par une ici."
-                      : "Cette routine est en mode Fractionné : les portions détaillées ne sont pas éditables depuis cette fenêtre pour l'instant. Les réglages ci-dessus (BPM, genres, marge d'erreur) s'appliqueront quand même à l'ensemble des portions."}
-                  </div>
+                  editingRoutine.isCrescendoMode ? (
+                    <div className="space-y-5">
+                      <div className="space-y-3">
+                        <label className={`text-sm font-bold ${textMuted}`}>Répartition de l'effort</label>
+                        <div className="flex justify-between text-xs font-bold">
+                          <span className="text-sky-500 dark:text-sky-400">Échauffement {editingRoutine.crescendoWarmupPct ?? 15}%</span>
+                          <span className={textColorClass}>Cœur {100 - (editingRoutine.crescendoWarmupPct ?? 15) - (editingRoutine.crescendoCooldownPct ?? 15)}%</span>
+                          <span className="text-emerald-500 dark:text-emerald-400">Retour au calme {editingRoutine.crescendoCooldownPct ?? 15}%</span>
+                        </div>
+                        {/* Même curseur double que l'étape 3 du wizard (voir GeneratorView) —
+                            2 <input type="range"> superposés, piste colorée purement visuelle
+                            en dessous. Bornes min/max garantissant CRESCENDO_MIN_MAIN_PCT au
+                            cœur de séance, identique au wizard. */}
+                        <div className="relative h-8 flex items-center select-none">
+                          <div className="absolute inset-x-0 h-2.5 rounded-full overflow-hidden flex pointer-events-none">
+                            <div className="h-full bg-sky-400 dark:bg-sky-500" style={{ width: `${editingRoutine.crescendoWarmupPct ?? 15}%` }} />
+                            <div className={`h-full ${bgAccentClass}`} style={{ width: `${100 - (editingRoutine.crescendoWarmupPct ?? 15) - (editingRoutine.crescendoCooldownPct ?? 15)}%` }} />
+                            <div className="h-full bg-emerald-400 dark:bg-emerald-500" style={{ width: `${editingRoutine.crescendoCooldownPct ?? 15}%` }} />
+                          </div>
+                          <input
+                            type="range" min="0" max={100 - CRESCENDO_MIN_MAIN_PCT - (editingRoutine.crescendoCooldownPct ?? 15)} step="1"
+                            value={editingRoutine.crescendoWarmupPct ?? 15}
+                            onChange={(e) => {
+                              const cap = 100 - CRESCENDO_MIN_MAIN_PCT - (editingRoutine.crescendoCooldownPct ?? 15);
+                              setEditingRoutine({ ...editingRoutine, crescendoWarmupPct: Math.max(0, Math.min(parseInt(e.target.value) || 0, cap)) });
+                            }}
+                            aria-label="Part de l'échauffement"
+                            className="absolute inset-x-0 w-full h-8 m-0 appearance-none bg-transparent cursor-pointer pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-[3px] [&::-webkit-slider-thumb]:border-sky-500 [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-[3px] [&::-moz-range-thumb]:border-sky-500 [&::-moz-range-thumb]:shadow-md"
+                            style={{ zIndex: 2 }}
+                          />
+                          <input
+                            type="range" min={(editingRoutine.crescendoWarmupPct ?? 15) + CRESCENDO_MIN_MAIN_PCT} max="100" step="1"
+                            value={100 - (editingRoutine.crescendoCooldownPct ?? 15)}
+                            onChange={(e) => {
+                              const boundary = parseInt(e.target.value) || 100;
+                              const cap = 100 - CRESCENDO_MIN_MAIN_PCT - (editingRoutine.crescendoWarmupPct ?? 15);
+                              setEditingRoutine({ ...editingRoutine, crescendoCooldownPct: Math.max(0, Math.min(100 - boundary, cap)) });
+                            }}
+                            aria-label="Part du retour au calme"
+                            className="absolute inset-x-0 w-full h-8 m-0 appearance-none bg-transparent cursor-pointer pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-[3px] [&::-webkit-slider-thumb]:border-emerald-500 [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-[3px] [&::-moz-range-thumb]:border-emerald-500 [&::-moz-range-thumb]:shadow-md"
+                            style={{ zIndex: 3 }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={`text-xs ${textMuted}`}>
+                            {editingRoutine.crescendoManualBpm ? 'BPM personnalisé pour ces 2 phases :' : 'BPM déduit automatiquement du rythme au pic :'}
+                          </p>
+                          <button
+                            onClick={() => {
+                              if (!editingRoutine.crescendoManualBpm) {
+                                const bpmFloor = isNaughtyMode ? 40 : 80;
+                                const deduced = deduceCrescendoBpm(editingRoutine.bpm, bpmFloor);
+                                setEditingRoutine({
+                                  ...editingRoutine,
+                                  crescendoManualBpm: true,
+                                  crescendoWarmupBpm: editingRoutine.crescendoWarmupBpm ?? deduced.warmupBpm,
+                                  crescendoCooldownBpm: editingRoutine.crescendoCooldownBpm ?? deduced.cooldownBpm,
+                                });
+                              } else {
+                                setEditingRoutine({ ...editingRoutine, crescendoManualBpm: false });
+                              }
+                            }}
+                            className={`text-xs font-bold underline shrink-0 ${textMuted} hover:${textHighlight}`}
+                          >
+                            {editingRoutine.crescendoManualBpm ? 'Revenir au calcul auto' : '⚙️ Ajuster manuellement'}
+                          </button>
+                        </div>
+
+                        {editingRoutine.crescendoManualBpm && (
+                          <div className={`space-y-4 p-3 rounded-xl ${inputBg} border ${inputBorder}`}>
+                            <div>
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-xs font-bold text-sky-500 dark:text-sky-400">BPM Échauffement</span>
+                                <span className={`text-sm font-black ${textHighlight}`}>{editingRoutine.crescendoWarmupBpm}</span>
+                              </div>
+                              <input
+                                type="range" min={isNaughtyMode ? 40 : 80} max={editingRoutine.bpm}
+                                value={editingRoutine.crescendoWarmupBpm ?? (isNaughtyMode ? 40 : 80)}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value) || (isNaughtyMode ? 40 : 80);
+                                  setEditingRoutine(prev => ({
+                                    ...prev,
+                                    crescendoWarmupBpm: val,
+                                    crescendoCooldownBpm: (prev.crescendoCooldownBpm != null && prev.crescendoCooldownBpm > val) ? val : prev.crescendoCooldownBpm,
+                                  }));
+                                }}
+                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-sky-500"
+                              />
+                            </div>
+                            <div>
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-xs font-bold text-emerald-500 dark:text-emerald-400">BPM Retour au calme</span>
+                                <span className={`text-sm font-black ${textHighlight}`}>{editingRoutine.crescendoCooldownBpm}</span>
+                              </div>
+                              <input
+                                type="range" min={isNaughtyMode ? 40 : 80} max={editingRoutine.crescendoWarmupBpm ?? editingRoutine.bpm}
+                                value={editingRoutine.crescendoCooldownBpm ?? (isNaughtyMode ? 40 : 80)}
+                                onChange={(e) => setEditingRoutine({ ...editingRoutine, crescendoCooldownBpm: parseInt(e.target.value) || (isNaughtyMode ? 40 : 80) })}
+                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <p className={`text-[11px] ${textMuted}`}>Les 3 portions se recalculent automatiquement selon ces réglages.</p>
+                    </div>
+                  ) : (
+                    <div className={`text-xs p-3 rounded-xl ${inputBg} border ${inputBorder} ${textMuted}`}>
+                      Cette routine est en mode Fractionné : les portions détaillées ne sont pas éditables depuis cette fenêtre pour l'instant. Les réglages ci-dessus (BPM, genres, marge d'erreur) s'appliqueront quand même à l'ensemble des portions.
+                    </div>
+                  )
                 )}
               </div>
 
