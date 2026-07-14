@@ -315,6 +315,32 @@ const normalizeGenreForDisplay = (rawGenre) => {
   return match || rawGenre;
 };
 
+/**
+ * Variante MULTI-GENRE de normalizeGenreForDisplay (qui ne renvoie que le
+ * PREMIER genre trouvé) — celle-ci renvoie TOUS les genres canoniques de
+ * l'app auxquels le vrai genre Deezer d'un titre correspond DIRECTEMENT.
+ * Un même genre Deezer peut légitimement recouper plusieurs de nos catégories
+ * à la fois : "Alternative Rock" correspond à la fois à "Rock" ET à
+ * "Alternative" — un vrai cas de fusion/genre composite, pas une ambiguïté à
+ * trancher arbitrairement en n'en gardant qu'un.
+ *
+ * Volontairement basée sur isDirectGenreMatch (correspondance directe par
+ * mot-clé) UNIQUEMENT, jamais sur genreRoughlyMatches (les équivalences type
+ * Métal/Rock) : l'équivalence est un FILET DE SECOURS pour la génération
+ * ("accepter à défaut de mieux"), pas une vraie double appartenance de genre
+ * — l'utiliser ici afficherait "Métal" sur n'importe quel titre Rock
+ * générique, ce qui serait faux la plupart du temps, pas un cas de fusion.
+ */
+const getGenresForDisplay = (rawGenre) => {
+  if (!rawGenre) return ['Genre inconnu'];
+  const allKnownGenres = [...new Set([...STANDARD_GENRES, ...NAUGHTY_GENRES, ...EXTRA_GENRES])];
+  const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const exact = allKnownGenres.find(g => normalize(g) === normalize(rawGenre));
+  if (exact) return [exact];
+  const direct = allKnownGenres.filter(g => isDirectGenreMatch(rawGenre, g));
+  return direct.length > 0 ? direct : [rawGenre];
+};
+
 export {
   ARTIST_CATALOG,
   STANDARD_GENRES,
@@ -327,5 +353,6 @@ export {
   genreRoughlyMatches,
   TITLE_STYLE_OVERRIDE_KEYWORDS,
   detectTitleStyleConflict,
-  normalizeGenreForDisplay
+  normalizeGenreForDisplay,
+  getGenresForDisplay
 };
