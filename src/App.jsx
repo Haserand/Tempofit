@@ -33,6 +33,7 @@ const SPOTIFY_TOKEN_BASE = 'https://accounts.spotify.com/api/token';
 import { safeFetchJson, deezerFetch, resolveDeezerGenre, detectBpmFromPreview, resolveBpmForCandidates, MAX_TRACK_DURATION, pickByDurationProximity, searchArtistsForBpm, fetchInBatches, searchDeezerPage, searchDeezerForGenres, getSingleMatchingTrack, buildSegmentTracks } from './musicEngine';
 import { useTheme } from './hooks/useTheme';
 import { useFavorites } from './hooks/useFavorites';
+import { useRoutines } from './hooks/useRoutines';
 import SettingsView from './components/views/SettingsView';
 import FavoritesView from './components/views/FavoritesView';
 import TrophiesView from './components/views/TrophiesView';
@@ -402,24 +403,18 @@ export default function App() {
     addFavoriteArtistValidated, toggleTrackFavorite, toggleArtistFavorite,
   } = useFavorites(showToast);
 
-  // Routines sauvegardées : configurations de génération réutilisables en 1 clic.
-  const [routines, setRoutines] = useState([{
-    id: 'routine-1', name: '🏃‍♂️ Mon 5km Quotidien', workoutType: 'Course à pied', customActivity: '',
-    isIntervalMode: false, bpm: 160, selectedGenres: ['Métal', 'Rock'], bpmTolerance: 10, crossfade: 2,
-    segments: [], coverIcon: '🏃‍♂️', autoGenFreq: 'Manuel', manualGenerations: 0, recentTrackIds: [],
-    targetMode: 'distance', distanceVal: 5, distanceUnit: 'km', paceMin: 5, paceSec: 30, hours: 0, minutes: 27,
-    createdAt: new Date().toLocaleDateString()
-  }]);
-  
-  const [routineBatchCounts, setRoutineBatchCounts] = useState({});
-  const [isSavingRoutineModalOpen, setIsSavingRoutineModalOpen] = useState(false);
-  // Routine en cours d'édition (copie modifiable, distincte de l'entrée dans `routines`
-  // tant que l'utilisateur n'a pas choisi "cette séance seulement" ou "toujours").
-  const [editingRoutine, setEditingRoutine] = useState(null);
-  const [isEditRoutineModalOpen, setIsEditRoutineModalOpen] = useState(false);
-  const [newRoutineName, setNewRoutineName] = useState("");
-  const [newRoutineIcon, setNewRoutineIcon] = useState("⚡");
-  const [newRoutineFreq, setNewRoutineFreq] = useState("Manuel");
+  const {
+    routines, setRoutines,
+    routineBatchCounts, setRoutineBatchCounts,
+    isSavingRoutineModalOpen, setIsSavingRoutineModalOpen,
+    editingRoutine, setEditingRoutine,
+    isEditRoutineModalOpen, setIsEditRoutineModalOpen,
+    newRoutineName, setNewRoutineName,
+    newRoutineIcon, setNewRoutineIcon,
+    newRoutineFreq, setNewRoutineFreq,
+    getDisplayRoutineName, getDisplayRoutineIcon,
+    addRoutine, updateRoutine,
+  } = useRoutines(isNaughtyMode, showToast);
 
   // Statistiques utilisateur servant à débloquer les trophées (voir checkTrophies).
   const [userStats, setUserStats] = useState({ 
@@ -1381,18 +1376,6 @@ export default function App() {
 
   const getActiveWorkoutName = () => (workoutType === 'Autre' && customActivity.trim() !== '') ? customActivity : workoutType;
 
-  // Hash simple et stable (même routine → toujours le même résultat, pas aléatoire
-  // à chaque re-render) utilisé pour attribuer un nom/icône "Intime" cohérent à une
-  // routine existante, sans jamais modifier ses vraies données sauvegardées (nom,
-  // config, musiques). Purement cosmétique, à l'affichage seulement.
-  const simpleHash = (str) => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) { hash = (hash * 31 + str.charCodeAt(i)) | 0; }
-    return Math.abs(hash);
-  };
-  const getDisplayRoutineName = (routine) => isNaughtyMode ? NAUGHTY_ROUTINE_NAMES[simpleHash(routine.id) % NAUGHTY_ROUTINE_NAMES.length] : routine.name;
-  const getDisplayRoutineIcon = (routine) => isNaughtyMode ? NAUGHTY_ROUTINE_NAMES[simpleHash(routine.id) % NAUGHTY_ROUTINE_NAMES.length].split(' ')[0] : routine.coverIcon;
-
   /**
    * Ligne d'infos partagée par les cartes de Routine, Playlist (Mes Playlists) et
    * Historique — avant, chacune affichait un mélange différent de champs, dans un
@@ -1495,9 +1478,7 @@ export default function App() {
       segments: isIntervalMode ? [...segments] : [], coverIcon: newRoutineIcon, autoGenFreq: newRoutineFreq,
       manualGenerations: 0, recentTrackIds: [], createdAt: new Date().toLocaleDateString()
     };
-    setRoutines([newRoutine, ...routines]);
-    setNewRoutineName(""); setNewRoutineIcon("⚡"); setNewRoutineFreq("Manuel"); setIsSavingRoutineModalOpen(false);
-    showToast(`Routine sauvegardée avec succès !`);
+    addRoutine(newRoutine);
   };
 
   /**
@@ -1519,7 +1500,7 @@ export default function App() {
    */
   const applyRoutineEditPermanently = () => {
     if (!editingRoutine) return;
-    setRoutines(routines.map(r => r.id === editingRoutine.id ? { ...editingRoutine } : r));
+    updateRoutine(editingRoutine);
     executeGeneration({ ...editingRoutine, workoutName: editingRoutine.customActivity || editingRoutine.workoutType, routineName: editingRoutine.name }, 1, editingRoutine.id);
     showToast("Routine mise à jour pour toutes les prochaines séances.");
     setIsEditRoutineModalOpen(false);
