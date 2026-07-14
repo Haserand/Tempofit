@@ -38,6 +38,7 @@ import { useUserStats } from './hooks/useUserStats';
 import { useAudioPreview } from './hooks/useAudioPreview';
 import { useShare } from './hooks/useShare';
 import { useElapsedTimer } from './hooks/useElapsedTimer';
+import { useSessionAnalysis } from './hooks/useSessionAnalysis';
 import SettingsView from './components/views/SettingsView';
 import FavoritesView from './components/views/FavoritesView';
 import TrophiesView from './components/views/TrophiesView';
@@ -1187,20 +1188,14 @@ export default function App() {
   // qu'il n'a plus de fondation avec le passage à ARTIST_CATALOG (qui ne liste
   // que des noms d'artistes, pas de titres à chercher).
 
-  const [dataOffset, setDataOffset] = useState(0);
   const fileInputRef = useRef(null);
-  // Mémorise à QUELLE date de complétion précise rattacher le prochain import CSV
-  // (une playlist peut désormais avoir plusieurs séances réelles, une par date de
-  // complétion, au lieu d'une seule donnée réelle partagée pour toute la playlist).
-  const [csvUploadTargetDate, setCsvUploadTargetDate] = useState(null);
-  // Quelle date de complétion afficher dans le graphique "Cible vs Réalité" quand
-  // plusieurs séances ont des données réelles importées — par défaut la plus récente.
-  const [selectedAnalysisDate, setSelectedAnalysisDate] = useState(null);
-  // Quelle métrique réelle afficher sur le graphique quand les deux sont dispo pour
-  // la séance sélectionnée : 'cadence' (PPM, comparable au BPM musical cible) ou
-  // 'heartRate' (fréquence cardiaque, affichée en courbe brute — pas de cible
-  // équivalente dans TempoFit aujourd'hui, voir RealDataDot et analysisStats).
-  const [selectedMetric, setSelectedMetric] = useState('cadence');
+  const {
+    dataOffset, setDataOffset,
+    csvUploadTargetDate, setCsvUploadTargetDate,
+    selectedAnalysisDate, setSelectedAnalysisDate,
+    selectedMetric, setSelectedMetric,
+    currentActualData, availableMetrics,
+  } = useSessionAnalysis(currentPlaylist);
 
   const availableGenres = isNaughtyMode ? NAUGHTY_GENRES : STANDARD_GENRES;
   // Sous-titre du générateur adapté au mode Intime — avant, le titre changeait déjà
@@ -1217,39 +1212,6 @@ export default function App() {
        setNewRoutineIcon("🔥");
     }
   }, [isSavingRoutineModalOpen, isNaughtyMode]);
-
-  // Réinitialise le décalage temporel du graphique (dataOffset) à chaque changement de
-  // playlist affichée, et pré-sélectionne la séance réelle la plus récente (s'il y en a)
-  // pour l'affichage "Cible vs Réalité".
-  useEffect(() => {
-    setDataOffset(0);
-    const datesWithData = currentPlaylist?.actualDataByDate ? Object.keys(currentPlaylist.actualDataByDate).sort() : [];
-    setSelectedAnalysisDate(datesWithData.length > 0 ? datesWithData[datesWithData.length - 1] : null);
-  }, [currentPlaylist?.id]);
-
-  // Données réelles (Garmin/Strava) de la séance actuellement sélectionnée pour analyse
-  // — remplace l'ancien `currentPlaylist.actualData` unique par un accès à la bonne
-  // entrée de `actualDataByDate` selon `selectedAnalysisDate`.
-  const currentActualData = (currentPlaylist && currentPlaylist.actualDataByDate && selectedAnalysisDate)
-    ? currentPlaylist.actualDataByDate[selectedAnalysisDate]
-    : null;
-
-  // Quelles métriques sont réellement présentes dans la séance affichée — un même
-  // fichier CSV Garmin/Strava peut contenir la cadence, la fréquence cardiaque, ou
-  // les deux (elles viennent du même export par tour, pas d'imports séparés).
-  const availableMetrics = {
-    cadence: !!(currentActualData && currentActualData.some(d => d.cadenceReelle !== undefined)),
-    heartRate: !!(currentActualData && currentActualData.some(d => d.heartRate !== undefined)),
-  };
-
-  // Si la métrique actuellement choisie n'existe pas pour la séance affichée (ex. on
-  // vient de changer de date, ou ce CSV ne contenait que l'une des deux), on bascule
-  // automatiquement sur celle qui est disponible plutôt que d'afficher un graphique vide.
-  useEffect(() => {
-    if (!currentActualData) return;
-    if (selectedMetric === 'cadence' && !availableMetrics.cadence && availableMetrics.heartRate) setSelectedMetric('heartRate');
-    else if (selectedMetric === 'heartRate' && !availableMetrics.heartRate && availableMetrics.cadence) setSelectedMetric('cadence');
-  }, [currentActualData, selectedAnalysisDate]);
 
   // Le <title> de la page est écrit en dur dans index.html (hors de portée de React),
   // donc il ne suivait jamais le mode Intime. On le met à jour manuellement ici pour
