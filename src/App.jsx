@@ -859,6 +859,17 @@ export default function App() {
   // la modale d'avertissement (playlist générée non sauvegardée) est affichée.
   const [pendingNavigation, setPendingNavigation] = useState(null);
 
+  // Confirmation avant de retirer une playlist qui a déjà de l'historique
+  // (complétions et/ou données Garmin/Strava importées) — contrairement à la
+  // suppression depuis "Mes Séances" (PlaylistCard), qui reste sans
+  // confirmation par cohérence avec l'existant, ce bouton-ci est un badge de
+  // statut devenu cliquable : le risque d'un clic accidentel (swipe mobile,
+  // simple survol qui devient un tap) y est plus élevé, et la perte port sur
+  // du VRAI historique (séances faites, données réelles), pas juste une
+  // playlist fraîchement générée. Reste `null` tant qu'aucune confirmation
+  // n'est nécessaire ; sinon contient la playlist concernée.
+  const [pendingUnsavePlaylist, setPendingUnsavePlaylist] = useState(null);
+
   // Playlist tout juste générée mais jamais sauvegardée : la quitter (navigation
   // interne OU fermeture d'onglet/F5) la perdrait définitivement (pas de brouillon
   // persistant, voir createPlaylistData). Ignore les playlists vides (génération
@@ -1067,6 +1078,27 @@ export default function App() {
     if (currentPlaylist) {
       setSavedPlaylists(savedPlaylists.filter(p => p.id !== currentPlaylist.id));
       showToast("Playlist retirée de Mes Séances.");
+    }
+  };
+
+  // A-t-elle du VRAI historique à perdre (pas juste "jamais utilisée") ?
+  const playlistHasHistory = (playlist) => !!playlist && (
+    (playlist.completions && playlist.completions.length > 0)
+    || (playlist.actualDataByDate && Object.keys(playlist.actualDataByDate).length > 0)
+  );
+
+  /**
+   * Point d'entrée du bouton "Sauvegardée dans Mes Séances" une fois cliqué —
+   * demande confirmation UNIQUEMENT si la playlist a déjà des complétions ou
+   * des données importées (une playlist "fraîche", jamais faite, est retirée
+   * directement, sans friction inutile).
+   */
+  const requestUnsavePlaylist = () => {
+    if (!currentPlaylist) return;
+    if (playlistHasHistory(currentPlaylist)) {
+      setPendingUnsavePlaylist(currentPlaylist);
+    } else {
+      handleUnsavePlaylist();
     }
   };
 
@@ -2196,7 +2228,7 @@ export default function App() {
                 isEditingPlaylistName={isEditingPlaylistName} setIsEditingPlaylistName={setIsEditingPlaylistName}
                 editedPlaylistName={editedPlaylistName} setEditedPlaylistName={setEditedPlaylistName}
                 handleRenamePlaylist={handleRenamePlaylist}
-                handleSavePlaylist={handleSavePlaylist} handleUnsavePlaylist={handleUnsavePlaylist} handleShare={handleShare}
+                handleSavePlaylist={handleSavePlaylist} handleUnsavePlaylist={requestUnsavePlaylist} handleShare={handleShare}
                 currentActualData={currentActualData} selectedMetric={selectedMetric} setSelectedMetric={setSelectedMetric}
                 analysisStats={analysisStats}
                 selectedAnalysisDate={selectedAnalysisDate} setSelectedAnalysisDate={setSelectedAnalysisDate}
@@ -2380,6 +2412,35 @@ export default function App() {
                   Continuer sans sauvegarder
                 </button>
                 <button onClick={() => setPendingNavigation(null)} className={"w-full px-6 py-3 font-medium hover:" + textHighlight + " " + textMuted}>
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {pendingUnsavePlaylist && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setPendingUnsavePlaylist(null)}>
+            <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
+              <div className="flex items-start gap-3 mb-4">
+                <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 shrink-0">
+                  <AlertCircle size={22} />
+                </div>
+                <div>
+                  <h3 className={"text-xl font-bold " + textHighlight}>Retirer cette playlist ?</h3>
+                  <p className={"text-sm mt-1 " + textMuted}>
+                    {pendingUnsavePlaylist.completions && pendingUnsavePlaylist.completions.length > 0
+                      ? `Elle a déjà été faite ${pendingUnsavePlaylist.completions.length}x`
+                      : 'Elle a des données réelles importées (Garmin/Strava)'}
+                    {' '}— la retirer effacera aussi définitivement cet historique.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 mt-6">
+                <button onClick={() => { handleUnsavePlaylist(); setPendingUnsavePlaylist(null); }} className="w-full px-6 py-3 font-bold rounded-xl border border-red-200 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                  Retirer quand même
+                </button>
+                <button onClick={() => setPendingUnsavePlaylist(null)} className={"w-full px-6 py-3 font-medium hover:" + textHighlight + " " + textMuted}>
                   Annuler
                 </button>
               </div>
