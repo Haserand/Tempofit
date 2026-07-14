@@ -31,6 +31,7 @@ const SPOTIFY_TOKEN_BASE = 'https://accounts.spotify.com/api/token';
 
 import { safeFetchJson, deezerFetch, resolveDeezerGenre, getSingleMatchingTrack, buildSegmentTracks, findSameArtistReplacement, recalculateTimeline, createPlaylistData } from './musicEngine';
 import { fetchSpotifyRawData, resolveTracksBpm } from './spotifyEngine';
+import { parseGarminCsv } from './workoutDataEngine';
 import { dedupeAppend, fetchWorldSearchResults, fetchBpmSearchResults } from './searchEngine';
 import { useTheme } from './hooks/useTheme';
 import { useToast } from './hooks/useToast';
@@ -67,11 +68,11 @@ import PlaylistDetailView from './components/views/PlaylistDetailView';
 // UTILITAIRES DE FORMATAGE / PARSING
 // =====================================================================================
 
-import { parseTimeToSeconds } from './utils/format';
-// parseTimeToSeconds extrait dans utils/format.js (aucune dépendance à React
-// ni au state). formatDuration, qui vivait ici aussi, n'est plus utilisée
-// directement dans App.jsx depuis le déplacement de recalculateTimeline vers
-// musicEngine.js (qui l'importe désormais lui-même depuis utils/format.js).
+// formatDuration et parseTimeToSeconds, extraites dans utils/format.js
+// (aucune dépendance à React ni au state), ne sont plus utilisées directement
+// dans App.jsx : la première depuis le déplacement de recalculateTimeline
+// vers musicEngine.js, la seconde depuis le déplacement du parsing CSV vers
+// workoutDataEngine.js — les deux fichiers les importent désormais eux-mêmes.
 
 // =====================================================================================
 // COMPOSANT PRINCIPAL
@@ -1452,32 +1453,9 @@ export default function App() {
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const text = event.target.result;
-        const lines = text.split('\n');
-        if(lines.length < 2) throw new Error("Fichier vide ou invalide");
-
-        const headers = lines[0].split('","').map(h => h.replace(/"/g, '').toLowerCase());
-        const cadenceIdx = headers.findIndex(h => h.includes('cadence de course moyenne') || (h.includes('cadence') && h.includes('ppm')));
-        const heartRateIdx = headers.findIndex(h => h.includes('fréquence cardiaque') || h.includes('frequence cardiaque') || h.includes('fc moyenne') || h.includes('heart rate'));
-        const timeIdx = headers.findIndex(h => h.includes('temps cumulé') || h.includes('durée'));
-
-        if(cadenceIdx === -1 && heartRateIdx === -1) { showToast("Erreur: aucune colonne de cadence ou de fréquence cardiaque trouvée dans ce fichier.", 'error'); return; }
-
-        const parsedData = lines.slice(1).map((line, idx) => {
-          const cols = line.split('","').map(c => c.replace(/"/g, ''));
-          const cadenceVal = (cadenceIdx !== -1 && cols.length > cadenceIdx) ? (parseInt(cols[cadenceIdx]) || 0) : 0;
-          const heartRateVal = (heartRateIdx !== -1 && cols.length > heartRateIdx) ? (parseInt(cols[heartRateIdx]) || 0) : 0;
-          if(cadenceVal === 0 && heartRateVal === 0) return null;
-
-          const timeSec = timeIdx !== -1 ? parseTimeToSeconds(cols[timeIdx]) : idx * 60;
-
-          const point = { circuit: idx + 1, timeSec: timeSec };
-          if (cadenceVal > 0) point.cadenceReelle = cadenceVal;
-          if (heartRateVal > 0) point.heartRate = heartRateVal;
-          return point;
-        }).filter(Boolean);
-
-        if(parsedData.length === 0) { showToast("Aucune donnée de cadence ou de fréquence cardiaque valide trouvée.", 'error'); return; }
+        const result = parseGarminCsv(event.target.result);
+        if (!result.ok) { showToast(result.error, 'error'); return; }
+        const { data: parsedData, hasCadence, hasHeartRate } = result;
 
         // Rattache ces données réelles à la date de complétion précise ciblée
         // (`targetDate`), sans toucher aux données déjà importées pour d'autres
@@ -1490,8 +1468,6 @@ export default function App() {
         // Bascule sur la métrique effectivement importée pour donner un retour visuel
         // immédiat cohérent (ex. si ce fichier n'a que la FC, on ne reste pas bloqué
         // sur un graphique vide en mode "cadence").
-        const hasCadence = parsedData.some(d => d.cadenceReelle !== undefined);
-        const hasHeartRate = parsedData.some(d => d.heartRate !== undefined);
         if (!hasCadence && hasHeartRate) setSelectedMetric('heartRate');
         else if (hasCadence && !hasHeartRate) setSelectedMetric('cadence');
 
