@@ -27,6 +27,8 @@ export default function GeneratorView({
   setBpm, setTargetMode, setDistanceVal, setDistanceUnit, setHours, setMinutes,
   targetMode, isIntervalMode, isCrescendoMode, structureMode, setStructureMode,
   crescendoWarmupPct, setCrescendoWarmupPct, crescendoCooldownPct, setCrescendoCooldownPct, CRESCENDO_MIN_MAIN_PCT,
+  crescendoManualBpm, setCrescendoManualBpm,
+  crescendoWarmupBpm, setCrescendoWarmupBpm, crescendoCooldownBpm, setCrescendoCooldownBpm,
   hours, minutes, distanceVal, distanceUnit, paceMin, setPaceMin, paceSec, setPaceSec,
   bpm,
   segments, setSegments, expandedSegmentGenreId, setExpandedSegmentGenreId,
@@ -43,13 +45,20 @@ export default function GeneratorView({
     borderAccentClass, bgMainApp, inputBg, inputBorder,
   } = theme;
 
+  // Plancher BPM pour l'échauffement/retour au calme du mode Crescendo —
+  // mêmes bornes que le curseur BPM principal de l'étape 3 (40 en mode
+  // Intime, 80 en mode standard), pour ne jamais proposer une valeur
+  // absurdement basse même en ajustement manuel.
+  const crescendoBpmFloor = isNaughtyMode ? 40 : 80;
+
   // Étape 3 : conteneur en hauteur fixe + `overflow-y-auto no-scrollbar` (la
   // barre de défilement est volontairement masquée pour l'esthétique), donc
   // rien n'indiquait visuellement qu'il y avait plus de contenu en dessous —
   // repéré après l'ajout du mode Crescendo, qui allonge le contenu de cette
   // étape. `showScrollHint` ne s'active QUE si le contenu déborde réellement
   // (mesuré via ResizeObserver, qui se redéclenche si le contenu change de
-  // hauteur — ex. passage Constante ↔ Crescendo ↔ Fractionné).
+  // hauteur — ex. passage Constante ↔ Crescendo ↔ Fractionné, ou ouverture
+  // du panneau BPM manuel).
   const step3ScrollRef = useRef(null);
   const [showScrollHint, setShowScrollHint] = useState(false);
   useEffect(() => {
@@ -60,7 +69,7 @@ export default function GeneratorView({
     const observer = new ResizeObserver(checkOverflow);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [wizardStep, structureMode, targetMode]);
+  }, [wizardStep, structureMode, targetMode, crescendoManualBpm]);
 
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
@@ -401,7 +410,54 @@ export default function GeneratorView({
                       </div>
 
                       <div className="space-y-2">
-                        <p className={`text-xs ${textMuted}`}>Traduit en direct pour ta séance :</p>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={`text-xs ${textMuted}`}>
+                            {crescendoManualBpm ? 'BPM personnalisé pour ces 2 phases :' : 'BPM déduit automatiquement du rythme au pic :'}
+                          </p>
+                          <button
+                            onClick={() => setCrescendoManualBpm(!crescendoManualBpm)}
+                            className={`text-xs font-bold underline shrink-0 ${textMuted} hover:${textHighlight}`}
+                          >
+                            {crescendoManualBpm ? 'Revenir au calcul auto' : '⚙️ Ajuster manuellement'}
+                          </button>
+                        </div>
+
+                        {/* Divulgation progressive : masqué par défaut (le BPM des 2 phases est
+                            déduit automatiquement du rythme au pic, voir deduceCrescendoBpm dans
+                            musicEngine.js) — ne s'affiche que si l'utilisateur clique sur "Ajuster
+                            manuellement" ci-dessus. Échauffement borné à [plancher, BPM cible] et
+                            retour au calme borné à [plancher, BPM échauffement] pour garder une
+                            vraie forme crescendo même en réglage expert. */}
+                        {crescendoManualBpm && (
+                          <div className={`space-y-4 p-4 rounded-xl ${inputBg} border ${inputBorder}`}>
+                            <div>
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-xs font-bold text-sky-500 dark:text-sky-400">BPM Échauffement</span>
+                                <span className={`text-sm font-black ${textHighlight}`}>{crescendoWarmupBpm}</span>
+                              </div>
+                              <input
+                                type="range" min={crescendoBpmFloor} max={bpm}
+                                value={crescendoWarmupBpm ?? crescendoBpmFloor}
+                                onChange={(e) => setCrescendoWarmupBpm(parseInt(e.target.value) || crescendoBpmFloor)}
+                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-sky-500"
+                              />
+                            </div>
+                            <div>
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-xs font-bold text-emerald-500 dark:text-emerald-400">BPM Retour au calme</span>
+                                <span className={`text-sm font-black ${textHighlight}`}>{crescendoCooldownBpm}</span>
+                              </div>
+                              <input
+                                type="range" min={crescendoBpmFloor} max={crescendoWarmupBpm ?? bpm}
+                                value={crescendoCooldownBpm ?? crescendoBpmFloor}
+                                onChange={(e) => setCrescendoCooldownBpm(parseInt(e.target.value) || crescendoBpmFloor)}
+                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        <p className={`text-xs ${textMuted} pt-1`}>Traduit en direct pour ta séance :</p>
                         {segments.map((segment) => (
                           <div key={segment.id} className={`flex items-center gap-3 p-3 rounded-xl ${inputBg} border ${inputBorder}`}>
                             <div className={`p-1.5 rounded-lg ${bgAccentClass} text-white shrink-0`}>
