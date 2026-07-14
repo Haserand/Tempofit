@@ -30,7 +30,7 @@ const SPOTIFY_TOKEN_BASE = 'https://accounts.spotify.com/api/token';
 // traduction jamais poursuivi. Retiré pour rester cohérent avec le reste : le
 // texte est maintenant écrit en dur à son unique point d'usage.
 
-import { safeFetchJson, deezerFetch, resolveDeezerGenre, MAX_TRACK_DURATION, getSingleMatchingTrack, buildSegmentTracks } from './musicEngine';
+import { safeFetchJson, deezerFetch, resolveDeezerGenre, MAX_TRACK_DURATION, getSingleMatchingTrack, buildSegmentTracks, recalculateTimeline, createPlaylistData } from './musicEngine';
 import { dedupeAppend, fetchWorldSearchResults, fetchBpmSearchResults } from './searchEngine';
 import { useTheme } from './hooks/useTheme';
 import { useToast } from './hooks/useToast';
@@ -67,9 +67,11 @@ import PlaylistDetailView from './components/views/PlaylistDetailView';
 // UTILITAIRES DE FORMATAGE / PARSING
 // =====================================================================================
 
-import { formatDuration, parseTimeToSeconds } from './utils/format';
-// formatDuration/parseTimeToSeconds extraits dans utils/format.js (aucune
-// dépendance à React ni au state, utilisés aussi par StatsView).
+import { parseTimeToSeconds } from './utils/format';
+// parseTimeToSeconds extrait dans utils/format.js (aucune dépendance à React
+// ni au state). formatDuration, qui vivait ici aussi, n'est plus utilisée
+// directement dans App.jsx depuis le déplacement de recalculateTimeline vers
+// musicEngine.js (qui l'importe désormais lui-même depuis utils/format.js).
 
 // =====================================================================================
 // COMPOSANT PRINCIPAL
@@ -1032,121 +1034,19 @@ export default function App() {
     setEditingRoutine(null);
   };
 
-  /**
-   * Recalcule les horodatages de démarrage de chaque morceau (startTimeStr,
-   * startDistVal) et la durée totale de la playlist, en tenant compte du
-   * crossfade (chaque morceau, sauf le dernier, "mange" `crossfade` secondes
-   * sur le suivant pour créer un enchaînement sans blanc).
-   * À rappeler après toute modification de la liste de morceaux (ajout,
-   * suppression, remplacement).
-   */
-  const recalculateTimeline = (playlistToUpdate) => {
-    let accSecs = 0;
-    const avgPaceSecs = playlistToUpdate.avgPace || 330;
-    const fadeSecs = playlistToUpdate.crossfade || 0;
-    
-    const updatedTracks = playlistToUpdate.tracks.map((t, idx) => {
-       let startDist = accSecs / avgPaceSecs;
-       const updatedTrack = {
-           ...t,
-           startTimeStr: formatDuration(Math.max(0, accSecs)),
-           startDistVal: Math.round(startDist * 100) / 100 // nombre, PAS .toFixed() qui renvoie une chaîne (cassait l'axe "Distance" du graphique)
-       };
-       accSecs += t.duration;
-       if (idx < playlistToUpdate.tracks.length - 1) {
-           accSecs -= fadeSecs;
-       }
-       return updatedTrack;
-    });
-
-    return {
-       ...playlistToUpdate,
-       tracks: updatedTracks,
-       totalDuration: Math.max(0, accSecs)
-    };
-  };
+  // recalculateTimeline est désormais dans musicEngine.js (voir import en
+  // haut de fichier), déplacée avec createPlaylistData — comportement inchangé,
+  // tous les appels ci-dessous continuent de fonctionner à l'identique.
 
   /**
-   * Génère une playlist complète à partir d'une config de wizard/routine.
-   * 1. Découpe la séance en "segments" (1 seul segment en mode simple, un par
-   *    portion en mode fractionné), chacun avec un BPM cible et une durée en secondes.
-   * 2. Pour chaque segment, pioche des morceaux via getSingleMatchingTrack jusqu'à
-   *    couvrir la durée du segment (boucle while), en évitant les doublons
-   *    (usedYoutubeIds) au sein de la playlist entière.
-   * 3. Calcule un nom de playlist selon le mode (naughty / fractionné / routine...).
-   * 4. Recalcule la timeline finale (horodatages, durée totale) avant de renvoyer l'objet.
-   *
-   * `initialExcludeIds` : titres à exclure DÈS LE DÉPART (pas seulement au sein de
-   * cette playlist) — utilisé par executeGeneration pour éviter de répéter des
-   * titres déjà utilisés lors de générations précédentes de la même routine (voir
-   * `routine.recentTrackIds`), en plus des doublons internes à la playlist elle-même.
+   * createPlaylistData est désormais dans musicEngine.js (voir import en haut
+   * de fichier), rendue 100% pure : elle reçoit maintenant `favorites`,
+   * `spotifyTrackPool` et `isNaughtyMode` en paramètres explicites au lieu de
+   * les lire dans le state d'App.jsx par fermeture (voir le commentaire dans
+   * musicEngine.js pour le raisonnement complet). Signature désormais :
+   * `createPlaylistData(config, initialExcludeIds, favorites, spotifyTrackPool, isNaughtyMode)`
+   * — voir son unique appel plus bas, dans executeGeneration.
    */
-  const createPlaylistData = async (config, initialExcludeIds = []) => {
-    let activeSegments = [];
-    const unitPaceSecs = config.targetMode === 'distance' ? ((parseInt(config.paceMin)||0)*60 + (parseInt(config.paceSec)||0)) : 330;
-
-    if (config.isIntervalMode) {
-      activeSegments = config.segments.map(s => {
-        let durationSecs = s.durationValue * (config.targetMode === 'distance' ? unitPaceSecs : 60);
-        // selectedGenres transmis tel quel : undefined/vide = pas d'override, le
-        // segment utilisera le genre global de la séance (voir buildSegmentTracks).
-        return { bpm: s.bpm, durationSeconds: durationSecs, selectedGenres: s.selectedGenres };
-      });
-    } else {
-      let durationSecs = config.targetMode === 'distance' 
-         ? config.distanceVal * unitPaceSecs 
-         : config.hours * 3600 + config.minutes * 60;
-      activeSegments = [{ bpm: config.bpm, durationSeconds: durationSecs }];
-    }
-
-    const tracks = [];
-    let idCounter = 1;
-    const usedYoutubeIds = [...initialExcludeIds]; 
-    let fallbackCount = 0; // titres pour lesquels le pool de candidats de qualité n'a pas suffi
-
-    for (let segmentIndex = 0; segmentIndex < activeSegments.length; segmentIndex++) {
-        let segment = activeSegments[segmentIndex];
-        // Construit tout l'ensemble des titres de ce segment d'un coup, en visant sa
-        // durée cible comme un problème de "somme de sous-ensemble" (voir
-        // buildSegmentTracks) — plutôt que d'ajouter des morceaux un par un sans
-        // vue d'ensemble, ce qui pouvait faire largement dépasser la cible.
-        const segmentTracks = await buildSegmentTracks(segment, config, usedYoutubeIds, favorites, spotifyTrackPool, initialExcludeIds);
-        segmentTracks.forEach((randomTrack) => {
-            if (randomTrack._isFallback) fallbackCount++;
-            tracks.push({
-                id: `track-${idCounter++}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                segmentIndex: segmentIndex + 1, targetSegmentBpm: segment.bpm,
-                title: randomTrack.title, artist: randomTrack.artist, genre: randomTrack.genre,
-                bpm: randomTrack.bpm, duration: randomTrack.duration, youtubeId: randomTrack.youtubeId,
-                preview: randomTrack.preview || null, // extrait audio 30s si disponible (Favoris/Spotify/Deezer)
-                // BUG CORRIGÉ : ces deux marqueurs n'étaient jamais copiés ici, alors
-                // que c'est CET objet (pas `randomTrack`) qui finit dans la playlist
-                // affichée — le badge "⚠️ Genre non confirmé" ne pouvait donc
-                // JAMAIS s'afficher, peu importe si la vérification de genre avait
-                // réellement détecté un problème ou non.
-                _genreMismatch: randomTrack._genreMismatch || false,
-                _isFallback: randomTrack._isFallback || false,
-            });
-            usedYoutubeIds.push(randomTrack.youtubeId);
-        });
-    }
-
-    const finalWorkoutName = isNaughtyMode ? 'Ambiance' : config.workoutName;
-    let generatedName = isNaughtyMode ? `Moment Intime` : (config.isIntervalMode ? `Fractionné : ${finalWorkoutName}` : `Session ${finalWorkoutName}`);
-    if (config.routineName) generatedName = `Depuis : ${config.routineName}`;
-
-    const rawPlaylist = {
-      id: `pl-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      name: generatedName, workoutType: finalWorkoutName,
-      avgPace: unitPaceSecs, targetMode: config.targetMode, distanceUnit: config.distanceUnit || 'km',
-      tolerance: config.bpmTolerance, crossfade: config.crossfade || 0,
-      tracks: tracks, isNaughty: isNaughtyMode, fallbackTrackCount: fallbackCount,
-      coverIcon: config.coverIcon || '🎧', createdAt: new Date().toLocaleDateString(),
-      status: 'pending', actualDataByDate: {}, config: { ...config } 
-    };
-
-    return recalculateTimeline(rawPlaylist);
-  };
 
   // Ajoute la playlist en cours d'affichage à l'historique (si pas déjà sauvegardée).
   const handleSavePlaylist = () => {
@@ -1222,7 +1122,7 @@ export default function App() {
 
     const generatedPlaylists = [];
     for (let i = 0; i < count; i++) {
-      const pl = await createPlaylistData(config, rollingExcludeIds);
+      const pl = await createPlaylistData(config, rollingExcludeIds, favorites, spotifyTrackPool, isNaughtyMode);
       if (count > 1) pl.name = `${pl.name} (Session ${i + 1})`;
       generatedPlaylists.push(pl);
       setGeneratingDone(i + 1);
