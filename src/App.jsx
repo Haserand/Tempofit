@@ -856,16 +856,19 @@ export default function App() {
   // la modale d'avertissement (playlist générée non sauvegardée) est affichée.
   const [pendingNavigation, setPendingNavigation] = useState(null);
 
+  // Playlist tout juste générée mais jamais sauvegardée : la quitter (navigation
+  // interne OU fermeture d'onglet/F5) la perdrait définitivement (pas de brouillon
+  // persistant, voir createPlaylistData). Ignore les playlists vides (génération
+  // ratée, rien de réel à perdre). Calculée une fois ici et réutilisée par
+  // `changeView` (modale interne) et par le listener `beforeunload` ci-dessous
+  // (avertissement natif du navigateur), pour ne jamais avoir 2 définitions de
+  // "playlist non sauvegardée" qui divergent.
+  const hasUnsavedPlaylist = view === 'playlist' && currentPlaylist
+    && !savedPlaylists.find(p => p.id === currentPlaylist.id)
+    && currentPlaylist.tracks && currentPlaylist.tracks.length > 0;
+
   const changeView = (newView) => {
-    // Playlist tout juste générée mais jamais sauvegardée : la quitter la
-    // perdrait définitivement (pas de brouillon persistant, voir
-    // createPlaylistData) — on demande confirmation plutôt que de la perdre
-    // silencieusement. Ignore les playlists vides (génération ratée, rien de
-    // réel à perdre) et ne se déclenche que si on QUITTE réellement la vue
-    // détail (newView !== 'playlist').
-    const hasUnsavedPlaylist = view === 'playlist' && currentPlaylist
-      && !savedPlaylists.find(p => p.id === currentPlaylist.id)
-      && currentPlaylist.tracks && currentPlaylist.tracks.length > 0;
+    // Ne se déclenche que si on QUITTE réellement la vue détail (newView !== 'playlist').
     if (hasUnsavedPlaylist && newView !== 'playlist') {
       setPendingNavigation(newView);
       return;
@@ -874,6 +877,22 @@ export default function App() {
     setIsMobileMenuOpen(false);
     if (newView === 'generator') setWizardStep(1); // Repart toujours à l'étape 1 du wizard
   };
+
+  // Pendant à `changeView` : avertit aussi à la fermeture d'onglet / F5, pas
+  // seulement à la navigation interne dans l'appli (limite explicitement
+  // signalée lors de la session précédente). Les navigateurs modernes
+  // n'affichent plus le texte personnalisé de `returnValue` (message générique
+  // imposé par le navigateur pour éviter les abus) — on le renseigne quand
+  // même pour les navigateurs plus anciens qui le respectent encore.
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (!hasUnsavedPlaylist) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedPlaylist]);
 
   // Résout la navigation mise en attente par la modale d'avertissement.
   const resolvePendingNavigation = (shouldSave) => {
