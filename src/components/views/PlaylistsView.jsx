@@ -13,6 +13,7 @@ import PlaylistCard from './PlaylistCard';
 export default function PlaylistsView({
   theme, isNaughtyMode, savedPlaylists, setSavedPlaylists, getRankStyle,
   setCurrentPlaylist, changeView, renderConfigInfoLine, renderCompletionsList, markPlaylistAsCompleted,
+  isInQueue, addToQueue, removeFromQueue,
 }) {
   const { cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
 
@@ -59,6 +60,8 @@ export default function PlaylistsView({
               showActions={true}
               renderConfigInfoLine={renderConfigInfoLine} renderCompletionsList={renderCompletionsList}
               markPlaylistAsCompleted={markPlaylistAsCompleted}
+              isQueued={isInQueue(playlist.id)}
+              onToggleQueue={(id) => isInQueue(id) ? removeFromQueue(id) : addToQueue(id)}
             />
           );
         })}
