@@ -33,6 +33,7 @@ const SPOTIFY_TOKEN_BASE = 'https://accounts.spotify.com/api/token';
 import { safeFetchJson, deezerFetch, resolveDeezerGenre, detectBpmFromPreview, resolveBpmForCandidates, MAX_TRACK_DURATION, pickByDurationProximity, searchArtistsForBpm, fetchInBatches, searchDeezerPage, searchDeezerForGenres, getSingleMatchingTrack, buildSegmentTracks } from './musicEngine';
 import { useTheme } from './hooks/useTheme';
 import { useToast } from './hooks/useToast';
+import { useCustomActivity } from './hooks/useCustomActivity';
 import { useFavorites } from './hooks/useFavorites';
 import { useRoutines } from './hooks/useRoutines';
 import { useUserStats } from './hooks/useUserStats';
@@ -471,9 +472,12 @@ export default function App() {
   // puisque c'est une simple préférence d'affichage, pas une donnée métier par écran.
   const [showExtraGenres, setShowExtraGenres] = useState(false);
   const [workoutType, setWorkoutType] = useState('Course à pied');
-  const [customActivity, setCustomActivity] = useState('');
-  const [tempCustomActivity, setTempCustomActivity] = useState('');
-  const [isCustomActivityModalOpen, setIsCustomActivityModalOpen] = useState(false);
+  const {
+    customActivity, setCustomActivity,
+    tempCustomActivity, setTempCustomActivity,
+    isCustomActivityModalOpen, setIsCustomActivityModalOpen,
+    handleOpenCustomActivityModal,
+  } = useCustomActivity(setWorkoutType);
 
   const [bpmTolerance, setBpmTolerance] = useState(14);
   const [crossfade, setCrossfade] = useState(2);
@@ -1308,12 +1312,6 @@ export default function App() {
         {extra}
       </div>
     );
-  };
-
-  const handleOpenCustomActivityModal = () => {
-    setWorkoutType('Autre');
-    setTempCustomActivity(customActivity);
-    setIsCustomActivityModalOpen(true);
   };
 
   // Bascule le "mode Intime" : change à la volée les réglages par défaut
