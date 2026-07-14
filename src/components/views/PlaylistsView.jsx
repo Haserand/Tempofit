@@ -1,36 +1,63 @@
 import { useState } from 'react';
-import { List, Plus, Calendar, CheckCircle } from 'lucide-react';
+import { List, Plus, Calendar, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import PlaylistCard from './PlaylistCard';
 
 /**
- * PlaylistsView — vue "Mes Playlists".
+ * PlaylistsView — vue "Mes Séances" (renommée depuis "Mes Playlists").
  *
  * Fusionne ce qui était avant deux pages séparées ("Mes Playlists" et "Ma
  * File d'attente", voir passation) suite à un retour direct : une file
  * séparée n'apportait pas grand-chose de plus qu'un simple ordre + une date
- * optionnelle directement sur les cartes existantes. 3 sections, dans cet
- * ordre :
+ * optionnelle directement sur les cartes existantes. Fusionne aussi ce qui
+ * était l'onglet "Historique" (HistoryView.jsx, retiré) : depuis que la
+ * planification/les dates sont intégrées ici, cet écran couvre toute la
+ * ligne de temps d'une séance (à venir → faite), un onglet séparé pour le
+ * passé faisait doublon. 3 sections, dans cet ordre :
  *
  * 1. "À planifier" — playlists non terminées SANS date. Réordonnables à la
  *    main par glisser-déposer (même mécanisme que l'ordre des titres dans
  *    une playlist, voir PlaylistDetailView) : c'est là qu'on retrouve l'idée
- *    de "file d'attente", mais sans jamais forcer de date.
+ *    de "file d'attente", mais sans jamais forcer de date. PAS paginée : le
+ *    glisser-déposer devrait sinon gérer le passage d'une page à l'autre, ce
+ *    qui complexifierait beaucoup ce mécanisme pour un gain limité — c'est
+ *    une file de travail active, généralement courte.
  * 2. "Planifiées" — playlists non terminées AVEC une date, triées par date
  *    croissante. La date reste optionnelle et n'est JAMAIS une contrainte
  *    bloquante — juste une clé de tri en plus de l'ordre manuel ci-dessus.
- * 3. "Terminées" — comportement inchangé : triées par complétion la plus
- *    récente d'abord.
+ *    Paginée (pas de glisser-déposer ici, donc rien à casser).
+ * 3. "Terminées" — comportement inchangé sinon : triées par complétion la
+ *    plus récente d'abord. Paginée — c'est la section qui grossit le plus
+ *    avec le temps (tout l'historique, maintenant que HistoryView a disparu),
+ *    donc la plus concernée par le risque de scroll infini.
  *
  * Le glisser-déposer ne réordonne QUE le sous-ensemble "À planifier" au sein
  * du tableau `savedPlaylists` complet — les positions des autres playlists
  * (datées ou terminées) ne bougent jamais quand on réordonne cette section.
  */
+
+// Nombre de cartes par page pour les sections paginées (Planifiées/Terminées).
+const PAGE_SIZE = 10;
+
+// Petit helper de pagination local à cette vue. `page` peut dépasser
+// `totalPages - 1` (ex. après suppression d'items) — on clampe ici plutôt que
+// de risquer une page vide ou hors-limites ; les boutons de la pagination
+// utilisent `safePage` (valeur affichée) pour calculer prev/next, donc rien
+// à resynchroniser dans un useEffect séparé.
+const usePageSlice = (items, page) => {
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const start = safePage * PAGE_SIZE;
+  return { pageItems: items.slice(start, start + PAGE_SIZE), totalPages, safePage };
+};
+
 export default function PlaylistsView({
   theme, isNaughtyMode, savedPlaylists, setSavedPlaylists, setPlaylistPlannedDate, getRankStyle,
   setCurrentPlaylist, changeView, renderConfigInfoLine, renderCompletionsList, markPlaylistAsCompleted,
 }) {
   const { cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
   const [draggedId, setDraggedId] = useState(null);
+  const [plannedPage, setPlannedPage] = useState(0);
+  const [completedPage, setCompletedPage] = useState(0);
 
   const isCompleted = (p) => p.completions && p.completions.length > 0;
 
@@ -43,8 +70,13 @@ export default function PlaylistsView({
     return lastB.localeCompare(lastA);
   });
 
+  const { pageItems: plannedPageItems, totalPages: plannedTotalPages, safePage: plannedSafePage } = usePageSlice(planned, plannedPage);
+  const { pageItems: completedPageItems, totalPages: completedTotalPages, safePage: completedSafePage } = usePageSlice(completedPlaylists, completedPage);
+
   // Classement par nombre d'utilisations, uniquement parmi celles ayant déjà
   // été faites au moins une fois — sert à la bordure or/argent/bronze.
+  // Calculé sur la liste COMPLÈTE (pas juste la page affichée), sinon le
+  // classement changerait selon la page consultée.
   const playlistRanks = [...completedPlaylists].sort((a, b) => b.completions.length - a.completions.length).map(p => p.id);
 
   // Réordonne UNIQUEMENT le sous-ensemble "À planifier" au sein de
@@ -77,7 +109,6 @@ export default function PlaylistsView({
         theme={theme} isNaughtyMode={isNaughtyMode} playlist={playlist} rankStyle={rankStyle} rank={rank}
         onClick={() => { setCurrentPlaylist(playlist); changeView('playlist'); }}
         onDelete={(id) => setSavedPlaylists(savedPlaylists.filter(p => p.id !== id))}
-        showActions={true}
         renderConfigInfoLine={renderConfigInfoLine} renderCompletionsList={renderCompletionsList}
         markPlaylistAsCompleted={markPlaylistAsCompleted}
         onSetPlannedDate={setPlaylistPlannedDate}
@@ -90,13 +121,37 @@ export default function PlaylistsView({
     );
   };
 
+  // Pagineur compact (Précédent / Page X sur Y / Suivant) — masqué s'il n'y a
+  // qu'une seule page. `page`/`setPage` reçoivent la valeur déjà clampée
+  // (`safePage`), pas l'état brut, pour rester cohérents avec ce qui est
+  // affiché même juste après une suppression qui réduirait le nombre de pages.
+  const renderPager = (page, totalPages, setPage) => totalPages > 1 && (
+    <div className="flex items-center justify-center gap-3 pt-1">
+      <button
+        onClick={() => setPage(Math.max(0, page - 1))}
+        disabled={page === 0}
+        className={`p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800`}
+      >
+        <ChevronLeft size={18} />
+      </button>
+      <span className={`text-xs font-bold ${textMuted}`}>Page {page + 1} / {totalPages}</span>
+      <button
+        onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+        disabled={page >= totalPages - 1}
+        className={`p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800`}
+      >
+        <ChevronRight size={18} />
+      </button>
+    </div>
+  );
+
   const isEmpty = savedPlaylists.length === 0;
 
   return (
     <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
       <div className={`border-b ${cardBorder} pb-6`}>
-        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}><List className={textColorClass} size={36} /> <span>Mes Playlists</span></h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Glisse-dépose pour choisir l'ordre de tes prochaines séances, planifie une date si tu en as une — les deux sont optionnels.</p>
+        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}><List className={textColorClass} size={36} /> <span>Mes Séances</span></h1>
+        <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Glisse-dépose pour choisir l'ordre de tes prochaines séances, planifie une date si tu en as une — les deux sont optionnels. Ton historique complet est juste en dessous.</p>
       </div>
 
       {isEmpty ? (
@@ -110,7 +165,7 @@ export default function PlaylistsView({
         </div>
       ) : (
         <>
-          {/* --- À PLANIFIER (pas de date, ordre manuel par glisser-déposer) --- */}
+          {/* --- À PLANIFIER (pas de date, ordre manuel par glisser-déposer, PAS paginée) --- */}
           <div className="space-y-4">
             <h2 className={`text-sm font-bold uppercase tracking-wider ${textMuted}`}>À planifier</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -122,27 +177,29 @@ export default function PlaylistsView({
             </div>
           </div>
 
-          {/* --- PLANIFIÉES (une date a été choisie, triées par date) --- */}
+          {/* --- PLANIFIÉES (une date a été choisie, triées par date, paginée) --- */}
           {planned.length > 0 && (
             <div className="space-y-4">
               <h2 className={`text-sm font-bold uppercase tracking-wider ${textMuted} flex items-center gap-2`}>
                 <Calendar size={14} /> Planifiées
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {planned.map(p => renderCard(p))}
+                {plannedPageItems.map(p => renderCard(p))}
               </div>
+              {renderPager(plannedSafePage, plannedTotalPages, setPlannedPage)}
             </div>
           )}
 
-          {/* --- TERMINÉES (comportement inchangé) --- */}
+          {/* --- TERMINÉES (fusionne l'ancien "Historique", paginée) --- */}
           {completedPlaylists.length > 0 && (
             <div className="space-y-4">
               <h2 className={`text-sm font-bold uppercase tracking-wider ${textMuted} flex items-center gap-2`}>
                 <CheckCircle size={14} /> Terminées
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {completedPlaylists.map(p => renderCard(p))}
+                {completedPageItems.map(p => renderCard(p))}
               </div>
+              {renderPager(completedSafePage, completedTotalPages, setCompletedPage)}
             </div>
           )}
         </>
