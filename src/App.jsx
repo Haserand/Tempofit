@@ -32,6 +32,7 @@ const SPOTIFY_TOKEN_BASE = 'https://accounts.spotify.com/api/token';
 
 import { safeFetchJson, deezerFetch, resolveDeezerGenre, detectBpmFromPreview, resolveBpmForCandidates, MAX_TRACK_DURATION, pickByDurationProximity, searchArtistsForBpm, fetchInBatches, searchDeezerPage, searchDeezerForGenres, getSingleMatchingTrack, buildSegmentTracks } from './musicEngine';
 import { useTheme } from './hooks/useTheme';
+import { useFavorites } from './hooks/useFavorites';
 import SettingsView from './components/views/SettingsView';
 import FavoritesView from './components/views/FavoritesView';
 import TrophiesView from './components/views/TrophiesView';
@@ -369,6 +370,14 @@ export default function App() {
 
   const [isNaughtyMode, setIsNaughtyMode] = useState(false);
   const [toast, setToast] = useState(null);
+  // Affiche un toast temporaire. `variant` détermine le style et la durée :
+  //   - 'default' (3s) : confirmation neutre (icône check)
+  //   - 'special'  (5s) : mise en avant positive, ex. déblocage de trophée (icône trophée dorée)
+  //   - 'error'    (5s) : échec/erreur à signaler clairement (icône alerte rouge)
+  const showToast = (message, variant = 'default') => {
+    setToast({ message, variant });
+    setTimeout(() => setToast(null), variant === 'default' ? 3000 : 5000);
+  };
 
   // Pool de morceaux Spotify de l'utilisateur, déjà résolus en BPM (voir syncSpotifyFavorites).
   const [spotifyTrackPool, setSpotifyTrackPool] = useState([]);
@@ -383,57 +392,15 @@ export default function App() {
   // montage (voir le useEffect dédié après celui du <title>, même principe que
   // pour la playlist d'exemple — une URL d'extrait Deezer expire, impossible de
   // la coder en dur ici sans qu'elle finisse par casser silencieusement).
-  const [favorites, setFavorites] = useState({
-    useFavorites: true,
-    artists: ['Metallica', 'System Of A Down'],
-    tracks: [
-      { youtubeId: 'uRyAIyq53FY', title: 'Master of Puppets', artist: 'Metallica', bpm: 212, duration: 515, preview: null, genre: 'Métal' },
-      { youtubeId: 'CSvFpBOe8eY', title: 'Chop Suey!', artist: 'System Of A Down', bpm: 128, duration: 210, preview: null, genre: 'Métal' }
-    ]
-  });
-  // Réglages du sélecteur BPM/genre propre à la page Cœur & Favoris (indépendant
-  // de ceux du wizard de génération, qui a son propre contexte bpm/selectedGenres).
-  const [favBpmTarget, setFavBpmTarget] = useState(140);
-  const [favBpmTolerance, setFavBpmTolerance] = useState(10);
-  const [favSelectedGenres, setFavSelectedGenres] = useState(['Métal']);
-  const [newFavArtist, setNewFavArtist] = useState("");
-  const [isAddingArtist, setIsAddingArtist] = useState(false);
-
-  /**
-   * Ajoute un artiste aux favoris de façon OPTIMISTE : le nom tapé apparaît
-   * immédiatement (aucune latence perçue, aucun blocage possible), puis une
-   * recherche Deezer tourne en arrière-plan pour corriger discrètement l'orthographe
-   * si un artiste correspondant est trouvé sous un nom légèrement différent (ex.
-   * casse, accents). Si Deezer ne répond pas ou ne trouve rien, le nom tapé reste
-   * tel quel — jamais de blocage, jamais d'attente visible.
-   */
-  const addFavoriteArtistValidated = (rawName) => {
-    const query = rawName.trim();
-    if (!query) return;
-
-    // 1. Ajout immédiat, sans attendre quoi que ce soit.
-    setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, query])) }));
-    showToast(`🎵 ${query} ajouté à tes artistes favoris !`);
-    setNewFavArtist("");
-    setIsAddingArtist(false);
-
-    // 2. Correction discrète en arrière-plan (ne bloque plus rien, pas de toast
-    // supplémentaire pour rester discret — juste le nom qui se corrige si besoin).
-    (async () => {
-      try {
-        const { data } = await deezerFetch(`https://api.deezer.com/search/artist?q=${encodeURIComponent(query)}&limit=1`);
-        const match = data && Array.isArray(data.data) ? data.data[0] : null;
-        if (match && match.name && match.name.toLowerCase() !== query.toLowerCase()) {
-          setFavorites(prev => ({
-            ...prev,
-            artists: Array.from(new Set(prev.artists.map(a => a === query ? match.name : a)))
-          }));
-        }
-      } catch (e) {
-        // Échec silencieux : le nom tapé reste tel quel (voir docstring).
-      }
-    })();
-  };
+  const {
+    favorites, setFavorites,
+    favBpmTarget, setFavBpmTarget,
+    favBpmTolerance, setFavBpmTolerance,
+    favSelectedGenres, setFavSelectedGenres,
+    newFavArtist, setNewFavArtist,
+    isAddingArtist, setIsAddingArtist,
+    addFavoriteArtistValidated, toggleTrackFavorite, toggleArtistFavorite,
+  } = useFavorites(showToast);
 
   // Routines sauvegardées : configurations de génération réutilisables en 1 clic.
   const [routines, setRoutines] = useState([{
@@ -1406,15 +1373,6 @@ export default function App() {
     return () => { cancelled = true; };
   }, []); // une seule fois au montage, voir le commentaire ci-dessus
 
-  // Affiche un toast temporaire. `variant` détermine le style et la durée :
-  //   - 'default' (3s) : confirmation neutre (icône check)
-  //   - 'special'  (5s) : mise en avant positive, ex. déblocage de trophée (icône trophée dorée)
-  //   - 'error'    (5s) : échec/erreur à signaler clairement (icône alerte rouge)
-  const showToast = (message, variant = 'default') => {
-    setToast({ message, variant });
-    setTimeout(() => setToast(null), variant === 'default' ? 3000 : 5000);
-  };
-
   const changeView = (newView) => { 
     setView(newView); 
     setIsMobileMenuOpen(false); 
@@ -1867,30 +1825,6 @@ export default function App() {
   };
 
   // Ajoute/retire un titre (et son artiste) des favoris DEPUIS une playlist déjà
-  // générée — distinct de "Retirer de la proposition" (handleRemoveTrack, qui
-  // enlève le titre de CETTE playlist) : ici on ne touche pas à la playlist en
-  // cours, seulement à la liste de favoris. Réutilise exactement la même logique
-  // que le bouton favori déjà éprouvé dans la modale de recherche
-  // (`addOrToggleFavorite`, voir renderSearchResultRow) plutôt que d'en écrire
-  // une nouvelle version : même asymétrie assumée — ajouter un titre ajoute
-  // aussi son artiste aux artistes favoris, mais retirer un titre NE retire PAS
-  // l'artiste (on peut très bien vouloir garder l'artiste en favori tout en
-  // retirant un titre précis qui ne convient pas).
-  const toggleTrackFavorite = (track) => {
-    const isFav = favorites.tracks.some(t => t.youtubeId === track.youtubeId);
-    if (isFav) {
-      setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.youtubeId !== track.youtubeId) }));
-      showToast("Retiré de tes favoris.");
-    } else {
-      setFavorites(prev => ({
-        ...prev,
-        artists: Array.from(new Set([...prev.artists, track.artist])),
-        tracks: [...prev.tracks, track]
-      }));
-      showToast("⭐ Ajouté à tes favoris !");
-    }
-  };
-
   // handleMoveTrack (flèches ↑/↓) supprimée : remplacée par le glisser-déposer
   // ci-dessous (handleTrackDragStart/handleTrackDragEnter/handleTrackDragEnd),
   // plus naturel et qui libère de la place sur la ligne de titre.
@@ -2074,24 +2008,6 @@ export default function App() {
     setDraggedTrackIndex(index);
   };
   const handleTrackDragEnd = () => setDraggedTrackIndex(null);
-
-  // Ajoute/retire UNIQUEMENT l'artiste des favoris (pas le titre) — complète
-  // toggleTrackFavorite ci-dessus, qui lui favorise toujours titre+artiste
-  // ensemble. Cas réel visé : un artiste qui plaît globalement, sans que CE
-  // titre précis de la playlist soit un coup de cœur — jusqu'ici, impossible
-  // à exprimer depuis une playlist sans quitter la vue pour retaper le nom
-  // dans Favoris. Placé dans le menu "..." plutôt qu'une icône dédiée : plus
-  // rare que le vedettage d'un titre, pas de raison d'alourdir la ligne pour ça.
-  const toggleArtistFavorite = (artistName) => {
-    const isFav = favorites.artists.includes(artistName);
-    if (isFav) {
-      setFavorites(prev => ({ ...prev, artists: prev.artists.filter(a => a !== artistName) }));
-      showToast(`"${artistName}" retiré des artistes favoris.`);
-    } else {
-      setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, artistName])) }));
-      showToast(`⭐ "${artistName}" ajouté aux artistes favoris.`);
-    }
-  };
 
   // Menu d'options par titre (Dupliquer / Remplacer large / Remplacer même artiste),
   // regroupées derrière une seule icône "⋮" plutôt que plusieurs boutons permanents.
