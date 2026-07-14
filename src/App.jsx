@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Activity, Clock, Music, Play, List, Plus, Check, Settings, Pause, Search, X, Heart, ListPlus, Loader2, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Edit3, Copy, Trophy, Upload, ChevronUp, ChevronDown, Target, History, MessageCircle, ExternalLink } from 'lucide-react';
-import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, DEEZER_GENRE_KEYWORDS, getGenreLocalDepthWarning, genreRoughlyMatches, detectTitleStyleConflict, normalizeGenreForDisplay } from './musicCatalog';
+import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, DEEZER_GENRE_KEYWORDS, getGenreLocalDepthWarning, genreRoughlyMatches, detectTitleStyleConflict, normalizeGenreForDisplay, getGenresForDisplay } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appConfig';
 
 // =====================================================================================
@@ -921,7 +921,7 @@ export default function App() {
       <button onClick={addOrToggleFavorite} className="flex-1 min-w-0 text-left">
         <div className="truncate">
           <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
-          <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${normalizeGenreForDisplay(track.genre)}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Genre Deezer différent — peut quand même correspondre.">⚠️ Genre non confirmé</span>}{track._bpmSource === 'detected' && <span className="ml-1 text-amber-500 font-bold" title="BPM deviné par l'app, pas garanti.">⚠️ BPM estimé</span>}</div>
+          <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${getGenresForDisplay(track.genre).join(', ')}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Genre Deezer différent — peut quand même correspondre.">⚠️ Genre non confirmé</span>}{track._bpmSource === 'detected' && <span className="ml-1 text-amber-500 font-bold" title="BPM deviné par l'app, pas garanti.">⚠️ BPM estimé</span>}</div>
         </div>
       </button>
 
