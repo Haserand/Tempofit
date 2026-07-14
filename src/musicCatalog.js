@@ -99,7 +99,18 @@ const DEEZER_GENRE_KEYWORDS = {
   'R&B Sensuel': 'rnb', 'Autre': '',
   'Musique africaine': 'african', 'Musique asiatique': 'asian', 'Blues': 'blues',
   'Musique brésilienne': 'brazilian', 'Dance & EDM': 'dance',
-  'Folk': 'folk', 'Indie': 'indie', 'K-pop': 'k-pop', 'Soul & Funk': 'soul',
+  'Folk': 'folk', 'Indie': 'indie',
+  // 'k-pop' RETIRÉ comme mot-clé (ancien) : ce mot contient "pop" comme
+  // sous-chaîne, et isDirectGenreMatch compare dans LES DEUX SENS (real.includes(kw)
+  // OU kw.includes(real)) — un titre dont le vrai genre Deezer est simplement
+  // "Pop" matchait donc "k-pop" via kw.includes(real) ("k-pop".includes("pop")),
+  // et ce en PRIORITÉ DIRECTE (avant même le catalogue d'artistes K-pop réel).
+  // BUG RÉEL CONSTATÉ : une génération K-pop ne renvoyait QUE des titres pop
+  // occidentaux généralistes (Rihanna, Katy Perry...), jamais un seul artiste du
+  // catalogue K-pop pourtant bien fourni (32 groupes). Confirmé par test manuel :
+  // Deezer classe réellement ces titres en "Asian Music", jamais "k-pop" —
+  // remplacé par ce mot-clé, qui ne collisionne avec rien d'autre dans la liste.
+  'K-pop': 'asian', 'Soul & Funk': 'soul',
   // Plusieurs mots-clés possibles : Deezer renvoie "Films/Games" en anglais pour
   // ce genre (constaté en pratique, voir commentaire sur isDirectGenreMatch),
   // jamais littéralement "soundtrack" — gardé en plus au cas où une autre partie
@@ -145,13 +156,11 @@ const GENRE_EQUIVALENCE_GROUPS = {
   // pas un vrai genre_id d'album dans l'API publique. CONFIRMÉ PAR TEST RÉEL
   // (recherche manuelle "BLACKPINK") : Deezer classe ces titres en "Musique
   // asiatique" (genre_id partagé avec DEEZER_GENRE_KEYWORDS['Musique
-  // asiatique'] = 'asian'), jamais en "Pop" comme supposé initialement — d'où
-  // le premier correctif (équivalence vers 'pop'/'dance') insuffisant à lui
-  // seul. Sans cette équivalence, isDirectGenreMatch rejetait STRICTEMENT tout
-  // titre K-pop malgré un catalogue d'artistes bien fourni (32 groupes) : la
-  // vérification de genre au niveau catalogue d'artistes (voir musicEngine.js)
-  // faisait toujours échouer le genre, donc zéro titre retenu.
-  'K-pop': ['asian', 'pop'],
+  // asiatique'] = 'asian'). Volontairement PAS 'pop' ici (contrairement à un
+  // essai précédent) : ça réintroduirait exactement le bug déjà corrigé au
+  // niveau du mot-clé direct (DEEZER_GENRE_KEYWORDS) — un titre Pop générique
+  // (Rihanna, Katy Perry...) accepté à tort comme K-pop.
+  'K-pop': ['asian'],
 };
 
 /**
@@ -169,7 +178,6 @@ const isDirectGenreMatch = (realGenre, requestedGenre) => {
   if (!realGenre) return false;
   const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const real = normalize(realGenre);
-  const requested = normalize(requestedGenre);
   // Un genre peut avoir PLUSIEURS mots-clés Deezer possibles (voir DEEZER_GENRE_
   // KEYWORDS, "Bandes originales" par exemple) — cas découvert en pratique :
   // Deezer renvoie littéralement "Films/Games" en anglais pour ce qu'on appelle
@@ -178,8 +186,18 @@ const isDirectGenreMatch = (realGenre, requestedGenre) => {
   // Rétrocompatible : une entrée simple (chaîne) continue de fonctionner comme avant.
   const rawKeywords = DEEZER_GENRE_KEYWORDS[requestedGenre];
   const keywordList = Array.isArray(rawKeywords) ? rawKeywords : [rawKeywords || requestedGenre];
-  const keywordMatch = keywordList.some(k => { const kw = normalize(k); return kw && (real.includes(kw) || kw.includes(real)); });
-  return keywordMatch || real.includes(requested) || requested.includes(real);
+  // BUG RÉEL CORRIGÉ : cette fonction comparait AUSSI le nom du genre demandé
+  // directement (requestedGenre) au vrai genre, en plus du mot-clé — redondant
+  // quand un mot-clé est défini (le nom du genre demandé n'est alors même
+  // plus dans keywordList), et dangereux : "K-pop" contient "pop" comme
+  // sous-chaîne, donc un titre au vrai genre simplement "Pop" (Rihanna, Katy
+  // Perry...) matchait "K-pop" en comparaison DIRECTE — avant même que le
+  // catalogue d'artistes K-pop réel (BLACKPINK, BTS...) ait sa chance. Ne
+  // comparer QUE contre le(s) mot-clé(s) résout ce cas sans rien perdre :
+  // quand aucun mot-clé n'est défini pour un genre, keywordList retombe déjà
+  // sur requestedGenre lui-même (voir ligne au-dessus), donc le comportement
+  // pour ces genres-là reste inchangé.
+  return keywordList.some(k => { const kw = normalize(k); return kw && (real.includes(kw) || kw.includes(real)); });
 };
 
 /**
