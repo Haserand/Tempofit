@@ -134,6 +134,18 @@ export default function PlaylistDetailView({
             <div className="flex items-center space-x-1"><Activity size={16}/><span>{currentPlaylist.workoutType}</span></div><span>•</span>
             <div className="flex items-center space-x-1"><Clock size={16}/><span>{formatDuration(currentPlaylist.totalDuration)}</span></div><span>•</span>
             <div className="flex items-center space-x-1"><Music size={16}/><span>{currentPlaylist.tracks.length} titres</span></div>
+            {(() => {
+              const cfg = currentPlaylist.config || {};
+              const genres = cfg.selectedGenres && cfg.selectedGenres.length > 0
+                ? cfg.selectedGenres
+                : Array.from(new Set(currentPlaylist.tracks.map(t => t.genre).filter(g => g && g !== 'Genre inconnu')));
+              return genres.length > 0 && (
+                <>
+                  <span>•</span>
+                  <div className="flex items-center space-x-1"><Music size={16}/><span>{genres.map(normalizeGenreForDisplay).join(', ')}</span></div>
+                </>
+              );
+            })()}
           </div>
 
           <div className="flex items-center justify-center md:justify-start gap-3 mt-4">
