@@ -141,6 +141,16 @@ const getGenreLocalDepthWarning = (genre) => {
 const GENRE_EQUIVALENCE_GROUPS = {
   'Métal': ['metal', 'rock'],
   'Rock': ['rock', 'metal'],
+  // Le "K-pop" affiché dans l'app Deezer est une catégorie ÉDITORIALE (channel),
+  // pas un vrai genre_id d'album dans l'API publique (confirmé : la liste de
+  // genres exposée par /genre est un ensemble fixe et ancien qui ne l'inclut
+  // pas). Un titre K-pop remonte donc chez Deezer sous un genre_id classique —
+  // le plus souvent Pop, parfois Dance — jamais littéralement "k-pop". Sans
+  // cette équivalence, isDirectGenreMatch rejetait STRICTEMENT tout titre K-pop
+  // malgré un catalogue d'artistes bien fourni (32 groupes) : la vérification
+  // de genre au niveau catalogue d'artistes (voir musicEngine.js) faisait
+  // toujours échouer le genre, donc zéro titre retenu.
+  'K-pop': ['pop', 'dance'],
 };
 
 /**
