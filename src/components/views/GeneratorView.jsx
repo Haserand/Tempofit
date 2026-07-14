@@ -1,6 +1,7 @@
 import {
   Activity, Heart, Clock, Footprints, ListPlus, MapPin, SlidersHorizontal, Music, Trash2, Plus,
   Target, Loader2, Zap, BookmarkPlus, Info, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Flame,
+  TrendingUp, Gauge,
 } from 'lucide-react';
 import { STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning } from '../../musicCatalog';
 import {
@@ -23,7 +24,7 @@ export default function GeneratorView({
   wizardStep, setWizardStep,
   workoutType, setWorkoutType, customActivity, handleOpenCustomActivityModal, toggleNaughtyMode,
   setBpm, setTargetMode, setDistanceVal, setDistanceUnit, setHours, setMinutes,
-  targetMode, isIntervalMode, setIsIntervalMode,
+  targetMode, isIntervalMode, isCrescendoMode, structureMode, setStructureMode,
   hours, minutes, distanceVal, distanceUnit, paceMin, setPaceMin, paceSec, setPaceSec,
   bpm,
   segments, setSegments, expandedSegmentGenreId, setExpandedSegmentGenreId,
@@ -200,24 +201,57 @@ export default function GeneratorView({
                 </>
               )}
 
-              {/* Mode Fractionné : réactivé en mode Intime (variations d'intensité qui
-                  s'enchaînent), avec un libellé adapté. */}
-              <div className={`flex items-center justify-between p-5 ${inputBg} border-2 ${isIntervalMode ? borderAccentClass : inputBorder} rounded-2xl transition-colors cursor-pointer select-none`} onClick={() => setIsIntervalMode(!isIntervalMode)}>
-                <div className="flex items-center space-x-4">
-                  <div className={`p-3 rounded-xl ${isIntervalMode ? bgAccentClass : 'bg-gray-200 dark:bg-gray-700'}`}>
-                    <ListPlus size={24} className={isIntervalMode ? 'text-white' : textMuted} />
+              {/* Structure de l'effort. Mode Intime : conserve l'ancien toggle simple
+                  (Constante / "Montée en Intensité" = Fractionné manuel relabellisé) —
+                  comportement historique inchangé. Mode standard : sélecteur à 3
+                  cartes, qui ajoute le mode "Crescendo" (échauffement → cœur de
+                  séance → retour au calme, généré automatiquement à l'étape 3). */}
+              {isNaughtyMode ? (
+                <div className={`flex items-center justify-between p-5 ${inputBg} border-2 ${isIntervalMode ? borderAccentClass : inputBorder} rounded-2xl transition-colors cursor-pointer select-none`} onClick={() => setStructureMode(isIntervalMode ? 'constant' : 'interval')}>
+                  <div className="flex items-center space-x-4">
+                    <div className={`p-3 rounded-xl ${isIntervalMode ? bgAccentClass : 'bg-gray-200 dark:bg-gray-700'}`}>
+                      <ListPlus size={24} className={isIntervalMode ? 'text-white' : textMuted} />
+                    </div>
+                    <div>
+                      <h3 className={`font-bold text-lg ${textHighlight}`}>Montée en Intensité</h3>
+                      <p className={`text-sm ${textMuted}`}>Enchaîner plusieurs phases, à des rythmes différents</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className={`font-bold text-lg ${textHighlight}`}>{isNaughtyMode ? 'Montée en Intensité' : 'Mode Fractionné (HIIT)'}</h3>
-                    <p className={`text-sm ${textMuted}`}>{isNaughtyMode ? 'Enchaîner plusieurs phases, à des rythmes différents' : 'Faire des variations de rythme'}</p>
+                  <label className="relative inline-flex items-center cursor-pointer pointer-events-none">
+                    <input type="checkbox" className="sr-only peer" checked={isIntervalMode} readOnly />
+                    <div className={`w-14 h-7 bg-gray-300 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all ${isIntervalMode ?
+                      'peer-checked:bg-red-500 dark:peer-checked:bg-red-600' : ''}`}></div>
+                  </label>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
+                    <SlidersHorizontal className={textColorClass} size={24} /> <span>Structure de l'effort</span>
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {[
+                      { mode: 'constant', icon: Gauge, title: 'Allure Constante', desc: 'Un rythme stable de bout en bout' },
+                      { mode: 'crescendo', icon: TrendingUp, title: 'Crescendo', desc: 'Montée progressive, avec retour au calme' },
+                      { mode: 'interval', icon: ListPlus, title: 'Fractionné / HIIT', desc: 'Intervalles personnalisés à la main' },
+                    ].map(({ mode, icon: Icon, title, desc }) => {
+                      const isSelected = structureMode === mode;
+                      return (
+                        <button
+                          key={mode}
+                          onClick={() => setStructureMode(mode)}
+                          className={`flex flex-col items-start text-left p-4 rounded-2xl border-2 transition-all duration-200 ${isSelected ? `${borderAccentClass} ${bgMainApp}` : `${inputBorder} ${inputBg} hover:border-gray-300 dark:hover:border-gray-600`}`}
+                        >
+                          <div className={`p-2 rounded-xl mb-2 ${isSelected ? bgAccentClass : 'bg-gray-200 dark:bg-gray-700'}`}>
+                            <Icon size={20} className={isSelected ? 'text-white' : textMuted} />
+                          </div>
+                          <span className={`font-bold ${textHighlight}`}>{title}</span>
+                          <span className={`text-xs mt-0.5 ${textMuted}`}>{desc}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer pointer-events-none">
-                  <input type="checkbox" className="sr-only peer" checked={isIntervalMode} readOnly />
-                  <div className={`w-14 h-7 bg-gray-300 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all ${isIntervalMode ?
-                    'peer-checked:bg-red-500 dark:peer-checked:bg-red-600' : ''}`}></div>
-                </label>
-              </div>
+              )}
             </div>
           )}
 
@@ -225,12 +259,12 @@ export default function GeneratorView({
           {wizardStep === 3 && (
             <div className="space-y-8 animate-in slide-in-from-right-8 duration-300 h-[300px] overflow-y-auto no-scrollbar pb-10">
 
-              {!isIntervalMode ? (
+              {(!isIntervalMode || isCrescendoMode) ? (
                 <>
                   <div className="space-y-4">
                     <div className="flex justify-between items-end">
                       <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
-                        <Activity className={textColorClass} size={24} /> <span>Rythme cible global</span>
+                        <Activity className={textColorClass} size={24} /> <span>{isCrescendoMode ? 'Rythme au pic (cœur de séance)' : 'Rythme cible global'}</span>
                       </label>
                       <span className={`text-4xl font-black ${textColorClass}`}>{bpm} <span className={`text-sm font-bold ${textMuted}`}>BPM</span></span>
                     </div>
@@ -291,6 +325,30 @@ export default function GeneratorView({
                             </button>
                           </div>
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {isCrescendoMode && (
+                    <div className="space-y-3 mt-8">
+                      <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
+                        <TrendingUp className={textColorClass} size={24} /> <span>Courbe d'effort générée</span>
+                      </label>
+                      <p className={`text-xs ${textMuted}`}>Recalculée automatiquement selon le BPM et la durée ci-dessus — rien à régler ici.</p>
+                      <div className="space-y-2">
+                        {segments.map((segment) => (
+                          <div key={segment.id} className={`flex items-center gap-4 p-4 rounded-xl ${inputBg} border ${inputBorder}`}>
+                            <div className={`p-2 rounded-lg ${bgAccentClass} text-white shrink-0`}>
+                              <TrendingUp size={18} />
+                            </div>
+                            <div className="flex-1">
+                              <div className={`font-bold text-sm ${textHighlight}`}>{segment._crescendoLabel || 'Portion'}</div>
+                              <div className={`text-xs ${textMuted}`}>
+                                {segment.durationValue} {targetMode === 'distance' ? distanceUnit : 'min'} · {segment.bpm} BPM
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
@@ -524,7 +582,7 @@ export default function GeneratorView({
 
               {/* Boutons finaux : génération immédiate, ou sauvegarde en routine réutilisable */}
               <div className="flex flex-col sm:flex-row gap-4 pt-6 mt-6 border-t border-gray-100 dark:border-gray-800">
-                <button onClick={() => executeGeneration({ isIntervalMode, targetMode, distanceVal, distanceUnit, paceMin, paceSec, segments, bpm, hours, minutes, selectedGenres, bpmTolerance, crossfade, allowLongTracks, genreWeights, workoutName: getActiveWorkoutName() })} disabled={isGenerating} className={`flex-1 text-xl font-black py-5 rounded-2xl flex items-center justify-center space-x-3 transition-transform active:scale-95 shadow-xl ${isNaughtyMode ?
+                <button onClick={() => executeGeneration({ isIntervalMode, isCrescendoMode, targetMode, distanceVal, distanceUnit, paceMin, paceSec, segments, bpm, hours, minutes, selectedGenres, bpmTolerance, crossfade, allowLongTracks, genreWeights, workoutName: getActiveWorkoutName() })} disabled={isGenerating} className={`flex-1 text-xl font-black py-5 rounded-2xl flex items-center justify-center space-x-3 transition-transform active:scale-95 shadow-xl ${isNaughtyMode ?
                   'bg-rose-500 hover:bg-rose-600 text-white' : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200'}`}>
                   {isGenerating ? <Loader2 size={28} className="animate-spin" /> : <><Zap size={28} /><span>Générer ma Playlist</span></>}
                 </button>
