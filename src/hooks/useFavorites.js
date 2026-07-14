@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { deezerFetch } from '../musicEngine';
+import { usePersistentState } from './usePersistentState';
 
 /**
  * useFavorites — regroupe tout ce qui concerne les favoris (titres, artistes,
@@ -13,16 +14,21 @@ import { deezerFetch } from '../musicEngine';
  * `showToast` est une dépendance externe (définie dans App.jsx, utilisée par
  * beaucoup d'autres fonctions ailleurs dans l'app) — elle est passée en
  * paramètre plutôt que dupliquée ici, pour garder un seul système de toast.
+ *
+ * `favorites` (les vraies données) est persistant via usePersistentState —
+ * les réglages du sélecteur BPM/genre juste en dessous restent de simples
+ * `useState` volontairement : ce sont des préférences d'affichage éphémères
+ * de la page, pas des données à conserver d'une session à l'autre.
  */
 export function useFavorites(showToast) {
-  const [favorites, setFavorites] = useState({
+  const [favorites, setFavorites] = usePersistentState('favorites', () => ({
     useFavorites: true,
     artists: ['Metallica', 'System Of A Down'],
     tracks: [
       { youtubeId: 'uRyAIyq53FY', title: 'Master of Puppets', artist: 'Metallica', bpm: 212, duration: 515, preview: null, genre: 'Métal' },
       { youtubeId: 'CSvFpBOe8eY', title: 'Chop Suey!', artist: 'System Of A Down', bpm: 128, duration: 210, preview: null, genre: 'Métal' }
     ]
-  });
+  }));
   // Réglages du sélecteur BPM/genre propre à la page Cœur & Favoris (indépendant
   // de ceux du wizard de génération, qui a son propre contexte bpm/selectedGenres).
   const [favBpmTarget, setFavBpmTarget] = useState(140);
