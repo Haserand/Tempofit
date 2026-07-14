@@ -37,6 +37,7 @@ import { useRoutines } from './hooks/useRoutines';
 import { useUserStats } from './hooks/useUserStats';
 import { useAudioPreview } from './hooks/useAudioPreview';
 import { useShare } from './hooks/useShare';
+import { useElapsedTimer } from './hooks/useElapsedTimer';
 import SettingsView from './components/views/SettingsView';
 import FavoritesView from './components/views/FavoritesView';
 import TrophiesView from './components/views/TrophiesView';
@@ -553,13 +554,7 @@ export default function App() {
   // pouvait sembler figé/ennuyeux sur une génération un peu longue. Démarre à 0
   // dès que isGenerating passe à true (voir le useEffect ci-dessous), pas après
   // un délai.
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  useEffect(() => {
-    if (!isGenerating) { setElapsedSeconds(0); return; }
-    setElapsedSeconds(0);
-    const interval = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
-    return () => clearInterval(interval);
-  }, [isGenerating]);
+  const elapsedSeconds = useElapsedTimer(isGenerating);
 
   const {
     shareData, setShareData,
@@ -620,7 +615,7 @@ export default function App() {
   // isWorldSearching est vrai. Rassure sur une recherche un peu longue (plusieurs
   // appels réseau en cascade : Deezer, puis GetSongBPM/détection par titre
   // manquant) plutôt que de laisser un spinner muet sans indication de progression.
-  const [searchElapsedSeconds, setSearchElapsedSeconds] = useState(0);
+  const searchElapsedSeconds = useElapsedTimer(isWorldSearching);
   // Réserve CACHÉE des titres qui matchent le texte tapé mais PAS l'artiste
   // identifié (ex. "Starboy" pour "daft punk", où Daft Punk n'est que
   // co-producteur) — voir searchWorldMusicApi. Jamais affichée tant qu'il reste
@@ -1097,16 +1092,6 @@ export default function App() {
     </div>
     );
   };
-
-  // Fait tourner le chrono de chargement (voir searchElapsedSeconds) tant que
-  // isWorldSearching est vrai — repart de 0 à chaque nouvelle recherche, s'arrête
-  // et se nettoie dès que la recherche se termine (ou que le composant démonte).
-  useEffect(() => {
-    if (!isWorldSearching) return;
-    setSearchElapsedSeconds(0);
-    const interval = setInterval(() => setSearchElapsedSeconds(s => s + 1), 1000);
-    return () => clearInterval(interval);
-  }, [isWorldSearching]);
 
   const closeSearchModal = () => {
     setIsSearchModalOpen(false);
