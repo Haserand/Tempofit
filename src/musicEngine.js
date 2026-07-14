@@ -1126,6 +1126,75 @@ const findSameArtistReplacement = async (artistName, minBpm, maxBpm, excludeYout
 };
 
 /**
+ * buildCrescendoSegments — génère automatiquement 3 segments (Échauffement /
+ * Cœur de séance / Retour au calme) pour le mode "Crescendo" du wizard, en
+ * réutilisant tel quel le moteur de segments déjà construit pour le mode
+ * Fractionné : le tableau renvoyé a exactement la même forme qu'un tableau de
+ * segments saisis à la main (`{ id, bpm, durationValue }`), donc
+ * `createPlaylistData` n'a besoin d'aucune modification pour le consommer.
+ *
+ * Pure : aucun setState, aucune lecture de state React — reçoit tout en
+ * paramètres (mêmes valeurs que l'étape 2/3 du wizard : bpm cible, durée ou
+ * distance, allure), renvoie un tableau de segments.
+ *
+ * Logique de répartition (proportionnelle, pas des minutes fixes, pour rester
+ * cohérente sur une séance de 15 min comme sur une de 3h) :
+ *   - Échauffement ≈ 20% de la durée totale (borné entre 3 et 12 min)
+ *   - Retour au calme ≈ 12% de la durée totale (borné entre 2 et 8 min)
+ *   - Cœur de séance = le reste, au BPM cible demandé
+ * En dessous de 10 minutes au total, distinguer 3 phases n'a plus de sens
+ * (portions ridiculement courtes) : un seul segment au BPM cible, comme en
+ * mode Allure Constante.
+ *
+ * `bpmFloor` : plancher BPM (80 en mode standard, 40 en mode Intime — mêmes
+ * bornes que le curseur BPM de l'étape 3) pour ne jamais proposer un
+ * échauffement/retour au calme à un BPM absurdement bas.
+ */
+const buildCrescendoSegments = (targetMode, bpm, hours, minutes, distanceVal, paceMin, paceSec, bpmFloor = 80) => {
+  const unitPaceSecs = (parseInt(paceMin) || 0) * 60 + (parseInt(paceSec) || 0) || 330;
+  const totalMinutes = targetMode === 'distance'
+    ? ((parseFloat(distanceVal) || 0) * unitPaceSecs) / 60
+    : (parseInt(hours) || 0) * 60 + (parseInt(minutes) || 0);
+
+  const roundTo5 = (v) => Math.round(v / 5) * 5;
+  const mainBpm = parseInt(bpm) || 120;
+  const warmupBpm = Math.max(bpmFloor, roundTo5(mainBpm - 30));
+  const cooldownBpm = Math.max(bpmFloor, roundTo5(warmupBpm - 15));
+
+  // Distance/durée cible en unité "durationValue" (minutes en mode temps,
+  // km/mi en mode distance) — la conversion inverse de celle utilisée dans
+  // createPlaylistData, pour rester dans le même référentiel que les
+  // segments saisis à la main.
+  const toDurationValue = (mins) => targetMode === 'distance'
+    ? Math.round((mins * 60 / unitPaceSecs) * 100) / 100
+    : mins;
+
+  if (totalMinutes < 10) {
+    return [{ id: 1, bpm: mainBpm, durationValue: toDurationValue(totalMinutes) }];
+  }
+
+  let warmupMin = Math.min(12, Math.max(3, Math.round(totalMinutes * 0.2)));
+  let cooldownMin = Math.min(8, Math.max(2, Math.round(totalMinutes * 0.12)));
+
+  // Filet de sécurité : sur une séance courte (10-15 min), les bornes
+  // ci-dessus pourraient laisser un cœur de séance trop maigre — on réduit
+  // alors échauffement/retour au calme proportionnellement plutôt que
+  // d'empiéter sur le cœur de séance (qui doit rester majoritaire, ≥ 40%).
+  if (totalMinutes - warmupMin - cooldownMin < totalMinutes * 0.4) {
+    const scale = (totalMinutes * 0.6) / (warmupMin + cooldownMin);
+    warmupMin = Math.max(1, Math.round(warmupMin * scale));
+    cooldownMin = Math.max(1, Math.round(cooldownMin * scale));
+  }
+  const mainMin = totalMinutes - warmupMin - cooldownMin;
+
+  return [
+    { id: 1, bpm: warmupBpm, durationValue: toDurationValue(warmupMin), _crescendoLabel: 'Échauffement' },
+    { id: 2, bpm: mainBpm, durationValue: toDurationValue(mainMin), _crescendoLabel: 'Cœur de séance' },
+    { id: 3, bpm: cooldownBpm, durationValue: toDurationValue(cooldownMin), _crescendoLabel: 'Retour au calme' },
+  ];
+};
+
+/**
  * Génère une playlist complète à partir d'une config de wizard/routine.
  * 1. Découpe la séance en "segments" (1 seul segment en mode simple, un par
  *    portion en mode fractionné), chacun avec un BPM cible et une durée en secondes.
@@ -1199,7 +1268,7 @@ const createPlaylistData = async (config, initialExcludeIds = [], favorites, spo
   }
 
   const finalWorkoutName = isNaughtyMode ? 'Ambiance' : config.workoutName;
-  let generatedName = isNaughtyMode ? `Moment Intime` : (config.isIntervalMode ? `Fractionné : ${finalWorkoutName}` : `Session ${finalWorkoutName}`);
+  let generatedName = isNaughtyMode ? `Moment Intime` : (config.isCrescendoMode ? `Crescendo : ${finalWorkoutName}` : (config.isIntervalMode ? `Fractionné : ${finalWorkoutName}` : `Session ${finalWorkoutName}`));
   if (config.routineName) generatedName = `Depuis : ${config.routineName}`;
 
   const rawPlaylist = {
@@ -1229,6 +1298,7 @@ export {
   searchDeezerForGenres,
   getSingleMatchingTrack,
   buildSegmentTracks,
+  buildCrescendoSegments,
   findSameArtistReplacement,
   recalculateTimeline,
   createPlaylistData
