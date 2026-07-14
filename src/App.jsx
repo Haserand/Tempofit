@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Play, List, Plus, Check, Settings, Pause, Search, X, Heart, ListPlus, Loader2, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Edit3, Copy, Trophy, Upload, ChevronUp, ChevronDown, Target, MessageCircle, ExternalLink } from 'lucide-react';
+import { Activity, Clock, Music, Play, List, Plus, Check, Settings, Pause, Search, X, Heart, ListPlus, Loader2, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Edit3, Copy, Trophy, Upload, ChevronUp, ChevronDown, Target, MessageCircle, ExternalLink, Sun, Moon } from 'lucide-react';
 import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, normalizeGenreForDisplay, getGenresForDisplay } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appConfig';
 
@@ -103,7 +103,14 @@ export default function App() {
   const [expandedDetailArtist, setExpandedDetailArtist] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [theme, setTheme] = useState('dark'); 
+  // Mode clair/sombre — persisté (voir usePersistentState) pour ne pas devoir
+  // rebasculer à chaque visite. Toute la palette de couleurs (useTheme.js)
+  // avait déjà son pendant `dark:` sur chaque classe Tailwind depuis le
+  // début : le mode clair fonctionnait déjà "sous le capot", il ne manquait
+  // que cet interrupteur pour que l'utilisateur puisse vraiment y basculer
+  // (avant ce changement, `theme` valait toujours 'dark', sans aucun bouton
+  // nulle part pour appeler `setTheme`).
+  const [theme, setTheme] = usePersistentState('theme', 'dark');
 
   /**
    * "Moteur de vérité BPM" : détermine le BPM réel (et l'extrait audio, si dispo)
@@ -2047,7 +2054,16 @@ export default function App() {
                 </div>
                 <span className={`font-bold text-xl tracking-tight leading-none ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
              </div>
-             <button className="md:hidden text-gray-500 hover:text-gray-900 dark:hover:text-white" onClick={() => setIsMobileMenuOpen(false)}><X size={20} /></button>
+             <div className="flex items-center gap-1">
+               <button
+                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                 title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
+                 className={`p-2 rounded-lg transition-colors ${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}
+               >
+                 {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+               </button>
+               <button className="md:hidden text-gray-500 hover:text-gray-900 dark:hover:text-white" onClick={() => setIsMobileMenuOpen(false)}><X size={20} /></button>
+             </div>
           </div>
           
           {/* `select-none` sur chaque bouton ci-dessous (retour utilisateur) : sans ça,
