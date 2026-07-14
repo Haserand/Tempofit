@@ -1,4 +1,4 @@
-import { Music, Trash2, CheckCircle, Circle, Activity, List } from 'lucide-react';
+import { Music, Trash2, CheckCircle, Circle, Activity, List, ListOrdered } from 'lucide-react';
 
 /**
  * PlaylistCard — carte d'une playlist, partagée entre PlaylistsView
@@ -21,6 +21,7 @@ export default function PlaylistCard({
   theme, isNaughtyMode, playlist, rankStyle, rank,
   onClick, onDelete, showActions,
   renderConfigInfoLine, renderCompletionsList, markPlaylistAsCompleted,
+  isQueued, onToggleQueue,
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, bgAccentClass, inputBg, inputBorder } = theme;
   const isCompleted = playlist.completions && playlist.completions.length > 0;
@@ -70,9 +71,20 @@ export default function PlaylistCard({
           {playlist.coverIcon || <Music size={iconSize} className={isNaughtyMode ? 'text-white' : 'text-white dark:text-black'} />}
         </div>
         {showActions ? (
-          <button onClick={(e) => { e.stopPropagation(); onDelete(playlist.id); }} className="p-2 rounded-lg text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100">
-            <Trash2 size={18} />
-          </button>
+          <div className="flex items-center gap-1">
+            {onToggleQueue && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onToggleQueue(playlist.id); }}
+                className={`p-2 rounded-lg transition-colors ${isQueued ? 'text-amber-500' : 'text-gray-400 opacity-0 group-hover:opacity-100 hover:text-amber-500'}`}
+                title={isQueued ? "Dans la file d'attente — retirer" : "Ajouter à la file d'attente"}
+              >
+                <ListOrdered size={18} />
+              </button>
+            )}
+            <button onClick={(e) => { e.stopPropagation(); onDelete(playlist.id); }} className="p-2 rounded-lg text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100">
+              <Trash2 size={18} />
+            </button>
+          </div>
         ) : (
           <div className="flex items-center text-green-600 dark:text-green-400 text-xs font-bold bg-green-100 dark:bg-green-900/30 px-3 py-1.5 rounded-lg">
             <CheckCircle size={14} className="mr-1.5"/> Terminée
