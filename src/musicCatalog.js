@@ -279,6 +279,20 @@ const detectTitleStyleConflict = (title, requestedGenres) => {
 const normalizeGenreForDisplay = (rawGenre) => {
   if (!rawGenre) return 'Genre inconnu';
   const allKnownGenres = [...new Set([...STANDARD_GENRES, ...NAUGHTY_GENRES, ...EXTRA_GENRES])];
+  // Priorité à une correspondance EXACTE (insensible à la casse/accents) avant
+  // le matching approximatif ci-dessous. BUG RÉEL RENCONTRÉ SANS CETTE
+  // PRIORITÉ : "K-pop" contient le mot "pop", donc isDirectGenreMatch('K-pop',
+  // 'Pop') renvoyait vrai — et comme "Pop" apparaît avant "K-pop" dans la
+  // liste (STANDARD_GENRES avant EXTRA_GENRES), .find() retenait "Pop" à tort,
+  // y compris quand l'entrée était déjà LITTÉRALEMENT "K-pop" (un genre
+  // sélectionné par l'utilisateur, ou stocké tel quel sur un titre via le
+  // repli du catalogue d'artistes). Le matching approximatif reste nécessaire
+  // pour un vrai genre BRUT Deezer inconnu (ex. "Alternative Rock"), mais une
+  // entrée qui est déjà un de nos noms canoniques doit toujours se reconnaître
+  // elle-même en premier.
+  const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const exact = allKnownGenres.find(g => normalize(g) === normalize(rawGenre));
+  if (exact) return exact;
   const match = allKnownGenres.find(g => isDirectGenreMatch(rawGenre, g));
   return match || rawGenre;
 };
