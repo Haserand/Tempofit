@@ -35,6 +35,7 @@ import { useTheme } from './hooks/useTheme';
 import { useFavorites } from './hooks/useFavorites';
 import { useRoutines } from './hooks/useRoutines';
 import { useUserStats } from './hooks/useUserStats';
+import { useAudioPreview } from './hooks/useAudioPreview';
 import SettingsView from './components/views/SettingsView';
 import FavoritesView from './components/views/FavoritesView';
 import TrophiesView from './components/views/TrophiesView';
@@ -635,39 +636,7 @@ export default function App() {
   const [bpmSearchParams, setBpmSearchParams] = useState({ bpm: 140, tolerance: 10, genres: [] });
 
   // --- Lecture des extraits audio (30s, fournis par Deezer) ---
-  // Un seul lecteur audio partagé pour toute l'app : lancer un nouvel extrait
-  // coupe automatiquement celui en cours. `previewAudioRef` est créé une seule
-  // fois (lazy) plutôt qu'avec useState pour éviter de recréer un objet Audio à
-  // chaque re-render.
-  const [playingPreviewId, setPlayingPreviewId] = useState(null);
-  const previewAudioRef = useRef(null);
-
-  const togglePreview = (track) => {
-    if (!track.preview) return;
-    if (!previewAudioRef.current) {
-      previewAudioRef.current = new Audio();
-      previewAudioRef.current.addEventListener('ended', () => setPlayingPreviewId(null));
-    }
-    const audio = previewAudioRef.current;
-    if (playingPreviewId === track.youtubeId) {
-      audio.pause();
-      setPlayingPreviewId(null);
-    } else {
-      audio.src = track.preview;
-      audio.currentTime = 0;
-      audio.play().catch(() => showToast("Impossible de lire cet extrait.", 'error'));
-      setPlayingPreviewId(track.youtubeId);
-    }
-  };
-
-  // Coupe l'extrait en cours si la modale de recherche se ferme, pour ne pas
-  // laisser un aperçu jouer en arrière-plan une fois la fenêtre fermée.
-  useEffect(() => {
-    if (!isSearchModalOpen && previewAudioRef.current) {
-      previewAudioRef.current.pause();
-      setPlayingPreviewId(null);
-    }
-  }, [isSearchModalOpen]);
+  const { playingPreviewId, togglePreview } = useAudioPreview(isSearchModalOpen, showToast);
 
   // --- MOTEUR DE RECHERCHE DEEZER (recherche manuelle titre/artiste avec BPM) ---
   // On utilise l'API publique Deezer (100M+ titres, champ "bpm" par titre, pas de
