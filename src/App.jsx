@@ -852,10 +852,38 @@ export default function App() {
     return () => { cancelled = true; };
   }, []); // une seule fois au montage, voir le commentaire ci-dessus
 
-  const changeView = (newView) => { 
-    setView(newView); 
-    setIsMobileMenuOpen(false); 
+  // Vue demandée en attente de confirmation — non-null uniquement pendant que
+  // la modale d'avertissement (playlist générée non sauvegardée) est affichée.
+  const [pendingNavigation, setPendingNavigation] = useState(null);
+
+  const changeView = (newView) => {
+    // Playlist tout juste générée mais jamais sauvegardée : la quitter la
+    // perdrait définitivement (pas de brouillon persistant, voir
+    // createPlaylistData) — on demande confirmation plutôt que de la perdre
+    // silencieusement. Ignore les playlists vides (génération ratée, rien de
+    // réel à perdre) et ne se déclenche que si on QUITTE réellement la vue
+    // détail (newView !== 'playlist').
+    const hasUnsavedPlaylist = view === 'playlist' && currentPlaylist
+      && !savedPlaylists.find(p => p.id === currentPlaylist.id)
+      && currentPlaylist.tracks && currentPlaylist.tracks.length > 0;
+    if (hasUnsavedPlaylist && newView !== 'playlist') {
+      setPendingNavigation(newView);
+      return;
+    }
+    setView(newView);
+    setIsMobileMenuOpen(false);
     if (newView === 'generator') setWizardStep(1); // Repart toujours à l'étape 1 du wizard
+  };
+
+  // Résout la navigation mise en attente par la modale d'avertissement.
+  const resolvePendingNavigation = (shouldSave) => {
+    if (shouldSave) handleSavePlaylist();
+    if (pendingNavigation) {
+      setView(pendingNavigation);
+      setIsMobileMenuOpen(false);
+      if (pendingNavigation === 'generator') setWizardStep(1);
+    }
+    setPendingNavigation(null);
   };
 
   const getActiveWorkoutName = () => (workoutType === 'Autre' && customActivity.trim() !== '') ? customActivity : workoutType;
@@ -2248,6 +2276,33 @@ export default function App() {
                 {AVAILABLE_ICONS.map(icon => (
                   <button key={icon} onClick={() => { setCurrentPlaylist({...currentPlaylist, coverIcon: icon}); setSavedPlaylists(savedPlaylists.map(p => p.id === currentPlaylist.id ? {...p, coverIcon: icon} : p)); setIsIconPickerOpen(false); showToast("Image de playlist mise à jour !"); }} className={"text-3xl p-4 bg-gray-50 dark:bg-gray-800 rounded-xl hover:scale-110 hover:shadow-md transition-all " + (currentPlaylist.coverIcon === icon ? 'ring-2 ring-purple-500 bg-purple-50 dark:bg-purple-900/20' : '')}>{icon}</button>
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {pendingNavigation && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setPendingNavigation(null)}>
+            <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
+              <div className="flex items-start gap-3 mb-4">
+                <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 shrink-0">
+                  <AlertCircle size={22} />
+                </div>
+                <div>
+                  <h3 className={"text-xl font-bold " + textHighlight}>Playlist non sauvegardée</h3>
+                  <p className={"text-sm mt-1 " + textMuted}>Cette playlist n'a pas encore été sauvegardée — si tu quittes maintenant, elle sera définitivement perdue.</p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 mt-6">
+                <button onClick={() => resolvePendingNavigation(true)} className={"w-full px-6 py-3 text-white font-bold rounded-xl shadow-md " + bgAccentClass}>
+                  Sauvegarder et continuer
+                </button>
+                <button onClick={() => resolvePendingNavigation(false)} className={"w-full px-6 py-3 font-bold rounded-xl border hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition-colors " + cardBorder + " " + textHighlight}>
+                  Continuer sans sauvegarder
+                </button>
+                <button onClick={() => setPendingNavigation(null)} className={"w-full px-6 py-3 font-medium hover:" + textHighlight + " " + textMuted}>
+                  Annuler
+                </button>
               </div>
             </div>
           </div>
