@@ -352,7 +352,7 @@ export default function App() {
     bpmTolerance, setBpmTolerance,
     crossfade, setCrossfade,
     bpm, setBpm,
-    isIntervalMode, setIsIntervalMode,
+    structureMode, setStructureMode, isIntervalMode, isCrescendoMode,
     allowLongTracks, setAllowLongTracks,
     targetMode, setTargetMode,
     hours, setHours,
@@ -925,7 +925,7 @@ export default function App() {
       <div className={`text-sm flex flex-wrap items-center gap-x-3 gap-y-1 ${textMuted} mt-2`}>
         <div className="flex items-center space-x-1"><Activity size={14}/><span>{source.workoutType}{source.customActivity ? ` (${source.customActivity})` : ''}</span></div>
         <div className="flex items-center space-x-1"><Clock size={14}/><span>{distanceOrDuration}</span></div>
-        <div className="flex items-center space-x-1"><Zap size={14}/><span>{source.isIntervalMode ? `${(source.segments || []).length} phases` : `${source.bpm} BPM`}</span></div>
+        <div className="flex items-center space-x-1"><Zap size={14}/><span>{source.isCrescendoMode ? 'Crescendo (3 phases)' : (source.isIntervalMode ? `${(source.segments || []).length} phases` : `${source.bpm} BPM`)}</span></div>
         {genres.length > 0 && <div className="flex items-center space-x-1"><Music size={14}/><span>{genres.join(', ')}</span></div>}
         {extra}
       </div>
@@ -956,7 +956,7 @@ export default function App() {
     const finalName = newRoutineName.trim() || `Routine ${workoutType === 'Autre' ? customActivity || 'Personnalisée' : workoutType}`;
     const newRoutine = {
       id: `routine-${Date.now()}`, name: finalName, workoutType,
-      customActivity: workoutType === 'Autre' ? customActivity : '', isIntervalMode, bpm,
+      customActivity: workoutType === 'Autre' ? customActivity : '', isIntervalMode, isCrescendoMode, bpm,
       targetMode, distanceVal, distanceUnit, paceMin, paceSec, hours, minutes, selectedGenres, bpmTolerance, crossfade, allowLongTracks, genreWeights,
       segments: isIntervalMode ? [...segments] : [], coverIcon: newRoutineIcon, autoGenFreq: newRoutineFreq,
       manualGenerations: 0, recentTrackIds: [], createdAt: new Date().toLocaleDateString()
@@ -2028,7 +2028,8 @@ export default function App() {
                 handleOpenCustomActivityModal={handleOpenCustomActivityModal} toggleNaughtyMode={toggleNaughtyMode}
                 setBpm={setBpm} setTargetMode={setTargetMode} setDistanceVal={setDistanceVal} setDistanceUnit={setDistanceUnit}
                 setHours={setHours} setMinutes={setMinutes}
-                targetMode={targetMode} isIntervalMode={isIntervalMode} setIsIntervalMode={setIsIntervalMode}
+                targetMode={targetMode} isIntervalMode={isIntervalMode} isCrescendoMode={isCrescendoMode}
+                structureMode={structureMode} setStructureMode={setStructureMode}
                 hours={hours} minutes={minutes} distanceVal={distanceVal} distanceUnit={distanceUnit}
                 paceMin={paceMin} setPaceMin={setPaceMin} paceSec={paceSec} setPaceSec={setPaceSec}
                 bpm={bpm}
@@ -2487,7 +2488,9 @@ export default function App() {
 
                 {editingRoutine.isIntervalMode && (
                   <div className={`text-xs p-3 rounded-xl ${inputBg} border ${inputBorder} ${textMuted}`}>
-                    Cette routine est en mode Fractionné : les portions détaillées ne sont pas éditables depuis cette fenêtre pour l'instant. Les réglages ci-dessus (BPM, genres, marge d'erreur) s'appliqueront quand même à l'ensemble des portions.
+                    {editingRoutine.isCrescendoMode
+                      ? "Cette routine est en mode Crescendo : les 3 portions (échauffement / cœur de séance / retour au calme) sont recalculées automatiquement à partir du BPM cible et de la durée/distance ci-dessus, pas éditables une par une ici."
+                      : "Cette routine est en mode Fractionné : les portions détaillées ne sont pas éditables depuis cette fenêtre pour l'instant. Les réglages ci-dessus (BPM, genres, marge d'erreur) s'appliqueront quand même à l'ensemble des portions."}
                   </div>
                 )}
               </div>
