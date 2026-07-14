@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Pause, Play,
-  GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, ListOrdered,
+  GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, ListOrdered, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, CartesianGrid, ReferenceArea, ReferenceLine, XAxis, YAxis,
@@ -103,6 +104,9 @@ export default function PlaylistDetailView({
   isInQueue, addToQueue, removeFromQueue,
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass, borderAccentClass, inputBg, inputBorder } = theme;
+  // Replié par défaut : ce tableau ne sert qu'à vérifier ponctuellement une
+  // correspondance de données (import CSV Garmin/Strava), pas à un usage courant.
+  const [showRawImportTable, setShowRawImportTable] = useState(false);
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
@@ -370,6 +374,53 @@ export default function PlaylistDetailView({
           )}
         </div>
       </div>
+
+      {/* Données brutes importées (CSV Garmin/Strava) — permet de vérifier
+          ligne par ligne que ce que l'app a extrait correspond bien au
+          fichier d'origine, plutôt que de devoir faire confiance au graphique
+          seul. Repliée par défaut (voir showRawImportTable) : usage ponctuel
+          de vérification, pas un affichage courant. */}
+      {currentActualData && currentActualData.length > 0 && (
+        <div className={`rounded-3xl border shadow-md ${cardBg} ${cardBorder} overflow-hidden`}>
+          <button
+            onClick={() => setShowRawImportTable(!showRawImportTable)}
+            className={`w-full flex items-center justify-between p-4 md:p-6 text-left ${textHighlight}`}
+          >
+            <span className="font-bold text-lg flex items-center gap-2">
+              <Activity className={textColorClass} size={20} />
+              Données brutes importées ({currentActualData.length} points)
+            </span>
+            {showRawImportTable ? <ChevronUp size={20} className={textMuted} /> : <ChevronDown size={20} className={textMuted} />}
+          </button>
+          {showRawImportTable && (
+            <div className="px-4 md:px-6 pb-6 overflow-x-auto max-h-96 overflow-y-auto">
+              <p className={`text-xs mb-3 ${textMuted}`}>
+                Chaque ligne correspond à un point du fichier CSV importé — compare ces valeurs à ton export Garmin/Strava d'origine pour vérifier que rien ne s'est perdu ou décalé à l'import.
+              </p>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className={`text-left border-b ${cardBorder} ${textMuted} sticky top-0 ${cardBg}`}>
+                    <th className="pb-2 pr-3 font-semibold">#</th>
+                    <th className="pb-2 pr-3 font-semibold">Temps</th>
+                    <th className="pb-2 pr-3 font-semibold">Cadence (PPM)</th>
+                    <th className="pb-2 font-semibold">Fréquence cardiaque</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentActualData.map((point, i) => (
+                    <tr key={i} className={`border-b last:border-0 ${cardBorder}`}>
+                      <td className={`py-1.5 pr-3 ${textMuted}`}>{point.circuit ?? i + 1}</td>
+                      <td className={`py-1.5 pr-3 font-mono ${textHighlight}`}>{formatDuration(point.timeSec)}</td>
+                      <td className={`py-1.5 pr-3 font-mono ${textHighlight}`}>{point.cadenceReelle !== undefined ? point.cadenceReelle : '—'}</td>
+                      <td className={`py-1.5 font-mono ${textHighlight}`}>{point.heartRate !== undefined ? point.heartRate : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Liste des musiques AVEC BOUTON AJOUT MANUEL */}
       <div className={"rounded-3xl border overflow-hidden shadow-md " + cardBg + " " + cardBorder}>
