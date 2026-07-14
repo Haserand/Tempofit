@@ -61,6 +61,23 @@ export function useGeneratorForm(isNaughtyMode) {
   const isCrescendoMode = structureMode === 'crescendo';
 
   const setStructureMode = (mode) => setStructureModeRaw(mode);
+
+  // Répartition Crescendo réglable par l'utilisateur via le curseur double de
+  // l'étape 3 (2 poignées : fin de l'échauffement / début du retour au
+  // calme) — PAS un ratio fixe imposé par l'algorithme. Défauts 15/70/15 (le
+  // "sweet spot" sportif standard) : un utilisateur pressé n'a rien à
+  // toucher, l'expert peut affiner. `CRESCENDO_MIN_MAIN_PCT` garantit que le
+  // cœur de séance ne peut jamais descendre sous 10% de la séance, quoi que
+  // l'utilisateur fasse glisser les 2 poignées l'une vers l'autre — les deux
+  // setters se contraignent mutuellement pour ça (voir GeneratorView pour les
+  // bornes natives `min`/`max` des inputs range, qui empêchent déjà la
+  // plupart des cas, ce clamp ici est le filet de sécurité final).
+  const CRESCENDO_MIN_MAIN_PCT = 10;
+  const [crescendoWarmupPct, setCrescendoWarmupPctRaw] = useState(15);
+  const [crescendoCooldownPct, setCrescendoCooldownPctRaw] = useState(15);
+  const setCrescendoWarmupPct = (val) => setCrescendoWarmupPctRaw(Math.max(0, Math.min(val, 100 - CRESCENDO_MIN_MAIN_PCT - crescendoCooldownPct)));
+  const setCrescendoCooldownPct = (val) => setCrescendoCooldownPctRaw(Math.max(0, Math.min(val, 100 - CRESCENDO_MIN_MAIN_PCT - crescendoWarmupPct)));
+
   // Autorise ou non les titres de plus de 6 minutes dans la génération — sans
   // ça, l'algorithme de remplissage (qui choisit le titre dont la durée colle
   // le mieux au temps restant) pouvait piocher un morceau atypiquement long
@@ -95,9 +112,9 @@ export function useGeneratorForm(isNaughtyMode) {
   useEffect(() => {
     if (structureMode !== 'crescendo') return;
     const bpmFloor = isNaughtyMode ? 40 : 80;
-    setSegments(buildCrescendoSegments(targetMode, bpm, hours, minutes, distanceVal, paceMin, paceSec, bpmFloor));
+    setSegments(buildCrescendoSegments(targetMode, bpm, hours, minutes, distanceVal, paceMin, paceSec, bpmFloor, crescendoWarmupPct, crescendoCooldownPct));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [structureMode, targetMode, bpm, hours, minutes, distanceVal, paceMin, paceSec, isNaughtyMode]);
+  }, [structureMode, targetMode, bpm, hours, minutes, distanceVal, paceMin, paceSec, isNaughtyMode, crescendoWarmupPct, crescendoCooldownPct]);
 
   const availableGenres = isNaughtyMode ? NAUGHTY_GENRES : STANDARD_GENRES;
   const displaySubtitleGen = isNaughtyMode
@@ -223,6 +240,8 @@ export function useGeneratorForm(isNaughtyMode) {
     crossfade, setCrossfade,
     bpm, setBpm,
     structureMode, setStructureMode, isIntervalMode, isCrescendoMode,
+    crescendoWarmupPct, setCrescendoWarmupPct, crescendoCooldownPct, setCrescendoCooldownPct,
+    CRESCENDO_MIN_MAIN_PCT,
     allowLongTracks, setAllowLongTracks,
     targetMode, setTargetMode,
     hours, setHours,
