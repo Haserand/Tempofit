@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { STANDARD_GENRES, NAUGHTY_GENRES, normalizeGenreForDisplay } from '../musicCatalog';
+import { buildCrescendoSegments } from '../musicEngine';
 
 /**
  * useGeneratorForm — regroupe tout l'état du formulaire du wizard de
@@ -43,7 +44,23 @@ export function useGeneratorForm(isNaughtyMode) {
   const [bpmTolerance, setBpmTolerance] = useState(14);
   const [crossfade, setCrossfade] = useState(2);
   const [bpm, setBpm] = useState(160);
-  const [isIntervalMode, setIsIntervalMode] = useState(false);
+  // Structure de l'effort — 3 modes (voir GeneratorView étape 2) :
+  //   'constant'  : allure plate de bout en bout (comportement historique, BPM
+  //                 unique + tolérance aléatoire, AUCUN changement ici).
+  //   'crescendo' : 3 segments auto-générés (échauffement / cœur / retour au
+  //                 calme, voir buildCrescendoSegments), recalculés à chaque
+  //                 changement de BPM/durée/distance tant que ce mode est actif.
+  //   'interval'  : Fractionné manuel historique (segments édités à la main
+  //                 par l'utilisateur, étape 3 du wizard).
+  // `isIntervalMode` reste dérivé ci-dessous : c'est le seul champ que
+  // `createPlaylistData` (musicEngine.js) connaît côté moteur — 'crescendo' ET
+  // 'interval' l'utilisent tous les deux (même mécanique de segments), seul
+  // `isCrescendoMode` les distingue pour le nommage/l'affichage.
+  const [structureMode, setStructureModeRaw] = useState('constant');
+  const isIntervalMode = structureMode !== 'constant';
+  const isCrescendoMode = structureMode === 'crescendo';
+
+  const setStructureMode = (mode) => setStructureModeRaw(mode);
   // Autorise ou non les titres de plus de 6 minutes dans la génération — sans
   // ça, l'algorithme de remplissage (qui choisit le titre dont la durée colle
   // le mieux au temps restant) pouvait piocher un morceau atypiquement long
@@ -66,6 +83,21 @@ export function useGeneratorForm(isNaughtyMode) {
   // fois, replié par défaut pour ne pas surcharger l'étape 3 du wizard).
   // null = aucune.
   const [expandedSegmentGenreId, setExpandedSegmentGenreId] = useState(null);
+
+  // Tant que le mode Crescendo est actif, les 3 segments (échauffement / cœur
+  // de séance / retour au calme) sont recalculés automatiquement à chaque
+  // changement de BPM cible, de durée/distance ou d'allure — c'est ce qui
+  // rend l'étape 3 "magique" pour ce mode (rien à éditer à la main). Dès
+  // qu'on quitte le mode Crescendo (vers Fractionné ou Allure Constante),
+  // cet effet s'arrête et les segments restent tels quels — en repassant en
+  // Fractionné manuel, ça donne d'ailleurs un point de départ tout prêt à
+  // ajuster plutôt qu'un segment vide.
+  useEffect(() => {
+    if (structureMode !== 'crescendo') return;
+    const bpmFloor = isNaughtyMode ? 40 : 80;
+    setSegments(buildCrescendoSegments(targetMode, bpm, hours, minutes, distanceVal, paceMin, paceSec, bpmFloor));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [structureMode, targetMode, bpm, hours, minutes, distanceVal, paceMin, paceSec, isNaughtyMode]);
 
   const availableGenres = isNaughtyMode ? NAUGHTY_GENRES : STANDARD_GENRES;
   const displaySubtitleGen = isNaughtyMode
@@ -190,7 +222,7 @@ export function useGeneratorForm(isNaughtyMode) {
     bpmTolerance, setBpmTolerance,
     crossfade, setCrossfade,
     bpm, setBpm,
-    isIntervalMode, setIsIntervalMode,
+    structureMode, setStructureMode, isIntervalMode, isCrescendoMode,
     allowLongTracks, setAllowLongTracks,
     targetMode, setTargetMode,
     hours, setHours,
