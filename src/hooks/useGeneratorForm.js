@@ -111,14 +111,14 @@ export function useGeneratorForm(isNaughtyMode) {
     setGenreWeights(newWeights);
   };
 
-  // Ajoute/retire un genre de la sélection, en empêchant de désélectionner le
-  // dernier genre restant (il en faut toujours au moins un pour générer une
-  // playlist). La répartition des % repart à zéro (équirépartition, tout
-  // déverrouillé) dès que l'ENSEMBLE des genres change.
+  // Ajoute/retire un genre de la sélection. Contrairement à avant, on autorise
+  // maintenant de tout désélectionner : aucun genre coché = recherche élargie
+  // par BPM uniquement, sans restriction de style (voir isDirectGenreMatch
+  // dans musicCatalog.js, qui traite un tableau de genres vide comme "aucune
+  // restriction" plutôt que d'imposer un genre par défaut).
   const toggleGenre = (genre) => {
     let newGenres;
     if (selectedGenres.includes(genre)) {
-      if (selectedGenres.length <= 1) return;
       newGenres = selectedGenres.filter(g => g !== genre);
     } else {
       newGenres = [...selectedGenres, genre];
