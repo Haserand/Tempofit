@@ -354,7 +354,6 @@ export default function App() {
     structureMode, setStructureMode, isIntervalMode, isCrescendoMode,
     crescendoWarmupPct, setCrescendoWarmupPct, crescendoCooldownPct, setCrescendoCooldownPct,
     CRESCENDO_MIN_MAIN_PCT,
-    crescendoManualBpm, setCrescendoManualBpm,
     crescendoWarmupBpm, setCrescendoWarmupBpm, crescendoCooldownBpm, setCrescendoCooldownBpm,
     allowLongTracks, setAllowLongTracks,
     targetMode, setTargetMode,
@@ -971,7 +970,7 @@ export default function App() {
     const newRoutine = {
       id: `routine-${Date.now()}`, name: finalName, workoutType,
       customActivity: workoutType === 'Autre' ? customActivity : '', isIntervalMode, isCrescendoMode, bpm,
-      crescendoWarmupPct, crescendoCooldownPct, crescendoManualBpm, crescendoWarmupBpm, crescendoCooldownBpm,
+      crescendoWarmupPct, crescendoCooldownPct, crescendoWarmupBpm, crescendoCooldownBpm,
       targetMode, distanceVal, distanceUnit, paceMin, paceSec, hours, minutes, selectedGenres, bpmTolerance, crossfade, allowLongTracks, genreWeights,
       segments: isIntervalMode ? [...segments] : [], coverIcon: newRoutineIcon, autoGenFreq: newRoutineFreq,
       manualGenerations: 0, recentTrackIds: [], createdAt: new Date().toLocaleDateString()
@@ -1023,12 +1022,23 @@ export default function App() {
   useEffect(() => {
     if (!isEditRoutineModalOpen || !editingRoutine || !editingRoutine.isCrescendoMode) return;
     const bpmFloor = isNaughtyMode ? 40 : 80;
+    // Routine créée avant l'ajout du réglage BPM manuel (ou jamais encore
+    // ouverte en édition) : `crescendoWarmupBpm`/`crescendoCooldownBpm`
+    // peuvent être absents. On les initialise ici sur des valeurs de départ
+    // sensées (déduites du BPM cible) — plus de bouton pour le faire
+    // explicitement, seule la première ouverture de cette modale s'en charge.
+    if (editingRoutine.crescendoWarmupBpm == null || editingRoutine.crescendoCooldownBpm == null) {
+      const deduced = deduceCrescendoBpm(editingRoutine.bpm, bpmFloor);
+      setEditingRoutine(prev => (prev && (prev.crescendoWarmupBpm == null || prev.crescendoCooldownBpm == null))
+        ? { ...prev, crescendoWarmupBpm: prev.crescendoWarmupBpm ?? deduced.warmupBpm, crescendoCooldownBpm: prev.crescendoCooldownBpm ?? deduced.cooldownBpm }
+        : prev);
+      return;
+    }
     const newSegments = buildCrescendoSegments(
       editingRoutine.targetMode, editingRoutine.bpm, editingRoutine.hours, editingRoutine.minutes,
       editingRoutine.distanceVal, editingRoutine.paceMin, editingRoutine.paceSec, bpmFloor,
       editingRoutine.crescendoWarmupPct ?? 15, editingRoutine.crescendoCooldownPct ?? 15,
-      editingRoutine.crescendoManualBpm ? editingRoutine.crescendoWarmupBpm : null,
-      editingRoutine.crescendoManualBpm ? editingRoutine.crescendoCooldownBpm : null,
+      editingRoutine.crescendoWarmupBpm, editingRoutine.crescendoCooldownBpm,
     );
     if (JSON.stringify(newSegments) !== JSON.stringify(editingRoutine.segments)) {
       setEditingRoutine(prev => prev ? { ...prev, segments: newSegments } : prev);
@@ -1038,7 +1048,7 @@ export default function App() {
     editingRoutine?.targetMode, editingRoutine?.bpm, editingRoutine?.hours, editingRoutine?.minutes,
     editingRoutine?.distanceVal, editingRoutine?.paceMin, editingRoutine?.paceSec,
     editingRoutine?.crescendoWarmupPct, editingRoutine?.crescendoCooldownPct,
-    editingRoutine?.crescendoManualBpm, editingRoutine?.crescendoWarmupBpm, editingRoutine?.crescendoCooldownBpm,
+    editingRoutine?.crescendoWarmupBpm, editingRoutine?.crescendoCooldownBpm,
     isNaughtyMode,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]);
@@ -2128,7 +2138,6 @@ export default function App() {
                 crescendoWarmupPct={crescendoWarmupPct} setCrescendoWarmupPct={setCrescendoWarmupPct}
                 crescendoCooldownPct={crescendoCooldownPct} setCrescendoCooldownPct={setCrescendoCooldownPct}
                 CRESCENDO_MIN_MAIN_PCT={CRESCENDO_MIN_MAIN_PCT}
-                crescendoManualBpm={crescendoManualBpm} setCrescendoManualBpm={setCrescendoManualBpm}
                 crescendoWarmupBpm={crescendoWarmupBpm} setCrescendoWarmupBpm={setCrescendoWarmupBpm}
                 crescendoCooldownBpm={crescendoCooldownBpm} setCrescendoCooldownBpm={setCrescendoCooldownBpm}
                 hours={hours} minutes={minutes} distanceVal={distanceVal} distanceUnit={distanceUnit}
@@ -2663,33 +2672,9 @@ export default function App() {
                       </div>
 
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className={`text-xs ${textMuted}`}>
-                            {editingRoutine.crescendoManualBpm ? 'BPM personnalisé pour ces 2 phases :' : 'BPM déduit automatiquement du rythme au pic :'}
-                          </p>
-                          <button
-                            onClick={() => {
-                              if (!editingRoutine.crescendoManualBpm) {
-                                const bpmFloor = isNaughtyMode ? 40 : 80;
-                                const deduced = deduceCrescendoBpm(editingRoutine.bpm, bpmFloor);
-                                setEditingRoutine({
-                                  ...editingRoutine,
-                                  crescendoManualBpm: true,
-                                  crescendoWarmupBpm: editingRoutine.crescendoWarmupBpm ?? deduced.warmupBpm,
-                                  crescendoCooldownBpm: editingRoutine.crescendoCooldownBpm ?? deduced.cooldownBpm,
-                                });
-                              } else {
-                                setEditingRoutine({ ...editingRoutine, crescendoManualBpm: false });
-                              }
-                            }}
-                            className={`text-xs font-bold underline shrink-0 ${textMuted} hover:${textHighlight}`}
-                          >
-                            {editingRoutine.crescendoManualBpm ? 'Revenir au calcul auto' : '⚙️ Ajuster manuellement'}
-                          </button>
-                        </div>
+                        <p className={`text-xs ${textMuted}`}>BPM personnalisé pour ces 2 phases :</p>
 
-                        {editingRoutine.crescendoManualBpm && (
-                          <div className={`space-y-4 p-3 rounded-xl ${inputBg} border ${inputBorder}`}>
+                        <div className={`space-y-4 p-3 rounded-xl ${inputBg} border ${inputBorder}`}>
                             <div>
                               <div className="flex justify-between items-center mb-1">
                                 <span className="text-xs font-bold text-sky-500 dark:text-sky-400">BPM Échauffement</span>
@@ -2721,8 +2706,7 @@ export default function App() {
                                 className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                               />
                             </div>
-                          </div>
-                        )}
+                        </div>
                       </div>
 
                       <p className={`text-[11px] ${textMuted}`}>Les 3 portions se recalculent automatiquement selon ces réglages.</p>
