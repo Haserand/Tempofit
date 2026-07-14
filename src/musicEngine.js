@@ -1126,6 +1126,28 @@ const findSameArtistReplacement = async (artistName, minBpm, maxBpm, excludeYout
 };
 
 /**
+ * deduceCrescendoBpm — calcule le BPM par défaut de l'échauffement et du
+ * retour au calme à partir du seul BPM cible (celui du "cœur de séance").
+ * C'est la valeur "intelligence par défaut" du mode Crescendo : l'utilisateur
+ * n'a qu'un seul BPM à régler (le pic) au départ, l'algorithme déduit tout
+ * seul le reste (-30 pour l'échauffement, encore -15 pour le retour au
+ * calme, arrondis au multiple de 5 le plus proche pour rester lisible).
+ * Exportée séparément de `buildCrescendoSegments` pour être réutilisée par
+ * l'UI (GeneratorView) au moment où l'utilisateur bascule en mode "Ajuster
+ * manuellement" : on veut initialiser les 2 curseurs experts sur CES valeurs
+ * déduites, pas sur un défaut arbitraire différent.
+ *
+ * Pure, aucune dépendance au reste du moteur.
+ */
+const deduceCrescendoBpm = (mainBpm, bpmFloor = 80) => {
+  const roundTo5 = (v) => Math.round(v / 5) * 5;
+  const main = parseInt(mainBpm) || 120;
+  const warmupBpm = Math.max(bpmFloor, roundTo5(main - 30));
+  const cooldownBpm = Math.max(bpmFloor, roundTo5(warmupBpm - 15));
+  return { warmupBpm, cooldownBpm };
+};
+
+/**
  * buildCrescendoSegments — génère automatiquement 3 segments (Échauffement /
  * Cœur de séance / Retour au calme) pour le mode "Crescendo" du wizard, en
  * réutilisant tel quel le moteur de segments déjà construit pour le mode
@@ -1147,24 +1169,33 @@ const findSameArtistReplacement = async (artistName, minBpm, maxBpm, excludeYout
  * l'utilisateur raisonne toujours en "part de sa séance", jamais en minutes
  * absolues à recalculer lui-même.
  *
+ * `manualWarmupBpm`/`manualCooldownBpm` (divulgation progressive — décision
+ * explicite avec l'utilisateur) : `null` par défaut → le BPM de ces 2 phases
+ * est DÉDUIT automatiquement du BPM cible (voir `deduceCrescendoBpm`).
+ * L'utilisateur peut écraser l'une ou l'autre valeur (ou les deux) via le
+ * mode "Ajuster manuellement" de l'étape 3 — dans ce cas, la valeur fournie
+ * ici prime purement et simplement sur le calcul automatique.
+ *
  * En dessous de 10 minutes au total, distinguer 3 phases n'a plus de sens
  * (portions ridiculement courtes) : un seul segment au BPM cible, comme en
- * mode Allure Constante — quels que soient warmupPct/cooldownPct.
+ * mode Allure Constante — quels que soient warmupPct/cooldownPct/les
+ * éventuels overrides manuels de BPM.
  *
  * `bpmFloor` : plancher BPM (80 en mode standard, 40 en mode Intime — mêmes
  * bornes que le curseur BPM de l'étape 3) pour ne jamais proposer un
- * échauffement/retour au calme à un BPM absurdement bas.
+ * échauffement/retour au calme à un BPM absurdement bas, y compris si
+ * l'utilisateur force manuellement une valeur trop basse.
  */
-const buildCrescendoSegments = (targetMode, bpm, hours, minutes, distanceVal, paceMin, paceSec, bpmFloor = 80, warmupPct = 15, cooldownPct = 15) => {
+const buildCrescendoSegments = (targetMode, bpm, hours, minutes, distanceVal, paceMin, paceSec, bpmFloor = 80, warmupPct = 15, cooldownPct = 15, manualWarmupBpm = null, manualCooldownBpm = null) => {
   const unitPaceSecs = (parseInt(paceMin) || 0) * 60 + (parseInt(paceSec) || 0) || 330;
   const totalMinutes = targetMode === 'distance'
     ? ((parseFloat(distanceVal) || 0) * unitPaceSecs) / 60
     : (parseInt(hours) || 0) * 60 + (parseInt(minutes) || 0);
 
-  const roundTo5 = (v) => Math.round(v / 5) * 5;
   const mainBpm = parseInt(bpm) || 120;
-  const warmupBpm = Math.max(bpmFloor, roundTo5(mainBpm - 30));
-  const cooldownBpm = Math.max(bpmFloor, roundTo5(warmupBpm - 15));
+  const deduced = deduceCrescendoBpm(mainBpm, bpmFloor);
+  const warmupBpm = manualWarmupBpm != null ? Math.max(bpmFloor, parseInt(manualWarmupBpm) || bpmFloor) : deduced.warmupBpm;
+  const cooldownBpm = manualCooldownBpm != null ? Math.max(bpmFloor, parseInt(manualCooldownBpm) || bpmFloor) : deduced.cooldownBpm;
 
   // Distance/durée cible en unité "durationValue" (minutes en mode temps,
   // km/mi en mode distance) — la conversion inverse de celle utilisée dans
@@ -1304,6 +1335,7 @@ export {
   searchDeezerForGenres,
   getSingleMatchingTrack,
   buildSegmentTracks,
+  deduceCrescendoBpm,
   buildCrescendoSegments,
   findSameArtistReplacement,
   recalculateTimeline,
