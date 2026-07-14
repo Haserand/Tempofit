@@ -353,6 +353,8 @@ export default function App() {
     crossfade, setCrossfade,
     bpm, setBpm,
     structureMode, setStructureMode, isIntervalMode, isCrescendoMode,
+    crescendoWarmupPct, setCrescendoWarmupPct, crescendoCooldownPct, setCrescendoCooldownPct,
+    CRESCENDO_MIN_MAIN_PCT,
     allowLongTracks, setAllowLongTracks,
     targetMode, setTargetMode,
     hours, setHours,
@@ -957,6 +959,7 @@ export default function App() {
     const newRoutine = {
       id: `routine-${Date.now()}`, name: finalName, workoutType,
       customActivity: workoutType === 'Autre' ? customActivity : '', isIntervalMode, isCrescendoMode, bpm,
+      crescendoWarmupPct, crescendoCooldownPct,
       targetMode, distanceVal, distanceUnit, paceMin, paceSec, hours, minutes, selectedGenres, bpmTolerance, crossfade, allowLongTracks, genreWeights,
       segments: isIntervalMode ? [...segments] : [], coverIcon: newRoutineIcon, autoGenFreq: newRoutineFreq,
       manualGenerations: 0, recentTrackIds: [], createdAt: new Date().toLocaleDateString()
@@ -2030,6 +2033,9 @@ export default function App() {
                 setHours={setHours} setMinutes={setMinutes}
                 targetMode={targetMode} isIntervalMode={isIntervalMode} isCrescendoMode={isCrescendoMode}
                 structureMode={structureMode} setStructureMode={setStructureMode}
+                crescendoWarmupPct={crescendoWarmupPct} setCrescendoWarmupPct={setCrescendoWarmupPct}
+                crescendoCooldownPct={crescendoCooldownPct} setCrescendoCooldownPct={setCrescendoCooldownPct}
+                CRESCENDO_MIN_MAIN_PCT={CRESCENDO_MIN_MAIN_PCT}
                 hours={hours} minutes={minutes} distanceVal={distanceVal} distanceUnit={distanceUnit}
                 paceMin={paceMin} setPaceMin={setPaceMin} paceSec={paceSec} setPaceSec={setPaceSec}
                 bpm={bpm}
