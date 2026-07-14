@@ -60,7 +60,6 @@ export function useGeneratorForm(isNaughtyMode) {
   const isIntervalMode = structureMode !== 'constant';
   const isCrescendoMode = structureMode === 'crescendo';
 
-  const setStructureMode = (mode) => setStructureModeRaw(mode);
 
   // Répartition Crescendo réglable par l'utilisateur via le curseur double de
   // l'étape 3 (2 poignées : fin de l'échauffement / début du retour au
@@ -78,30 +77,26 @@ export function useGeneratorForm(isNaughtyMode) {
   const setCrescendoWarmupPct = (val) => setCrescendoWarmupPctRaw(Math.max(0, Math.min(val, 100 - CRESCENDO_MIN_MAIN_PCT - crescendoCooldownPct)));
   const setCrescendoCooldownPct = (val) => setCrescendoCooldownPctRaw(Math.max(0, Math.min(val, 100 - CRESCENDO_MIN_MAIN_PCT - crescendoWarmupPct)));
 
-  // BPM des phases Échauffement/Retour au calme — divulgation progressive
-  // (décision explicite avec l'utilisateur) : PAR DÉFAUT (`crescendoManualBpm`
-  // false), déduit automatiquement du seul BPM cible (voir
-  // `deduceCrescendoBpm`) — rien à régler. L'utilisateur peut basculer en
-  // "Ajuster manuellement" (bouton étape 3) pour prendre le contrôle exact
-  // des 2 valeurs. `crescendoWarmupBpm`/`crescendoCooldownBpm` restent
-  // `null` tant qu'il n'a jamais activé ce mode — ce sont alors les valeurs
-  // déduites qui s'appliquent (voir buildCrescendoSegments).
-  const [crescendoManualBpm, setCrescendoManualBpmRaw] = useState(false);
+  // BPM des phases Échauffement/Retour au calme — toujours réglables à la
+  // main (retour direct : pas de bascule auto/manuel, uniquement du réglage
+  // manuel). Pré-rempli avec des valeurs de départ sensées (voir
+  // `deduceCrescendoBpm`, déduites du BPM cible) la toute première fois qu'on
+  // passe en mode Crescendo, pour que l'utilisateur pressé n'ait pas à partir
+  // de zéro — ensuite, ce sont purement ses réglages manuels qui comptent,
+  // plus jamais recalculés automatiquement (voir `setStructureMode`
+  // ci-dessous pour ce seed initial, et l'effet plus bas qui construit les
+  // segments à partir de ces valeurs).
   const [crescendoWarmupBpm, setCrescendoWarmupBpmRaw] = useState(null);
   const [crescendoCooldownBpm, setCrescendoCooldownBpmRaw] = useState(null);
 
-  // À la première activation du mode expert, on initialise les 2 curseurs
-  // sur les valeurs déjà déduites automatiquement (pas de saut brusque vers
-  // un autre défaut) — les activations suivantes réutilisent le dernier
-  // réglage manuel de l'utilisateur plutôt que de l'écraser à nouveau.
-  const setCrescendoManualBpm = (enabled) => {
-    if (enabled) {
+  const setStructureMode = (mode) => {
+    if (mode === 'crescendo') {
       const bpmFloor = isNaughtyMode ? 40 : 80;
       const deduced = deduceCrescendoBpm(bpm, bpmFloor);
       setCrescendoWarmupBpmRaw(prev => prev === null ? deduced.warmupBpm : prev);
       setCrescendoCooldownBpmRaw(prev => prev === null ? deduced.cooldownBpm : prev);
     }
-    setCrescendoManualBpmRaw(enabled);
+    setStructureModeRaw(mode);
   };
   // L'échauffement ne doit jamais dépasser le BPM cible (le curseur de
   // l'étape 3 le borne déjà côté UI), et le retour au calme ne doit jamais
@@ -152,11 +147,10 @@ export function useGeneratorForm(isNaughtyMode) {
     setSegments(buildCrescendoSegments(
       targetMode, bpm, hours, minutes, distanceVal, paceMin, paceSec, bpmFloor,
       crescendoWarmupPct, crescendoCooldownPct,
-      crescendoManualBpm ? crescendoWarmupBpm : null,
-      crescendoManualBpm ? crescendoCooldownBpm : null,
+      crescendoWarmupBpm, crescendoCooldownBpm,
     ));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [structureMode, targetMode, bpm, hours, minutes, distanceVal, paceMin, paceSec, isNaughtyMode, crescendoWarmupPct, crescendoCooldownPct, crescendoManualBpm, crescendoWarmupBpm, crescendoCooldownBpm]);
+  }, [structureMode, targetMode, bpm, hours, minutes, distanceVal, paceMin, paceSec, isNaughtyMode, crescendoWarmupPct, crescendoCooldownPct, crescendoWarmupBpm, crescendoCooldownBpm]);
 
   const availableGenres = isNaughtyMode ? NAUGHTY_GENRES : STANDARD_GENRES;
   const displaySubtitleGen = isNaughtyMode
@@ -284,7 +278,6 @@ export function useGeneratorForm(isNaughtyMode) {
     structureMode, setStructureMode, isIntervalMode, isCrescendoMode,
     crescendoWarmupPct, setCrescendoWarmupPct, crescendoCooldownPct, setCrescendoCooldownPct,
     CRESCENDO_MIN_MAIN_PCT,
-    crescendoManualBpm, setCrescendoManualBpm,
     crescendoWarmupBpm, setCrescendoWarmupBpm, crescendoCooldownBpm, setCrescendoCooldownBpm,
     allowLongTracks, setAllowLongTracks,
     targetMode, setTargetMode,
