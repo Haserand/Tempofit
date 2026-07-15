@@ -265,9 +265,16 @@ export default function PlaylistDetailView({
             )}
             <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
               <button onClick={() => setChartAxisType('temps')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartAxisType === 'temps' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted)}>Temps (Min)</button>
-              {currentPlaylist.targetMode === 'distance' && (
-                <button onClick={() => setChartAxisType('distance')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartAxisType === 'distance' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted)}>Distance</button>
-              )}
+              {/* Toujours proposé, même pour une playlist générée en mode Temps (pas
+                  seulement `targetMode === 'distance'`, comme c'était le cas avant —
+                  régression signalée directement) : une distance est calculable pour
+                  N'IMPORTE QUELLE playlist via l'allure/BPM (`startDistVal`, voir
+                  App.jsx), pas seulement celles basées sur une distance cible. Pour
+                  une playlist Temps, c'est une distance ESTIMÉE (déduite du rythme),
+                  pas mesurée — mais l'estimation reste utile et cohérente avec le
+                  reste de l'app (même logique déjà utilisée pour le trophée "100
+                  Bornes au Compteur", qui cumule aussi cette distance estimée). */}
+              <button onClick={() => setChartAxisType('distance')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartAxisType === 'distance' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted)}>Distance</button>
             </div>
             {/* Sélecteur km/mi : purement cosmétique, ne change jamais l'unité
                 réellement utilisée pour générer la playlist. */}
