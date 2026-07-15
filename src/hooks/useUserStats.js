@@ -47,7 +47,11 @@ export function useUserStats(showToast) {
 
     if (newlyUnlocked.length > 0) {
       setUserStats({ ...newStats, unlockedTrophies: [...newStats.unlockedTrophies, ...newlyUnlocked.map(t => t.id)] });
-      showToast(`🏆 Trophée débloqué : ${newlyUnlocked[0].name} !`, 'special');
+      // Pas d'emoji 🏆 dans le message : le toast affiche déjà sa propre icône
+      // trophée dorée pour le variant 'special' (voir App.jsx) — un 2e trophée
+      // écrit en dur dans le texte donnait 2 trophées visibles côte à côte
+      // pour un seul déblocage (retour direct).
+      showToast(`Trophée débloqué : ${newlyUnlocked[0].name} !`, 'special');
     } else {
       setUserStats(newStats);
     }
