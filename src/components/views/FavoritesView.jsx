@@ -1,5 +1,5 @@
-import { Star, Heart, Play, Pause, X, Plus, User, RefreshCw, Target, Search } from 'lucide-react';
-import { getGenreLocalDepthWarning, getGenresForDisplay, genreDisplayLabel, EXTRA_GENRES } from '../../musicCatalog';
+import { Star, Heart, Play, Pause, X, Plus, User, RefreshCw, Target, Search, Info } from 'lucide-react';
+import { getGenreLocalDepthWarning, getGenresForDisplay, genreDisplayLabel, EXTRA_GENRES, WEAK_DEEZER_KEYWORD_GENRES } from '../../musicCatalog';
 
 /**
  * FavoritesView — vue "Mes Favoris" (titres/artistes favoris + exploration BPM/genre).
@@ -145,7 +145,11 @@ export default function FavoritesView({
                   );
                 })}
                 {!isNaughtyMode && (
-                  <button onClick={() => setShowExtraGenres(!showExtraGenres)} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 border-dashed ${cardBorder} ${textMuted} hover:${textHighlight}`}>
+                  <button
+                    onClick={() => setShowExtraGenres(!showExtraGenres)}
+                    title={`${WEAK_DEEZER_KEYWORD_GENRES.map(genreDisplayLabel).join(', ')} (dans cette liste) demandent une recherche plus approfondie : ça peut prendre un peu plus de temps si tu en choisis un.`}
+                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 border-dashed ${cardBorder} ${textMuted} hover:${textHighlight}`}
+                  >
                     {showExtraGenres ? '− Moins de genres' : '+ Plus de genres'}
                   </button>
                 )}
@@ -165,6 +169,16 @@ export default function FavoritesView({
                     );
                   })}
                 </div>
+              )}
+              {/* Même logique que le wizard de génération (GeneratorView.jsx) : infobulle
+                  sur le bouton AVANT le clic (title ci-dessus), rappel plus visible une
+                  fois le panneau ouvert, message dédié pendant la recherche déplacé dans
+                  le bandeau de la modale de résultats (voir searchTracksByBpm, App.jsx). */}
+              {!isNaughtyMode && showExtraGenres && (
+                <p className={`text-sm flex items-start gap-1.5 pt-2 font-semibold ${textColorClass}`}>
+                  <Info size={16} className="shrink-0 mt-0.5" />
+                  <span>{WEAK_DEEZER_KEYWORD_GENRES.map(genreDisplayLabel).join(', ')} demandent une recherche plus approfondie : ça peut prendre un peu plus de temps si tu en choisis un.</span>
+                </p>
               )}
             </div>
 
