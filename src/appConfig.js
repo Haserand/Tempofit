@@ -40,6 +40,15 @@ const TROPHIES_DATA = [
   { id: 't_100km', name: '100 Bornes au Compteur', desc: 'Cumule 100 km parcourus sur l\'ensemble de tes séances.', icon: '🛣️', requirement: { type: 'custom', key: 'has100km' } },
   { id: 't_lightMode', name: 'Adepte de la Lumière', desc: 'Active le mode clair au moins une fois. Bienvenue de l\'autre côté.', icon: '☀️', requirement: { type: 'custom', key: 'hasLightMode' } },
   { id: 't_streak', name: 'Sur ta Lancée', desc: 'Complète une séance 3 jours d\'affilée.', icon: '🔗', requirement: { type: 'custom', key: 'hasStreak3' } },
+  // --- Ajoutés lors d'une 2e passe, après clarification : la logique
+  // trophées vise avant tout à inciter à ESSAYER chaque fonctionnalité de
+  // l'app, pas juste à récompenser du volume. ---
+  { id: 't_extraGenre', name: 'Explorateur de Genres', desc: 'Déplie "+ Plus de genres" et génère une session avec l\'un d\'eux.', icon: '🧭', requirement: { type: 'custom', key: 'hasExtraGenre' } },
+  { id: 't_planner', name: 'Planificateur', desc: 'Donne une date à une playlist dans "Mes Séances", pour la première fois.', icon: '📅', requirement: { type: 'custom', key: 'hasPlannedSession' } },
+  { id: 't_autoGen', name: 'Pilote Automatique', desc: 'Active la génération automatique sur une routine.', icon: '🤖', requirement: { type: 'custom', key: 'hasAutoGen' } },
+  { id: 't_firstRoutine', name: 'Ma Première Routine', desc: 'Sauvegarde ta toute première routine réutilisable.', icon: '📋', requirement: { type: 'custom', key: 'hasFirstRoutine' } },
+  { id: 't_sharer', name: 'Ambassadeur', desc: 'Utilise le bouton Partager, sur une playlist ou un trophée.', icon: '📣', requirement: { type: 'custom', key: 'hasSharedSomething' } },
+  { id: 't_favorites', name: 'Fidèle à tes Artistes', desc: 'Génère une session en utilisant tes Favoris.', icon: '⭐', requirement: { type: 'custom', key: 'hasUsedFavorites' } },
 ];
 
 const NAUGHTY_ROUTINE_NAMES = ["🍑 Cardio Horizontal", "🔥 Entraînement au lit", "💦 Session Sous la Couette", "😈 Sprint Nocturne"];
