@@ -41,7 +41,16 @@ export function useGeneratorForm(isNaughtyMode) {
   // une donnée métier par écran.
   const [showExtraGenres, setShowExtraGenres] = useState(false);
 
-  const [bpmTolerance, setBpmTolerance] = useState(14);
+  // `bpmToleranceTouched` : distingue "encore à sa valeur de départ" d'un
+  // choix VOLONTAIRE de l'utilisateur, même si ce choix retombe justement sur
+  // 14 (retour à la valeur de départ après l'avoir bougé compte comme un
+  // choix délibéré) — nécessaire pour le seed automatique de `setStructureMode`
+  // ci-dessous : sans ce flag, on ne pourrait distinguer "l'utilisateur n'a
+  // jamais touché ce réglage" de "l'utilisateur a délibérément remis 14".
+  const [bpmToleranceRaw, setBpmToleranceRaw] = useState(14);
+  const [bpmToleranceTouched, setBpmToleranceTouched] = useState(false);
+  const setBpmTolerance = (val) => { setBpmToleranceTouched(true); setBpmToleranceRaw(val); };
+  const bpmTolerance = bpmToleranceRaw;
   const [crossfade, setCrossfade] = useState(2);
   const [bpm, setBpm] = useState(160);
   // Structure de l'effort — 3 modes (voir GeneratorView étape 2) :
@@ -95,6 +104,21 @@ export function useGeneratorForm(isNaughtyMode) {
       const deduced = deduceCrescendoBpm(bpm, bpmFloor);
       setCrescendoWarmupBpmRaw(prev => prev === null ? deduced.warmupBpm : prev);
       setCrescendoCooldownBpmRaw(prev => prev === null ? deduced.cooldownBpm : prev);
+      // Resserre la marge d'erreur par défaut (14 BPM, pensée pour le mode
+      // Allure Constante) UNE SEULE FOIS en entrant en Crescendo — retour
+      // direct après constat chiffré : avec les BPM déduits par défaut
+      // (`deduceCrescendoBpm`, écart de 15 BPM entre Retour au calme et
+      // Échauffement dans le cas courant), une tolérance de ±14 fait
+      // CHEVAUCHER les 2 zones de recherche (jusqu'à 28 BPM de recoupement
+      // selon le BPM cible) — un même titre pouvait alors satisfaire les 2
+      // phases à la fois, ce qui va à l'encontre même de l'idée du Crescendo
+      // (des paliers distincts). 7 BPM laisse une marge de sécurité dans le
+      // cas le plus serré tout en restant un point de départ raisonnable, pas
+      // un plafond dur — l'utilisateur garde la main via le curseur de
+      // l'étape 4, comme pour tout le reste ici (voir `bpmToleranceTouched` :
+      // ne s'applique QUE si l'utilisateur n'a jamais touché ce réglage lui-
+      // même, jamais après un choix délibéré, même si ce choix retombe sur 14).
+      if (!bpmToleranceTouched) setBpmToleranceRaw(7);
     }
     setStructureModeRaw(mode);
   };
