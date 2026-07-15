@@ -1261,14 +1261,18 @@ export default function App() {
       newStats.hasExtraGenre = true; statsUpdated = true;
     }
 
-    // "Mes Favoris" — génère une playlist avec les favoris activés ET
-    // effectivement peuplés (même condition que le badge étoile de la sidebar)
-    // — pas juste avoir ouvert la page "Mes Favoris" sans jamais s'en servir.
-    if (!newStats.hasUsedFavorites && favorites.useFavorites && favorites.artists.length > 0) {
-      newStats.hasUsedFavorites = true; statsUpdated = true;
-    }
-
-    if (statsUpdated) checkTrophies(newStats);
+    // "Mes Favoris" (hasUsedFavorites) déplacé après la génération elle-même
+    // (voir plus bas) : BUG CORRIGÉ — la condition ici se basait sur la simple
+    // présence de favoris CONFIGURÉS quelque part dans l'app (`favorites.
+    // artists.length > 0`), qui vaut TOUJOURS vrai dès l'installation à cause
+    // des 2 artistes de démonstration pré-remplis (Metallica, System Of A
+    // Down — voir useFavorites.js), et `favorites.useFavorites` qui n'a jamais
+    // eu la moindre UI pour être désactivé, donc toujours `true` lui aussi. Un
+    // tout nouvel utilisateur qui n'avait jamais rien favorisé lui-même
+    // débloquait donc ce trophée dès sa toute première génération, quel que
+    // soit le genre/BPM demandé. Vérifié maintenant sur la playlist RÉELLEMENT
+    // générée (voir `_fromFavorites`, posé par musicEngine.js uniquement quand
+    // un titre vient effectivement de `favorites.tracks`/`favorites.artists`).
 
     // Historique glissant des titres déjà utilisés par CETTE routine (toutes
     // générations précédentes confondues), pour éviter de reproduire la même
@@ -1309,6 +1313,18 @@ export default function App() {
     }
     setIsGenerating(false);
     setIsGeneratingSlowGenre(false);
+
+    // "Mes Favoris" (hasUsedFavorites) : voir le commentaire plus haut pour le
+    // bug corrigé — vérifié ici sur la playlist RÉELLEMENT générée par ce lot,
+    // pas sur une simple présence de favoris configurés. `_fromFavorites` posé
+    // par musicEngine.js (buildSegmentTracks/getSingleMatchingTrack) UNIQUEMENT
+    // quand un titre vient effectivement de `favorites.tracks` ou d'une
+    // recherche sur `favorites.artists` — jamais sur un titre qui, par pure
+    // coïncidence, se trouve être du même artiste sans être passé par ce chemin.
+    if (!newStats.hasUsedFavorites && generatedPlaylists.some(pl => pl.tracks.some(t => t._fromFavorites))) {
+      newStats.hasUsedFavorites = true; statsUpdated = true;
+    }
+    if (statsUpdated) checkTrophies(newStats);
 
     if (routineId) {
       setRoutines(routines.map(r => r.id === routineId
