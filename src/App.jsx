@@ -2732,7 +2732,7 @@ export default function App() {
                     <label className={`text-sm font-bold ${textMuted}`}>Rythme cible</label>
                     <span className={`text-xl font-black ${textColorClass}`}>{editingRoutine.bpm} <span className={`text-xs font-bold ${textMuted}`}>BPM</span></span>
                   </div>
-                  <input type="range" min={isNaughtyMode ? "40" : "80"} max={isNaughtyMode ? "180" : "220"} value={editingRoutine.bpm} onChange={e => setEditingRoutine({...editingRoutine, bpm: parseInt(e.target.value)})} className={`w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer ${isNaughtyMode ? 'accent-rose-500' : 'accent-red-500'}`} />
+                  <input type="range" min={isNaughtyMode ? "40" : "80"} max={isNaughtyMode ? "180" : "220"} value={editingRoutine.bpm} onChange={e => setEditingRoutine({...editingRoutine, bpm: parseInt(e.target.value)})} className={`w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none ${isNaughtyMode ? 'accent-rose-500' : 'accent-red-500'}`} />
                 </div>
 
                 <div>
@@ -2740,7 +2740,7 @@ export default function App() {
                     <label className={`text-sm font-bold ${textMuted}`}>Marge d'erreur</label>
                     <span className={`text-sm font-black ${textColorClass}`}>± {editingRoutine.bpmTolerance} BPM</span>
                   </div>
-                  <input type="range" min="0" max="30" value={editingRoutine.bpmTolerance} onChange={e => setEditingRoutine({...editingRoutine, bpmTolerance: parseInt(e.target.value)})} className={`w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer ${isNaughtyMode ? 'accent-rose-500' : 'accent-red-500'}`} />
+                  <input type="range" min="0" max="30" value={editingRoutine.bpmTolerance} onChange={e => setEditingRoutine({...editingRoutine, bpmTolerance: parseInt(e.target.value)})} className={`w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none ${isNaughtyMode ? 'accent-rose-500' : 'accent-red-500'}`} />
                 </div>
 
                 {editingRoutine.targetMode === 'distance' ? (
@@ -2850,7 +2850,7 @@ export default function App() {
                                     crescendoCooldownBpm: (prev.crescendoCooldownBpm != null && prev.crescendoCooldownBpm > val) ? val : prev.crescendoCooldownBpm,
                                   }));
                                 }}
-                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-sky-500"
+                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none accent-sky-500"
                               />
                             </div>
                             <div>
@@ -2862,7 +2862,7 @@ export default function App() {
                                 type="range" min={isNaughtyMode ? 40 : 80} max={editingRoutine.crescendoWarmupBpm ?? editingRoutine.bpm}
                                 value={editingRoutine.crescendoCooldownBpm ?? (isNaughtyMode ? 40 : 80)}
                                 onChange={(e) => setEditingRoutine({ ...editingRoutine, crescendoCooldownBpm: parseInt(e.target.value) || (isNaughtyMode ? 40 : 80) })}
-                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none accent-emerald-500"
                               />
                             </div>
                         </div>
