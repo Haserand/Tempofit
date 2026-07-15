@@ -1107,7 +1107,29 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
     else if (deezerDirectPool.length > 0) { searchPool = deezerDirectPool; matchLevel = 'deezer-direct'; }
     else if (localPoolMatches.length > 0) { searchPool = localPoolMatches; matchLevel = 'local'; }
     else if (equivalencePool.length > 0) { searchPool = equivalencePool; matchLevel = 'equivalence'; }
-    else { searchPool = availablePool; matchLevel = 'none'; }
+    else {
+      // GARDE-FOU SUPPLÉMENTAIRE pour les genres au mot-clé Deezer fragile
+      // (K-pop, Musique asiatique, Bandes originales — voir
+      // WEAK_DEEZER_KEYWORD_GENRES) : retour direct après un cas réel où des
+      // artistes totalement hors-sujet (aucun rapport avec le genre demandé,
+      // absents de tout catalogue) se sont retrouvés en dernier recours sans
+      // qu'on identifie le mécanisme exact d'entrée dans le pool. Plutôt que
+      // de continuer à chercher CE mécanisme précis, on ferme la porte de
+      // force ici : pour ces genres, le dernier recours n'accepte QUE des
+      // titres venant du catalogue d'artistes (`_isLocalDB`) ou des favoris/
+      // Spotify explicites (ni `_deezerId` ni `_isLocalDB`) — jamais un
+      // résidu de recherche Deezer généraliste, quelle qu'en soit la
+      // provenance. Si même ça n'a rien à proposer, la boucle s'arrête ici
+      // (pool épuisé) et le remplissage restant passe par le filet de secours
+      // de fin de fonction (`getSingleMatchingTrack`, déjà restreint de la
+      // même façon pour ces genres).
+      const trustedOnly = allEffectiveGenresWeak
+        ? availablePool.filter(t => t._isLocalDB || (!t._deezerId && !t._isLocalDB))
+        : availablePool;
+      if (trustedOnly.length === 0) break;
+      searchPool = trustedOnly;
+      matchLevel = 'none';
+    }
 
     // Versions live/performance déprioritisées (pas exclues) à qualité de
     // correspondance égale — retour direct : elles peuvent différer sensiblement
