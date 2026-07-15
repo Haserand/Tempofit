@@ -1557,10 +1557,29 @@ export default function App() {
       : d.toLocaleDateString();
   };
 
-  const markPlaylistAsCompleted = (e, playlistId) => {
-    e.stopPropagation();
+  /**
+   * Marque une playlist comme faite — soit "maintenant" (bouton "Marquer comme
+   * faite", 1er clic sans calendrier), soit à une date CHOISIE explicitement
+   * (bouton "Ajouter une date" sur une playlist déjà complétée, qui ouvre un
+   * calendrier — fusionné ici avec l'ancien bouton "Marquer comme refaite
+   * aujourd'hui" sur retour direct : les deux faisaient doublon, ne garder
+   * qu'un seul bouton qui permet de choisir n'importe quelle date, y compris
+   * aujourd'hui). `isoDate` absent ⇒ comportement "maintenant" inchangé
+   * (horodatage complet avec l'heure) ; fourni ⇒ une simple date sans heure
+   * (`YYYY-MM-DD`, ce que rend un `<input type="date">`).
+   */
+  const markPlaylistAsCompleted = (playlistId, isoDate) => {
     const pl = savedPlaylists.find(p => p.id === playlistId);
     if (!pl) return;
+
+    const isExplicitDate = !!isoDate;
+    const completionValue = isoDate || new Date().toISOString();
+    const existingCompletions = pl.completions || [];
+
+    if (existingCompletions.includes(completionValue)) {
+      showToast("Cette date est déjà enregistrée.");
+      return;
+    }
 
     // CORRIGÉ après retour utilisateur : bloquer purement et simplement une 2e
     // complétion le même JOUR calendaire n'a pas de sens — une vraie double
@@ -1570,22 +1589,29 @@ export default function App() {
     // horodatage complet (pas juste la date) et une fenêtre anti-rebond courte :
     // si la dernière complétion enregistrée date de moins de 10 secondes, on
     // suppose un clic répété par erreur ; au-delà, on suppose une vraie 2e séance.
-    const nowIso = new Date().toISOString();
-    const existingCompletions = pl.completions || [];
-    const lastCompletion = existingCompletions.length > 0 ? existingCompletions[existingCompletions.length - 1] : null;
-    if (lastCompletion) {
-      const lastDate = new Date(lastCompletion);
-      if (!isNaN(lastDate.getTime()) && (Date.now() - lastDate.getTime()) < 10000) {
-        showToast("Déjà marquée à l'instant !");
-        return;
+    // UNIQUEMENT pertinent pour "maintenant" — une date choisie explicitement
+    // dans le calendrier ne peut, par construction, jamais être un double-clic.
+    if (!isExplicitDate) {
+      const lastCompletion = existingCompletions.length > 0 ? existingCompletions[existingCompletions.length - 1] : null;
+      if (lastCompletion) {
+        const lastDate = new Date(lastCompletion);
+        if (!isNaN(lastDate.getTime()) && (Date.now() - lastDate.getTime()) < 10000) {
+          showToast("Déjà marquée à l'instant !");
+          return;
+        }
       }
     }
-    const updatedCompletions = [...existingCompletions, nowIso].sort();
 
+    const updatedCompletions = [...existingCompletions, completionValue].sort();
     setSavedPlaylists(savedPlaylists.map(p => p.id === playlistId ? { ...p, completions: updatedCompletions } : p));
 
-    const hour = new Date().getHours();
-    const isNight = hour >= 22 || hour <= 4;
+    // Heure de la journée : seulement significative pour "maintenant" — une
+    // date choisie au calendrier (YYYY-MM-DD, sans heure) n'a pas d'heure
+    // réelle associée, "Oiseau de Nuit" n'aurait aucun sens dessus.
+    const isNight = !isExplicitDate && (() => {
+      const hour = new Date(completionValue).getHours();
+      return hour >= 22 || hour <= 4;
+    })();
 
     let stats = {
       ...userStats,
@@ -1600,7 +1626,7 @@ export default function App() {
     // "Pile à l'Heure" — la complétion tombe EXACTEMENT le jour planifié (même
     // comparaison que le texte "faite comme prévu" déjà affiché sur les
     // cartes, voir PlaylistCard.jsx — juste jamais exploitée pour un trophée).
-    if (pl.plannedDate && nowIso.slice(0, 10) === pl.plannedDate) {
+    if (pl.plannedDate && completionValue.slice(0, 10) === pl.plannedDate) {
       stats.hasOnTimeCompletion = true;
     }
 
@@ -1651,21 +1677,6 @@ export default function App() {
     if(stats.unlockedTrophies.length === userStats.unlockedTrophies.length) {
       showToast(updatedCompletions.length > 1 ? `Séance re-marquée comme faite ! (${updatedCompletions.length}e fois) 💪` : "Session marquée comme terminée ! 💪");
     }
-  };
-
-  /**
-   * Ajoute une date de complétion PRÉCISE (choisie via un input date), à la
-   * différence de markPlaylistAsCompleted qui ajoute toujours la date du jour.
-   * Permet de renseigner une séance faite un autre jour (rattrapage, oubli...).
-   */
-  const addCompletionDate = (playlistId, isoDate) => {
-    if (!isoDate) return;
-    setSavedPlaylists(savedPlaylists.map(p => {
-      if (p.id !== playlistId) return p;
-      const existing = p.completions || [];
-      if (existing.includes(isoDate)) { showToast("Cette date est déjà enregistrée."); return p; }
-      return { ...p, completions: [...existing, isoDate].sort() };
-    }));
   };
 
   /**
@@ -1979,37 +1990,11 @@ export default function App() {
             </span>
           );
         })}
-        {/* `addDateInputEl` : variable locale (pas de state), une par appel de cette
-            fonction — suffisant puisqu'un seul <input> est concerné par clic, pas
-            besoin d'un ref React ici. showPicker() en filet de sécurité, même
-            raison que le bouton "Planifier" (voir PlaylistDetailView.jsx) : un
-            <input type="date"> cliqué via son <label> ne s'ouvre pas de façon
-            fiable partout. ICI le bug était plus net qu'ailleurs : l'input était
-            caché avec `hidden` (display:none) plutôt que `opacity-0` — un input
-            totalement retiré du rendu n'ouvre quasiment jamais le sélecteur natif
-            au clic sur son label, contrairement à un input rendu mais transparent. */}
-        {(() => {
-          let addDateInputEl = null;
-          return (
-            <label
-              onClick={(e) => {
-                if (addDateInputEl?.showPicker) {
-                  e.preventDefault();
-                  addDateInputEl.showPicker();
-                }
-              }}
-              className={`relative inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border border-dashed cursor-pointer ${inputBorder} ${textMuted} hover:${textHighlight} transition-colors`}
-            >
-              <Plus size={12}/> Ajouter une date
-              <input
-                ref={(el) => { addDateInputEl = el; }}
-                type="date"
-                className="absolute inset-0 opacity-0 cursor-pointer"
-                onChange={(e) => { if (e.target.value) addCompletionDate(playlist.id, e.target.value); e.target.value = ''; }}
-              />
-            </label>
-          );
-        })()}
+        {/* L'ancienne pastille "+ Ajouter une date" ici a été retirée (retour
+            direct) : elle faisait doublon avec le bouton "Marquer comme faite/
+            refaite" en bas de carte, qui permet désormais de choisir
+            n'importe quelle date (pas seulement "aujourd'hui") — voir
+            PlaylistCard.jsx et markPlaylistAsCompleted. */}
       </div>
     );
   };
