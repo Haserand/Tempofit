@@ -2,6 +2,7 @@ import React from 'react';
 import { Activity, Flame, Upload, ChevronUp, ChevronDown } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { NAUGHTY_WORKOUT_LABELS } from '../../appConfig';
+import { genreDisplayLabel } from '../../musicCatalog';
 import { formatDuration } from '../../utils/format';
 
 /**
@@ -436,7 +437,7 @@ export default function StatsView({
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }}></span>
-                        <span className={`truncate font-semibold ${textHighlight}`}>{g.genre}</span>
+                        <span className={`truncate font-semibold ${textHighlight}`}>{genreDisplayLabel(g.genre)}</span>
                       </div>
                       <span className={`shrink-0 ${textMuted}`}>{g.sessions} séance{g.sessions > 1 ? 's' : ''} · {formatDuration(Math.round(g.seconds))}</span>
                     </button>
@@ -636,7 +637,7 @@ export default function StatsView({
                           className={`border-b last:border-0 ${cardBorder} cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${isExpanded ? 'bg-black/5 dark:bg-white/5' : ''}`}
                         >
                           <td className={`py-2 pr-3 font-semibold ${textHighlight} flex items-center gap-1.5`}>
-                            {isExpanded ? <ChevronUp size={14}/> : <ChevronDown size={14}/>} {g.genre}
+                            {isExpanded ? <ChevronUp size={14}/> : <ChevronDown size={14}/>} {genreDisplayLabel(g.genre)}
                           </td>
                           <td className={`py-2 pr-3 ${textMuted}`}>{g.sessions}</td>
                           <td className={`py-2 pr-3 ${textMuted}`}>{formatDuration(Math.round(g.seconds))}</td>
