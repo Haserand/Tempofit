@@ -174,7 +174,7 @@ export default function PlaylistDetailView({
                 title="Ajoute cette séance à 'Mes Séances', ton journal de séances (passées et à venir)."
                 className={"flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors border bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 " + cardBorder + " " + textHighlight}
               >
-                <Save size={16} /> <span>Sauvegarder la Playlist</span>
+                <Save size={16} /> <span>Ajouter à Mes Séances</span>
               </button>
             ) : (
               <>
