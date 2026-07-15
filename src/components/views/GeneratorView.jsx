@@ -4,7 +4,7 @@ import {
   Target, Loader2, Zap, BookmarkPlus, Info, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Flame,
   TrendingUp, Gauge,
 } from 'lucide-react';
-import { STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, genreDisplayLabel } from '../../musicCatalog';
+import { STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, genreDisplayLabel, WEAK_DEEZER_KEYWORD_GENRES } from '../../musicCatalog';
 import DualRangeSlider from '../shared/DualRangeSlider';
 import {
   WORKOUT_TYPES, NAUGHTY_WORKOUT_ORDER, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_LABELS,
@@ -594,6 +594,18 @@ export default function GeneratorView({
                     })}
                   </div>
                 )}
+                {/* Rappel général une fois le panneau ouvert (pas seulement au moment de
+                    générer) : certains genres de cette liste étendue passent par une
+                    recherche par catalogue d'artistes plutôt qu'une recherche Deezer
+                    directe (voir WEAK_DEEZER_KEYWORD_GENRES, musicCatalog.js), donc plus
+                    lente à générer — mieux vaut le savoir avant de choisir que d'être
+                    surpris par l'attente une fois "Générer ma Playlist" cliqué. */}
+                {!isNaughtyMode && showExtraGenres && (
+                  <p className={`text-xs flex items-start gap-1.5 ${textMuted}`}>
+                    <Info size={14} className="shrink-0 mt-0.5" />
+                    <span>{WEAK_DEEZER_KEYWORD_GENRES.map(genreDisplayLabel).join(', ')} demandent une recherche plus approfondie : la génération peut prendre un peu plus de temps si tu en choisis un.</span>
+                  </p>
+                )}
 
                 {/* Répartition en % entre plusieurs genres sélectionnés ensemble — voir
                     setGenreWeight pour la logique de verrouillage. N'apparaît qu'à partir
@@ -678,6 +690,18 @@ export default function GeneratorView({
               }} className={`w-full py-4 rounded-2xl border-2 border-dashed ${inputBorder} flex items-center justify-center gap-2 font-bold transition-colors ${textMuted} hover:${textHighlight} hover:border-gray-400 bg-gray-50 dark:bg-gray-800/50`}>
                 <Target size={20} /><span>Explorer les titres à {bpm} BPM</span>
               </button>
+
+              {/* Message ciblé, seulement si un genre effectivement lent à générer est
+                  sélectionné maintenant (pas un rappel générique à chaque génération) —
+                  voir WEAK_DEEZER_KEYWORD_GENRES (musicCatalog.js) : ces genres passent
+                  par une recherche par catalogue d'artistes (plus fiable mais plus lente
+                  qu'une recherche Deezer directe par mot-clé). */}
+              {selectedGenres.some(g => WEAK_DEEZER_KEYWORD_GENRES.includes(g)) && (
+                <p className={`text-xs flex items-start gap-1.5 -mb-2 ${textMuted}`}>
+                  <Info size={14} className="shrink-0 mt-0.5" />
+                  <span>{selectedGenres.filter(g => WEAK_DEEZER_KEYWORD_GENRES.includes(g)).map(genreDisplayLabel).join(', ')} : la génération peut prendre un peu plus de temps que d'habitude pour bien cibler ce genre.</span>
+                </p>
+              )}
 
               {/* Boutons finaux : génération immédiate, ou sauvegarde en routine réutilisable */}
               <div className="flex flex-col sm:flex-row gap-4 pt-6 mt-6 border-t border-gray-100 dark:border-gray-800">
