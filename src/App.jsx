@@ -2834,9 +2834,12 @@ export default function App() {
                         <p className={`text-xs ${textMuted}`}>BPM personnalisé pour ces 2 phases :</p>
 
                         <div className={`space-y-4 p-3 rounded-xl ${inputBg} border ${inputBorder}`}>
-                            <div>
+                            {/* Même correctif que dans le wizard (GeneratorView.jsx) : griser
+                                plutôt que laisser un BPM "actif" trompeur quand la part de cette
+                                phase est à 0%. */}
+                            <div className={(editingRoutine.crescendoWarmupPct ?? 15) === 0 ? 'opacity-40 grayscale pointer-events-none' : ''}>
                               <div className="flex justify-between items-center mb-1">
-                                <span className="text-xs font-bold text-sky-500 dark:text-sky-400">BPM Échauffement</span>
+                                <span className="text-xs font-bold text-sky-500 dark:text-sky-400">BPM Échauffement{(editingRoutine.crescendoWarmupPct ?? 15) === 0 && ' (0% — sans effet)'}</span>
                                 <span className={`text-sm font-black ${textHighlight}`}>{editingRoutine.crescendoWarmupBpm}</span>
                               </div>
                               <input
@@ -2850,19 +2853,21 @@ export default function App() {
                                     crescendoCooldownBpm: (prev.crescendoCooldownBpm != null && prev.crescendoCooldownBpm > val) ? val : prev.crescendoCooldownBpm,
                                   }));
                                 }}
-                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none accent-sky-500"
+                                disabled={(editingRoutine.crescendoWarmupPct ?? 15) === 0}
+                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none accent-sky-500 disabled:cursor-not-allowed"
                               />
                             </div>
-                            <div>
+                            <div className={(editingRoutine.crescendoCooldownPct ?? 15) === 0 ? 'opacity-40 grayscale pointer-events-none' : ''}>
                               <div className="flex justify-between items-center mb-1">
-                                <span className="text-xs font-bold text-emerald-500 dark:text-emerald-400">BPM Retour au calme</span>
+                                <span className="text-xs font-bold text-emerald-500 dark:text-emerald-400">BPM Retour au calme{(editingRoutine.crescendoCooldownPct ?? 15) === 0 && ' (0% — sans effet)'}</span>
                                 <span className={`text-sm font-black ${textHighlight}`}>{editingRoutine.crescendoCooldownBpm}</span>
                               </div>
                               <input
                                 type="range" min={isNaughtyMode ? 40 : 80} max={editingRoutine.crescendoWarmupBpm ?? editingRoutine.bpm}
                                 value={editingRoutine.crescendoCooldownBpm ?? (isNaughtyMode ? 40 : 80)}
                                 onChange={(e) => setEditingRoutine({ ...editingRoutine, crescendoCooldownBpm: parseInt(e.target.value) || (isNaughtyMode ? 40 : 80) })}
-                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none accent-emerald-500"
+                                disabled={(editingRoutine.crescendoCooldownPct ?? 15) === 0}
+                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none accent-emerald-500 disabled:cursor-not-allowed"
                               />
                             </div>
                         </div>
