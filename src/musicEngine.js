@@ -588,7 +588,17 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   // le premier candidat testé est gardé quand même mais marqué `_genreMismatch`.
   const tryArtistCatalogSearch = async () => {
     try {
-      const stubs = await searchArtistsForBpm(catalogArtists, minBpm, maxBpm, localExcludeIds, 6, 5);
+      // Échantillon élargi (12 artistes testés / 8 résultats chacun, au lieu de
+      // 6/5) — retour direct après un cas réel : avec les anciens réglages, sur
+      // un catalogue K-pop de 109 artistes, seuls les 12 premiers de la liste
+      // étaient même considérés (`windowSize` dans searchArtistsForBpm est
+      // proportionnel à `maxArtistsToTry`, pas à la taille du catalogue), et
+      // seuls 6 d'entre eux réellement interrogés — élargir le catalogue à 109
+      // n'apportait donc RIEN à cette recherche précise. D'autant plus important
+      // maintenant que cette recherche par catalogue est la stratégie PRIMAIRE
+      // (pas juste un repli) pour les genres à mot-clé Deezer fragile (voir
+      // WEAK_DEEZER_KEYWORD_GENRES et l'ordre de la cascade plus bas).
+      const stubs = await searchArtistsForBpm(catalogArtists, minBpm, maxBpm, localExcludeIds, 12, 8);
       if (stubs.length > 0) {
         let details = (await fetchInBatches(stubs.slice(0, 20), 10, async (s) => {
           const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
