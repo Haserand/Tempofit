@@ -5,6 +5,7 @@ import {
   TrendingUp, Gauge,
 } from 'lucide-react';
 import { STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning } from '../../musicCatalog';
+import DualRangeSlider from '../shared/DualRangeSlider';
 import {
   WORKOUT_TYPES, NAUGHTY_WORKOUT_ORDER, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_LABELS,
   WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET,
@@ -386,43 +387,13 @@ export default function GeneratorView({
                           <span className={textColorClass}>Cœur {100 - crescendoWarmupPct - crescendoCooldownPct}%</span>
                           <span className="text-emerald-500 dark:text-emerald-400">Retour au calme {crescendoCooldownPct}%</span>
                         </div>
-                        {/* Curseur double : 2 <input type="range"> superposés sur la même
-                            piste, chacun ne captant le clic/drag que sur sa propre poignée
-                            (input rendu invisible sauf le thumb, via pointer-events-none sur
-                            le champ et pointer-events-auto seulement sur ::-webkit/moz
-                            -slider-thumb). La piste colorée en dessous est purement visuelle.
-                            Poignée 1 = fin de l'échauffement (crescendoWarmupPct). Poignée 2 =
-                            début du retour au calme, exprimée comme position sur la piste
-                            (100 - crescendoCooldownPct). Les bornes min/max de chaque input
-                            garantissent en plus que le cœur de séance ne peut jamais
-                            descendre sous CRESCENDO_MIN_MAIN_PCT (10%), même en poussant les
-                            2 poignées l'une vers l'autre. Limite connue : si les 2 poignées
-                            finissent pile à la même position, seule celle du dessus
-                            (z-index le plus élevé) réagit au clic — cas rare en pratique,
-                            les bornes ci-dessus les empêchent normalement de se croiser. */}
-                        <div className="relative h-8 flex items-center select-none">
-                          <div className="absolute inset-x-0 h-2.5 rounded-full overflow-hidden flex pointer-events-none">
-                            <div className="h-full bg-sky-400 dark:bg-sky-500" style={{ width: `${crescendoWarmupPct}%` }} />
-                            <div className={`h-full ${bgAccentClass}`} style={{ width: `${100 - crescendoWarmupPct - crescendoCooldownPct}%` }} />
-                            <div className="h-full bg-emerald-400 dark:bg-emerald-500" style={{ width: `${crescendoCooldownPct}%` }} />
-                          </div>
-                          <input
-                            type="range" min="0" max={100 - CRESCENDO_MIN_MAIN_PCT - crescendoCooldownPct} step="1"
-                            value={crescendoWarmupPct}
-                            onChange={(e) => setCrescendoWarmupPct(parseInt(e.target.value) || 0)}
-                            aria-label="Part de l'échauffement"
-                            className="absolute inset-x-0 w-full h-8 m-0 appearance-none bg-transparent cursor-pointer pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-[3px] [&::-webkit-slider-thumb]:border-sky-500 [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-[3px] [&::-moz-range-thumb]:border-sky-500 [&::-moz-range-thumb]:shadow-md"
-                            style={{ zIndex: 2 }}
-                          />
-                          <input
-                            type="range" min={crescendoWarmupPct + CRESCENDO_MIN_MAIN_PCT} max="100" step="1"
-                            value={100 - crescendoCooldownPct}
-                            onChange={(e) => setCrescendoCooldownPct(100 - (parseInt(e.target.value) || 0))}
-                            aria-label="Part du retour au calme"
-                            className="absolute inset-x-0 w-full h-8 m-0 appearance-none bg-transparent cursor-pointer pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-[3px] [&::-webkit-slider-thumb]:border-emerald-500 [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-[3px] [&::-moz-range-thumb]:border-emerald-500 [&::-moz-range-thumb]:shadow-md"
-                            style={{ zIndex: 3 }}
-                          />
-                        </div>
+                        <DualRangeSlider
+                          leftValue={crescendoWarmupPct} rightValue={crescendoCooldownPct} minMiddle={CRESCENDO_MIN_MAIN_PCT}
+                          onChangeLeft={setCrescendoWarmupPct} onChangeRight={setCrescendoCooldownPct}
+                          leftColorClass="bg-sky-400 dark:bg-sky-500" middleColorClass={bgAccentClass} rightColorClass="bg-emerald-400 dark:bg-emerald-500"
+                          leftHandleBorderClass="border-sky-500" rightHandleBorderClass="border-emerald-500"
+                          leftAriaLabel="Part de l'échauffement" rightAriaLabel="Part du retour au calme"
+                        />
                       </div>
 
                       <div className="space-y-2">
