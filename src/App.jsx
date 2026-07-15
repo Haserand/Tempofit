@@ -1107,7 +1107,14 @@ export default function App() {
   // Ajoute la playlist en cours d'affichage à "Mes Séances" (si pas déjà sauvegardée).
   const handleSavePlaylist = () => {
     if (currentPlaylist && !savedPlaylists.find(p => p.id === currentPlaylist.id)) {
-      setSavedPlaylists([{...currentPlaylist, status: 'pending'}, ...savedPlaylists]);
+      const saved = { ...currentPlaylist, status: 'pending' };
+      setSavedPlaylists([saved, ...savedPlaylists]);
+      // `currentPlaylist` et l'entrée poussée dans `savedPlaylists` étaient 2
+      // objets distincts (même id, mais 2 références différentes) tant que
+      // cette ligne n'existait pas — resynchronisé ici pour éviter toute
+      // divergence silencieuse entre les deux au fil des actions suivantes
+      // (ex. planifier une date juste après avoir sauvegardé).
+      setCurrentPlaylist(saved);
       showToast("Playlist ajoutée à Mes Séances !");
     }
   };
