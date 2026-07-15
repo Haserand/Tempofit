@@ -412,7 +412,30 @@ const normalizeGenreForDisplay = (rawGenre) => {
  * — l'utiliser ici afficherait "Métal" sur n'importe quel titre Rock
  * générique, ce qui serait faux la plupart du temps, pas un cas de fusion.
  */
-const getGenresForDisplay = (rawGenre, artistName = null) => {
+/**
+ * detectScriptGenre — repère l'ÉCRITURE utilisée dans un titre pour
+ * départager K-pop (hangul coréen) de "Musique asiatique"/J-pop & C-pop
+ * (hiragana/katakana japonais, sinogrammes communs au japonais et au
+ * chinois) — 2e niveau de désambiguïsation dans getGenresForDisplay,
+ * utilisé seulement quand l'artiste ne suffit pas à trancher.
+ *
+ * Limite assumée : ne détecte QUE si le titre affiche vraiment de l'écriture
+ * non-latine chez Deezer — beaucoup de titres restent romanisés (alphabet
+ * latin) même pour une sortie coréenne ou japonaise, auquel cas cette
+ * fonction renvoie `null` (aucun signal, pas un "je ne sais pas" different
+ * d'un vrai résultat neutre) et l'appelant garde les deux genres plutôt que
+ * de deviner. Les sinogrammes (kanji/hanzi) ne permettent PAS de distinguer
+ * le chinois du japonais (mêmes caractères, ou presque) — sans importance
+ * ici puisque "Musique asiatique" couvre déjà J-pop ET C-pop ensemble.
+ */
+const detectScriptGenre = (text) => {
+  if (!text) return null;
+  if (/[\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F]/.test(text)) return 'K-pop';
+  if (/[\u3040-\u30FF\u4E00-\u9FFF\uFF66-\uFF9F]/.test(text)) return 'Musique asiatique';
+  return null;
+};
+
+const getGenresForDisplay = (rawGenre, artistName = null, title = null) => {
   if (!rawGenre) return ['Genre inconnu'];
   const allKnownGenres = [...new Set([...STANDARD_GENRES, ...NAUGHTY_GENRES, ...EXTRA_GENRES])];
   const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -434,18 +457,32 @@ const getGenresForDisplay = (rawGenre, artistName = null) => {
   // systématiquement LES DEUX, alors qu'un titre donné est réellement soit
   // l'un soit l'autre, jamais les deux à la fois (contrairement à "Alternative
   // Rock", qui peut légitimement être Rock ET Alternative en même temps — un
-  // vrai cas de fusion). Retour direct : afficher les deux à chaque fois était
-  // redondant/trompeur. Désambiguïsé ici via L'ARTISTE (seul signal fiable
-  // dans ce cas précis, le genre_id ne suffit pas) : si l'artiste appartient à
-  // l'un des 2 catalogues mais pas l'autre, on ne garde que celui-là. Si
-  // l'artiste est inconnu des deux catalogues (ou si `artistName` n'est pas
-  // fourni par l'appelant), on garde les deux plutôt que de deviner au hasard
-  // lequel retirer.
-  if (filtered.includes('K-pop') && filtered.includes('Musique asiatique') && artistName) {
-    const inKpop = (ARTIST_CATALOG['K-pop'] || []).includes(artistName);
-    const inJCpop = (ARTIST_CATALOG['Musique asiatique'] || []).includes(artistName);
-    if (inKpop && !inJCpop) filtered = filtered.filter(g => g !== 'Musique asiatique');
-    else if (inJCpop && !inKpop) filtered = filtered.filter(g => g !== 'K-pop');
+  // vrai cas de fusion). Désambiguïsé en 2 temps, du signal le plus fiable au
+  // moins fiable :
+  //   1. L'ARTISTE : si connu d'un seul des 2 catalogues, tranché directement.
+  //   2. Si toujours ambigu (artiste inconnu des 2, ou non fourni) : le SCRIPT
+  //      du TITRE (hangul coréen vs hiragana/katakana/kanji japonais/chinois),
+  //      voir detectScriptGenre plus bas. N'aide QUE si le titre affiche
+  //      vraiment de l'écriture non-latine chez Deezer — beaucoup de titres
+  //      restent romanisés (alphabet latin) même pour une sortie
+  //      coréenne/japonaise, auquel cas ce 2e niveau ne détecte rien non plus
+  //      et on garde les deux genres plutôt que de deviner au hasard.
+  //   Un artiste à VRAIE double carrière (ex. TVXQ, actif en K-pop ET en J-pop
+  //   sous le nom "Tohoshinki") peut légitimement rester ambigu même après ces
+  //   2 niveaux — ce n'est alors pas une détection ratée, c'est une ambiguïté
+  //   réelle qu'aucune de ces 2 heuristiques ne peut trancher avec certitude.
+  if (filtered.includes('K-pop') && filtered.includes('Musique asiatique')) {
+    if (artistName) {
+      const inKpop = (ARTIST_CATALOG['K-pop'] || []).includes(artistName);
+      const inJCpop = (ARTIST_CATALOG['Musique asiatique'] || []).includes(artistName);
+      if (inKpop && !inJCpop) filtered = filtered.filter(g => g !== 'Musique asiatique');
+      else if (inJCpop && !inKpop) filtered = filtered.filter(g => g !== 'K-pop');
+    }
+    if (filtered.includes('K-pop') && filtered.includes('Musique asiatique') && title) {
+      const scriptGenre = detectScriptGenre(title);
+      if (scriptGenre === 'K-pop') filtered = filtered.filter(g => g !== 'Musique asiatique');
+      else if (scriptGenre === 'Musique asiatique') filtered = filtered.filter(g => g !== 'K-pop');
+    }
   }
 
   const result = filtered.length > 0 ? filtered : [rawGenre];
