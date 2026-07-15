@@ -1979,10 +1979,37 @@ export default function App() {
             </span>
           );
         })}
-        <label className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border border-dashed cursor-pointer ${inputBorder} ${textMuted} hover:${textHighlight} transition-colors`}>
-          <Plus size={12}/> Ajouter une date
-          <input type="date" className="hidden" onChange={(e) => { if (e.target.value) addCompletionDate(playlist.id, e.target.value); e.target.value = ''; }} />
-        </label>
+        {/* `addDateInputEl` : variable locale (pas de state), une par appel de cette
+            fonction — suffisant puisqu'un seul <input> est concerné par clic, pas
+            besoin d'un ref React ici. showPicker() en filet de sécurité, même
+            raison que le bouton "Planifier" (voir PlaylistDetailView.jsx) : un
+            <input type="date"> cliqué via son <label> ne s'ouvre pas de façon
+            fiable partout. ICI le bug était plus net qu'ailleurs : l'input était
+            caché avec `hidden` (display:none) plutôt que `opacity-0` — un input
+            totalement retiré du rendu n'ouvre quasiment jamais le sélecteur natif
+            au clic sur son label, contrairement à un input rendu mais transparent. */}
+        {(() => {
+          let addDateInputEl = null;
+          return (
+            <label
+              onClick={(e) => {
+                if (addDateInputEl?.showPicker) {
+                  e.preventDefault();
+                  addDateInputEl.showPicker();
+                }
+              }}
+              className={`relative inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border border-dashed cursor-pointer ${inputBorder} ${textMuted} hover:${textHighlight} transition-colors`}
+            >
+              <Plus size={12}/> Ajouter une date
+              <input
+                ref={(el) => { addDateInputEl = el; }}
+                type="date"
+                className="absolute inset-0 opacity-0 cursor-pointer"
+                onChange={(e) => { if (e.target.value) addCompletionDate(playlist.id, e.target.value); e.target.value = ''; }}
+              />
+            </label>
+          );
+        })()}
       </div>
     );
   };
