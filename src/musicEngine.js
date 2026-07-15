@@ -1123,8 +1123,21 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
       // (pool épuisé) et le remplissage restant passe par le filet de secours
       // de fin de fonction (`getSingleMatchingTrack`, déjà restreint de la
       // même façon pour ces genres).
+      // BUG RÉEL TROUVÉ (probable cause du mystère "Infected Rain"/"Mental
+      // Crush" jamais expliqué, voir passation) : ce filtre réadmettait TOUT
+      // titre `_isLocalDB`, y compris ceux déjà marqués `_genreMismatch` plus
+      // haut (`localPoolMatches` les excluait pourtant explicitement avec
+      // `!t._genreMismatch`). Un titre catalogue peut porter `_genreMismatch`
+      // quand la recherche Deezer par NOM D'ARTISTE (`searchArtistsForBpm`,
+      // requête texte `artist:"..."`) renvoie un artiste homonyme ou un titre
+      // dont le vrai genre Deezer ne correspond pas à celui attendu du
+      // catalogue — exactement le mécanisme "Astro homonyme" déjà repéré pour
+      // la recherche généraliste, mais qui touche ICI aussi la recherche par
+      // catalogue (jamais vérifié à l'époque). Sans ce correctif, un tel titre
+      // repassait la porte que ce garde-fou est censé fermer, et ressortait
+      // marqué "Genre non confirmé" — exactement le symptôme observé.
       const trustedOnly = allEffectiveGenresWeak
-        ? availablePool.filter(t => t._isLocalDB || (!t._deezerId && !t._isLocalDB))
+        ? availablePool.filter(t => (t._isLocalDB && !t._genreMismatch) || (!t._deezerId && !t._isLocalDB))
         : availablePool;
       if (trustedOnly.length === 0) break;
       searchPool = trustedOnly;
