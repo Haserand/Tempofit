@@ -272,6 +272,30 @@ const pickByDurationProximity = (candidates, preferredDuration) => {
  * /track/{id} pour les stubs qui l'intéressent, plutôt que de tout récupérer
  * en une fois (coût réseau proportionnel à ce qui est vraiment utilisé).
  */
+/**
+ * Cache module-level (partagé pour toute la session, même convention que
+ * `_deezerAlbumGenreCache` plus haut) pour les résultats bruts de recherche
+ * Deezer par artiste+fenêtre BPM. Ajouté après un constat concret : plusieurs
+ * titres d'UNE MÊME playlist visent très souvent le même BPM cible (mode
+ * Allure Constante, ou plusieurs segments proches en Crescendo), donc le même
+ * couple (artiste, fenêtre BPM) était interrogé à nouveau à chaque titre sans
+ * aucune réutilisation — particulièrement coûteux depuis que
+ * `searchArtistsForBpm` parcourt tout le catalogue par lots plutôt qu'un petit
+ * échantillon fixe (voir plus bas).
+ *
+ * Clé : `artistName|minBpm|maxBpm`. Valeur : les stubs BRUTS de Deezer, AVANT
+ * filtrage par `excludeYoutubeIds` — cet exclude change à chaque appel (les
+ * titres déjà utilisés dans la playlist en cours), donc le filtrer AVANT mise
+ * en cache aurait invalidé le cache à chaque fois pour rien ; le filtrage
+ * s'applique après lecture du cache, à chaque appel.
+ *
+ * Pas d'expiration ni de limite de taille : reset automatiquement au
+ * rechargement de la page, comme `_deezerAlbumGenreCache` — un même artiste
+ * n'a de toute façon qu'un nombre raisonnable de fenêtres BPM distinctes
+ * demandées dans une session normale.
+ */
+const _artistBpmSearchCache = new Map();
+
 const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeYoutubeIds, maxArtistsToTry = 4, candidatesPerArtist = 6) => {
   if (!artistNames || artistNames.length === 0) return [];
   // Parcourt maintenant la LISTE ENTIÈRE du catalogue (mélangée pour varier
@@ -297,10 +321,15 @@ const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeYoutubeId
   for (let i = 0; i < shuffled.length; i += BATCH_SIZE) {
     const batch = shuffled.slice(i, i + BATCH_SIZE);
     const batchResults = await Promise.all(batch.map(async (artistName) => {
-      const q = `artist:"${artistName}" bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"`;
-      const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=${candidatesPerArtist}`);
-      const stubs = (data && Array.isArray(data.data)) ? data.data : [];
-      return stubs.filter(s => !excludeYoutubeIds.includes(`deezer-${s.id}`));
+      const cacheKey = `${artistName}|${minBpm}|${maxBpm}`;
+      let rawStubs = _artistBpmSearchCache.get(cacheKey);
+      if (rawStubs === undefined) {
+        const q = `artist:"${artistName}" bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"`;
+        const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=${candidatesPerArtist}`);
+        rawStubs = (data && Array.isArray(data.data)) ? data.data : [];
+        _artistBpmSearchCache.set(cacheKey, rawStubs);
+      }
+      return rawStubs.filter(s => !excludeYoutubeIds.includes(`deezer-${s.id}`));
     }));
     allStubs.push(...batchResults.flat());
     if (allStubs.length >= enoughStubs) break;
