@@ -7,7 +7,7 @@ import {
   ResponsiveContainer, LineChart, CartesianGrid, ReferenceArea, ReferenceLine, XAxis, YAxis,
   Tooltip as RechartsTooltip, Legend, Line, PieChart, Pie, Cell,
 } from 'recharts';
-import { getGenresForDisplay } from '../../musicCatalog';
+import { getGenresForDisplay, genreDisplayLabel } from '../../musicCatalog';
 import { formatDuration } from '../../utils/format';
 
 // Couleurs des 2 donuts en bas de page (répartition BPM / style) — statique,
@@ -153,7 +153,7 @@ export default function PlaylistDetailView({
                 return (
                   <>
                     <span>•</span>
-                    <div className="flex items-center space-x-1"><Music size={16}/><span>{cfg.selectedGenres.join(', ')}</span></div>
+                    <div className="flex items-center space-x-1"><Music size={16}/><span>{cfg.selectedGenres.map(genreDisplayLabel).join(', ')}</span></div>
                   </>
                 );
               }
