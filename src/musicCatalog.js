@@ -76,9 +76,8 @@ ARTIST_CATALOG['R&B'] = ARTIST_CATALOG['R&B Sensuel'];
 // partie de ce qu'on appellerait Métal chez Deezer (voir GENRE_EQUIVALENCE_GROUPS
 // dans musicCatalog.js), donc lui-même reste assez simple à remplir. Métal est le
 // plus dur : Deezer classe la quasi-totalité du metal en "Rock", jamais "Metal" —
-// d'où le renfort du catalogue d'artistes sur ce genre précis. Autre en dernier,
-// catch-all sans mot-clé de recherche (DEEZER_GENRE_KEYWORDS['Autre'] est vide).
-const STANDARD_GENRES = ['Pop', 'Rap', 'Electro', 'Rock', 'Métal', 'Autre'];
+// d'où le renfort du catalogue d'artistes sur ce genre précis.
+const STANDARD_GENRES = ['Pop', 'Rap', 'Electro', 'Rock', 'Métal'];
 const NAUGHTY_GENRES = ['R&B Sensuel', 'Pop', 'Latino', 'Jazz', 'Autre'];
 // "Classique" volontairement absent de cette liste (retiré, pas juste laissé
 // vide) : une œuvre classique n'a en général pas de BPM fixe unique (le tempo
@@ -88,7 +87,13 @@ const NAUGHTY_GENRES = ['R&B Sensuel', 'Pop', 'Latino', 'Jazz', 'Autre'];
 // dernier recours substituait silencieusement des artistes Pop dès que la
 // recherche Deezer générique échouait — quelqu'un demandant du Classique
 // pouvait se retrouver avec un résultat totalement hors sujet, sans le savoir.
-const EXTRA_GENRES = ['Techno', 'R&B', 'Reggae', 'Country', 'Jazz', 'Latino', 'Musique africaine', 'Musique asiatique', 'Blues', 'Musique brésilienne', 'Dance & EDM', 'Folk', 'Indie', 'K-pop', 'Soul & Funk', 'Bandes originales', 'Alternative'];
+// "Autre" déplacé ici (retour direct) : trop important pour être caché dans "+
+// Plus de genres" en usage courant, mais sa place naturelle est en dernier
+// recours — précisément le rôle de cette liste "si aucun des genres ci-dessus
+// (standards NI étendus) ne te convient". Catch-all sans mot-clé de recherche
+// (DEEZER_GENRE_KEYWORDS['Autre'] est vide), volontairement en toute dernière
+// position de cette liste pour rester cohérent avec ce rôle de dernier recours.
+const EXTRA_GENRES = ['Techno', 'R&B', 'Reggae', 'Country', 'Jazz', 'Latino', 'Musique africaine', 'Musique asiatique', 'Blues', 'Musique brésilienne', 'Dance & EDM', 'Folk', 'Indie', 'K-pop', 'Soul & Funk', 'Bandes originales', 'Alternative', 'Autre'];
 
 // Correspondance approximative entre les genres internes de l'app et des mots-clés
 // Deezer (recherche floue) — voir le détail de cette limite dans searchTracksByBpm.
