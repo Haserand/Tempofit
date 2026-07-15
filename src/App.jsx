@@ -2425,6 +2425,7 @@ export default function App() {
             {view === 'stats' && (
               <StatsView
                 theme={themeTokens} savedPlaylists={savedPlaylists} userStats={userStats} changeView={changeView}
+                setCurrentPlaylist={setCurrentPlaylist}
                 statsMode={statsMode} setStatsMode={setStatsMode}
                 selectedStatsGenre={selectedStatsGenre} setSelectedStatsGenre={setSelectedStatsGenre}
                 selectedStatsBpmBucket={selectedStatsBpmBucket} setSelectedStatsBpmBucket={setSelectedStatsBpmBucket}
