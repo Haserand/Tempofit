@@ -5,6 +5,7 @@ import {
   TrendingUp, Gauge,
 } from 'lucide-react';
 import { STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, genreDisplayLabel, WEAK_DEEZER_KEYWORD_GENRES } from '../../musicCatalog';
+import { formatDuration } from '../../utils/format';
 import DualRangeSlider from '../shared/DualRangeSlider';
 import {
   WORKOUT_TYPES, NAUGHTY_WORKOUT_ORDER, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_LABELS,
@@ -443,7 +444,13 @@ export default function GeneratorView({
                             <div className="flex-1">
                               <div className={`font-bold text-sm ${textHighlight}`}>{segment._crescendoLabel || 'Portion'}</div>
                               <div className={`text-xs ${textMuted}`}>
-                                {segment.durationValue} {targetMode === 'distance' ? distanceUnit : 'min'} · {segment.bpm} BPM
+                                {/* Retour direct : personne ne raisonne en minutes décimales
+                                    ("14.4 min") — précis à la seconde (formatDuration, déjà
+                                    utilisée ailleurs dans l'app pour ça), pas besoin d'aller
+                                    plus loin. Ne s'applique qu'au mode Temps : en mode
+                                    Distance, durationValue est un km/mi, où le décimal reste
+                                    la norme (ex. "3.2 km"). */}
+                                {targetMode === 'distance' ? `${segment.durationValue} ${distanceUnit}` : formatDuration(segment.durationValue * 60)} · {segment.bpm} BPM
                               </div>
                             </div>
                           </div>
