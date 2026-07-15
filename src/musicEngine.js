@@ -518,7 +518,16 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
       !excludeYoutubeIds.includes(t.youtubeId)
     );
     if (perfectFavoriteTracks.length > 0) {
-      return pickByDurationProximity(perfectFavoriteTracks, preferredDuration);
+      // `_fromFavorites` : marqueur ajouté sur une COPIE (pas de mutation directe
+      // de l'objet favori persisté) — sert uniquement à distinguer après coup, au
+      // niveau de la playlist générée, un titre RÉELLEMENT sourcé depuis les
+      // Favoris de l'utilisateur (voir le trophée "Fidèle à tes Artistes",
+      // App.jsx). BUG CORRIGÉ : ce trophée se déclenchait avant sur la simple
+      // présence de favoris configurés quelque part dans l'app (y compris les 2
+      // artistes de démonstration pré-remplis pour un tout nouvel utilisateur qui
+      // n'a jamais rien favorisé lui-même), pas sur un usage réel dans LA
+      // playlist qui vient d'être générée.
+      return { ...pickByDurationProximity(perfectFavoriteTracks, preferredDuration), _fromFavorites: true };
     }
   }
 
@@ -556,7 +565,8 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
               bpm: Math.round(parseFloat(full.bpm)),
               duration: full.duration || 180,
               genre: realGenre || 'Genre inconnu',
-              preview: full.preview || null
+              preview: full.preview || null,
+              _fromFavorites: true,
             };
           }
         }
@@ -864,7 +874,11 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   };
 
   // Favoris et Spotify : sources déjà en mémoire, aucun appel réseau nécessaire.
-  (favorites && Array.isArray(favorites.tracks) ? favorites.tracks : []).forEach(addIfValid);
+  // `_fromFavorites` posé sur une COPIE de chaque titre (jamais l'objet favori
+  // persisté lui-même) — voir le commentaire détaillé dans getSingleMatchingTrack
+  // pour pourquoi (trophée "Fidèle à tes Artistes"). Spotify n'est volontairement
+  // PAS marqué ici : c'est une source distincte des Favoris à proprement parler.
+  (favorites && Array.isArray(favorites.tracks) ? favorites.tracks : []).forEach(t => addIfValid({ ...t, _fromFavorites: true }));
   (Array.isArray(spotifyTrackPool) ? spotifyTrackPool : []).forEach(addIfValid);
 
   // Deezer : une recherche PAR GENRE sélectionné, entrelacées round-robin (voir
