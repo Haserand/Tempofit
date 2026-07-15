@@ -274,24 +274,41 @@ const pickByDurationProximity = (candidates, preferredDuration) => {
  */
 const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeYoutubeIds, maxArtistsToTry = 4, candidatesPerArtist = 6) => {
   if (!artistNames || artistNames.length === 0) return [];
-  // BIAISÉ vers le DÉBUT de la liste (voir ARTIST_CATALOG dans musicCatalog.js,
-  // trié des artistes les plus connus aux moins connus) : avant, un mélange
-  // complet de toute la liste avant de piocher rendait cet ordre totalement
-  // sans effet — un artiste obscur en fin de liste avait exactement la même
-  // chance d'être tiré qu'un artiste très connu en tête. On tire maintenant dans
-  // une fenêtre limitée aux ~2x premiers artistes nécessaires (mélangée entre
-  // eux pour garder un peu de variété), sans aller piocher dans la queue de la
-  // liste sauf si le genre a trop peu d'artistes pour remplir cette fenêtre.
-  const windowSize = Math.min(artistNames.length, Math.max(maxArtistsToTry * 2, 6));
-  const window = artistNames.slice(0, windowSize);
-  const sampled = [...window].sort(() => Math.random() - 0.5).slice(0, maxArtistsToTry);
-  const stubsByArtist = await Promise.all(sampled.map(async (artistName) => {
-    const q = `artist:"${artistName}" bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"`;
-    const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=${candidatesPerArtist}`);
-    const stubs = (data && Array.isArray(data.data)) ? data.data : [];
-    return stubs.filter(s => !excludeYoutubeIds.includes(`deezer-${s.id}`));
-  }));
-  return stubsByArtist.flat().sort(() => Math.random() - 0.5);
+  // Parcourt maintenant la LISTE ENTIÈRE du catalogue (mélangée pour varier
+  // d'une génération à l'autre), en petits LOTS espacés d'une pause — même
+  // technique que fetchInBatches ailleurs dans ce fichier — pour rester sous le
+  // rate-limiting Deezer sans pour autant abandonner après seulement quelques
+  // artistes testés. `maxArtistsToTry`/`candidatesPerArtist` servent maintenant
+  // de SEUIL D'ARRÊT ANTICIPÉ (dès qu'on a accumulé assez de résultats, inutile
+  // de continuer à interroger Deezer), pas de plafond dur sur le nombre
+  // d'artistes réellement essayés.
+  //
+  // CORRIGÉ après retour direct (cas réel : catalogue K-pop de 109 artistes,
+  // aucun résultat à 172 BPM) — l'ancienne version limitait la recherche à une
+  // fenêtre fixe de 6 à 12 artistes maximum, qu'ils aient donné un résultat ou
+  // non : élargir un catalogue au-delà de cette fenêtre n'apportait alors
+  // RIEN à cette recherche. Désormais, si les premiers artistes testés (les
+  // plus connus, voir le mélange ci-dessous) ne donnent rien, la recherche
+  // continue vraiment jusqu'au bout de la liste avant d'abandonner.
+  const shuffled = [...artistNames].sort(() => Math.random() - 0.5);
+  const BATCH_SIZE = 8;
+  const enoughStubs = Math.max(candidatesPerArtist * 2, maxArtistsToTry * candidatesPerArtist);
+  const allStubs = [];
+  for (let i = 0; i < shuffled.length; i += BATCH_SIZE) {
+    const batch = shuffled.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(batch.map(async (artistName) => {
+      const q = `artist:"${artistName}" bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"`;
+      const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=${candidatesPerArtist}`);
+      const stubs = (data && Array.isArray(data.data)) ? data.data : [];
+      return stubs.filter(s => !excludeYoutubeIds.includes(`deezer-${s.id}`));
+    }));
+    allStubs.push(...batchResults.flat());
+    if (allStubs.length >= enoughStubs) break;
+    if (i + BATCH_SIZE < shuffled.length) {
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+  }
+  return allStubs.sort(() => Math.random() - 0.5);
 };
 
 /**
