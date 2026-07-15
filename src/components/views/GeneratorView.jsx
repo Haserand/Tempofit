@@ -315,7 +315,7 @@ export default function GeneratorView({
                       </label>
                       <span className={`text-4xl font-black ${textColorClass}`}>{bpm} <span className={`text-sm font-bold ${textMuted}`}>BPM</span></span>
                     </div>
-                    <input type="range" min={isNaughtyMode ? "40" : "80"} max={isNaughtyMode ? "180" : "220"} value={bpm} onChange={(e) => setBpm(parseInt(e.target.value))} className={`w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer ${isNaughtyMode ?
+                    <input type="range" min={isNaughtyMode ? "40" : "80"} max={isNaughtyMode ? "180" : "220"} value={bpm} onChange={(e) => setBpm(parseInt(e.target.value))} className={`w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none ${isNaughtyMode ?
                       'accent-rose-500' : 'accent-red-500'}`} />
                   </div>
 
@@ -409,7 +409,7 @@ export default function GeneratorView({
                                 type="range" min={crescendoBpmFloor} max={bpm}
                                 value={crescendoWarmupBpm ?? crescendoBpmFloor}
                                 onChange={(e) => setCrescendoWarmupBpm(parseInt(e.target.value) || crescendoBpmFloor)}
-                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-sky-500"
+                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none accent-sky-500"
                               />
                             </div>
                             <div>
@@ -421,7 +421,7 @@ export default function GeneratorView({
                                 type="range" min={crescendoBpmFloor} max={crescendoWarmupBpm ?? bpm}
                                 value={crescendoCooldownBpm ?? crescendoBpmFloor}
                                 onChange={(e) => setCrescendoCooldownBpm(parseInt(e.target.value) || crescendoBpmFloor)}
-                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none accent-emerald-500"
                               />
                             </div>
                         </div>
@@ -641,7 +641,7 @@ export default function GeneratorView({
                     </label>
                     <span className={`text-sm font-black ${textColorClass}`}>± {bpmTolerance} BPM</span>
                   </div>
-                  <input type="range" min="0" max="30" value={bpmTolerance} onChange={(e) => setBpmTolerance(parseInt(e.target.value))} className={`w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer ${isNaughtyMode ?
+                  <input type="range" min="0" max="30" value={bpmTolerance} onChange={(e) => setBpmTolerance(parseInt(e.target.value))} className={`w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none ${isNaughtyMode ?
                     'accent-rose-500' : 'accent-red-500'}`} />
                   <p className={`text-xs ${textMuted}`}>Tolérance faible = Précision militaire. Tolérance élevée = Plus de pépites !</p>
                 </div>
@@ -653,7 +653,7 @@ export default function GeneratorView({
                     </label>
                     <span className={`text-sm font-black ${textColorClass}`}>{crossfade} sec</span>
                   </div>
-                  <input type="range" min="0" max="12" value={crossfade} onChange={(e) => setCrossfade(parseInt(e.target.value))} className={`w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer ${isNaughtyMode ?
+                  <input type="range" min="0" max="12" value={crossfade} onChange={(e) => setCrossfade(parseInt(e.target.value))} className={`w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none ${isNaughtyMode ?
                     'accent-rose-500' : 'accent-red-500'}`} />
                   <p className={`text-xs ${textMuted}`}>Élimine les blancs entre les morceaux pour une énergie constante.</p>
                 </div>
