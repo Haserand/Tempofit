@@ -482,6 +482,29 @@ const detectLanguageVersionGenre = (title) => {
   return null;
 };
 
+/**
+ * detectLanguageVersionConflict — même esprit que detectTitleStyleConflict
+ * (un titre peut trahir un style différent du genre_id de l'album), mais
+ * spécifique à K-pop/Musique asiatique : si le titre indique explicitement
+ * une version dans une langue/un marché ("(Japanese Ver.)"...) ET qu'aucun
+ * des genres DEMANDÉS ne correspond à celui-là, c'est un vrai conflit — le
+ * titre appartient à l'autre scène musicale, même si l'artiste est catalogué
+ * ailleurs (ex. MONSTA X est bien un groupe K-pop, mais "Hero (Japanese
+ * Version)" est une sortie J-pop pour le marché japonais, pas du K-pop).
+ * Retour direct : savoir identifier cette version ne servait à rien tant que
+ * ça ne servait qu'à l'affichage — utilisée ici pour l'EXCLURE de la
+ * génération d'une playlist qui ne demandait que l'autre genre.
+ *
+ * Renvoie le genre détecté dans le titre (pour un futur log éventuel) si
+ * conflit, sinon `null` — même convention que detectTitleStyleConflict.
+ */
+const detectLanguageVersionConflict = (title, requestedGenres) => {
+  if (!title || !requestedGenres || requestedGenres.length === 0) return null;
+  const langGenre = detectLanguageVersionGenre(title);
+  if (!langGenre) return null;
+  return requestedGenres.includes(langGenre) ? null : langGenre;
+};
+
 const getGenresForDisplay = (rawGenre, artistName = null, title = null) => {
   if (!rawGenre) return ['Genre inconnu'];
   const allKnownGenres = [...new Set([...STANDARD_GENRES, ...NAUGHTY_GENRES, ...EXTRA_GENRES])];
@@ -565,6 +588,7 @@ export {
   genreRoughlyMatches,
   TITLE_STYLE_OVERRIDE_KEYWORDS,
   isLiveOrPerformanceVersion,
+  detectLanguageVersionConflict,
   detectTitleStyleConflict,
   normalizeGenreForDisplay,
   genreDisplayLabel,
