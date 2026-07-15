@@ -459,6 +459,29 @@ const detectScriptGenre = (text) => {
   return null;
 };
 
+/**
+ * detectLanguageVersionGenre — repère un marqueur de VERSION LINGUISTIQUE
+ * explicite dans le titre ("(Japanese Ver.)", "(Japanese Version)", "(Korean
+ * Ver.)"...) — signal le PLUS fiable des 3 utilisés dans getGenresForDisplay
+ * pour départager K-pop de "Musique asiatique"/J-pop & C-pop, car écrit en
+ * toutes lettres, pas à déduire d'un script ou d'une liste d'artistes.
+ *
+ * Prime volontairement même sur un artiste par ailleurs connu d'un seul
+ * catalogue (ex. BTS, dans le catalogue K-pop) : ce marqueur porte sur CE
+ * titre précis, pas sur la carrière générale de l'artiste — la version
+ * japonaise officielle d'un titre BTS est une vraie sortie J-pop pour ce
+ * titre-là, même si BTS reste catalogué K-pop pour le reste de sa
+ * discographie (beaucoup de groupes K-pop enregistrent des versions
+ * japonaises dédiées au marché japonais, chantées entièrement en japonais).
+ */
+const detectLanguageVersionGenre = (title) => {
+  if (!title) return null;
+  const t = title.toLowerCase();
+  if (/\bjapanese\s*ver(sion)?\b|\bjpn\s*ver(sion)?\b/.test(t)) return 'Musique asiatique';
+  if (/\bkorean\s*ver(sion)?\b/.test(t)) return 'K-pop';
+  return null;
+};
+
 const getGenresForDisplay = (rawGenre, artistName = null, title = null) => {
   if (!rawGenre) return ['Genre inconnu'];
   const allKnownGenres = [...new Set([...STANDARD_GENRES, ...NAUGHTY_GENRES, ...EXTRA_GENRES])];
@@ -481,22 +504,31 @@ const getGenresForDisplay = (rawGenre, artistName = null, title = null) => {
   // systématiquement LES DEUX, alors qu'un titre donné est réellement soit
   // l'un soit l'autre, jamais les deux à la fois (contrairement à "Alternative
   // Rock", qui peut légitimement être Rock ET Alternative en même temps — un
-  // vrai cas de fusion). Désambiguïsé en 2 temps, du signal le plus fiable au
+  // vrai cas de fusion). Désambiguïsé en 3 temps, du signal le plus fiable au
   // moins fiable :
-  //   1. L'ARTISTE : si connu d'un seul des 2 catalogues, tranché directement.
-  //   2. Si toujours ambigu (artiste inconnu des 2, ou non fourni) : le SCRIPT
-  //      du TITRE (hangul coréen vs hiragana/katakana/kanji japonais/chinois),
-  //      voir detectScriptGenre plus bas. N'aide QUE si le titre affiche
-  //      vraiment de l'écriture non-latine chez Deezer — beaucoup de titres
-  //      restent romanisés (alphabet latin) même pour une sortie
-  //      coréenne/japonaise, auquel cas ce 2e niveau ne détecte rien non plus
-  //      et on garde les deux genres plutôt que de deviner au hasard.
+  //   1. MARQUEUR DE LANGUE explicite dans le titre ("(Japanese Ver.)"...) —
+  //      voir detectLanguageVersionGenre. Prime même sur un artiste par
+  //      ailleurs connu d'un seul catalogue : porte sur CE titre précis, pas
+  //      sur la carrière générale de l'artiste (beaucoup de groupes K-pop ont
+  //      des versions japonaises dédiées au marché japonais).
+  //   2. L'ARTISTE : si toujours ambigu, et connu d'un seul des 2 catalogues.
+  //   3. Si toujours ambigu : le SCRIPT du TITRE (hangul coréen vs
+  //      hiragana/katakana/kanji japonais/chinois), voir detectScriptGenre
+  //      plus bas. N'aide QUE si le titre affiche vraiment de l'écriture
+  //      non-latine chez Deezer — beaucoup de titres restent romanisés
+  //      (alphabet latin) même pour une sortie coréenne/japonaise, auquel cas
+  //      ce niveau ne détecte rien non plus et on garde les deux genres
+  //      plutôt que de deviner au hasard.
   //   Un artiste à VRAIE double carrière (ex. TVXQ, actif en K-pop ET en J-pop
   //   sous le nom "Tohoshinki") peut légitimement rester ambigu même après ces
-  //   2 niveaux — ce n'est alors pas une détection ratée, c'est une ambiguïté
-  //   réelle qu'aucune de ces 2 heuristiques ne peut trancher avec certitude.
+  //   3 niveaux — ce n'est alors pas une détection ratée, c'est une ambiguïté
+  //   réelle qu'aucune de ces heuristiques ne peut trancher avec certitude.
   if (filtered.includes('K-pop') && filtered.includes('Musique asiatique')) {
-    if (artistName) {
+    const langGenre = title ? detectLanguageVersionGenre(title) : null;
+    if (langGenre === 'K-pop') filtered = filtered.filter(g => g !== 'Musique asiatique');
+    else if (langGenre === 'Musique asiatique') filtered = filtered.filter(g => g !== 'K-pop');
+
+    if (filtered.includes('K-pop') && filtered.includes('Musique asiatique') && artistName) {
       const inKpop = (ARTIST_CATALOG['K-pop'] || []).includes(artistName);
       const inJCpop = (ARTIST_CATALOG['Musique asiatique'] || []).includes(artistName);
       if (inKpop && !inJCpop) filtered = filtered.filter(g => g !== 'Musique asiatique');
