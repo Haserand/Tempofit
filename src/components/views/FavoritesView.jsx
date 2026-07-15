@@ -1,5 +1,5 @@
 import { Star, Heart, Play, Pause, X, Plus, User, RefreshCw, Target, Search } from 'lucide-react';
-import { getGenreLocalDepthWarning, getGenresForDisplay, EXTRA_GENRES } from '../../musicCatalog';
+import { getGenreLocalDepthWarning, getGenresForDisplay, genreDisplayLabel, EXTRA_GENRES } from '../../musicCatalog';
 
 /**
  * FavoritesView — vue "Mes Favoris" (titres/artistes favoris + exploration BPM/genre).
@@ -140,7 +140,7 @@ export default function FavoritesView({
                       if (isSelected) { if (favSelectedGenres.length > 1) setFavSelectedGenres(favSelectedGenres.filter(g => g !== genre)); }
                       else setFavSelectedGenres([...favSelectedGenres, genre]);
                     }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
-                      {genre}{warning && <span className="ml-1">⚠️</span>}
+                      {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                     </button>
                   );
                 })}
@@ -160,7 +160,7 @@ export default function FavoritesView({
                         if (isSelected) { if (favSelectedGenres.length > 1) setFavSelectedGenres(favSelectedGenres.filter(g => g !== genre)); }
                         else setFavSelectedGenres([...favSelectedGenres, genre]);
                       }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
-                        {genre}{warning && <span className="ml-1">⚠️</span>}
+                        {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                       </button>
                     );
                   })}
