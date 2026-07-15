@@ -25,6 +25,8 @@ export default function PlaylistCard({
   // type="date"> caché derrière un <label> ne s'ouvre pas de façon fiable
   // partout au clic seul.
   const completionDateInputRef = useRef(null);
+  // Même filet de sécurité pour le badge "Planifier" (voir plus bas).
+  const plannedDateInputRef = useRef(null);
   const isCompleted = playlist.completions && playlist.completions.length > 0;
 
   const borderClasses = rankStyle
@@ -83,13 +85,26 @@ export default function PlaylistCard({
         <div className="flex items-center gap-1">
           {onSetPlannedDate && (
             <label
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                // Même filet de sécurité multi-navigateurs que les 2 autres contrôles
+                // de date de l'app (PlaylistDetailView "Planifier", et "Ajouter une
+                // date" juste plus bas dans ce même fichier) — celui-ci ne l'avait
+                // jamais reçu, ce qui en fait la seule des 3 dates encore exposée au
+                // même souci sur Safari (clic natif qui n'ouvre pas toujours le
+                // sélecteur).
+                e.stopPropagation();
+                if (plannedDateInputRef.current?.showPicker) {
+                  e.preventDefault();
+                  plannedDateInputRef.current.showPicker();
+                }
+              }}
               className={`relative flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors ${playlist.plannedDate ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 opacity-0 group-hover:opacity-100 hover:text-amber-500'}`}
               title={playlist.plannedDate ? "Date planifiée — modifier" : "Planifier une date (optionnel, sert juste à trier)"}
             >
               <Calendar size={16} />
               {playlist.plannedDate && <span>{new Date(playlist.plannedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
               <input
+                ref={plannedDateInputRef}
                 type="date"
                 value={playlist.plannedDate || ''}
                 onChange={(e) => onSetPlannedDate(playlist.id, e.target.value)}
@@ -150,7 +165,16 @@ export default function PlaylistCard({
                 n'importe quelle date, pas seulement "aujourd'hui". Le clic sur le
                 <label> ouvre explicitement le sélecteur via showPicker() (filet de
                 sécurité multi-navigateurs), et non plus un simple appel direct à
-                markPlaylistAsCompleted au clic. */}
+                markPlaylistAsCompleted au clic.
+                BUG CORRIGÉ : l'<input> recouvre tout le <label> (absolute inset-0),
+                donc le clic atterrit D'ABORD sur l'input, pas sur le label — un
+                onClick={e => e.stopPropagation()} posé ici, sur l'input lui-même,
+                bloquait la propagation AVANT que le showPicker() du label ait la
+                moindre chance de s'exécuter, rendant ce filet de sécurité mort-code
+                (bouton qui ne faisait plus rien sur les navigateurs qui en avaient
+                justement besoin, ex. Safari). Le stopPropagation() du label
+                (ci-dessous) suffit déjà à empêcher le clic d'atteindre la carte
+                entière — retiré ici sur l'input pour laisser le clic lui parvenir. */}
             <label
               onClick={(e) => {
                 e.stopPropagation();
@@ -165,7 +189,6 @@ export default function PlaylistCard({
               <input
                 ref={completionDateInputRef}
                 type="date"
-                onClick={(e) => e.stopPropagation()}
                 onChange={(e) => { e.stopPropagation(); if (e.target.value) markPlaylistAsCompleted(playlist.id, e.target.value); e.target.value = ''; }}
                 className="absolute inset-0 opacity-0 cursor-pointer"
               />
