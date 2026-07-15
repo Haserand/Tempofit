@@ -1916,7 +1916,7 @@ export default function App() {
       // libellé "Divers" (genreDisplayLabel) n'est appliqué qu'à l'affichage
       // final juste en dessous — cette fonction reste un simple regroupement,
       // pas un renommage.
-      const g = normalizeGenreForDisplay(t.genre);
+      const g = normalizeGenreForDisplay(t.genre, t.artist, t.title);
       buckets[g] = (buckets[g] || 0) + t.duration;
     });
     return Object.entries(buckets).map(([name, value]) => ({ name: genreDisplayLabel(name), value }));
