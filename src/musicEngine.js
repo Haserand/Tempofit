@@ -882,8 +882,21 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   // est résolu pour TOUS les candidats BPM-valides, pas seulement les quelques
   // retenus), mais optimisé : l'ID d'album est déjà connu depuis le détail du
   // titre, donc resolveDeezerGenre saute un appel réseau redondant.
-  try {
-    const genresForQuery = (effectiveGenres && effectiveGenres.length > 0) ? effectiveGenres : ['Autre'];
+  const genresForQuery = (effectiveGenres && effectiveGenres.length > 0) ? effectiveGenres : ['Autre'];
+  // Genres au mot-clé Deezer FRAGILE (ex. K-pop → "asian", une recherche texte
+  // libre plutôt qu'un vrai filtre de genre — voir WEAK_DEEZER_KEYWORD_GENRES
+  // dans musicCatalog.js) : le bloc de recherche généraliste ci-dessous est
+  // alors surtout du bruit — cas réel constaté (playlist K-pop truffée de Pete
+  // Rock & C.L. Smooth, Joanne Robertson, un "Astro" homonyme sans rapport...).
+  // On le SAUTE entièrement dans ce cas plutôt que de polluer le pool avec des
+  // candidats hors-sujet qui finissent par être acceptés faute de mieux (palier
+  // "none" de la sélection plus bas) — le catalogue d'artistes (bien plus
+  // fiable pour ces genres) prend seul le relais, avec une profondeur de
+  // recherche renforcée (voir plus bas).
+  const allEffectiveGenresWeak = genresForQuery.length > 0 && genresForQuery.every(g => WEAK_DEEZER_KEYWORD_GENRES.includes(g));
+
+  if (!allEffectiveGenresWeak) {
+    try {
     const detailFetchCap = Math.min(Math.max(25, genresForQuery.length * 6), 60);
     const seenStubIds = new Set();
     let allResolvedCandidates = [];
@@ -955,6 +968,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   } catch (e) {
     // Échec silencieux : le pool s'appuiera sur les autres sources (favoris/Spotify/local).
   }
+  }
 
   // CATALOGUE D'ARTISTES (remplace l'ancienne base de titres codés en dur) :
   // recherche Deezer EN DIRECT sur une liste d'artistes représentatifs du genre
@@ -976,8 +990,12 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
 
   if (catalogArtists.length > 0) {
     try {
-      const stubs = await searchArtistsForBpm(catalogArtists, minBpm, maxBpm, localExcludeIds, 8, 6);
-      const details = await fetchInBatches(stubs.slice(0, 30), 10, async (s) => {
+      // Profondeur de recherche renforcée quand le catalogue est la SEULE
+      // source fiable (genres à mot-clé Deezer fragile, voir plus haut) — sinon
+      // les réglages habituels suffisent, Deezer en direct ayant déjà pu
+      // apporter l'essentiel du pool.
+      const stubs = await searchArtistsForBpm(catalogArtists, minBpm, maxBpm, localExcludeIds, allEffectiveGenresWeak ? 20 : 8, allEffectiveGenresWeak ? 10 : 6);
+      const details = await fetchInBatches(stubs.slice(0, allEffectiveGenresWeak ? 60 : 30), 10, async (s) => {
         const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
         return full;
       });
@@ -1068,7 +1086,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
     const titleConflictFree = (t) => (!t._deezerId && !t._isLocalDB) || !detectTitleStyleConflict(t.title, effectiveGenres);
     const favoritesPool = availablePool.filter(t => !t._deezerId && !t._isLocalDB);
     const deezerDirectPool = availablePool.filter(t => t._deezerId && titleConflictFree(t) && effectiveGenres.some(g => isDirectGenreMatch(t.genre, g)));
-    const localPoolMatches = availablePool.filter(t => t._isLocalDB && titleConflictFree(t));
+    const localPoolMatches = availablePool.filter(t => t._isLocalDB && titleConflictFree(t) && !t._genreMismatch);
     const equivalencePool = availablePool.filter(t => t._deezerId && titleConflictFree(t) && !deezerDirectPool.includes(t) && effectiveGenres.some(g => genreRoughlyMatches(t.genre, g)));
 
     let searchPool, matchLevel;
