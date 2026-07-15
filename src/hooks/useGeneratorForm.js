@@ -252,7 +252,7 @@ export function useGeneratorForm(isNaughtyMode) {
     if (totalDuration === 0) return null;
     const actualByGenre = {};
     tracks.forEach(t => {
-      const g = normalizeGenreForDisplay(t.genre);
+      const g = normalizeGenreForDisplay(t.genre, t.artist, t.title);
       actualByGenre[g] = (actualByGenre[g] || 0) + t.duration;
     });
     const deviations = [];
