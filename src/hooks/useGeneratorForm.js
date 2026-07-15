@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { STANDARD_GENRES, NAUGHTY_GENRES, normalizeGenreForDisplay } from '../musicCatalog';
+import { STANDARD_GENRES, NAUGHTY_GENRES, normalizeGenreForDisplay, genreDisplayLabel } from '../musicCatalog';
 import { buildCrescendoSegments, deduceCrescendoBpm } from '../musicEngine';
 
 /**
@@ -260,7 +260,7 @@ export function useGeneratorForm(isNaughtyMode) {
       if (!targetPct) return;
       const actualPct = Math.round(((actualByGenre[genre] || 0) / totalDuration) * 100);
       if (Math.abs(actualPct - targetPct) >= 15) {
-        deviations.push(`${genre} : ${actualPct}% obtenu (visé ${targetPct}%)`);
+        deviations.push(`${genreDisplayLabel(genre)} : ${actualPct}% obtenu (visé ${targetPct}%)`);
       }
     });
     return deviations.length > 0 ? deviations : null;
