@@ -529,8 +529,15 @@ const getGenresForDisplay = (rawGenre, artistName = null, title = null) => {
     else if (langGenre === 'Musique asiatique') filtered = filtered.filter(g => g !== 'K-pop');
 
     if (filtered.includes('K-pop') && filtered.includes('Musique asiatique') && artistName) {
-      const inKpop = (ARTIST_CATALOG['K-pop'] || []).includes(artistName);
-      const inJCpop = (ARTIST_CATALOG['Musique asiatique'] || []).includes(artistName);
+      // Comparaison insensible à la casse — BUG RÉEL CONSTATÉ : "Monsta X" dans
+      // le catalogue (casse mixte) ne matchait jamais "MONSTA X" tel que
+      // Deezer le renvoie (tout en majuscules, stylisation officielle du
+      // groupe), donc la désambiguïsation échouait silencieusement pour ce nom
+      // précis. `normalize` (déjà définie plus haut dans cette fonction) gère
+      // aussi les accents, utile pour d'autres noms d'artistes composés.
+      const normalizedArtist = normalize(artistName);
+      const inKpop = (ARTIST_CATALOG['K-pop'] || []).some(a => normalize(a) === normalizedArtist);
+      const inJCpop = (ARTIST_CATALOG['Musique asiatique'] || []).some(a => normalize(a) === normalizedArtist);
       if (inKpop && !inJCpop) filtered = filtered.filter(g => g !== 'Musique asiatique');
       else if (inJCpop && !inKpop) filtered = filtered.filter(g => g !== 'K-pop');
     }
