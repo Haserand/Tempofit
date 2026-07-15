@@ -51,6 +51,7 @@ import FavoritesView from './components/views/FavoritesView';
 import TrophiesView from './components/views/TrophiesView';
 import RoutinesView from './components/views/RoutinesView';
 import PlaylistsView from './components/views/PlaylistsView';
+import DualRangeSlider from './components/shared/DualRangeSlider';
 import StatsView from './components/views/StatsView';
 import GeneratorView from './components/views/GeneratorView';
 import PlaylistDetailView from './components/views/PlaylistDetailView';
@@ -2776,40 +2777,14 @@ export default function App() {
                           <span className={textColorClass}>Cœur {100 - (editingRoutine.crescendoWarmupPct ?? 15) - (editingRoutine.crescendoCooldownPct ?? 15)}%</span>
                           <span className="text-emerald-500 dark:text-emerald-400">Retour au calme {editingRoutine.crescendoCooldownPct ?? 15}%</span>
                         </div>
-                        {/* Même curseur double que l'étape 3 du wizard (voir GeneratorView) —
-                            2 <input type="range"> superposés, piste colorée purement visuelle
-                            en dessous. Bornes min/max garantissant CRESCENDO_MIN_MAIN_PCT au
-                            cœur de séance, identique au wizard. */}
-                        <div className="relative h-8 flex items-center select-none">
-                          <div className="absolute inset-x-0 h-2.5 rounded-full overflow-hidden flex pointer-events-none">
-                            <div className="h-full bg-sky-400 dark:bg-sky-500" style={{ width: `${editingRoutine.crescendoWarmupPct ?? 15}%` }} />
-                            <div className={`h-full ${bgAccentClass}`} style={{ width: `${100 - (editingRoutine.crescendoWarmupPct ?? 15) - (editingRoutine.crescendoCooldownPct ?? 15)}%` }} />
-                            <div className="h-full bg-emerald-400 dark:bg-emerald-500" style={{ width: `${editingRoutine.crescendoCooldownPct ?? 15}%` }} />
-                          </div>
-                          <input
-                            type="range" min="0" max={100 - CRESCENDO_MIN_MAIN_PCT - (editingRoutine.crescendoCooldownPct ?? 15)} step="1"
-                            value={editingRoutine.crescendoWarmupPct ?? 15}
-                            onChange={(e) => {
-                              const cap = 100 - CRESCENDO_MIN_MAIN_PCT - (editingRoutine.crescendoCooldownPct ?? 15);
-                              setEditingRoutine({ ...editingRoutine, crescendoWarmupPct: Math.max(0, Math.min(parseInt(e.target.value) || 0, cap)) });
-                            }}
-                            aria-label="Part de l'échauffement"
-                            className="absolute inset-x-0 w-full h-8 m-0 appearance-none bg-transparent cursor-pointer pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-[3px] [&::-webkit-slider-thumb]:border-sky-500 [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-[3px] [&::-moz-range-thumb]:border-sky-500 [&::-moz-range-thumb]:shadow-md"
-                            style={{ zIndex: 2 }}
-                          />
-                          <input
-                            type="range" min={(editingRoutine.crescendoWarmupPct ?? 15) + CRESCENDO_MIN_MAIN_PCT} max="100" step="1"
-                            value={100 - (editingRoutine.crescendoCooldownPct ?? 15)}
-                            onChange={(e) => {
-                              const boundary = parseInt(e.target.value) || 100;
-                              const cap = 100 - CRESCENDO_MIN_MAIN_PCT - (editingRoutine.crescendoWarmupPct ?? 15);
-                              setEditingRoutine({ ...editingRoutine, crescendoCooldownPct: Math.max(0, Math.min(100 - boundary, cap)) });
-                            }}
-                            aria-label="Part du retour au calme"
-                            className="absolute inset-x-0 w-full h-8 m-0 appearance-none bg-transparent cursor-pointer pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-[3px] [&::-webkit-slider-thumb]:border-emerald-500 [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-[3px] [&::-moz-range-thumb]:border-emerald-500 [&::-moz-range-thumb]:shadow-md"
-                            style={{ zIndex: 3 }}
-                          />
-                        </div>
+                        <DualRangeSlider
+                          leftValue={editingRoutine.crescendoWarmupPct ?? 15} rightValue={editingRoutine.crescendoCooldownPct ?? 15} minMiddle={CRESCENDO_MIN_MAIN_PCT}
+                          onChangeLeft={(val) => setEditingRoutine({ ...editingRoutine, crescendoWarmupPct: val })}
+                          onChangeRight={(val) => setEditingRoutine({ ...editingRoutine, crescendoCooldownPct: val })}
+                          leftColorClass="bg-sky-400 dark:bg-sky-500" middleColorClass={bgAccentClass} rightColorClass="bg-emerald-400 dark:bg-emerald-500"
+                          leftHandleBorderClass="border-sky-500" rightHandleBorderClass="border-emerald-500"
+                          leftAriaLabel="Part de l'échauffement" rightAriaLabel="Part du retour au calme"
+                        />
                       </div>
 
                       <div className="space-y-2">
