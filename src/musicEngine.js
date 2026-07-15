@@ -29,7 +29,7 @@
  * sans risque (même logique que `searchWorldMusicApi` conservée dans App.jsx).
  */
 
-import { ARTIST_CATALOG, DEEZER_GENRE_KEYWORDS, WEAK_DEEZER_KEYWORD_GENRES, isDirectGenreMatch, genreRoughlyMatches, detectTitleStyleConflict } from './musicCatalog';
+import { ARTIST_CATALOG, DEEZER_GENRE_KEYWORDS, WEAK_DEEZER_KEYWORD_GENRES, isDirectGenreMatch, genreRoughlyMatches, detectTitleStyleConflict, isLiveOrPerformanceVersion } from './musicCatalog';
 import { formatDuration } from './utils/format';
 
 
@@ -441,9 +441,17 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYout
   // Penn, genre réel "Pop" — même pas un genre demandé !) dans une playlist
   // Métal/Rock. Utilisé par getSingleMatchingTrack (tolérance exacte ET élargie,
   // les deux passent par cette fonction) et par le remplacement manuel d'un titre.
+  // Versions live/performance déprioritisées (pas exclues), même logique que
+  // dans buildSegmentTracks — cette fonction n'est jamais appelée pour les
+  // favoris (gérés séparément, en amont), donc pas de garde-fou à ajouter ici.
   const ordered = preferredDuration
-    ? [...validCandidates].sort((a, b) => Math.abs((a.duration || 180) - preferredDuration) - Math.abs((b.duration || 180) - preferredDuration))
-    : [...validCandidates].sort(() => Math.random() - 0.5);
+    ? [...validCandidates].sort((a, b) => {
+        const aLive = isLiveOrPerformanceVersion(a.title) ? 1 : 0;
+        const bLive = isLiveOrPerformanceVersion(b.title) ? 1 : 0;
+        if (aLive !== bLive) return aLive - bLive;
+        return Math.abs((a.duration || 180) - preferredDuration) - Math.abs((b.duration || 180) - preferredDuration);
+      })
+    : [...validCandidates].sort((a, b) => (isLiveOrPerformanceVersion(a.title) ? 1 : 0) - (isLiveOrPerformanceVersion(b.title) ? 1 : 0) || Math.random() - 0.5);
 
   const MAX_GENRE_CHECK_ATTEMPTS = 5;
   let full = null;
@@ -657,8 +665,13 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
         if (!allowLongTracks) details = details.filter(f => (f.duration || 0) <= MAX_TRACK_DURATION);
         if (details.length > 0) {
           const ordered = preferredDuration
-            ? [...details].sort((a, b) => Math.abs((a.duration || 180) - preferredDuration) - Math.abs((b.duration || 180) - preferredDuration))
-            : [...details].sort(() => Math.random() - 0.5);
+            ? [...details].sort((a, b) => {
+                const aLive = isLiveOrPerformanceVersion(a.title) ? 1 : 0;
+                const bLive = isLiveOrPerformanceVersion(b.title) ? 1 : 0;
+                if (aLive !== bLive) return aLive - bLive;
+                return Math.abs((a.duration || 180) - preferredDuration) - Math.abs((b.duration || 180) - preferredDuration);
+              })
+            : [...details].sort((a, b) => (isLiveOrPerformanceVersion(a.title) ? 1 : 0) - (isLiveOrPerformanceVersion(b.title) ? 1 : 0) || Math.random() - 0.5);
 
           const MAX_CATALOG_GENRE_CHECK_ATTEMPTS = 5;
           let picked = null;
@@ -1096,7 +1109,20 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
     else if (equivalencePool.length > 0) { searchPool = equivalencePool; matchLevel = 'equivalence'; }
     else { searchPool = availablePool; matchLevel = 'none'; }
 
-    searchPool.sort((a, b) => Math.abs(a.duration - remaining) - Math.abs(b.duration - remaining));
+    // Versions live/performance déprioritisées (pas exclues) à qualité de
+    // correspondance égale — retour direct : elles peuvent différer sensiblement
+    // de la version studio (tempo qui dérive avec le public, bruit de foule,
+    // intro/outro à rallonge), même avec un BPM affiché correct. SAUF pour les
+    // favoris explicites (`matchLevel === 'favoris'`) : un choix déjà délibéré
+    // de l'utilisateur, jamais remis en question ici.
+    searchPool.sort((a, b) => {
+      if (matchLevel !== 'favoris') {
+        const aLive = isLiveOrPerformanceVersion(a.title) ? 1 : 0;
+        const bLive = isLiveOrPerformanceVersion(b.title) ? 1 : 0;
+        if (aLive !== bLive) return aLive - bLive;
+      }
+      return Math.abs(a.duration - remaining) - Math.abs(b.duration - remaining);
+    });
     const pick = searchPool[0];
 
     if (matchLevel === 'none') {
