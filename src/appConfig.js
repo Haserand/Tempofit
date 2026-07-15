@@ -53,6 +53,22 @@ const TROPHIES_DATA = [
 
 const NAUGHTY_ROUTINE_NAMES = ["🍑 Cardio Horizontal", "🔥 Entraînement au lit", "💦 Session Sous la Couette", "😈 Sprint Nocturne"];
 
+// Zones d'intensité de CADENCE musicale (BPM) du "Profil Athlétique" — voir
+// useAthleticProfile.js pour les valeurs propres à l'utilisateur (ce tableau-
+// ci ne contient que les métadonnées d'AFFICHAGE, partagées par SettingsView,
+// GeneratorView et StatsView : un seul endroit à modifier si l'ordre, les
+// libellés ou les couleurs doivent changer).
+// ⚠️ "Cadence"/"Allure musicale", jamais "Cardio" (voir useAthleticProfile.js) :
+// une zone de fréquence CARDIAQUE réelle existe déjà ailleurs dans l'app
+// (import Garmin/Strava, voir useSessionAnalysis.js) — les deux ne doivent
+// jamais se confondre dans le vocabulaire affiché à l'écran.
+const ATHLETIC_ZONES = [
+  { key: 'zone1', label: 'Récupération / Échauffement', shortLabel: 'Récupération', color: '#3b82f6' },
+  { key: 'zone2', label: 'Endurance fondamentale / Footing', shortLabel: 'Endurance', color: '#22c55e' },
+  { key: 'zone3', label: 'Seuil / Tempo', shortLabel: 'Seuil', color: '#f59e0b' },
+  { key: 'zone4', label: 'Vitesse / VMA', shortLabel: 'Vitesse', color: '#ef4444' },
+];
+
 const WORKOUT_TYPES = [
   { id: 'Course à pied', icon: Footprints },
   { id: 'Musculation', icon: Dumbbell },
@@ -129,6 +145,7 @@ const AUTO_GEN_OPTIONS = ["Manuel", "1 fois / jour", "2 fois / jour", "1 fois / 
 export {
   TROPHIES_DATA,
   NAUGHTY_ROUTINE_NAMES,
+  ATHLETIC_ZONES,
   WORKOUT_TYPES,
   NAUGHTY_WORKOUT_LABELS,
   NAUGHTY_WORKOUT_ICONS,
