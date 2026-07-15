@@ -438,9 +438,18 @@ export default function App() {
   const {
     shareData, setShareData,
     isShareModalOpen, setIsShareModalOpen,
-    handleShare, copyToClipboard, shareNative,
+    handleShare: handleShareBase, copyToClipboard, shareNative,
     shareToWhatsApp, shareToTwitter, shareToFacebook, shareViaEmail,
   } = useShare(showToast);
+
+  // "Partager" — utilise le bouton Partager (playlist ou trophée) au moins
+  // une fois. Wrapper autour de `handleShare` (comme `toggleTheme` pour le
+  // mode clair) plutôt que dans useShare.js, qui n'a accès ni à `userStats`
+  // ni à `checkTrophies`.
+  const handleShare = (type, item) => {
+    handleShareBase(type, item);
+    if (!userStats.hasSharedSomething) checkTrophies({ ...userStats, hasSharedSomething: true });
+  };
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
 
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
@@ -974,7 +983,7 @@ export default function App() {
       // plus être écrasé silencieusement à l'activation du mode.
       setBpm(85); setBpmTolerance(15); setSelectedGenres(['R&B Sensuel']); setGenreWeights({ 'R&B Sensuel': 100 }); setLockedGenreWeights(new Set()); setTargetMode('time');
       setCrossfade(5); 
-      showToast("Ambiance intime activée...", 'special');
+      showToast("Ambiance intime activée...", 'ambiance');
     } else {
       setIsNaughtyMode(false);
       setBpm(160); setBpmTolerance(10); setSelectedGenres(['Métal']); setGenreWeights({ 'Métal': 100 }); setLockedGenreWeights(new Set()); setCrossfade(2);
@@ -994,6 +1003,15 @@ export default function App() {
       manualGenerations: 0, recentTrackIds: [], createdAt: new Date().toLocaleDateString()
     };
     addRoutine(newRoutine);
+
+    // "Créer une Routine" — sauvegarder sa toute première routine.
+    // "Génération automatique" — activer l'auto-génération dessus (pas juste
+    // "Manuel") dès la création. Les deux sont de la pure découverte de
+    // fonctionnalité, vérifiées indépendamment l'une de l'autre.
+    let newFlags = {};
+    if (routines.length === 0 && !userStats.hasFirstRoutine) newFlags.hasFirstRoutine = true;
+    if (newRoutineFreq !== 'Manuel' && !userStats.hasAutoGen) newFlags.hasAutoGen = true;
+    if (Object.keys(newFlags).length > 0) checkTrophies({ ...userStats, ...newFlags });
   };
 
   /**
@@ -1203,6 +1221,20 @@ export default function App() {
       if (!newStats.hasAllStructures && usedKinds.size >= 3) { newStats.hasAllStructures = true; }
     }
 
+    // "Genres étendus" — génère avec au moins un genre de la liste "+ Plus de
+    // genres" (EXTRA_GENRES), jamais visible tant qu'on ne déplie pas ce
+    // volet à l'étape des genres.
+    if (!newStats.hasExtraGenre && (config.selectedGenres || []).some(g => EXTRA_GENRES.includes(g))) {
+      newStats.hasExtraGenre = true; statsUpdated = true;
+    }
+
+    // "Mes Favoris" — génère une playlist avec les favoris activés ET
+    // effectivement peuplés (même condition que le badge étoile de la sidebar)
+    // — pas juste avoir ouvert la page "Mes Favoris" sans jamais s'en servir.
+    if (!newStats.hasUsedFavorites && favorites.useFavorites && favorites.artists.length > 0) {
+      newStats.hasUsedFavorites = true; statsUpdated = true;
+    }
+
     if (statsUpdated) checkTrophies(newStats);
 
     // Historique glissant des titres déjà utilisés par CETTE routine (toutes
@@ -1344,6 +1376,13 @@ export default function App() {
     setSavedPlaylists(savedPlaylists.map(p => p.id === playlistId ? { ...p, plannedDate: value } : p));
     if (currentPlaylist && currentPlaylist.id === playlistId) {
       setCurrentPlaylist({ ...currentPlaylist, plannedDate: value });
+    }
+    // "Planifier une séance" — donner une date à une playlist pour la première
+    // fois (`value` non vide ⇒ on planifie, pas on déplanifie). Volontairement
+    // indépendant de "Pile à l'Heure" (qui récompense d'avoir RESPECTÉ la
+    // date) : ici c'est juste le premier pas, découvrir que ça existe.
+    if (value && !userStats.hasPlannedSession) {
+      checkTrophies({ ...userStats, hasPlannedSession: true });
     }
   };
 
@@ -2072,16 +2111,22 @@ export default function App() {
       <div className={`flex h-screen overflow-hidden ${bgMainApp} ${textMain} font-sans selection:bg-${themeColor}-500 selection:text-white transition-colors duration-500 relative`}>
 
         {/* Toast de notification global : style et icône dépendent de toast.variant
-            ('default' = neutre, 'special' = succès mis en avant/trophée, 'error' = échec).
-            Avant : les erreurs réutilisaient le style doré "trophée" des déblocages de succès,
-            ce qui prêtait à confusion (une erreur ne doit pas ressembler à une récompense). */}
+            ('default' = neutre, 'special' = trophée débloqué UNIQUEMENT, 'ambiance' =
+            mise en avant positive générique (mode Intime, etc.), 'error' = échec).
+            Avant : les erreurs réutilisaient le style doré "trophée" des déblocages de
+            succès, corrigé une 1ère fois — puis le message "Ambiance intime activée"
+            a fait exactement la même confusion (retour direct : le trophée doré qui
+            s'affiche à l'activation du mode Intime ne veut rien dire, on n'a rien
+            débloqué). D'où ce 4e variant dédié, avec sa propre icône/couleur. */}
         {toast && (
           <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[80] bg-white dark:bg-gray-800 border ${
             toast.variant === 'special' ? 'border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.4)]' :
+            toast.variant === 'ambiance' ? 'border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.35)]' :
             toast.variant === 'error' ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.35)]' :
             'border-gray-200 dark:border-gray-700 shadow-2xl'
           } px-6 py-3 rounded-full flex items-center space-x-3 animate-in slide-in-from-top-4 fade-in duration-300`}>
             {toast.variant === 'special' ? <Trophy size={18} className="text-yellow-500 fill-yellow-500" /> :
+             toast.variant === 'ambiance' ? <Heart size={18} className="text-rose-500 fill-rose-500" /> :
              toast.variant === 'error' ? <AlertCircle size={18} className="text-red-500" /> :
              <Check size={18} className={textColorClass} />}
             <span className={`font-medium ${toast.variant === 'error' ? 'text-red-600 dark:text-red-400' : textHighlight}`}>{toast.message}</span>
