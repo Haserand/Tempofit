@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Activity, Clock, Music, Play, List, Plus, Check, Settings, Pause, Search, X, Heart, ListPlus, Loader2, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Edit3, Copy, Trophy, Upload, ChevronUp, ChevronDown, Target, MessageCircle, ExternalLink, Sun, Moon } from 'lucide-react';
-import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, normalizeGenreForDisplay, genreDisplayLabel, getGenresForDisplay } from './musicCatalog';
+import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, WEAK_DEEZER_KEYWORD_GENRES, getGenreLocalDepthWarning, normalizeGenreForDisplay, genreDisplayLabel, getGenresForDisplay } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appConfig';
 
 // =====================================================================================
@@ -429,6 +429,13 @@ export default function App() {
   // génération elle-même.
   const [generatingTotal, setGeneratingTotal] = useState(0);
   const [generatingDone, setGeneratingDone] = useState(0);
+  // Alimenté par executeGeneration : le lot en cours porte-t-il sur un genre
+  // au mot-clé Deezer fragile (K-pop, J-pop & C-pop, Bandes originales — voir
+  // WEAK_DEEZER_KEYWORD_GENRES) ? Utilisé UNIQUEMENT par le bandeau "Génération
+  // en cours" plus bas, pour expliquer le délai au moment où il se produit
+  // réellement plutôt qu'en avertissement statique avant de cliquer (retour
+  // direct : plus pertinent à ce moment précis qu'en amont).
+  const [isGeneratingSlowGenre, setIsGeneratingSlowGenre] = useState(false);
   // Chrono affiché dans le bandeau de génération — avant, le message restait
   // statique tout du long d'UNE playlist (seul le spinner tournait), ce qui
   // pouvait sembler figé/ennuyeux sur une génération un peu longue. Démarre à 0
@@ -1199,6 +1206,13 @@ export default function App() {
     setIsGenerating(true);
     setGeneratingTotal(count);
     setGeneratingDone(0);
+    // Couvre le genre global de la séance ET un éventuel override de genre
+    // propre à une portion (mode Fractionné/Crescendo, voir toggleSegmentGenre
+    // dans useGeneratorForm.js) — un genre lent choisi seulement sur UNE
+    // portion mérite quand même le message, pas seulement s'il est global.
+    const involvesSlowGenre = (config.selectedGenres || []).some(g => WEAK_DEEZER_KEYWORD_GENRES.includes(g))
+      || (config.segments || []).some(s => (s.selectedGenres || []).some(g => WEAK_DEEZER_KEYWORD_GENRES.includes(g)));
+    setIsGeneratingSlowGenre(involvesSlowGenre);
     let statsUpdated = false;
     let newStats = { ...userStats };
 
@@ -1283,6 +1297,7 @@ export default function App() {
       }
     }
     setIsGenerating(false);
+    setIsGeneratingSlowGenre(false);
 
     if (routineId) {
       setRoutines(routines.map(r => r.id === routineId
@@ -2172,14 +2187,16 @@ export default function App() {
             message, ce délai pouvait donner l'impression que l'app est bloquée.
             Fixé en bas (pas en haut, pour ne pas se superposer au toast). */}
         {isGenerating && (
-          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-[80] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl px-6 py-3 rounded-full flex items-center space-x-3 animate-in slide-in-from-bottom-4 fade-in duration-300">
-            <Loader2 size={18} className={`animate-spin ${textColorClass}`} />
+          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-[80] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl px-6 py-3 rounded-full flex items-center space-x-3 animate-in slide-in-from-bottom-4 fade-in duration-300 max-w-[90vw]">
+            <Loader2 size={18} className={`animate-spin ${textColorClass} shrink-0`} />
             <span className={`font-medium text-sm ${textHighlight}`}>
               {generatingTotal > 1
                 ? `Génération ${generatingDone}/${generatingTotal}...`
-                : "Génération en cours..."}
+                : isGeneratingSlowGenre
+                  ? "Génération en cours (genre plus long à cibler)..."
+                  : "Génération en cours..."}
             </span>
-            <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-full ${textMuted} bg-black/5 dark:bg-white/10`}>
+            <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${textMuted} bg-black/5 dark:bg-white/10`}>
               {Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, '0')}
             </span>
           </div>
