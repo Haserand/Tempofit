@@ -41,7 +41,7 @@
  * complet — non reproduit ici pour éviter la duplication.
  */
 
-import { DEEZER_GENRE_KEYWORDS } from './musicCatalog';
+import { DEEZER_GENRE_KEYWORDS, genreRoughlyMatches } from './musicCatalog';
 import { deezerFetch, resolveDeezerGenre, resolveBpmForCandidates } from './musicEngine';
 
 export const SEARCH_PAGE_SIZE = 10;
@@ -270,6 +270,20 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
       .filter(t => t && t.bpm && parseFloat(t.bpm) >= minBpm && parseFloat(t.bpm) <= maxBpm)
       .map(async (t) => {
         const realGenre = await resolveDeezerGenre(t.id);
+        // BUG CORRIGÉ : cette fonction résolvait déjà le VRAI genre Deezer de
+        // chaque titre (realGenre), mais ne le comparait jamais aux genres
+        // RÉELLEMENT demandés — un titre pouvait matcher le BPM via la
+        // recherche par mot-clé (texte libre, pas un vrai filtre de genre,
+        // voir WEAK_DEEZER_KEYWORD_GENRES/DEEZER_GENRE_KEYWORDS) sans avoir
+        // aucun rapport avec le genre coché, et ressortait quand même sans le
+        // moindre avertissement (cas réel constaté : "Métal" sélectionné,
+        // résultats Pop/Rap/Rock, aucun titre Metal). `buildSegmentTracks`/
+        // `getSingleMatchingTrack` (musicEngine.js) appliquaient déjà cette
+        // vérification pour la génération de playlist — jamais reproduite
+        // ici pour la recherche manuelle, un chemin de code entièrement
+        // séparé. `_genreMismatch` alimente le badge "⚠️ Genre non confirmé"
+        // déjà géré par l'UI (App.jsx) mais jamais posé par cette fonction.
+        const genreMismatch = !genresToQuery.some(g => genreRoughlyMatches(realGenre, g));
         return {
           youtubeId: `deezer-${t.id}`,
           title: t.title,
@@ -277,10 +291,19 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
           bpm: Math.round(parseFloat(t.bpm)),
           duration: t.duration || 180,
           genre: realGenre || 'Genre inconnu',
-          preview: t.preview || null
+          preview: t.preview || null,
+          _genreMismatch: genreMismatch,
         };
       })
   );
+
+  // Titres du bon genre en premier — sans ça, une poignée de résultats hors-
+  // genre (voir le bug ci-dessus) pouvait reléguer les vrais résultats en fin
+  // de liste, ou pire, complètement hors des ~15 candidats gardés en amont.
+  // Tri STABLE (Array.prototype.sort l'est nativement dans tous les moteurs
+  // modernes) : à égalité de correspondance, l'ordre Deezer d'origine reste
+  // inchangé.
+  results.sort((a, b) => (a._genreMismatch ? 1 : 0) - (b._genreMismatch ? 1 : 0));
 
   return { results };
 };
