@@ -780,6 +780,17 @@ export default function App() {
   const searchTracksByBpm = async (targetBpm, tolerance, genres) => {
     setBpmSearchParams({ bpm: targetBpm, tolerance, genres: genres || [] });
     setIsWorldSearching(true);
+    // Même logique que le bandeau "Génération en cours" (voir isGeneratingSlowGenre,
+    // executeGeneration) : message dédié quand un genre au mot-clé Deezer fragile
+    // (K-pop, J-pop & C-pop, Bandes originales) est demandé, ici plutôt que dans
+    // un avertissement statique avant le clic — partagé par le wizard ("Explorer
+    // les titres à X BPM") ET la page Favoris ("Chercher des titres à X BPM"),
+    // qui passent tous les deux par cette même fonction.
+    setSearchLoadingMessage(
+      (genres || []).some(g => WEAK_DEEZER_KEYWORD_GENRES.includes(g))
+        ? "Recherche plus approfondie pour ce genre..."
+        : SEARCH_LOADING_MESSAGES[Math.floor(Math.random() * SEARCH_LOADING_MESSAGES.length)]
+    );
     setWorldSearchResults([]);
     setResultsContextLabel(`${targetBpm} BPM ± ${tolerance}`);
     setNoUsableResultsHint(false);
