@@ -400,28 +400,36 @@ export default function GeneratorView({
                         <p className={`text-xs ${textMuted}`}>BPM personnalisé pour ces 2 phases :</p>
 
                         <div className={`space-y-4 p-4 rounded-xl ${inputBg} border ${inputBorder}`}>
-                            <div>
+                            {/* Griser (pas juste laisser un BPM "actif" trompeur) quand la part
+                                de cette phase est à 0% (curseur double poussé jusqu'au bout) :
+                                buildCrescendoSegments (musicEngine.js) n'en fait de toute façon
+                                plus un segment séparé dans ce cas — retour direct après confusion
+                                sur ce point précis, un BPM affiché "normalement" à 0% laissait
+                                penser qu'il comptait encore. */}
+                            <div className={crescendoWarmupPct === 0 ? 'opacity-40 grayscale pointer-events-none' : ''}>
                               <div className="flex justify-between items-center mb-1">
-                                <span className="text-xs font-bold text-sky-500 dark:text-sky-400">BPM Échauffement</span>
+                                <span className="text-xs font-bold text-sky-500 dark:text-sky-400">BPM Échauffement{crescendoWarmupPct === 0 && ' (0% — sans effet)'}</span>
                                 <span className={`text-sm font-black ${textHighlight}`}>{crescendoWarmupBpm}</span>
                               </div>
                               <input
                                 type="range" min={crescendoBpmFloor} max={bpm}
                                 value={crescendoWarmupBpm ?? crescendoBpmFloor}
                                 onChange={(e) => setCrescendoWarmupBpm(parseInt(e.target.value) || crescendoBpmFloor)}
-                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none accent-sky-500"
+                                disabled={crescendoWarmupPct === 0}
+                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none accent-sky-500 disabled:cursor-not-allowed"
                               />
                             </div>
-                            <div>
+                            <div className={crescendoCooldownPct === 0 ? 'opacity-40 grayscale pointer-events-none' : ''}>
                               <div className="flex justify-between items-center mb-1">
-                                <span className="text-xs font-bold text-emerald-500 dark:text-emerald-400">BPM Retour au calme</span>
+                                <span className="text-xs font-bold text-emerald-500 dark:text-emerald-400">BPM Retour au calme{crescendoCooldownPct === 0 && ' (0% — sans effet)'}</span>
                                 <span className={`text-sm font-black ${textHighlight}`}>{crescendoCooldownBpm}</span>
                               </div>
                               <input
                                 type="range" min={crescendoBpmFloor} max={crescendoWarmupBpm ?? bpm}
                                 value={crescendoCooldownBpm ?? crescendoBpmFloor}
                                 onChange={(e) => setCrescendoCooldownBpm(parseInt(e.target.value) || crescendoBpmFloor)}
-                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none accent-emerald-500"
+                                disabled={crescendoCooldownPct === 0}
+                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none accent-emerald-500 disabled:cursor-not-allowed"
                               />
                             </div>
                         </div>
