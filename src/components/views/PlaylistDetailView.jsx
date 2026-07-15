@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Pause, Play,
   GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, Calendar, ChevronDown, ChevronUp,
@@ -107,6 +107,12 @@ export default function PlaylistDetailView({
   // Replié par défaut : ce tableau ne sert qu'à vérifier ponctuellement une
   // correspondance de données (import CSV Garmin/Strava), pas à un usage courant.
   const [showRawImportTable, setShowRawImportTable] = useState(false);
+  // Filet de sécurité multi-navigateurs pour le bouton "Planifier" (voir plus
+  // bas) : un <input type="date"> rendu invisible et superposé à un <label>
+  // s'ouvre au clic dans la plupart des navigateurs, mais pas de façon fiable
+  // partout (Safari en particulier peut ignorer ce clic précis, sans aucune
+  // erreur visible) — d'où le retour "le bouton Planifier ne fonctionne pas".
+  const plannedDateInputRef = useRef(null);
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
@@ -195,12 +201,24 @@ export default function PlaylistDetailView({
                 {/* Date optionnelle, sert uniquement de clé de tri dans "Mes
                     Séances" (section "Planifiées") — jamais obligatoire. */}
                 <label
+                  onClick={(e) => {
+                    // showPicker() force l'ouverture explicitement là où l'API existe
+                    // (Chrome/Edge récents) — sans ce filet, le clic pouvait ne
+                    // simplement rien faire dans certains navigateurs. Sur les
+                    // navigateurs sans showPicker (Safari plus anciens, Firefox),
+                    // on laisse le comportement natif label→input inchangé.
+                    if (plannedDateInputRef.current?.showPicker) {
+                      e.preventDefault();
+                      plannedDateInputRef.current.showPicker();
+                    }
+                  }}
                   className={`relative flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors border cursor-pointer bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 ${cardBorder} ${textHighlight}`}
                   title="Planifier une date pour cette séance (optionnel — sert juste à trier 'Mes Séances')"
                 >
                   <Calendar size={16} />
                   <span>{currentPlaylist.plannedDate ? new Date(currentPlaylist.plannedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : 'Planifier'}</span>
                   <input
+                    ref={plannedDateInputRef}
                     type="date"
                     value={currentPlaylist.plannedDate || ''}
                     onChange={(e) => setPlaylistPlannedDate(currentPlaylist.id, e.target.value)}
