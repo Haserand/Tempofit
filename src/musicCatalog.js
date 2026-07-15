@@ -348,7 +348,19 @@ const detectTitleStyleConflict = (title, requestedGenres) => {
  * titre...), jamais pour une comparaison/clé (toggleGenre, selectedGenres,
  * ARTIST_CATALOG[genre]...), qui doivent continuer à utiliser le genre brut.
  */
-const GENRE_DISPLAY_LABELS = { 'Autre': 'Divers' };
+const GENRE_DISPLAY_LABELS = {
+  'Autre': 'Divers',
+  // Renommage d'affichage uniquement (retour direct) : le catalogue réel
+  // derrière cette clé est du J-pop/C-pop (YOASOBI, RADWIMPS, Jay Chou,
+  // Mayday...), pas du K-pop — "Musique asiatique" laissait croire à un
+  // recoupement avec le genre "K-pop" (les deux partagent d'ailleurs le même
+  // mot-clé Deezer 'asian', Deezer n'ayant pas de catégorie plus précise),
+  // alors que ce sont deux scènes musicales bien distinctes. La clé interne
+  // 'Musique asiatique' reste inchangée partout ailleurs (mêmes raisons que
+  // pour "Autre" → "Divers" : ne pas désynchroniser les données déjà
+  // enregistrées par les utilisateurs).
+  'Musique asiatique': 'J-pop & C-pop',
+};
 const genreDisplayLabel = (genre) => GENRE_DISPLAY_LABELS[genre] || genre;
 
 /**
@@ -400,7 +412,7 @@ const normalizeGenreForDisplay = (rawGenre) => {
  * — l'utiliser ici afficherait "Métal" sur n'importe quel titre Rock
  * générique, ce qui serait faux la plupart du temps, pas un cas de fusion.
  */
-const getGenresForDisplay = (rawGenre) => {
+const getGenresForDisplay = (rawGenre, artistName = null) => {
   if (!rawGenre) return ['Genre inconnu'];
   const allKnownGenres = [...new Set([...STANDARD_GENRES, ...NAUGHTY_GENRES, ...EXTRA_GENRES])];
   const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -414,7 +426,28 @@ const getGenresForDisplay = (rawGenre) => {
   // est le SEUL match — retour direct de l'utilisateur, qui a bien identifié
   // la cause : la matching logic elle-même reste inchangée, seul l'affichage
   // est filtré ici.
-  const filtered = direct.length > 1 ? direct.filter(g => g !== 'Autre') : direct;
+  let filtered = direct.length > 1 ? direct.filter(g => g !== 'Autre') : direct;
+
+  // K-pop et "Musique asiatique" (affiché "J-pop & C-pop") partagent le MÊME
+  // mot-clé Deezer ('asian') — Deezer n'a pas de sous-catégorie plus précise à
+  // l'intérieur de sa propre "Asian Music", donc un même genre_id matche
+  // systématiquement LES DEUX, alors qu'un titre donné est réellement soit
+  // l'un soit l'autre, jamais les deux à la fois (contrairement à "Alternative
+  // Rock", qui peut légitimement être Rock ET Alternative en même temps — un
+  // vrai cas de fusion). Retour direct : afficher les deux à chaque fois était
+  // redondant/trompeur. Désambiguïsé ici via L'ARTISTE (seul signal fiable
+  // dans ce cas précis, le genre_id ne suffit pas) : si l'artiste appartient à
+  // l'un des 2 catalogues mais pas l'autre, on ne garde que celui-là. Si
+  // l'artiste est inconnu des deux catalogues (ou si `artistName` n'est pas
+  // fourni par l'appelant), on garde les deux plutôt que de deviner au hasard
+  // lequel retirer.
+  if (filtered.includes('K-pop') && filtered.includes('Musique asiatique') && artistName) {
+    const inKpop = (ARTIST_CATALOG['K-pop'] || []).includes(artistName);
+    const inJCpop = (ARTIST_CATALOG['Musique asiatique'] || []).includes(artistName);
+    if (inKpop && !inJCpop) filtered = filtered.filter(g => g !== 'Musique asiatique');
+    else if (inJCpop && !inKpop) filtered = filtered.filter(g => g !== 'K-pop');
+  }
+
   const result = filtered.length > 0 ? filtered : [rawGenre];
   return result.map(genreDisplayLabel);
 };
