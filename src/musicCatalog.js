@@ -399,25 +399,95 @@ const genreDisplayLabel = (genre) => GENRE_DISPLAY_LABELS[genre] || genre;
  * `genreWeights` (toujours indexé sur "Autre"), qui ne trouvait alors plus sa
  * valeur réelle sous la clé "Divers".
  */
-const normalizeGenreForDisplay = (rawGenre) => {
-  if (!rawGenre) return 'Genre inconnu';
+/**
+ * resolveCanonicalGenres — cœur partagé entre normalizeGenreForDisplay (un
+ * seul nom) et getGenresForDisplay (liste complète) : résout la liste des
+ * genres CANONIQUES (noms internes, ex. "K-pop" — PAS le libellé d'affichage
+ * "Divers"/"J-pop & C-pop", appliqué séparément par chaque appelant selon son
+ * besoin) correspondant à un genre Deezer brut, avec la même désambiguïsation
+ * à 3 niveaux (marqueur de langue > artiste > script) dans les deux cas —
+ * avant cette extraction, normalizeGenreForDisplay (utilisée par le
+ * graphique "Répartition par style" et par le calcul d'écart de pondération
+ * de genre) n'en bénéficiait pas du tout, et pouvait renvoyer "Autre" pour un
+ * titre K-pop bien identifiable autrement (voir le garde-fou anti-"Autre"
+ * ci-dessous, BUG RÉEL RENCONTRÉ : un titre K-pop entier comptabilisé comme
+ * "Divers" dans ce graphique).
+ */
+const resolveCanonicalGenres = (rawGenre, artistName = null, title = null) => {
+  if (!rawGenre) return [];
   const allKnownGenres = [...new Set([...STANDARD_GENRES, ...NAUGHTY_GENRES, ...EXTRA_GENRES])];
   // Priorité à une correspondance EXACTE (insensible à la casse/accents) avant
   // le matching approximatif ci-dessous. BUG RÉEL RENCONTRÉ SANS CETTE
   // PRIORITÉ : "K-pop" contient le mot "pop", donc isDirectGenreMatch('K-pop',
   // 'Pop') renvoyait vrai — et comme "Pop" apparaît avant "K-pop" dans la
-  // liste (STANDARD_GENRES avant EXTRA_GENRES), .find() retenait "Pop" à tort,
-  // y compris quand l'entrée était déjà LITTÉRALEMENT "K-pop" (un genre
-  // sélectionné par l'utilisateur, ou stocké tel quel sur un titre via le
-  // repli du catalogue d'artistes). Le matching approximatif reste nécessaire
-  // pour un vrai genre BRUT Deezer inconnu (ex. "Alternative Rock"), mais une
-  // entrée qui est déjà un de nos noms canoniques doit toujours se reconnaître
-  // elle-même en premier.
+  // liste (STANDARD_GENRES avant EXTRA_GENRES), .find()/.filter() retenait
+  // "Pop" à tort, y compris quand l'entrée était déjà LITTÉRALEMENT "K-pop".
   const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const exact = allKnownGenres.find(g => normalize(g) === normalize(rawGenre));
-  if (exact) return exact;
-  const match = allKnownGenres.find(g => isDirectGenreMatch(rawGenre, g));
-  return match || rawGenre;
+  if (exact) return [exact];
+
+  const direct = allKnownGenres.filter(g => isDirectGenreMatch(rawGenre, g));
+  // "Autre" matche TOUJOURS, quel que soit le genre réel (voir
+  // isDirectGenreMatch, "Autre" = absence de restriction) — ne doit jamais
+  // "gagner" par simple accident d'ordre dans allKnownGenres face à un genre
+  // plus précis qui matche aussi (ex. "Autre" apparaît avant "K-pop" dans la
+  // liste, via NAUGHTY_GENRES). On ne le garde que s'il est le SEUL match.
+  let filtered = direct.length > 1 ? direct.filter(g => g !== 'Autre') : direct;
+
+  // K-pop et "Musique asiatique" (affiché "J-pop & C-pop") partagent le MÊME
+  // mot-clé Deezer ('asian') — Deezer n'a pas de sous-catégorie plus précise à
+  // l'intérieur de sa propre "Asian Music", donc un même genre_id matche
+  // systématiquement LES DEUX, alors qu'un titre donné est réellement soit
+  // l'un soit l'autre, jamais les deux à la fois (contrairement à "Alternative
+  // Rock", qui peut légitimement être Rock ET Alternative en même temps — un
+  // vrai cas de fusion). Désambiguïsé en 3 temps, du signal le plus fiable au
+  // moins fiable :
+  //   1. MARQUEUR DE LANGUE explicite dans le titre ("(Japanese Ver.)"...) —
+  //      voir detectLanguageVersionGenre. Prime même sur un artiste par
+  //      ailleurs connu d'un seul catalogue : porte sur CE titre précis, pas
+  //      sur la carrière générale de l'artiste (beaucoup de groupes K-pop ont
+  //      des versions japonaises dédiées au marché japonais).
+  //   2. L'ARTISTE : si toujours ambigu, et connu d'un seul des 2 catalogues
+  //      (comparaison insensible à la casse — BUG RÉEL CONSTATÉ : "Monsta X"
+  //      dans le catalogue ne matchait jamais "MONSTA X" tel que Deezer le
+  //      renvoie, stylisation officielle du groupe).
+  //   3. Si toujours ambigu : le SCRIPT du TITRE (hangul coréen vs
+  //      hiragana/katakana/kanji japonais/chinois), voir detectScriptGenre
+  //      plus bas. N'aide QUE si le titre affiche vraiment de l'écriture
+  //      non-latine chez Deezer — beaucoup de titres restent romanisés
+  //      (alphabet latin) même pour une sortie coréenne/japonaise, auquel cas
+  //      ce niveau ne détecte rien non plus et on garde les deux genres
+  //      plutôt que de deviner au hasard.
+  //   Un artiste à VRAIE double carrière (ex. TVXQ, actif en K-pop ET en J-pop
+  //   sous le nom "Tohoshinki") peut légitimement rester ambigu même après ces
+  //   3 niveaux — ce n'est alors pas une détection ratée, c'est une ambiguïté
+  //   réelle qu'aucune de ces heuristiques ne peut trancher avec certitude.
+  if (filtered.includes('K-pop') && filtered.includes('Musique asiatique')) {
+    const langGenre = title ? detectLanguageVersionGenre(title) : null;
+    if (langGenre === 'K-pop') filtered = filtered.filter(g => g !== 'Musique asiatique');
+    else if (langGenre === 'Musique asiatique') filtered = filtered.filter(g => g !== 'K-pop');
+
+    if (filtered.includes('K-pop') && filtered.includes('Musique asiatique') && artistName) {
+      const normalizedArtist = normalize(artistName);
+      const inKpop = (ARTIST_CATALOG['K-pop'] || []).some(a => normalize(a) === normalizedArtist);
+      const inJCpop = (ARTIST_CATALOG['Musique asiatique'] || []).some(a => normalize(a) === normalizedArtist);
+      if (inKpop && !inJCpop) filtered = filtered.filter(g => g !== 'Musique asiatique');
+      else if (inJCpop && !inKpop) filtered = filtered.filter(g => g !== 'K-pop');
+    }
+    if (filtered.includes('K-pop') && filtered.includes('Musique asiatique') && title) {
+      const scriptGenre = detectScriptGenre(title);
+      if (scriptGenre === 'K-pop') filtered = filtered.filter(g => g !== 'Musique asiatique');
+      else if (scriptGenre === 'Musique asiatique') filtered = filtered.filter(g => g !== 'K-pop');
+    }
+  }
+
+  return filtered.length > 0 ? filtered : [rawGenre];
+};
+
+const normalizeGenreForDisplay = (rawGenre, artistName = null, title = null) => {
+  if (!rawGenre) return 'Genre inconnu';
+  const [first] = resolveCanonicalGenres(rawGenre, artistName, title);
+  return first || rawGenre;
 };
 
 /**
@@ -507,72 +577,7 @@ const detectLanguageVersionConflict = (title, requestedGenres) => {
 
 const getGenresForDisplay = (rawGenre, artistName = null, title = null) => {
   if (!rawGenre) return ['Genre inconnu'];
-  const allKnownGenres = [...new Set([...STANDARD_GENRES, ...NAUGHTY_GENRES, ...EXTRA_GENRES])];
-  const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const exact = allKnownGenres.find(g => normalize(g) === normalize(rawGenre));
-  if (exact) return [genreDisplayLabel(exact)];
-  const direct = allKnownGenres.filter(g => isDirectGenreMatch(rawGenre, g));
-  // "Autre" matche TOUJOURS, quel que soit le genre réel (voir
-  // isDirectGenreMatch, "Autre" = absence de restriction) — bruyant dès qu'un
-  // genre plus précis a AUSSI été trouvé (ex. "Autre, K-pop, Musique
-  // asiatique" sur un même titre). On ne le garde dans l'affichage que s'il
-  // est le SEUL match — retour direct de l'utilisateur, qui a bien identifié
-  // la cause : la matching logic elle-même reste inchangée, seul l'affichage
-  // est filtré ici.
-  let filtered = direct.length > 1 ? direct.filter(g => g !== 'Autre') : direct;
-
-  // K-pop et "Musique asiatique" (affiché "J-pop & C-pop") partagent le MÊME
-  // mot-clé Deezer ('asian') — Deezer n'a pas de sous-catégorie plus précise à
-  // l'intérieur de sa propre "Asian Music", donc un même genre_id matche
-  // systématiquement LES DEUX, alors qu'un titre donné est réellement soit
-  // l'un soit l'autre, jamais les deux à la fois (contrairement à "Alternative
-  // Rock", qui peut légitimement être Rock ET Alternative en même temps — un
-  // vrai cas de fusion). Désambiguïsé en 3 temps, du signal le plus fiable au
-  // moins fiable :
-  //   1. MARQUEUR DE LANGUE explicite dans le titre ("(Japanese Ver.)"...) —
-  //      voir detectLanguageVersionGenre. Prime même sur un artiste par
-  //      ailleurs connu d'un seul catalogue : porte sur CE titre précis, pas
-  //      sur la carrière générale de l'artiste (beaucoup de groupes K-pop ont
-  //      des versions japonaises dédiées au marché japonais).
-  //   2. L'ARTISTE : si toujours ambigu, et connu d'un seul des 2 catalogues.
-  //   3. Si toujours ambigu : le SCRIPT du TITRE (hangul coréen vs
-  //      hiragana/katakana/kanji japonais/chinois), voir detectScriptGenre
-  //      plus bas. N'aide QUE si le titre affiche vraiment de l'écriture
-  //      non-latine chez Deezer — beaucoup de titres restent romanisés
-  //      (alphabet latin) même pour une sortie coréenne/japonaise, auquel cas
-  //      ce niveau ne détecte rien non plus et on garde les deux genres
-  //      plutôt que de deviner au hasard.
-  //   Un artiste à VRAIE double carrière (ex. TVXQ, actif en K-pop ET en J-pop
-  //   sous le nom "Tohoshinki") peut légitimement rester ambigu même après ces
-  //   3 niveaux — ce n'est alors pas une détection ratée, c'est une ambiguïté
-  //   réelle qu'aucune de ces heuristiques ne peut trancher avec certitude.
-  if (filtered.includes('K-pop') && filtered.includes('Musique asiatique')) {
-    const langGenre = title ? detectLanguageVersionGenre(title) : null;
-    if (langGenre === 'K-pop') filtered = filtered.filter(g => g !== 'Musique asiatique');
-    else if (langGenre === 'Musique asiatique') filtered = filtered.filter(g => g !== 'K-pop');
-
-    if (filtered.includes('K-pop') && filtered.includes('Musique asiatique') && artistName) {
-      // Comparaison insensible à la casse — BUG RÉEL CONSTATÉ : "Monsta X" dans
-      // le catalogue (casse mixte) ne matchait jamais "MONSTA X" tel que
-      // Deezer le renvoie (tout en majuscules, stylisation officielle du
-      // groupe), donc la désambiguïsation échouait silencieusement pour ce nom
-      // précis. `normalize` (déjà définie plus haut dans cette fonction) gère
-      // aussi les accents, utile pour d'autres noms d'artistes composés.
-      const normalizedArtist = normalize(artistName);
-      const inKpop = (ARTIST_CATALOG['K-pop'] || []).some(a => normalize(a) === normalizedArtist);
-      const inJCpop = (ARTIST_CATALOG['Musique asiatique'] || []).some(a => normalize(a) === normalizedArtist);
-      if (inKpop && !inJCpop) filtered = filtered.filter(g => g !== 'Musique asiatique');
-      else if (inJCpop && !inKpop) filtered = filtered.filter(g => g !== 'K-pop');
-    }
-    if (filtered.includes('K-pop') && filtered.includes('Musique asiatique') && title) {
-      const scriptGenre = detectScriptGenre(title);
-      if (scriptGenre === 'K-pop') filtered = filtered.filter(g => g !== 'Musique asiatique');
-      else if (scriptGenre === 'Musique asiatique') filtered = filtered.filter(g => g !== 'K-pop');
-    }
-  }
-
-  const result = filtered.length > 0 ? filtered : [rawGenre];
-  return result.map(genreDisplayLabel);
+  return resolveCanonicalGenres(rawGenre, artistName, title).map(genreDisplayLabel);
 };
 
 export {
