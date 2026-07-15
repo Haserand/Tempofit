@@ -4,7 +4,7 @@ import {
   Target, Loader2, Zap, BookmarkPlus, Info, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Flame,
   TrendingUp, Gauge,
 } from 'lucide-react';
-import { STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning } from '../../musicCatalog';
+import { STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, genreDisplayLabel } from '../../musicCatalog';
 import DualRangeSlider from '../shared/DualRangeSlider';
 import {
   WORKOUT_TYPES, NAUGHTY_WORKOUT_ORDER, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_LABELS,
@@ -512,7 +512,7 @@ export default function GeneratorView({
                                 const warning = getGenreLocalDepthWarning(genre);
                                 return (
                                   <button key={genre} onClick={() => toggleSegmentGenre(segment.id, genre)} title={warning || undefined} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
-                                    {genre}{warning && <span className="ml-1">⚠️</span>}
+                                    {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                                   </button>
                                 );
                               })}
@@ -527,7 +527,7 @@ export default function GeneratorView({
                                   const warning = getGenreLocalDepthWarning(genre);
                                   return (
                                     <button key={genre} onClick={() => toggleSegmentGenre(segment.id, genre)} title={warning || undefined} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
-                                      {genre}{warning && <span className="ml-1">⚠️</span>}
+                                      {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                                     </button>
                                   );
                                 })}
@@ -569,7 +569,7 @@ export default function GeneratorView({
                     return (
                       <button key={genre} onClick={() => toggleGenre(genre)} title={warning || undefined} className={`px-5 py-3 rounded-full text-base font-bold transition-all duration-200 border-2 ${isSelected ?
                         `${bgAccentClass} ${borderAccentClass} text-white shadow-md scale-105` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
-                        {genre}{warning && <span className="ml-1">⚠️</span>}
+                        {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                       </button>
                     )
                   })}
@@ -588,7 +588,7 @@ export default function GeneratorView({
                       return (
                         <button key={genre} onClick={() => toggleGenre(genre)} title={warning || undefined} className={`px-5 py-3 rounded-full text-base font-bold transition-all duration-200 border-2 ${isSelected ?
                           `${bgAccentClass} ${borderAccentClass} text-white shadow-md scale-105` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
-                          {genre}{warning && <span className="ml-1">⚠️</span>}
+                          {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                         </button>
                       )
                     })}
@@ -603,7 +603,7 @@ export default function GeneratorView({
                     <span className={`text-xs font-bold ${textMuted} w-full`}>Répartition entre les genres choisis :</span>
                     {selectedGenres.map(genre => (
                       <div key={genre} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl ${cardBg} border ${cardBorder}`}>
-                        <span className={`text-sm font-bold ${textHighlight}`}>{genre}</span>
+                        <span className={`text-sm font-bold ${textHighlight}`}>{genreDisplayLabel(genre)}</span>
                         <input
                           type="number" min="0" max="100"
                           value={genreWeights[genre] ?? 0}
