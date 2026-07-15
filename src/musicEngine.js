@@ -29,7 +29,7 @@
  * sans risque (même logique que `searchWorldMusicApi` conservée dans App.jsx).
  */
 
-import { ARTIST_CATALOG, DEEZER_GENRE_KEYWORDS, isDirectGenreMatch, genreRoughlyMatches, detectTitleStyleConflict } from './musicCatalog';
+import { ARTIST_CATALOG, DEEZER_GENRE_KEYWORDS, WEAK_DEEZER_KEYWORD_GENRES, isDirectGenreMatch, genreRoughlyMatches, detectTitleStyleConflict } from './musicCatalog';
 import { formatDuration } from './utils/format';
 
 
@@ -511,53 +511,8 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
     }
   }
 
-  // 3. DEEZER EN DIRECT, tolérance exacte : mot-clé de CHAQUE genre sélectionné, une
-  //    recherche par genre entrelacée round-robin (voir searchDeezerForGenres) —
-  //    essayée en premier car elle explore beaucoup plus large que le catalogue
-  //    d'artistes de l'étape 4 (tout Deezer, pas juste une liste d'artistes choisis).
   const genresForQuery = (selectedGenres && selectedGenres.length > 0) ? selectedGenres : ['Autre'];
   const candidateCap = Math.min(Math.max(8, genresForQuery.length * 3), 24);
-  try {
-    const exactMatch = await searchDeezerForGenres(genresForQuery, minBpm, maxBpm, excludeYoutubeIds, preferredDuration, candidateCap, allowLongTracks);
-    if (exactMatch) return exactMatch;
-  } catch (e) {
-    // Échec silencieux (proxy indisponible, hors-ligne...) : on continue vers la tentative suivante.
-  }
-
-  // 3.5. DEEZER, TOLÉRANCE ÉLARGIE : changement de priorité délibéré. Avant de
-  //      sacrifier l'écoute (base locale, jamais d'extrait), on retente Deezer avec
-  //      une fenêtre BPM doublée (plafonnée à ±40 BPM d'écart max) — un vrai titre
-  //      écoutable légèrement hors tempo sert mieux l'usage réel qu'un repli qui ne
-  //      s'écoute pas du tout. Marqué `_isFallback`.
-  try {
-    const widenedTolerance = Math.min(tolerance * 2, 40);
-    const widenedMatch = await searchDeezerForGenres(genresForQuery, targetBpm - widenedTolerance, targetBpm + widenedTolerance, excludeYoutubeIds, preferredDuration, candidateCap, allowLongTracks);
-    if (widenedMatch) return { ...widenedMatch, _isFallback: true };
-  } catch (e) {
-    // Échec silencieux : on continue vers le fallback local.
-  }
-
-  // 4. BACKUP CATALOGUE D'ARTISTES, tolérance exacte : Deezer n'a rien donné (ni
-  //    exact, ni élargi) via la recherche généraliste par mot-clé de genre. On
-  //    retente ici via ARTIST_CATALOG (voir musicCatalog.js et searchArtistsForBpm)
-  //    — une recherche par ARTISTE représentatif du genre plutôt que par mot-clé
-  //    flou. Exempté de l'historique inter-génération (`historyExcludeIds`) —
-  //    même logique que l'ancienne base de titres : mieux vaut réutiliser un
-  //    artiste déjà vu que de forcer un mauvais genre.
-  //
-  // ⚠️ Le genre du titre choisi EST revérifié ci-dessous (album Deezer réel via
-  // `resolveDeezerGenre`), contrairement à une version précédente qui faisait
-  // confiance au genre du catalogue sans vérification ("l'artiste EST le choix
-  // de genre"). Ce raisonnement ne tient pas pour un artiste éclectique dont les
-  // albums couvrent plusieurs genres chez Deezer (cas réel rencontré : Baby
-  // Lasagna, catalogué "Métal/Alternative" mais dont certains singles sont
-  // taggés Pop côté Deezer) — sans cette vérification, un tel titre aurait pu
-  // être étiqueté avec le genre du catalogue sans que ce soit vraiment le sien,
-  // sans le moindre avertissement. Même mécanisme que plus haut dans ce fichier
-  // (voir `getSingleMatchingTrack`, la boucle `MAX_GENRE_CHECK_ATTEMPTS`) :
-  // quelques candidats sont essayés dans l'ordre de proximité de durée, le
-  // premier dont le VRAI genre correspond est retenu ; sinon, dernier recours,
-  // le premier candidat testé est gardé quand même mais marqué `_genreMismatch`.
   const validGenres = selectedGenres.length > 0 ? selectedGenres : ['Métal'];
   const localExcludeIds = excludeYoutubeIds.filter(id => !historyExcludeIds.includes(id));
   // Correspondance artiste → genre D'ORIGINE (pas juste une liste plate de noms) :
@@ -572,58 +527,123 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   let catalogArtists = [...artistGenreMap.keys()];
   if (catalogArtists.length === 0) { catalogArtists = ARTIST_CATALOG['Pop']; ARTIST_CATALOG['Pop'].forEach(a => artistGenreMap.set(a, 'Pop')); }
 
-  try {
-    const stubs = await searchArtistsForBpm(catalogArtists, minBpm, maxBpm, localExcludeIds, 6, 5);
-    if (stubs.length > 0) {
-      let details = (await fetchInBatches(stubs.slice(0, 20), 10, async (s) => {
-        const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
-        return full;
-      })).filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm && f.preview);
-      // GARDE-FOU TITRE (voir detectTitleStyleConflict) : même si l'artiste est
-      // choisi comme représentatif du genre, un remix/une version particulière
-      // de ce titre peut être dans un tout autre style (ex. remix hardstyle).
-      details = details.filter(f => !detectTitleStyleConflict(f.title, validGenres));
-      if (!allowLongTracks) details = details.filter(f => (f.duration || 0) <= MAX_TRACK_DURATION);
-      if (details.length > 0) {
-        const ordered = preferredDuration
-          ? [...details].sort((a, b) => Math.abs((a.duration || 180) - preferredDuration) - Math.abs((b.duration || 180) - preferredDuration))
-          : [...details].sort(() => Math.random() - 0.5);
-
-        const MAX_CATALOG_GENRE_CHECK_ATTEMPTS = 5;
-        let picked = null;
-        let pickedRealGenre = null;
-        let genreMismatch = false;
-        const attempted = [];
-        for (let attempt = 0; attempt < Math.min(MAX_CATALOG_GENRE_CHECK_ATTEMPTS, ordered.length); attempt++) {
-          const candidate = ordered[attempt];
-          const realGenre = await resolveDeezerGenre(candidate.id);
-          attempted.push({ candidate, realGenre });
-          if (realGenre && validGenres.some(g => genreRoughlyMatches(realGenre, g))) {
-            picked = candidate;
-            pickedRealGenre = realGenre;
-            break;
-          }
-        }
-        if (!picked) {
-          const fallback = attempted[0] || { candidate: ordered[0], realGenre: null };
-          picked = fallback.candidate;
-          pickedRealGenre = fallback.realGenre;
-          genreMismatch = true;
-        }
-
-        return {
-          youtubeId: `deezer-${picked.id}`, title: picked.title,
-          artist: picked.artist ? picked.artist.name : 'Inconnu',
-          bpm: Math.round(parseFloat(picked.bpm)), duration: picked.duration || 180,
-          genre: pickedRealGenre || artistGenreMap.get(picked.artist ? picked.artist.name : '') || validGenres[0],
-          preview: picked.preview,
-          ...(genreMismatch ? { _genreMismatch: true, _isFallback: true } : {})
-        };
-      }
+  // DEEZER EN DIRECT, mot-clé de CHAQUE genre sélectionné, une recherche par genre
+  // entrelacée round-robin (voir searchDeezerForGenres), tolérance exacte PUIS
+  // élargie (±40 BPM max, marquée `_isFallback`) — extraite en fonction nommée
+  // pour pouvoir être tentée soit AVANT soit APRÈS le catalogue d'artistes
+  // ci-dessous, selon l'ordre décidé plus bas (voir WEAK_DEEZER_KEYWORD_GENRES).
+  const tryDeezerKeywordSearch = async () => {
+    try {
+      const exactMatch = await searchDeezerForGenres(genresForQuery, minBpm, maxBpm, excludeYoutubeIds, preferredDuration, candidateCap, allowLongTracks);
+      if (exactMatch) return exactMatch;
+    } catch (e) {
+      // Échec silencieux (proxy indisponible, hors-ligne...) : on continue vers la tentative suivante.
     }
-  } catch (e) {
-    // Échec silencieux : on continue vers le repli extrême ci-dessous.
-  }
+    try {
+      const widenedTolerance = Math.min(tolerance * 2, 40);
+      const widenedMatch = await searchDeezerForGenres(genresForQuery, targetBpm - widenedTolerance, targetBpm + widenedTolerance, excludeYoutubeIds, preferredDuration, candidateCap, allowLongTracks);
+      if (widenedMatch) return { ...widenedMatch, _isFallback: true };
+    } catch (e) {
+      // Échec silencieux : on continue vers le fallback local.
+    }
+    return null;
+  };
+
+  // BACKUP CATALOGUE D'ARTISTES, tolérance exacte : recherche via ARTIST_CATALOG
+  // (voir musicCatalog.js et searchArtistsForBpm) — une recherche par ARTISTE
+  // représentatif du genre plutôt que par mot-clé flou. Exempté de l'historique
+  // inter-génération (`historyExcludeIds`) — même logique que l'ancienne base de
+  // titres : mieux vaut réutiliser un artiste déjà vu que de forcer un mauvais
+  // genre. Extraite en fonction nommée pour la même raison que ci-dessus.
+  //
+  // ⚠️ Le genre du titre choisi EST revérifié ci-dessous (album Deezer réel via
+  // `resolveDeezerGenre`), contrairement à une version précédente qui faisait
+  // confiance au genre du catalogue sans vérification ("l'artiste EST le choix
+  // de genre"). Ce raisonnement ne tient pas pour un artiste éclectique dont les
+  // albums couvrent plusieurs genres chez Deezer (cas réel rencontré : Baby
+  // Lasagna, catalogué "Métal/Alternative" mais dont certains singles sont
+  // taggés Pop côté Deezer) — sans cette vérification, un tel titre aurait pu
+  // être étiqueté avec le genre du catalogue sans que ce soit vraiment le sien,
+  // sans le moindre avertissement. Même mécanisme que plus haut dans ce fichier
+  // (voir `getSingleMatchingTrack`, la boucle `MAX_GENRE_CHECK_ATTEMPTS`) :
+  // quelques candidats sont essayés dans l'ordre de proximité de durée, le
+  // premier dont le VRAI genre correspond est retenu ; sinon, dernier recours,
+  // le premier candidat testé est gardé quand même mais marqué `_genreMismatch`.
+  const tryArtistCatalogSearch = async () => {
+    try {
+      const stubs = await searchArtistsForBpm(catalogArtists, minBpm, maxBpm, localExcludeIds, 6, 5);
+      if (stubs.length > 0) {
+        let details = (await fetchInBatches(stubs.slice(0, 20), 10, async (s) => {
+          const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
+          return full;
+        })).filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm && f.preview);
+        // GARDE-FOU TITRE (voir detectTitleStyleConflict) : même si l'artiste est
+        // choisi comme représentatif du genre, un remix/une version particulière
+        // de ce titre peut être dans un tout autre style (ex. remix hardstyle).
+        details = details.filter(f => !detectTitleStyleConflict(f.title, validGenres));
+        if (!allowLongTracks) details = details.filter(f => (f.duration || 0) <= MAX_TRACK_DURATION);
+        if (details.length > 0) {
+          const ordered = preferredDuration
+            ? [...details].sort((a, b) => Math.abs((a.duration || 180) - preferredDuration) - Math.abs((b.duration || 180) - preferredDuration))
+            : [...details].sort(() => Math.random() - 0.5);
+
+          const MAX_CATALOG_GENRE_CHECK_ATTEMPTS = 5;
+          let picked = null;
+          let pickedRealGenre = null;
+          let genreMismatch = false;
+          const attempted = [];
+          for (let attempt = 0; attempt < Math.min(MAX_CATALOG_GENRE_CHECK_ATTEMPTS, ordered.length); attempt++) {
+            const candidate = ordered[attempt];
+            const realGenre = await resolveDeezerGenre(candidate.id);
+            attempted.push({ candidate, realGenre });
+            if (realGenre && validGenres.some(g => genreRoughlyMatches(realGenre, g))) {
+              picked = candidate;
+              pickedRealGenre = realGenre;
+              break;
+            }
+          }
+          if (!picked) {
+            const fallback = attempted[0] || { candidate: ordered[0], realGenre: null };
+            picked = fallback.candidate;
+            pickedRealGenre = fallback.realGenre;
+            genreMismatch = true;
+          }
+
+          return {
+            youtubeId: `deezer-${picked.id}`, title: picked.title,
+            artist: picked.artist ? picked.artist.name : 'Inconnu',
+            bpm: Math.round(parseFloat(picked.bpm)), duration: picked.duration || 180,
+            genre: pickedRealGenre || artistGenreMap.get(picked.artist ? picked.artist.name : '') || validGenres[0],
+            preview: picked.preview,
+            ...(genreMismatch ? { _genreMismatch: true, _isFallback: true } : {})
+          };
+        }
+      }
+    } catch (e) {
+      // Échec silencieux : on continue vers le repli extrême ci-dessous.
+    }
+    return null;
+  };
+
+  // ORDRE DE LA CASCADE : la recherche Deezer généraliste par mot-clé (ci-dessus)
+  // explore bien plus large que le catalogue d'artistes en temps normal, donc
+  // essayée en premier par défaut. MAIS pour les genres dont le mot-clé est une
+  // approximation en recherche TEXTE LIBRE plutôt qu'un vrai filtre de genre
+  // (voir WEAK_DEEZER_KEYWORD_GENRES dans musicCatalog.js — cas réel constaté :
+  // "K-pop" remontait un titre de Heaven 17, groupe britannique des années 80,
+  // parce que "asian" y est cherché comme simple mot dans les métadonnées), le
+  // catalogue d'artistes (recherche par ARTISTE réel du genre) est nettement
+  // plus fiable — on inverse l'ordre uniquement quand TOUS les genres demandés
+  // sont dans ce cas (un mélange avec un genre au mot-clé fiable garde l'ordre
+  // normal, qui reste pertinent pour ce genre-là).
+  const allGenresHaveWeakKeyword = genresForQuery.length > 0 && genresForQuery.every(g => WEAK_DEEZER_KEYWORD_GENRES.includes(g));
+  const primarySearch = allGenresHaveWeakKeyword ? tryArtistCatalogSearch : tryDeezerKeywordSearch;
+  const secondarySearch = allGenresHaveWeakKeyword ? tryDeezerKeywordSearch : tryArtistCatalogSearch;
+
+  const primaryResult = await primarySearch();
+  if (primaryResult) return primaryResult;
+  const secondaryResult = await secondarySearch();
+  if (secondaryResult) return secondaryResult;
 
   // GetSongBPM SUPPRIMÉ ICI (ancienne étape 5) : ne fournissait jamais d'extrait
   // écoutable, inventait une durée aléatoire, et donnait souvent un artiste
