@@ -2160,9 +2160,23 @@ export default function App() {
           </div>
         )}
 
-        {/* Bouton flottant "Trophées" avec badge du nombre débloqué */}
+        {/* Bouton flottant "Trophées" avec badge du nombre débloqué — discret/gris
+            tant qu'aucun trophée n'est débloqué (pas de doré, pas de badge), pour
+            garder l'effet de surprise/récompense au 1er déblocage, SANS pour
+            autant le rendre invisible : un utilisateur qui n'a encore rien
+            débloqué doit quand même voir qu'un système de récompenses existe,
+            pour être incité à aller découvrir les fonctionnalités qui y mènent
+            (Favoris, Partager, Planifier...) — décision prise après discussion,
+            plutôt que de le masquer complètement avant le 1er trophée. */}
         <div className="absolute top-4 right-4 md:top-6 md:right-6 z-[60]">
-          <button onClick={() => changeView('trophies')} className="relative p-3 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-500 rounded-full shadow-lg border border-yellow-200 dark:border-yellow-700/50 hover:scale-110 transition-transform flex items-center justify-center">
+          <button
+            onClick={() => changeView('trophies')}
+            className={`relative p-3 rounded-full shadow-lg border hover:scale-110 transition-transform flex items-center justify-center ${
+              userStats.unlockedTrophies.length > 0
+                ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-500 border-yellow-200 dark:border-yellow-700/50'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 border-gray-200 dark:border-gray-700'
+            }`}
+          >
             <Trophy size={22} className={userStats.unlockedTrophies.length > 0 ? "fill-yellow-500" : ""} />
             {userStats.unlockedTrophies.length > 0 && (
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-sm">
