@@ -1673,8 +1673,14 @@ export default function App() {
       if (consecutive >= 3) { stats.hasStreak3 = true; break; }
     }
 
-    checkTrophies(stats);
-    if(stats.unlockedTrophies.length === userStats.unlockedTrophies.length) {
+    // BUG CORRIGÉ : `stats.unlockedTrophies.length === userStats.unlockedTrophies.length`
+    // comparait le même tableau à lui-même (checkTrophies ne mute jamais l'objet
+    // reçu, voir useUserStats.js) — toujours vrai, donc le toast générique
+    // ci-dessous s'affichait AUSSI après un déblocage de trophée et écrasait
+    // silencieusement le toast "Trophée débloqué" (un seul toast à la fois).
+    // On se fie maintenant à la valeur de retour de checkTrophies.
+    const trophyUnlocked = checkTrophies(stats);
+    if (!trophyUnlocked) {
       showToast(updatedCompletions.length > 1 ? `Séance re-marquée comme faite ! (${updatedCompletions.length}e fois) 💪` : "Session marquée comme terminée ! 💪");
     }
   };
