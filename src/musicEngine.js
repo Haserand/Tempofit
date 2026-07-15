@@ -353,7 +353,7 @@ const searchDeezerPage = async (q, limit, maxIndex = 100) => {
   return stubs;
 };
 
-const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYoutubeIds, preferredDuration, candidateCap, allowLongTracks = false) => {
+const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYoutubeIds, preferredDuration, candidateCap, allowLongTracks = false, allowGenreMismatch = true) => {
   const stubsByGenre = await Promise.all(genresForQuery.map(async (g) => {
     const keyword = DEEZER_GENRE_KEYWORDS[g] || '';
     const q = `bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
@@ -420,6 +420,19 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYout
     }
   }
   if (!full) {
+    // Pour les genres au mot-clé fiable (comportement historique, INCHANGÉ) : on
+    // garde quand même le 1er candidat essayé plutôt que rien — un titre
+    // légèrement hors-genre reste préférable à un trou dans la playlist.
+    // Pour les genres au mot-clé FRAGILE (`allowGenreMismatch = false`, voir
+    // WEAK_DEEZER_KEYWORD_GENRES et l'appelant getSingleMatchingTrack) : cas
+    // réel qui a motivé ce changement — le catalogue d'artistes n'avait rien
+    // trouvé au bon BPM pour "K-pop", donc cette recherche texte libre reprenait
+    // la main et acceptait TOUJOURS son 1er résultat même hors-sujet (Heaven 17,
+    // groupe britannique des années 80, pour une requête "asian"). Ici, on
+    // préfère renvoyer `null` — la cascade retombera alors sur le repli extrême
+    // (même catalogue d'artistes, BPM ignoré), qui donne au moins un VRAI artiste
+    // du genre demandé plutôt qu'un résultat texte libre arbitraire.
+    if (!allowGenreMismatch) return null;
     full = attempted[0] || ordered[0];
     genreMismatch = true;
   }
@@ -513,6 +526,10 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
 
   const genresForQuery = (selectedGenres && selectedGenres.length > 0) ? selectedGenres : ['Autre'];
   const candidateCap = Math.min(Math.max(8, genresForQuery.length * 3), 24);
+  // Calculé tôt (utilisé à la fois par tryDeezerKeywordSearch ci-dessous, pour
+  // décider si un résultat hors-genre est acceptable, ET plus bas pour l'ordre
+  // de la cascade) — voir WEAK_DEEZER_KEYWORD_GENRES dans musicCatalog.js.
+  const allGenresHaveWeakKeyword = genresForQuery.length > 0 && genresForQuery.every(g => WEAK_DEEZER_KEYWORD_GENRES.includes(g));
   const validGenres = selectedGenres.length > 0 ? selectedGenres : ['Métal'];
   const localExcludeIds = excludeYoutubeIds.filter(id => !historyExcludeIds.includes(id));
   // Correspondance artiste → genre D'ORIGINE (pas juste une liste plate de noms) :
@@ -534,14 +551,14 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   // ci-dessous, selon l'ordre décidé plus bas (voir WEAK_DEEZER_KEYWORD_GENRES).
   const tryDeezerKeywordSearch = async () => {
     try {
-      const exactMatch = await searchDeezerForGenres(genresForQuery, minBpm, maxBpm, excludeYoutubeIds, preferredDuration, candidateCap, allowLongTracks);
+      const exactMatch = await searchDeezerForGenres(genresForQuery, minBpm, maxBpm, excludeYoutubeIds, preferredDuration, candidateCap, allowLongTracks, !allGenresHaveWeakKeyword);
       if (exactMatch) return exactMatch;
     } catch (e) {
       // Échec silencieux (proxy indisponible, hors-ligne...) : on continue vers la tentative suivante.
     }
     try {
       const widenedTolerance = Math.min(tolerance * 2, 40);
-      const widenedMatch = await searchDeezerForGenres(genresForQuery, targetBpm - widenedTolerance, targetBpm + widenedTolerance, excludeYoutubeIds, preferredDuration, candidateCap, allowLongTracks);
+      const widenedMatch = await searchDeezerForGenres(genresForQuery, targetBpm - widenedTolerance, targetBpm + widenedTolerance, excludeYoutubeIds, preferredDuration, candidateCap, allowLongTracks, !allGenresHaveWeakKeyword);
       if (widenedMatch) return { ...widenedMatch, _isFallback: true };
     } catch (e) {
       // Échec silencieux : on continue vers le fallback local.
@@ -635,8 +652,8 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   // catalogue d'artistes (recherche par ARTISTE réel du genre) est nettement
   // plus fiable — on inverse l'ordre uniquement quand TOUS les genres demandés
   // sont dans ce cas (un mélange avec un genre au mot-clé fiable garde l'ordre
-  // normal, qui reste pertinent pour ce genre-là).
-  const allGenresHaveWeakKeyword = genresForQuery.length > 0 && genresForQuery.every(g => WEAK_DEEZER_KEYWORD_GENRES.includes(g));
+  // normal, qui reste pertinent pour ce genre-là). `allGenresHaveWeakKeyword`
+  // calculé plus haut (réutilisé par tryDeezerKeywordSearch également).
   const primarySearch = allGenresHaveWeakKeyword ? tryArtistCatalogSearch : tryDeezerKeywordSearch;
   const secondarySearch = allGenresHaveWeakKeyword ? tryDeezerKeywordSearch : tryArtistCatalogSearch;
 
