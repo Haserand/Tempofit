@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Music, Trash2, CheckCircle, Circle, Activity, List, Calendar, GripVertical } from 'lucide-react';
 
 /**
@@ -19,6 +20,11 @@ export default function PlaylistCard({
   draggable, onDragStart, onDragEnter, onDragEnd, isDragging,
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, bgAccentClass, inputBg, inputBorder } = theme;
+  // Filet de sécurité multi-navigateurs pour le bouton "Ajouter une date"
+  // ci-dessous (même raison que PlaylistDetailView.jsx) : un <input
+  // type="date"> caché derrière un <label> ne s'ouvre pas de façon fiable
+  // partout au clic seul.
+  const completionDateInputRef = useRef(null);
   const isCompleted = playlist.completions && playlist.completions.length > 0;
 
   const borderClasses = rankStyle
@@ -139,14 +145,36 @@ export default function PlaylistCard({
               );
             })()}
             {renderCompletionsList(playlist)}
-            <button onClick={(e) => markPlaylistAsCompleted(e, playlist.id)} className={`flex items-center justify-center w-full py-2 text-xs font-bold ${inputBg} hover:bg-green-100 dark:hover:bg-green-900/20 hover:text-green-600 rounded-lg transition-colors border ${inputBorder}`}>
-              <Circle size={14} className="mr-1.5"/> Marquer comme refaite aujourd'hui
-            </button>
+            {/* Fusionné avec l'ancienne pastille "+ Ajouter une date" (retour direct :
+                elles faisaient doublon) — ce bouton permet maintenant de choisir
+                n'importe quelle date, pas seulement "aujourd'hui". Le clic sur le
+                <label> ouvre explicitement le sélecteur via showPicker() (filet de
+                sécurité multi-navigateurs), et non plus un simple appel direct à
+                markPlaylistAsCompleted au clic. */}
+            <label
+              onClick={(e) => {
+                e.stopPropagation();
+                if (completionDateInputRef.current?.showPicker) {
+                  e.preventDefault();
+                  completionDateInputRef.current.showPicker();
+                }
+              }}
+              className={`relative flex items-center justify-center w-full py-2 text-xs font-bold cursor-pointer ${inputBg} hover:bg-green-100 dark:hover:bg-green-900/20 hover:text-green-600 rounded-lg transition-colors border ${inputBorder}`}
+            >
+              <Circle size={14} className="mr-1.5"/> Ajouter une date
+              <input
+                ref={completionDateInputRef}
+                type="date"
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => { e.stopPropagation(); if (e.target.value) markPlaylistAsCompleted(playlist.id, e.target.value); e.target.value = ''; }}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+              />
+            </label>
             {garminBadge}
           </div>
         ) : (
           <>
-            <button onClick={(e) => markPlaylistAsCompleted(e, playlist.id)} className={`flex items-center text-gray-500 hover:text-green-600 text-xs font-bold ${inputBg} hover:bg-green-100 px-3 py-1.5 rounded-lg transition-colors border ${inputBorder}`}>
+            <button onClick={(e) => { e.stopPropagation(); markPlaylistAsCompleted(playlist.id); }} className={`flex items-center text-gray-500 hover:text-green-600 text-xs font-bold ${inputBg} hover:bg-green-100 px-3 py-1.5 rounded-lg transition-colors border ${inputBorder}`}>
               <Circle size={14} className="mr-1.5"/> Marquer comme faite
             </button>
             <span className={`text-[10px] uppercase font-bold tracking-wider ${textMuted}`}>Créée le {playlist.createdAt}</span>
