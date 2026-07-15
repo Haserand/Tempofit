@@ -310,6 +310,37 @@ const detectTitleStyleConflict = (title, requestedGenres) => {
  * Utilisée PARTOUT où un genre est affiché dans l'app (liste de titres,
  * graphiques...), pas seulement à un endroit, pour un affichage cohérent.
  */
+/**
+ * genreDisplayLabel — libellé montré à l'utilisateur pour un genre donné,
+ * DISTINCT de l'identifiant interne. Pour l'instant, seul "Autre" a un
+ * libellé différent ("Divers") : "Autre" reste la clé interne partout
+ * ailleurs (ARTIST_CATALOG, DEEZER_GENRE_KEYWORDS, EXTRA_GENRES, et surtout
+ * la valeur déjà STOCKÉE dans les playlists/routines sauvegardées par les
+ * utilisateurs, ex. `config.selectedGenres: ['Autre']`) — renommer la chaîne
+ * littéralement partout aurait cassé la correspondance avec ces données déjà
+ * enregistrées. "Divers" décrit mieux un vrai fourre-tout que "Autre" (qui
+ * sonne comme "un genre que je n'ai pas prévu" plutôt que "n'importe quoi") —
+ * retour direct de l'utilisateur.
+ *
+ * À utiliser UNIQUEMENT pour le texte affiché (libellé de pill, tag sous un
+ * titre...), jamais pour une comparaison/clé (toggleGenre, selectedGenres,
+ * ARTIST_CATALOG[genre]...), qui doivent continuer à utiliser le genre brut.
+ */
+const GENRE_DISPLAY_LABELS = { 'Autre': 'Divers' };
+const genreDisplayLabel = (genre) => GENRE_DISPLAY_LABELS[genre] || genre;
+
+/**
+ * ATTENTION : cette fonction sert aussi de clé de REGROUPEMENT fonctionnel
+ * ailleurs dans le code (useGeneratorForm.js : comparaison avec les % de
+ * pondération de genre saisis par l'utilisateur, qui restent indexés sur le
+ * genre BRUT/interne) — elle doit donc renvoyer l'identifiant CANONIQUE
+ * inchangé ("Autre", pas "Divers"), jamais le libellé d'affichage. Appliquer
+ * `genreDisplayLabel` UNIQUEMENT au moment de l'affichage final (ex.
+ * `genreDistributionData` dans App.jsx), jamais ici — corrigé après une
+ * régression : appliquer genreDisplayLabel ici cassait la comparaison avec
+ * `genreWeights` (toujours indexé sur "Autre"), qui ne trouvait alors plus sa
+ * valeur réelle sous la clé "Divers".
+ */
 const normalizeGenreForDisplay = (rawGenre) => {
   if (!rawGenre) return 'Genre inconnu';
   const allKnownGenres = [...new Set([...STANDARD_GENRES, ...NAUGHTY_GENRES, ...EXTRA_GENRES])];
@@ -352,9 +383,18 @@ const getGenresForDisplay = (rawGenre) => {
   const allKnownGenres = [...new Set([...STANDARD_GENRES, ...NAUGHTY_GENRES, ...EXTRA_GENRES])];
   const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const exact = allKnownGenres.find(g => normalize(g) === normalize(rawGenre));
-  if (exact) return [exact];
+  if (exact) return [genreDisplayLabel(exact)];
   const direct = allKnownGenres.filter(g => isDirectGenreMatch(rawGenre, g));
-  return direct.length > 0 ? direct : [rawGenre];
+  // "Autre" matche TOUJOURS, quel que soit le genre réel (voir
+  // isDirectGenreMatch, "Autre" = absence de restriction) — bruyant dès qu'un
+  // genre plus précis a AUSSI été trouvé (ex. "Autre, K-pop, Musique
+  // asiatique" sur un même titre). On ne le garde dans l'affichage que s'il
+  // est le SEUL match — retour direct de l'utilisateur, qui a bien identifié
+  // la cause : la matching logic elle-même reste inchangée, seul l'affichage
+  // est filtré ici.
+  const filtered = direct.length > 1 ? direct.filter(g => g !== 'Autre') : direct;
+  const result = filtered.length > 0 ? filtered : [rawGenre];
+  return result.map(genreDisplayLabel);
 };
 
 export {
@@ -370,5 +410,6 @@ export {
   TITLE_STYLE_OVERRIDE_KEYWORDS,
   detectTitleStyleConflict,
   normalizeGenreForDisplay,
+  genreDisplayLabel,
   getGenresForDisplay
 };
