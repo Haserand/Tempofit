@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Activity, Clock, Music, Play, List, Plus, Check, Settings, Pause, Search, X, Heart, ListPlus, Loader2, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Edit3, Copy, Trophy, Upload, ChevronUp, ChevronDown, Target, MessageCircle, ExternalLink, Sun, Moon } from 'lucide-react';
-import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, normalizeGenreForDisplay, getGenresForDisplay } from './musicCatalog';
+import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, normalizeGenreForDisplay, genreDisplayLabel, getGenresForDisplay } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appConfig';
 
 // =====================================================================================
@@ -967,7 +967,7 @@ export default function App() {
         <div className="flex items-center space-x-1"><Activity size={14}/><span>{source.workoutType}{source.customActivity ? ` (${source.customActivity})` : ''}</span></div>
         <div className="flex items-center space-x-1"><Clock size={14}/><span>{distanceOrDuration}</span></div>
         <div className="flex items-center space-x-1"><Zap size={14}/><span>{source.isCrescendoMode ? 'Crescendo (3 phases)' : (source.isIntervalMode ? `${(source.segments || []).length} phases` : `${source.bpm} BPM`)}</span></div>
-        {genres.length > 0 && <div className="flex items-center space-x-1"><Music size={14}/><span>{genres.join(', ')}</span></div>}
+        {genres.length > 0 && <div className="flex items-center space-x-1"><Music size={14}/><span>{genres.map(genreDisplayLabel).join(', ')}</span></div>}
         {extra}
       </div>
     );
@@ -1894,10 +1894,14 @@ export default function App() {
     if (!currentPlaylist) return [];
     const buckets = {};
     currentPlaylist.tracks.forEach(t => {
+      // Regroupement sur le genre CANONIQUE (normalizeGenreForDisplay), le
+      // libellé "Divers" (genreDisplayLabel) n'est appliqué qu'à l'affichage
+      // final juste en dessous — cette fonction reste un simple regroupement,
+      // pas un renommage.
       const g = normalizeGenreForDisplay(t.genre);
       buckets[g] = (buckets[g] || 0) + t.duration;
     });
-    return Object.entries(buckets).map(([name, value]) => ({ name, value }));
+    return Object.entries(buckets).map(([name, value]) => ({ name: genreDisplayLabel(name), value }));
   }, [currentPlaylist]);
 
   // Segment actuellement sélectionné (déterminé par la position X du curseur, pas par
@@ -2738,7 +2742,7 @@ export default function App() {
                           if (isSelected) { if (current.length > 1) setEditingRoutine({...editingRoutine, selectedGenres: current.filter(g => g !== genre)}); }
                           else setEditingRoutine({...editingRoutine, selectedGenres: [...current, genre]});
                         }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
-                          {genre}{warning && <span className="ml-1">⚠️</span>}
+                          {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                         </button>
                       );
                     })}
@@ -2759,7 +2763,7 @@ export default function App() {
                             if (isSelected) { if (current.length > 1) setEditingRoutine({...editingRoutine, selectedGenres: current.filter(g => g !== genre)}); }
                             else setEditingRoutine({...editingRoutine, selectedGenres: [...current, genre]});
                           }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
-                            {genre}{warning && <span className="ml-1">⚠️</span>}
+                            {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                           </button>
                         );
                       })}
