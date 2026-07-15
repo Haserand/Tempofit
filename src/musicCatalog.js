@@ -125,6 +125,28 @@ const DEEZER_GENRE_KEYWORDS = {
 };
 
 /**
+ * Genres dont le mot-clé Deezer ci-dessus (DEEZER_GENRE_KEYWORDS) est une
+ * approximation en recherche TEXTE LIBRE plutôt qu'un vrai filtre de genre
+ * fiable — retour direct après un cas réel constaté sur "K-pop" : la requête
+ * Deezer `bpm_min:"X" bpm_max:"Y" asian` a remonté un titre du groupe
+ * britannique Heaven 17 (années 80, aucun rapport), parce que "asian" y est
+ * un mot cherché en texte libre dans les métadonnées, pas un genre_id strict.
+ * Pour CES genres précisément, `getSingleMatchingTrack` (musicEngine.js)
+ * tente le catalogue d'artistes (recherche par ARTISTE représentatif du
+ * genre, beaucoup plus fiable) AVANT la recherche Deezer généraliste par
+ * mot-clé, plutôt qu'en dernier recours comme pour les genres au mot-clé
+ * direct (ex. "rock", "jazz" — des mots qui correspondent vraisemblablement
+ * de façon fiable au vocabulaire de genre réel de Deezer).
+ *
+ * - 'K-pop' et 'Musique asiatique' partagent le même mot-clé ('asian'), donc
+ *   le même risque.
+ * - 'Bandes originales' a PLUSIEURS mots-clés tentés en même temps
+ *   (['soundtrack', 'films/games', 'film', 'games']), déjà signalé comme
+ *   jamais confirmé avec certitude contre le vrai vocabulaire Deezer.
+ */
+const WEAK_DEEZER_KEYWORD_GENRES = ['K-pop', 'Musique asiatique', 'Bandes originales'];
+
+/**
  * Avertissement sur la profondeur du CATALOGUE D'ARTISTES pour un genre donné —
  * affiché en infobulle sur les sélecteurs de genre. Porte sur le nombre
  * d'artistes représentatifs listés, pas sur le nombre de titres (qui dépend
@@ -403,6 +425,7 @@ export {
   NAUGHTY_GENRES,
   EXTRA_GENRES,
   DEEZER_GENRE_KEYWORDS,
+  WEAK_DEEZER_KEYWORD_GENRES,
   getGenreLocalDepthWarning,
   GENRE_EQUIVALENCE_GROUPS,
   isDirectGenreMatch,
