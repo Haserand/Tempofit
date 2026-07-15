@@ -268,6 +268,30 @@ const genreRoughlyMatches = (realGenre, requestedGenre) => {
  * SPÉCIFIQUES et univoques (pas juste "remix" seul, trop générique — un remix
  * peut très bien rester dans le même genre) pour éviter les faux positifs.
  */
+/**
+ * isLiveOrPerformanceVersion — détecte si un titre est une version live/scène
+ * ("(Live)", "Performance Version"...) plutôt que la version studio d'un
+ * morceau. Utilisé pour DÉPRIORISER (pas exclure) ces versions dans la
+ * sélection finale d'une playlist (voir buildSegmentTracks dans
+ * musicEngine.js) — retour direct : une version live peut différer
+ * sensiblement de ce à quoi on s'attend (tempo qui dérive avec le public,
+ * bruit de foule, intro/outro à rallonge), même avec un BPM affiché correct.
+ * Reste choisissable normalement si mise en Favoris explicitement — cette
+ * dépriorisation ne s'applique volontairement PAS aux favoris, un choix déjà
+ * explicite de l'utilisateur.
+ *
+ * Limite assumée (comme pour TITLE_STYLE_OVERRIDE_KEYWORDS ci-dessus, même
+ * principe de mots-clés simples) : un vrai titre de morceau STUDIO contenant
+ * le mot "Live" par coïncidence (ex. "Live and Let Die") serait aussi
+ * déprioritisé à tort — accepté comme compromis, l'effet reste juste "cette
+ * version passe en dernier", jamais une exclusion.
+ */
+const isLiveOrPerformanceVersion = (title) => {
+  if (!title) return false;
+  const t = title.toLowerCase();
+  return /\blive\b|\bperformance\b|\bconcert\b/.test(t);
+};
+
 const TITLE_STYLE_OVERRIDE_KEYWORDS = {
   'hardstyle': ['Techno', 'Electro', 'Dance & EDM'],
   'dubstep': ['Electro', 'Dance & EDM'],
@@ -501,6 +525,7 @@ export {
   isDirectGenreMatch,
   genreRoughlyMatches,
   TITLE_STYLE_OVERRIDE_KEYWORDS,
+  isLiveOrPerformanceVersion,
   detectTitleStyleConflict,
   normalizeGenreForDisplay,
   genreDisplayLabel,
