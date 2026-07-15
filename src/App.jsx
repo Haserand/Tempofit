@@ -40,6 +40,7 @@ import { useCustomActivity } from './hooks/useCustomActivity';
 import { useGeneratorForm } from './hooks/useGeneratorForm';
 import { useTrackSearch, SEARCH_LOADING_MESSAGES } from './hooks/useTrackSearch';
 import { useFavorites } from './hooks/useFavorites';
+import { useAthleticProfile } from './hooks/useAthleticProfile';
 import { useRoutines } from './hooks/useRoutines';
 import { useUserStats } from './hooks/useUserStats';
 import { useAudioPreview } from './hooks/useAudioPreview';
@@ -336,6 +337,16 @@ export default function App() {
     isAddingArtist, setIsAddingArtist,
     addFavoriteArtistValidated, toggleTrackFavorite, toggleArtistFavorite,
   } = useFavorites(showToast);
+
+  // Profil Athlétique (zones de cadence/BPM) — voir useAthleticProfile.js.
+  // Pas encore connecté au générateur ni aux stats à ce stade (étape 1/2 du
+  // plan : modèle de données + interface Réglages d'abord) ; `athleticProfile`
+  // est déjà exposé aux autres vues dès maintenant pour que le branchement
+  // des étapes suivantes n'ait qu'à consommer ce state, pas à le redéfinir.
+  const {
+    athleticProfile, setAthleticProfile,
+    computeZonesFromBaseCadence, setBaseCadence, setZone, resetAthleticProfile,
+  } = useAthleticProfile();
 
   const {
     routines, setRoutines,
@@ -2437,7 +2448,10 @@ export default function App() {
 
             {/* ===================== VIEW: SETTINGS (OPTIONS ET COMPTES) ===================== */}
             {view === 'settings' && (
-              <SettingsView theme={themeTokens} spotifyToken={spotifyToken} loginSpotify={loginSpotify} setSpotifyToken={setSpotifyToken} />
+              <SettingsView
+                theme={themeTokens} spotifyToken={spotifyToken} loginSpotify={loginSpotify} setSpotifyToken={setSpotifyToken}
+                athleticProfile={athleticProfile} setBaseCadence={setBaseCadence} setZone={setZone} resetAthleticProfile={resetAthleticProfile}
+              />
             )}
 
             {/* ===================== VIEW: FAVORITES ===================== */}
