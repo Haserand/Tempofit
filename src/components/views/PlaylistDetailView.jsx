@@ -7,7 +7,7 @@ import {
   ResponsiveContainer, LineChart, CartesianGrid, ReferenceArea, ReferenceLine, XAxis, YAxis,
   Tooltip as RechartsTooltip, Legend, Line, PieChart, Pie, Cell,
 } from 'recharts';
-import { getGenresForDisplay, genreDisplayLabel } from '../../musicCatalog';
+import { getGenresForDisplay, genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog';
 import { formatDuration } from '../../utils/format';
 
 // Couleurs des 2 donuts en bas de page (répartition BPM / style) — statique,
@@ -113,6 +113,27 @@ export default function PlaylistDetailView({
   // partout (Safari en particulier peut ignorer ce clic précis, sans aucune
   // erreur visible) — d'où le retour "le bouton Planifier ne fonctionne pas".
   const plannedDateInputRef = useRef(null);
+
+  // Même logique de clic-pour-filtrer que StatsView (voir selectedStatsGenre/
+  // selectedStatsBpmBucket) : cliquer une part du donut "Répartition par
+  // style"/"Répartition par BPM" met en évidence les titres correspondants
+  // dans la liste ci-dessous ET le segment correspondant sur la courbe
+  // d'intensité au-dessus — jusqu'ici, ces 2 graphiques étaient purement
+  // décoratifs (aucune interaction), contrairement à leurs équivalents dans
+  // Stats. Indépendants l'un de l'autre (comme dans StatsView) : rien n'empêche
+  // de combiner un filtre genre ET un filtre BPM à la fois si les deux sont
+  // actifs. Un re-clic sur la même part la désélectionne (toggle).
+  const [selectedDetailGenre, setSelectedDetailGenre] = useState(null);
+  const [selectedDetailBpmBucket, setSelectedDetailBpmBucket] = useState(null);
+  // Même regroupement que celui utilisé pour construire genreDistributionData/
+  // bpmDistributionData (App.jsx) — recalculé ici par titre pour comparer
+  // chaque titre à la part cliquée, plutôt que de dupliquer un état séparé.
+  const trackGenreLabel = (t) => genreDisplayLabel(normalizeGenreForDisplay(t.genre, t.artist, t.title));
+  const trackBpmBucketLabel = (t) => { const b = Math.floor(t.bpm / 20) * 20; return `${b}-${b + 19}`; };
+  const hasDetailFilter = selectedDetailGenre !== null || selectedDetailBpmBucket !== null;
+  const trackMatchesDetailFilter = (t) =>
+    (selectedDetailGenre === null || trackGenreLabel(t) === selectedDetailGenre) &&
+    (selectedDetailBpmBucket === null || trackBpmBucketLabel(t) === selectedDetailBpmBucket);
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
@@ -361,6 +382,21 @@ export default function PlaylistDetailView({
                 />
               )}
 
+              {/* Surbrillance de TOUS les segments correspondant au filtre actif d'un
+                  des 2 camemberts plus bas (Répartition par style/BPM) — distincte de
+                  la surbrillance rouge ci-dessus (un clic direct sur la courbe), en
+                  ambre pour ne pas les confondre visuellement. */}
+              {hasDetailFilter && trackSegments.map((seg, i) => trackMatchesDetailFilter(seg.track) && (
+                <ReferenceArea
+                  key={`filter-${i}`}
+                  x1={chartAxisType === 'distance' ? seg.startDist * distanceDisplayFactor : seg.startTime}
+                  x2={chartAxisType === 'distance' ? seg.endDist * distanceDisplayFactor : seg.endTime}
+                  fill="#f59e0b"
+                  fillOpacity={0.18}
+                  stroke="none"
+                />
+              ))}
+
               {/* Repère vertical fin à chaque début de morceau. */}
               {trackSegments.map((seg, i) => (
                 <ReferenceLine
@@ -467,6 +503,23 @@ export default function PlaylistDetailView({
 
       {/* Liste des musiques AVEC BOUTON AJOUT MANUEL */}
       <div className={"rounded-3xl border overflow-hidden shadow-md " + cardBg + " " + cardBorder}>
+        {/* Bandeau de filtre actif — apparaît uniquement après un clic sur une part
+            d'un des 2 camemberts plus bas (voir selectedDetailGenre/
+            selectedDetailBpmBucket) : indique clairement quel filtre est appliqué
+            à la liste ci-dessous, avec un moyen explicite de le lever plutôt que de
+            devoir re-cliquer la part exacte dans le graphique. */}
+        {hasDetailFilter && (
+          <div className={`flex items-center justify-between gap-3 px-4 py-2.5 text-xs font-bold border-b ${cardBorder} bg-black/5 dark:bg-white/5 ${textHighlight}`}>
+            <span>
+              Titres associés
+              {selectedDetailGenre && <> · <span className={textColorClass}>{selectedDetailGenre}</span></>}
+              {selectedDetailBpmBucket && <> · <span className={textColorClass}>{selectedDetailBpmBucket} BPM</span></>}
+            </span>
+            <button onClick={() => { setSelectedDetailGenre(null); setSelectedDetailBpmBucket(null); }} className={`underline ${textMuted} hover:${textHighlight}`}>
+              Réinitialiser
+            </button>
+          </div>
+        )}
         <div className="divide-y divide-gray-100 dark:divide-gray-800/50">
           {currentPlaylist.tracks.map((track, index) => (
             <div
@@ -476,7 +529,7 @@ export default function PlaylistDetailView({
               onDragEnter={handleTrackDragEnter(index)}
               onDragOver={(e) => e.preventDefault()}
               onDragEnd={handleTrackDragEnd}
-              className={`flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-800/60 group ${draggedTrackIndex === index ? 'opacity-40' : ''}`}
+              className={`flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-800/60 group transition-opacity ${draggedTrackIndex === index ? 'opacity-40' : ''} ${hasDetailFilter && !trackMatchesDetailFilter(track) ? 'opacity-30' : ''} ${hasDetailFilter && trackMatchesDetailFilter(track) ? `${isNaughtyMode ? 'bg-rose-50 dark:bg-rose-950/20' : 'bg-red-50 dark:bg-red-950/20'}` : ''}`}
             >
               {/* Poignée de glisser-déposer — remplace les flèches ↑/↓. */}
               <div className={`shrink-0 cursor-grab active:cursor-grabbing px-1 ${textMuted}`} title="Glisser pour réordonner">
@@ -587,8 +640,10 @@ export default function PlaylistDetailView({
                   data={genreDistributionData} dataKey="value" nameKey="name"
                   cx="50%" cy="50%" innerRadius={55} outerRadius={85}
                   paddingAngle={3} cornerRadius={4} stroke="none"
+                  onClick={(entry) => setSelectedDetailGenre(prev => prev === entry.name ? null : entry.name)}
+                  style={{ cursor: 'pointer' }}
                 >
-                  {genreDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} />)}
+                  {genreDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} opacity={selectedDetailGenre && selectedDetailGenre !== entry.name ? 0.35 : 1} />)}
                 </Pie>
                 <RechartsTooltip formatter={(value, name) => {
                   const total = genreDistributionData.reduce((s, e) => s + e.value, 0);
@@ -603,11 +658,15 @@ export default function PlaylistDetailView({
               const total = genreDistributionData.reduce((s, e) => s + e.value, 0);
               const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
               return (
-                <div key={i} className="flex items-center gap-1.5 text-xs font-bold">
+                <button
+                  key={i}
+                  onClick={() => setSelectedDetailGenre(prev => prev === entry.name ? null : entry.name)}
+                  className={`flex items-center gap-1.5 text-xs font-bold rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedDetailGenre === entry.name ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+                >
                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }}></span>
                   <span className={textHighlight}>{entry.name}</span>
                   <span className={textMuted}>{pct}%</span>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -621,8 +680,10 @@ export default function PlaylistDetailView({
                   data={bpmDistributionData} dataKey="value" nameKey="name"
                   cx="50%" cy="50%" innerRadius={55} outerRadius={85}
                   paddingAngle={3} cornerRadius={4} stroke="none"
+                  onClick={(entry) => setSelectedDetailBpmBucket(prev => prev === entry.name ? null : entry.name)}
+                  style={{ cursor: 'pointer' }}
                 >
-                  {bpmDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} />)}
+                  {bpmDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} opacity={selectedDetailBpmBucket && selectedDetailBpmBucket !== entry.name ? 0.35 : 1} />)}
                 </Pie>
                 <RechartsTooltip formatter={(value, name) => {
                   const total = bpmDistributionData.reduce((s, e) => s + e.value, 0);
@@ -637,11 +698,15 @@ export default function PlaylistDetailView({
               const total = bpmDistributionData.reduce((s, e) => s + e.value, 0);
               const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
               return (
-                <div key={i} className="flex items-center gap-1.5 text-xs font-bold">
+                <button
+                  key={i}
+                  onClick={() => setSelectedDetailBpmBucket(prev => prev === entry.name ? null : entry.name)}
+                  className={`flex items-center gap-1.5 text-xs font-bold rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedDetailBpmBucket === entry.name ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+                >
                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }}></span>
                   <span className={textHighlight}>{entry.name}</span>
                   <span className={textMuted}>{pct}%</span>
-                </div>
+                </button>
               );
             })}
           </div>
