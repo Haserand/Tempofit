@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, Flame, Upload, ChevronUp, ChevronDown } from 'lucide-react';
+import { Activity, Flame, Upload, ChevronUp, ChevronDown, ChevronRight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { NAUGHTY_WORKOUT_LABELS } from '../../appConfig';
 import { genreDisplayLabel } from '../../musicCatalog';
@@ -21,7 +21,7 @@ import { formatDuration } from '../../utils/format';
  * playlist. Toujours lire `pl.config?.selectedGenres` / `pl.config?.bpm`.
  */
 export default function StatsView({
-  theme, savedPlaylists, userStats, changeView,
+  theme, savedPlaylists, userStats, changeView, setCurrentPlaylist,
   statsMode, setStatsMode,
   selectedStatsGenre, setSelectedStatsGenre,
   selectedStatsBpmBucket, setSelectedStatsBpmBucket,
@@ -40,6 +40,17 @@ export default function StatsView({
   // `!!p.isNaughty` normalise undefined/false en un booléen propre avant comparaison
   // (playlists anciennes sans champ).
   const playlistsForStats = savedPlaylists.filter(p => !!p.isNaughty === (statsMode === 'naughty'));
+
+  // Séances avec données réelles importées (Garmin/Strava) — voir la nouvelle
+  // section "Données réelles" plus bas. Une entrée par PLAYLIST (pas par date
+  // de complétion individuelle) : `actualDataByDate` peut contenir plusieurs
+  // dates pour une même playlist rejouée plusieurs fois, on les regroupe donc
+  // ligne par ligne plutôt que d'exploser en une ligne par date. Triées par
+  // date d'import la plus récente d'abord.
+  const playlistsWithRealData = playlistsForStats
+    .filter(p => p.actualDataByDate && Object.keys(p.actualDataByDate).length > 0)
+    .map(p => ({ playlist: p, dates: Object.keys(p.actualDataByDate).sort().reverse() }))
+    .sort((a, b) => (a.dates[0] < b.dates[0] ? 1 : -1));
 
   const genreSeconds = {};
   const genreSessions = {};
@@ -346,13 +357,46 @@ export default function StatsView({
             </div>
           </div>
 
-          {/* Donnée réelle importée (cadence/FC Garmin-Strava) — réutilise
-              userStats.dataImports, déjà suivi pour le trophée "Data Scientist"
-              mais jamais affiché nulle part avant. */}
-          {userStats.dataImports > 0 && (
-            <div className={`flex items-center gap-2 text-sm ${textMuted}`}>
-              <Upload size={14}/>
-              <span>{userStats.dataImports} import{userStats.dataImports > 1 ? 's' : ''} de données réelles (cadence/FC Garmin-Strava) — détail dans "Mes Séances".</span>
+          {/* Donnée réelle importée (cadence/FC Garmin-Strava) — avant, une simple
+              ligne de texte ("X imports...") apparaissait seulement s'il y en avait
+              déjà eu au moins un, et rien du tout sinon (aucune incitation à
+              essayer). Devenu un vrai encart : liste les séances concernées (avec
+              accès direct à leur détail) si au moins une existe, ou explique la
+              fonctionnalité et invite à l'essayer une fois si ce n'est encore
+              jamais arrivé. Scope volontairement identique au reste de cette page
+              (playlistsForStats, donc le mode Standard/Intime consulté). */}
+          {playlistsWithRealData.length > 0 ? (
+            <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
+              <h3 className={`font-bold mb-1 flex items-center gap-2 ${textHighlight}`}><Upload size={18} className={textColorClass}/> Données réelles importées</h3>
+              <p className={`text-xs mb-4 ${textMuted}`}>{playlistsWithRealData.reduce((s, p) => s + p.dates.length, 0)} séance{playlistsWithRealData.reduce((s, p) => s + p.dates.length, 0) > 1 ? 's' : ''} avec cadence/FC réelle (Garmin/Strava) sur {playlistsWithRealData.length} playlist{playlistsWithRealData.length > 1 ? 's' : ''} — clique pour comparer au réel.</p>
+              <div className="space-y-2">
+                {playlistsWithRealData.map(({ playlist, dates }) => (
+                  <button
+                    key={playlist.id}
+                    onClick={() => { setCurrentPlaylist(playlist); changeView('playlist'); }}
+                    className={`w-full flex items-center justify-between gap-3 text-sm rounded-xl px-3 py-2.5 transition-colors hover:bg-black/5 dark:hover:bg-white/5 border ${cardBorder}`}
+                  >
+                    <div className="min-w-0 text-left">
+                      <div className={`font-semibold truncate ${textHighlight}`}>{playlist.name}</div>
+                      <div className={`text-xs ${textMuted}`}>{dates.length} import{dates.length > 1 ? 's' : ''} · dernier le {formatSessionDate(dates[0])}</div>
+                    </div>
+                    <ChevronRight size={16} className={`shrink-0 ${textMuted}`} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder} flex items-start gap-4`}>
+              <div className={`shrink-0 p-2.5 rounded-xl ${bgAccentClass} text-white`}><Upload size={20}/></div>
+              <div>
+                <h3 className={`font-bold mb-1 ${textHighlight}`}>Compare tes séances au réel</h3>
+                <p className={`text-sm ${textMuted}`}>
+                  Tu n'as encore importé aucune donnée réelle (cadence ou fréquence cardiaque). Depuis le détail d'une séance <span className={`font-semibold ${textHighlight}`}>terminée</span> dans "Mes Séances", tu peux importer un export CSV Garmin ou Strava pour comparer ce que tu as vraiment fait au rythme visé — ça vaut le coup d'essayer au moins une fois.
+                </p>
+                <button onClick={() => changeView('playlists')} className={`mt-3 text-sm font-bold underline ${textColorClass}`}>
+                  Aller à Mes Séances →
+                </button>
+              </div>
             </div>
           )}
 
