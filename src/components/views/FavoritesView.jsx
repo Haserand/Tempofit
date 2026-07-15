@@ -147,7 +147,7 @@ export default function FavoritesView({
                 {!isNaughtyMode && (
                   <button
                     onClick={() => setShowExtraGenres(!showExtraGenres)}
-                    title={`${WEAK_DEEZER_KEYWORD_GENRES.map(genreDisplayLabel).join(', ')} : génération un peu plus longue.`}
+                    title="Certains genres ci-dessous : génération un peu plus longue."
                     className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 border-dashed ${cardBorder} ${textMuted} hover:${textHighlight}`}
                   >
                     {showExtraGenres ? '− Moins de genres' : '+ Plus de genres'}
