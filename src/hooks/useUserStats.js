@@ -26,6 +26,8 @@ export function useUserStats(showToast) {
     completedWorkoutTypes: [], hasAllWorkoutTypes: false,
     totalDistanceKm: 0, has100km: false,
     hasLightMode: false, hasStreak3: false,
+    hasExtraGenre: false, hasPlannedSession: false, hasAutoGen: false,
+    hasFirstRoutine: false, hasSharedSomething: false, hasUsedFavorites: false,
     unlockedTrophies: []
   }));
 
