@@ -29,7 +29,7 @@
  * sans risque (même logique que `searchWorldMusicApi` conservée dans App.jsx).
  */
 
-import { ARTIST_CATALOG, DEEZER_GENRE_KEYWORDS, WEAK_DEEZER_KEYWORD_GENRES, isDirectGenreMatch, genreRoughlyMatches, detectTitleStyleConflict, isLiveOrPerformanceVersion } from './musicCatalog';
+import { ARTIST_CATALOG, DEEZER_GENRE_KEYWORDS, WEAK_DEEZER_KEYWORD_GENRES, isDirectGenreMatch, genreRoughlyMatches, detectTitleStyleConflict, detectLanguageVersionConflict, isLiveOrPerformanceVersion } from './musicCatalog';
 import { formatDuration } from './utils/format';
 
 
@@ -466,7 +466,7 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYout
     // detectTitleStyleConflict) — un titre peut explicitement indiquer un style
     // différent (remix hardstyle, version acoustique...) même si le genre_id de
     // l'album dit le contraire.
-    const titleConflict = detectTitleStyleConflict(candidate.title, genresForQuery);
+    const titleConflict = detectTitleStyleConflict(candidate.title, genresForQuery) || detectLanguageVersionConflict(candidate.title, genresForQuery);
     const matches = !titleConflict && genresForQuery.some(g => genreRoughlyMatches(realGenre, g));
     if (matches) {
       full = candidate;
@@ -661,7 +661,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
         // GARDE-FOU TITRE (voir detectTitleStyleConflict) : même si l'artiste est
         // choisi comme représentatif du genre, un remix/une version particulière
         // de ce titre peut être dans un tout autre style (ex. remix hardstyle).
-        details = details.filter(f => !detectTitleStyleConflict(f.title, validGenres));
+        details = details.filter(f => !detectTitleStyleConflict(f.title, validGenres) && !detectLanguageVersionConflict(f.title, validGenres));
         if (!allowLongTracks) details = details.filter(f => (f.duration || 0) <= MAX_TRACK_DURATION);
         if (details.length > 0) {
           const ordered = preferredDuration
@@ -1096,7 +1096,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
     // — voir detectTitleStyleConflict) : appliqué à toutes les sources SAUF les
     // favoris explicites (choix délibéré de l'utilisateur, jamais annulé par un
     // mot dans le titre).
-    const titleConflictFree = (t) => (!t._deezerId && !t._isLocalDB) || !detectTitleStyleConflict(t.title, effectiveGenres);
+    const titleConflictFree = (t) => (!t._deezerId && !t._isLocalDB) || (!detectTitleStyleConflict(t.title, effectiveGenres) && !detectLanguageVersionConflict(t.title, effectiveGenres));
     const favoritesPool = availablePool.filter(t => !t._deezerId && !t._isLocalDB);
     const deezerDirectPool = availablePool.filter(t => t._deezerId && titleConflictFree(t) && effectiveGenres.some(g => isDirectGenreMatch(t.genre, g)));
     const localPoolMatches = availablePool.filter(t => t._isLocalDB && titleConflictFree(t) && !t._genreMismatch);
@@ -1252,7 +1252,7 @@ const findSameArtistReplacement = async (artistName, minBpm, maxBpm, excludeYout
     }));
     let valid = details.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm);
     if (!allowLongTracks) valid = valid.filter(f => (f.duration || 0) <= MAX_TRACK_DURATION);
-    valid = valid.filter(f => !detectTitleStyleConflict(f.title, requestedGenres));
+    valid = valid.filter(f => !detectTitleStyleConflict(f.title, requestedGenres) && !detectLanguageVersionConflict(f.title, requestedGenres));
     valid = valid.sort(() => Math.random() - 0.5);
 
     // Même garde-fou genre que le reste du moteur : même en restant sur le MÊME
