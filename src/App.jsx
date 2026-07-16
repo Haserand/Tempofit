@@ -396,6 +396,7 @@ export default function App() {
     crescendoWarmupPct, setCrescendoWarmupPct, crescendoCooldownPct, setCrescendoCooldownPct,
     CRESCENDO_MIN_MAIN_PCT,
     crescendoWarmupBpm, setCrescendoWarmupBpm, crescendoCooldownBpm, setCrescendoCooldownBpm,
+    bpmSourceIsProfile,
     allowLongTracks, setAllowLongTracks,
     targetMode, setTargetMode,
     hours, setHours,
@@ -2408,6 +2409,7 @@ export default function App() {
                 CRESCENDO_MIN_MAIN_PCT={CRESCENDO_MIN_MAIN_PCT}
                 crescendoWarmupBpm={crescendoWarmupBpm} setCrescendoWarmupBpm={setCrescendoWarmupBpm}
                 crescendoCooldownBpm={crescendoCooldownBpm} setCrescendoCooldownBpm={setCrescendoCooldownBpm}
+                bpmSourceIsProfile={bpmSourceIsProfile}
                 hours={hours} minutes={minutes} distanceVal={distanceVal} distanceUnit={distanceUnit}
                 paceMin={paceMin} setPaceMin={setPaceMin} paceSec={paceSec} setPaceSec={setPaceSec}
                 bpm={bpm}
