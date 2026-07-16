@@ -792,12 +792,6 @@ export default function PlaylistDetailView({
             </LineChart>
           </ResponsiveContainer>
           )}
-          {/* Repère de découverte pour le glisser-déposer directement sur la
-              courbe (retour direct : "je veux pouvoir prendre une partie du
-              graphique et la déplacer ailleurs") — même mécanisme de
-              réordonnancement que la liste plus bas, juste déclenché ici en
-              saisissant un segment sur la courbe plutôt qu'une ligne de la liste. */}
-          <p className={`text-xs text-center mt-2 ${textMuted}`}>🖱️ Glisse un segment de la courbe pour réordonner les titres.</p>
         </div>
       </div>
 
