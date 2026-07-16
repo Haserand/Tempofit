@@ -2,14 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Activity, Heart, Clock, Footprints, ListPlus, MapPin, SlidersHorizontal, Music, Trash2, Plus,
   Target, Loader2, Zap, BookmarkPlus, Info, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Flame,
-  TrendingUp, Gauge,
+  TrendingUp, Gauge, RotateCcw,
 } from 'lucide-react';
 import { STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, genreDisplayLabel, WEAK_DEEZER_KEYWORD_GENRES } from '../../musicCatalog';
 import { formatDuration } from '../../utils/format';
 import DualRangeSlider from '../shared/DualRangeSlider';
 import {
   WORKOUT_TYPES, NAUGHTY_WORKOUT_ORDER, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_LABELS,
-  WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET,
+  WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, ATHLETIC_ZONES,
 } from '../../appConfig';
 
 /**
@@ -40,6 +40,7 @@ export default function GeneratorView({
   setCurrentPlaylist, setIsBpmSearchMode, setSearchQuery, setWorldSearchResults,
   setResultsContextLabel, setNoUsableResultsHint, setIsSearchModalOpen, searchTracksByBpm,
   executeGeneration, isGenerating, getActiveWorkoutName, setIsSavingRoutineModalOpen,
+  athleticProfile, setBaseCadence, setZone, resetAthleticProfile,
 }) {
   const {
     cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass,
@@ -51,6 +52,20 @@ export default function GeneratorView({
   // Intime, 80 en mode standard), pour ne jamais proposer une valeur
   // absurdement basse même en ajustement manuel.
   const crescendoBpmFloor = isNaughtyMode ? 40 : 80;
+
+  // Profil Athlétique — DÉPLACÉ depuis Options & Comptes (retour direct :
+  // "personne ne le verra là-bas", ça sert au générateur, ça doit vivre ici).
+  // Replié par défaut (divulgation progressive, même logique que
+  // showExtraGenres/showScrollHint plus bas) : ne s'affiche en développé que
+  // si l'utilisateur clique dessus, pour ne pas s'interposer entre lui et le
+  // wizard pour qui n'en a pas l'usage.
+  const [showAthleticProfile, setShowAthleticProfile] = useState(false);
+  const [showExpertZones, setShowExpertZones] = useState(false);
+  const [baseCadenceDraft, setBaseCadenceDraft] = useState(athleticProfile.baseCadence ?? '');
+  const computeAndApplyZones = () => {
+    if (!baseCadenceDraft) return;
+    setBaseCadence(baseCadenceDraft);
+  };
 
   // Étape 3 : conteneur en hauteur fixe + `overflow-y-auto no-scrollbar` (la
   // barre de défilement est volontairement masquée pour l'esthétique), donc
@@ -95,6 +110,112 @@ export default function GeneratorView({
         <h1 className={`text-3xl md:text-5xl font-extrabold tracking-tight ${textHighlight}`}>{isNaughtyMode ? "Prépare l'ambiance..." : "Sculpte ta séance"}</h1>
         <p className="text-lg font-medium text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{displaySubtitleGen}</p>
       </div>
+
+      {/* Profil Athlétique — zones d'intensité de CADENCE musicale (BPM), pas de
+          fréquence cardiaque (voir useAthleticProfile.js). Replié par défaut ;
+          une fois configuré, pré-remplit automatiquement le mode Crescendo à
+          l'étape 3 (voir useGeneratorForm.js) — toujours modifiable là-bas
+          ensuite comme n'importe quel réglage manuel. */}
+      {!isNaughtyMode && (
+        <div className={`${cardBg} rounded-3xl border ${cardBorder} shadow-xl overflow-hidden`}>
+          <button
+            onClick={() => setShowAthleticProfile(!showAthleticProfile)}
+            className="w-full flex items-center justify-between gap-3 p-5 md:p-6 text-left"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={`shrink-0 p-2 rounded-xl ${bgAccentClass} text-white`}><Gauge size={20}/></div>
+              <div className="min-w-0">
+                <h3 className={`font-bold text-lg ${textHighlight}`}>Mon Profil Athlétique</h3>
+                <p className={`text-xs truncate ${textMuted}`}>
+                  {athleticProfile.isConfigured
+                    ? `Zones configurées (${athleticProfile.zone1}-${athleticProfile.zone4} BPM) — pré-remplit le mode Crescendo`
+                    : "Définis tes zones d'allure musicale pour préremplir le mode Crescendo"}
+                </p>
+              </div>
+            </div>
+            {showAthleticProfile ? <ChevronUp size={20} className={`shrink-0 ${textMuted}`}/> : <ChevronDown size={20} className={`shrink-0 ${textMuted}`}/>}
+          </button>
+
+          {showAthleticProfile && (
+            <div className="px-5 md:px-6 pb-6">
+              <div className="flex items-start justify-between gap-4 mb-2">
+                <p className={`text-sm ${textMuted}`}>Définis tes zones d'allure musicale pour que le générateur les propose automatiquement en Crescendo, et pour voir comment tes séances se répartissent entre elles dans Statistiques.</p>
+                {athleticProfile.isConfigured && (
+                  <button onClick={resetAthleticProfile} title="Effacer mon profil athlétique" className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20`}>
+                    <RotateCcw size={18}/>
+                  </button>
+                )}
+              </div>
+
+              {/* Assistant Rapide : une seule question, 4 zones calculées d'un
+                  coup (voir computeZonesFromBaseCadence, useAthleticProfile.js). */}
+              <div className={`mt-4 p-4 rounded-2xl ${inputBg} border ${inputBorder}`}>
+                <label className={`text-sm font-bold block mb-2 ${textHighlight}`}>Quelle est ta cadence habituelle lors d'un footing lent ?</label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className={`flex-1 flex items-center px-4 py-3 rounded-xl border ${inputBorder} ${cardBg}`}>
+                    <input
+                      type="number" min="40" max="220" placeholder="ex : 160"
+                      value={baseCadenceDraft}
+                      onChange={(e) => setBaseCadenceDraft(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && computeAndApplyZones()}
+                      className={`bg-transparent w-full text-lg font-bold outline-none ${textHighlight}`}
+                    />
+                    <span className={`text-sm font-bold shrink-0 ${textMuted}`}>BPM</span>
+                  </div>
+                  <button onClick={computeAndApplyZones} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110 shrink-0`}>
+                    Calculer mes zones
+                  </button>
+                </div>
+              </div>
+
+              {athleticProfile.isConfigured && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                  {ATHLETIC_ZONES.map(z => (
+                    <div key={z.key} className={`p-3 rounded-xl border ${inputBorder} ${inputBg} text-center`}>
+                      <div className="flex items-center justify-center gap-1.5 mb-1">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
+                        <span className={`text-[11px] font-bold uppercase tracking-wide ${textMuted}`}>{z.shortLabel}</span>
+                      </div>
+                      <div className={`text-xl font-black ${textHighlight}`}>{athleticProfile[z.key] ?? '—'}</div>
+                      <div className={`text-[10px] ${textMuted}`}>BPM</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={() => setShowExpertZones(!showExpertZones)}
+                className={`mt-4 flex items-center gap-1.5 text-sm font-bold ${textColorClass}`}
+              >
+                {showExpertZones ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
+                <span>Ajuster manuellement</span>
+              </button>
+
+              {showExpertZones && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                  {ATHLETIC_ZONES.map(z => (
+                    <div key={z.key} className={`flex items-center justify-between gap-3 p-3 rounded-xl border ${inputBorder} ${inputBg}`}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
+                        <span className={`text-sm font-bold truncate ${textHighlight}`}>{z.label}</span>
+                      </div>
+                      <div className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-lg border ${inputBorder} ${cardBg}`}>
+                        <input
+                          type="number" min="40" max="220"
+                          value={athleticProfile[z.key] ?? ''}
+                          onChange={(e) => setZone(z.key, e.target.value)}
+                          className={`w-14 bg-transparent text-right font-mono font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${textHighlight}`}
+                        />
+                        <span className={`text-xs font-bold ${textMuted}`}>BPM</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl relative overflow-hidden flex flex-col min-h-[450px]`}>
 
