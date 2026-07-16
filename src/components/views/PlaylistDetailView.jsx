@@ -695,6 +695,24 @@ export default function PlaylistDetailView({
               );
             })}
           </div>
+          {/* Récap des titres associés à la part sélectionnée — retour direct :
+              la mise en évidence dans la liste plus haut (voir hasDetailFilter/
+              trackMatchesDetailFilter) ne suffisait pas, il fallait aussi voir
+              CES titres directement sous le camembert, sans remonter la page. */}
+          {selectedDetailGenre && (
+            <div className={`mt-4 pt-4 border-t ${cardBorder} space-y-1`}>
+              <div className={`text-xs font-bold uppercase tracking-wide mb-2 ${textMuted}`}>Titres · {selectedDetailGenre}</div>
+              {currentPlaylist.tracks.filter(t => trackGenreLabel(t) === selectedDetailGenre).map((t, i) => (
+                <div key={i} className="flex items-center justify-between gap-2 text-sm py-1">
+                  <div className="min-w-0">
+                    <div className={`font-semibold truncate ${textHighlight}`}>{t.title}</div>
+                    <div className={`text-xs truncate ${textMuted}`}>{t.artist}</div>
+                  </div>
+                  <span className={`shrink-0 text-xs font-bold ${textColorClass}`}>{t.bpm} BPM</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div className={`${cardBg} rounded-3xl p-6 border ${cardBorder} shadow-xl`}>
           <h3 className={`font-bold text-lg mb-4 flex items-center gap-2 ${textHighlight}`}><Activity className={textColorClass} size={20}/> Répartition par BPM</h3>
@@ -735,6 +753,20 @@ export default function PlaylistDetailView({
               );
             })}
           </div>
+          {selectedDetailBpmBucket && (
+            <div className={`mt-4 pt-4 border-t ${cardBorder} space-y-1`}>
+              <div className={`text-xs font-bold uppercase tracking-wide mb-2 ${textMuted}`}>Titres · {selectedDetailBpmBucket} BPM</div>
+              {currentPlaylist.tracks.filter(t => trackBpmBucketLabel(t) === selectedDetailBpmBucket).map((t, i) => (
+                <div key={i} className="flex items-center justify-between gap-2 text-sm py-1">
+                  <div className="min-w-0">
+                    <div className={`font-semibold truncate ${textHighlight}`}>{t.title}</div>
+                    <div className={`text-xs truncate ${textMuted}`}>{t.artist}</div>
+                  </div>
+                  <span className={`shrink-0 text-xs font-bold ${textColorClass}`}>{t.bpm} BPM</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
