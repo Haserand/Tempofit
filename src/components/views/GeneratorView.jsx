@@ -30,6 +30,7 @@ export default function GeneratorView({
   targetMode, isIntervalMode, isCrescendoMode, structureMode, setStructureMode,
   crescendoWarmupPct, setCrescendoWarmupPct, crescendoCooldownPct, setCrescendoCooldownPct, CRESCENDO_MIN_MAIN_PCT,
   crescendoWarmupBpm, setCrescendoWarmupBpm, crescendoCooldownBpm, setCrescendoCooldownBpm,
+  bpmSourceIsProfile,
   hours, minutes, distanceVal, distanceUnit, paceMin, setPaceMin, paceSec, setPaceSec,
   bpm,
   segments, setSegments, expandedSegmentGenreId, setExpandedSegmentGenreId,
@@ -387,6 +388,17 @@ export default function GeneratorView({
                           <Flame size={16} className={isNaughtyMode ? "text-rose-500 fill-rose-500 animate-pulse" : ""} />
                         </button>
                       )}
+                      {/* Repère "prendre du recul, voir où ce serait utile dans toute
+                          l'app" (retour direct) : indique DÈS L'ÉTAPE 1 qu'un Profil
+                          Athlétique existe pour cette activité, avant même d'arriver
+                          au BPM qui en profitera réellement à l'étape 3 (voir le badge
+                          "calculé depuis ton profil" plus loin) — évite que ce
+                          pré-remplissage plus tard semble sorti de nulle part. */}
+                      {!isNaughtyMode && athleticProfile?.activities?.[type.id]?.isConfigured && (
+                        <span className={`absolute top-2 left-2 flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${bgAccentClass} text-white animate-in fade-in zoom-in duration-300`}>
+                          <Gauge size={10}/> Profil configuré
+                        </span>
+                      )}
                     </div>
                   );
                 })}
@@ -515,7 +527,7 @@ export default function GeneratorView({
                       return (
                         <button
                           key={mode}
-                          onClick={() => setStructureMode(mode)}
+                          onClick={() => setStructureMode(mode, getProfileForWorkout(workoutType, customActivity))}
                           className={`flex flex-col items-start text-left p-4 rounded-2xl border-2 transition-all duration-200 ${isSelected ? `${borderAccentClass} ${bgMainApp}` : `${inputBorder} ${inputBg} hover:border-gray-300 dark:hover:border-gray-600`}`}
                         >
                           <div className={`p-2 rounded-xl mb-2 ${isSelected ? bgAccentClass : 'bg-gray-200 dark:bg-gray-700'}`}>
@@ -547,6 +559,22 @@ export default function GeneratorView({
                     </div>
                     <input type="range" min={isNaughtyMode ? "40" : "80"} max={isNaughtyMode ? "180" : "220"} value={bpm} onChange={(e) => setBpmManual(parseInt(e.target.value))} className={`w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none ${isNaughtyMode ?
                       'accent-rose-500' : 'accent-red-500'}`} />
+                    {/* Badge "calculé depuis ton profil" (retour direct : "il faudrait
+                        ajouter une petite indication visuelle... pour bien faire
+                        comprendre à l'utilisateur que l'appli a intelligemment
+                        calculé ces BPM pour lui"). N'apparaît QUE si les 3 valeurs
+                        Crescendo affichées (ici + les 2 curseurs Échauffement/Retour
+                        au calme plus bas) sont VRAIMENT celles du profil de
+                        l'activité en cours, pas dès qu'un profil existe quelque part
+                        (voir bpmSourceIsProfile, useGeneratorForm.js) — disparaît dès
+                        qu'un seul des 3 réglages est retouché à la main. Animation
+                        d'entrée ponctuelle (pas un pulse en boucle) : un "aha" au
+                        moment où ça apparaît, pas une sollicitation permanente. */}
+                    {isCrescendoMode && bpmSourceIsProfile && (
+                      <div className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full ${bgAccentClass} text-white animate-in fade-in zoom-in slide-in-from-bottom-2 duration-500`}>
+                        <Gauge size={12}/> Calculé depuis ton Profil Athlétique
+                      </div>
+                    )}
                   </div>
 
                   {targetMode === 'distance' ? (
@@ -627,7 +655,14 @@ export default function GeneratorView({
                       </div>
 
                       <div className="space-y-2">
-                        <p className={`text-xs ${textMuted}`}>BPM personnalisé pour ces 2 phases :</p>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={`text-xs ${textMuted}`}>BPM personnalisé pour ces 2 phases :</p>
+                          {bpmSourceIsProfile && (
+                            <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${bgAccentClass} text-white animate-in fade-in zoom-in duration-500`}>
+                              <Gauge size={10}/> Profil Athlétique
+                            </span>
+                          )}
+                        </div>
 
                         <div className={`space-y-4 p-4 rounded-xl ${inputBg} border ${inputBorder}`}>
                             {/* Griser (pas juste laisser un BPM "actif" trompeur) quand la part
