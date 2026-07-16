@@ -4,7 +4,7 @@ import {
   Target, Loader2, Zap, BookmarkPlus, Info, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Flame,
   TrendingUp, Gauge, RotateCcw,
 } from 'lucide-react';
-import { STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, genreDisplayLabel, WEAK_DEEZER_KEYWORD_GENRES } from '../../musicCatalog';
+import { STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, genreDisplayLabel } from '../../musicCatalog';
 import { formatDuration } from '../../utils/format';
 import DualRangeSlider from '../shared/DualRangeSlider';
 import {
@@ -228,9 +228,17 @@ export default function GeneratorView({
               )}
             </div>
 
+            {/* Retour direct : "redondant d'avoir le titre de l'activité juste en
+                dessous du bouton de sélection" — cette ligne répétait
+                systématiquement le libellé de l'onglet déjà en surbrillance
+                juste au-dessus (`selectedProfileActivity`/`activeProfile.name`),
+                sans jamais rien ajouter. Gardé comme repère de section neutre
+                (le bouton réinitialiser/supprimer a toujours besoin d'un point
+                d'ancrage sur cette ligne), mais ne répète plus le nom déjà
+                visible sur l'onglet actif. */}
             <div className="flex items-start justify-between gap-4 mb-2">
               <span className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>
-                {isCustomProfileTab ? activeProfile?.name : selectedProfileActivity}
+                Zones de cadence
               </span>
               {activeProfile?.isConfigured && (
                 <button onClick={handleResetProfile} title={isCustomProfileTab ? "Supprimer cette activité" : "Effacer ce profil"} className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20`}>
@@ -908,7 +916,16 @@ export default function GeneratorView({
                 {!isNaughtyMode && showExtraGenres && (
                   <p className={`text-sm flex items-start gap-1.5 font-semibold ${textColorClass}`}>
                     <Info size={16} className="shrink-0 mt-0.5" />
-                    <span>{WEAK_DEEZER_KEYWORD_GENRES.map(genreDisplayLabel).join(', ')} demandent une recherche plus approfondie : la génération peut prendre un peu plus de temps si tu en choisis un.</span>
+                    {/* Retour direct : "on n'a pas la liste exhaustive des genres pour
+                        lesquels ça peut être long, autant rester vague" — ce texte
+                        nommait explicitement WEAK_DEEZER_KEYWORD_GENRES, une liste
+                        de convenance interne (genres dont le mot-clé Deezer est une
+                        approximation en texte libre, voir musicCatalog.js), pas une
+                        promesse de couverture exhaustive de "tout ce qui peut être
+                        lent" — un genre absent de cette liste précise pourrait très
+                        bien l'être aussi selon le catalogue Deezer du moment. Reformulé
+                        pour ne plus rien nommer explicitement. */}
+                    <span>Les genres les moins courants dans le catalogue peuvent demander une recherche plus approfondie : la génération prend alors un peu plus de temps.</span>
                   </p>
                 )}
 
