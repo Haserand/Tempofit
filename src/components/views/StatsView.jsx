@@ -1,10 +1,11 @@
-import React from 'react';
-import { Activity, Flame, Upload, ChevronUp, ChevronDown, ChevronRight, Gauge } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Activity, Flame, Upload, ChevronUp, ChevronDown, ChevronRight, Gauge, Share2, Loader2 } from 'lucide-react';
 import { ATHLETIC_ZONES } from '../../appConfig';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { NAUGHTY_WORKOUT_LABELS } from '../../appConfig';
 import { genreDisplayLabel } from '../../musicCatalog';
 import { formatDuration } from '../../utils/format';
+import GlobalStatsShareCard from '../shared/GlobalStatsShareCard';
 
 /**
  * StatsView — vue "Statistiques" ("Wrapped" personnel).
@@ -23,6 +24,7 @@ import { formatDuration } from '../../utils/format';
  */
 export default function StatsView({
   theme, savedPlaylists, userStats, changeView, setCurrentPlaylist, athleticProfile, getProfileForWorkout,
+  shareImageFile, showToast,
   statsMode, setStatsMode,
   selectedStatsGenre, setSelectedStatsGenre,
   selectedStatsBpmBucket, setSelectedStatsBpmBucket,
@@ -31,6 +33,31 @@ export default function StatsView({
   expandedDetailArtist, setExpandedDetailArtist,
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
+
+  // --- Bilan Global (export image, "Spotify Wrapped") ---
+  // Carte rendue hors écran en permanence (même principe que
+  // SessionSummaryCard/PlaylistDetailView.jsx) — mais ici, pas d'attente
+  // d'image à charger avant la capture (GlobalStatsShareCard.jsx n'affiche
+  // aucune pochette, que du texte/dégradé), donc l'export est plus direct.
+  const globalStatsCardRef = useRef(null);
+  const [isExportingGlobalStats, setIsExportingGlobalStats] = useState(false);
+
+  const exportGlobalStatsImage = async () => {
+    if (isExportingGlobalStats) return;
+    setIsExportingGlobalStats(true);
+    try {
+      const { default: html2canvas } = await import('html2canvas');
+      const canvas = await html2canvas(globalStatsCardRef.current, { scale: 2, backgroundColor: null, useCORS: true });
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      if (!blob) throw new Error('Conversion en image échouée');
+      const file = new File([blob], 'tempofit-bilan-global.png', { type: 'image/png' });
+      await shareImageFile(file, 'Mon Bilan TempoFit', "Mon bilan d'entraînement sur TempoFit 💪🎧");
+    } catch (e) {
+      if (showToast) showToast("Impossible de générer l'image du bilan — réessaie dans un instant.", 'error');
+    } finally {
+      setIsExportingGlobalStats(false);
+    }
+  };
 
   // Palette adaptée au mode consulté — rose pour Mode Intime (cohérent avec
   // son habillage ailleurs dans l'app), rouge/orange sinon.
@@ -59,6 +86,7 @@ export default function StatsView({
   let totalSeconds = 0;
   let bpmSum = 0;
   let bpmCount = 0;
+  const bpmTargetCounts = {}; // BPM cible exact -> nb de séances à ce BPM (voir plus bas, "Allure favorite")
   const sessionsByMonth = {};
   // Comptage par artiste et par titre — clé sur "titre|||artiste" plutôt que sur
   // youtubeId : un même morceau peut être résolu vers un ID Deezer différent d'une
@@ -149,7 +177,15 @@ export default function StatsView({
     pl.completions.forEach(dateStr => {
       totalSessions += 1;
       totalSeconds += pl.totalDuration || 0;
-      if (pl.config?.bpm) { bpmSum += pl.config.bpm; bpmCount += 1; }
+      if (pl.config?.bpm) {
+        bpmSum += pl.config.bpm; bpmCount += 1;
+        // Fréquence par BPM CIBLE exact (pas une tranche) — sert au "Bilan
+        // Global" partageable (voir GlobalStatsShareCard.jsx, exemple "Allure
+        // favorite : 160 BPM") : un nombre précis et concret plutôt qu'une
+        // tranche ("120-149 BPM"), plus proche de ce qu'on partagerait
+        // spontanément à l'oral ("je tourne à 160").
+        bpmTargetCounts[pl.config.bpm] = (bpmTargetCounts[pl.config.bpm] || 0) + 1;
+      }
       // Calculé ici (avant la boucle des titres, qui en a besoin pour
       // zoneSecondsThisMonth) plutôt que plus bas où il servait avant
       // uniquement au regroupement par mois — même variable `d` réutilisée
@@ -316,6 +352,13 @@ export default function StatsView({
     .map(([key, count]) => { const [y, m] = key.split('-'); return { label: `${monthLabels[m]} ${y}`, count }; });
 
   const avgBpm = bpmCount > 0 ? Math.round(bpmSum / bpmCount) : null;
+  // BPM le plus fréquent parmi toutes les séances — "Allure favorite" du
+  // Bilan Global (voir GlobalStatsShareCard.jsx). À égalité, le plus élevé
+  // l'emporte (choix arbitraire mais stable/déterministe plutôt que dépendre
+  // de l'ordre d'insertion de l'objet).
+  const favoriteBpm = Object.keys(bpmTargetCounts).length > 0
+    ? Object.entries(bpmTargetCounts).sort((a, b) => b[1] - a[1] || Number(b[0]) - Number(a[0]))[0][0]
+    : null;
 
   // Activité qui revient le plus souvent pour un artiste/titre donné — un simple
   // "mode" statistique (l'entrée la plus fréquente), pas une vraie répartition affichée.
@@ -394,23 +437,39 @@ export default function StatsView({
         {/* Bascule discrète — jamais montrée en avant, jamais mélangée aux stats
             par défaut (voir playlistsForStats plus haut). Icône flamme plutôt qu'un
             texte "Stats Mode Intime" : c'est déjà l'icône utilisée ailleurs dans
-            l'app pour ce mode. Le chemin retour (une fois dedans) reste en texte. */}
-        {statsMode === 'naughty' ? (
-          <button
-            onClick={() => { setStatsMode('standard'); setSelectedStatsGenre(null); setSelectedStatsBpmBucket(null); }}
-            className={`shrink-0 text-xs font-bold px-3 py-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800`}
-          >
-            ← Stats standards
-          </button>
-        ) : (
-          <button
-            onClick={() => { setStatsMode('naughty'); setSelectedStatsGenre(null); setSelectedStatsBpmBucket(null); }}
-            title="Stats Mode Intime"
-            className="shrink-0 p-2 rounded-lg text-gray-400 hover:text-rose-500 transition-colors cursor-pointer"
-          >
-            <Flame size={18} />
-          </button>
-        )}
+            l'app pour ce mode. Le chemin retour (une fois dedans) reste en texte.
+            "Partager mon bilan" (Bilan Global, voir GlobalStatsShareCard.jsx) à
+            côté — bouton BIEN VISIBLE (retour direct), contrairement à la bascule
+            Intime qui elle reste volontairement discrète. */}
+        <div className="flex items-center gap-2 shrink-0">
+          {totalSessions > 0 && (
+            <button
+              onClick={exportGlobalStatsImage}
+              disabled={isExportingGlobalStats}
+              title="Générer une image de ton bilan global à partager"
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors ${bgAccentClass} text-white hover:brightness-110 disabled:opacity-60 disabled:cursor-wait`}
+            >
+              {isExportingGlobalStats ? <Loader2 size={16} className="animate-spin" /> : <Share2 size={16} />}
+              <span>{isExportingGlobalStats ? 'Génération...' : 'Partager mon bilan'}</span>
+            </button>
+          )}
+          {statsMode === 'naughty' ? (
+            <button
+              onClick={() => { setStatsMode('standard'); setSelectedStatsGenre(null); setSelectedStatsBpmBucket(null); }}
+              className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800`}
+            >
+              ← Stats standards
+            </button>
+          ) : (
+            <button
+              onClick={() => { setStatsMode('naughty'); setSelectedStatsGenre(null); setSelectedStatsBpmBucket(null); }}
+              title="Stats Mode Intime"
+              className="p-2 rounded-lg text-gray-400 hover:text-rose-500 transition-colors cursor-pointer"
+            >
+              <Flame size={18} />
+            </button>
+          )}
+        </div>
       </div>
 
       {totalSessions === 0 ? (
@@ -964,6 +1023,26 @@ export default function StatsView({
           </p>
         </>
       )}
+
+      {/* Rendu hors écran, en permanence — voir exportGlobalStatsImage plus
+          haut. Câblé sur les VRAIES données déjà calculées pour le reste de
+          cette page (totalSeconds, avgBpm, favoriteBpm...), scopées au mode
+          Standard/Intime actuellement consulté (statsMode) comme tout le
+          reste ici. `totalPlaylistsGenerated` = playlistsForStats.length,
+          pas totalSessions : le nombre de PLAYLISTS générées et sauvegardées,
+          pas le nombre de fois qu'elles ont été rejouées (voir la demande
+          initiale, qui distingue explicitement les deux). */}
+      <div style={{ position: 'fixed', left: '-9999px', top: 0, pointerEvents: 'none' }} aria-hidden="true">
+        <div ref={globalStatsCardRef}>
+          <GlobalStatsShareCard
+            totalSeconds={totalSeconds}
+            totalPlaylistsGenerated={playlistsForStats.length}
+            avgBpm={avgBpm ?? 0}
+            favoriteBpmLabel={favoriteBpm ? `${favoriteBpm} BPM` : '—'}
+            isNaughtyMode={statsMode === 'naughty'}
+          />
+        </div>
+      </div>
     </div>
   );
 }
