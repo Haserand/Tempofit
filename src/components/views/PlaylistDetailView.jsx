@@ -93,7 +93,7 @@ export default function PlaylistDetailView({
   selectedAnalysisDate, setSelectedAnalysisDate, formatCompletionDate, availableMetrics,
   dataOffset, setDataOffset,
   chartAxisType, setChartAxisType, chartDistanceUnit, setChartDistanceUnitOverride,
-  selectedSegmentIdx, trackSegments, togglePreview, playingPreviewId,
+  selectedSegmentIdx, setSelectedSegmentIdx, trackSegments, togglePreview, playingPreviewId,
   unifiedChartData, handleChartClick, chartXDomain, chartXTicks, chartYDomain, distanceDisplayFactor,
   draggedTrackIndex, handleTrackDragStart, handleTrackDragEnter, handleTrackDragEnd,
   favorites, toggleTrackFavorite, toggleArtistFavorite,
@@ -134,6 +134,31 @@ export default function PlaylistDetailView({
   const trackMatchesDetailFilter = (t) =>
     (selectedDetailGenre === null || trackGenreLabel(t) === selectedDetailGenre) &&
     (selectedDetailBpmBucket === null || trackBpmBucketLabel(t) === selectedDetailBpmBucket);
+
+  // BUG CORRIGÉ (retour direct) : le clic direct sur la courbe (surbrillance
+  // ROUGE d'UN segment précis, `selectedSegmentIdx`, pré-existant) et le clic
+  // sur une part de camembert (surbrillance AMBRE de TOUS les segments
+  // correspondants, ajouté ensuite) sont 2 mécanismes indépendants qui
+  // pouvaient rester actifs EN MÊME TEMPS sans lien entre eux — un clic sur la
+  // courbe fait quelques temps plus tôt restait affiché (carte du haut +
+  // surbrillance rouge) pendant qu'un filtre camembert différent était
+  // sélectionné, donnant l'impression trompeuse qu'un titre hors de la
+  // tranche BPM demandée faisait pourtant partie du résultat. Rendus
+  // mutuellement exclusifs : sélectionner l'un efface l'autre, un seul
+  // "pourquoi c'est en surbrillance" possible à la fois.
+  const selectDetailGenre = (name) => {
+    setSelectedDetailGenre(prev => prev === name ? null : name);
+    setSelectedSegmentIdx(null);
+  };
+  const selectDetailBpmBucket = (name) => {
+    setSelectedDetailBpmBucket(prev => prev === name ? null : name);
+    setSelectedSegmentIdx(null);
+  };
+  const handleChartClickAndClearZoomFilter = (state) => {
+    setSelectedDetailGenre(null);
+    setSelectedDetailBpmBucket(null);
+    handleChartClick(state);
+  };
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
@@ -368,7 +393,7 @@ export default function PlaylistDetailView({
             {/* Interaction par CLIC plutôt que par survol continu : plus fiable,
                 plus rapide, et le résultat reste stable tant qu'on ne clique pas
                 ailleurs. */}
-            <LineChart data={unifiedChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }} onClick={handleChartClick} style={{ cursor: 'pointer' }}>
+            <LineChart data={unifiedChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }} onClick={handleChartClickAndClearZoomFilter} style={{ cursor: 'pointer' }}>
               <CartesianGrid strokeDasharray="3 3" stroke={colorMode === 'dark' ? '#374151' : '#e5e7eb'} vertical={false} />
 
               {/* Surbrillance de TOUT le segment sélectionné, déterminée via handleChartMouseMove. */}
@@ -640,7 +665,7 @@ export default function PlaylistDetailView({
                   data={genreDistributionData} dataKey="value" nameKey="name"
                   cx="50%" cy="50%" innerRadius={55} outerRadius={85}
                   paddingAngle={3} cornerRadius={4} stroke="none"
-                  onClick={(entry) => setSelectedDetailGenre(prev => prev === entry.name ? null : entry.name)}
+                  onClick={(entry) => selectDetailGenre(entry.name)}
                   style={{ cursor: 'pointer' }}
                 >
                   {genreDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} opacity={selectedDetailGenre && selectedDetailGenre !== entry.name ? 0.35 : 1} />)}
@@ -660,7 +685,7 @@ export default function PlaylistDetailView({
               return (
                 <button
                   key={i}
-                  onClick={() => setSelectedDetailGenre(prev => prev === entry.name ? null : entry.name)}
+                  onClick={() => selectDetailGenre(entry.name)}
                   className={`flex items-center gap-1.5 text-xs font-bold rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedDetailGenre === entry.name ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
                 >
                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }}></span>
@@ -680,7 +705,7 @@ export default function PlaylistDetailView({
                   data={bpmDistributionData} dataKey="value" nameKey="name"
                   cx="50%" cy="50%" innerRadius={55} outerRadius={85}
                   paddingAngle={3} cornerRadius={4} stroke="none"
-                  onClick={(entry) => setSelectedDetailBpmBucket(prev => prev === entry.name ? null : entry.name)}
+                  onClick={(entry) => selectDetailBpmBucket(entry.name)}
                   style={{ cursor: 'pointer' }}
                 >
                   {bpmDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} opacity={selectedDetailBpmBucket && selectedDetailBpmBucket !== entry.name ? 0.35 : 1} />)}
@@ -700,7 +725,7 @@ export default function PlaylistDetailView({
               return (
                 <button
                   key={i}
-                  onClick={() => setSelectedDetailBpmBucket(prev => prev === entry.name ? null : entry.name)}
+                  onClick={() => selectDetailBpmBucket(entry.name)}
                   className={`flex items-center gap-1.5 text-xs font-bold rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedDetailBpmBucket === entry.name ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
                 >
                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }}></span>
