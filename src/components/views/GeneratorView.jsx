@@ -26,7 +26,7 @@ export default function GeneratorView({
   theme, isNaughtyMode, displaySubtitleGen,
   wizardStep, setWizardStep,
   workoutType, setWorkoutType, customActivity, handleOpenCustomActivityModal, toggleNaughtyMode,
-  setBpm, setTargetMode, setDistanceVal, setDistanceUnit, setHours, setMinutes,
+  setBpm, setBpmManual, setTargetMode, setDistanceVal, setDistanceUnit, setHours, setMinutes,
   targetMode, isIntervalMode, isCrescendoMode, structureMode, setStructureMode,
   crescendoWarmupPct, setCrescendoWarmupPct, crescendoCooldownPct, setCrescendoCooldownPct, CRESCENDO_MIN_MAIN_PCT,
   crescendoWarmupBpm, setCrescendoWarmupBpm, crescendoCooldownBpm, setCrescendoCooldownBpm,
@@ -437,7 +437,7 @@ export default function GeneratorView({
                       </label>
                       <span className={`text-4xl font-black ${textColorClass}`}>{bpm} <span className={`text-sm font-bold ${textMuted}`}>BPM</span></span>
                     </div>
-                    <input type="range" min={isNaughtyMode ? "40" : "80"} max={isNaughtyMode ? "180" : "220"} value={bpm} onChange={(e) => setBpm(parseInt(e.target.value))} className={`w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none ${isNaughtyMode ?
+                    <input type="range" min={isNaughtyMode ? "40" : "80"} max={isNaughtyMode ? "180" : "220"} value={bpm} onChange={(e) => setBpmManual(parseInt(e.target.value))} className={`w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none ${isNaughtyMode ?
                       'accent-rose-500' : 'accent-red-500'}`} />
                   </div>
 
