@@ -41,7 +41,7 @@
  * complet — non reproduit ici pour éviter la duplication.
  */
 
-import { DEEZER_GENRE_KEYWORDS, genreRoughlyMatches, ARTIST_CATALOG } from './musicCatalog';
+import { DEEZER_GENRE_KEYWORDS, genreRoughlyMatches, isDirectGenreMatch, ARTIST_CATALOG } from './musicCatalog';
 import { deezerFetch, resolveDeezerGenre, resolveBpmForCandidates, searchArtistsForBpm } from './musicEngine';
 
 export const SEARCH_PAGE_SIZE = 10;
@@ -313,6 +313,16 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
         // renfort catalogue existe pour corriger, pas la peine de le flaguer
         // "non confirmé" une fois qu'on SAIT que l'artiste en fait vraiment.
         const genreMismatch = t._fromCatalog ? false : !genresToQuery.some(g => genreRoughlyMatches(realGenre, g));
+        // Retour direct (cas réel : "Métal" sélectionné, un titre du catalogue
+        // dont le vrai genre Deezer est "Rock" — ex. Lamb of God, "Ghost
+        // Walking" — ressortait à égalité de tri avec un titre littéralement
+        // classé "Métal" chez Deezer, ex. Slayer). `_genreMismatch` (binaire)
+        // ne distinguait pas ces 2 cas, tous les deux "non mismatch". 3 paliers
+        // au lieu de 2 : correspondance DIRECTE du genre_id (la plus fiable)
+        // d'abord, équivalence/catalogue (ex. Rock accepté pour Métal, voir
+        // GENRE_EQUIVALENCE_GROUPS) ensuite, mismatch en dernier.
+        const isDirectMatch = genresToQuery.some(g => isDirectGenreMatch(realGenre, g));
+        const matchTier = isDirectMatch ? 0 : (genreMismatch ? 2 : 1);
         return {
           youtubeId: `deezer-${t.id}`,
           title: t.title,
@@ -322,6 +332,7 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
           genre: realGenre || 'Genre inconnu',
           preview: t.preview || null,
           _genreMismatch: genreMismatch,
+          _matchTier: matchTier,
         };
       })
   );
@@ -329,10 +340,11 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
   // Titres du bon genre en premier — sans ça, une poignée de résultats hors-
   // genre (voir le bug ci-dessus) pouvait reléguer les vrais résultats en fin
   // de liste, ou pire, complètement hors des ~15 candidats gardés en amont.
-  // Tri STABLE (Array.prototype.sort l'est nativement dans tous les moteurs
-  // modernes) : à égalité de correspondance, l'ordre Deezer d'origine reste
+  // Tri par palier (`_matchTier`, voir plus haut), pas juste mismatch/non-
+  // mismatch. Tri STABLE (Array.prototype.sort l'est nativement dans tous les
+  // moteurs modernes) : à égalité de palier, l'ordre Deezer d'origine reste
   // inchangé.
-  results.sort((a, b) => (a._genreMismatch ? 1 : 0) - (b._genreMismatch ? 1 : 0));
+  results.sort((a, b) => a._matchTier - b._matchTier);
 
   return { results };
 };
