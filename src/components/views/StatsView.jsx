@@ -1,5 +1,6 @@
 import React from 'react';
-import { Activity, Flame, Upload, ChevronUp, ChevronDown, ChevronRight } from 'lucide-react';
+import { Activity, Flame, Upload, ChevronUp, ChevronDown, ChevronRight, Gauge } from 'lucide-react';
+import { ATHLETIC_ZONES } from '../../appConfig';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { NAUGHTY_WORKOUT_LABELS } from '../../appConfig';
 import { genreDisplayLabel } from '../../musicCatalog';
@@ -21,7 +22,7 @@ import { formatDuration } from '../../utils/format';
  * playlist. Toujours lire `pl.config?.selectedGenres` / `pl.config?.bpm`.
  */
 export default function StatsView({
-  theme, savedPlaylists, userStats, changeView, setCurrentPlaylist,
+  theme, savedPlaylists, userStats, changeView, setCurrentPlaylist, athleticProfile, getProfileForWorkout,
   statsMode, setStatsMode,
   selectedStatsGenre, setSelectedStatsGenre,
   selectedStatsBpmBucket, setSelectedStatsBpmBucket,
@@ -94,6 +95,46 @@ export default function StatsView({
   const bpmBucketGenreCounts = {}; // tranche -> { genre -> count }
   const genreActivityCounts = {}; // genre -> { activité -> count }
 
+  // Profil Athlétique (zones de cadence, voir useAthleticProfile.js) —
+  // temps passé (secondes) dans chaque zone, tout historique ET ce mois-ci
+  // uniquement (pour la légende motivante, voir plus bas).
+  //
+  // MULTI-ACTIVITÉS (cette session) : un profil par activité, plus de profil
+  // global unique — chaque titre est donc classé selon le profil de
+  // L'ACTIVITÉ DE SA PROPRE SÉANCE (`pl.workoutType`, déjà le nom résolu —
+  // "Course à pied"/"Cyclisme"/un nom personnalisé — jamais littéralement
+  // "Autre", voir getProfileForWorkout dans useAthleticProfile.js), pas un
+  // seul profil appliqué à tout l'historique sans distinction. Une séance de
+  // vélo se classe avec les zones du vélo, une séance de course avec celles
+  // de la course — c'est tout l'intérêt du multi-activités.
+  const zoneSeconds = { zone1: 0, zone2: 0, zone3: 0, zone4: 0 };
+  const zoneSecondsThisMonth = { zone1: 0, zone2: 0, zone3: 0, zone4: 0 };
+  const nowForZones = new Date();
+  // Y a-t-il AU MOINS un profil configuré quelque part (une activité
+  // "built-in" ou personnalisée) ? Sert de garde-fou pour le panneau plus bas
+  // (pas la peine de l'afficher si rien n'a jamais été configuré).
+  const hasAnyAthleticProfileConfigured = athleticProfile
+    ? Object.values(athleticProfile.activities || {}).some(p => p.isConfigured) || (athleticProfile.custom || []).some(c => c.isConfigured)
+    : false;
+  // Classe un BPM réel dans la zone dont la valeur est la plus proche (voisin
+  // le plus proche) plutôt que des bornes fixes à calculer à la main — évite
+  // les cas limites si les zones ne sont pas régulièrement espacées (ex.
+  // ajustées à la main en mode Expert plutôt que via l'Assistant Rapide).
+  // `activityName` = le profil de QUELLE activité utiliser pour ce titre
+  // précis (voir l'appel dans la boucle des titres plus bas).
+  const classifyIntoZone = (bpmVal, activityName) => {
+    const profile = getProfileForWorkout ? getProfileForWorkout(activityName) : null;
+    if (!profile || !profile.isConfigured) return null;
+    let bestKey = null, bestDist = Infinity;
+    ATHLETIC_ZONES.forEach(z => {
+      const zoneVal = profile[z.key];
+      if (zoneVal == null) return;
+      const dist = Math.abs(bpmVal - zoneVal);
+      if (dist < bestDist) { bestDist = dist; bestKey = z.key; }
+    });
+    return bestKey;
+  };
+
   playlistsForStats.forEach(pl => {
     if (!pl.completions || pl.completions.length === 0) return;
     const genres = (pl.config?.selectedGenres && pl.config.selectedGenres.length > 0) ? pl.config.selectedGenres : ['Autre'];
@@ -109,6 +150,12 @@ export default function StatsView({
       totalSessions += 1;
       totalSeconds += pl.totalDuration || 0;
       if (pl.config?.bpm) { bpmSum += pl.config.bpm; bpmCount += 1; }
+      // Calculé ici (avant la boucle des titres, qui en a besoin pour
+      // zoneSecondsThisMonth) plutôt que plus bas où il servait avant
+      // uniquement au regroupement par mois — même variable `d` réutilisée
+      // pour les deux, pas recalculée deux fois.
+      const d = new Date(dateStr);
+      const isThisMonth = !isNaN(d) && d.getFullYear() === nowForZones.getFullYear() && d.getMonth() === nowForZones.getMonth();
       genres.forEach(g => {
         genreSeconds[g] = (genreSeconds[g] || 0) + perGenreSeconds;
         genreSessions[g] = (genreSessions[g] || 0) + 1;
@@ -164,10 +211,24 @@ export default function StatsView({
             bpmBucketGenreCounts[bucket][g] = (bpmBucketGenreCounts[bucket][g] || 0) + 1;
           });
         }
+
+        // Profil Athlétique : classe ce titre dans la zone la plus proche DU
+        // PROFIL DE L'ACTIVITÉ DE CETTE SÉANCE (`activity`, déjà calculé plus
+        // haut dans cette boucle — voir classifyIntoZone), et ajoute sa durée
+        // réelle (pas une part égale de la séance comme pour les genres —
+        // chaque titre pèse pour sa propre durée). `classifyIntoZone` renvoie
+        // déjà `null` si aucun profil configuré pour cette activité, pas
+        // besoin de re-vérifier `isConfigured` ici en plus.
+        if (t.bpm) {
+          const zoneKey = classifyIntoZone(t.bpm, activity);
+          if (zoneKey) {
+            zoneSeconds[zoneKey] += t.duration || 0;
+            if (isThisMonth) zoneSecondsThisMonth[zoneKey] += t.duration || 0;
+          }
+        }
       });
       // Regroupement par mois (année-mois) plutôt que par semaine ISO — plus simple
       // à calculer sans librairie de dates dédiée.
-      const d = new Date(dateStr);
       if (!isNaN(d)) {
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         sessionsByMonth[key] = (sessionsByMonth[key] || 0) + 1;
@@ -180,6 +241,29 @@ export default function StatsView({
   const genreBreakdown = Object.entries(genreSeconds)
     .map(([genre, seconds]) => ({ genre, seconds, sessions: genreSessions[genre] }))
     .sort((a, b) => b.seconds - a.seconds);
+
+  // Profil Athlétique : répartition par zone (tout historique, dans l'ordre
+  // Récupération → Vitesse plutôt que trié par volume — contrairement aux
+  // styles/BPM, l'ordre des zones a un sens physiologique qu'un tri par
+  // volume casserait). Vide (tableau vide, pas d'erreur) si le profil n'est
+  // pas configuré, `zoneSeconds` reste alors à zéro partout.
+  const zoneBreakdown = ATHLETIC_ZONES
+    .map(z => ({ ...z, seconds: zoneSeconds[z.key] }))
+    .filter(z => z.seconds > 0);
+  const zoneTotalSeconds = zoneBreakdown.reduce((s, z) => s + z.seconds, 0);
+
+  // Légende motivante scopée au mois en cours (voir zoneSecondsThisMonth) —
+  // seulement si au moins une séance ce mois-ci est tombée dans une zone,
+  // sinon pas de phrase creuse à 0% partout.
+  const zoneTotalSecondsThisMonth = ATHLETIC_ZONES.reduce((s, z) => s + zoneSecondsThisMonth[z.key], 0);
+  const zoneMonthSummary = zoneTotalSecondsThisMonth > 0
+    ? ATHLETIC_ZONES
+        .map(z => ({ ...z, pct: Math.round((zoneSecondsThisMonth[z.key] / zoneTotalSecondsThisMonth) * 100) }))
+        .filter(z => z.pct > 0)
+        .sort((a, b) => b.pct - a.pct)
+        .map(z => `${z.pct}% ${z.shortLabel}`)
+        .join(', ')
+    : null;
 
   const activityBreakdown = Object.entries(activitySeconds)
     .map(([activity, seconds]) => ({ activity, seconds, sessions: activitySessions[activity] }))
@@ -218,6 +302,13 @@ export default function StatsView({
   // seulement : un aperçu, pas un doublon de la vue détaillée existante.
   const topNEntries = (counts, n = 3) => Object.entries(counts || {}).sort((a, b) => b[1] - a[1]).slice(0, n);
   const topNTracksFromMap = (tracksMap, n = 3) => Object.values(tracksMap || {}).sort((a, b) => b.count - a.count).slice(0, n);
+  // BPM moyen réel d'un titre (pas le BPM cible de la séance) — même clé
+  // "titre|||artiste" que trackBpmSum/trackBpmCount plus haut. Utilisé par le
+  // récap de titres des zooms genre/BPM ci-dessous (voir "Titres écoutés").
+  const avgBpmForTrack = (t) => {
+    const key = `${t.title}|||${t.artist}`;
+    return trackBpmCount[key] ? Math.round(trackBpmSum[key] / trackBpmCount[key]) : null;
+  };
 
   const monthLabels = { '01':'Jan','02':'Fév','03':'Mar','04':'Avr','05':'Mai','06':'Juin','07':'Juil','08':'Août','09':'Sep','10':'Oct','11':'Nov','12':'Déc' };
   const timeline = Object.entries(sessionsByMonth)
@@ -494,10 +585,29 @@ export default function StatsView({
                       <span className="font-semibold">Artistes</span> : {topNEntries(genreArtistCounts[selectedStatsGenre]).map(([a, c]) => `${a} (${c})`).join(', ') || '—'}
                     </div>
                     <div className={textMuted}>
-                      <span className="font-semibold">Titres</span> : {topNTracksFromMap(genreTrackCounts[selectedStatsGenre]).map(t => `${t.title} (${t.count})`).join(', ') || '—'}
-                    </div>
-                    <div className={textMuted}>
                       <span className="font-semibold">BPM</span> : {bpmBucketOrder.filter(b => (genreBpmBuckets[selectedStatsGenre] || {})[b]).map(b => `${b} (${genreBpmBuckets[selectedStatsGenre][b]})`).join(', ') || '—'}
+                    </div>
+                    {/* Récap complet des titres écoutés dans ce genre (pas
+                        seulement le top 3, comme la ligne "Artistes"/"BPM"
+                        ci-dessus) — retour direct : ces 2 lignes en résumé ne
+                        montraient pas VRAIMENT quels titres composent la part
+                        cliquée. Scrollable au-delà de 6 lignes pour ne pas
+                        faire exploser la hauteur de la carte sur un gros
+                        historique. */}
+                    <div className={`font-semibold ${textHighlight} pt-1`}>Titres écoutés</div>
+                    <div className="max-h-48 overflow-y-auto no-scrollbar space-y-1 -mx-1.5">
+                      {topNTracksFromMap(genreTrackCounts[selectedStatsGenre], Infinity).map((t, i) => (
+                        <div key={i} className={`flex items-center justify-between gap-2 px-1.5 py-1 rounded-lg ${i % 2 === 0 ? '' : 'bg-black/5 dark:bg-white/5'}`}>
+                          <div className="min-w-0">
+                            <div className={`font-semibold truncate ${textHighlight}`}>{t.title}</div>
+                            <div className={`text-xs truncate ${textMuted}`}>{t.artist}{avgBpmForTrack(t) ? ` · ~${avgBpmForTrack(t)} BPM` : ''}</div>
+                          </div>
+                          <span className={`shrink-0 text-xs font-bold ${textMuted}`}>{t.count}x</span>
+                        </div>
+                      )) }
+                      {Object.keys(genreTrackCounts[selectedStatsGenre] || {}).length === 0 && (
+                        <div className={textMuted}>—</div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -544,10 +654,22 @@ export default function StatsView({
                         <span className="font-semibold">Artistes</span> : {topNEntries(bpmBucketArtistCounts[selectedStatsBpmBucket]).map(([a, c]) => `${a} (${c})`).join(', ') || '—'}
                       </div>
                       <div className={textMuted}>
-                        <span className="font-semibold">Titres</span> : {topNTracksFromMap(bpmBucketTrackCounts[selectedStatsBpmBucket]).map(t => `${t.title} (${t.count})`).join(', ') || '—'}
-                      </div>
-                      <div className={textMuted}>
                         <span className="font-semibold">Styles</span> : {topNEntries(bpmBucketGenreCounts[selectedStatsBpmBucket]).map(([g, c]) => `${g} (${c})`).join(', ') || '—'}
+                      </div>
+                      <div className={`font-semibold ${textHighlight} pt-1`}>Titres écoutés</div>
+                      <div className="max-h-48 overflow-y-auto no-scrollbar space-y-1 -mx-1.5">
+                        {topNTracksFromMap(bpmBucketTrackCounts[selectedStatsBpmBucket], Infinity).map((t, i) => (
+                          <div key={i} className={`flex items-center justify-between gap-2 px-1.5 py-1 rounded-lg ${i % 2 === 0 ? '' : 'bg-black/5 dark:bg-white/5'}`}>
+                            <div className="min-w-0">
+                              <div className={`font-semibold truncate ${textHighlight}`}>{t.title}</div>
+                              <div className={`text-xs truncate ${textMuted}`}>{t.artist}{avgBpmForTrack(t) ? ` · ~${avgBpmForTrack(t)} BPM` : ''}</div>
+                            </div>
+                            <span className={`shrink-0 text-xs font-bold ${textMuted}`}>{t.count}x</span>
+                          </div>
+                        ))}
+                        {Object.keys(bpmBucketTrackCounts[selectedStatsBpmBucket] || {}).length === 0 && (
+                          <div className={textMuted}>—</div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -555,6 +677,71 @@ export default function StatsView({
               </div>
             )}
           </div>
+
+          {/* Profil Athlétique — répartition du temps par zone de cadence (voir
+              useAthleticProfile.js). Empty-state si le profil n'est pas configuré,
+              en pointant vers Générer (là où vit désormais cette configuration —
+              retour direct : "personne ne le verra dans Options & Comptes"). */}
+          {hasAnyAthleticProfileConfigured ? (
+            <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
+              <h3 className={`font-bold mb-4 flex items-center gap-2 ${textHighlight}`}><Gauge size={18} className={textColorClass}/> Tes zones de cadence</h3>
+              {zoneBreakdown.length === 0 ? (
+                <p className={`text-sm ${textMuted}`}>Aucune séance terminée n'a encore de BPM réel exploitable pour ce découpage par zone.</p>
+              ) : (
+                <>
+                  <div className="w-full h-56 md:h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={zoneBreakdown} dataKey="seconds" nameKey="shortLabel"
+                          cx="50%" cy="50%" innerRadius={55} outerRadius={85}
+                          paddingAngle={3} cornerRadius={4} stroke="none"
+                        >
+                          {zoneBreakdown.map((z, i) => <Cell key={i} fill={z.color} />)}
+                        </Pie>
+                        <RechartsTooltip formatter={(value, name) => {
+                          const pct = zoneTotalSeconds > 0 ? Math.round((value / zoneTotalSeconds) * 100) : 0;
+                          return [`${formatDuration(value)} (${pct}%)`, name];
+                        }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2">
+                    {zoneBreakdown.map((z, i) => {
+                      const pct = zoneTotalSeconds > 0 ? Math.round((z.seconds / zoneTotalSeconds) * 100) : 0;
+                      return (
+                        <div key={i} className="flex items-center gap-1.5 text-xs font-bold">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
+                          <span className={textHighlight}>{z.shortLabel}</span>
+                          <span className={textMuted}>{pct}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Légende motivante scopée au mois en cours — voir
+                      zoneMonthSummary. Absente s'il n'y a aucune séance ce
+                      mois-ci dans une zone connue, plutôt qu'une phrase à 0%
+                      partout. */}
+                  {zoneMonthSummary && (
+                    <p className={`text-sm text-center mt-4 pt-4 border-t ${cardBorder} ${textHighlight}`}>
+                      <span className="font-bold">Ce mois-ci</span> : {zoneMonthSummary}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          ) : (
+            <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder} flex items-start gap-4`}>
+              <div className={`shrink-0 p-2.5 rounded-xl ${bgAccentClass} text-white`}><Gauge size={20}/></div>
+              <div>
+                <h3 className={`font-bold mb-1 ${textHighlight}`}>Vois comment tu t'entraînes par zone</h3>
+                <p className={`text-sm ${textMuted}`}>Configure ton Profil Athlétique (zones d'allure musicale) pour voir la répartition de tes séances entre Récupération, Endurance, Seuil et Vitesse.</p>
+                <button onClick={() => changeView('generator')} className={`mt-3 text-sm font-bold underline ${textColorClass}`}>
+                  Configurer mon Profil Athlétique →
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Top artistes / top titres — comptés à chaque COMPLÉTION d'une playlist
               qui les contient, pas juste à leur 1ère apparition. */}
