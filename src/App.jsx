@@ -2530,7 +2530,7 @@ export default function App() {
                 dataOffset={dataOffset} setDataOffset={setDataOffset}
                 chartAxisType={chartAxisType} setChartAxisType={setChartAxisType}
                 chartDistanceUnit={chartDistanceUnit} setChartDistanceUnitOverride={setChartDistanceUnitOverride}
-                selectedSegmentIdx={selectedSegmentIdx} trackSegments={trackSegments}
+                selectedSegmentIdx={selectedSegmentIdx} setSelectedSegmentIdx={setSelectedSegmentIdx} trackSegments={trackSegments}
                 togglePreview={togglePreview} playingPreviewId={playingPreviewId}
                 unifiedChartData={unifiedChartData} handleChartClick={handleChartClick}
                 chartXDomain={chartXDomain} chartXTicks={chartXTicks} chartYDomain={chartYDomain}
