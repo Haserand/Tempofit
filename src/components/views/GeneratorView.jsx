@@ -40,7 +40,8 @@ export default function GeneratorView({
   setCurrentPlaylist, setIsBpmSearchMode, setSearchQuery, setWorldSearchResults,
   setResultsContextLabel, setNoUsableResultsHint, setIsSearchModalOpen, searchTracksByBpm,
   executeGeneration, isGenerating, getActiveWorkoutName, setIsSavingRoutineModalOpen,
-  athleticProfile, setBaseCadence, setZone, resetAthleticProfile,
+  athleticProfile, setBaseCadenceForActivity, setZoneForActivity, resetActivityProfile,
+  addCustomActivity, removeCustomActivity, setBaseCadenceForCustom, setZoneForCustom, getProfileForWorkout,
 }) {
   const {
     cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass,
@@ -59,13 +60,62 @@ export default function GeneratorView({
   // showExtraGenres/showScrollHint plus bas) : ne s'affiche en développé que
   // si l'utilisateur clique dessus, pour ne pas s'interposer entre lui et le
   // wizard pour qui n'en a pas l'usage.
+  //
+  // Multi-activités (cette session) : `selectedProfileActivity` contient soit
+  // une clé "built-in" ('Course à pied' / 'Cyclisme'), soit l'id d'une
+  // activité personnalisée ('custom-...') — voir `activeProfile`/
+  // `activeProfileKind` juste après le state, qui résolvent les deux cas de
+  // façon uniforme pour le reste du composant.
   const [showAthleticProfile, setShowAthleticProfile] = useState(false);
   const [showExpertZones, setShowExpertZones] = useState(false);
-  const [baseCadenceDraft, setBaseCadenceDraft] = useState(athleticProfile.baseCadence ?? '');
+  const [selectedProfileActivity, setSelectedProfileActivity] = useState('Course à pied');
+  const [showAddCustomActivity, setShowAddCustomActivity] = useState(false);
+  const [newCustomActivityName, setNewCustomActivityName] = useState('');
+
+  const isCustomProfileTab = selectedProfileActivity.startsWith('custom-');
+  const activeProfile = isCustomProfileTab
+    ? (athleticProfile.custom.find(c => c.id === selectedProfileActivity) || null)
+    : (athleticProfile.activities[selectedProfileActivity] || null);
+
+  // Brouillon de saisie de l'Assistant Rapide — RE-DÉRIVÉ à chaque changement
+  // d'onglet (voir l'effet juste en dessous) puisque chaque activité a
+  // maintenant sa propre cadence de base, contrairement à l'ancien profil
+  // unique où un seul brouillon suffisait.
+  const [baseCadenceDraft, setBaseCadenceDraft] = useState(activeProfile?.baseCadence ?? '');
+  useEffect(() => {
+    setBaseCadenceDraft(activeProfile?.baseCadence ?? '');
+  }, [selectedProfileActivity]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const computeAndApplyZones = () => {
     if (!baseCadenceDraft) return;
-    setBaseCadence(baseCadenceDraft);
+    if (isCustomProfileTab) setBaseCadenceForCustom(selectedProfileActivity, baseCadenceDraft);
+    else setBaseCadenceForActivity(selectedProfileActivity, baseCadenceDraft);
   };
+  const handleSetZone = (zoneKey, value) => {
+    if (isCustomProfileTab) setZoneForCustom(selectedProfileActivity, zoneKey, value);
+    else setZoneForActivity(selectedProfileActivity, zoneKey, value);
+  };
+  const handleResetProfile = () => {
+    if (isCustomProfileTab) {
+      removeCustomActivity(selectedProfileActivity);
+      setSelectedProfileActivity('Course à pied');
+    } else {
+      resetActivityProfile(selectedProfileActivity);
+    }
+  };
+  const confirmAddCustomActivity = () => {
+    const id = addCustomActivity(newCustomActivityName);
+    if (id) { setSelectedProfileActivity(id); setNewCustomActivityName(''); setShowAddCustomActivity(false); }
+  };
+  // Question de l'Assistant Rapide adaptée à l'activité — un footing et une
+  // sortie vélo n'évoquent pas la même "cadence tranquille" pour qui répond.
+  const baseCadenceQuestion = selectedProfileActivity === 'Course à pied'
+    ? "Quelle est ta cadence habituelle lors d'un footing lent ?"
+    : selectedProfileActivity === 'Cyclisme'
+      ? "Quelle est ta cadence habituelle lors d'une sortie tranquille ?"
+      : `Quelle est ta cadence habituelle pour ${activeProfile ? `"${activeProfile.name}"` : 'cette activité'}, à une intensité tranquille ?`;
+  const configuredProfilesCount = Object.values(athleticProfile.activities).filter(p => p.isConfigured).length
+    + athleticProfile.custom.filter(c => c.isConfigured).length;
 
   // Étape 3 : conteneur en hauteur fixe + `overflow-y-auto no-scrollbar` (la
   // barre de défilement est volontairement masquée pour l'esthétique), donc
@@ -115,7 +165,11 @@ export default function GeneratorView({
           fréquence cardiaque (voir useAthleticProfile.js). Replié par défaut ;
           une fois configuré, pré-remplit automatiquement le mode Crescendo à
           l'étape 3 (voir useGeneratorForm.js) — toujours modifiable là-bas
-          ensuite comme n'importe quel réglage manuel. */}
+          ensuite comme n'importe quel réglage manuel.
+          Multi-activités (cette session) : onglets Course à pied / Cyclisme /
+          activités personnalisées, chacun avec son propre Assistant Rapide +
+          mode Expert (voir useAthleticProfile.js pour le détail de la
+          structure de données). */}
       {!isNaughtyMode && (
         <div className={`${cardBg} rounded-3xl border ${cardBorder} shadow-xl overflow-hidden`}>
           <button
@@ -127,8 +181,8 @@ export default function GeneratorView({
               <div className="min-w-0">
                 <h3 className={`font-bold text-lg ${textHighlight}`}>Mon Profil Athlétique</h3>
                 <p className={`text-xs truncate ${textMuted}`}>
-                  {athleticProfile.isConfigured
-                    ? `Zones configurées (${athleticProfile.zone1}-${athleticProfile.zone4} BPM) — pré-remplit le mode Crescendo`
+                  {configuredProfilesCount > 0
+                    ? `${configuredProfilesCount} activité${configuredProfilesCount > 1 ? 's' : ''} configurée${configuredProfilesCount > 1 ? 's' : ''} — pré-remplit le mode Crescendo`
                     : "Définis tes zones d'allure musicale pour préremplir le mode Crescendo"}
                 </p>
               </div>
@@ -138,19 +192,69 @@ export default function GeneratorView({
 
           {showAthleticProfile && (
             <div className="px-5 md:px-6 pb-6">
+              <p className={`text-sm mb-4 ${textMuted}`}>Définis tes zones d'allure musicale par activité pour que le générateur les propose automatiquement en Crescendo, et pour voir comment tes séances se répartissent entre elles dans Statistiques.</p>
+
+              {/* Onglets d'activité — "Course à pied"/"Cyclisme" toujours présents
+                  (voir useAthleticProfile.js, pas de suppression possible pour ces
+                  2-là), activités personnalisées ajoutées/retirables à volonté. */}
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                {['Course à pied', 'Cyclisme'].map(key => (
+                  <button
+                    key={key}
+                    onClick={() => setSelectedProfileActivity(key)}
+                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${selectedProfileActivity === key ?
+                      `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}
+                  >
+                    {key}{athleticProfile.activities[key]?.isConfigured && ' ✓'}
+                  </button>
+                ))}
+                {athleticProfile.custom.map(c => (
+                  <button
+                    key={c.id}
+                    onClick={() => setSelectedProfileActivity(c.id)}
+                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${selectedProfileActivity === c.id ?
+                      `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}
+                  >
+                    {c.name}{c.isConfigured && ' ✓'}
+                  </button>
+                ))}
+                {!showAddCustomActivity ? (
+                  <button
+                    onClick={() => setShowAddCustomActivity(true)}
+                    className={`px-4 py-2 rounded-full text-sm font-bold border-2 border-dashed ${cardBorder} ${textMuted} hover:${textHighlight}`}
+                  >
+                    + Ajouter une autre activité
+                  </button>
+                ) : (
+                  <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full border-2 border-dashed ${cardBorder}`}>
+                    <input
+                      type="text" autoFocus placeholder="ex : Elliptique"
+                      value={newCustomActivityName}
+                      onChange={(e) => setNewCustomActivityName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && confirmAddCustomActivity()}
+                      className={`bg-transparent text-sm font-bold outline-none w-28 px-2 ${textHighlight}`}
+                    />
+                    <button onClick={confirmAddCustomActivity} className={`p-1.5 rounded-full text-white ${bgAccentClass}`}><Plus size={14}/></button>
+                    <button onClick={() => { setShowAddCustomActivity(false); setNewCustomActivityName(''); }} className={`p-1.5 rounded-full ${textMuted} hover:text-red-500`}><Trash2 size={14}/></button>
+                  </div>
+                )}
+              </div>
+
               <div className="flex items-start justify-between gap-4 mb-2">
-                <p className={`text-sm ${textMuted}`}>Définis tes zones d'allure musicale pour que le générateur les propose automatiquement en Crescendo, et pour voir comment tes séances se répartissent entre elles dans Statistiques.</p>
-                {athleticProfile.isConfigured && (
-                  <button onClick={resetAthleticProfile} title="Effacer mon profil athlétique" className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20`}>
-                    <RotateCcw size={18}/>
+                <span className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>
+                  {isCustomProfileTab ? activeProfile?.name : selectedProfileActivity}
+                </span>
+                {activeProfile?.isConfigured && (
+                  <button onClick={handleResetProfile} title={isCustomProfileTab ? "Supprimer cette activité" : "Effacer ce profil"} className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20`}>
+                    {isCustomProfileTab ? <Trash2 size={18}/> : <RotateCcw size={18}/>}
                   </button>
                 )}
               </div>
 
               {/* Assistant Rapide : une seule question, 4 zones calculées d'un
                   coup (voir computeZonesFromBaseCadence, useAthleticProfile.js). */}
-              <div className={`mt-4 p-4 rounded-2xl ${inputBg} border ${inputBorder}`}>
-                <label className={`text-sm font-bold block mb-2 ${textHighlight}`}>Quelle est ta cadence habituelle lors d'un footing lent ?</label>
+              <div className={`p-4 rounded-2xl ${inputBg} border ${inputBorder}`}>
+                <label className={`text-sm font-bold block mb-2 ${textHighlight}`}>{baseCadenceQuestion}</label>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <div className={`flex-1 flex items-center px-4 py-3 rounded-xl border ${inputBorder} ${cardBg}`}>
                     <input
@@ -168,7 +272,7 @@ export default function GeneratorView({
                 </div>
               </div>
 
-              {athleticProfile.isConfigured && (
+              {activeProfile?.isConfigured && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
                   {ATHLETIC_ZONES.map(z => (
                     <div key={z.key} className={`p-3 rounded-xl border ${inputBorder} ${inputBg} text-center`}>
@@ -176,7 +280,7 @@ export default function GeneratorView({
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
                         <span className={`text-[11px] font-bold uppercase tracking-wide ${textMuted}`}>{z.shortLabel}</span>
                       </div>
-                      <div className={`text-xl font-black ${textHighlight}`}>{athleticProfile[z.key] ?? '—'}</div>
+                      <div className={`text-xl font-black ${textHighlight}`}>{activeProfile[z.key] ?? '—'}</div>
                       <div className={`text-[10px] ${textMuted}`}>BPM</div>
                     </div>
                   ))}
@@ -202,8 +306,8 @@ export default function GeneratorView({
                       <div className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-lg border ${inputBorder} ${cardBg}`}>
                         <input
                           type="number" min="40" max="220"
-                          value={athleticProfile[z.key] ?? ''}
-                          onChange={(e) => setZone(z.key, e.target.value)}
+                          value={activeProfile?.[z.key] ?? ''}
+                          onChange={(e) => handleSetZone(z.key, e.target.value)}
                           className={`w-14 bg-transparent text-right font-mono font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${textHighlight}`}
                         />
                         <span className={`text-xs font-bold ${textMuted}`}>BPM</span>
