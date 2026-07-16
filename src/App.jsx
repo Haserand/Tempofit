@@ -396,7 +396,7 @@ export default function App() {
     crescendoWarmupPct, setCrescendoWarmupPct, crescendoCooldownPct, setCrescendoCooldownPct,
     CRESCENDO_MIN_MAIN_PCT,
     crescendoWarmupBpm, setCrescendoWarmupBpm, crescendoCooldownBpm, setCrescendoCooldownBpm,
-    bpmSourceIsProfile,
+    applyProfileBpmIfUntouched,
     allowLongTracks, setAllowLongTracks,
     targetMode, setTargetMode,
     hours, setHours,
@@ -2126,12 +2126,21 @@ export default function App() {
   // curseur (voir resolveSegmentIdxFromChartState) sans calcul de pixels à la
   // main.
   const [isDraggingChartSegment, setIsDraggingChartSegment] = useState(false);
+  // Retenus pour le toast de confirmation à la fin du geste (voir
+  // handleChartMouseUp) : `draggedTrackIndex` est écrasé en continu pendant le
+  // glissement (voir moveTrackTo), donc on ne peut plus, une fois arrivé à
+  // mouseUp, savoir si la position a réellement changé sans avoir gardé le
+  // point de départ à part.
+  const [chartDragStartIndex, setChartDragStartIndex] = useState(null);
+  const [chartDragTrackTitle, setChartDragTrackTitle] = useState(null);
   const handleChartMouseDown = (state) => {
     const idx = resolveSegmentIdxFromChartState(state);
     if (idx >= 0) {
       setDraggedTrackIndex(idx);
       setSelectedSegmentIdx(idx); // surbrillance immédiate du segment saisi
       setIsDraggingChartSegment(true);
+      setChartDragStartIndex(idx);
+      setChartDragTrackTitle(trackSegments[idx]?.track?.title || null);
     }
   };
   const handleChartMouseMove = (state) => {
@@ -2143,8 +2152,18 @@ export default function App() {
     }
   };
   const handleChartMouseUp = () => {
+    // Confirmation visible SEULEMENT si la position a vraiment changé (retour
+    // direct : "ça manque d'indication visuelle quand je déplace un morceau
+    // via le graphique") — un simple clic (mousedown puis mouseup sans
+    // bouger) ne doit pas déclencher de toast, seul un déplacement réel le
+    // mérite.
+    if (isDraggingChartSegment && chartDragStartIndex !== null && draggedTrackIndex !== null && draggedTrackIndex !== chartDragStartIndex) {
+      showToast(`🔀 "${chartDragTrackTitle}" déplacé dans la playlist.`);
+    }
     setIsDraggingChartSegment(false);
     setDraggedTrackIndex(null);
+    setChartDragStartIndex(null);
+    setChartDragTrackTitle(null);
   };
 
   // Domaines des axes calculés explicitement en JS, plutôt que de laisser Recharts
@@ -2474,7 +2493,7 @@ export default function App() {
                 CRESCENDO_MIN_MAIN_PCT={CRESCENDO_MIN_MAIN_PCT}
                 crescendoWarmupBpm={crescendoWarmupBpm} setCrescendoWarmupBpm={setCrescendoWarmupBpm}
                 crescendoCooldownBpm={crescendoCooldownBpm} setCrescendoCooldownBpm={setCrescendoCooldownBpm}
-                bpmSourceIsProfile={bpmSourceIsProfile}
+                applyProfileBpmIfUntouched={applyProfileBpmIfUntouched}
                 hours={hours} minutes={minutes} distanceVal={distanceVal} distanceUnit={distanceUnit}
                 paceMin={paceMin} setPaceMin={setPaceMin} paceSec={paceSec} setPaceSec={setPaceSec}
                 bpm={bpm}
@@ -2536,6 +2555,7 @@ export default function App() {
               <StatsView
                 theme={themeTokens} savedPlaylists={savedPlaylists} userStats={userStats} changeView={changeView}
                 setCurrentPlaylist={setCurrentPlaylist} athleticProfile={athleticProfile} getProfileForWorkout={getProfileForWorkout}
+                shareImageFile={shareImageFileWithTrophy} showToast={showToast}
                 statsMode={statsMode} setStatsMode={setStatsMode}
                 selectedStatsGenre={selectedStatsGenre} setSelectedStatsGenre={setSelectedStatsGenre}
                 selectedStatsBpmBucket={selectedStatsBpmBucket} setSelectedStatsBpmBucket={setSelectedStatsBpmBucket}
@@ -2819,12 +2839,19 @@ export default function App() {
                 <h3 className={"text-2xl font-bold " + textHighlight}>Activité personnalisée</h3>
                 <button onClick={() => setIsCustomActivityModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><X size={20}/></button>
               </div>
-              <input type="text" value={tempCustomActivity} onChange={e => setTempCustomActivity(e.target.value)} placeholder="Ex: Yoga..." className={"w-full rounded-xl px-4 py-4 text-lg focus:outline-none focus:border-red-500 mb-8 border " + inputBg + " " + inputBorder + " " + textHighlight} autoFocus onKeyDown={(e) => { if(e.key === 'Enter') { setCustomActivity(tempCustomActivity); setIsCustomActivityModalOpen(false); } }} />
+              <input type="text" value={tempCustomActivity} onChange={e => setTempCustomActivity(e.target.value)} placeholder="Ex: Yoga..." className={"w-full rounded-xl px-4 py-4 text-lg focus:outline-none focus:border-red-500 mb-8 border " + inputBg + " " + inputBorder + " " + textHighlight} autoFocus onKeyDown={(e) => { if(e.key === 'Enter') { setCustomActivity(tempCustomActivity); setIsCustomActivityModalOpen(false); if (!isNaughtyMode) applyProfileBpmIfUntouched(getProfileForWorkout('Autre', tempCustomActivity)); } }} />
               <div className="flex justify-end space-x-3">
                 <button onClick={() => setIsCustomActivityModalOpen(false)} className={"px-6 py-3 font-medium hover:" + textHighlight + " " + textMuted}>Annuler</button>
                 <button onClick={() => {
                   setCustomActivity(tempCustomActivity);
                   setIsCustomActivityModalOpen(false);
+                  // Même pré-remplissage BPM que Course à pied/Cyclisme à
+                  // l'étape 1 (voir applyProfileBpmIfUntouched,
+                  // useGeneratorForm.js) — pour une activité personnalisée,
+                  // le nom n'est connu qu'à cette confirmation, pas au moment
+                  // où "Autre" est cliqué (voir GeneratorView.jsx, où le nom
+                  // n'existe pas encore à ce stade).
+                  if (!isNaughtyMode) applyProfileBpmIfUntouched(getProfileForWorkout('Autre', tempCustomActivity));
                   // Easter egg : taper "Rick Astley" dans l'activité personnalisée débloque le trophée dédié.
                   if (tempCustomActivity.toLowerCase().includes('rick astley')) {
                     checkTrophies({ ...userStats, hasRickroll: true });
