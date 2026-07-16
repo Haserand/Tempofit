@@ -137,12 +137,20 @@ export default function PlaylistDetailView({
 
   // --- Enchaînement automatique au titre suivant (retour direct : "que ce
   // soit via le graph ou via la sélection musique playlist, quand je finis
-  // un morceau ça doit passer au suivant") ---
+  // un morceau ça doit passer au suivant" — confirmé ensuite : "ça doit
+  // reboucler sur la première" une fois le dernier titre terminé) ---
   // Fourni comme 2e argument à `togglePreview` (voir useAudioPreview.js) :
   // appelé UNIQUEMENT quand un extrait se termine naturellement, jamais sur
   // une pause manuelle. Reçoit le titre qui vient de se terminer, renvoie le
-  // titre juste après lui dans `currentPlaylist.tracks` (ou `null` en fin de
-  // playlist, comportement inchangé : l'extrait s'arrête simplement).
+  // titre juste après lui dans `currentPlaylist.tracks` — ou le TOUT PREMIER
+  // titre de la playlist si c'était le dernier (boucle continue, comme un
+  // "lire tout en boucle" classique), jamais `null` tant qu'au moins un titre
+  // de la playlist a un extrait exploitable. Ne s'arrête donc plus jamais
+  // toute seule une fois lancée — comportement voulu, confirmé explicitement.
+  //
+  // Cas d'une playlist à un seul titre : boucle sur lui-même indéfiniment,
+  // ce qui est la conséquence logique et attendue d'une "boucle sur tout"
+  // avec un seul élément dans "tout" — pas un cas particulier à gérer à part.
   //
   // Comparaison par `.id` plutôt que `.youtubeId` : un titre dupliqué (voir
   // handleDuplicateTrack) partage le même youtubeId que l'original, mais a
@@ -159,10 +167,14 @@ export default function PlaylistDetailView({
   // passé au suivant tout seul. Effet de bord assumé dans ce "getter" plutôt
   // qu'un 2e callback séparé : reste plus simple pour un seul point d'usage.
   const getNextTrackForAutoAdvance = (endedTrack) => {
+    if (currentPlaylist.tracks.length === 0) return null;
     const idx = currentPlaylist.tracks.findIndex(t => t.id === endedTrack.id);
-    if (idx === -1 || idx >= currentPlaylist.tracks.length - 1) return null;
-    setSelectedSegmentIdx(idx + 1);
-    return currentPlaylist.tracks[idx + 1];
+    // idx === -1 (titre introuvable, ex. retiré entre-temps) : repart quand
+    // même du début plutôt que de simplement arrêter — cohérent avec l'idée
+    // que la boucle ne s'interrompt plus d'elle-même.
+    const nextIdx = (idx === -1 || idx >= currentPlaylist.tracks.length - 1) ? 0 : idx + 1;
+    setSelectedSegmentIdx(nextIdx);
+    return currentPlaylist.tracks[nextIdx];
   };
 
   // --- Bilan Visuel de Séance (export image) ---
