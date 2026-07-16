@@ -2585,6 +2585,7 @@ export default function App() {
             {view === 'settings' && (
               <SettingsView
                 theme={themeTokens} spotifyToken={spotifyToken} loginSpotify={loginSpotify} setSpotifyToken={setSpotifyToken}
+                spotifyRedirectUri={REDIRECT_URI}
               />
             )}
 
