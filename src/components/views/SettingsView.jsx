@@ -1,4 +1,5 @@
-import { Settings, Link as LinkIcon, Globe } from 'lucide-react';
+import { useState } from 'react';
+import { Settings, Link as LinkIcon, Globe, Copy, Check, AlertTriangle } from 'lucide-react';
 
 /**
  * SettingsView — vue "Options & Comptes" (connexion Spotify).
@@ -15,8 +16,29 @@ import { Settings, Link as LinkIcon, Globe } from 'lucide-react';
  * rarement). Voir GeneratorView.jsx pour l'UI, useAthleticProfile.js pour le
  * state — inchangés, seul l'EMPLACEMENT dans l'app a changé.
  */
-export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken }) {
+export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri }) {
   const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg } = theme;
+  // Retour direct : erreur Spotify "redirect_uri: Not matching configuration"
+  // au clic sur "Lier mon compte" — ce n'est PAS un bug de ce code (voir
+  // App.jsx, `loginSpotify`) : Spotify exige que l'URL de redirection envoyée
+  // dans la requête OAuth corresponde À L'IDENTIQUE (protocole, domaine,
+  // chemin, présence/absence du slash final) à une URL enregistrée à l'avance
+  // dans le Dashboard développeur Spotify de CETTE app (celle du
+  // `client_id` utilisé, voir App.jsx). Cette URL change selon où l'app
+  // tourne (aperçu, domaine de prod, localhost...), donc l'erreur est
+  // fréquente dès qu'on teste ailleurs que l'URL déjà enregistrée. Affiché
+  // ici tel quel (copiable) pour l'ajouter en un clic dans
+  // https://developer.spotify.com/dashboard → l'app concernée → Settings →
+  // Redirect URIs — plutôt que de forcer à le retrouver dans l'URL tronquée
+  // de la barre d'adresse au moment de l'erreur.
+  const [copied, setCopied] = useState(false);
+  const copyRedirectUri = () => {
+    if (!spotifyRedirectUri) return;
+    navigator.clipboard.writeText(spotifyRedirectUri).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  };
 
   const disconnectSpotify = () => {
     window.localStorage.removeItem("spotify_token");
@@ -56,6 +78,29 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
             </button>
           )}
         </div>
+
+        {/* Aide au dépannage "redirect_uri: Not matching configuration" — voir
+            le commentaire plus haut. N'apparaît que tant que Spotify n'est pas
+            connecté : une fois lié avec succès, plus la peine d'encombrer
+            l'écran avec ça. */}
+        {!spotifyToken && spotifyRedirectUri && (
+          <div className={`mt-4 p-4 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10`}>
+            <div className="flex items-start gap-2 text-sm font-bold text-amber-700 dark:text-amber-400 mb-2">
+              <AlertTriangle size={16} className="shrink-0 mt-0.5"/>
+              <span>Erreur "redirect_uri: Not matching configuration" ? Cette URL doit être enregistrée dans le Dashboard développeur Spotify de cette app (Settings → Redirect URIs), à l'identique.</span>
+            </div>
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${inputBorder} ${inputBg}`}>
+              <code className={`flex-1 text-xs font-mono truncate ${textHighlight}`}>{spotifyRedirectUri}</code>
+              <button
+                onClick={copyRedirectUri}
+                title="Copier cette URL"
+                className={`shrink-0 p-1.5 rounded-md transition-colors ${copied ? 'text-green-500' : textMuted + ' hover:text-amber-600'}`}
+              >
+                {copied ? <Check size={16}/> : <Copy size={16}/>}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="h-4"></div>
         <div className="p-4 rounded-2xl border border-green-500 bg-green-50 dark:bg-green-900/10 text-sm font-bold text-green-600 dark:text-green-400 flex items-center gap-2">
