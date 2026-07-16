@@ -41,8 +41,8 @@
  * complet — non reproduit ici pour éviter la duplication.
  */
 
-import { DEEZER_GENRE_KEYWORDS, genreRoughlyMatches } from './musicCatalog';
-import { deezerFetch, resolveDeezerGenre, resolveBpmForCandidates } from './musicEngine';
+import { DEEZER_GENRE_KEYWORDS, genreRoughlyMatches, ARTIST_CATALOG } from './musicCatalog';
+import { deezerFetch, resolveDeezerGenre, resolveBpmForCandidates, searchArtistsForBpm } from './musicEngine';
 
 export const SEARCH_PAGE_SIZE = 10;
 
@@ -242,6 +242,26 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
   const maxBpm = targetBpm + tolerance;
   const genresToQuery = genres && genres.length > 0 ? genres : ['Autre'];
 
+  // BUG CORRIGÉ (cas réel constaté : "Métal" sélectionné → Eagles, AC/DC,
+  // Coldplay en tête, aucun avertissement) — cause racine : `DEEZER_GENRE_
+  // KEYWORDS` n'a PAS d'entrée pour "Métal" (voir musicCatalog.js : Deezer
+  // classe la quasi-totalité du metal en "Rock", jamais avec un mot-clé
+  // "metal" fiable), donc la recherche par mot-clé ci-dessous tournait SANS
+  // AUCUN filtre de genre pour ce cas précis — n'importe quel titre dans la
+  // fourchette BPM pouvait remonter, `genreRoughlyMatches` (avec son
+  // équivalence Rock/Métal, nécessaire mais large) ne faisant que trier
+  // après coup plutôt que vraiment cibler la recherche. Exactement pour ça
+  // que `buildSegmentTracks`/`getSingleMatchingTrack` (musicEngine.js)
+  // renforcent ces genres via `ARTIST_CATALOG` (recherche par artiste
+  // représentatif) plutôt que de compter sur un mot-clé Deezer inexistant —
+  // jamais reproduit ici avant, un chemin de code entièrement séparé.
+  const catalogStubsByGenre = await Promise.all(genresToQuery.map(async (genre) => {
+    const artists = ARTIST_CATALOG[genre];
+    if (!artists || artists.length === 0) return [];
+    const stubs = await searchArtistsForBpm(artists, minBpm, maxBpm, []);
+    return stubs.map(s => ({ ...s, matchedGenre: genre, _fromCatalog: true }));
+  }));
+
   const stubsByGenre = await Promise.all(genresToQuery.map(async (genre) => {
     const keyword = DEEZER_GENRE_KEYWORDS[genre] || '';
     const q = `bpm_min:"${minBpm}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
@@ -250,10 +270,14 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
     return stubs.map(s => ({ ...s, matchedGenre: genre }));
   }));
 
-  // Fusion + déduplication par id de titre (un même titre peut remonter pour plusieurs genres)
+  // Catalogue inséré EN PREMIER dans la fusion : quand les 2 recherches
+  // remontent le même titre, la version catalogue (confirmée par artiste,
+  // voir _fromCatalog) l'emporte plutôt que la version générique. Plafond
+  // légèrement relevé (15 → 18) pour laisser de la place aux deux sources à
+  // la fois sans que l'une n'écrase systématiquement l'autre.
   const merged = new Map();
-  stubsByGenre.flat().forEach(s => { if (!merged.has(s.id)) merged.set(s.id, s); });
-  const uniqueStubs = Array.from(merged.values()).slice(0, 15);
+  [...catalogStubsByGenre.flat(), ...stubsByGenre.flat()].forEach(s => { if (!merged.has(s.id)) merged.set(s.id, s); });
+  const uniqueStubs = Array.from(merged.values()).slice(0, 18);
 
   if (uniqueStubs.length === 0) {
     return { results: [] };
@@ -262,7 +286,7 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
   // Un appel par titre pour confirmer le BPM exact et récupérer l'extrait audio
   const detailedTracks = await Promise.all(uniqueStubs.map(async (stub) => {
     const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
-    return full ? { ...full, matchedGenre: stub.matchedGenre } : null;
+    return full ? { ...full, matchedGenre: stub.matchedGenre, _fromCatalog: stub._fromCatalog || false } : null;
   }));
 
   const results = await Promise.all(
@@ -283,7 +307,12 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
         // ici pour la recherche manuelle, un chemin de code entièrement
         // séparé. `_genreMismatch` alimente le badge "⚠️ Genre non confirmé"
         // déjà géré par l'UI (App.jsx) mais jamais posé par cette fonction.
-        const genreMismatch = !genresToQuery.some(g => genreRoughlyMatches(realGenre, g));
+        // `_fromCatalog` (voir plus haut) : un titre trouvé via un artiste
+        // représentatif du genre (ex. Metallica pour "Métal") est fiable même
+        // si `resolveDeezerGenre` renvoie "Rock" — exactement le cas que ce
+        // renfort catalogue existe pour corriger, pas la peine de le flaguer
+        // "non confirmé" une fois qu'on SAIT que l'artiste en fait vraiment.
+        const genreMismatch = t._fromCatalog ? false : !genresToQuery.some(g => genreRoughlyMatches(realGenre, g));
         return {
           youtubeId: `deezer-${t.id}`,
           title: t.title,
