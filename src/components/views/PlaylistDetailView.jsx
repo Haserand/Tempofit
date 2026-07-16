@@ -330,36 +330,82 @@ export default function PlaylistDetailView({
               </button>
             </h2>
           )}
-          <div className={"flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm font-medium " + textMuted}>
-            <div className="flex items-center space-x-1"><Activity size={16}/><span>{currentPlaylist.workoutType}</span></div><span>•</span>
-            <div className="flex items-center space-x-1"><Clock size={16}/><span>{formatDuration(currentPlaylist.totalDuration)}</span></div><span>•</span>
-            <div className="flex items-center space-x-1"><Music size={16}/><span>{currentPlaylist.tracks.length} titres</span></div>
-            {(() => {
-              const cfg = currentPlaylist.config || {};
-              // Les genres SÉLECTIONNÉS (cfg.selectedGenres) sont déjà des noms
-              // canoniques de l'app (ex. "K-pop") — ne JAMAIS les repasser dans
-              // normalizeGenreForDisplay (prévu pour nettoyer un genre BRUT venu
-              // de Deezer). Bug rencontré : "K-pop" contient le mot "pop", donc
-              // normalizeGenreForDisplay('K-pop') matchait "Pop" en premier et
-              // affichait le mauvais genre. Seul le repli (genres réels des
-              // titres, quand aucun genre n'a été explicitement sélectionné) a
-              // besoin de cette normalisation.
-              if (cfg.selectedGenres && cfg.selectedGenres.length > 0) {
-                return (
+          <div className="flex flex-wrap items-center justify-center md:justify-between gap-4">
+            <div className={"flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm font-medium " + textMuted}>
+              <div className="flex items-center space-x-1"><Activity size={16}/><span>{currentPlaylist.workoutType}</span></div><span>•</span>
+              <div className="flex items-center space-x-1"><Clock size={16}/><span>{formatDuration(currentPlaylist.totalDuration)}</span></div><span>•</span>
+              <div className="flex items-center space-x-1"><Music size={16}/><span>{currentPlaylist.tracks.length} titres</span></div>
+              {(() => {
+                const cfg = currentPlaylist.config || {};
+                // Les genres SÉLECTIONNÉS (cfg.selectedGenres) sont déjà des noms
+                // canoniques de l'app (ex. "K-pop") — ne JAMAIS les repasser dans
+                // normalizeGenreForDisplay (prévu pour nettoyer un genre BRUT venu
+                // de Deezer). Bug rencontré : "K-pop" contient le mot "pop", donc
+                // normalizeGenreForDisplay('K-pop') matchait "Pop" en premier et
+                // affichait le mauvais genre. Seul le repli (genres réels des
+                // titres, quand aucun genre n'a été explicitement sélectionné) a
+                // besoin de cette normalisation.
+                if (cfg.selectedGenres && cfg.selectedGenres.length > 0) {
+                  return (
+                    <>
+                      <span>•</span>
+                      <div className="flex items-center space-x-1"><Music size={16}/><span>{cfg.selectedGenres.map(genreDisplayLabel).join(', ')}</span></div>
+                    </>
+                  );
+                }
+                const genres = Array.from(new Set(currentPlaylist.tracks.map(t => t.genre).filter(g => g && g !== 'Genre inconnu')));
+                return genres.length > 0 && (
                   <>
                     <span>•</span>
-                    <div className="flex items-center space-x-1"><Music size={16}/><span>{cfg.selectedGenres.map(genreDisplayLabel).join(', ')}</span></div>
+                    <div className="flex items-center space-x-1"><Music size={16}/><span>{Array.from(new Set(genres.flatMap(getGenresForDisplay))).join(', ')}</span></div>
                   </>
                 );
-              }
-              const genres = Array.from(new Set(currentPlaylist.tracks.map(t => t.genre).filter(g => g && g !== 'Genre inconnu')));
-              return genres.length > 0 && (
-                <>
-                  <span>•</span>
-                  <div className="flex items-center space-x-1"><Music size={16}/><span>{Array.from(new Set(genres.flatMap(getGenresForDisplay))).join(', ')}</span></div>
-                </>
-              );
-            })()}
+              })()}
+            </div>
+
+            {/* "Planifier" déplacé ici, sur la même ligne que les infos de la
+                playlist (retour direct : "le bouton de planification doit être
+                au même niveau que les infos de la playlist, pas dans la ligne
+                du bas") — reste identique en tout point (même handler, même
+                filet de sécurité showPicker, même libellé conditionnel selon
+                isLocked), seul l'EMPLACEMENT change. N'apparaît que si la
+                playlist est déjà sauvegardée (même condition qu'avant),
+                puisque planifier une séance qui n'est pas encore dans "Mes
+                Séances" n'a pas de sens. */}
+            {savedPlaylists.find(p => p.id === currentPlaylist.id) && (
+              <label
+                onClick={(e) => {
+                  // showPicker() force l'ouverture explicitement là où l'API existe
+                  // (Chrome/Edge récents) — sans ce filet, le clic pouvait ne
+                  // simplement rien faire dans certains navigateurs. Sur les
+                  // navigateurs sans showPicker (Safari plus anciens, Firefox),
+                  // on laisse le comportement natif label→input inchangé.
+                  if (plannedDateInputRef.current?.showPicker) {
+                    e.preventDefault();
+                    plannedDateInputRef.current.showPicker();
+                  }
+                }}
+                className={`relative flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors border cursor-pointer bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shrink-0 ${cardBorder} ${textHighlight}`}
+                title={
+                  // Une fois la séance déjà réalisée, "planifier" ne peut plus
+                  // vouloir dire "prévoir sa première fois" — ça ne peut plus
+                  // être qu'une intention de la refaire plus tard.
+                  isLocked
+                    ? "Planifier une date pour REFAIRE cette séance (optionnel — sert juste à trier 'Mes Séances')"
+                    : "Planifier une date pour cette séance (optionnel — sert juste à trier 'Mes Séances')"
+                }
+              >
+                <Calendar size={16} />
+                <span>{currentPlaylist.plannedDate ? new Date(currentPlaylist.plannedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : (isLocked ? 'Planifier à nouveau' : 'Planifier')}</span>
+                <input
+                  ref={plannedDateInputRef}
+                  type="date"
+                  value={currentPlaylist.plannedDate || ''}
+                  onChange={(e) => setPlaylistPlannedDate(currentPlaylist.id, e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+              </label>
+            )}
           </div>
 
           <div className="flex items-center justify-center md:justify-start gap-3 mt-4">
@@ -372,56 +418,20 @@ export default function PlaylistDetailView({
                 <Save size={16} /> <span>Ajouter à Mes Séances</span>
               </button>
             ) : (
-              <>
-                {/* Badge devenu cliquable (retour direct : un badge de confirmation
-                    statique et non décochable était trompeur). Swap icône/texte au
-                    survol (groupe Tailwind) pour signaler clairement que le clic
-                    retire la playlist, pas juste une redite de "c'est sauvegardé". */}
-                <button
-                  onClick={handleUnsavePlaylist}
-                  title="Retirer de 'Mes Séances' — si cette playlist a déjà été faite ou a des données importées, cet historique sera perdu avec elle."
-                  className="group flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 dark:hover:text-red-400 border border-green-200 dark:border-green-800 hover:border-red-200 dark:hover:border-red-800"
-                >
-                  <CheckCircle size={16} className="group-hover:hidden" />
-                  <X size={16} className="hidden group-hover:block" />
-                  <span className="group-hover:hidden">Sauvegardée dans Mes Séances</span>
-                  <span className="hidden group-hover:block">Retirer de Mes Séances</span>
-                </button>
-                {/* Date optionnelle, sert uniquement de clé de tri dans "Mes
-                    Séances" (section "Planifiées") — jamais obligatoire. */}
-                <label
-                  onClick={(e) => {
-                    // showPicker() force l'ouverture explicitement là où l'API existe
-                    // (Chrome/Edge récents) — sans ce filet, le clic pouvait ne
-                    // simplement rien faire dans certains navigateurs. Sur les
-                    // navigateurs sans showPicker (Safari plus anciens, Firefox),
-                    // on laisse le comportement natif label→input inchangé.
-                    if (plannedDateInputRef.current?.showPicker) {
-                      e.preventDefault();
-                      plannedDateInputRef.current.showPicker();
-                    }
-                  }}
-                  className={`relative flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors border cursor-pointer bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 ${cardBorder} ${textHighlight}`}
-                  title={
-                    // Une fois la séance déjà réalisée, "planifier" ne peut plus
-                    // vouloir dire "prévoir sa première fois" — ça ne peut plus
-                    // être qu'une intention de la refaire plus tard.
-                    isLocked
-                      ? "Planifier une date pour REFAIRE cette séance (optionnel — sert juste à trier 'Mes Séances')"
-                      : "Planifier une date pour cette séance (optionnel — sert juste à trier 'Mes Séances')"
-                  }
-                >
-                  <Calendar size={16} />
-                  <span>{currentPlaylist.plannedDate ? new Date(currentPlaylist.plannedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : (isLocked ? 'Planifier à nouveau' : 'Planifier')}</span>
-                  <input
-                    ref={plannedDateInputRef}
-                    type="date"
-                    value={currentPlaylist.plannedDate || ''}
-                    onChange={(e) => setPlaylistPlannedDate(currentPlaylist.id, e.target.value)}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                  />
-                </label>
-              </>
+              /* Badge devenu cliquable (retour direct : un badge de confirmation
+                  statique et non décochable était trompeur). Swap icône/texte au
+                  survol (groupe Tailwind) pour signaler clairement que le clic
+                  retire la playlist, pas juste une redite de "c'est sauvegardé". */
+              <button
+                onClick={handleUnsavePlaylist}
+                title="Retirer de 'Mes Séances' — si cette playlist a déjà été faite ou a des données importées, cet historique sera perdu avec elle."
+                className="group flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 dark:hover:text-red-400 border border-green-200 dark:border-green-800 hover:border-red-200 dark:hover:border-red-800"
+              >
+                <CheckCircle size={16} className="group-hover:hidden" />
+                <X size={16} className="hidden group-hover:block" />
+                <span className="group-hover:hidden">Sauvegardée dans Mes Séances</span>
+                <span className="hidden group-hover:block">Retirer de Mes Séances</span>
+              </button>
             )}
             <button onClick={() => handleShare('playlist', currentPlaylist)} className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40">
               <Share2 size={16} /> <span>Partager</span>
