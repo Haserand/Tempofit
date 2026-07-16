@@ -162,187 +162,202 @@ export default function GeneratorView({
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
       <div className="text-center md:text-left space-y-2 mb-8">
-        <h1 className={`text-3xl md:text-5xl font-extrabold tracking-tight ${textHighlight}`}>{isNaughtyMode ? "Prépare l'ambiance..." : "Sculpte ta séance"}</h1>
-        <p className="text-lg font-medium text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{displaySubtitleGen}</p>
+        <h1 className={`text-3xl md:text-5xl font-extrabold tracking-tight ${textHighlight}`}>
+          {showAthleticProfile ? 'Mon Profil Athlétique' : (isNaughtyMode ? "Prépare l'ambiance..." : "Sculpte ta séance")}
+        </h1>
+        <p className="text-lg font-medium text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+          {showAthleticProfile ? "Définis tes zones d'allure musicale par activité." : displaySubtitleGen}
+        </p>
       </div>
 
-      {/* Profil Athlétique — zones d'intensité de CADENCE musicale (BPM), pas de
-          fréquence cardiaque (voir useAthleticProfile.js). Replié par défaut ;
-          une fois configuré, pré-remplit automatiquement le mode Crescendo à
-          l'étape 3 (voir useGeneratorForm.js) — toujours modifiable là-bas
-          ensuite comme n'importe quel réglage manuel.
-          Multi-activités (cette session) : onglets Course à pied / Cyclisme /
-          activités personnalisées, chacun avec son propre Assistant Rapide +
-          mode Expert (voir useAthleticProfile.js pour le détail de la
-          structure de données). */}
-      {!isNaughtyMode && (
-        <div className={`${cardBg} rounded-3xl border ${cardBorder} shadow-xl overflow-hidden`}>
-          <button
-            onClick={() => setShowAthleticProfile(!showAthleticProfile)}
-            className="w-full flex items-center justify-between gap-3 p-5 md:p-6 text-left"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className={`shrink-0 p-2 rounded-xl ${bgAccentClass} text-white`}><Gauge size={20}/></div>
-              <div className="min-w-0">
-                <h3 className={`font-bold text-lg ${textHighlight}`}>Mon Profil Athlétique</h3>
-                <p className={`text-xs truncate ${textMuted}`}>
-                  {configuredProfilesCount > 0
-                    ? `${configuredProfilesCount} activité${configuredProfilesCount > 1 ? 's' : ''} configurée${configuredProfilesCount > 1 ? 's' : ''} — pré-remplit le mode Crescendo`
-                    : "Définis tes zones d'allure musicale pour préremplir le mode Crescendo"}
-                </p>
+      {/* Profil Athlétique et Générer sont maintenant 2 PAGES DISTINCTES et
+          MUTUELLEMENT EXCLUSIVES (retour direct : "quand je clique sur profil
+          athlétique je dois pas avoir accès à la gestion, et inversement") —
+          avant, un simple accordéon dépliable au-dessus du wizard ; ce dernier
+          restait visible en dessous dans les 2 cas, ce qui n'isolait pas
+          vraiment les deux. `showAthleticProfile` (remonté dans App.jsx, piloté
+          par les 2 entrées de la sidebar : "Générer" et son sous-menu "Mon
+          Profil Athlétique") choisit maintenant laquelle des 2 pages s'affiche,
+          plus un simple "replié/déplié". */}
+      {showAthleticProfile ? (
+        !isNaughtyMode && (
+          <div className={`${cardBg} rounded-3xl border ${cardBorder} shadow-xl p-5 md:p-6`}>
+            {/* Onglets d'activité — "Course à pied"/"Cyclisme" toujours présents
+                (voir useAthleticProfile.js, pas de suppression possible pour ces
+                2-là), activités personnalisées ajoutées/retirables à volonté. */}
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              {['Course à pied', 'Cyclisme'].map(key => (
+                <button
+                  key={key}
+                  onClick={() => setSelectedProfileActivity(key)}
+                  className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${selectedProfileActivity === key ?
+                    `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}
+                >
+                  {key}{athleticProfile.activities[key]?.isConfigured && ' ✓'}
+                </button>
+              ))}
+              {athleticProfile.custom.map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedProfileActivity(c.id)}
+                  className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${selectedProfileActivity === c.id ?
+                    `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}
+                >
+                  {c.name}{c.isConfigured && ' ✓'}
+                </button>
+              ))}
+              {!showAddCustomActivity ? (
+                <button
+                  onClick={() => setShowAddCustomActivity(true)}
+                  className={`px-4 py-2 rounded-full text-sm font-bold border-2 border-dashed ${cardBorder} ${textMuted} hover:${textHighlight}`}
+                >
+                  + Ajouter une autre activité
+                </button>
+              ) : (
+                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full border-2 border-dashed ${cardBorder}`}>
+                  <input
+                    type="text" autoFocus placeholder="ex : Elliptique"
+                    value={newCustomActivityName}
+                    onChange={(e) => setNewCustomActivityName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && confirmAddCustomActivity()}
+                    className={`bg-transparent text-sm font-bold outline-none w-28 px-2 ${textHighlight}`}
+                  />
+                  <button onClick={confirmAddCustomActivity} className={`p-1.5 rounded-full text-white ${bgAccentClass}`}><Plus size={14}/></button>
+                  <button onClick={() => { setShowAddCustomActivity(false); setNewCustomActivityName(''); }} className={`p-1.5 rounded-full ${textMuted} hover:text-red-500`}><Trash2 size={14}/></button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-start justify-between gap-4 mb-2">
+              <span className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>
+                {isCustomProfileTab ? activeProfile?.name : selectedProfileActivity}
+              </span>
+              {activeProfile?.isConfigured && (
+                <button onClick={handleResetProfile} title={isCustomProfileTab ? "Supprimer cette activité" : "Effacer ce profil"} className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20`}>
+                  {isCustomProfileTab ? <Trash2 size={18}/> : <RotateCcw size={18}/>}
+                </button>
+              )}
+            </div>
+
+            {/* Assistant Rapide : une seule question, 4 zones calculées d'un
+                coup (voir computeZonesFromBaseCadence, useAthleticProfile.js). */}
+            <div className={`p-4 rounded-2xl ${inputBg} border ${inputBorder}`}>
+              <label className={`text-sm font-bold block mb-2 ${textHighlight}`}>{baseCadenceQuestion}</label>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className={`flex-1 flex items-center px-4 py-3 rounded-xl border ${inputBorder} ${cardBg}`}>
+                  <input
+                    type="number" min="40" max="220" placeholder="ex : 160"
+                    value={baseCadenceDraft}
+                    onChange={(e) => setBaseCadenceDraft(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && computeAndApplyZones()}
+                    className={`bg-transparent w-full text-lg font-bold outline-none ${textHighlight}`}
+                  />
+                  <span className={`text-sm font-bold shrink-0 ${textMuted}`}>BPM</span>
+                </div>
+                <button onClick={computeAndApplyZones} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110 shrink-0`}>
+                  Calculer mes zones
+                </button>
               </div>
             </div>
-            {showAthleticProfile ? <ChevronUp size={20} className={`shrink-0 ${textMuted}`}/> : <ChevronDown size={20} className={`shrink-0 ${textMuted}`}/>}
-          </button>
 
-          {showAthleticProfile && (
-            <div className="px-5 md:px-6 pb-6">
-              <p className={`text-sm mb-4 ${textMuted}`}>Définis tes zones d'allure musicale par activité pour que le générateur les propose automatiquement en Crescendo, et pour voir comment tes séances se répartissent entre elles dans Statistiques.</p>
-
-              {/* Onglets d'activité — "Course à pied"/"Cyclisme" toujours présents
-                  (voir useAthleticProfile.js, pas de suppression possible pour ces
-                  2-là), activités personnalisées ajoutées/retirables à volonté. */}
-              <div className="flex flex-wrap items-center gap-2 mb-4">
-                {['Course à pied', 'Cyclisme'].map(key => (
-                  <button
-                    key={key}
-                    onClick={() => setSelectedProfileActivity(key)}
-                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${selectedProfileActivity === key ?
-                      `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}
-                  >
-                    {key}{athleticProfile.activities[key]?.isConfigured && ' ✓'}
-                  </button>
-                ))}
-                {athleticProfile.custom.map(c => (
-                  <button
-                    key={c.id}
-                    onClick={() => setSelectedProfileActivity(c.id)}
-                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${selectedProfileActivity === c.id ?
-                      `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}
-                  >
-                    {c.name}{c.isConfigured && ' ✓'}
-                  </button>
-                ))}
-                {!showAddCustomActivity ? (
-                  <button
-                    onClick={() => setShowAddCustomActivity(true)}
-                    className={`px-4 py-2 rounded-full text-sm font-bold border-2 border-dashed ${cardBorder} ${textMuted} hover:${textHighlight}`}
-                  >
-                    + Ajouter une autre activité
-                  </button>
-                ) : (
-                  <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full border-2 border-dashed ${cardBorder}`}>
-                    <input
-                      type="text" autoFocus placeholder="ex : Elliptique"
-                      value={newCustomActivityName}
-                      onChange={(e) => setNewCustomActivityName(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && confirmAddCustomActivity()}
-                      className={`bg-transparent text-sm font-bold outline-none w-28 px-2 ${textHighlight}`}
-                    />
-                    <button onClick={confirmAddCustomActivity} className={`p-1.5 rounded-full text-white ${bgAccentClass}`}><Plus size={14}/></button>
-                    <button onClick={() => { setShowAddCustomActivity(false); setNewCustomActivityName(''); }} className={`p-1.5 rounded-full ${textMuted} hover:text-red-500`}><Trash2 size={14}/></button>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-start justify-between gap-4 mb-2">
-                <span className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>
-                  {isCustomProfileTab ? activeProfile?.name : selectedProfileActivity}
-                </span>
-                {activeProfile?.isConfigured && (
-                  <button onClick={handleResetProfile} title={isCustomProfileTab ? "Supprimer cette activité" : "Effacer ce profil"} className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20`}>
-                    {isCustomProfileTab ? <Trash2 size={18}/> : <RotateCcw size={18}/>}
-                  </button>
-                )}
-              </div>
-
-              {/* Assistant Rapide : une seule question, 4 zones calculées d'un
-                  coup (voir computeZonesFromBaseCadence, useAthleticProfile.js). */}
-              <div className={`p-4 rounded-2xl ${inputBg} border ${inputBorder}`}>
-                <label className={`text-sm font-bold block mb-2 ${textHighlight}`}>{baseCadenceQuestion}</label>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <div className={`flex-1 flex items-center px-4 py-3 rounded-xl border ${inputBorder} ${cardBg}`}>
-                    <input
-                      type="number" min="40" max="220" placeholder="ex : 160"
-                      value={baseCadenceDraft}
-                      onChange={(e) => setBaseCadenceDraft(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && computeAndApplyZones()}
-                      className={`bg-transparent w-full text-lg font-bold outline-none ${textHighlight}`}
-                    />
-                    <span className={`text-sm font-bold shrink-0 ${textMuted}`}>BPM</span>
-                  </div>
-                  <button onClick={computeAndApplyZones} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110 shrink-0`}>
-                    Calculer mes zones
-                  </button>
-                </div>
-              </div>
-
-              {activeProfile?.isConfigured && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-                  {ATHLETIC_ZONES.map(z => (
-                    <div key={z.key} className={`p-3 rounded-xl border ${inputBorder} ${inputBg} text-center`}>
-                      <div className="flex items-center justify-center gap-1.5 mb-1">
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
-                        <span className={`text-[11px] font-bold uppercase tracking-wide ${textMuted}`}>{z.shortLabel}</span>
-                      </div>
-                      <div className={`text-xl font-black ${textHighlight}`}>{activeProfile[z.key] ?? '—'}</div>
-                      <div className={`text-[10px] ${textMuted}`}>BPM</div>
+            {activeProfile?.isConfigured && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                {ATHLETIC_ZONES.map(z => (
+                  <div key={z.key} className={`p-3 rounded-xl border ${inputBorder} ${inputBg} text-center`}>
+                    <div className="flex items-center justify-center gap-1.5 mb-1">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
+                      <span className={`text-[11px] font-bold uppercase tracking-wide ${textMuted}`}>{z.shortLabel}</span>
                     </div>
-                  ))}
-                </div>
-              )}
+                    <div className={`text-xl font-black ${textHighlight}`}>{activeProfile[z.key] ?? '—'}</div>
+                    <div className={`text-[10px] ${textMuted}`}>BPM</div>
+                  </div>
+                ))}
+              </div>
+            )}
 
-              <button
-                onClick={() => setShowExpertZones(!showExpertZones)}
-                className={`mt-4 flex items-center gap-1.5 text-sm font-bold ${textColorClass}`}
-              >
-                {showExpertZones ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
-                <span>Ajuster manuellement</span>
+            <button
+              onClick={() => setShowExpertZones(!showExpertZones)}
+              className={`mt-4 flex items-center gap-1.5 text-sm font-bold ${textColorClass}`}
+            >
+              {showExpertZones ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
+              <span>Ajuster manuellement</span>
+            </button>
+
+            {showExpertZones && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                {ATHLETIC_ZONES.map(z => (
+                  <div key={z.key} className={`flex items-center justify-between gap-3 p-3 rounded-xl border ${inputBorder} ${inputBg}`}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
+                      <span className={`text-sm font-bold truncate ${textHighlight}`}>{z.label}</span>
+                    </div>
+                    <div className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-lg border ${inputBorder} ${cardBg}`}>
+                      <input
+                        type="number" min="40" max="220"
+                        value={activeProfile?.[z.key] ?? ''}
+                        onChange={(e) => handleSetZone(z.key, e.target.value)}
+                        className={`w-14 bg-transparent text-right font-mono font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${textHighlight}`}
+                      />
+                      <span className={`text-xs font-bold ${textMuted}`}>BPM</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Renvoi vers la génération une fois CETTE activité configurée
+                (retour direct : "une fois profil athlétique complété pour une
+                activité faudrait un message qui suggère de générer une
+                playlist") — apparaît juste après le calcul/ajustement des
+                zones, pas de façon permanente. */}
+            {activeProfile?.isConfigured && (
+              <div className={`mt-5 p-4 rounded-2xl border-2 border-dashed ${borderAccentClass} flex items-center justify-between gap-3 flex-wrap`}>
+                <p className={`text-sm font-semibold ${textHighlight}`}>🎯 Zones prêtes pour {isCustomProfileTab ? activeProfile.name : selectedProfileActivity} — tu peux générer une séance en Crescendo qui les utilise.</p>
+                <button onClick={() => setShowAthleticProfile(false)} className={`shrink-0 px-4 py-2 rounded-xl font-bold text-sm text-white ${bgAccentClass} hover:brightness-110`}>
+                  Générer une playlist →
+                </button>
+              </div>
+            )}
+          </div>
+        )
+      ) : (
+        <>
+          {/* Renvoi inverse, côté "Générer" (retour direct : "et inversement
+              dans gestion faudrait un message renvoyant vers le fait de
+              remplir le profil athlétique") — seulement si RIEN n'a jamais été
+              configuré (voir configuredProfilesCount) : une fois au moins une
+              activité configurée, plus la peine d'insister à chaque
+              génération, le badge "calculé depuis ton profil" (étape 3, mode
+              Crescendo) prend le relais. */}
+          {!isNaughtyMode && configuredProfilesCount === 0 && (
+            <div className={`${cardBg} rounded-2xl border ${cardBorder} p-4 flex items-center justify-between gap-3 flex-wrap`}>
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`shrink-0 p-2 rounded-xl ${bgAccentClass} text-white`}><Gauge size={18}/></div>
+                <p className={`text-sm ${textMuted}`}>Configure ton <span className={`font-semibold ${textHighlight}`}>Profil Athlétique</span> pour que le mode Crescendo propose automatiquement tes zones d'allure.</p>
+              </div>
+              <button onClick={() => setShowAthleticProfile(true)} className={`shrink-0 text-sm font-bold underline ${textColorClass}`}>
+                Configurer →
               </button>
-
-              {showExpertZones && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                  {ATHLETIC_ZONES.map(z => (
-                    <div key={z.key} className={`flex items-center justify-between gap-3 p-3 rounded-xl border ${inputBorder} ${inputBg}`}>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
-                        <span className={`text-sm font-bold truncate ${textHighlight}`}>{z.label}</span>
-                      </div>
-                      <div className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-lg border ${inputBorder} ${cardBg}`}>
-                        <input
-                          type="number" min="40" max="220"
-                          value={activeProfile?.[z.key] ?? ''}
-                          onChange={(e) => handleSetZone(z.key, e.target.value)}
-                          className={`w-14 bg-transparent text-right font-mono font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${textHighlight}`}
-                        />
-                        <span className={`text-xs font-bold ${textMuted}`}>BPM</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
-        </div>
-      )}
 
-      <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl relative overflow-hidden flex flex-col min-h-[450px]`}>
+          <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl relative overflow-hidden flex flex-col min-h-[450px]`}>
 
-        {/* Barre de progression du wizard (4 pastilles) */}
-        <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-100 dark:border-gray-800">
-          <div className="flex space-x-2">
-            {[1, 2, 3, 4].map(s => (
-              <div key={s} className={`h-2.5 w-8 sm:w-12 rounded-full transition-colors duration-300 ${wizardStep >= s ? bgAccentClass : 'bg-gray-200 dark:bg-gray-700'}`}/>
-            ))}
-          </div>
-          <span className={`text-sm font-bold uppercase tracking-wider ${textMuted}`}>Étape {wizardStep} / 4</span>
-        </div>
+            {/* Barre de progression du wizard (4 pastilles) */}
+            <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex space-x-2">
+                {[1, 2, 3, 4].map(s => (
+                  <div key={s} className={`h-2.5 w-8 sm:w-12 rounded-full transition-colors duration-300 ${wizardStep >= s ? bgAccentClass : 'bg-gray-200 dark:bg-gray-700'}`}/>
+                ))}
+              </div>
+              <span className={`text-sm font-bold uppercase tracking-wider ${textMuted}`}>Étape {wizardStep} / 4</span>
+            </div>
 
-        <div className="flex-1">
+            <div className="flex-1">
 
-          {/* ETAPE 1 : L'ACTIVITE (choix du type d'entraînement + accès caché au mode Intime via l'icône flamme) */}
-          {wizardStep === 1 && (
-            <div className="space-y-6 animate-in slide-in-from-right-8 duration-300">
+              {/* ETAPE 1 : L'ACTIVITE (choix du type d'entraînement + accès caché au mode Intime via l'icône flamme) */}
+              {wizardStep === 1 && (
+                <div className="space-y-6 animate-in slide-in-from-right-8 duration-300">
               <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
                 {isNaughtyMode ? <Heart className={textColorClass} size={24} /> : <Activity className={textColorClass} size={24} />}
                 <span>{isNaughtyMode ? "De quoi as-tu envie aujourd'hui ?" : "Qu'est-ce qu'on fait aujourd'hui ?"}</span>
@@ -1032,6 +1047,8 @@ export default function GeneratorView({
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }
