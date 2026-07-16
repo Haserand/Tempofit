@@ -18,37 +18,61 @@ import { Footprints, Dumbbell, Bike, MoreHorizontal, Wind, Heart, Flame } from '
 //   - 'data'    : nombre d'imports CSV (Garmin/Strava) >= count
 //   - 'replace' : nombre de remplacements de titres >= count
 //   - 'custom'  : un flag booléen arbitraire dans userStats (ex. hasMarathon)
+//
+// `category` (retour direct : "mieux les catégoriser globalement") — sert
+// UNIQUEMENT à regrouper les trophées VISIBLES (`!secret`) dans TrophiesView,
+// sous 3 en-têtes plutôt qu'une liste plate dans l'ordre historique d'ajout :
+//   - 'progression'  : volume brut de séances (constance dans le temps)
+//   - 'feature'       : inciter à ESSAYER une fonctionnalité précise de l'app
+//   - 'habit'         : petites habitudes/comportements transversaux, pas
+//                       rattachés à une seule fonctionnalité en particulier
+// Volontairement ABSENT des trophées `secret: true` : les sous-catégoriser
+// donnerait des indices sur leur thème (durée, horaire, série...) avant même
+// de les avoir débloqués, ce qui irait à l'encontre de la surprise qui fait
+// leur intérêt — la page qui les affiche les garde dans une seule grille non
+// groupée (voir TrophiesView.jsx).
 const TROPHIES_DATA = [
-  { id: 't_first', name: 'Premier Pas', desc: 'Complète ta toute 1ère session d\'entraînement.', icon: '🥉', requirement: { type: 'total', count: 1 } },
-  { id: 't_regular', name: 'Athlète Régulier', desc: 'Complète 5 sessions. La constance est la clé !', icon: '🥈', requirement: { type: 'total', count: 5 } },
-  { id: 't_machine', name: 'La Machine', desc: 'Complète 30 sessions. Un mois entier d\'efforts.', icon: '🏆', requirement: { type: 'total', count: 30 } },
-  { id: 't_lover', name: 'Tempo Lover', desc: 'Complète une session avec le mode "Intime".', icon: '🔥', requirement: { type: 'naughty', count: 1 } },
-  { id: 't_data', name: 'Data Scientist', desc: 'Importe tes données réelles (cadence PPM et/ou fréquence cardiaque, via Garmin/Strava) pour analyse.', icon: '📊', requirement: { type: 'data', count: 1 } },
+  { id: 't_first', name: 'Premier Pas', desc: 'Complète ta toute 1ère session d\'entraînement.', icon: '🥉', category: 'progression', requirement: { type: 'total', count: 1 } },
+  { id: 't_regular', name: 'Athlète Régulier', desc: 'Complète 5 sessions. La constance est la clé !', icon: '🥈', category: 'progression', requirement: { type: 'total', count: 5 } },
+  { id: 't_machine', name: 'La Machine', desc: 'Complète 30 sessions. Un mois entier d\'efforts.', icon: '🏆', category: 'progression', requirement: { type: 'total', count: 30 } },
+  { id: 't_lover', name: 'Tempo Lover', desc: 'Complète une session avec le mode "Intime".', icon: '🔥', category: 'feature', requirement: { type: 'naughty', count: 1 } },
+  { id: 't_data', name: 'Data Scientist', desc: 'Importe tes données réelles (cadence PPM et/ou fréquence cardiaque, via Garmin/Strava) pour analyse.', icon: '📊', category: 'feature', requirement: { type: 'data', count: 1 } },
   { id: 't_marathon', name: 'Le Marathonien', desc: 'Génère une session de plus de 42 km ou 4 heures.', icon: '🏅', secret: true, requirement: { type: 'custom', key: 'hasMarathon' } },
   { id: 't_bolt', name: 'La Foudre', desc: 'Génère une session avec un rythme extrême (> 180 BPM ou < 4:00/km).', icon: '⚡', secret: true, requirement: { type: 'custom', key: 'hasBolt' } },
   { id: 't_hiit', name: 'Maître du HIIT', desc: 'Génère une session fractionnée complexe (5 portions ou plus).', icon: '📈', secret: true, requirement: { type: 'custom', key: 'hasHiitMaster' } },
-  { id: 't_dj', name: 'Le Mixeur', desc: 'Utilise le bouton "Remplacer" 3 fois pour parfaire tes playlists.', icon: '🎛️', requirement: { type: 'replace', count: 3 } },
+  { id: 't_dj', name: 'Le Mixeur', desc: 'Utilise le bouton "Remplacer" 3 fois pour parfaire tes playlists.', icon: '🎛️', category: 'habit', requirement: { type: 'replace', count: 3 } },
   { id: 't_night', name: 'Oiseau de Nuit', desc: 'Complète une session entre 22h et 5h du matin.', icon: '🦉', secret: true, requirement: { type: 'custom', key: 'hasNightOwl' } },
   { id: 't_rickroll', name: 'Never Gonna Give You Up', desc: 'Tu as trouvé le secret ultime de l\'application.', icon: '🕺', secret: true, requirement: { type: 'custom', key: 'hasRickroll' } },
   // --- Ajoutés lors d'une passe de mise à jour, pour couvrir des fonctionnalités
   // (Crescendo, planification, mode clair) arrivées après le premier jeu de
   // trophées et jamais reflétées ici depuis. ---
-  { id: 't_structures', name: 'Les 3 Visages de l\'Effort', desc: 'Génère au moins une fois chacune des 3 structures : Allure Constante, Crescendo et Fractionné.', icon: '🎭', requirement: { type: 'custom', key: 'hasAllStructures' } },
-  { id: 't_crescendo', name: 'Le Grimpeur', desc: 'Complète une séance en mode Crescendo.', icon: '⛰️', requirement: { type: 'custom', key: 'hasCrescendoCompleted' } },
+  { id: 't_structures', name: 'Les 3 Visages de l\'Effort', desc: 'Génère au moins une fois chacune des 3 structures : Allure Constante, Crescendo et Fractionné.', icon: '🎭', category: 'feature', requirement: { type: 'custom', key: 'hasAllStructures' } },
+  { id: 't_crescendo', name: 'Le Grimpeur', desc: 'Complète une séance en mode Crescendo.', icon: '⛰️', category: 'feature', requirement: { type: 'custom', key: 'hasCrescendoCompleted' } },
   { id: 't_onTime', name: 'Pile à l\'Heure', desc: 'Complète une séance exactement à la date que tu avais planifiée.', icon: '🎯', secret: true, requirement: { type: 'custom', key: 'hasOnTimeCompletion' } },
-  { id: 't_allTypes', name: 'Touche-à-Tout', desc: 'Complète au moins une séance de Course à pied, Musculation ET Cyclisme.', icon: '🤹', requirement: { type: 'custom', key: 'hasAllWorkoutTypes' } },
+  { id: 't_allTypes', name: 'Touche-à-Tout', desc: 'Complète au moins une séance de Course à pied, Musculation ET Cyclisme.', icon: '🤹', category: 'habit', requirement: { type: 'custom', key: 'hasAllWorkoutTypes' } },
   { id: 't_100km', name: '100 Bornes au Compteur', desc: 'Cumule 100 km parcourus sur l\'ensemble de tes séances.', icon: '🛣️', secret: true, requirement: { type: 'custom', key: 'has100km' } },
-  { id: 't_lightMode', name: 'Adepte de la Lumière', desc: 'Active le mode clair au moins une fois. Bienvenue de l\'autre côté.', icon: '☀️', requirement: { type: 'custom', key: 'hasLightMode' } },
+  { id: 't_lightMode', name: 'Adepte de la Lumière', desc: 'Active le mode clair au moins une fois. Bienvenue de l\'autre côté.', icon: '☀️', category: 'feature', requirement: { type: 'custom', key: 'hasLightMode' } },
   { id: 't_streak', name: 'Sur ta Lancée', desc: 'Complète une séance 3 jours d\'affilée.', icon: '🔗', secret: true, requirement: { type: 'custom', key: 'hasStreak3' } },
   // --- Ajoutés lors d'une 2e passe, après clarification : la logique
   // trophées vise avant tout à inciter à ESSAYER chaque fonctionnalité de
   // l'app, pas juste à récompenser du volume. ---
-  { id: 't_extraGenre', name: 'Explorateur de Genres', desc: 'Déplie "+ Plus de genres" et génère une session avec l\'un d\'eux.', icon: '🧭', requirement: { type: 'custom', key: 'hasExtraGenre' } },
-  { id: 't_planner', name: 'Planificateur', desc: 'Donne une date à une playlist dans "Mes Séances", pour la première fois.', icon: '📅', requirement: { type: 'custom', key: 'hasPlannedSession' } },
-  { id: 't_autoGen', name: 'Pilote Automatique', desc: 'Active la génération automatique sur une routine.', icon: '🤖', requirement: { type: 'custom', key: 'hasAutoGen' } },
-  { id: 't_firstRoutine', name: 'Ma Première Routine', desc: 'Sauvegarde ta toute première routine réutilisable.', icon: '📋', requirement: { type: 'custom', key: 'hasFirstRoutine' } },
-  { id: 't_sharer', name: 'Ambassadeur', desc: 'Utilise le bouton Partager, sur une playlist ou un trophée.', icon: '📣', requirement: { type: 'custom', key: 'hasSharedSomething' } },
-  { id: 't_favorites', name: 'Fidèle à tes Artistes', desc: 'Génère une session en utilisant tes Favoris.', icon: '⭐', requirement: { type: 'custom', key: 'hasUsedFavorites' } },
+  { id: 't_extraGenre', name: 'Explorateur de Genres', desc: 'Déplie "+ Plus de genres" et génère une session avec l\'un d\'eux.', icon: '🧭', category: 'feature', requirement: { type: 'custom', key: 'hasExtraGenre' } },
+  { id: 't_planner', name: 'Planificateur', desc: 'Donne une date à une playlist dans "Mes Séances", pour la première fois.', icon: '📅', category: 'feature', requirement: { type: 'custom', key: 'hasPlannedSession' } },
+  { id: 't_autoGen', name: 'Pilote Automatique', desc: 'Active la génération automatique sur une routine.', icon: '🤖', category: 'feature', requirement: { type: 'custom', key: 'hasAutoGen' } },
+  { id: 't_firstRoutine', name: 'Ma Première Routine', desc: 'Sauvegarde ta toute première routine réutilisable.', icon: '📋', category: 'feature', requirement: { type: 'custom', key: 'hasFirstRoutine' } },
+  { id: 't_sharer', name: 'Ambassadeur', desc: 'Utilise le bouton Partager, sur une playlist ou un trophée.', icon: '📣', category: 'habit', requirement: { type: 'custom', key: 'hasSharedSomething' } },
+  { id: 't_favorites', name: 'Fidèle à tes Artistes', desc: 'Génère une session en utilisant tes Favoris.', icon: '⭐', category: 'feature', requirement: { type: 'custom', key: 'hasUsedFavorites' } },
+];
+
+// Métadonnées d'affichage des 3 catégories de trophées visibles (voir
+// `category` ci-dessus) — un seul endroit pour le libellé/l'ordre affiché,
+// dans TrophiesView. L'ordre de ce tableau EST l'ordre d'affichage des
+// sections (progression d'abord, la plus immédiatement gratifiante pour un
+// nouvel utilisateur ; habitudes en dernier, plus anecdotiques).
+const TROPHY_CATEGORIES = [
+  { key: 'progression', label: 'Progression', desc: 'Ta constance dans le temps, séance après séance.' },
+  { key: 'feature', label: 'Fonctionnalités à découvrir', desc: 'Une récompense pour avoir essayé chaque recoin de l\'app.' },
+  { key: 'habit', label: 'Habitudes & Défis', desc: 'De petits réflexes transversaux, pas liés à une seule fonctionnalité.' },
 ];
 
 const NAUGHTY_ROUTINE_NAMES = ["🍑 Cardio Horizontal", "🔥 Entraînement au lit", "💦 Session Sous la Couette", "😈 Sprint Nocturne"];
@@ -144,6 +168,7 @@ const AUTO_GEN_OPTIONS = ["Manuel", "1 fois / jour", "2 fois / jour", "1 fois / 
 
 export {
   TROPHIES_DATA,
+  TROPHY_CATEGORIES,
   NAUGHTY_ROUTINE_NAMES,
   ATHLETIC_ZONES,
   WORKOUT_TYPES,
