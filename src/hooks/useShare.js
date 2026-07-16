@@ -79,10 +79,49 @@ export function useShare(showToast) {
     window.location.href = `mailto:?subject=${encodeURIComponent(shareData.title)}&body=${encodeURIComponent(shareData.text + ' ' + shareData.url)}`;
   };
 
+  // Partage d'un FICHIER (image) via le Web Share API — différent de
+  // `shareNative` ci-dessus, qui ne partage qu'un texte/lien. Ajouté pour le
+  // Bilan Visuel de Séance (voir PlaylistDetailView.jsx,
+  // exportSessionSummaryImage) : `navigator.share({ files: [...] })` n'est
+  // supporté que sur un sous-ensemble de navigateurs/OS (essentiellement
+  // mobile) — `navigator.canShare({ files })` permet de le vérifier AVANT
+  // d'essayer, plutôt que de laisser `.share()` échouer silencieusement.
+  // Repli explicite en téléchargement direct si non supporté (desktop la
+  // plupart du temps) : l'utilisateur récupère quand même l'image, à
+  // partager lui-même ensuite.
+  const canShareFiles = (files) => typeof navigator.canShare === 'function' && navigator.canShare({ files });
+
+  const shareImageFile = async (file, title, text) => {
+    if (canShareFiles([file])) {
+      try {
+        await navigator.share({ files: [file], title, text });
+        return 'shared';
+      } catch (e) {
+        // Partage annulé par l'utilisateur (ou échec) — pas une erreur à
+        // signaler, juste "rien ne s'est passé".
+        return 'cancelled';
+      }
+    }
+    // Repli : téléchargement direct — au moins l'utilisateur récupère
+    // l'image, même sans le menu de partage natif (desktop, ou navigateur
+    // mobile qui ne supporte pas encore le partage de fichiers).
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name || 'tempofit-bilan-de-seance.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    if (showToast) showToast("Partage direct non disponible sur ce navigateur — image téléchargée à la place.");
+    return 'downloaded';
+  };
+
   return {
     shareData, setShareData,
     isShareModalOpen, setIsShareModalOpen,
     handleShare, copyToClipboard, shareNative,
     shareToWhatsApp, shareToTwitter, shareToFacebook, shareViaEmail,
+    shareImageFile,
   };
 }
