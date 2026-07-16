@@ -2399,6 +2399,7 @@ export default function App() {
                 setIsSearchModalOpen={setIsSearchModalOpen} searchTracksByBpm={searchTracksByBpm}
                 executeGeneration={executeGeneration} isGenerating={isGenerating}
                 getActiveWorkoutName={getActiveWorkoutName} setIsSavingRoutineModalOpen={setIsSavingRoutineModalOpen}
+                athleticProfile={athleticProfile} setBaseCadence={setBaseCadence} setZone={setZone} resetAthleticProfile={resetAthleticProfile}
               />
             )}
 
@@ -2450,7 +2451,6 @@ export default function App() {
             {view === 'settings' && (
               <SettingsView
                 theme={themeTokens} spotifyToken={spotifyToken} loginSpotify={loginSpotify} setSpotifyToken={setSpotifyToken}
-                athleticProfile={athleticProfile} setBaseCadence={setBaseCadence} setZone={setZone} resetAthleticProfile={resetAthleticProfile}
               />
             )}
 
