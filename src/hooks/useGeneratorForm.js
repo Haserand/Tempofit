@@ -26,7 +26,7 @@ import { buildCrescendoSegments, deduceCrescendoBpm } from '../musicEngine';
  *     bien plus large (touche savedPlaylists, routines, userStats...), reste
  *     dans App.jsx.
  */
-export function useGeneratorForm(isNaughtyMode) {
+export function useGeneratorForm(isNaughtyMode, athleticProfile) {
   const [wizardStep, setWizardStep] = useState(1);
   const [selectedGenres, setSelectedGenres] = useState(['Métal']);
   // Répartition en % entre les genres sélectionnés ENSEMBLE (utile uniquement à
@@ -53,6 +53,18 @@ export function useGeneratorForm(isNaughtyMode) {
   const bpmTolerance = bpmToleranceRaw;
   const [crossfade, setCrossfade] = useState(2);
   const [bpm, setBpm] = useState(160);
+  // `bpmTouchedManually` : ne se déclenche QUE via `setBpmManual` (le curseur
+  // BPM lui-même, voir GeneratorView) — jamais via `setBpm` "brut", que
+  // d'autres endroits appellent en PROGRAMMATIQUE (le BPM par défaut d'un
+  // type d'activité choisi à l'étape 1, ou la remise à zéro du mode Intime,
+  // voir App.jsx). Nécessaire pour distinguer "l'utilisateur a lui-même réglé
+  // ce curseur" de "juste la valeur par défaut de l'activité qu'il a
+  // choisie" — sans cette distinction, le pré-remplissage du Profil
+  // Athlétique ci-dessous (setStructureMode) ne se déclencherait quasiment
+  // jamais, puisque choisir une activité à l'étape 1 (obligatoire) appelle
+  // déjà `setBpm` avec le défaut de cette activité.
+  const [bpmTouchedManually, setBpmTouchedManually] = useState(false);
+  const setBpmManual = (val) => { setBpmTouchedManually(true); setBpm(val); setBpmSourceIsProfile(false); };
   // Structure de l'effort — 3 modes (voir GeneratorView étape 2) :
   //   'constant'  : allure plate de bout en bout (comportement historique, BPM
   //                 unique + tolérance aléatoire, AUCUN changement ici).
@@ -98,12 +110,73 @@ export function useGeneratorForm(isNaughtyMode) {
   const [crescendoWarmupBpm, setCrescendoWarmupBpmRaw] = useState(null);
   const [crescendoCooldownBpm, setCrescendoCooldownBpmRaw] = useState(null);
 
-  const setStructureMode = (mode) => {
+  // Le BPM affiché (cœur de séance + échauffement/retour au calme) vient-il
+  // ACTUELLEMENT du Profil Athlétique de l'activité en cours, sans qu'aucun
+  // des 3 curseurs concernés n'ait ensuite été retouché à la main ? Sert
+  // uniquement à l'affichage (badge "calculé depuis ton profil" côté
+  // GeneratorView) — jamais lu pour une décision de génération, purement
+  // informatif. Repart à `false` dès qu'UN des 3 réglages est modifié
+  // manuellement (voir setBpmManual/setCrescendoWarmupBpm/
+  // setCrescendoCooldownBpm plus bas) : à partir de là, ce n'est plus "ce que
+  // le profil propose" mais un choix de l'utilisateur, même partiel.
+  const [bpmSourceIsProfile, setBpmSourceIsProfile] = useState(false);
+
+  // `activityProfile` = le profil DÉJÀ RÉSOLU pour l'activité choisie à
+  // l'étape 1 (voir `getProfileForWorkout`, useAthleticProfile.js), fourni
+  // par l'appelant (GeneratorView) plutôt que recalculé ici : ce hook évite
+  // délibérément de dépendre de `workoutType`/`customActivity` (voir la
+  // docstring en haut de fichier, pour éviter une dépendance circulaire avec
+  // useCustomActivity) — recevoir le résultat déjà calculé règle ça sans
+  // franchir cette frontière.
+  const setStructureMode = (mode, activityProfile = null) => {
     if (mode === 'crescendo') {
       const bpmFloor = isNaughtyMode ? 40 : 80;
-      const deduced = deduceCrescendoBpm(bpm, bpmFloor);
-      setCrescendoWarmupBpmRaw(prev => prev === null ? deduced.warmupBpm : prev);
-      setCrescendoCooldownBpmRaw(prev => prev === null ? deduced.cooldownBpm : prev);
+      const isProfileConfigured = !!(activityProfile && activityProfile.isConfigured);
+
+      // Profil Athlétique : si configuré POUR CETTE ACTIVITÉ précisément,
+      // pré-remplit le "Cœur de séance" (le curseur BPM principal de l'étape
+      // 3, PAS spécifique au Crescendo) avec la Zone 3 (Seuil/Tempo), ou la
+      // Zone 2 (Endurance) à défaut si l'utilisateur n'a que l'Assistant
+      // Rapide sans avoir touché le mode Expert — mais SEULEMENT si ce
+      // curseur n'a jamais été réglé à la main (voir bpmTouchedManually) :
+      // un utilisateur qui a lui-même choisi son BPM cible avant de passer en
+      // Crescendo garde la main, jamais écrasé par le profil. Idempotent si
+      // on rentre/ressort du mode Crescendo plusieurs fois sans jamais
+      // toucher le curseur.
+      const profileMainBpm = isProfileConfigured ? (activityProfile.zone3 || activityProfile.zone2) : null;
+      if (profileMainBpm && !bpmTouchedManually) setBpm(profileMainBpm);
+      const effectiveMainBpm = (profileMainBpm && !bpmTouchedManually) ? profileMainBpm : bpm;
+
+      // Échauffement/Retour au calme : Zone 1 (Récupération) pour les deux,
+      // comme demandé — sinon déduits du BPM cible comme avant
+      // (`deduceCrescendoBpm`). Toujours via le seed "une seule fois, jamais
+      // après" déjà en place (`prev === null ? seed : prev`) : un profil
+      // configuré change seulement la valeur de DÉPART, jamais un réglage
+      // déjà fait à la main sur ces 2 curseurs-là.
+      const deduced = deduceCrescendoBpm(effectiveMainBpm, bpmFloor);
+      const profileWarmupCooldownBpm = isProfileConfigured ? activityProfile.zone1 : null;
+      const warmupSeed = profileWarmupCooldownBpm || deduced.warmupBpm;
+      const cooldownSeed = profileWarmupCooldownBpm || deduced.cooldownBpm;
+      setCrescendoWarmupBpmRaw(prev => prev === null ? warmupSeed : prev);
+      setCrescendoCooldownBpmRaw(prev => prev === null ? cooldownSeed : prev);
+
+      // Le badge "calculé depuis ton profil" (GeneratorView) ne doit
+      // s'afficher QUE si les 3 valeurs qui seront AFFICHÉES à l'écran sont
+      // VRAIMENT celles du profil — pas seulement "un profil existe quelque
+      // part". Comparé aux valeurs EFFECTIVES finales plutôt qu'à un
+      // historique "était-ce encore null avant" : ce 2e critère se serait
+      // trompé en cas d'aller-retour Crescendo → Constante → Crescendo sans
+      // rien retoucher (warmup/cooldown ne sont plus `null` dès le 2e
+      // passage, alors que leur valeur reste pourtant bien celle du profil).
+      const finalMainBpm = (profileMainBpm && !bpmTouchedManually) ? profileMainBpm : bpm;
+      const finalWarmup = crescendoWarmupBpm === null ? warmupSeed : crescendoWarmupBpm;
+      const finalCooldown = crescendoCooldownBpm === null ? cooldownSeed : crescendoCooldownBpm;
+      const allThreeComeFromProfile = isProfileConfigured
+        && finalMainBpm === profileMainBpm
+        && finalWarmup === profileWarmupCooldownBpm
+        && finalCooldown === profileWarmupCooldownBpm;
+      setBpmSourceIsProfile(allThreeComeFromProfile);
+
       // Resserre la marge d'erreur par défaut (14 BPM, pensée pour le mode
       // Allure Constante) UNE SEULE FOIS en entrant en Crescendo — retour
       // direct après constat chiffré : avec les BPM déduits par défaut
@@ -119,6 +192,11 @@ export function useGeneratorForm(isNaughtyMode) {
       // ne s'applique QUE si l'utilisateur n'a jamais touché ce réglage lui-
       // même, jamais après un choix délibéré, même si ce choix retombe sur 14).
       if (!bpmToleranceTouched) setBpmToleranceRaw(7);
+    } else {
+      // Sortir du Crescendo (vers Allure Constante ou Fractionné) invalide le
+      // badge : "cœur de séance = valeur du profil" n'a de sens que dans ce
+      // mode précis, où ce triplet de BPM existe.
+      setBpmSourceIsProfile(false);
     }
     setStructureModeRaw(mode);
   };
@@ -131,8 +209,9 @@ export function useGeneratorForm(isNaughtyMode) {
   const setCrescendoWarmupBpm = (val) => {
     setCrescendoWarmupBpmRaw(val);
     setCrescendoCooldownBpmRaw(prev => (prev !== null && prev > val ? val : prev));
+    setBpmSourceIsProfile(false);
   };
-  const setCrescendoCooldownBpm = (val) => setCrescendoCooldownBpmRaw(val);
+  const setCrescendoCooldownBpm = (val) => { setCrescendoCooldownBpmRaw(val); setBpmSourceIsProfile(false); };
 
   // Autorise ou non les titres de plus de 6 minutes dans la génération — sans
   // ça, l'algorithme de remplissage (qui choisit le titre dont la durée colle
@@ -298,11 +377,12 @@ export function useGeneratorForm(isNaughtyMode) {
     showExtraGenres, setShowExtraGenres,
     bpmTolerance, setBpmTolerance,
     crossfade, setCrossfade,
-    bpm, setBpm,
+    bpm, setBpm, setBpmManual,
     structureMode, setStructureMode, isIntervalMode, isCrescendoMode,
     crescendoWarmupPct, setCrescendoWarmupPct, crescendoCooldownPct, setCrescendoCooldownPct,
     CRESCENDO_MIN_MAIN_PCT,
     crescendoWarmupBpm, setCrescendoWarmupBpm, crescendoCooldownBpm, setCrescendoCooldownBpm,
+    bpmSourceIsProfile,
     allowLongTracks, setAllowLongTracks,
     targetMode, setTargetMode,
     hours, setHours,
