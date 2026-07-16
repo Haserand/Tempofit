@@ -40,7 +40,6 @@ export default function GlobalStatsShareCard({
   periodLabel = 'Depuis le début', // ex. "En 2026", "Ces 30 derniers jours"...
   isNaughtyMode = false,
 }) {
-  const totalSessions = totalPlaylistsGenerated; // le nb de séances EST le nb de playlists ici (voir doc plus haut : distinction possible plus tard si besoin)
   const hasAnyData = totalSeconds > 0 || totalPlaylistsGenerated > 0;
 
   return (
