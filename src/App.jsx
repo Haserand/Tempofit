@@ -1548,21 +1548,30 @@ export default function App() {
   // --- Glisser-déposer pour réordonner les titres — remplace les flèches ↑/↓,
   // plus naturel et ça libère de la place sur une ligne déjà chargée d'actions.
   const [draggedTrackIndex, setDraggedTrackIndex] = useState(null);
+  // Déplace le titre actuellement "saisi" (`draggedTrackIndex`) à la position
+  // `newIndex` — factorisé hors de `handleTrackDragEnter` (ci-dessous) pour
+  // être réutilisé tel quel par le glisser-déposer directement sur la courbe
+  // d'intensité (voir handleChartMouseMove, plus haut) : la liste et le
+  // graphique partagent maintenant EXACTEMENT le même mécanisme de
+  // réordonnancement, pas 2 implémentations parallèles à maintenir.
+  const moveTrackTo = (newIndex) => {
+    if (draggedTrackIndex === null || draggedTrackIndex === newIndex || !currentPlaylist) return;
+    const newTracks = [...currentPlaylist.tracks];
+    const [moved] = newTracks.splice(draggedTrackIndex, 1);
+    newTracks.splice(newIndex, 0, moved);
+    let updatedPlaylist = { ...currentPlaylist, tracks: newTracks };
+    updatedPlaylist = recalculateTimeline(updatedPlaylist);
+    setCurrentPlaylist(updatedPlaylist);
+    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
+    setDraggedTrackIndex(newIndex);
+  };
   const handleTrackDragStart = (index) => (e) => {
     setDraggedTrackIndex(index);
     e.dataTransfer.effectAllowed = 'move';
   };
   const handleTrackDragEnter = (index) => (e) => {
     e.preventDefault();
-    if (draggedTrackIndex === null || draggedTrackIndex === index || !currentPlaylist) return;
-    const newTracks = [...currentPlaylist.tracks];
-    const [moved] = newTracks.splice(draggedTrackIndex, 1);
-    newTracks.splice(index, 0, moved);
-    let updatedPlaylist = { ...currentPlaylist, tracks: newTracks };
-    updatedPlaylist = recalculateTimeline(updatedPlaylist);
-    setCurrentPlaylist(updatedPlaylist);
-    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
-    setDraggedTrackIndex(index);
+    moveTrackTo(index);
   };
   const handleTrackDragEnd = () => setDraggedTrackIndex(null);
 
@@ -2070,16 +2079,61 @@ export default function App() {
     );
   };
 
-  const handleChartClick = (state) => {
-    if (!state || state.activeLabel === undefined || state.activeLabel === null) return;
+  // Résout l'index du segment (voir trackSegments) sous le curseur à partir de
+  // l'objet `state` fourni par Recharts (onClick/onMouseDown/onMouseMove) —
+  // extrait de handleChartClick pour être réutilisé par le glisser-déposer de
+  // segments directement sur le graphique (voir plus bas, handleChartMouseDown/
+  // Move/Up) : Recharts résout déjà lui-même "quel point de données sous le
+  // curseur" en tenant compte des marges/largeur de l'axe Y, bien plus fiable
+  // qu'un calcul de position en pixels refait à la main ici.
+  const resolveSegmentIdxFromChartState = (state) => {
+    if (!state || state.activeLabel === undefined || state.activeLabel === null) return -1;
     // En mode Distance, activeLabel est déjà dans l'unité d'AFFICHAGE convertie
     // (voir dataKey du XAxis) — on le reconvertit dans l'unité brute d'origine
     // avant de le comparer aux bornes de trackSegments, qui restent toujours
     // exprimées dans l'unité d'origine de la playlist.
     const rawCursorVal = chartAxisType === 'distance' ? parseFloat(state.activeLabel) / distanceDisplayFactor : parseFloat(state.activeLabel);
     const key = chartAxisType === 'distance' ? 'Dist' : 'Time';
-    const idx = trackSegments.findIndex(seg => rawCursorVal >= seg[`start${key}`] && rawCursorVal < seg[`end${key}`]);
+    return trackSegments.findIndex(seg => rawCursorVal >= seg[`start${key}`] && rawCursorVal < seg[`end${key}`]);
+  };
+
+  const handleChartClick = (state) => {
+    const idx = resolveSegmentIdxFromChartState(state);
     if (idx >= 0) setSelectedSegmentIdx(idx);
+  };
+
+  // Glisser-déposer directement sur la courbe (retour direct : "je veux
+  // pouvoir prendre une partie du graphique et la déplacer ailleurs, ce qui
+  // revient à drag & drop une musique pour la mettre ailleurs dans la
+  // playlist") — réutilise EXACTEMENT la même logique de réordonnancement que
+  // la liste de titres (voir moveTrackTo, factorisée depuis
+  // handleTrackDragEnter juste après), pas une 2e implémentation séparée.
+  // Recharts n'a pas d'équivalent direct du drag-and-drop HTML5 natif utilisé
+  // par la liste (`draggable`) sur ses éléments SVG — implémenté ici via les
+  // événements souris bruts (mousedown/mousemove/mouseup) que Recharts expose
+  // sur <LineChart>, chacun donnant déjà accès au point de données sous le
+  // curseur (voir resolveSegmentIdxFromChartState) sans calcul de pixels à la
+  // main.
+  const [isDraggingChartSegment, setIsDraggingChartSegment] = useState(false);
+  const handleChartMouseDown = (state) => {
+    const idx = resolveSegmentIdxFromChartState(state);
+    if (idx >= 0) {
+      setDraggedTrackIndex(idx);
+      setSelectedSegmentIdx(idx); // surbrillance immédiate du segment saisi
+      setIsDraggingChartSegment(true);
+    }
+  };
+  const handleChartMouseMove = (state) => {
+    if (!isDraggingChartSegment) return;
+    const idx = resolveSegmentIdxFromChartState(state);
+    if (idx >= 0) {
+      moveTrackTo(idx);
+      setSelectedSegmentIdx(idx); // la surbrillance SUIT le segment pendant qu'on le déplace
+    }
+  };
+  const handleChartMouseUp = () => {
+    setIsDraggingChartSegment(false);
+    setDraggedTrackIndex(null);
   };
 
   // Domaines des axes calculés explicitement en JS, plutôt que de laisser Recharts
@@ -2535,6 +2589,8 @@ export default function App() {
                 selectedSegmentIdx={selectedSegmentIdx} setSelectedSegmentIdx={setSelectedSegmentIdx} trackSegments={trackSegments}
                 togglePreview={togglePreview} playingPreviewId={playingPreviewId}
                 unifiedChartData={unifiedChartData} handleChartClick={handleChartClick}
+                handleChartMouseDown={handleChartMouseDown} handleChartMouseMove={handleChartMouseMove} handleChartMouseUp={handleChartMouseUp}
+                isDraggingChartSegment={isDraggingChartSegment}
                 chartXDomain={chartXDomain} chartXTicks={chartXTicks} chartYDomain={chartYDomain}
                 distanceDisplayFactor={distanceDisplayFactor}
                 draggedTrackIndex={draggedTrackIndex} handleTrackDragStart={handleTrackDragStart}
