@@ -380,7 +380,7 @@ export default function App() {
     showExtraGenres, setShowExtraGenres,
     bpmTolerance, setBpmTolerance,
     crossfade, setCrossfade,
-    bpm, setBpm,
+    bpm, setBpm, setBpmManual,
     structureMode, setStructureMode, isIntervalMode, isCrescendoMode,
     crescendoWarmupPct, setCrescendoWarmupPct, crescendoCooldownPct, setCrescendoCooldownPct,
     CRESCENDO_MIN_MAIN_PCT,
@@ -398,7 +398,7 @@ export default function App() {
     availableGenres, displaySubtitleGen,
     equalSplitWeights, setGenreWeight, toggleGenre,
     toggleSegmentGenre, resetSegmentGenre, checkGenreWeightDeviation,
-  } = useGeneratorForm(isNaughtyMode);
+  } = useGeneratorForm(isNaughtyMode, athleticProfile);
 
   const [currentPlaylist, setCurrentPlaylist] = useState(null);
   // Playlist d'exemple pré-remplie, même principe que la routine et les favoris de
@@ -2371,7 +2371,7 @@ export default function App() {
                 wizardStep={wizardStep} setWizardStep={setWizardStep}
                 workoutType={workoutType} setWorkoutType={setWorkoutType} customActivity={customActivity}
                 handleOpenCustomActivityModal={handleOpenCustomActivityModal} toggleNaughtyMode={toggleNaughtyMode}
-                setBpm={setBpm} setTargetMode={setTargetMode} setDistanceVal={setDistanceVal} setDistanceUnit={setDistanceUnit}
+                setBpm={setBpm} setBpmManual={setBpmManual} setTargetMode={setTargetMode} setDistanceVal={setDistanceVal} setDistanceUnit={setDistanceUnit}
                 setHours={setHours} setMinutes={setMinutes}
                 targetMode={targetMode} isIntervalMode={isIntervalMode} isCrescendoMode={isCrescendoMode}
                 structureMode={structureMode} setStructureMode={setStructureMode}
@@ -2437,7 +2437,7 @@ export default function App() {
             {view === 'stats' && (
               <StatsView
                 theme={themeTokens} savedPlaylists={savedPlaylists} userStats={userStats} changeView={changeView}
-                setCurrentPlaylist={setCurrentPlaylist}
+                setCurrentPlaylist={setCurrentPlaylist} athleticProfile={athleticProfile}
                 statsMode={statsMode} setStatsMode={setStatsMode}
                 selectedStatsGenre={selectedStatsGenre} setSelectedStatsGenre={setSelectedStatsGenre}
                 selectedStatsBpmBucket={selectedStatsBpmBucket} setSelectedStatsBpmBucket={setSelectedStatsBpmBucket}
