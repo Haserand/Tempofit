@@ -294,25 +294,27 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
       .filter(t => t && t.bpm && parseFloat(t.bpm) >= minBpm && parseFloat(t.bpm) <= maxBpm)
       .map(async (t) => {
         const realGenre = await resolveDeezerGenre(t.id);
-        // BUG CORRIGÉ : cette fonction résolvait déjà le VRAI genre Deezer de
-        // chaque titre (realGenre), mais ne le comparait jamais aux genres
-        // RÉELLEMENT demandés — un titre pouvait matcher le BPM via la
-        // recherche par mot-clé (texte libre, pas un vrai filtre de genre,
-        // voir WEAK_DEEZER_KEYWORD_GENRES/DEEZER_GENRE_KEYWORDS) sans avoir
-        // aucun rapport avec le genre coché, et ressortait quand même sans le
-        // moindre avertissement (cas réel constaté : "Métal" sélectionné,
-        // résultats Pop/Rap/Rock, aucun titre Metal). `buildSegmentTracks`/
-        // `getSingleMatchingTrack` (musicEngine.js) appliquaient déjà cette
-        // vérification pour la génération de playlist — jamais reproduite
-        // ici pour la recherche manuelle, un chemin de code entièrement
-        // séparé. `_genreMismatch` alimente le badge "⚠️ Genre non confirmé"
-        // déjà géré par l'UI (App.jsx) mais jamais posé par cette fonction.
-        // `_fromCatalog` (voir plus haut) : un titre trouvé via un artiste
-        // représentatif du genre (ex. Metallica pour "Métal") est fiable même
-        // si `resolveDeezerGenre` renvoie "Rock" — exactement le cas que ce
-        // renfort catalogue existe pour corriger, pas la peine de le flaguer
-        // "non confirmé" une fois qu'on SAIT que l'artiste en fait vraiment.
-        const genreMismatch = t._fromCatalog ? false : !genresToQuery.some(g => genreRoughlyMatches(realGenre, g));
+        // BUG CORRIGÉ (retour direct, capture d'écran à l'appui : recherche
+        // "Métal", des titres Judas Priest ressortaient étiquetés "Pop", sans
+        // le moindre avertissement, mélangés sans distinction aux vrais
+        // résultats Métal/Rock) — `t._fromCatalog ? false : ...` faisait
+        // confiance de façon ABSOLUE à un titre trouvé via un artiste du
+        // catalogue (voir ARTIST_CATALOG, musicCatalog.js), quel que soit le
+        // vrai genre Deezer renvoyé — y compris un genre totalement étranger
+        // au Métal (Pop, Rap...), pas seulement le cas légitime que ce renfort
+        // catalogue existe pour couvrir (Deezer classe la quasi-totalité du
+        // Metal en "Rock", jamais "Metal" — voir GENRE_EQUIVALENCE_GROUPS).
+        // Un artiste globalement représentatif d'un genre peut très bien avoir
+        // UN titre précis ailleurs (reprise, featuring, compilation mal
+        // cataloguée par le label côté Deezer) — le signaler reste plus juste
+        // que de l'accepter silencieusement juste parce que l'artiste, LUI,
+        // est fiable. Aligné sur EXACTEMENT la même formule que
+        // `buildSegmentTracks` (musicEngine.js, même renfort catalogue) pour
+        // ce même cas : l'équivalence Rock/Métal est déjà couverte par
+        // `genreRoughlyMatches` (GENRE_EQUIVALENCE_GROUPS) pour TOUTES les
+        // sources, catalogue inclus — pas besoin d'un 2e mécanisme de
+        // confiance par-dessus qui, lui, n'a plus aucun garde-fou.
+        const genreMismatch = !realGenre || !genresToQuery.some(g => genreRoughlyMatches(realGenre, g));
         // Retour direct (cas réel : "Métal" sélectionné, un titre du catalogue
         // dont le vrai genre Deezer est "Rock" — ex. Lamb of God, "Ghost
         // Walking" — ressortait à égalité de tri avec un titre littéralement
