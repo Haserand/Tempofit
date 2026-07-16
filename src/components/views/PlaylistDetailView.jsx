@@ -135,6 +135,36 @@ export default function PlaylistDetailView({
   // NOUVELLE date de complétion (rejouer la même séance plus tard).
   const isLocked = !!(currentPlaylist.completions && currentPlaylist.completions.length > 0);
 
+  // --- Enchaînement automatique au titre suivant (retour direct : "que ce
+  // soit via le graph ou via la sélection musique playlist, quand je finis
+  // un morceau ça doit passer au suivant") ---
+  // Fourni comme 2e argument à `togglePreview` (voir useAudioPreview.js) :
+  // appelé UNIQUEMENT quand un extrait se termine naturellement, jamais sur
+  // une pause manuelle. Reçoit le titre qui vient de se terminer, renvoie le
+  // titre juste après lui dans `currentPlaylist.tracks` (ou `null` en fin de
+  // playlist, comportement inchangé : l'extrait s'arrête simplement).
+  //
+  // Comparaison par `.id` plutôt que `.youtubeId` : un titre dupliqué (voir
+  // handleDuplicateTrack) partage le même youtubeId que l'original, mais a
+  // toujours un `.id` propre — indispensable ici pour retrouver la BONNE
+  // occurrence dans la liste, pas systématiquement la première qui matche.
+  //
+  // Recalculée à CHAQUE fin d'extrait (pas figée au clic initial, voir la
+  // docstring de useAudioPreview.js) : reste juste même si la playlist est
+  // réordonnée pendant la lecture.
+  //
+  // Fait AUSSI suivre `selectedSegmentIdx` sur le nouveau titre en cours —
+  // sans ça, l'encart resterait affiché sur l'ancien titre (bouton figé sur
+  // "lecture", plus en phase avec ce qui joue réellement) une fois l'audio
+  // passé au suivant tout seul. Effet de bord assumé dans ce "getter" plutôt
+  // qu'un 2e callback séparé : reste plus simple pour un seul point d'usage.
+  const getNextTrackForAutoAdvance = (endedTrack) => {
+    const idx = currentPlaylist.tracks.findIndex(t => t.id === endedTrack.id);
+    if (idx === -1 || idx >= currentPlaylist.tracks.length - 1) return null;
+    setSelectedSegmentIdx(idx + 1);
+    return currentPlaylist.tracks[idx + 1];
+  };
+
   // --- Bilan Visuel de Séance (export image) ---
   // Carte rendue HORS ÉCRAN en permanence (voir le rendu tout en bas de ce
   // composant, `position: fixed; left: -9999px`) plutôt que montée/démontée à
@@ -510,12 +540,26 @@ export default function PlaylistDetailView({
                 <ChevronLeft size={18}/>
               </button>
               <button
-                onClick={() => togglePreview(trackSegments[selectedSegmentIdx].track)}
+                onClick={() => togglePreview(trackSegments[selectedSegmentIdx].track, getNextTrackForAutoAdvance)}
                 disabled={!trackSegments[selectedSegmentIdx].track.preview}
                 title={trackSegments[selectedSegmentIdx].track.preview ? "Écouter un extrait" : "Extrait non disponible pour ce titre (source sans aperçu audio)"}
                 className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-colors ${trackSegments[selectedSegmentIdx].track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
               >
                 {playingPreviewId === trackSegments[selectedSegmentIdx].track.youtubeId ? <Pause size={18} fill="currentColor"/> : <Play size={18} fill="currentColor" className="ml-0.5"/>}
+              </button>
+              {/* Retour direct : "la flèche pour passer au titre suivant est
+                  trop à gauche [comprendre : trop loin du bouton play], je
+                  l'imaginais plus à côté du bouton play/pause" — déplacée ici,
+                  juste après lecture/pause, pour former un vrai groupe de
+                  contrôles (précédent / lecture / suivant) au lieu d'être
+                  isolée à l'autre bout de l'encart, à côté du BPM et du menu. */}
+              <button
+                onClick={() => setSelectedSegmentIdx(Math.min(trackSegments.length - 1, selectedSegmentIdx + 1))}
+                disabled={selectedSegmentIdx === trackSegments.length - 1}
+                title="Titre suivant"
+                className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent`}
+              >
+                <ChevronRight size={18}/>
               </button>
               <div className="flex-1 min-w-0">
                 <div className={`font-bold text-sm truncate ${textHighlight}`}>{trackSegments[selectedSegmentIdx].track.title}</div>
@@ -528,14 +572,6 @@ export default function PlaylistDetailView({
               <div className={`px-3 py-2 rounded-lg text-sm font-bold font-mono text-white shrink-0 ${isNaughtyMode ? 'bg-rose-500' : 'bg-gray-800 dark:bg-gray-700'}`}>
                 🎯 {trackSegments[selectedSegmentIdx].track.bpm} BPM
               </div>
-              <button
-                onClick={() => setSelectedSegmentIdx(Math.min(trackSegments.length - 1, selectedSegmentIdx + 1))}
-                disabled={selectedSegmentIdx === trackSegments.length - 1}
-                title="Titre suivant"
-                className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent`}
-              >
-                <ChevronRight size={18}/>
-              </button>
 
               {/* Actions de base — mêmes handlers que le menu "⋮" de la liste
                   plus bas (voir openTrackMenuIndex, partagé avec la liste : ouvrir
@@ -822,7 +858,7 @@ export default function PlaylistDetailView({
               </div>
               <div className={"w-6 text-center font-medium text-xs " + textMuted}>{index + 1}</div>
               <button
-                onClick={() => togglePreview(track)}
+                onClick={() => togglePreview(track, getNextTrackForAutoAdvance)}
                 disabled={!track.preview}
                 title={track.preview ? "Écouter un extrait" : "Extrait non disponible pour ce titre (source sans aperçu audio)"}
                 className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors mr-2 ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
