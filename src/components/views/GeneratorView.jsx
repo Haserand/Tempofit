@@ -42,6 +42,7 @@ export default function GeneratorView({
   executeGeneration, isGenerating, getActiveWorkoutName, setIsSavingRoutineModalOpen,
   athleticProfile, setBaseCadenceForActivity, setZoneForActivity, resetActivityProfile,
   addCustomActivity, removeCustomActivity, setBaseCadenceForCustom, setZoneForCustom, getProfileForWorkout,
+  showAthleticProfile, setShowAthleticProfile,
 }) {
   const {
     cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass,
@@ -55,18 +56,21 @@ export default function GeneratorView({
   const crescendoBpmFloor = isNaughtyMode ? 40 : 80;
 
   // Profil Athlétique — DÉPLACÉ depuis Options & Comptes (retour direct :
-  // "personne ne le verra là-bas", ça sert au générateur, ça doit vivre ici).
+  // "personne ne le verra là-bas", ça sert au générateur, ça doit vivre ici),
+  // puis `showAthleticProfile` lui-même REMONTÉ dans App.jsx (retour direct
+  // suivant : "j'imaginais ça en sous-menu de Générer, dans le menu") — le
+  // sous-menu de la sidebar a besoin de pouvoir déplier ce panneau depuis
+  // l'extérieur du composant, pas juste au clic sur son propre en-tête ici.
   // Replié par défaut (divulgation progressive, même logique que
   // showExtraGenres/showScrollHint plus bas) : ne s'affiche en développé que
-  // si l'utilisateur clique dessus, pour ne pas s'interposer entre lui et le
-  // wizard pour qui n'en a pas l'usage.
+  // si l'utilisateur clique dessus (ici OU dans la sidebar), pour ne pas
+  // s'interposer entre lui et le wizard pour qui n'en a pas l'usage.
   //
   // Multi-activités (cette session) : `selectedProfileActivity` contient soit
   // une clé "built-in" ('Course à pied' / 'Cyclisme'), soit l'id d'une
-  // activité personnalisée ('custom-...') — voir `activeProfile`/
-  // `activeProfileKind` juste après le state, qui résolvent les deux cas de
-  // façon uniforme pour le reste du composant.
-  const [showAthleticProfile, setShowAthleticProfile] = useState(false);
+  // activité personnalisée ('custom-...') — voir `activeProfile` juste après
+  // le state, qui résout les deux cas de façon uniforme pour le reste du
+  // composant.
   const [showExpertZones, setShowExpertZones] = useState(false);
   const [selectedProfileActivity, setSelectedProfileActivity] = useState('Course à pied');
   const [showAddCustomActivity, setShowAddCustomActivity] = useState(false);
