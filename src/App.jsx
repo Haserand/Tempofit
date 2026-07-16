@@ -345,7 +345,10 @@ export default function App() {
   // des étapes suivantes n'ait qu'à consommer ce state, pas à le redéfinir.
   const {
     athleticProfile, setAthleticProfile,
-    computeZonesFromBaseCadence, setBaseCadence, setZone, resetAthleticProfile,
+    computeZonesFromBaseCadence,
+    setBaseCadenceForActivity, setZoneForActivity, resetActivityProfile,
+    addCustomActivity, removeCustomActivity, setBaseCadenceForCustom, setZoneForCustom, getProfileForWorkout,
+    resetAthleticProfile,
   } = useAthleticProfile();
 
   const {
@@ -2399,7 +2402,9 @@ export default function App() {
                 setIsSearchModalOpen={setIsSearchModalOpen} searchTracksByBpm={searchTracksByBpm}
                 executeGeneration={executeGeneration} isGenerating={isGenerating}
                 getActiveWorkoutName={getActiveWorkoutName} setIsSavingRoutineModalOpen={setIsSavingRoutineModalOpen}
-                athleticProfile={athleticProfile} setBaseCadence={setBaseCadence} setZone={setZone} resetAthleticProfile={resetAthleticProfile}
+                athleticProfile={athleticProfile} setBaseCadenceForActivity={setBaseCadenceForActivity} setZoneForActivity={setZoneForActivity}
+                resetActivityProfile={resetActivityProfile} addCustomActivity={addCustomActivity} removeCustomActivity={removeCustomActivity}
+                setBaseCadenceForCustom={setBaseCadenceForCustom} setZoneForCustom={setZoneForCustom} getProfileForWorkout={getProfileForWorkout}
               />
             )}
 
@@ -2437,7 +2442,7 @@ export default function App() {
             {view === 'stats' && (
               <StatsView
                 theme={themeTokens} savedPlaylists={savedPlaylists} userStats={userStats} changeView={changeView}
-                setCurrentPlaylist={setCurrentPlaylist} athleticProfile={athleticProfile}
+                setCurrentPlaylist={setCurrentPlaylist} athleticProfile={athleticProfile} getProfileForWorkout={getProfileForWorkout}
                 statsMode={statsMode} setStatsMode={setStatsMode}
                 selectedStatsGenre={selectedStatsGenre} setSelectedStatsGenre={setSelectedStatsGenre}
                 selectedStatsBpmBucket={selectedStatsBpmBucket} setSelectedStatsBpmBucket={setSelectedStatsBpmBucket}
