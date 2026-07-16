@@ -166,15 +166,34 @@ export default function PlaylistDetailView({
   // "lecture", plus en phase avec ce qui joue réellement) une fois l'audio
   // passé au suivant tout seul. Effet de bord assumé dans ce "getter" plutôt
   // qu'un 2e callback séparé : reste plus simple pour un seul point d'usage.
+  //
+  // BUG CORRIGÉ (retour direct : "traite la aussi", à propos du cas signalé
+  // juste avant) : la version précédente ne tentait qu'UN SEUL titre suivant
+  // et abandonnait purement et simplement si celui-là précisément n'avait pas
+  // d'extrait exploitable (`t.preview` absent — titre favori/Spotify sans
+  // équivalent Deezer, par exemple), même si d'autres titres plus loin dans
+  // la playlist en avaient un. Balaie maintenant vers l'avant (avec retour au
+  // début, jusqu'à `tracks.length` essais au maximum pour ne jamais tourner
+  // en rond indéfiniment si AUCUN titre de la playlist n'a d'extrait) et
+  // renvoie le PREMIER titre exploitable rencontré, pas juste le tout
+  // prochain de la liste. `null` désormais réservé au seul cas où vraiment
+  // aucun titre de la playlist n'a d'extrait du tout.
   const getNextTrackForAutoAdvance = (endedTrack) => {
-    if (currentPlaylist.tracks.length === 0) return null;
-    const idx = currentPlaylist.tracks.findIndex(t => t.id === endedTrack.id);
-    // idx === -1 (titre introuvable, ex. retiré entre-temps) : repart quand
-    // même du début plutôt que de simplement arrêter — cohérent avec l'idée
-    // que la boucle ne s'interrompt plus d'elle-même.
-    const nextIdx = (idx === -1 || idx >= currentPlaylist.tracks.length - 1) ? 0 : idx + 1;
-    setSelectedSegmentIdx(nextIdx);
-    return currentPlaylist.tracks[nextIdx];
+    const tracks = currentPlaylist.tracks;
+    if (tracks.length === 0) return null;
+    const startIdx = tracks.findIndex(t => t.id === endedTrack.id);
+    // `base` : point de départ du balayage, AVANT le "+1" de la boucle —
+    // -1 si le titre qui vient de finir est introuvable (ex. retiré entre-
+    // temps), pour que le tout 1er essai (step=1) retombe bien sur l'index 0.
+    const base = startIdx === -1 ? -1 : startIdx;
+    for (let step = 1; step <= tracks.length; step++) {
+      const candidateIdx = (base + step) % tracks.length;
+      if (tracks[candidateIdx].preview) {
+        setSelectedSegmentIdx(candidateIdx);
+        return tracks[candidateIdx];
+      }
+    }
+    return null;
   };
 
   // --- Bilan Visuel de Séance (export image) ---
