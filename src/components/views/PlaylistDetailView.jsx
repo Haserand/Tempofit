@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Pause, Play,
   GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, Calendar, ChevronDown, ChevronUp,
+  Camera, Loader2,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, CartesianGrid, ReferenceArea, ReferenceLine, XAxis, YAxis,
@@ -9,6 +10,8 @@ import {
 } from 'recharts';
 import { getGenresForDisplay, genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog';
 import { formatDuration } from '../../utils/format';
+import { deezerFetch } from '../../musicEngine';
+import SessionSummaryCard from '../shared/SessionSummaryCard';
 
 // Couleurs des 2 donuts en bas de page (répartition BPM / style) — statique,
 // n'utilisée que dans ce composant.
@@ -89,6 +92,7 @@ export default function PlaylistDetailView({
   currentPlaylist, savedPlaylists,
   isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
   handleSavePlaylist, handleUnsavePlaylist, handleShare,
+  shareImageFile, showToast,
   currentActualData, selectedMetric, setSelectedMetric, analysisStats,
   selectedAnalysisDate, setSelectedAnalysisDate, formatCompletionDate, availableMetrics,
   dataOffset, setDataOffset,
@@ -114,6 +118,67 @@ export default function PlaylistDetailView({
   // partout (Safari en particulier peut ignorer ce clic précis, sans aucune
   // erreur visible) — d'où le retour "le bouton Planifier ne fonctionne pas".
   const plannedDateInputRef = useRef(null);
+
+  // --- Bilan Visuel de Séance (export image) ---
+  // Carte rendue HORS ÉCRAN en permanence (voir le rendu tout en bas de ce
+  // composant, `position: fixed; left: -9999px`) plutôt que montée/démontée à
+  // la demande : évite d'avoir à attendre un premier rendu avant de pouvoir
+  // capturer, l'essentiel du délai d'attente vient de toute façon de la
+  // résolution des pochettes (réseau) et du chargement des <img>, pas du
+  // montage du composant lui-même.
+  const summaryCardRef = useRef(null);
+  const [summaryCovers, setSummaryCovers] = useState({});
+  const [isExportingSummary, setIsExportingSummary] = useState(false);
+
+  const exportSessionSummaryImage = async () => {
+    if (!currentPlaylist || isExportingSummary) return;
+    setIsExportingSummary(true);
+    try {
+      // 1. Pochettes des 3 premiers titres — uniquement pour ceux sourcés de
+      // Deezer (youtubeId de la forme "deezer-{id}") ; un titre favori/
+      // Spotify sans équivalent n'a pas d'ID Deezer exploitable, repli sur
+      // l'icône générique dans SessionSummaryCard (composant volontairement
+      // pur, aucun appel réseau dedans — voir sa docstring).
+      const topTracks = currentPlaylist.tracks.slice(0, 3);
+      const covers = {};
+      await Promise.all(topTracks.map(async (t) => {
+        if (!t.youtubeId || !t.youtubeId.startsWith('deezer-')) return;
+        try {
+          const { data } = await deezerFetch(`https://api.deezer.com/track/${t.youtubeId.replace('deezer-', '')}`);
+          if (data?.album?.cover_medium) covers[t.youtubeId] = data.album.cover_medium;
+        } catch (e) { /* pas de pochette pour ce titre — repli déjà géré côté composant */ }
+      }));
+      setSummaryCovers(covers);
+
+      // 2. Laisse le temps au DOM de re-render avec les pochettes, ET aux
+      // <img> de réellement finir de charger, AVANT de capturer — html2canvas
+      // capture l'état du DOM à l'instant T ; une image encore en cours de
+      // chargement à ce moment-là apparaîtrait vide sur la capture finale.
+      await new Promise(resolve => setTimeout(resolve, 50));
+      if (summaryCardRef.current) {
+        const imgs = Array.from(summaryCardRef.current.querySelectorAll('img'));
+        await Promise.all(imgs.map(img => img.complete ? Promise.resolve() : new Promise(res => { img.onload = res; img.onerror = res; })));
+      }
+
+      // 3. Capture — import dynamique : html2canvas est une librairie assez
+      // lourde pour une fonctionnalité optionnelle, pas la peine de l'inclure
+      // dans le bundle principal chargé par tout le monde dès le départ.
+      const { default: html2canvas } = await import('html2canvas');
+      const canvas = await html2canvas(summaryCardRef.current, { scale: 2, backgroundColor: null, useCORS: true });
+
+      // 4. Canvas -> Blob -> File, puis partage natif (voir shareImageFile,
+      // useShare.js) — Web Share API avec fichiers si supporté, sinon repli
+      // en téléchargement direct (déjà géré dans le hook).
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      if (!blob) throw new Error('Conversion en image échouée');
+      const file = new File([blob], 'tempofit-bilan-de-seance.png', { type: 'image/png' });
+      await shareImageFile(file, currentPlaylist.name, "Mon bilan de séance sur TempoFit 💪🎧");
+    } catch (e) {
+      if (showToast) showToast("Impossible de générer l'image du bilan — réessaie dans un instant.", 'error');
+    } finally {
+      setIsExportingSummary(false);
+    }
+  };
 
   // Même logique de clic-pour-filtrer que StatsView (voir selectedStatsGenre/
   // selectedStatsBpmBucket) : cliquer une part du donut "Répartition par
@@ -276,6 +341,20 @@ export default function PlaylistDetailView({
             )}
             <button onClick={() => handleShare('playlist', currentPlaylist)} className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40">
               <Share2 size={16} /> <span>Partager</span>
+            </button>
+            {/* Bilan Visuel de Séance — génère une image récapitulative
+                (durée, BPM moyen, zones d'intensité, top titres) et déclenche
+                le partage natif du téléphone (Story Instagram, WhatsApp...),
+                voir exportSessionSummaryImage plus haut et
+                SessionSummaryCard.jsx pour le rendu capturé. */}
+            <button
+              onClick={exportSessionSummaryImage}
+              disabled={isExportingSummary}
+              title="Générer une image de bilan à partager (Story Instagram, WhatsApp...)"
+              className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/40 disabled:opacity-60 disabled:cursor-wait"
+            >
+              {isExportingSummary ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+              <span>{isExportingSummary ? 'Génération...' : 'Bilan en image'}</span>
             </button>
           </div>
         </div>
@@ -780,6 +859,15 @@ export default function PlaylistDetailView({
               ))}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Rendu hors écran, en permanence — voir exportSessionSummaryImage plus
+          haut pour pourquoi (pas monté/démonté à la demande). `pointer-events-
+          none` par sécurité (jamais interactif, jamais censé être vu). */}
+      <div style={{ position: 'fixed', left: '-9999px', top: 0, pointerEvents: 'none' }} aria-hidden="true">
+        <div ref={summaryCardRef}>
+          <SessionSummaryCard playlist={currentPlaylist} topTrackCovers={summaryCovers} isNaughtyMode={isNaughtyMode} />
         </div>
       </div>
     </div>
