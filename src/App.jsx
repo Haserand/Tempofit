@@ -471,6 +471,7 @@ export default function App() {
     isShareModalOpen, setIsShareModalOpen,
     handleShare: handleShareBase, copyToClipboard, shareNative,
     shareToWhatsApp, shareToTwitter, shareToFacebook, shareViaEmail,
+    shareImageFile,
   } = useShare(showToast);
 
   // "Partager" — utilise le bouton Partager (playlist ou trophée) au moins
@@ -480,6 +481,16 @@ export default function App() {
   const handleShare = (type, item) => {
     handleShareBase(type, item);
     if (!userStats.hasSharedSomething) checkTrophies({ ...userStats, hasSharedSomething: true });
+  };
+  // Même trophée "Ambassadeur" que handleShare ci-dessus, pour le Bilan
+  // Visuel de Séance (voir PlaylistDetailView.jsx) — un partage RÉUSSI ou une
+  // image téléchargée comptent tous les deux comme un usage réel de la
+  // fonctionnalité de partage ; un partage ANNULÉ par l'utilisateur (voir
+  // shareImageFile, useShare.js) ne compte pas.
+  const shareImageFileWithTrophy = async (file, title, text) => {
+    const result = await shareImageFile(file, title, text);
+    if (result !== 'cancelled' && !userStats.hasSharedSomething) checkTrophies({ ...userStats, hasSharedSomething: true });
+    return result;
   };
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
 
@@ -2579,6 +2590,7 @@ export default function App() {
                 editedPlaylistName={editedPlaylistName} setEditedPlaylistName={setEditedPlaylistName}
                 handleRenamePlaylist={handleRenamePlaylist}
                 handleSavePlaylist={handleSavePlaylist} handleUnsavePlaylist={requestUnsavePlaylist} handleShare={handleShare}
+                shareImageFile={shareImageFileWithTrophy} showToast={showToast}
                 currentActualData={currentActualData} selectedMetric={selectedMetric} setSelectedMetric={setSelectedMetric}
                 analysisStats={analysisStats}
                 selectedAnalysisDate={selectedAnalysisDate} setSelectedAnalysisDate={setSelectedAnalysisDate}
