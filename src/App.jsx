@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Play, List, Plus, Check, Settings, Pause, Search, X, Heart, ListPlus, Loader2, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Edit3, Copy, Trophy, Upload, ChevronUp, ChevronDown, Target, MessageCircle, ExternalLink, Sun, Moon } from 'lucide-react';
+import { Activity, Clock, Music, Play, List, Plus, Check, Settings, Pause, Search, X, Heart, ListPlus, Loader2, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Edit3, Copy, Trophy, Upload, ChevronUp, ChevronDown, Target, MessageCircle, ExternalLink, Sun, Moon, Gauge } from 'lucide-react';
 import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, WEAK_DEEZER_KEYWORD_GENRES, getGenreLocalDepthWarning, normalizeGenreForDisplay, genreDisplayLabel, getGenresForDisplay } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appConfig';
 
@@ -86,6 +86,14 @@ export default function App() {
   // quand cette vue est active, donc un `useState` dedans violerait les règles des
   // Hooks (appelés dans un ordre non garanti d'un rendu à l'autre).
   const [showAdvancedStats, setShowAdvancedStats] = useState(false);
+  // Panneau "Mon Profil Athlétique" (GeneratorView) — remonté ici (pas un
+  // simple useState local à GeneratorView) pour que le sous-menu "Mon Profil
+  // Athlétique" de la sidebar (entre "Générer" et "Mes Routines", retour
+  // direct : "j'imaginais ça en sous-menu de Générer dans le menu") puisse à
+  // la fois naviguer vers Générer ET déplier directement ce panneau en un
+  // seul clic, plutôt que d'atterrir sur Générer avec le panneau encore
+  // replié.
+  const [showAthleticProfile, setShowAthleticProfile] = useState(false);
   // 'standard' | 'naughty' — quelles playlists nourrissent la page Statistiques.
   // Séparé plutôt que mélangé (voir la discussion) : le Mode Intime est déjà
   // traité avec discrétion ailleurs dans l'app (noms différents, pas de mélange
@@ -2306,6 +2314,23 @@ export default function App() {
               <span className="font-bold text-sm">Générer</span>
             </button>
 
+            {/* Sous-menu de "Générer" (retour direct : "personne ne le verra dans
+                Options & Comptes", puis "j'imaginais ça en sous-menu de Générer") —
+                indenté et en retrait visuel (pas de pastille pleine, icône/texte
+                plus petits, léger décalage à gauche) pour bien signaler que ce
+                n'est pas une section de même niveau que les autres, mais une
+                sous-partie de "Générer" spécifiquement. Ouvre directement le
+                panneau (voir showAthleticProfile, remonté dans App.jsx) plutôt que
+                d'atterrir sur Générer avec le panneau encore replié. */}
+            <button
+              onClick={() => { changeView('generator'); setShowAthleticProfile(true); }}
+              className={`w-full flex items-center space-x-2.5 pl-8 pr-3 py-2 rounded-lg transition-colors select-none cursor-pointer ${view === 'generator' && showAthleticProfile ?
+                `${textColorClass} bg-gray-100 dark:bg-gray-800 font-bold` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}
+            >
+              <Gauge size={15} className="shrink-0" />
+              <span className="text-xs font-semibold">Mon Profil Athlétique</span>
+            </button>
+
             <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
               <ListPlus size={18} />
               <span className="font-bold text-sm">Mes Routines</span>
@@ -2405,6 +2430,7 @@ export default function App() {
                 athleticProfile={athleticProfile} setBaseCadenceForActivity={setBaseCadenceForActivity} setZoneForActivity={setZoneForActivity}
                 resetActivityProfile={resetActivityProfile} addCustomActivity={addCustomActivity} removeCustomActivity={removeCustomActivity}
                 setBaseCadenceForCustom={setBaseCadenceForCustom} setZoneForCustom={setZoneForCustom} getProfileForWorkout={getProfileForWorkout}
+                showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
               />
             )}
 
