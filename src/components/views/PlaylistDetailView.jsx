@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Pause, Play,
   GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, Calendar, ChevronDown, ChevronUp,
-  Camera, Loader2, ChevronLeft, ChevronRight,
+  Camera, Loader2, ChevronLeft, ChevronRight, Lock, Circle,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, CartesianGrid, ReferenceArea, ReferenceLine, XAxis, YAxis,
@@ -107,6 +107,7 @@ export default function PlaylistDetailView({
   setIsBpmSearchMode, setIsSearchModalOpen,
   bpmDistributionData, genreDistributionData,
   setPlaylistPlannedDate,
+  markPlaylistAsCompleted, renderCompletionsList,
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass, borderAccentClass, inputBg, inputBorder } = theme;
   // Replié par défaut : ce tableau ne sert qu'à vérifier ponctuellement une
@@ -118,6 +119,21 @@ export default function PlaylistDetailView({
   // partout (Safari en particulier peut ignorer ce clic précis, sans aucune
   // erreur visible) — d'où le retour "le bouton Planifier ne fonctionne pas".
   const plannedDateInputRef = useRef(null);
+  // Même filet de sécurité pour "Marquer comme refaite" ci-dessous (nouvelle
+  // date de complétion depuis la fiche détaillée, pas seulement depuis la
+  // carte dans "Mes Séances").
+  const addCompletionDateInputRef = useRef(null);
+
+  // --- Verrouillage d'une séance déjà réalisée (retour direct) ---
+  // Une fois qu'AU MOINS une date de complétion existe, cette playlist devient
+  // un historique réel, pas un brouillon : on ne doit plus pouvoir en modifier
+  // le contenu (ajouter/dupliquer/remplacer/retirer un titre, le déplacer) sans
+  // fausser silencieusement ce qui a été réellement écouté pendant la séance.
+  // Seules restent possibles les actions qui NE changent PAS le contenu :
+  // écouter un extrait, favoriser un artiste/titre, consulter/partager les
+  // stats, importer des données réelles (Garmin/Strava) ou ajouter une
+  // NOUVELLE date de complétion (rejouer la même séance plus tard).
+  const isLocked = !!(currentPlaylist.completions && currentPlaylist.completions.length > 0);
 
   // --- Bilan Visuel de Séance (export image) ---
   // Carte rendue HORS ÉCRAN en permanence (voir le rendu tout en bas de ce
@@ -325,10 +341,17 @@ export default function PlaylistDetailView({
                     }
                   }}
                   className={`relative flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors border cursor-pointer bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 ${cardBorder} ${textHighlight}`}
-                  title="Planifier une date pour cette séance (optionnel — sert juste à trier 'Mes Séances')"
+                  title={
+                    // Une fois la séance déjà réalisée, "planifier" ne peut plus
+                    // vouloir dire "prévoir sa première fois" — ça ne peut plus
+                    // être qu'une intention de la refaire plus tard.
+                    isLocked
+                      ? "Planifier une date pour REFAIRE cette séance (optionnel — sert juste à trier 'Mes Séances')"
+                      : "Planifier une date pour cette séance (optionnel — sert juste à trier 'Mes Séances')"
+                  }
                 >
                   <Calendar size={16} />
-                  <span>{currentPlaylist.plannedDate ? new Date(currentPlaylist.plannedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : 'Planifier'}</span>
+                  <span>{currentPlaylist.plannedDate ? new Date(currentPlaylist.plannedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : (isLocked ? 'Planifier à nouveau' : 'Planifier')}</span>
                   <input
                     ref={plannedDateInputRef}
                     type="date"
@@ -357,6 +380,42 @@ export default function PlaylistDetailView({
               <span>{isExportingSummary ? 'Génération...' : 'Bilan en image'}</span>
             </button>
           </div>
+
+          {/* Bandeau "séance déjà réalisée" (retour direct) : dates de
+              complétion + import Garmin/Strava (voir renderCompletionsList,
+              App.jsx — même rendu que sur la carte dans "Mes Séances") et
+              possibilité d'ajouter une NOUVELLE date pour rejouer la même
+              séance plus tard. C'est la SEULE façon d'enrichir cette playlist
+              une fois verrouillée : la playlist en elle-même (titres, ordre)
+              ne bouge plus, seul son historique d'utilisation le peut. */}
+          {isLocked && (
+            <div className={`w-full mt-4 p-4 rounded-2xl border border-green-200 dark:border-green-900/40 bg-green-50/60 dark:bg-green-900/10`}>
+              <div className="flex items-center gap-2 text-green-700 dark:text-green-400 text-sm font-bold mb-3">
+                <Lock size={15}/> Séance déjà réalisée — verrouillée pour préserver ton historique
+              </div>
+              {renderCompletionsList && renderCompletionsList(currentPlaylist)}
+              {markPlaylistAsCompleted && (
+                <label
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (addCompletionDateInputRef.current?.showPicker) {
+                      e.preventDefault();
+                      addCompletionDateInputRef.current.showPicker();
+                    }
+                  }}
+                  className={`relative mt-2 flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 text-xs font-bold cursor-pointer rounded-lg transition-colors border ${inputBg} hover:bg-green-100 dark:hover:bg-green-900/20 hover:text-green-600 ${inputBorder} ${textMuted}`}
+                >
+                  <Circle size={14}/> Marquer comme refaite (ajouter une date)
+                  <input
+                    ref={addCompletionDateInputRef}
+                    type="date"
+                    onChange={(e) => { e.stopPropagation(); if (e.target.value) markPlaylistAsCompleted(currentPlaylist.id, e.target.value); e.target.value = ''; }}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                  />
+                </label>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -490,17 +549,24 @@ export default function PlaylistDetailView({
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setOpenTrackMenuIndex(null)}></div>
                     <div className={`absolute right-0 top-full mt-1 z-20 w-64 rounded-xl border shadow-2xl ${cardBg} ${cardBorder} overflow-hidden`}>
-                      <button onClick={() => { handleDuplicateTrack(selectedSegmentIdx); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
-                        <Plus size={16} className="text-green-500"/> Dupliquer ce titre
-                      </button>
-                      <div className={`h-px my-1 ${cardBorder} border-t`}></div>
-                      <button onClick={() => { handleReplaceTrackSameArtist(selectedSegmentIdx); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
-                        <User size={16} className="text-purple-500"/> Remplacer (même artiste)
-                      </button>
-                      <button onClick={() => { handleReplaceTrack(selectedSegmentIdx); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
-                        <RefreshCw size={16} className="text-blue-500"/> Remplacer (recherche large)
-                      </button>
-                      <div className={`h-px my-1 ${cardBorder} border-t`}></div>
+                      {/* Même règle que le menu de la liste plus bas : contenu
+                          verrouillé une fois la séance déjà réalisée, seul
+                          "favoriser l'artiste" reste possible (voir isLocked). */}
+                      {!isLocked && (
+                        <>
+                          <button onClick={() => { handleDuplicateTrack(selectedSegmentIdx); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                            <Plus size={16} className="text-green-500"/> Dupliquer ce titre
+                          </button>
+                          <div className={`h-px my-1 ${cardBorder} border-t`}></div>
+                          <button onClick={() => { handleReplaceTrackSameArtist(selectedSegmentIdx); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                            <User size={16} className="text-purple-500"/> Remplacer (même artiste)
+                          </button>
+                          <button onClick={() => { handleReplaceTrack(selectedSegmentIdx); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                            <RefreshCw size={16} className="text-blue-500"/> Remplacer (recherche large)
+                          </button>
+                          <div className={`h-px my-1 ${cardBorder} border-t`}></div>
+                        </>
+                      )}
                       {(() => {
                         const seg = trackSegments[selectedSegmentIdx];
                         const artistIsFav = favorites.artists.includes(seg.track.artist);
@@ -510,23 +576,27 @@ export default function PlaylistDetailView({
                           </button>
                         );
                       })()}
-                      <div className={`h-px my-1 ${cardBorder} border-t`}></div>
-                      <button
-                        onClick={() => {
-                          const removedIdx = selectedSegmentIdx;
-                          handleRemoveTrack(removedIdx);
-                          setOpenTrackMenuIndex(null);
-                          // Reste sur un titre valide après suppression plutôt que
-                          // de laisser l'encart retomber sur "aucun segment
-                          // sélectionné" — le titre qui prenait la place occupe
-                          // maintenant cet index (ou le précédent si on supprimait
-                          // le dernier).
-                          setSelectedSegmentIdx(Math.min(removedIdx, trackSegments.length - 2 >= 0 ? trackSegments.length - 2 : 0));
-                        }}
-                        className="w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors"
-                      >
-                        <X size={16}/> Retirer de la playlist
-                      </button>
+                      {!isLocked && (
+                        <>
+                          <div className={`h-px my-1 ${cardBorder} border-t`}></div>
+                          <button
+                            onClick={() => {
+                              const removedIdx = selectedSegmentIdx;
+                              handleRemoveTrack(removedIdx);
+                              setOpenTrackMenuIndex(null);
+                              // Reste sur un titre valide après suppression plutôt que
+                              // de laisser l'encart retomber sur "aucun segment
+                              // sélectionné" — le titre qui prenait la place occupe
+                              // maintenant cet index (ou le précédent si on supprimait
+                              // le dernier).
+                              setSelectedSegmentIdx(Math.min(removedIdx, trackSegments.length - 2 >= 0 ? trackSegments.length - 2 : 0));
+                            }}
+                            className="w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors"
+                          >
+                            <X size={16}/> Retirer de la playlist
+                          </button>
+                        </>
+                      )}
                     </div>
                   </>
                 )}
@@ -558,8 +628,12 @@ export default function PlaylistDetailView({
             <LineChart
               data={unifiedChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
               onClick={handleChartClickAndClearZoomFilter}
-              onMouseDown={handleChartMouseDown} onMouseMove={handleChartMouseMove}
-              onMouseUp={handleChartMouseUp} onMouseLeave={handleChartMouseUp}
+              // Glisser-déposer directement sur la courbe désactivé une fois la
+              // séance verrouillée (voir isLocked) — le simple clic (sélection/
+              // consultation d'un segment, géré par onClick ci-dessus) reste lui
+              // toujours possible, ce n'est pas une modification de contenu.
+              onMouseDown={isLocked ? undefined : handleChartMouseDown} onMouseMove={isLocked ? undefined : handleChartMouseMove}
+              onMouseUp={isLocked ? undefined : handleChartMouseUp} onMouseLeave={isLocked ? undefined : handleChartMouseUp}
               style={{ cursor: isDraggingChartSegment ? 'grabbing' : 'pointer' }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke={colorMode === 'dark' ? '#374151' : '#e5e7eb'} vertical={false} />
@@ -730,15 +804,20 @@ export default function PlaylistDetailView({
           {currentPlaylist.tracks.map((track, index) => (
             <div
               key={track.id}
-              draggable
-              onDragStart={handleTrackDragStart(index)}
-              onDragEnter={handleTrackDragEnter(index)}
-              onDragOver={(e) => e.preventDefault()}
-              onDragEnd={handleTrackDragEnd}
+              draggable={!isLocked}
+              onDragStart={isLocked ? undefined : handleTrackDragStart(index)}
+              onDragEnter={isLocked ? undefined : handleTrackDragEnter(index)}
+              onDragOver={isLocked ? undefined : (e) => e.preventDefault()}
+              onDragEnd={isLocked ? undefined : handleTrackDragEnd}
               className={`flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-800/60 group transition-opacity ${draggedTrackIndex === index ? 'opacity-40' : ''} ${hasDetailFilter && !trackMatchesDetailFilter(track) ? 'opacity-30' : ''} ${hasDetailFilter && trackMatchesDetailFilter(track) ? `${isNaughtyMode ? 'bg-rose-50 dark:bg-rose-950/20' : 'bg-red-50 dark:bg-red-950/20'}` : ''}`}
             >
-              {/* Poignée de glisser-déposer — remplace les flèches ↑/↓. */}
-              <div className={`shrink-0 cursor-grab active:cursor-grabbing px-1 ${textMuted}`} title="Glisser pour réordonner">
+              {/* Poignée de glisser-déposer — remplace les flèches ↑/↓. Grisée et
+                  non interactive sur une séance déjà réalisée : on ne réordonne
+                  plus un historique (voir isLocked). */}
+              <div
+                className={`shrink-0 px-1 ${textMuted} ${isLocked ? 'opacity-20 cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}`}
+                title={isLocked ? "Verrouillé — impossible de réordonner une séance déjà réalisée" : "Glisser pour réordonner"}
+              >
                 <GripVertical size={16}/>
               </div>
               <div className={"w-6 text-center font-medium text-xs " + textMuted}>{index + 1}</div>
@@ -795,17 +874,26 @@ export default function PlaylistDetailView({
                     <div className={`absolute right-0 z-20 w-64 rounded-xl border shadow-2xl ${cardBg} ${cardBorder} overflow-hidden ${
                       index >= currentPlaylist.tracks.length - 2 ? 'bottom-full mb-1' : 'top-full mt-1'
                     }`}>
-                      <button onClick={() => { handleDuplicateTrack(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
-                        <Plus size={16} className="text-green-500"/> Dupliquer ce titre
-                      </button>
-                      <div className={`h-px my-1 ${cardBorder} border-t`}></div>
-                      <button onClick={() => { handleReplaceTrackSameArtist(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
-                        <User size={16} className="text-purple-500"/> Remplacer (même artiste)
-                      </button>
-                      <button onClick={() => { handleReplaceTrack(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
-                        <RefreshCw size={16} className="text-blue-500"/> Remplacer (recherche large)
-                      </button>
-                      <div className={`h-px my-1 ${cardBorder} border-t`}></div>
+                      {/* Dupliquer/Remplacer changent le CONTENU de la playlist —
+                          masqués une fois la séance verrouillée (voir isLocked) :
+                          modifier des titres après coup fausserait un historique
+                          déjà réel. Favoriser un artiste n'affecte que les
+                          favoris globaux, jamais cette playlist : reste possible. */}
+                      {!isLocked && (
+                        <>
+                          <button onClick={() => { handleDuplicateTrack(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                            <Plus size={16} className="text-green-500"/> Dupliquer ce titre
+                          </button>
+                          <div className={`h-px my-1 ${cardBorder} border-t`}></div>
+                          <button onClick={() => { handleReplaceTrackSameArtist(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                            <User size={16} className="text-purple-500"/> Remplacer (même artiste)
+                          </button>
+                          <button onClick={() => { handleReplaceTrack(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                            <RefreshCw size={16} className="text-blue-500"/> Remplacer (recherche large)
+                          </button>
+                          <div className={`h-px my-1 ${cardBorder} border-t`}></div>
+                        </>
+                      )}
                       {(() => {
                         const artistIsFav = favorites.artists.includes(track.artist);
                         return (
@@ -819,18 +907,33 @@ export default function PlaylistDetailView({
                 )}
               </div>
 
-              <button onClick={() => handleRemoveTrack(index)} className={"p-2 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400 rounded-lg transition-colors shrink-0 " + textMuted} title="Retirer de la proposition">
-                <X size={16}/>
-              </button>
+              {isLocked ? (
+                <div className={"p-2 shrink-0 opacity-20 " + textMuted} title="Verrouillé — impossible de retirer un titre d'une séance déjà réalisée">
+                  <Lock size={16}/>
+                </div>
+              ) : (
+                <button onClick={() => handleRemoveTrack(index)} className={"p-2 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400 rounded-lg transition-colors shrink-0 " + textMuted} title="Retirer de la proposition">
+                  <X size={16}/>
+                </button>
+              )}
             </div>
           ))}
 
-          {/* BOUTON AJOUT MANUEL */}
-          <div className="p-2 bg-gray-50 dark:bg-gray-900/50">
-            <button onClick={() => { setIsBpmSearchMode(false); setIsSearchModalOpen(true); }} className={"w-full py-3 flex items-center justify-center gap-2 text-sm font-bold border-2 border-dashed rounded-xl transition-colors hover:border-gray-400 " + inputBorder + " " + textMuted + " hover:" + textHighlight}>
-              <Plus size={18} /> <span>Ajouter un titre</span>
-            </button>
-          </div>
+          {/* BOUTON AJOUT MANUEL — remplacé par un message explicite une fois la
+              séance verrouillée (voir isLocked) : ajouter un titre à une
+              playlist déjà réalisée changerait rétroactivement ce qui a été
+              effectivement écouté. */}
+          {isLocked ? (
+            <div className={"p-3 bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center gap-2 text-xs font-bold " + textMuted}>
+              <Lock size={14}/> Séance déjà réalisée — plus aucun titre ne peut être ajouté, dupliqué, remplacé ou retiré
+            </div>
+          ) : (
+            <div className="p-2 bg-gray-50 dark:bg-gray-900/50">
+              <button onClick={() => { setIsBpmSearchMode(false); setIsSearchModalOpen(true); }} className={"w-full py-3 flex items-center justify-center gap-2 text-sm font-bold border-2 border-dashed rounded-xl transition-colors hover:border-gray-400 " + inputBorder + " " + textMuted + " hover:" + textHighlight}>
+                <Plus size={18} /> <span>Ajouter un titre</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
