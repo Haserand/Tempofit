@@ -1,5 +1,5 @@
 import { Star, Heart, Play, Pause, X, Plus, User, RefreshCw, Target, Search, Info } from 'lucide-react';
-import { getGenreLocalDepthWarning, getGenresForDisplay, genreDisplayLabel, EXTRA_GENRES, WEAK_DEEZER_KEYWORD_GENRES } from '../../musicCatalog';
+import { getGenreLocalDepthWarning, getGenresForDisplay, genreDisplayLabel, EXTRA_GENRES } from '../../musicCatalog';
 
 /**
  * FavoritesView — vue "Mes Favoris" (titres/artistes favoris + exploration BPM/genre).
@@ -199,7 +199,11 @@ export default function FavoritesView({
               {!isNaughtyMode && showExtraGenres && (
                 <p className={`text-sm flex items-start gap-1.5 pt-2 font-semibold ${textColorClass}`}>
                   <Info size={16} className="shrink-0 mt-0.5" />
-                  <span>{WEAK_DEEZER_KEYWORD_GENRES.map(genreDisplayLabel).join(', ')} demandent une recherche plus approfondie : ça peut prendre un peu plus de temps si tu en choisis un.</span>
+                  {/* Retour direct (même reformulation que GeneratorView.jsx) :
+                      ne plus nommer explicitement WEAK_DEEZER_KEYWORD_GENRES,
+                      qui n'est qu'une liste de convenance interne, pas une
+                      couverture exhaustive de "tout ce qui peut être lent". */}
+                  <span>Les genres les moins courants dans le catalogue peuvent demander une recherche plus approfondie : la génération prend alors un peu plus de temps.</span>
                 </p>
               )}
             </div>
