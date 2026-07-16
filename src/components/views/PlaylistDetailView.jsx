@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Pause, Play,
   GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, Calendar, ChevronDown, ChevronUp,
-  Camera, Loader2,
+  Camera, Loader2, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, CartesianGrid, ReferenceArea, ReferenceLine, XAxis, YAxis,
@@ -434,10 +434,22 @@ export default function PlaylistDetailView({
         {/* Encart fixe pour le segment sélectionné — remplace la bulle flottante
             de Recharts qui suivait la souris et se repositionnait de façon
             instable. Ici, la position ne bouge jamais : seul le contenu change
-            selon le segment sélectionné (piloté par selectedSegmentIdx). */}
-        <div className={`mb-4 p-4 rounded-2xl border ${cardBorder} ${inputBg} flex items-center gap-4 min-h-[76px]`}>
+            selon le segment sélectionné (piloté par selectedSegmentIdx).
+            Retour direct : flèches précédent/suivant (changer de titre sans
+            viser un point précis sur la courbe) + les mêmes actions de base
+            que dans la liste plus bas (dupliquer/remplacer/supprimer/favori) —
+            réutilise EXACTEMENT les mêmes handlers, pas une 2e implémentation. */}
+        <div className={`mb-4 p-4 rounded-2xl border ${cardBorder} ${inputBg} flex items-center gap-3 min-h-[76px]`}>
           {selectedSegmentIdx !== null && trackSegments[selectedSegmentIdx] ? (
             <>
+              <button
+                onClick={() => setSelectedSegmentIdx(Math.max(0, selectedSegmentIdx - 1))}
+                disabled={selectedSegmentIdx === 0}
+                title="Titre précédent"
+                className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent`}
+              >
+                <ChevronLeft size={18}/>
+              </button>
               <button
                 onClick={() => togglePreview(trackSegments[selectedSegmentIdx].track)}
                 disabled={!trackSegments[selectedSegmentIdx].track.preview}
@@ -450,12 +462,74 @@ export default function PlaylistDetailView({
                 <div className={`font-bold text-sm truncate ${textHighlight}`}>{trackSegments[selectedSegmentIdx].track.title}</div>
                 <div className={`text-xs truncate ${textMuted}`}>{trackSegments[selectedSegmentIdx].track.artist}{trackSegments[selectedSegmentIdx].track.genre ? ` · ${getGenresForDisplay(trackSegments[selectedSegmentIdx].track.genre, trackSegments[selectedSegmentIdx].track.artist, trackSegments[selectedSegmentIdx].track.title).join(', ')}` : ''}{trackSegments[selectedSegmentIdx].track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Genre Deezer différent — peut quand même correspondre.">⚠️ Genre non confirmé</span>}</div>
               </div>
-              <div className={`text-xs font-mono ${textMuted} shrink-0`}>
+              <div className={`text-xs font-mono ${textMuted} shrink-0 hidden md:block`}>
                 Début : {formatDuration(trackSegments[selectedSegmentIdx].startTime)}<br/>
                 Durée : {formatDuration(trackSegments[selectedSegmentIdx].track.duration)}
               </div>
               <div className={`px-3 py-2 rounded-lg text-sm font-bold font-mono text-white shrink-0 ${isNaughtyMode ? 'bg-rose-500' : 'bg-gray-800 dark:bg-gray-700'}`}>
                 🎯 {trackSegments[selectedSegmentIdx].track.bpm} BPM
+              </div>
+              <button
+                onClick={() => setSelectedSegmentIdx(Math.min(trackSegments.length - 1, selectedSegmentIdx + 1))}
+                disabled={selectedSegmentIdx === trackSegments.length - 1}
+                title="Titre suivant"
+                className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent`}
+              >
+                <ChevronRight size={18}/>
+              </button>
+
+              {/* Actions de base — mêmes handlers que le menu "⋮" de la liste
+                  plus bas (voir openTrackMenuIndex, partagé avec la liste : ouvrir
+                  ce menu ici ouvre aussi le menu de la ligne correspondante dans
+                  la liste, cohérent puisque c'est le même titre). */}
+              <div className="relative shrink-0">
+                <button onClick={() => setOpenTrackMenuIndex(openTrackMenuIndex === selectedSegmentIdx ? null : selectedSegmentIdx)} className={`p-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800`} title="Plus d'options">
+                  <MoreVertical size={16}/>
+                </button>
+                {openTrackMenuIndex === selectedSegmentIdx && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setOpenTrackMenuIndex(null)}></div>
+                    <div className={`absolute right-0 top-full mt-1 z-20 w-64 rounded-xl border shadow-2xl ${cardBg} ${cardBorder} overflow-hidden`}>
+                      <button onClick={() => { handleDuplicateTrack(selectedSegmentIdx); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                        <Plus size={16} className="text-green-500"/> Dupliquer ce titre
+                      </button>
+                      <div className={`h-px my-1 ${cardBorder} border-t`}></div>
+                      <button onClick={() => { handleReplaceTrackSameArtist(selectedSegmentIdx); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                        <User size={16} className="text-purple-500"/> Remplacer (même artiste)
+                      </button>
+                      <button onClick={() => { handleReplaceTrack(selectedSegmentIdx); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                        <RefreshCw size={16} className="text-blue-500"/> Remplacer (recherche large)
+                      </button>
+                      <div className={`h-px my-1 ${cardBorder} border-t`}></div>
+                      {(() => {
+                        const seg = trackSegments[selectedSegmentIdx];
+                        const artistIsFav = favorites.artists.includes(seg.track.artist);
+                        return (
+                          <button onClick={() => { toggleArtistFavorite(seg.track.artist); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                            <Star size={16} className="text-amber-500" fill={artistIsFav ? 'currentColor' : 'none'}/> {artistIsFav ? `Retirer ${seg.track.artist} des favoris` : `Favoriser l'artiste (${seg.track.artist})`}
+                          </button>
+                        );
+                      })()}
+                      <div className={`h-px my-1 ${cardBorder} border-t`}></div>
+                      <button
+                        onClick={() => {
+                          const removedIdx = selectedSegmentIdx;
+                          handleRemoveTrack(removedIdx);
+                          setOpenTrackMenuIndex(null);
+                          // Reste sur un titre valide après suppression plutôt que
+                          // de laisser l'encart retomber sur "aucun segment
+                          // sélectionné" — le titre qui prenait la place occupe
+                          // maintenant cet index (ou le précédent si on supprimait
+                          // le dernier).
+                          setSelectedSegmentIdx(Math.min(removedIdx, trackSegments.length - 2 >= 0 ? trackSegments.length - 2 : 0));
+                        }}
+                        className="w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors"
+                      >
+                        <X size={16}/> Retirer de la playlist
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </>
           ) : (
@@ -463,7 +537,15 @@ export default function PlaylistDetailView({
           )}
         </div>
 
-        <div className="h-72 w-full">
+        <div className="h-72 w-full relative">
+          {/* Repère flottant pendant un glissement actif — en plus de la
+              surbrillance ambre sur la courbe, un texte explicite qui ne
+              laisse aucun doute sur ce qui se passe. */}
+          {isDraggingChartSegment && (
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 px-3 py-1.5 rounded-full bg-amber-500 text-white text-xs font-bold shadow-lg pointer-events-none animate-in fade-in zoom-in duration-200">
+              ↔ Déplacement en cours...
+            </div>
+          )}
           {currentPlaylist.tracks.length === 0 ? (
             <div className={`h-full flex items-center justify-center text-center px-6 ${textMuted}`}>
               Cette playlist ne contient aucun morceau (durée/distance probablement vide au moment de la génération) — regénère-la avec une distance ou une durée renseignée.
@@ -482,14 +564,21 @@ export default function PlaylistDetailView({
             >
               <CartesianGrid strokeDasharray="3 3" stroke={colorMode === 'dark' ? '#374151' : '#e5e7eb'} vertical={false} />
 
-              {/* Surbrillance de TOUT le segment sélectionné, déterminée via handleChartMouseMove. */}
+              {/* Surbrillance de TOUT le segment sélectionné, déterminée via handleChartMouseMove.
+                  Retour direct ("ça manque d'indication visuelle quand je déplace un
+                  morceau via le graphique") : style DISTINCT pendant un glissement actif
+                  (ambre, contour en pointillés, plus opaque) — sinon rien ne distingue
+                  visuellement "je fais glisser ce titre" d'un simple clic de sélection
+                  (les 2 utilisaient la même surbrillance rouge fine). */}
               {selectedSegmentIdx !== null && trackSegments[selectedSegmentIdx] && (
                 <ReferenceArea
                   x1={chartAxisType === 'distance' ? trackSegments[selectedSegmentIdx].startDist * distanceDisplayFactor : trackSegments[selectedSegmentIdx].startTime}
                   x2={chartAxisType === 'distance' ? trackSegments[selectedSegmentIdx].endDist * distanceDisplayFactor : trackSegments[selectedSegmentIdx].endTime}
-                  fill={isNaughtyMode ? '#f43f5e' : '#ef4444'}
-                  fillOpacity={0.12}
-                  stroke="none"
+                  fill={isDraggingChartSegment ? '#f59e0b' : (isNaughtyMode ? '#f43f5e' : '#ef4444')}
+                  fillOpacity={isDraggingChartSegment ? 0.28 : 0.12}
+                  stroke={isDraggingChartSegment ? '#f59e0b' : 'none'}
+                  strokeWidth={isDraggingChartSegment ? 2 : 0}
+                  strokeDasharray={isDraggingChartSegment ? '6 4' : undefined}
                 />
               )}
 
