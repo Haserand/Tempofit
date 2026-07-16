@@ -95,6 +95,7 @@ export default function PlaylistDetailView({
   chartAxisType, setChartAxisType, chartDistanceUnit, setChartDistanceUnitOverride,
   selectedSegmentIdx, setSelectedSegmentIdx, trackSegments, togglePreview, playingPreviewId,
   unifiedChartData, handleChartClick, chartXDomain, chartXTicks, chartYDomain, distanceDisplayFactor,
+  handleChartMouseDown, handleChartMouseMove, handleChartMouseUp, isDraggingChartSegment,
   draggedTrackIndex, handleTrackDragStart, handleTrackDragEnter, handleTrackDragEnd,
   favorites, toggleTrackFavorite, toggleArtistFavorite,
   openTrackMenuIndex, setOpenTrackMenuIndex,
@@ -393,7 +394,13 @@ export default function PlaylistDetailView({
             {/* Interaction par CLIC plutôt que par survol continu : plus fiable,
                 plus rapide, et le résultat reste stable tant qu'on ne clique pas
                 ailleurs. */}
-            <LineChart data={unifiedChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }} onClick={handleChartClickAndClearZoomFilter} style={{ cursor: 'pointer' }}>
+            <LineChart
+              data={unifiedChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
+              onClick={handleChartClickAndClearZoomFilter}
+              onMouseDown={handleChartMouseDown} onMouseMove={handleChartMouseMove}
+              onMouseUp={handleChartMouseUp} onMouseLeave={handleChartMouseUp}
+              style={{ cursor: isDraggingChartSegment ? 'grabbing' : 'pointer' }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke={colorMode === 'dark' ? '#374151' : '#e5e7eb'} vertical={false} />
 
               {/* Surbrillance de TOUT le segment sélectionné, déterminée via handleChartMouseMove. */}
@@ -476,6 +483,12 @@ export default function PlaylistDetailView({
             </LineChart>
           </ResponsiveContainer>
           )}
+          {/* Repère de découverte pour le glisser-déposer directement sur la
+              courbe (retour direct : "je veux pouvoir prendre une partie du
+              graphique et la déplacer ailleurs") — même mécanisme de
+              réordonnancement que la liste plus bas, juste déclenché ici en
+              saisissant un segment sur la courbe plutôt qu'une ligne de la liste. */}
+          <p className={`text-xs text-center mt-2 ${textMuted}`}>🖱️ Glisse un segment de la courbe pour réordonner les titres.</p>
         </div>
       </div>
 
