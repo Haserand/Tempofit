@@ -131,13 +131,25 @@ export default function FavoritesView({
 
             <div>
               <label className={`text-sm font-bold ${textMuted} block mb-3`}>Genres</label>
+              {/* BUG CORRIGÉ (retour direct : "je devrais pouvoir sélectionner
+                  aucun genre, ça veut dire recherche globale") — les 2 gardes
+                  `favSelectedGenres.length > 1` ci-dessous (celle-ci et celle
+                  des genres étendus juste plus bas) empêchaient de désélectionner
+                  le tout dernier genre coché, alors que le mécanisme de
+                  recherche (searchTracksByBpm → fetchBpmSearchResults,
+                  searchEngine.js) sait déjà très bien traiter un tableau de
+                  genres VIDE : `genresToQuery = genres.length > 0 ? genres :
+                  ['Autre']`, et 'Autre' = aucune restriction de genre (voir
+                  isDirectGenreMatch, musicCatalog.js). Le wizard principal
+                  (`toggleGenre`, useGeneratorForm.js) n'a d'ailleurs jamais eu
+                  cette garde — recalé ici pour être cohérent avec lui. */}
               <div className="flex flex-wrap gap-2">
                 {availableGenres.map(genre => {
                   const isSelected = favSelectedGenres.includes(genre);
                   const warning = getGenreLocalDepthWarning(genre);
                   return (
                     <button key={genre} onClick={() => {
-                      if (isSelected) { if (favSelectedGenres.length > 1) setFavSelectedGenres(favSelectedGenres.filter(g => g !== genre)); }
+                      if (isSelected) setFavSelectedGenres(favSelectedGenres.filter(g => g !== genre));
                       else setFavSelectedGenres([...favSelectedGenres, genre]);
                     }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
                       {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
@@ -161,7 +173,7 @@ export default function FavoritesView({
                     const warning = getGenreLocalDepthWarning(genre);
                     return (
                       <button key={genre} onClick={() => {
-                        if (isSelected) { if (favSelectedGenres.length > 1) setFavSelectedGenres(favSelectedGenres.filter(g => g !== genre)); }
+                        if (isSelected) setFavSelectedGenres(favSelectedGenres.filter(g => g !== genre));
                         else setFavSelectedGenres([...favSelectedGenres, genre]);
                       }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
                         {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
@@ -169,6 +181,16 @@ export default function FavoritesView({
                     );
                   })}
                 </div>
+              )}
+              {/* Confirmation explicite une fois à zéro genre sélectionné — la
+                  question posée en retour direct montre que ce n'était pas
+                  évident sans ce message : le comportement existait déjà côté
+                  recherche, seule la possibilité d'y arriver manquait côté UI. */}
+              {favSelectedGenres.length === 0 && (
+                <p className={`text-sm flex items-start gap-1.5 pt-2 font-semibold ${textColorClass}`}>
+                  <Info size={16} className="shrink-0 mt-0.5" />
+                  <span>Aucun genre sélectionné : la recherche portera sur n'importe quel style, sans restriction.</span>
+                </p>
               )}
               {/* Même logique que le wizard de génération (GeneratorView.jsx) : infobulle
                   sur le bouton AVANT le clic (title ci-dessus), rappel plus visible une
