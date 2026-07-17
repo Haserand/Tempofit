@@ -237,7 +237,7 @@ export const fetchWorldSearchResults = async (query, { reset, offset, activeArti
  * filtre avancé natif Deezer (`bpm_min:`/`bpm_max:`). Pure : aucun setState,
  * aucune lecture de state React.
  */
-export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
+export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProgress = null) => {
   const minBpm = Math.max(1, targetBpm - tolerance);
   const maxBpm = targetBpm + tolerance;
   const genresToQuery = genres && genres.length > 0 ? genres : ['Autre'];
@@ -252,160 +252,153 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
   // explicitement Métal en plus des genres sans mot-clé fiable. Voir le
   // commentaire complet à sa définition pour le detail de cette confusion.
   const needsDeepCatalogSearch = genresToQuery.every(g => GENRES_NEEDING_DEEP_CATALOG_SEARCH.includes(g));
+  // Même plafond que précédemment (150/18), mais maintenant un plafond de
+  // SOUMISSION progressive plutôt qu'un simple `.slice()` unique en fin de
+  // pipeline (voir plus bas, `processStubBatch`) — la logique de "combien on
+  // traite au total" ne change pas, seul le MOMENT où chaque lot est résolu
+  // change (au fil de l'eau, pas tout d'un coup à la toute fin).
+  const stubCap = needsDeepCatalogSearch ? 150 : 18;
 
-  // BUG CORRIGÉ (cas réel constaté : "Métal" sélectionné → Eagles, AC/DC,
-  // Coldplay en tête, aucun avertissement) — cause racine : `DEEZER_GENRE_
-  // KEYWORDS` n'a PAS d'entrée pour "Métal" (voir musicCatalog.js : Deezer
-  // classe la quasi-totalité du metal en "Rock", jamais avec un mot-clé
-  // "metal" fiable), donc la recherche par mot-clé ci-dessous tournait SANS
-  // AUCUN filtre de genre pour ce cas précis — n'importe quel titre dans la
-  // fourchette BPM pouvait remonter, `genreRoughlyMatches` (avec son
-  // équivalence Rock/Métal, nécessaire mais large) ne faisant que trier
-  // après coup plutôt que vraiment cibler la recherche. Exactement pour ça
-  // que `buildSegmentTracks`/`getSingleMatchingTrack` (musicEngine.js)
-  // renforcent ces genres via `ARTIST_CATALOG` (recherche par artiste
-  // représentatif) plutôt que de compter sur un mot-clé Deezer inexistant —
-  // jamais reproduit ici avant, un chemin de code entièrement séparé.
-  const catalogStubsByGenre = await Promise.all(genresToQuery.map(async (genre) => {
+  // ─────────────────────────────────────────────────────────────────────
+  // AFFICHAGE PROGRESSIF (retour direct : "chercher 10 morceaux d'abord,
+  // puis en chercher d'autres au clic sur voir plus") — proposition retenue
+  // à la place d'une VRAIE pagination en 2 recherches séparées : paginer
+  // aurait cassé la garantie "Metal d'abord, Rock ensuite" (voir plus bas),
+  // puisque chaque lot serait trié indépendamment SANS savoir si le lot
+  // suivant contient encore du Metal non découvert — le mélange qu'on vient
+  // justement de corriger serait réapparu, lot par lot.
+  //
+  // À la place : la recherche reste EXHAUSTIVE en arrière-plan (inchangé),
+  // mais chaque LOT d'artistes interrogés (voir `onBatch`, searchArtistsForBpm)
+  // déclenche IMMÉDIATEMENT la résolution de son BPM réel + genre réel, sans
+  // attendre que tous les autres lots soient eux aussi interrogés. Le résultat
+  // affiché (`onProgress`) est RECALCULÉ ET RETRIÉ en entier à chaque lot —
+  // jamais un tri partiel figé sur un sous-ensemble incomplet : à tout moment,
+  // ce qui est affiché respecte déjà l'ordre Metal > Rock > mismatch sur TOUT
+  // ce qui a été résolu jusque-là, pas seulement sur le dernier lot arrivé.
+  const seenIds = new Set();
+  const accumulator = new Map();
+  let submittedCount = 0;
+
+  const emitProgress = () => {
+    if (!onProgress) return;
+    const sorted = Array.from(accumulator.values()).sort((a, b) => a._matchTier - b._matchTier);
+    onProgress(sorted);
+  };
+
+  // Traite un lot de stubs bruts (catalogue OU recherche généraliste) :
+  // dédoublonnage contre ce qui a déjà été soumis, plafond global de
+  // soumission (voir stubCap), confirmation du BPM réel + genre réel,
+  // fusion dans l'accumulateur partagé, ré-émission du résultat trié complet.
+  // Isolée en fonction réutilisable : appelée à CHAQUE lot remonté par
+  // searchArtistsForBpm (voir onBatch plus bas) ET une fois pour la
+  // recherche généraliste — pas seulement une fois à la toute fin comme
+  // avant, c'est ce qui permet l'affichage progressif.
+  const processStubBatch = async (rawStubs) => {
+    const fresh = rawStubs.filter(s => !seenIds.has(s.id));
+    if (fresh.length === 0) return;
+    const room = stubCap - submittedCount;
+    if (room <= 0) return;
+    const toProcess = fresh.slice(0, room);
+    toProcess.forEach(s => seenIds.add(s.id));
+    submittedCount += toProcess.length;
+
+    const detailedTracks = await fetchInBatches(toProcess, 15, async (stub) => {
+      const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
+      return full ? { ...full, matchedGenre: stub.matchedGenre, _fromCatalog: stub._fromCatalog || false } : null;
+    });
+    const validDetailedTracks = detailedTracks.filter(t => t && t.bpm && parseFloat(t.bpm) >= minBpm && parseFloat(t.bpm) <= maxBpm);
+    // LOG DE DIAGNOSTIC (retour direct : "je veux bien mettre des logs et te
+    // montrer console") — combien de candidats de CE LOT sont rejetés faute
+    // de donnée BPM Deezer exploitable — même hypothèse à tester qu'avant
+    // (BPM Deezer pas systématiquement calculé pour tout le catalogue), juste
+    // mesurée lot par lot maintenant plutôt qu'en un seul bloc final.
+    console.log(`[BPM search] Lot : ${toProcess.length} candidat(s) brut(s) → ${detailedTracks.filter(Boolean).length} détail(s) → ${validDetailedTracks.length} avec un BPM Deezer réellement dans ${minBpm}-${maxBpm}.`);
+
+    const resolved = await fetchInBatches(validDetailedTracks, 15, async (t) => {
+      const realGenre = await resolveDeezerGenre(t.id);
+      // BUG CORRIGÉ (retour direct, capture d'écran à l'appui : recherche
+      // "Métal", des titres Judas Priest ressortaient étiquetés "Pop", sans
+      // le moindre avertissement, mélangés sans distinction aux vrais
+      // résultats Métal/Rock) — `t._fromCatalog ? false : ...` faisait
+      // confiance de façon ABSOLUE à un titre trouvé via un artiste du
+      // catalogue (voir ARTIST_CATALOG, musicCatalog.js), quel que soit le
+      // vrai genre Deezer renvoyé — y compris un genre totalement étranger
+      // au Métal (Pop, Rap...), pas seulement le cas légitime que ce renfort
+      // catalogue existe pour couvrir (Deezer classe la quasi-totalité du
+      // Metal en "Rock", jamais "Metal" — voir GENRE_EQUIVALENCE_GROUPS).
+      // Un artiste globalement représentatif d'un genre peut très bien avoir
+      // UN titre précis ailleurs (reprise, featuring, compilation mal
+      // cataloguée par le label côté Deezer) — le signaler reste plus juste
+      // que de l'accepter silencieusement juste parce que l'artiste, LUI,
+      // est fiable. Aligné sur EXACTEMENT la même formule que
+      // `buildSegmentTracks` (musicEngine.js, même renfort catalogue) pour
+      // ce même cas : l'équivalence Rock/Métal est déjà couverte par
+      // `genreRoughlyMatches` (GENRE_EQUIVALENCE_GROUPS) pour TOUTES les
+      // sources, catalogue inclus — pas besoin d'un 2e mécanisme de
+      // confiance par-dessus qui, lui, n'a plus aucun garde-fou.
+      const genreMismatch = !realGenre || !genresToQuery.some(g => genreRoughlyMatches(realGenre, g));
+      // Retour direct (cas réel : "Métal" sélectionné, un titre du catalogue
+      // dont le vrai genre Deezer est "Rock" — ex. Lamb of God, "Ghost
+      // Walking" — ressortait à égalité de tri avec un titre littéralement
+      // classé "Métal" chez Deezer, ex. Slayer). `_genreMismatch` (binaire)
+      // ne distinguait pas ces 2 cas, tous les deux "non mismatch". 3 paliers
+      // au lieu de 2 : correspondance DIRECTE du genre_id (la plus fiable)
+      // d'abord, équivalence/catalogue (ex. Rock accepté pour Métal, voir
+      // GENRE_EQUIVALENCE_GROUPS) ensuite, mismatch en dernier.
+      const isDirectMatch = genresToQuery.some(g => isDirectGenreMatch(realGenre, g));
+      const matchTier = isDirectMatch ? 0 : (genreMismatch ? 2 : 1);
+      return {
+        id: t.id,
+        youtubeId: `deezer-${t.id}`,
+        title: t.title,
+        artist: t.artist ? t.artist.name : 'Inconnu',
+        bpm: Math.round(parseFloat(t.bpm)),
+        duration: t.duration || 180,
+        genre: realGenre || 'Genre inconnu',
+        preview: t.preview || null,
+        _genreMismatch: genreMismatch,
+        _matchTier: matchTier,
+      };
+    });
+    resolved.forEach(r => accumulator.set(r.id, r));
+    emitProgress();
+  };
+
+  // Recherche généraliste par mot-clé — traitée comme UN lot de plus parmi
+  // d'autres, résolue tôt (elle est rapide, un seul appel par genre) plutôt
+  // que mise de côté jusqu'à la toute fin comme avant.
+  const genericSearchPromise = (async () => {
+    const stubsByGenre = await Promise.all(genresToQuery.map(async (genre) => {
+      const keyword = DEEZER_GENRE_KEYWORDS[genre] || '';
+      const q = `bpm_min:"${minBpm}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
+      const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=6`);
+      const stubs = (data && Array.isArray(data.data)) ? data.data : [];
+      return stubs.map(s => ({ ...s, matchedGenre: genre }));
+    }));
+    await processStubBatch(stubsByGenre.flat());
+  })();
+
+  // Recherche par catalogue d'artistes — un `onBatch` par genre, résolu au
+  // fil de l'eau (voir searchArtistsForBpm, musicEngine.js). Chaque promesse
+  // de `searchArtistsForBpm` n'est résolue qu'une fois TOUS ses `onBatch`
+  // internes eux-mêmes terminés (voir le commentaire de cette fonction) :
+  // le `Promise.all` juste en dessous attend donc bien TOUT, sans rien
+  // perdre en route.
+  const catalogSearchPromises = genresToQuery.map(async (genre) => {
     const artists = ARTIST_CATALOG[genre];
-    if (!artists || artists.length === 0) return [];
-    // BUG CORRIGÉ (retour direct : "on est d'accord que c'est tous les
-    // artistes qu'il doit tester ?") — un `maxArtistsToTry` fini, même élevé
-    // (20), ne garantit PAS de tester tout le catalogue : c'est un SEUIL
-    // D'ARRÊT ANTICIPÉ (voir searchArtistsForBpm, musicEngine.js), pas un
-    // nombre d'artistes réellement essayés. Si les premiers artistes du lot
-    // mélangé remontent chacun leur quota de titres — même hors-genre, le tri
-    // par genre n'intervient qu'APRÈS coup ici — le seuil pouvait être atteint
-    // bien avant la fin du catalogue. En lui passant la TAILLE RÉELLE du
-    // catalogue de ce genre comme `maxArtistsToTry`, le seuil devient
-    // pratiquement inatteignable avant d'avoir épuisé la liste entière —
-    // exactement le comportement déjà voulu et corrigé une 1ère fois pour
-    // K-pop (voir le commentaire de searchArtistsForBpm), qui n'avait
-    // simplement pas été repris ici, un chemin de code séparé.
-    const stubs = await searchArtistsForBpm(artists, minBpm, maxBpm, [], needsDeepCatalogSearch ? artists.length : 8, needsDeepCatalogSearch ? 10 : 6);
-    return stubs.map(s => ({ ...s, matchedGenre: genre, _fromCatalog: true }));
-  }));
-
-  const stubsByGenre = await Promise.all(genresToQuery.map(async (genre) => {
-    const keyword = DEEZER_GENRE_KEYWORDS[genre] || '';
-    const q = `bpm_min:"${minBpm}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
-    const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=6`);
-    const stubs = (data && Array.isArray(data.data)) ? data.data : [];
-    return stubs.map(s => ({ ...s, matchedGenre: genre }));
-  }));
-
-  // BUG CORRIGÉ (retour direct : "impossible que tu aies toujours que 2
-  // morceaux Métal en premier" — vu APRÈS avoir déjà élargi la recherche à
-  // tout le catalogue ci-dessus, ce qui aurait dû suffire) — la vraie cause
-  // était ICI, en aval : `searchArtistsForBpm` mélange ALÉATOIREMENT ses
-  // résultats avant de les renvoyer (voir son dernier `.sort(() => Math.random()
-  // ...)`, musicEngine.js), et ce plafond ne gardait que les 18 PREMIERS de ce
-  // tirage aléatoire — AVANT toute résolution de genre. Résultat : même en
-  // interrogeant les 140 artistes du catalogue Métal, si la grande majorité de
-  // leurs titres sont réellement étiquetés "Rock" chez Deezer (comme documenté
-  // plus haut), les 18 survivants du tirage aléatoire étaient statistiquement
-  // presque tous "Rock" aussi — la recherche plus large ne changeait donc RIEN
-  // au nombre final de vrais résultats "Métal", puisqu'ils étaient perdus AVANT
-  // même d'être identifiés comme tels. Plafond relevé (18 → 50) spécifiquement
-  // pour les genres à recherche profonde : plus de survivants du tirage
-  // aléatoire arrivent jusqu'à la résolution de genre plus bas, donc plus de
-  // chances qu'un vrai résultat "Métal" en fasse partie. Coût : jusqu'à 50 x 2
-  // appels réseau (détail + genre) au lieu de 18 x 2 — acceptable ici car
-  // recherche ponctuelle déclenchée à la main par la personne, pas un chemin
-  // répété en arrière-plan.
-  const merged = new Map();
-  [...catalogStubsByGenre.flat(), ...stubsByGenre.flat()].forEach(s => { if (!merged.has(s.id)) merged.set(s.id, s); });
-
-  // RETOUR DIRECT ("je veux à chaque fois que du metal pour les résultats
-  // jusqu'à ce qu'on finisse par épuiser le genre, teste tous les artistes")
-  // — le plafond précédent (50) restait un compromis, pas une vraie recherche
-  // exhaustive : sur ~140 artistes du catalogue Métal, 50 candidats ne
-  // couvrent souvent qu'une fraction du terrain avant résolution de genre.
-  // Relevé à 150 pour les genres à recherche profonde — largement suffisant
-  // pour couvrir la quasi-totalité des correspondances BPM réalistes sur un
-  // catalogue de cette taille, tout en restant borné (pas un `Infinity` qui
-  // ferait exploser le nombre d'appels réseau sans limite si jamais un
-  // catalogue devenait un jour beaucoup plus grand).
-  const uniqueStubs = Array.from(merged.values()).slice(0, needsDeepCatalogSearch ? 150 : 18);
-
-  if (uniqueStubs.length === 0) {
-    return { results: [] };
-  }
-
-  // Un appel par titre pour confirmer le BPM exact et récupérer l'extrait
-  // audio — PAR LOTS (voir fetchInBatches, musicEngine.js) plutôt qu'un seul
-  // `Promise.all` géant : avec un plafond remonté à 150 candidats (voir
-  // ci-dessus), une rafale de 150 requêtes simultanées risquerait de
-  // déclencher un blocage temporaire côté Deezer (déjà documenté et corrigé
-  // pour ce même risque côté génération de playlist, voir musicEngine.js).
-  const detailedTracks = await fetchInBatches(uniqueStubs, 15, async (stub) => {
-    const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
-    return full ? { ...full, matchedGenre: stub.matchedGenre, _fromCatalog: stub._fromCatalog || false } : null;
+    if (!artists || artists.length === 0) return;
+    await searchArtistsForBpm(
+      artists, minBpm, maxBpm, [],
+      needsDeepCatalogSearch ? artists.length : 8,
+      needsDeepCatalogSearch ? 10 : 6,
+      (batchStubs) => processStubBatch(batchStubs.map(s => ({ ...s, matchedGenre: genre, _fromCatalog: true })))
+    );
   });
 
-  const validDetailedTracks = detailedTracks.filter(t => t && t.bpm && parseFloat(t.bpm) >= minBpm && parseFloat(t.bpm) <= maxBpm);
-  // LOG DE DIAGNOSTIC (retour direct : "je veux bien mettre des logs et te
-  // montrer console") — combien de candidats bruts sont rejetés ici FAUTE DE
-  // DONNÉE BPM EXPLOITABLE côté Deezer (pas de champ bpm du tout, ou une
-  // valeur hors de la fenêtre demandée une fois le détail du titre consulté) —
-  // teste directement l'hypothèse que le BPM Deezer (une analyse audio
-  // automatique, pas systématiquement calculée pour tout le catalogue) est en
-  // réalité le facteur limitant, pas un défaut du code de recherche lui-même.
-  console.log(`[BPM search] ${uniqueStubs.length} candidat(s) brut(s) → ${detailedTracks.filter(Boolean).length} détail(s) récupéré(s) → ${validDetailedTracks.length} avec un BPM Deezer réellement dans ${minBpm}-${maxBpm} (${detailedTracks.filter(Boolean).length - validDetailedTracks.length} rejeté(s) : pas de BPM Deezer, ou hors fenêtre une fois le détail consulté).`);
-  const results = await fetchInBatches(validDetailedTracks, 15, async (t) => {
-        const realGenre = await resolveDeezerGenre(t.id);
-        // BUG CORRIGÉ (retour direct, capture d'écran à l'appui : recherche
-        // "Métal", des titres Judas Priest ressortaient étiquetés "Pop", sans
-        // le moindre avertissement, mélangés sans distinction aux vrais
-        // résultats Métal/Rock) — `t._fromCatalog ? false : ...` faisait
-        // confiance de façon ABSOLUE à un titre trouvé via un artiste du
-        // catalogue (voir ARTIST_CATALOG, musicCatalog.js), quel que soit le
-        // vrai genre Deezer renvoyé — y compris un genre totalement étranger
-        // au Métal (Pop, Rap...), pas seulement le cas légitime que ce renfort
-        // catalogue existe pour couvrir (Deezer classe la quasi-totalité du
-        // Metal en "Rock", jamais "Metal" — voir GENRE_EQUIVALENCE_GROUPS).
-        // Un artiste globalement représentatif d'un genre peut très bien avoir
-        // UN titre précis ailleurs (reprise, featuring, compilation mal
-        // cataloguée par le label côté Deezer) — le signaler reste plus juste
-        // que de l'accepter silencieusement juste parce que l'artiste, LUI,
-        // est fiable. Aligné sur EXACTEMENT la même formule que
-        // `buildSegmentTracks` (musicEngine.js, même renfort catalogue) pour
-        // ce même cas : l'équivalence Rock/Métal est déjà couverte par
-        // `genreRoughlyMatches` (GENRE_EQUIVALENCE_GROUPS) pour TOUTES les
-        // sources, catalogue inclus — pas besoin d'un 2e mécanisme de
-        // confiance par-dessus qui, lui, n'a plus aucun garde-fou.
-        const genreMismatch = !realGenre || !genresToQuery.some(g => genreRoughlyMatches(realGenre, g));
-        // Retour direct (cas réel : "Métal" sélectionné, un titre du catalogue
-        // dont le vrai genre Deezer est "Rock" — ex. Lamb of God, "Ghost
-        // Walking" — ressortait à égalité de tri avec un titre littéralement
-        // classé "Métal" chez Deezer, ex. Slayer). `_genreMismatch` (binaire)
-        // ne distinguait pas ces 2 cas, tous les deux "non mismatch". 3 paliers
-        // au lieu de 2 : correspondance DIRECTE du genre_id (la plus fiable)
-        // d'abord, équivalence/catalogue (ex. Rock accepté pour Métal, voir
-        // GENRE_EQUIVALENCE_GROUPS) ensuite, mismatch en dernier.
-        const isDirectMatch = genresToQuery.some(g => isDirectGenreMatch(realGenre, g));
-        const matchTier = isDirectMatch ? 0 : (genreMismatch ? 2 : 1);
-        return {
-          youtubeId: `deezer-${t.id}`,
-          title: t.title,
-          artist: t.artist ? t.artist.name : 'Inconnu',
-          bpm: Math.round(parseFloat(t.bpm)),
-          duration: t.duration || 180,
-          genre: realGenre || 'Genre inconnu',
-          preview: t.preview || null,
-          _genreMismatch: genreMismatch,
-          _matchTier: matchTier,
-        };
-  });
+  await Promise.all([genericSearchPromise, ...catalogSearchPromises]);
 
-  // Titres du bon genre en premier — sans ça, une poignée de résultats hors-
-  // genre (voir le bug ci-dessus) pouvait reléguer les vrais résultats en fin
-  // de liste, ou pire, complètement hors des ~15 candidats gardés en amont.
-  // Tri par palier (`_matchTier`, voir plus haut), pas juste mismatch/non-
-  // mismatch. Tri STABLE (Array.prototype.sort l'est nativement dans tous les
-  // moteurs modernes) : à égalité de palier, l'ordre Deezer d'origine reste
-  // inchangé.
-  results.sort((a, b) => a._matchTier - b._matchTier);
+  const results = Array.from(accumulator.values()).sort((a, b) => a._matchTier - b._matchTier);
 
   // LOG DE DIAGNOSTIC (retour direct) : répartition finale par palier — tier 0
   // = genre demandé confirmé directement par Deezer, tier 1 = accepté par
