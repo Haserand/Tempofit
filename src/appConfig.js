@@ -36,7 +36,7 @@ const TROPHIES_DATA = [
   { id: 't_regular', name: 'Athlète Régulier', desc: 'Complète 5 sessions. La constance est la clé !', icon: '🥈', category: 'progression', requirement: { type: 'total', count: 5 } },
   { id: 't_machine', name: 'La Machine', desc: 'Complète 30 sessions. Un mois entier d\'efforts.', icon: '🏆', category: 'progression', requirement: { type: 'total', count: 30 } },
   { id: 't_lover', name: 'Tempo Lover', desc: 'Complète une session avec le mode "Intime".', icon: '🔥', category: 'feature', requirement: { type: 'naughty', count: 1 } },
-  { id: 't_data', name: 'Data Scientist', desc: 'Importe tes données réelles (cadence PPM et/ou fréquence cardiaque, via Garmin/Strava) pour analyse.', icon: '📊', category: 'feature', requirement: { type: 'data', count: 1 } },
+  { id: 't_data', name: 'Data Scientist', desc: 'Importe tes données réelles (cadence et/ou fréquence cardiaque, via Garmin/Strava) pour analyse.', icon: '📊', category: 'feature', requirement: { type: 'data', count: 1 } },
   { id: 't_marathon', name: 'Le Marathonien', desc: 'Génère une session de plus de 42 km ou 4 heures.', icon: '🏅', secret: true, requirement: { type: 'custom', key: 'hasMarathon' } },
   { id: 't_bolt', name: 'La Foudre', desc: 'Génère une session avec un rythme extrême (> 180 BPM ou < 4:00/km).', icon: '⚡', secret: true, requirement: { type: 'custom', key: 'hasBolt' } },
   { id: 't_hiit', name: 'Maître du HIIT', desc: 'Génère une session fractionnée complexe (5 portions ou plus).', icon: '📈', secret: true, requirement: { type: 'custom', key: 'hasHiitMaster' } },
@@ -93,6 +93,25 @@ const ATHLETIC_ZONES = [
   { key: 'zone3', label: 'Seuil / Tempo', shortLabel: 'Seuil', color: '#f59e0b' },
   { key: 'zone4', label: 'Vitesse / VMA', shortLabel: 'Vitesse', color: '#ef4444' },
 ];
+
+// RETOUR DIRECT : "parler de PPM pour du cyclisme n'est pas adapté" — PPM
+// (Pas Par Minute) compte des FOULÉES, ça n'a de sens qu'en course à pied. À
+// vélo, la cadence se mesure en tours de pédalier par minute (RPM, unité déjà
+// universellement utilisée par les compteurs vélo/Garmin/Wahoo, y compris en
+// français) — PAS en "pas". Centralisé ici (un seul endroit à corriger si une
+// 3e unité s'avère nécessaire un jour) plutôt que codé en dur "PPM" à chaque
+// endroit qui affiche une cadence (Profil Athlétique ET analyse de données
+// réelles Garmin/Strava, voir PlaylistDetailView.jsx/useSessionAnalysis.js —
+// les deux avaient la même confusion). "cad/min" en repli générique pour une
+// activité personnalisée (patin, aviron, elliptique...) : impossible de
+// deviner à l'avance la bonne unité physique pour un sport inconnu au moment
+// d'écrire ce code — plutôt avouer l'incertitude qu'afficher une unité fausse.
+const CADENCE_UNIT_BY_ACTIVITY = {
+  'Course à pied': 'PPM',
+  'Cyclisme': 'RPM',
+};
+const DEFAULT_CADENCE_UNIT = 'cad/min';
+const getCadenceUnitLabel = (activityKeyOrName) => CADENCE_UNIT_BY_ACTIVITY[activityKeyOrName] ?? DEFAULT_CADENCE_UNIT;
 
 const WORKOUT_TYPES = [
   { id: 'Course à pied', icon: Footprints },
@@ -172,6 +191,7 @@ export {
   TROPHY_CATEGORIES,
   NAUGHTY_ROUTINE_NAMES,
   ATHLETIC_ZONES,
+  getCadenceUnitLabel,
   WORKOUT_TYPES,
   NAUGHTY_WORKOUT_LABELS,
   NAUGHTY_WORKOUT_ICONS,
