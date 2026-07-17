@@ -128,6 +128,12 @@ export default function GeneratorView({
   // le state, qui résout les deux cas de façon uniforme pour le reste du
   // composant.
   const [showExpertZones, setShowExpertZones] = useState(false);
+  // Retour direct : "je ne vois pas infobulle expliquant le calcul
+  // automatique" — l'ancienne infobulle reposait sur l'attribut HTML `title`,
+  // qui ne s'affiche qu'au SURVOL — invisible sur un écran tactile (mobile,
+  // tablette), qui n'a pas de "survol". Remplacé par un vrai popover cliquable
+  // (voir plus bas), qui marche identiquement à la souris ET au doigt.
+  const [showZoneCalcInfo, setShowZoneCalcInfo] = useState(false);
   const [selectedProfileActivity, setSelectedProfileActivity] = useState('Course à pied');
   const [showAddCustomActivity, setShowAddCustomActivity] = useState(false);
   const [newCustomActivityName, setNewCustomActivityName] = useState('');
@@ -173,6 +179,7 @@ export default function GeneratorView({
   useEffect(() => {
     setBaseCadenceDraft(activeProfile?.baseCadence ?? buildDefaultPreviewProfile(isCustomProfileTab ? '__custom__' : selectedProfileActivity).baseCadence);
     setCadenceInputError(false);
+    setShowZoneCalcInfo(false);
   }, [selectedProfileActivity]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const computeAndApplyZones = () => {
@@ -327,29 +334,40 @@ export default function GeneratorView({
                 d'ancrage sur cette ligne), mais ne répète plus le nom déjà
                 visible sur l'onglet actif. */}
             <div className="flex items-start justify-between gap-4 mb-2">
-              <div className="flex items-center gap-1.5">
+              <div className="relative flex items-center gap-1.5">
                 <span className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>
                   Zones de cadence
                 </span>
-                {/* Retour direct : "précise via infobulle l'éventuelle méthode
-                    de calcul" — la formule est une simple progression linéaire
+                {/* RETOUR DIRECT : "je ne vois pas infobulle expliquant le
+                    calcul automatique" — l'ancien <span title="..."> ne
+                    s'affichait qu'au survol (souris), invisible au doigt sur
+                    mobile/tablette. Remplacé par un vrai popover cliquable
+                    (voir showZoneCalcInfo plus haut) : marche pareil à la
+                    souris et au tactile, et reste ouvert le temps de lire au
+                    lieu de disparaître si le curseur/doigt bouge.
+                    La formule elle-même est une simple progression linéaire
                     autour de la cadence tapée (base ± un espacement fixe par
                     palier, voir ZONE_SPACING_BY_ACTIVITY dans
                     useAthleticProfile.js), volontairement PAS une vraie
                     formule physiologique (%VMA, VO2max...).
-                    RETOUR DIRECT SUIVANT : "confusion entre cadence et BPM —
+                    RETOUR DIRECT PRÉCÉDENT : "confusion entre cadence et BPM —
                     cadence = PPM (pas par minute), pas BPM (battements par
                     minute)" — cette cadence-là porte sur tes PAS, pas sur la
-                    musique. Corrigé ici (l'ancien commentaire parlait à tort
-                    de "cadence musicale") ; espacement propre à chaque
-                    activité, affiché ici pour que le calcul reste
-                    transparent plutôt qu'une boîte noire. */}
-                <span
-                  className={`cursor-help ${textMuted}`}
-                  title={`Zone 2 = ta cadence tapée ci-dessous. Les 3 autres s'en écartent par palier fixe de ${getZoneSpacingForActivity(isCustomProfileTab ? '__custom__' : selectedProfileActivity)} PPM (Zone 1 = -1 palier, Zone 3 = +1, Zone 4 = +2) — une progression simple autour de ta cadence, pas une vraie formule physiologique (%VMA...). Toujours ajustable au PPM près en mode Expert.`}
+                    musique ; espacement propre à chaque activité, affiché ici
+                    pour que le calcul reste transparent plutôt qu'une boîte
+                    noire. */}
+                <button
+                  type="button"
+                  onClick={() => setShowZoneCalcInfo(!showZoneCalcInfo)}
+                  className={`${textMuted} hover:${textHighlight} transition-colors`}
                 >
                   <Info size={13}/>
-                </span>
+                </button>
+                {showZoneCalcInfo && (
+                  <div className={`absolute z-20 top-full left-0 mt-2 w-72 p-3 rounded-xl border shadow-xl text-xs font-medium leading-relaxed ${cardBg} ${cardBorder} ${textMuted}`}>
+                    Zone 2 = ta cadence tapée ci-dessous. Les 3 autres s'en écartent par palier fixe de {getZoneSpacingForActivity(isCustomProfileTab ? '__custom__' : selectedProfileActivity)} PPM (Zone 1 = -1 palier, Zone 3 = +1, Zone 4 = +2) — une progression simple autour de ta cadence, pas une vraie formule physiologique (%VMA...). Toujours ajustable au PPM près en mode Expert.
+                  </div>
+                )}
               </div>
               {activeProfile?.isConfigured && (
                 <button onClick={handleResetProfile} title={isCustomProfileTab ? "Supprimer cette activité" : "Effacer ce profil"} className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20`}>
@@ -429,38 +447,14 @@ export default function GeneratorView({
               ))}
             </div>
 
-            {/* Renvoi vers la génération (retour direct : "une fois profil
-                athlétique complété pour une activité faudrait un message qui
-                suggère de générer une playlist") — remonté ici, juste après
-                le calcul des zones et AVANT "Ajuster manuellement" (retour
-                direct suivant : "je ne devrais pas avoir besoin d'ajuster
-                manuellement pour générer, si les zones de base me conviennent
-                je dois pouvoir cliquer directement sur générer"). Affiché
-                maintenant SANS condition (voir le commentaire ci-dessus) —
-                le clic accepte implicitement les valeurs par défaut affichées
-                si rien n'a encore été réellement configuré (`computeAndApplyZones`
-                avec la cadence déjà pré-remplie dans l'Assistant Rapide, voir
-                `baseCadenceDraft`), avant de rejoindre le générateur.
-                RETOUR DIRECT SUIVANT (même que pour le bandeau inverse plus
-                bas) : "génère une séance en Crescendo ou en Allure Constante"
-                nommait 2 modes précis, devenu incomplet depuis que le
-                Fractionné en bénéficie aussi (motif de segments par défaut).
-                Reformulé en restant vague ("génère une séance") pour ne plus
-                dépendre du nombre de modes concernés. */}
-            <div className={`mt-4 p-4 rounded-2xl border-2 border-dashed ${borderAccentClass} flex items-center justify-between gap-3 flex-wrap`}>
-              <p className={`text-sm font-semibold ${textHighlight}`}>
-                {activeProfile?.isConfigured
-                  ? `🎯 Zones prêtes pour ${isCustomProfileTab ? activeProfile.name : selectedProfileActivity} — génère une séance pour les utiliser.`
-                  : `🎯 Valeurs par défaut ci-dessus pour ${isCustomProfileTab ? (activeProfile?.name || 'cette activité') : selectedProfileActivity} — si elles te conviennent, génère directement (ajustables à tout moment ensuite).`}
-              </p>
-              <button
-                onClick={() => { if (activeProfile?.isConfigured || computeAndApplyZones()) setShowAthleticProfile(false); }}
-                className={`shrink-0 px-4 py-2 rounded-xl font-bold text-sm text-white ${bgAccentClass} hover:brightness-110`}
-              >
-                Générer une playlist →
-              </button>
-            </div>
-
+            {/* RETOUR DIRECT : "faudrait la possibilité d'ajuster
+                manuellement puis ensuite générer playlist en dessous" —
+                remonté ici (juste après le récapitulatif des zones), AVANT le
+                bouton "Générer" plutôt qu'après : l'ordre logique de lecture
+                devient "voir mes zones → les affiner si besoin → générer",
+                le CTA restant la toute dernière étape quel que soit le choix
+                de déplier ou non cette section (elle reste repliée par
+                défaut, toujours facultative). */}
             <button
               onClick={() => setShowExpertZones(!showExpertZones)}
               className={`mt-4 flex items-center gap-1.5 text-sm font-bold ${textColorClass}`}
@@ -490,6 +484,30 @@ export default function GeneratorView({
                 ))}
               </div>
             )}
+
+            {/* Renvoi vers la génération (retour direct : "une fois profil
+                athlétique complété pour une activité faudrait un message qui
+                suggère de générer une playlist") — reste accessible SANS
+                condition (retour direct : "je ne devrais pas avoir besoin
+                d'ajuster manuellement pour générer, si les zones de base me
+                conviennent je dois pouvoir cliquer directement sur générer") :
+                le clic accepte implicitement les valeurs par défaut affichées
+                si rien n'a encore été réellement configuré
+                (`computeAndApplyZones` avec la cadence déjà pré-remplie dans
+                l'Assistant Rapide, voir `baseCadenceDraft`), avant de
+                rejoindre le générateur.
+                RETOUR DIRECT SUIVANT : "pas la peine d'avoir le texte
+                explicatif ou les pointillés en rouge" — simplifié en simple
+                bouton, sans l'encart à bordure en pointillés ni le texte
+                d'accompagnement (qui expliquait surtout "pourquoi" ce bouton
+                est là, jugé superflu une fois que son EMPLACEMENT — juste
+                après les réglages, avant rien d'autre — parle de lui-même). */}
+            <button
+              onClick={() => { if (activeProfile?.isConfigured || computeAndApplyZones()) setShowAthleticProfile(false); }}
+              className={`w-full mt-4 px-4 py-3 rounded-xl font-bold text-sm text-white ${bgAccentClass} hover:brightness-110`}
+            >
+              Générer une playlist →
+            </button>
           </div>
         )
       ) : (
