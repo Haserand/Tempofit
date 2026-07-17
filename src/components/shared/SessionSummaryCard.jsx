@@ -1,5 +1,6 @@
 import { Music2, Clock, Activity } from 'lucide-react';
 import { formatDuration } from '../../utils/format';
+import { getZoneForValue, ATHLETIC_ZONES } from '../../appConfig';
 
 /**
  * SessionSummaryCard — "Bilan Visuel de Séance", pensé pour être capturé en
@@ -19,30 +20,68 @@ import { formatDuration } from '../../utils/format';
  * moment de l'export, ce qui n'a pas de sens pour une image destinée à être
  * partagée telle quelle.
  */
-export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNaughtyMode = false }) {
+export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNaughtyMode = false, getProfileForWorkout = null }) {
   if (!playlist) return null;
 
   const tracks = playlist.tracks || [];
   const bpmValues = tracks.map(t => t.bpm).filter(Boolean);
   const avgBpm = bpmValues.length > 0 ? Math.round(bpmValues.reduce((s, b) => s + b, 0) / bpmValues.length) : (playlist.config?.bpm || 0);
 
-  // Répartition par tranche de BPM — même découpage que StatsView/
-  // PlaylistDetailView (bpmBucketLabel) pour rester cohérent visuellement
-  // avec le reste de l'app, recalculé ici pour garder ce composant
-  // autonome (ne dépend que de `playlist`, rien d'autre).
+  // Activité RÉELLE à utiliser pour résoudre le profil — même piège déjà
+  // documenté dans StatsView.jsx : en Mode Intime, `playlist.workoutType`
+  // vaut toujours "Ambiance" (écrasé volontairement pour la discrétion sur
+  // les cartes de playlist), le vrai nom est dans `playlist.config.workoutName`.
+  const activityName = isNaughtyMode
+    ? (playlist.config?.workoutName || playlist.workoutType || 'Autre')
+    : (playlist.workoutType || 'Autre');
+
+  // "Règle d'or" ergonomie (retour direct : une couleur = une zone
+  // d'intensité, partout dans l'app, y compris à l'export/au partage) :
+  // classe chaque titre dans sa VRAIE zone (via getZoneForValue, appConfig.js
+  // — même fonction que StatsView/GeneratorView), plutôt qu'une tranche de
+  // BPM générique sans lien avec le profil de l'utilisateur.
+  //
+  // Repli sur l'ancienne palette à 5 tranches BPM fixes UNIQUEMENT si aucun
+  // profil n'est configuré pour cette activité (`matchedAnyZone` reste
+  // `false` — `getZoneForValue` renvoie alors `null` pour chaque titre) :
+  // jamais un graphique vide juste parce que l'utilisateur n'a pas encore
+  // rempli son Profil Athlétique.
+  const zoneSeconds = {};
+  let matchedAnyZone = false;
+  tracks.forEach(t => {
+    if (!t.bpm) return;
+    const zone = getZoneForValue(t.bpm, activityName, getProfileForWorkout);
+    if (zone) {
+      matchedAnyZone = true;
+      zoneSeconds[zone.key] = (zoneSeconds[zone.key] || 0) + (t.duration || 0);
+    }
+  });
+
   const bpmBucketLabel = (bpm) => bpm < 90 ? '< 90' : bpm < 120 ? '90-119' : bpm < 150 ? '120-149' : bpm < 180 ? '150-179' : '180+';
   const bucketOrder = ['< 90', '90-119', '120-149', '150-179', '180+'];
   const bucketColors = { '< 90': '#3b82f6', '90-119': '#22c55e', '120-149': '#f59e0b', '150-179': '#f97316', '180+': '#ef4444' };
-  const bucketSeconds = {};
-  tracks.forEach(t => {
-    if (!t.bpm) return;
-    const b = bpmBucketLabel(t.bpm);
-    bucketSeconds[b] = (bucketSeconds[b] || 0) + (t.duration || 0);
-  });
-  const totalBucketSeconds = Object.values(bucketSeconds).reduce((s, v) => s + v, 0);
-  const bars = bucketOrder
-    .filter(b => bucketSeconds[b] > 0)
-    .map(b => ({ label: b, pct: totalBucketSeconds > 0 ? Math.round((bucketSeconds[b] / totalBucketSeconds) * 100) : 0, color: bucketColors[b] }));
+
+  let bars;
+  if (matchedAnyZone) {
+    const totalZoneSeconds = Object.values(zoneSeconds).reduce((s, v) => s + v, 0);
+    bars = ATHLETIC_ZONES
+      .filter(z => zoneSeconds[z.key] > 0)
+      .map(z => ({ label: z.shortLabel, pct: totalZoneSeconds > 0 ? Math.round((zoneSeconds[z.key] / totalZoneSeconds) * 100) : 0, color: z.color }));
+  } else {
+    // Répartition par tranche de BPM générique — même découpage que
+    // StatsView/PlaylistDetailView (bpmBucketLabel), recalculé ici pour
+    // garder ce composant autonome (ne dépend que de `playlist`).
+    const bucketSeconds = {};
+    tracks.forEach(t => {
+      if (!t.bpm) return;
+      const b = bpmBucketLabel(t.bpm);
+      bucketSeconds[b] = (bucketSeconds[b] || 0) + (t.duration || 0);
+    });
+    const totalBucketSeconds = Object.values(bucketSeconds).reduce((s, v) => s + v, 0);
+    bars = bucketOrder
+      .filter(b => bucketSeconds[b] > 0)
+      .map(b => ({ label: b, pct: totalBucketSeconds > 0 ? Math.round((bucketSeconds[b] / totalBucketSeconds) * 100) : 0, color: bucketColors[b] }));
+  }
 
   // Top 3 titres — les 3 premiers de la playlist (ordre de lecture), pas un
   // tri par popularité qui n'existe pas côté données ici.
