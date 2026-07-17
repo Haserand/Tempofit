@@ -77,7 +77,7 @@ export default function FavoritesView({
             <h4 className={`text-sm font-bold uppercase tracking-wider ${textMuted} mb-4 flex items-center`}><User size={16} className="mr-2"/> Top Artistes</h4>
             <div className="flex flex-wrap gap-2.5 items-center">
               {favorites.artists.map((artist, idx) => (
-                <span key={idx} className={`px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold ${textHighlight} shadow-sm flex items-center gap-2`}>
+                <span key={idx} className={`px-4 py-2 bg-surface-hover border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold ${textHighlight} shadow-sm flex items-center gap-2`}>
                   {artist}
                   <button onClick={() => setFavorites(prev => ({ ...prev, artists: prev.artists.filter(a => a !== artist) }))} className="text-gray-400 hover:text-red-500 transition-colors">
                     <X size={13}/>
@@ -151,7 +151,7 @@ export default function FavoritesView({
                     <button key={genre} onClick={() => {
                       if (isSelected) setFavSelectedGenres(favSelectedGenres.filter(g => g !== genre));
                       else setFavSelectedGenres([...favSelectedGenres, genre]);
-                    }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                    }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
                       {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                     </button>
                   );
@@ -175,7 +175,7 @@ export default function FavoritesView({
                       <button key={genre} onClick={() => {
                         if (isSelected) setFavSelectedGenres(favSelectedGenres.filter(g => g !== genre));
                         else setFavSelectedGenres([...favSelectedGenres, genre]);
-                      }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                      }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
                         {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                       </button>
                     );
