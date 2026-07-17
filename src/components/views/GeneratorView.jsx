@@ -43,7 +43,7 @@ export default function GeneratorView({
   executeGeneration, isGenerating, getActiveWorkoutName, setIsSavingRoutineModalOpen,
   athleticProfile, setBaseCadenceForActivity, setZoneForActivity, resetActivityProfile,
   addCustomActivity, removeCustomActivity, setBaseCadenceForCustom, setZoneForCustom, getProfileForWorkout,
-  getDefaultBaseCadence, buildDefaultPreviewProfile,
+  getDefaultBaseCadence, buildDefaultPreviewProfile, getZoneSpacingForActivity,
   showAthleticProfile, setShowAthleticProfile,
 }) {
   const {
@@ -326,9 +326,27 @@ export default function GeneratorView({
                 d'ancrage sur cette ligne), mais ne répète plus le nom déjà
                 visible sur l'onglet actif. */}
             <div className="flex items-start justify-between gap-4 mb-2">
-              <span className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>
-                Zones de cadence
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>
+                  Zones de cadence
+                </span>
+                {/* Retour direct : "précise via infobulle l'éventuelle méthode
+                    de calcul" — la formule est une simple progression linéaire
+                    autour de la cadence tapée (base ± un espacement fixe par
+                    palier, voir ZONE_SPACING_BY_ACTIVITY dans
+                    useAthleticProfile.js), volontairement PAS une vraie
+                    formule physiologique (%VMA, VO2max...) — l'app parle de
+                    cadence MUSICALE, pas de cadence de course réelle (voir la
+                    docstring de useAthleticProfile.js). Espacement propre à
+                    chaque activité, affiché ici pour que le calcul reste
+                    transparent plutôt qu'une boîte noire. */}
+                <span
+                  className={`cursor-help ${textMuted}`}
+                  title={`Zone 2 = ta cadence tapée ci-dessous. Les 3 autres s'en écartent par palier fixe de ${getZoneSpacingForActivity(isCustomProfileTab ? '__custom__' : selectedProfileActivity)} BPM (Zone 1 = -1 palier, Zone 3 = +1, Zone 4 = +2) — une progression simple autour de ta cadence, pas une vraie formule physiologique (%VMA...). Toujours ajustable au BPM près en mode Expert.`}
+                >
+                  <Info size={13}/>
+                </span>
+              </div>
               {activeProfile?.isConfigured && (
                 <button onClick={handleResetProfile} title={isCustomProfileTab ? "Supprimer cette activité" : "Effacer ce profil"} className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20`}>
                   {isCustomProfileTab ? <Trash2 size={18}/> : <RotateCcw size={18}/>}
