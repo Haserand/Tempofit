@@ -445,7 +445,7 @@ export default function StatsView({
           {statsMode === 'naughty' ? (
             <button
               onClick={() => { setStatsMode('standard'); setSelectedStatsGenre(null); setSelectedStatsBpmBucket(null); }}
-              className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800`}
+              className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-surface-hover`}
             >
               ← Stats standards
             </button>
