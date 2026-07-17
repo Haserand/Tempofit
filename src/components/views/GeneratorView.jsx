@@ -623,15 +623,20 @@ export default function GeneratorView({
                     {/* Badge "calculé depuis ton profil" (retour direct : "il faudrait
                         ajouter une petite indication visuelle... pour bien faire
                         comprendre à l'utilisateur que l'appli a intelligemment
-                        calculé ces BPM pour lui"). N'apparaît QUE si les 3 valeurs
-                        Crescendo affichées (ici + les 2 curseurs Échauffement/Retour
-                        au calme plus bas) sont VRAIMENT celles du profil de
+                        calculé ces BPM pour lui"). Affiché en Crescendo ET en
+                        Allure Constante (retour direct : "pourquoi c'est utilisé en
+                        Crescendo et pas pour les autres types de séances" — les 2
+                        modes partagent maintenant EXACTEMENT le même mécanisme, voir
+                        setStructureMode dans useGeneratorForm.js) — `bpmSourceIsProfile`
+                        encode déjà "est-ce pertinent dans le mode actuel", pas la peine
+                        de reproduire une condition de mode ici. N'apparaît QUE si la/les
+                        valeur(s) affichée(s) sont VRAIMENT celles du profil de
                         l'activité en cours, pas dès qu'un profil existe quelque part
                         (voir bpmSourceIsProfile, useGeneratorForm.js) — disparaît dès
-                        qu'un seul des 3 réglages est retouché à la main. Animation
-                        d'entrée ponctuelle (pas un pulse en boucle) : un "aha" au
-                        moment où ça apparaît, pas une sollicitation permanente. */}
-                    {isCrescendoMode && bpmSourceIsProfile && (
+                        qu'un réglage est retouché à la main. Animation d'entrée
+                        ponctuelle (pas un pulse en boucle) : un "aha" au moment où ça
+                        apparaît, pas une sollicitation permanente. */}
+                    {bpmSourceIsProfile && (
                       <div className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full ${bgAccentClass} text-white animate-in fade-in zoom-in slide-in-from-bottom-2 duration-500`}>
                         <Gauge size={12}/> Calculé depuis ton Profil Athlétique
                       </div>
