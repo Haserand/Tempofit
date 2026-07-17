@@ -9,7 +9,7 @@ import { formatDuration } from '../../utils/format';
 import DualRangeSlider from '../shared/DualRangeSlider';
 import {
   WORKOUT_TYPES, NAUGHTY_WORKOUT_ORDER, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_LABELS,
-  WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, ATHLETIC_ZONES, getCadenceUnitLabel,
+  WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, ATHLETIC_ZONES, getCadenceUnitLabel, getZoneForValue,
 } from '../../appConfig';
 
 /**
@@ -56,6 +56,22 @@ export default function GeneratorView({
   // Intime, 80 en mode standard), pour ne jamais proposer une valeur
   // absurdement basse même en ajustement manuel.
   const crescendoBpmFloor = isNaughtyMode ? 40 : 80;
+
+  // "Règle d'or" ergonomie (retour direct : une couleur = une zone
+  // d'intensité, partout dans l'app) : le visuel Crescendo (courbe
+  // Échauffement/Cœur/Retour au calme) colore chaque segment selon la ZONE
+  // RÉELLE de son BPM (via getZoneForValue, appConfig.js) plutôt que 3
+  // couleurs fixes par RÔLE (bleu/rouge/vert) sans lien avec l'intensité
+  // réelle. Repli sur les anciennes couleurs par rôle si aucun profil n'est
+  // configuré pour cette activité — `getZoneForValue` renvoie alors `null`,
+  // jamais une couleur inventée.
+  const crescendoAccentFallback = isNaughtyMode ? '#f43f5e' : '#ef4444'; // rose-500/red-500 (bgAccentClass)
+  const crescendoWarmupZone = getZoneForValue(crescendoWarmupBpm, workoutType, getProfileForWorkout, customActivity);
+  const crescendoCoreZone = getZoneForValue(bpm, workoutType, getProfileForWorkout, customActivity);
+  const crescendoCooldownZone = getZoneForValue(crescendoCooldownBpm, workoutType, getProfileForWorkout, customActivity);
+  const crescendoWarmupColor = crescendoWarmupZone?.color || '#0ea5e9'; // sky-500 (repli)
+  const crescendoCoreColor = crescendoCoreZone?.color || crescendoAccentFallback;
+  const crescendoCooldownColor = crescendoCooldownZone?.color || '#10b981'; // emerald-500 (repli)
 
   // --- Profil Athlétique appliqué au wizard (Constante / Crescendo / Fractionné) ---
   //
@@ -878,15 +894,15 @@ export default function GeneratorView({
                           <TrendingUp className={textColorClass} size={24} /> <span>Répartition de l'effort</span>
                         </label>
                         <div className="flex justify-between text-xs font-bold">
-                          <span className="text-sky-500 dark:text-sky-400">Échauffement {crescendoWarmupPct}%</span>
+                          <span style={{ color: crescendoWarmupColor }}>Échauffement {crescendoWarmupPct}%</span>
                           <span className={textColorClass}>Cœur {100 - crescendoWarmupPct - crescendoCooldownPct}%</span>
-                          <span className="text-emerald-500 dark:text-emerald-400">Retour au calme {crescendoCooldownPct}%</span>
+                          <span style={{ color: crescendoCooldownColor }}>Retour au calme {crescendoCooldownPct}%</span>
                         </div>
                         <DualRangeSlider
                           leftValue={crescendoWarmupPct} rightValue={crescendoCooldownPct} minMiddle={CRESCENDO_MIN_MAIN_PCT}
                           onChangeLeft={setCrescendoWarmupPct} onChangeRight={setCrescendoCooldownPct}
-                          leftColorClass="bg-sky-400 dark:bg-sky-500" middleColorClass={bgAccentClass} rightColorClass="bg-emerald-400 dark:bg-emerald-500"
-                          leftHandleBorderClass="border-sky-500" rightHandleBorderClass="border-emerald-500"
+                          leftColor={crescendoWarmupColor} middleColor={crescendoCoreColor} rightColor={crescendoCooldownColor}
+                          leftHandleBorderColor={crescendoWarmupColor} rightHandleBorderColor={crescendoCooldownColor}
                           leftAriaLabel="Part de l'échauffement" rightAriaLabel="Part du retour au calme"
                         />
                       </div>
@@ -910,7 +926,7 @@ export default function GeneratorView({
                                 penser qu'il comptait encore. */}
                             <div className={crescendoWarmupPct === 0 ? 'opacity-40 grayscale pointer-events-none' : ''}>
                               <div className="flex justify-between items-center mb-1">
-                                <span className="text-xs font-bold text-sky-500 dark:text-sky-400">BPM Échauffement{crescendoWarmupPct === 0 && ' (0% — sans effet)'}</span>
+                                <span className="text-xs font-bold" style={{ color: crescendoWarmupColor }}>BPM Échauffement{crescendoWarmupPct === 0 && ' (0% — sans effet)'}</span>
                                 <span className={`text-sm font-black ${textHighlight}`}>{crescendoWarmupBpm}</span>
                               </div>
                               <input
@@ -918,13 +934,14 @@ export default function GeneratorView({
                                 value={crescendoWarmupBpm ?? crescendoBpmFloor}
                                 onChange={(e) => setCrescendoWarmupBpm(parseInt(e.target.value) || crescendoBpmFloor)}
                                 disabled={crescendoWarmupPct === 0}
-                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none accent-sky-500 disabled:cursor-not-allowed"
+                                style={{ accentColor: crescendoWarmupColor }}
+                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none disabled:cursor-not-allowed"
                               />
                               {renderZoneQuickPicks(crescendoWarmupBpm, setCrescendoWarmupBpm)}
                             </div>
                             <div className={crescendoCooldownPct === 0 ? 'opacity-40 grayscale pointer-events-none' : ''}>
                               <div className="flex justify-between items-center mb-1">
-                                <span className="text-xs font-bold text-emerald-500 dark:text-emerald-400">BPM Retour au calme{crescendoCooldownPct === 0 && ' (0% — sans effet)'}</span>
+                                <span className="text-xs font-bold" style={{ color: crescendoCooldownColor }}>BPM Retour au calme{crescendoCooldownPct === 0 && ' (0% — sans effet)'}</span>
                                 <span className={`text-sm font-black ${textHighlight}`}>{crescendoCooldownBpm}</span>
                               </div>
                               <input
@@ -932,7 +949,8 @@ export default function GeneratorView({
                                 value={crescendoCooldownBpm ?? crescendoBpmFloor}
                                 onChange={(e) => setCrescendoCooldownBpm(parseInt(e.target.value) || crescendoBpmFloor)}
                                 disabled={crescendoCooldownPct === 0}
-                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none accent-emerald-500 disabled:cursor-not-allowed"
+                                style={{ accentColor: crescendoCooldownColor }}
+                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none disabled:cursor-not-allowed"
                               />
                               {renderZoneQuickPicks(crescendoCooldownBpm, setCrescendoCooldownBpm)}
                             </div>
