@@ -296,7 +296,7 @@ const pickByDurationProximity = (candidates, preferredDuration) => {
  */
 const _artistBpmSearchCache = new Map();
 
-const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeYoutubeIds, maxArtistsToTry = 4, candidatesPerArtist = 6) => {
+const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeYoutubeIds, maxArtistsToTry = 4, candidatesPerArtist = 6, onBatch = null) => {
   if (!artistNames || artistNames.length === 0) return [];
   // Parcourt maintenant la LISTE ENTIÈRE du catalogue (mélangée pour varier
   // d'une génération à l'autre), en petits LOTS espacés d'une pause — même
@@ -315,16 +315,18 @@ const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeYoutubeId
   // plus connus, voir le mélange ci-dessous) ne donnent rien, la recherche
   // continue vraiment jusqu'au bout de la liste avant d'abandonner.
   //
-  // LOGS DE DIAGNOSTIC (retour direct : "je veux bien mettre des logs et te
-  // montrer console" — sur le fait que 120 artistes Métal ne donnent que
-  // quelques résultats avant le Rock) — affiche, PAR ARTISTE, combien Deezer
-  // renvoie brut pour cette fenêtre BPM précise, plus un résumé final. Permet
-  // de trancher EN CONDITIONS RÉELLES entre 2 hypothèses qu'on ne peut pas
-  // départager sans ces chiffres : (a) le catalogue d'artistes est large mais
-  // peu d'entre eux ont réellement un titre dans CETTE fenêtre BPM précise
-  // (comportement attendu, rien à corriger), ou (b) un vrai problème de code/
-  // requête limite artificiellement ce qui remonte (à creuser si ces logs
-  // montrent au contraire beaucoup de résultats bruts perdus en route).
+  // `onBatch` (retour direct : "affichage progressif des résultats plutôt que
+  // d'attendre la fin") — appelé avec les stubs FRAIS de chaque lot d'artistes,
+  // dès qu'ils arrivent, plutôt que de forcer l'appelant à attendre la
+  // recherche exhaustive en entier avant de voir quoi que ce soit. TOUJOURS
+  // `await`-é ici, jamais "tire-et-oublie" (fire-and-forget) : si l'appelant
+  // lance un traitement asynchrone dans ce callback (résolution de genre,
+  // etc.), ce traitement est GARANTI terminé avant que cette fonction ne
+  // continue vers le lot suivant — sans ça, un simple `Promise.all` externe
+  // qui n'attend que la promesse de CETTE fonction pourrait rater des
+  // traitements encore en vol au moment où elle se résout, puisque
+  // `pending.push(...)` (côté appelant) se ferait APRÈS que `Promise.all`
+  // ait déjà figé son instantané des promesses à attendre.
   console.log(`[BPM search] "${artistNames.length} artistes au catalogue, fenêtre ${minBpm}-${maxBpm} BPM"`);
   const shuffled = [...artistNames].sort(() => Math.random() - 0.5);
   const BATCH_SIZE = 8;
@@ -350,7 +352,9 @@ const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeYoutubeId
       }
       return rawStubs.filter(s => !excludeYoutubeIds.includes(`deezer-${s.id}`));
     }));
-    allStubs.push(...batchResults.flat());
+    const newStubs = batchResults.flat();
+    allStubs.push(...newStubs);
+    if (onBatch && newStubs.length > 0) await onBatch(newStubs);
     if (allStubs.length >= enoughStubs) break;
     if (i + BATCH_SIZE < shuffled.length) {
       await new Promise(resolve => setTimeout(resolve, 250));
