@@ -51,7 +51,7 @@ export default function TrophiesView({ theme, userStats, handleShare }) {
     return (
       <div key={trophy.id} className={`${cardBg} rounded-2xl p-6 border ${isUnlocked ? 'border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.1)]' : isMasked ? `border-dashed ${cardBorder}` : cardBorder} flex items-start space-x-4 transition-all`}>
         <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-4xl shrink-0 ${isUnlocked ?
-          'bg-gradient-to-br from-yellow-100 to-yellow-300 dark:from-yellow-900/40 dark:to-yellow-700/40' : 'bg-gray-100 dark:bg-gray-800 grayscale opacity-40'}`}>
+          'bg-gradient-to-br from-yellow-100 to-yellow-300 dark:from-yellow-900/40 dark:to-yellow-700/40' : 'bg-surface-hover grayscale opacity-40'}`}>
           {isMasked ? <HelpCircle size={28} className={textMuted} /> : trophy.icon}
         </div>
         <div className="flex-1">
@@ -81,7 +81,7 @@ export default function TrophiesView({ theme, userStats, handleShare }) {
       {/* Onglets — même style de pilule que les autres bascules à 2 options de
           l'app (ex. Temps/Distance dans PlaylistDetailView), pour rester
           visuellement cohérent. */}
-      <div className={`inline-flex items-center bg-gray-100 dark:bg-gray-800 rounded-xl p-1`}>
+      <div className={`inline-flex items-center bg-surface-hover rounded-xl p-1`}>
         <button
           onClick={() => setActiveTab('visible')}
           className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'visible' ? `${bgAccentClass} text-white shadow-sm` : `${textMuted} hover:${textHighlight}`}`}
