@@ -2,6 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─────────────────────────────────────────────────────────────────────────
+   DESIGN SYSTEM SÉMANTIQUE — variables RGB "triplet" (pas hex) pour que
+   Tailwind puisse appliquer l'opacité (ex. bg-primary/80) via <alpha-value>,
+   voir tailwind.config.js. Mode clair = valeurs par défaut ici, `.dark`
+   (mode sombre, déjà existant — voir useTheme.js) et `.naughty` (Mode
+   Intime, accent seulement) les réécrivent — jamais dupliquées en dur dans
+   les composants.
+
+   Ne couvre PAS les couleurs des Zones d'entraînement (Z1-Z4, voir
+   ATHLETIC_ZONES/getZoneForValue dans appConfig.js) : chantier séparé,
+   volontairement laissé intact.
+   ───────────────────────────────────────────────────────────────────────── */
+:root {
+  --color-primary: 239 68 68;         /* red-500   #ef4444 */
+  --color-secondary: 100 116 139;     /* slate-500 #64748b (pas d'équivalent existant, proposition) */
+  --color-base: 249 250 251;          /* gray-50   #f9fafb */
+  --color-surface: 255 255 255;       /* white */
+  --color-surface-hover: 243 244 246; /* gray-100 */
+  --color-main: 17 24 39;             /* gray-900 */
+  --color-muted: 156 163 175;         /* gray-400 */
+  --color-divider: 229 231 235;       /* gray-200 */
+}
+
+.dark {
+  --color-primary: 220 38 38;         /* red-600   #dc2626 */
+  --color-base: 3 7 18;               /* gray-950  #030712 */
+  --color-surface: 17 24 39;          /* gray-900 */
+  --color-surface-hover: 31 41 55;    /* gray-800 */
+  --color-main: 255 255 255;
+  --color-muted: 107 114 128;         /* gray-500 (identique clair/sombre en Mode Intime, voir useTheme.js) */
+  --color-divider: 31 41 55;          /* gray-800 */
+}
+
+/* Mode Intime (isNaughtyMode) : seul l'accent change, jamais les fonds/
+   textes — cohérent avec useTheme.js (bgMainApp/cardBg/textMuted restent
+   identiques hors mode clair, seul themeColor/bgAccentClass basculent). */
+.naughty {
+  --color-primary: 244 63 94;         /* rose-500 #f43f5e */
+  --color-muted: 107 114 128;         /* gray-500 même en clair, voir useTheme.js */
+}
+.dark.naughty {
+  --color-primary: 225 29 72;         /* rose-600 #e11d48 */
+}
+
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
