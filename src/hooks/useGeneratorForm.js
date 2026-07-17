@@ -129,22 +129,33 @@ export function useGeneratorForm(isNaughtyMode, athleticProfile) {
   // useCustomActivity) — recevoir le résultat déjà calculé règle ça sans
   // franchir cette frontière.
   const setStructureMode = (mode, activityProfile = null) => {
+    const isProfileConfigured = !!(activityProfile && activityProfile.isConfigured);
+
+    // Retour direct : "pourquoi c'est utilisé en Crescendo et pas pour les
+    // autres types de séances" — ce calcul du "cœur de séance" (Zone 3
+    // Seuil/Tempo en priorité, Zone 2 Endurance à défaut) jouait jusqu'ici EN
+    // DUR le même rôle uniquement pour le mode Crescendo, alors qu'il
+    // correspond en réalité à EXACTEMENT la même valeur structurelle en
+    // Allure Constante : l'unique curseur BPM de ce mode ("Rythme cible
+    // global", même <input> que le "Rythme au pic" du Crescendo — voir
+    // GeneratorView.jsx, le bloc `(!isIntervalMode || isCrescendoMode)`).
+    // Sorti du bloc `if (mode === 'crescendo')` pour s'appliquer aux 2 modes
+    // de la même façon — seuls le badge et le seed Échauffement/Retour au
+    // calme restent spécifiques au Crescendo (lui seul a ces 2 curseurs).
+    //
+    // Fractionné (segments manuels) : volontairement LAISSÉ DE CÔTÉ pour
+    // l'instant — contrairement à Crescendo/Constante, ses segments sont en
+    // nombre libre et n'ont aucune convention "haut/bas" fixe (voir
+    // `segments`, plus bas) : imposer un schéma zone-par-segment serait un
+    // choix arbitraire, pas une évidence comme pour les 2 autres modes. `bpm`
+    // est quand même pré-rempli ci-dessous (silencieusement, sans badge,
+    // puisque ce curseur ne s'affiche pas en Fractionné) : ça sert au moins
+    // de graine cohérente si l'utilisateur bascule ensuite vers Crescendo.
+    const profileMainBpm = isProfileConfigured ? (activityProfile.zone3 || activityProfile.zone2) : null;
+    if (profileMainBpm && !bpmTouchedManually) setBpm(profileMainBpm);
+
     if (mode === 'crescendo') {
       const bpmFloor = isNaughtyMode ? 40 : 80;
-      const isProfileConfigured = !!(activityProfile && activityProfile.isConfigured);
-
-      // Profil Athlétique : si configuré POUR CETTE ACTIVITÉ précisément,
-      // pré-remplit le "Cœur de séance" (le curseur BPM principal de l'étape
-      // 3, PAS spécifique au Crescendo) avec la Zone 3 (Seuil/Tempo), ou la
-      // Zone 2 (Endurance) à défaut si l'utilisateur n'a que l'Assistant
-      // Rapide sans avoir touché le mode Expert — mais SEULEMENT si ce
-      // curseur n'a jamais été réglé à la main (voir bpmTouchedManually) :
-      // un utilisateur qui a lui-même choisi son BPM cible avant de passer en
-      // Crescendo garde la main, jamais écrasé par le profil. Idempotent si
-      // on rentre/ressort du mode Crescendo plusieurs fois sans jamais
-      // toucher le curseur.
-      const profileMainBpm = isProfileConfigured ? (activityProfile.zone3 || activityProfile.zone2) : null;
-      if (profileMainBpm && !bpmTouchedManually) setBpm(profileMainBpm);
       const effectiveMainBpm = (profileMainBpm && !bpmTouchedManually) ? profileMainBpm : bpm;
 
       // Échauffement/Retour au calme : Zone 1 (Récupération) pour les deux,
@@ -192,10 +203,16 @@ export function useGeneratorForm(isNaughtyMode, athleticProfile) {
       // ne s'applique QUE si l'utilisateur n'a jamais touché ce réglage lui-
       // même, jamais après un choix délibéré, même si ce choix retombe sur 14).
       if (!bpmToleranceTouched) setBpmToleranceRaw(7);
+    } else if (mode === 'constant') {
+      // Même badge qu'en Crescendo, mais basé sur la SEULE valeur pertinente ici
+      // (pas de triplet Échauffement/Cœur/Retour au calme — juste le rythme
+      // cible global).
+      const finalMainBpm = (profileMainBpm && !bpmTouchedManually) ? profileMainBpm : bpm;
+      setBpmSourceIsProfile(!!(profileMainBpm && !bpmTouchedManually && finalMainBpm === profileMainBpm));
     } else {
-      // Sortir du Crescendo (vers Allure Constante ou Fractionné) invalide le
-      // badge : "cœur de séance = valeur du profil" n'a de sens que dans ce
-      // mode précis, où ce triplet de BPM existe.
+      // Fractionné (Constante/Crescendo → Fractionné, ou 1er choix direct) :
+      // invalide le badge — "cœur de séance = valeur du profil" n'a de sens
+      // que dans les 2 modes gérés ci-dessus.
       setBpmSourceIsProfile(false);
     }
     setStructureModeRaw(mode);
