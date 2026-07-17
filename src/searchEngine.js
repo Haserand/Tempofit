@@ -343,6 +343,14 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
   });
 
   const validDetailedTracks = detailedTracks.filter(t => t && t.bpm && parseFloat(t.bpm) >= minBpm && parseFloat(t.bpm) <= maxBpm);
+  // LOG DE DIAGNOSTIC (retour direct : "je veux bien mettre des logs et te
+  // montrer console") — combien de candidats bruts sont rejetés ici FAUTE DE
+  // DONNÉE BPM EXPLOITABLE côté Deezer (pas de champ bpm du tout, ou une
+  // valeur hors de la fenêtre demandée une fois le détail du titre consulté) —
+  // teste directement l'hypothèse que le BPM Deezer (une analyse audio
+  // automatique, pas systématiquement calculée pour tout le catalogue) est en
+  // réalité le facteur limitant, pas un défaut du code de recherche lui-même.
+  console.log(`[BPM search] ${uniqueStubs.length} candidat(s) brut(s) → ${detailedTracks.filter(Boolean).length} détail(s) récupéré(s) → ${validDetailedTracks.length} avec un BPM Deezer réellement dans ${minBpm}-${maxBpm} (${detailedTracks.filter(Boolean).length - validDetailedTracks.length} rejeté(s) : pas de BPM Deezer, ou hors fenêtre une fois le détail consulté).`);
   const results = await fetchInBatches(validDetailedTracks, 15, async (t) => {
         const realGenre = await resolveDeezerGenre(t.id);
         // BUG CORRIGÉ (retour direct, capture d'écran à l'appui : recherche
@@ -397,6 +405,16 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
   // moteurs modernes) : à égalité de palier, l'ordre Deezer d'origine reste
   // inchangé.
   results.sort((a, b) => a._matchTier - b._matchTier);
+
+  // LOG DE DIAGNOSTIC (retour direct) : répartition finale par palier — tier 0
+  // = genre demandé confirmé directement par Deezer, tier 1 = accepté par
+  // équivalence (ex. Rock pour Métal) ou via le catalogue, tier 2 = mismatch
+  // (affiché quand même, en dernier, avec l'avertissement "Genre non
+  // confirmé"). Donne en un coup d'œil si le nombre de résultats tier 0 est
+  // bien celui qui pose question, ou si c'est le tri/l'équilibre entre paliers
+  // qui surprend.
+  const tierCounts = results.reduce((acc, r) => { acc[r._matchTier] = (acc[r._matchTier] || 0) + 1; return acc; }, {});
+  console.log(`[BPM search] Résultat final : ${results.length} titre(s) — tier 0 (genre direct) : ${tierCounts[0] || 0}, tier 1 (équivalence/catalogue) : ${tierCounts[1] || 0}, tier 2 (mismatch) : ${tierCounts[2] || 0}.`);
 
   return { results };
 };
