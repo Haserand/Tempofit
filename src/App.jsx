@@ -353,7 +353,7 @@ export default function App() {
   // des étapes suivantes n'ait qu'à consommer ce state, pas à le redéfinir.
   const {
     athleticProfile, setAthleticProfile,
-    computeZonesFromBaseCadence, getDefaultBaseCadence, buildDefaultPreviewProfile,
+    computeZonesFromBaseCadence, getDefaultBaseCadence, buildDefaultPreviewProfile, getZoneSpacingForActivity,
     setBaseCadenceForActivity, setZoneForActivity, resetActivityProfile,
     addCustomActivity, removeCustomActivity, setBaseCadenceForCustom, setZoneForCustom, getProfileForWorkout,
     resetAthleticProfile,
@@ -2533,6 +2533,7 @@ export default function App() {
                 resetActivityProfile={resetActivityProfile} addCustomActivity={addCustomActivity} removeCustomActivity={removeCustomActivity}
                 setBaseCadenceForCustom={setBaseCadenceForCustom} setZoneForCustom={setZoneForCustom} getProfileForWorkout={getProfileForWorkout}
                 getDefaultBaseCadence={getDefaultBaseCadence} buildDefaultPreviewProfile={buildDefaultPreviewProfile}
+                getZoneSpacingForActivity={getZoneSpacingForActivity}
                 showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
               />
             )}
