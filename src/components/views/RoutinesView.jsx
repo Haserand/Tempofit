@@ -55,7 +55,7 @@ export default function RoutinesView({
             <div key={routine.id} className={`${cardBg} rounded-2xl p-6 border ${rankStyle ? rankStyle.border : cardBorder} shadow-sm relative group overflow-hidden flex flex-col`}>
               {rankStyle && <span className="absolute -top-2 -right-2 text-xl" title={`${routine.manualGenerations} générations — la ${rank === 0 ? 'plus' : rank === 1 ? '2e plus' : '3e plus'} utilisée`}>{rankStyle.emoji}</span>}
               <div className="flex items-start justify-between mb-4">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl bg-gray-100 dark:bg-gray-800`}>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl bg-surface-hover`}>
                   {getDisplayRoutineIcon(routine)}
                 </div>
                 <div className="flex items-center space-x-2">
@@ -96,10 +96,10 @@ export default function RoutinesView({
                       value={batchCount} onChange={(e) => setRoutineBatchCounts({...routineBatchCounts, [routine.id]: parseInt(e.target.value)})}
                       className={`bg-transparent text-sm font-bold outline-none text-blue-600 dark:text-blue-400 cursor-pointer py-3 appearance-none pl-1 pr-2`}
                     >
-                      <option value={1} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">x1</option>
-                      <option value={3} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">x3</option>
-                      <option value={5} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">x5</option>
-                      <option value={10} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">x10</option>
+                      <option value={1} className="bg-surface text-main">x1</option>
+                      <option value={3} className="bg-surface text-main">x3</option>
+                      <option value={5} className="bg-surface text-main">x5</option>
+                      <option value={10} className="bg-surface text-main">x10</option>
                     </select>
                     <Info size={13} className={`${textMuted} ml-0.5 mr-1 shrink-0`} />
                   </div>
