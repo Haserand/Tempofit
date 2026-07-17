@@ -41,7 +41,7 @@
  * complet — non reproduit ici pour éviter la duplication.
  */
 
-import { DEEZER_GENRE_KEYWORDS, genreRoughlyMatches, isDirectGenreMatch, ARTIST_CATALOG } from './musicCatalog';
+import { DEEZER_GENRE_KEYWORDS, genreRoughlyMatches, isDirectGenreMatch, ARTIST_CATALOG, WEAK_DEEZER_KEYWORD_GENRES } from './musicCatalog';
 import { deezerFetch, resolveDeezerGenre, resolveBpmForCandidates, searchArtistsForBpm } from './musicEngine';
 
 export const SEARCH_PAGE_SIZE = 10;
@@ -258,7 +258,25 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
   const catalogStubsByGenre = await Promise.all(genresToQuery.map(async (genre) => {
     const artists = ARTIST_CATALOG[genre];
     if (!artists || artists.length === 0) return [];
-    const stubs = await searchArtistsForBpm(artists, minBpm, maxBpm, []);
+    // BUG CORRIGÉ (retour direct, capture d'écran à l'appui : recherche
+    // "Métal", seulement 2 titres réellement étiquetés "Métal" chez Deezer
+    // avant une majorité de "Rock") — cet appel n'ajustait jamais
+    // `maxArtistsToTry`/`candidatesPerArtist`, retombant donc sur les
+    // valeurs par défaut de `searchArtistsForBpm` (4 artistes, 6 titres —
+    // voir musicEngine.js), bien plus SHALLOW que ce que le moteur de
+    // génération utilise pour ce même renfort catalogue (8 à 20 artistes
+    // selon les genres, voir buildSegmentTracks/getSingleMatchingTrack).
+    // Deezer classe la quasi-totalité du Metal en "Rock" (jamais "Metal") —
+    // seule une poignée d'artistes du catalogue ont par hasard un titre
+    // vraiment étiqueté "Metal" chez Deezer. Ne tester que 4 artistes au
+    // hasard laissait donc perdre l'essentiel de ces rares correspondances
+    // directes. `needsDeepCatalogSearch` : vrai si TOUS les genres demandés
+    // n'ont AUCUN mot-clé Deezer fiable (ni fort, ni faible — voir
+    // DEEZER_GENRE_KEYWORDS/WEAK_DEEZER_KEYWORD_GENRES) — c'est-à-dire
+    // exactement les genres qui reposent ENTIÈREMENT sur ce renfort
+    // catalogue pour ne pas partir totalement à l'aveugle, comme "Métal".
+    const needsDeepCatalogSearch = genresToQuery.every(g => !DEEZER_GENRE_KEYWORDS[g] || WEAK_DEEZER_KEYWORD_GENRES.includes(g));
+    const stubs = await searchArtistsForBpm(artists, minBpm, maxBpm, [], needsDeepCatalogSearch ? 20 : 8, needsDeepCatalogSearch ? 10 : 6);
     return stubs.map(s => ({ ...s, matchedGenre: genre, _fromCatalog: true }));
   }));
 
