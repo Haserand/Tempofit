@@ -42,7 +42,7 @@
  */
 
 import { DEEZER_GENRE_KEYWORDS, genreRoughlyMatches, isDirectGenreMatch, ARTIST_CATALOG, WEAK_DEEZER_KEYWORD_GENRES } from './musicCatalog';
-import { deezerFetch, resolveDeezerGenre, resolveBpmForCandidates, searchArtistsForBpm } from './musicEngine';
+import { deezerFetch, resolveDeezerGenre, resolveBpmForCandidates, searchArtistsForBpm, fetchInBatches } from './musicEngine';
 
 export const SEARCH_PAGE_SIZE = 10;
 
@@ -314,22 +314,36 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
   // répété en arrière-plan.
   const merged = new Map();
   [...catalogStubsByGenre.flat(), ...stubsByGenre.flat()].forEach(s => { if (!merged.has(s.id)) merged.set(s.id, s); });
-  const uniqueStubs = Array.from(merged.values()).slice(0, needsDeepCatalogSearch ? 50 : 18);
+
+  // RETOUR DIRECT ("je veux à chaque fois que du metal pour les résultats
+  // jusqu'à ce qu'on finisse par épuiser le genre, teste tous les artistes")
+  // — le plafond précédent (50) restait un compromis, pas une vraie recherche
+  // exhaustive : sur ~140 artistes du catalogue Métal, 50 candidats ne
+  // couvrent souvent qu'une fraction du terrain avant résolution de genre.
+  // Relevé à 150 pour les genres à recherche profonde — largement suffisant
+  // pour couvrir la quasi-totalité des correspondances BPM réalistes sur un
+  // catalogue de cette taille, tout en restant borné (pas un `Infinity` qui
+  // ferait exploser le nombre d'appels réseau sans limite si jamais un
+  // catalogue devenait un jour beaucoup plus grand).
+  const uniqueStubs = Array.from(merged.values()).slice(0, needsDeepCatalogSearch ? 150 : 18);
 
   if (uniqueStubs.length === 0) {
     return { results: [] };
   }
 
-  // Un appel par titre pour confirmer le BPM exact et récupérer l'extrait audio
-  const detailedTracks = await Promise.all(uniqueStubs.map(async (stub) => {
+  // Un appel par titre pour confirmer le BPM exact et récupérer l'extrait
+  // audio — PAR LOTS (voir fetchInBatches, musicEngine.js) plutôt qu'un seul
+  // `Promise.all` géant : avec un plafond remonté à 150 candidats (voir
+  // ci-dessus), une rafale de 150 requêtes simultanées risquerait de
+  // déclencher un blocage temporaire côté Deezer (déjà documenté et corrigé
+  // pour ce même risque côté génération de playlist, voir musicEngine.js).
+  const detailedTracks = await fetchInBatches(uniqueStubs, 15, async (stub) => {
     const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
     return full ? { ...full, matchedGenre: stub.matchedGenre, _fromCatalog: stub._fromCatalog || false } : null;
-  }));
+  });
 
-  const results = await Promise.all(
-    detailedTracks
-      .filter(t => t && t.bpm && parseFloat(t.bpm) >= minBpm && parseFloat(t.bpm) <= maxBpm)
-      .map(async (t) => {
+  const validDetailedTracks = detailedTracks.filter(t => t && t.bpm && parseFloat(t.bpm) >= minBpm && parseFloat(t.bpm) <= maxBpm);
+  const results = await fetchInBatches(validDetailedTracks, 15, async (t) => {
         const realGenre = await resolveDeezerGenre(t.id);
         // BUG CORRIGÉ (retour direct, capture d'écran à l'appui : recherche
         // "Métal", des titres Judas Priest ressortaient étiquetés "Pop", sans
@@ -373,8 +387,7 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
           _genreMismatch: genreMismatch,
           _matchTier: matchTier,
         };
-      })
-  );
+  });
 
   // Titres du bon genre en premier — sans ça, une poignée de résultats hors-
   // genre (voir le bug ci-dessus) pouvait reléguer les vrais résultats en fin
