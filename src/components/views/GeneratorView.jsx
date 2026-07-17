@@ -87,12 +87,29 @@ export default function GeneratorView({
   // maintenant sa propre cadence de base, contrairement à l'ancien profil
   // unique où un seul brouillon suffisait.
   const [baseCadenceDraft, setBaseCadenceDraft] = useState(activeProfile?.baseCadence ?? '');
+  // BUG CORRIGÉ (retour direct : "le bouton calculer mes zones ne marche
+  // pas") — `computeAndApplyZones` faisait bien un `return` silencieux si le
+  // champ était vide ou invalide (`if (!baseCadenceDraft) return;`, et
+  // `setBaseCadenceForActivity`/`setBaseCadenceForCustom` refusent eux-mêmes
+  // toute valeur <= 0 ou non numérique, voir useAthleticProfile.js) — mais
+  // RIEN ne le signalait à l'écran : ni message, ni bordure rouge, ni le
+  // moindre indice. Un clic sur "Calculer mes zones" sans avoir tapé de
+  // chiffre (le placeholder "ex : 160" grisé peut se lire vite comme une
+  // vraie valeur déjà saisie) semblait alors juste ne rien faire — ce que
+  // c'était très exactement, mais sans jamais l'expliquer.
+  const [cadenceInputError, setCadenceInputError] = useState(false);
   useEffect(() => {
     setBaseCadenceDraft(activeProfile?.baseCadence ?? '');
+    setCadenceInputError(false);
   }, [selectedProfileActivity]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const computeAndApplyZones = () => {
-    if (!baseCadenceDraft) return;
+    const parsed = parseInt(baseCadenceDraft);
+    if (!baseCadenceDraft || !Number.isFinite(parsed) || parsed <= 0) {
+      setCadenceInputError(true);
+      return;
+    }
+    setCadenceInputError(false);
     if (isCustomProfileTab) setBaseCadenceForCustom(selectedProfileActivity, baseCadenceDraft);
     else setBaseCadenceForActivity(selectedProfileActivity, baseCadenceDraft);
   };
@@ -252,11 +269,11 @@ export default function GeneratorView({
             <div className={`p-4 rounded-2xl ${inputBg} border ${inputBorder}`}>
               <label className={`text-sm font-bold block mb-2 ${textHighlight}`}>{baseCadenceQuestion}</label>
               <div className="flex flex-col sm:flex-row gap-3">
-                <div className={`flex-1 flex items-center px-4 py-3 rounded-xl border ${inputBorder} ${cardBg}`}>
+                <div className={`flex-1 flex items-center px-4 py-3 rounded-xl border ${cadenceInputError ? 'border-red-500' : inputBorder} ${cardBg}`}>
                   <input
                     type="number" min="40" max="220" placeholder="ex : 160"
                     value={baseCadenceDraft}
-                    onChange={(e) => setBaseCadenceDraft(e.target.value)}
+                    onChange={(e) => { setBaseCadenceDraft(e.target.value); if (cadenceInputError) setCadenceInputError(false); }}
                     onKeyDown={(e) => e.key === 'Enter' && computeAndApplyZones()}
                     className={`bg-transparent w-full text-lg font-bold outline-none ${textHighlight}`}
                   />
@@ -266,6 +283,9 @@ export default function GeneratorView({
                   Calculer mes zones
                 </button>
               </div>
+              {cadenceInputError && (
+                <p className="text-xs font-bold text-red-500 mt-2">Indique d'abord un chiffre (ta cadence en BPM) avant de calculer tes zones.</p>
+              )}
             </div>
 
             {activeProfile?.isConfigured && (
