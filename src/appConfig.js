@@ -94,6 +94,46 @@ const ATHLETIC_ZONES = [
   { key: 'zone4', label: 'Vitesse / VMA', shortLabel: 'Vitesse', color: '#ef4444' },
 ];
 
+// getZoneForValue — "règle d'or d'ergonomie" (retour direct : associer une
+// couleur immuable à chaque zone et la réutiliser dans TOUS les graphiques,
+// plutôt qu'une palette différente par écran) : LE point d'entrée unique
+// pour "à quelle zone appartient cette valeur (BPM/PPM/RPM), et de quelle
+// couleur la peindre ?". Généralise `classifyIntoZone`, jusqu'ici une copie
+// privée à StatsView.jsx, pour la rendre réutilisable aussi par
+// GeneratorView.jsx (visuel Crescendo) et SessionSummaryCard.jsx (export
+// image) — un seul endroit à corriger si la logique de classification change
+// un jour, plutôt que 3 implémentations qui pourraient diverger.
+//
+// Classification par PLUS PROCHE VOISIN (comme l'existant dans StatsView) —
+// pas des bornes fixes calculées à la main : reste correct même si les zones
+// ne sont pas régulièrement espacées (ex. ajustées à la main en mode Expert
+// plutôt que via l'Assistant Rapide).
+//
+// `activityNameOrType` = le nom déjà résolu de l'activité, même convention
+// que `useAthleticProfile.getProfileForWorkout` (id WORKOUT_TYPES ou nom
+// d'activité personnalisée déjà résolu par l'appelant).
+// `getProfileForWorkout` = la fonction exposée par le hook useAthleticProfile,
+// passée en paramètre plutôt qu'importée ici (ce fichier de config n'a pas
+// accès aux hooks React).
+//
+// Renvoie `null` si aucun profil n'est configuré pour cette activité (ou si
+// `value`/`getProfileForWorkout` sont absents) — à l'appelant de décider du
+// repli visuel (couleur neutre, palette générique...), jamais une couleur
+// inventée silencieusement ici.
+const getZoneForValue = (value, activityNameOrType, getProfileForWorkout, customActivityName = '') => {
+  if (value == null || !getProfileForWorkout) return null;
+  const profile = getProfileForWorkout(activityNameOrType, customActivityName);
+  if (!profile || !profile.isConfigured) return null;
+  let best = null, bestDist = Infinity;
+  ATHLETIC_ZONES.forEach(z => {
+    const zoneVal = profile[z.key];
+    if (zoneVal == null) return;
+    const dist = Math.abs(value - zoneVal);
+    if (dist < bestDist) { bestDist = dist; best = z; }
+  });
+  return best; // { key, label, shortLabel, color } ou null
+};
+
 // RETOUR DIRECT : "parler de PPM pour du cyclisme n'est pas adapté" — PPM
 // (Pas Par Minute) compte des FOULÉES, ça n'a de sens qu'en course à pied. À
 // vélo, la cadence se mesure en tours de pédalier par minute (RPM, unité déjà
@@ -191,6 +231,7 @@ export {
   TROPHY_CATEGORIES,
   NAUGHTY_ROUTINE_NAMES,
   ATHLETIC_ZONES,
+  getZoneForValue,
   getCadenceUnitLabel,
   WORKOUT_TYPES,
   NAUGHTY_WORKOUT_LABELS,
