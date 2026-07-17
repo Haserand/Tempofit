@@ -108,6 +108,7 @@ export default function PlaylistDetailView({
   bpmDistributionData, genreDistributionData,
   setPlaylistPlannedDate,
   markPlaylistAsCompleted, renderCompletionsList,
+  getRankStyle,
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass, borderAccentClass, inputBg, inputBorder } = theme;
   // Replié par défaut : ce tableau ne sert qu'à vérifier ponctuellement une
@@ -134,6 +135,23 @@ export default function PlaylistDetailView({
   // stats, importer des données réelles (Garmin/Strava) ou ajouter une
   // NOUVELLE date de complétion (rejouer la même séance plus tard).
   const isLocked = !!(currentPlaylist.completions && currentPlaylist.completions.length > 0);
+
+  // Médaille "la plus/2e plus/3e plus utilisée" (retour direct : "quand je
+  // suis dans la playlist d'une session que je fais le plus... faudrait
+  // aussi le symbole") — déjà affichée sur la carte dans "Mes Séances"
+  // (PlaylistCard.jsx) mais jamais reprise ici. Même logique de classement
+  // recalculée localement (mêmes filtre + tri que PlaylistsView.jsx), plutôt
+  // qu'un classement centralisé transmis en prop — cohérent avec la
+  // convention déjà en place ailleurs dans l'app pour ce même genre de
+  // classement (RoutinesView.jsx fait exactement pareil pour ses routines) :
+  // un seul helper de STYLE partagé (`getRankStyle`, App.jsx), mais le
+  // classement lui-même recalculé localement par chaque vue à partir de ce
+  // qu'elle a déjà sous la main (ici `savedPlaylists`, déjà reçu en prop).
+  const playlistRanks = [...savedPlaylists.filter(p => p.completions && p.completions.length > 0)]
+    .sort((a, b) => b.completions.length - a.completions.length)
+    .map(p => p.id);
+  const currentPlaylistRank = playlistRanks.indexOf(currentPlaylist.id);
+  const currentPlaylistRankStyle = getRankStyle ? getRankStyle(currentPlaylistRank) : null;
 
   // --- Enchaînement automatique au titre suivant (retour direct : "que ce
   // soit via le graph ou via la sélection musique playlist, quand je finis
@@ -305,7 +323,15 @@ export default function PlaylistDetailView({
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
-      <div className={"rounded-3xl p-6 md:p-8 border shadow-xl flex flex-col md:flex-row items-center md:items-end space-y-6 md:space-y-0 md:space-x-8 bg-gradient-to-br " + (isNaughtyMode ? 'from-rose-50 to-rose-100 dark:from-gray-900 dark:to-rose-950/40' : 'from-gray-50 to-gray-200 dark:from-gray-900 dark:to-gray-800') + " " + (isNaughtyMode ? 'border-rose-200 dark:border-rose-900/50' : cardBorder)}>
+      <div className={"relative rounded-3xl p-6 md:p-8 border shadow-xl flex flex-col md:flex-row items-center md:items-end space-y-6 md:space-y-0 md:space-x-8 bg-gradient-to-br " + (isNaughtyMode ? 'from-rose-50 to-rose-100 dark:from-gray-900 dark:to-rose-950/40' : 'from-gray-50 to-gray-200 dark:from-gray-900 dark:to-gray-800') + " " + (currentPlaylistRankStyle ? currentPlaylistRankStyle.border : (isNaughtyMode ? 'border-rose-200 dark:border-rose-900/50' : cardBorder))}>
+        {currentPlaylistRankStyle && (
+          <span
+            className="absolute -top-3 -right-3 text-3xl z-10"
+            title={`${currentPlaylist.completions.length} fois — la ${currentPlaylistRank === 0 ? 'plus' : currentPlaylistRank === 1 ? '2e plus' : '3e plus'} utilisée`}
+          >
+            {currentPlaylistRankStyle.emoji}
+          </span>
+        )}
         <div className="relative group/cover">
           <div className={"w-32 h-32 md:w-48 md:h-48 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-inner text-5xl md:text-7xl " + inputBg}>
             <div className={"absolute inset-0 opacity-10 dark:opacity-20 " + (isNaughtyMode ? 'bg-rose-500' : 'bg-red-500')}></div>
