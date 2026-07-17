@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Pause, Play,
   GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, Calendar, ChevronDown, ChevronUp,
-  Camera, Loader2, ChevronLeft, ChevronRight, Lock, Circle,
+  Camera, Loader2, ChevronLeft, ChevronRight, Lock, Circle, Upload,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, CartesianGrid, ReferenceArea, ReferenceLine, XAxis, YAxis,
@@ -109,7 +109,7 @@ export default function PlaylistDetailView({
   bpmDistributionData, genreDistributionData,
   setPlaylistPlannedDate,
   markPlaylistAsCompleted, renderCompletionsList,
-  getRankStyle,
+  getRankStyle, triggerCSVUpload,
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass, borderAccentClass, inputBg, inputBorder } = theme;
   // Replié par défaut : ce tableau ne sert qu'à vérifier ponctuellement une
@@ -136,6 +136,15 @@ export default function PlaylistDetailView({
   // stats, importer des données réelles (Garmin/Strava) ou ajouter une
   // NOUVELLE date de complétion (rejouer la même séance plus tard).
   const isLocked = !!(currentPlaylist.completions && currentPlaylist.completions.length > 0);
+
+  // --- CTA "Importer mes données" (retour direct : maquette UI/UX complète) ---
+  // Cible la date de complétion la plus RÉCENTE (celle qu'on vient de
+  // marquer/refaire est la plus probable à vouloir enrichir) plutôt que
+  // d'exiger que la personne choisisse elle-même laquelle dans le cas
+  // fréquent d'une seule date. Les dates plus anciennes restent gérables
+  // individuellement via la liste détaillée (renderCompletionsList).
+  const mostRecentCompletionIso = isLocked ? currentPlaylist.completions[currentPlaylist.completions.length - 1] : null;
+  const hasImportedDataForMostRecent = !!(mostRecentCompletionIso && currentPlaylist.actualDataByDate && currentPlaylist.actualDataByDate[mostRecentCompletionIso]);
 
   // RETOUR DIRECT : "parler de PPM pour du cyclisme n'est pas adapté" — même
   // correction que sur la page Profil Athlétique (GeneratorView.jsx), reprise
@@ -349,6 +358,18 @@ export default function PlaylistDetailView({
           </div>
         </div>
         <div className="flex-1 text-center md:text-left space-y-4 w-full">
+          {/* RETOUR DIRECT (maquette UI/UX complète) : "isole et remonte la
+              date tout en haut de la carte, au-dessus du titre, avec un style
+              discret" — sur-titre propre, avant même le nom de la playlist.
+              Reprend la même donnée que l'ancien emplacement (juste retiré de
+              la ligne meta-infos plus bas, voir plus loin) — pas une 2e
+              source de vérité, juste déplacée. */}
+          {isLocked && currentPlaylist.completions.length > 0 && (
+            <p className={`text-xs font-semibold uppercase tracking-wide ${textMuted}`}>
+              Réalisée le {new Date(currentPlaylist.completions[0].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </p>
+          )}
+
           {isEditingPlaylistName ? (
             <div className="flex items-center gap-2 justify-center md:justify-start">
               <input
@@ -366,51 +387,46 @@ export default function PlaylistDetailView({
               </button>
             </h2>
           )}
-          <div className="flex flex-wrap items-center justify-center md:justify-between gap-4">
-            <div className={"flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm font-medium " + textMuted}>
-              <div className="flex items-center space-x-1"><Activity size={16}/><span>{currentPlaylist.workoutType}</span></div><span>•</span>
-              <div className="flex items-center space-x-1"><Clock size={16}/><span>{formatDuration(currentPlaylist.totalDuration)}</span></div><span>•</span>
-              <div className="flex items-center space-x-1"><Music size={16}/><span>{currentPlaylist.tracks.length} titres</span></div>
-              {(() => {
-                const cfg = currentPlaylist.config || {};
-                // Les genres SÉLECTIONNÉS (cfg.selectedGenres) sont déjà des noms
-                // canoniques de l'app (ex. "K-pop") — ne JAMAIS les repasser dans
-                // normalizeGenreForDisplay (prévu pour nettoyer un genre BRUT venu
-                // de Deezer). Bug rencontré : "K-pop" contient le mot "pop", donc
-                // normalizeGenreForDisplay('K-pop') matchait "Pop" en premier et
-                // affichait le mauvais genre. Seul le repli (genres réels des
-                // titres, quand aucun genre n'a été explicitement sélectionné) a
-                // besoin de cette normalisation.
-                if (cfg.selectedGenres && cfg.selectedGenres.length > 0) {
-                  return (
-                    <>
-                      <span>•</span>
-                      <div className="flex items-center space-x-1"><Music size={16}/><span>{cfg.selectedGenres.map(genreDisplayLabel).join(', ')}</span></div>
-                    </>
-                  );
-                }
-                const genres = Array.from(new Set(currentPlaylist.tracks.map(t => t.genre).filter(g => g && g !== 'Genre inconnu')));
-                return genres.length > 0 && (
+          {/* Ligne 1 : infos de la playlist SEULES (retour direct : "aère le
+              contenu central" — plus mélangée avec la date/les actions, qui
+              ont chacune leur propre ligne ci-dessous). */}
+          <div className={"flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm font-medium " + textMuted}>
+            <div className="flex items-center space-x-1"><Activity size={16}/><span>{currentPlaylist.workoutType}</span></div><span>•</span>
+            <div className="flex items-center space-x-1"><Clock size={16}/><span>{formatDuration(currentPlaylist.totalDuration)}</span></div><span>•</span>
+            <div className="flex items-center space-x-1"><Music size={16}/><span>{currentPlaylist.tracks.length} titres</span></div>
+            {(() => {
+              const cfg = currentPlaylist.config || {};
+              // Les genres SÉLECTIONNÉS (cfg.selectedGenres) sont déjà des noms
+              // canoniques de l'app (ex. "K-pop") — ne JAMAIS les repasser dans
+              // normalizeGenreForDisplay (prévu pour nettoyer un genre BRUT venu
+              // de Deezer). Bug rencontré : "K-pop" contient le mot "pop", donc
+              // normalizeGenreForDisplay('K-pop') matchait "Pop" en premier et
+              // affichait le mauvais genre. Seul le repli (genres réels des
+              // titres, quand aucun genre n'a été explicitement sélectionné) a
+              // besoin de cette normalisation.
+              if (cfg.selectedGenres && cfg.selectedGenres.length > 0) {
+                return (
                   <>
                     <span>•</span>
-                    <div className="flex items-center space-x-1"><Music size={16}/><span>{Array.from(new Set(genres.flatMap(getGenresForDisplay))).join(', ')}</span></div>
+                    <div className="flex items-center space-x-1"><Music size={16}/><span>{cfg.selectedGenres.map(genreDisplayLabel).join(', ')}</span></div>
                   </>
                 );
-              })()}
-            </div>
+              }
+              const genres = Array.from(new Set(currentPlaylist.tracks.map(t => t.genre).filter(g => g && g !== 'Genre inconnu')));
+              return genres.length > 0 && (
+                <>
+                  <span>•</span>
+                  <div className="flex items-center space-x-1"><Music size={16}/><span>{Array.from(new Set(genres.flatMap(getGenresForDisplay))).join(', ')}</span></div>
+                </>
+              );
+            })()}
+          </div>
 
-            {/* RETOUR DIRECT ("la date de base à laquelle ça a été fait
-                devrait être à gauche") — la toute PREMIÈRE date de complétion
-                (currentPlaylist.completions[0], l'historique en garde une
-                liste complète mais celle-ci est LA date d'origine), affichée
-                ici en repère informatif — pas cliquable, juste un rappel du
-                "depuis quand" avant les actions qui suivent. */}
-            {isLocked && currentPlaylist.completions.length > 0 && (
-              <span className={`text-xs font-semibold shrink-0 ${textMuted}`}>
-                Réalisée le {new Date(currentPlaylist.completions[0].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
-              </span>
-            )}
-
+          {/* Ligne 2 : actions principales "Planifier à nouveau" / "Marquer
+              comme refaite" — leur PROPRE ligne désormais (retour direct),
+              avec de l'air au-dessus (pt-1, via le space-y-4 du parent) plutôt
+              que collées aux infos de la playlist. */}
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
             {/* "Planifier" déplacé ici, sur la même ligne que les infos de la
                 playlist (retour direct : "le bouton de planification doit être
                 au même niveau que les infos de la playlist, pas dans la ligne
@@ -487,7 +503,11 @@ export default function PlaylistDetailView({
             )}
           </div>
 
-          <div className="flex items-center justify-center md:justify-start gap-3 mt-4">
+          {/* Ligne 3 : badges secondaires (retour direct : "aère... entre le
+              bloc titre/métadonnées, les actions principales et les badges
+              secondaires") — mt-2 en plus du space-y-4 du parent pour bien
+              les détacher visuellement du bloc d'actions juste au-dessus. */}
+          <div className="flex items-center justify-center md:justify-start gap-3 mt-2">
             {!savedPlaylists.find(p => p.id === currentPlaylist.id) ? (
               <button
                 onClick={handleSavePlaylist}
@@ -544,14 +564,55 @@ export default function PlaylistDetailView({
               suppression D'ICI, pour ne pas avoir 2 éléments sur la même ref)
               — ce qui laisse maintenant les dates de complétion ET leur
               import Garmin/Strash comme SEUL contenu de ce bandeau, sans
-              rien pour lui faire concurrence visuellement. */}
+              rien pour lui faire concurrence visuellement.
+              RETOUR DIRECT ENCORE SUIVANT (maquette UI/UX complète) : ce
+              bandeau garde son rôle de gestion FINE (plusieurs dates
+              possibles, import/suppression par date précise) — mt-6 (au lieu
+              de mt-4) pour bien le détacher des badges juste au-dessus. Le
+              vrai CTA "Importer mes données" phare est maintenant le gros
+              bouton tout en bas de la carte (voir plus loin), cette liste
+              détaillée reste secondaire/utilitaire. */}
           {isLocked && (
-            <div className={`w-full mt-4 p-4 rounded-2xl border border-green-200 dark:border-green-900/40 bg-green-50/60 dark:bg-green-900/10`}>
+            <div className={`w-full mt-6 p-4 rounded-2xl border border-green-200 dark:border-green-900/40 bg-green-50/60 dark:bg-green-900/10`}>
               <div className="flex items-center gap-2 text-green-700 dark:text-green-400 text-sm font-bold mb-3">
                 <Lock size={15}/> Séance déjà réalisée — verrouillée pour préserver ton historique
               </div>
               {renderCompletionsList && renderCompletionsList(currentPlaylist)}
             </div>
+          )}
+
+          {/* RETOUR DIRECT (maquette UI/UX complète, points 3 et 4) : "gros
+              bouton importer ses données", CTA phare de fin de séance — pleine
+              largeur, fond blanc/texte noir FORCÉ (seule dérogation demandée
+              à la règle "ne toucher aucune couleur"), 2 états distincts :
+              - Pas encore importé : `animate-pulse` léger + texte incitatif.
+              - Déjà importé (pour la date la plus récente) : icône de
+                validation verte + texte gratifiant, `animate-in` ponctuel
+                plutôt qu'une boucle infinie (un "aha" au moment où l'état
+                bascule, pas une sollicitation permanente une fois acquis).
+              Cible la date de complétion la plus RÉCENTE (voir
+              mostRecentCompletionIso plus haut) — les dates plus anciennes
+              restent gérables individuellement dans le bandeau juste
+              au-dessus. `triggerCSVUpload` : même fonction que celle déjà
+              utilisée sur la carte dans "Mes Séances" (voir App.jsx), pas une
+              2e logique d'import dupliquée. */}
+          {isLocked && triggerCSVUpload && (
+            <button
+              onClick={(e) => triggerCSVUpload(e, currentPlaylist, mostRecentCompletionIso)}
+              className={`w-full mt-6 px-6 py-5 rounded-2xl font-black text-base flex items-center justify-center gap-3 bg-white text-black shadow-lg transition-transform hover:scale-[1.01] ${hasImportedDataForMostRecent ? 'animate-in fade-in zoom-in duration-500' : 'animate-pulse'}`}
+            >
+              {hasImportedDataForMostRecent ? (
+                <>
+                  <CheckCircle size={22} className="text-green-500 shrink-0" />
+                  <span>C'est cool, tu as importé tes données !</span>
+                </>
+              ) : (
+                <>
+                  <Upload size={22} className="shrink-0" />
+                  <span>Complète ta séance : importe tes données sportives !</span>
+                </>
+              )}
+            </button>
           )}
         </div>
       </div>
