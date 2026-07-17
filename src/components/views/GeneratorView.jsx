@@ -387,9 +387,46 @@ export default function GeneratorView({
                 >
                   <Info size={13}/>
                 </button>
+                {/* BUG CORRIGÉ (retour direct, capture d'écran à l'appui) : 3 problèmes
+                    distincts sur ce popover.
+                    1. Lisibilité — `w-72` (288px) était trop étroit pour ce texte
+                       (6 lignes tassées), en `${textMuted}` (gris, contraste faible
+                       pour un paragraphe entier) et sans aucun fond opaque qui le
+                       distingue clairement du contenu juste en dessous (la question
+                       "Quelle est ta cadence habituelle..." + le champ + le bouton
+                       "Calculer" restaient visibles en partie autour/à travers,
+                       donnant une impression de superposition confuse plutôt qu'une
+                       vraie bulle flottante). Élargi, contraste texte relevé, et un
+                       fond de recul (backdrop cliquable pour fermer) ajouté pour que
+                       la bulle se détache sans ambiguïté du reste de l'écran.
+                    2. "mode Expert" — ce nom n'existe NULLE PART ailleurs à l'écran :
+                       le bouton réel juste en dessous s'appelle "Ajuster manuellement"
+                       (`showExpertZones` n'est qu'un nom de variable interne, jamais
+                       censé fuiter dans un texte visible). Corrigé pour désigner le
+                       vrai bouton par son vrai nom.
+                    3. Confusion BPM/PPM (retour direct) — ce popover ne clarifiait
+                       jamais LE LIEN entre cette cadence (PPM, tes pas) et le BPM de
+                       la musique généré ensuite : "Seuil" n'est pas un terme cardiaque
+                       ici, c'est le nom de zone d'effort classique en course à pied
+                       (Récupération/Endurance/Seuil/Vitesse — utilisé par les coachs
+                       indépendamment de la fréquence cardiaque), appliqué à ta cadence.
+                       Le vrai lien avec la musique : ce même chiffre sert ENSUITE de
+                       cible BPM au générateur (le principe de l'app) — rendu explicite
+                       ci-dessous plutôt que seulement documenté en commentaire de code. */}
                 {showZoneCalcInfo && (
-                  <div className={`absolute z-20 top-full left-0 mt-2 w-72 p-3 rounded-xl border shadow-xl text-xs font-medium leading-relaxed ${cardBg} ${cardBorder} ${textMuted}`}>
-                    Zone 2 = ta cadence tapée ci-dessous. Les 3 autres s'en écartent par palier fixe de {getZoneSpacingForActivity(isCustomProfileTab ? '__custom__' : selectedProfileActivity)} {activityCadenceUnit} (Zone 1 = -1 palier, Zone 3 = +1, Zone 4 = +2) — une progression simple autour de ta cadence, pas une vraie formule physiologique (%VMA...). Toujours ajustable au {activityCadenceUnit} près en mode Expert.
+                  <div className="fixed inset-0 z-30" onClick={() => setShowZoneCalcInfo(false)} />
+                )}
+                {showZoneCalcInfo && (
+                  <div className={`absolute z-40 top-full left-0 mt-2 w-80 sm:w-96 p-4 rounded-xl border shadow-2xl text-xs font-medium leading-relaxed ${cardBg} ${cardBorder} ${textHighlight}`}>
+                    <p className="mb-2">
+                      Zone 2 = ta cadence tapée ci-dessous. Les 3 autres s'en écartent par palier fixe de {getZoneSpacingForActivity(isCustomProfileTab ? '__custom__' : selectedProfileActivity)} {activityCadenceUnit} (Zone 1 = -1 palier, Zone 3 = +1, Zone 4 = +2) — une progression simple autour de ta cadence, pas une vraie formule physiologique (%VMA...).
+                    </p>
+                    <p className="mb-2">
+                      Les noms de zone (Récupération, Endurance, Seuil, Vitesse) viennent du vocabulaire classique des coachs de course à pied — ils décrivent un niveau d'effort, pas ta fréquence cardiaque : "Seuil" ne parle jamais de battements par minute ici.
+                    </p>
+                    <p className={textMuted}>
+                      Le lien avec la musique : ce chiffre en {activityCadenceUnit} devient ensuite directement ta cible BPM au moment de générer une playlist (c'est le principe de l'app — caler le tempo des morceaux sur ta cadence). Toujours ajustable au {activityCadenceUnit} près via le bouton "Ajuster manuellement" ci-dessous.
+                    </p>
                   </div>
                 )}
               </div>
