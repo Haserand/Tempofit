@@ -214,6 +214,37 @@ export function useGeneratorForm(isNaughtyMode, athleticProfile) {
       // invalide le badge — "cœur de séance = valeur du profil" n'a de sens
       // que dans les 2 modes gérés ci-dessus.
       setBpmSourceIsProfile(false);
+
+      // Retour direct : motif par défaut explicite pour le Fractionné —
+      // "1er segment = échauffement, 2e VMA, 3e EF, 4e VMA, 5e EF, puis
+      // alternance VMA/EF à l'infini". Zone 1 = Échauffement/Récupération,
+      // Zone 4 = Vitesse/VMA, Zone 2 = Endurance fondamentale (EF) — mêmes
+      // libellés que ATHLETIC_ZONES (appConfig.js), pas une correspondance
+      // inventée ici. `activityProfile` est TOUJOURS exploitable (profil réel
+      // OU aperçu par défaut crédible, voir resolveEffectiveActivityProfile
+      // dans GeneratorView.jsx) : ce motif a donc toujours des BPM sensés,
+      // profil configuré ou non — cohérent avec le principe déjà appliqué à
+      // l'Assistant Rapide/mode Expert de la page Profil Athlétique.
+      //
+      // Seedé UNE SEULE FOIS, seulement si les segments sont encore dans leur
+      // tout premier état jamais personnalisé (même garde-fou que partout
+      // ailleurs dans ce hook, ex. crescendoWarmupBpm) — un utilisateur qui a
+      // déjà ajusté ses portions à la main, même en repassant par Constante
+      // ou Crescendo entre-temps, ne se les voit jamais réécrasées.
+      const isPristineSegments = segments.length === 1 && segments[0].id === 1 && segments[0].bpm === 120 && segments[0].durationValue === 15;
+      if (isPristineSegments && activityProfile) {
+        const warmupBpm = activityProfile.zone1 || 120;
+        const vmaBpm = activityProfile.zone4 || 160;
+        const efBpm = activityProfile.zone2 || 130;
+        const isDistance = targetMode === 'distance';
+        setSegments([
+          { id: Date.now(), bpm: warmupBpm, durationValue: isDistance ? 1 : 8 },
+          { id: Date.now() + 1, bpm: vmaBpm, durationValue: isDistance ? 0.4 : 1 },
+          { id: Date.now() + 2, bpm: efBpm, durationValue: isDistance ? 0.6 : 2 },
+          { id: Date.now() + 3, bpm: vmaBpm, durationValue: isDistance ? 0.4 : 1 },
+          { id: Date.now() + 4, bpm: efBpm, durationValue: isDistance ? 0.6 : 2 },
+        ]);
+      }
     }
     setStructureModeRaw(mode);
   };
