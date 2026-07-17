@@ -255,7 +255,7 @@ export default function GeneratorView({
           {showAthleticProfile ? 'Mon Profil Athlétique' : (isNaughtyMode ? "Prépare l'ambiance..." : "Sculpte ta séance")}
         </h1>
         <p className="text-lg font-medium text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
-          {showAthleticProfile ? "Définis tes zones d'allure musicale par activité." : displaySubtitleGen}
+          {showAthleticProfile ? "Définis tes zones de cadence (en PPM, pas par minute) par activité." : displaySubtitleGen}
         </p>
       </div>
 
@@ -335,14 +335,17 @@ export default function GeneratorView({
                     autour de la cadence tapée (base ± un espacement fixe par
                     palier, voir ZONE_SPACING_BY_ACTIVITY dans
                     useAthleticProfile.js), volontairement PAS une vraie
-                    formule physiologique (%VMA, VO2max...) — l'app parle de
-                    cadence MUSICALE, pas de cadence de course réelle (voir la
-                    docstring de useAthleticProfile.js). Espacement propre à
-                    chaque activité, affiché ici pour que le calcul reste
+                    formule physiologique (%VMA, VO2max...).
+                    RETOUR DIRECT SUIVANT : "confusion entre cadence et BPM —
+                    cadence = PPM (pas par minute), pas BPM (battements par
+                    minute)" — cette cadence-là porte sur tes PAS, pas sur la
+                    musique. Corrigé ici (l'ancien commentaire parlait à tort
+                    de "cadence musicale") ; espacement propre à chaque
+                    activité, affiché ici pour que le calcul reste
                     transparent plutôt qu'une boîte noire. */}
                 <span
                   className={`cursor-help ${textMuted}`}
-                  title={`Zone 2 = ta cadence tapée ci-dessous. Les 3 autres s'en écartent par palier fixe de ${getZoneSpacingForActivity(isCustomProfileTab ? '__custom__' : selectedProfileActivity)} BPM (Zone 1 = -1 palier, Zone 3 = +1, Zone 4 = +2) — une progression simple autour de ta cadence, pas une vraie formule physiologique (%VMA...). Toujours ajustable au BPM près en mode Expert.`}
+                  title={`Zone 2 = ta cadence tapée ci-dessous. Les 3 autres s'en écartent par palier fixe de ${getZoneSpacingForActivity(isCustomProfileTab ? '__custom__' : selectedProfileActivity)} PPM (Zone 1 = -1 palier, Zone 3 = +1, Zone 4 = +2) — une progression simple autour de ta cadence, pas une vraie formule physiologique (%VMA...). Toujours ajustable au PPM près en mode Expert.`}
                 >
                   <Info size={13}/>
                 </span>
@@ -355,7 +358,24 @@ export default function GeneratorView({
             </div>
 
             {/* Assistant Rapide : une seule question, 4 zones calculées d'un
-                coup (voir computeZonesFromBaseCadence, useAthleticProfile.js). */}
+                coup (voir computeZonesFromBaseCadence, useAthleticProfile.js).
+                ─────────────────────────────────────────────────────────────
+                RETOUR DIRECT ("confusion entre cadence et BPM — cadence =
+                PPM, pas de battements par minute") — corrigé ici : cette
+                cadence porte sur des PAS par minute (le rythme de tes
+                foulées/pédalage), pas sur des BATTEMENTS par minute (unité
+                musicale). L'app fait déjà cette distinction correctement
+                ailleurs (voir PlaylistDetailView.jsx, l'analyse Garmin/Strava
+                : "Cadence (PPM)" vs "BPM cible") — jamais reprise ici avant.
+                Le nombre reste le MÊME dans les 2 cas (le principe de l'app :
+                caler le tempo d'une chanson sur ta cadence de pas), donc rien
+                ne change dans les calculs ni dans le state (toujours
+                `baseCadence`/`zone1..4` en interne) — seul le LIBELLÉ affiché
+                change pour refléter ce dont on parle à cet instant précis :
+                ta cadence physique ici, le BPM de la musique une fois
+                appliqué à la génération (voir les curseurs de l'étape 3 du
+                wizard, eux bien en BPM — c'est déjà la bonne unité là-bas,
+                puisqu'on y parle du tempo des morceaux, pas de tes pas). */}
             <div className={`p-4 rounded-2xl ${inputBg} border ${inputBorder}`}>
               <label className={`text-sm font-bold block mb-2 ${textHighlight}`}>{baseCadenceQuestion}</label>
               <div className="flex flex-col sm:flex-row gap-3">
@@ -367,14 +387,14 @@ export default function GeneratorView({
                     onKeyDown={(e) => e.key === 'Enter' && computeAndApplyZones()}
                     className={`bg-transparent w-full text-lg font-bold outline-none ${textHighlight}`}
                   />
-                  <span className={`text-sm font-bold shrink-0 ${textMuted}`}>BPM</span>
+                  <span className={`text-sm font-bold shrink-0 ${textMuted}`}>PPM</span>
                 </div>
                 <button onClick={computeAndApplyZones} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110 shrink-0`}>
                   Calculer mes zones
                 </button>
               </div>
               {cadenceInputError && (
-                <p className="text-xs font-bold text-red-500 mt-2">Indique d'abord un chiffre (ta cadence en BPM) avant de calculer tes zones.</p>
+                <p className="text-xs font-bold text-red-500 mt-2">Indique d'abord un chiffre (ta cadence en PPM, pas par minute) avant de calculer tes zones.</p>
               )}
             </div>
 
@@ -387,7 +407,7 @@ export default function GeneratorView({
                       <span className={`text-[11px] font-bold uppercase tracking-wide ${textMuted}`}>{z.shortLabel}</span>
                     </div>
                     <div className={`text-xl font-black ${textHighlight}`}>{activeProfile[z.key] ?? '—'}</div>
-                    <div className={`text-[10px] ${textMuted}`}>BPM</div>
+                    <div className={`text-[10px] ${textMuted}`}>PPM</div>
                   </div>
                 ))}
               </div>
@@ -439,7 +459,7 @@ export default function GeneratorView({
                         onChange={(e) => handleSetZone(z.key, e.target.value)}
                         className={`w-14 bg-transparent text-right font-mono font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${textHighlight}`}
                       />
-                      <span className={`text-xs font-bold ${textMuted}`}>BPM</span>
+                      <span className={`text-xs font-bold ${textMuted}`}>PPM</span>
                     </div>
                   </div>
                 ))}
