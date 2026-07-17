@@ -9,6 +9,7 @@ import {
   Tooltip as RechartsTooltip, Legend, Line, PieChart, Pie, Cell,
 } from 'recharts';
 import { getGenresForDisplay, genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog';
+import { getCadenceUnitLabel } from '../../appConfig';
 import { formatDuration } from '../../utils/format';
 import { deezerFetch } from '../../musicEngine';
 import SessionSummaryCard from '../shared/SessionSummaryCard';
@@ -20,7 +21,7 @@ const DISTRIBUTION_COLORS = ['#f43f5e', '#3b82f6', '#f59e0b', '#22c55e', '#a855f
 // Tooltip personnalisé affiché au survol d'un point du graphique BPM. Affiche
 // le nom du morceau (si dispo), le temps écoulé, et selon les données
 // disponibles le BPM cible (musique) et/ou la cadence réelle en PPM (import Garmin/Strava).
-const CustomChartTooltip = ({ active, payload, isNaughtyMode, currentUnit, metric }) => {
+const CustomChartTooltip = ({ active, payload, isNaughtyMode, currentUnit, metric, cadenceUnit }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
@@ -44,7 +45,7 @@ const CustomChartTooltip = ({ active, payload, isNaughtyMode, currentUnit, metri
             )}
             {data.realValue !== undefined && (
                <div className="px-2 py-1.5 rounded text-xs font-bold font-mono bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
-                 {metric === 'heartRate' ? `❤️ Fréquence cardiaque: ${data.realValue} pulsations/min` : `🏃 Cadence réelle: ${data.realValue} PPM`}
+                 {metric === 'heartRate' ? `❤️ Fréquence cardiaque: ${data.realValue} pulsations/min` : `🏃 Cadence réelle: ${data.realValue} ${cadenceUnit}`}
                </div>
             )}
         </div>
@@ -135,6 +136,15 @@ export default function PlaylistDetailView({
   // stats, importer des données réelles (Garmin/Strava) ou ajouter une
   // NOUVELLE date de complétion (rejouer la même séance plus tard).
   const isLocked = !!(currentPlaylist.completions && currentPlaylist.completions.length > 0);
+
+  // RETOUR DIRECT : "parler de PPM pour du cyclisme n'est pas adapté" — même
+  // correction que sur la page Profil Athlétique (GeneratorView.jsx), reprise
+  // ici pour l'analyse de données réelles (Garmin/Strava) : PPM pour une
+  // séance de course à pied, RPM pour du vélo, repli générique sinon (voir
+  // getCadenceUnitLabel, appConfig.js — même helper partagé, pas une 2e
+  // logique dupliquée). Même convention "Autre" + activité personnalisée que
+  // partout ailleurs (getProfileForWorkout, useAthleticProfile.js).
+  const playlistCadenceUnit = getCadenceUnitLabel(currentPlaylist.workoutType === 'Autre' ? (currentPlaylist.config?.customActivity || '__custom__') : currentPlaylist.workoutType);
 
   // Médaille "la plus/2e plus/3e plus utilisée" (retour direct : "quand je
   // suis dans la playlist d'une session que je fais le plus... faudrait
@@ -551,7 +561,7 @@ export default function PlaylistDetailView({
           <div>
             <h3 className={"font-bold text-xl flex items-center space-x-2 " + textHighlight}>
               <Activity className={textColorClass}/>
-              <span>{currentActualData ? (selectedMetric === 'heartRate' ? "Fréquence cardiaque de la séance" : "Analyse Cadence (PPM) vs BPM cible") : "Courbe d'intensité (BPM)"}</span>
+              <span>{currentActualData ? (selectedMetric === 'heartRate' ? "Fréquence cardiaque de la séance" : `Analyse Cadence (${playlistCadenceUnit}) vs BPM cible`) : "Courbe d'intensité (BPM)"}</span>
             </h3>
             {/* Les stats de "match %" ne s'affichent qu'en mode Cadence : la FC
                 n'a pas de cible équivalente dans TempoFit (voir analysisStats). */}
@@ -582,7 +592,7 @@ export default function PlaylistDetailView({
                 présentes pour cette séance précise. */}
             {availableMetrics.cadence && availableMetrics.heartRate && (
               <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-                <button onClick={() => setSelectedMetric('cadence')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (selectedMetric === 'cadence' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted)}>Cadence (PPM)</button>
+                <button onClick={() => setSelectedMetric('cadence')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (selectedMetric === 'cadence' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted)}>Cadence ({playlistCadenceUnit})</button>
                 <button onClick={() => setSelectedMetric('heartRate')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (selectedMetric === 'heartRate' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted)}>Fréquence cardiaque</button>
               </div>
             )}
@@ -828,7 +838,7 @@ export default function PlaylistDetailView({
               <YAxis domain={chartYDomain} stroke={colorMode === 'dark' ? '#9ca3af' : '#6b7280'} tick={{fontSize: 12}} width={40} />
 
               <RechartsTooltip
-                content={(props) => <CustomChartTooltip {...props} isNaughtyMode={isNaughtyMode} currentUnit={currentPlaylist.distanceUnit} metric={selectedMetric} />}
+                content={(props) => <CustomChartTooltip {...props} isNaughtyMode={isNaughtyMode} currentUnit={currentPlaylist.distanceUnit} metric={selectedMetric} cadenceUnit={playlistCadenceUnit} />}
                 isAnimationActive={false}
               />
               <Legend wrapperStyle={{fontSize: '12px', paddingTop: '15px'}}/>
@@ -846,7 +856,7 @@ export default function PlaylistDetailView({
               {currentActualData && (
                 <Line
                   dataKey="realValue"
-                  name={selectedMetric === 'heartRate' ? "Fréquence cardiaque (pulsations/min)" : "Cadence réelle (PPM)"}
+                  name={selectedMetric === 'heartRate' ? "Fréquence cardiaque (pulsations/min)" : `Cadence réelle (${playlistCadenceUnit})`}
                   type="monotone"
                   stroke={selectedMetric === 'heartRate' ? '#ec4899' : '#3b82f6'}
                   strokeWidth={2}
@@ -888,7 +898,7 @@ export default function PlaylistDetailView({
                   <tr className={`text-left border-b ${cardBorder} ${textMuted} sticky top-0 ${cardBg}`}>
                     <th className="pb-2 pr-3 font-semibold">#</th>
                     <th className="pb-2 pr-3 font-semibold">Temps</th>
-                    <th className="pb-2 pr-3 font-semibold">Cadence (PPM)</th>
+                    <th className="pb-2 pr-3 font-semibold">Cadence ({playlistCadenceUnit})</th>
                     <th className="pb-2 font-semibold">Fréquence cardiaque</th>
                   </tr>
                 </thead>
