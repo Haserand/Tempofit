@@ -28,10 +28,10 @@
  * - `textMain` : légèrement plus doux que `textHighlight` (dark:gray-100 vs
  *   dark:white) — un vrai 2e ton de texte, pas un doublon à fusionner sans
  *   trancher lequel des deux garder.
- * - `inputBg`/`inputBorder` : `inputBg` a la même valeur que `base` (fusion
- *   possible plus tard), mais `inputBorder` (gray-300/700) diffère de
- *   `divider` (gray-200/800) — un 2e ton de bordure distinct aujourd'hui,
- *   pas fusionné pour ne rien changer visuellement sans validation.
+ * - `inputBorder` (gray-300/700) diffère de `divider` (gray-200/800) — un 2e
+ *   ton de bordure distinct aujourd'hui, pas fusionné pour ne rien changer
+ *   visuellement sans validation. (`inputBg` a été fusionné dans `base` cette
+ *   session : valeur hex identique, zéro changement visuel.)
  *
  * Usage :
  *   const theme = useTheme(isNaughtyMode);
@@ -49,7 +49,7 @@ export function useTheme(isNaughtyMode) {
 
   const cardBg = "bg-surface";
   const cardBorder = "border-divider";
-  const inputBg = "bg-gray-50 dark:bg-gray-950";
+  const inputBg = "bg-base"; // valeur identique à `base` (gray-50/gray-950) — fusion actée cette session
   const inputBorder = "border-gray-300 dark:border-gray-700";
 
   // Contraste renforcé en clair + Intime (fond plus pâle dans ce mode) déjà
