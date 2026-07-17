@@ -43,6 +43,7 @@ export default function GeneratorView({
   executeGeneration, isGenerating, getActiveWorkoutName, setIsSavingRoutineModalOpen,
   athleticProfile, setBaseCadenceForActivity, setZoneForActivity, resetActivityProfile,
   addCustomActivity, removeCustomActivity, setBaseCadenceForCustom, setZoneForCustom, getProfileForWorkout,
+  getDefaultBaseCadence, buildDefaultPreviewProfile,
   showAthleticProfile, setShowAthleticProfile,
 }) {
   const {
@@ -82,11 +83,26 @@ export default function GeneratorView({
     ? (athleticProfile.custom.find(c => c.id === selectedProfileActivity) || null)
     : (athleticProfile.activities[selectedProfileActivity] || null);
 
+  // Profil "aperçu" par défaut (retour direct : "il devrait toujours y avoir
+  // un nombre par défaut... pour inciter l'utilisateur à manipuler... des
+  // valeurs crédibles par discipline") — calculé UNIQUEMENT pour affichage
+  // tant que l'activité n'a jamais été réellement configurée
+  // (`activeProfile?.isConfigured`), jamais pour décider quoi que ce soit
+  // ailleurs (badges "Profil configuré", pré-remplissage Crescendo...), qui
+  // continuent de se fier strictement à `isConfigured`. `getDefaultBaseCadence`
+  // n'a pas de valeur spécifique pour une activité personnalisée (aucun moyen
+  // de deviner un chiffre par discipline pour un sport inconnu à l'avance) —
+  // lui passer une clé bidon retombe proprement sur le repli générique
+  // ("Autre") déjà utilisé ailleurs dans l'app.
+  const defaultPreviewProfile = buildDefaultPreviewProfile(isCustomProfileTab ? '__custom__' : selectedProfileActivity);
+
   // Brouillon de saisie de l'Assistant Rapide — RE-DÉRIVÉ à chaque changement
   // d'onglet (voir l'effet juste en dessous) puisque chaque activité a
   // maintenant sa propre cadence de base, contrairement à l'ancien profil
-  // unique où un seul brouillon suffisait.
-  const [baseCadenceDraft, setBaseCadenceDraft] = useState(activeProfile?.baseCadence ?? '');
+  // unique où un seul brouillon suffisait. Pré-rempli avec une valeur
+  // crédible par défaut (`defaultPreviewProfile.baseCadence`) plutôt que vide
+  // tant que rien n'a encore été configuré.
+  const [baseCadenceDraft, setBaseCadenceDraft] = useState(activeProfile?.baseCadence ?? defaultPreviewProfile.baseCadence);
   // BUG CORRIGÉ (retour direct : "le bouton calculer mes zones ne marche
   // pas") — `computeAndApplyZones` faisait bien un `return` silencieux si le
   // champ était vide ou invalide (`if (!baseCadenceDraft) return;`, et
@@ -96,10 +112,12 @@ export default function GeneratorView({
   // moindre indice. Un clic sur "Calculer mes zones" sans avoir tapé de
   // chiffre (le placeholder "ex : 160" grisé peut se lire vite comme une
   // vraie valeur déjà saisie) semblait alors juste ne rien faire — ce que
-  // c'était très exactement, mais sans jamais l'expliquer.
+  // c'était très exactement, mais sans jamais l'expliquer. Ce cas reste
+  // possible malgré la pré-saisie par défaut ci-dessus (la personne peut
+  // vider le champ à la main), d'où ce garde-fou conservé tel quel.
   const [cadenceInputError, setCadenceInputError] = useState(false);
   useEffect(() => {
-    setBaseCadenceDraft(activeProfile?.baseCadence ?? '');
+    setBaseCadenceDraft(activeProfile?.baseCadence ?? buildDefaultPreviewProfile(isCustomProfileTab ? '__custom__' : selectedProfileActivity).baseCadence);
     setCadenceInputError(false);
   }, [selectedProfileActivity]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -322,7 +340,7 @@ export default function GeneratorView({
                     <div className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-lg border ${inputBorder} ${cardBg}`}>
                       <input
                         type="number" min="40" max="220"
-                        value={activeProfile?.[z.key] ?? ''}
+                        value={activeProfile?.[z.key] ?? defaultPreviewProfile[z.key]}
                         onChange={(e) => handleSetZone(z.key, e.target.value)}
                         className={`w-14 bg-transparent text-right font-mono font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${textHighlight}`}
                       />
