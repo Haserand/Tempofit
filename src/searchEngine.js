@@ -41,7 +41,7 @@
  * complet — non reproduit ici pour éviter la duplication.
  */
 
-import { DEEZER_GENRE_KEYWORDS, genreRoughlyMatches, isDirectGenreMatch, ARTIST_CATALOG, WEAK_DEEZER_KEYWORD_GENRES } from './musicCatalog';
+import { DEEZER_GENRE_KEYWORDS, genreRoughlyMatches, isDirectGenreMatch, ARTIST_CATALOG, GENRES_NEEDING_DEEP_CATALOG_SEARCH } from './musicCatalog';
 import { deezerFetch, resolveDeezerGenre, resolveBpmForCandidates, searchArtistsForBpm, fetchInBatches } from './musicEngine';
 
 export const SEARCH_PAGE_SIZE = 10;
@@ -242,15 +242,16 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
   const maxBpm = targetBpm + tolerance;
   const genresToQuery = genres && genres.length > 0 ? genres : ['Autre'];
 
-  // Vrai si TOUS les genres demandés n'ont AUCUN mot-clé Deezer fiable (ni
-  // fort, ni faible — voir DEEZER_GENRE_KEYWORDS/WEAK_DEEZER_KEYWORD_GENRES,
-  // musicCatalog.js) — c'est-à-dire les genres qui reposent ENTIÈREMENT sur
-  // le renfort catalogue pour ne pas partir à l'aveugle, comme "Métal".
-  // Remonté ici, au niveau de la fonction (pas seulement dans la recherche
-  // catalogue plus bas) : sert AUSSI à lever le plafond de candidats gardés
-  // avant résolution de genre (voir `uniqueStubs` plus bas) — voir le
-  // commentaire "BUG CORRIGÉ" à cet endroit pour pourquoi c'était nécessaire.
-  const needsDeepCatalogSearch = genresToQuery.every(g => !DEEZER_GENRE_KEYWORDS[g] || WEAK_DEEZER_KEYWORD_GENRES.includes(g));
+  // BUG CORRIGÉ (retour direct, logs de diagnostic à l'appui : recherche
+  // "Métal", seulement 8 artistes testés/6 candidats au lieu de 120/10) —
+  // l'ancien test "ce genre a-t-il un mot-clé Deezer ?" répondait FAUX pour
+  // Métal, qui a pourtant bien un mot-clé ('metal', voir DEEZER_GENRE_
+  // KEYWORDS) — le vrai critère est "ce genre a-t-il besoin d'un renfort
+  // profond par catalogue ?", capturé maintenant par
+  // GENRES_NEEDING_DEEP_CATALOG_SEARCH (musicCatalog.js), qui inclut
+  // explicitement Métal en plus des genres sans mot-clé fiable. Voir le
+  // commentaire complet à sa définition pour le detail de cette confusion.
+  const needsDeepCatalogSearch = genresToQuery.every(g => GENRES_NEEDING_DEEP_CATALOG_SEARCH.includes(g));
 
   // BUG CORRIGÉ (cas réel constaté : "Métal" sélectionné → Eagles, AC/DC,
   // Coldplay en tête, aucun avertissement) — cause racine : `DEEZER_GENRE_
