@@ -147,6 +147,33 @@ const DEEZER_GENRE_KEYWORDS = {
 const WEAK_DEEZER_KEYWORD_GENRES = ['K-pop', 'Musique asiatique', 'Bandes originales'];
 
 /**
+ * BUG CORRIGÉ (retour direct, logs de diagnostic à l'appui — recherche
+ * "Métal" : seulement 8 artistes testés, 6 candidats chacun, au lieu des 120
+ * artistes/10 candidats attendus pour une recherche profonde) — cause
+ * racine : `searchEngine.js`/`musicEngine.js` déclenchaient la recherche
+ * profonde par catalogue en testant "ce genre a-t-il un mot-clé Deezer
+ * fiable ?" (`!DEEZER_GENRE_KEYWORDS[genre]`) — or `DEEZER_GENRE_KEYWORDS`
+ * contient bien `'Métal': 'metal'` (voir plus haut), donc ce test répondait
+ * FAUX pour Métal, malgré tous les commentaires précédents affirmant le
+ * contraire (jamais revérifiés directement dans le code).
+ *
+ * Le vrai problème pour Métal n'a jamais été l'ABSENCE de mot-clé — 'metal'
+ * fonctionne très bien en recherche texte libre — mais le fait que Deezer
+ * classe la quasi-totalité des titres Metal réels dans son GENRE STRUCTURÉ
+ * (genre_id) en "Rock", quasiment jamais en "Metal" (voir les commentaires
+ * de `fetchBpmSearchResults`/`buildSegmentTracks`). Ce problème est DIFFÉRENT
+ * de celui de `WEAK_DEEZER_KEYWORD_GENRES` (mot-clé absent ou peu fiable en
+ * recherche texte) mais a la MÊME conséquence pratique : sans un renfort
+ * profond par catalogue d'artistes, la plupart des résultats obtenus restent
+ * mal étiquetés/hors-genre. D'où cette 2e liste, distincte, qui capture ce
+ * cas précis en plus des genres déjà couverts par `WEAK_DEEZER_KEYWORD_GENRES`
+ * — à utiliser PARTOUT où le code décide s'il faut déclencher une recherche
+ * profonde par catalogue (searchEngine.js ET musicEngine.js, un seul endroit
+ * à mettre à jour si un autre genre s'avère souffrir du même problème).
+ */
+const GENRES_NEEDING_DEEP_CATALOG_SEARCH = [...WEAK_DEEZER_KEYWORD_GENRES, 'Métal'];
+
+/**
  * Avertissement sur la profondeur du CATALOGUE D'ARTISTES pour un genre donné —
  * affiché en infobulle sur les sélecteurs de genre. Porte sur le nombre
  * d'artistes représentatifs listés, pas sur le nombre de titres (qui dépend
@@ -587,6 +614,7 @@ export {
   EXTRA_GENRES,
   DEEZER_GENRE_KEYWORDS,
   WEAK_DEEZER_KEYWORD_GENRES,
+  GENRES_NEEDING_DEEP_CATALOG_SEARCH,
   getGenreLocalDepthWarning,
   GENRE_EQUIVALENCE_GROUPS,
   isDirectGenreMatch,
