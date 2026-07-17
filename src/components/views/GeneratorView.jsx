@@ -179,11 +179,12 @@ export default function GeneratorView({
     const parsed = parseInt(baseCadenceDraft);
     if (!baseCadenceDraft || !Number.isFinite(parsed) || parsed <= 0) {
       setCadenceInputError(true);
-      return;
+      return false;
     }
     setCadenceInputError(false);
     if (isCustomProfileTab) setBaseCadenceForCustom(selectedProfileActivity, baseCadenceDraft);
     else setBaseCadenceForActivity(selectedProfileActivity, baseCadenceDraft);
+    return true;
   };
   const handleSetZone = (zoneKey, value) => {
     if (isCustomProfileTab) setZoneForCustom(selectedProfileActivity, zoneKey, value);
@@ -398,43 +399,61 @@ export default function GeneratorView({
               )}
             </div>
 
-            {activeProfile?.isConfigured && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-                {ATHLETIC_ZONES.map(z => (
-                  <div key={z.key} className={`p-3 rounded-xl border ${inputBorder} ${inputBg} text-center`}>
-                    <div className="flex items-center justify-center gap-1.5 mb-1">
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
-                      <span className={`text-[11px] font-bold uppercase tracking-wide ${textMuted}`}>{z.shortLabel}</span>
-                    </div>
-                    <div className={`text-xl font-black ${textHighlight}`}>{activeProfile[z.key] ?? '—'}</div>
-                    <div className={`text-[10px] ${textMuted}`}>PPM</div>
+            {/* RETOUR DIRECT ("je n'ai toujours pas accès à l'option de
+                génération par défaut alors que je pourrais être en accord
+                avec toutes les valeurs") — ce récapitulatif (et le bandeau
+                "Générer une playlist" juste en dessous) ne s'affichaient
+                QUE si `isConfigured` était déjà vrai, c'est-à-dire après avoir
+                cliqué "Calculer mes zones" ou touché un champ Expert. Sauf que
+                la page affiche maintenant TOUJOURS des valeurs crédibles par
+                défaut (voir defaultPreviewProfile, buildDefaultPreviewProfile
+                dans useAthleticProfile.js) — quelqu'un qui regarde juste ces
+                valeurs par défaut, les trouve très bien et n'a RIEN à changer
+                n'avait donc aucun moyen d'accéder à la génération sans un
+                clic de validation qui, pour lui, ne servait à rien. Affiché
+                maintenant dans TOUS les cas (profil réel ou aperçu par
+                défaut), avec une mention explicite quand ce sont encore des
+                valeurs par défaut — la transparence sur l'origine du chiffre
+                reste importante, seul l'ACCÈS ne doit plus dépendre de
+                `isConfigured`. */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+              {ATHLETIC_ZONES.map(z => (
+                <div key={z.key} className={`p-3 rounded-xl border ${inputBorder} ${inputBg} text-center`}>
+                  <div className="flex items-center justify-center gap-1.5 mb-1">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
+                    <span className={`text-[11px] font-bold uppercase tracking-wide ${textMuted}`}>{z.shortLabel}</span>
                   </div>
-                ))}
-              </div>
-            )}
+                  <div className={`text-xl font-black ${textHighlight}`}>{activeProfile?.[z.key] ?? defaultPreviewProfile[z.key]}</div>
+                  <div className={`text-[10px] ${textMuted}`}>PPM</div>
+                </div>
+              ))}
+            </div>
 
-            {/* Renvoi vers la génération une fois CETTE activité configurée
-                (retour direct : "une fois profil athlétique complété pour une
-                activité faudrait un message qui suggère de générer une
-                playlist") — remonté ici, juste après le calcul des zones et
-                AVANT "Ajuster manuellement" (retour direct suivant : "je ne
-                devrais pas avoir besoin d'ajuster manuellement pour générer,
-                si les zones de base me conviennent je dois pouvoir cliquer
-                directement sur générer"). Fonctionnellement, ce bandeau n'a
-                jamais dépendu de `showExpertZones` — il ne s'affichait déjà
-                que sur `activeProfile?.isConfigured`, sans rapport avec le
-                repli manuel — mais sa position APRÈS le bloc "Ajuster
-                manuellement" donnait l'impression contraire (fallait-il
-                déplier et régler quelque chose avant de pouvoir continuer ?).
-                Purement un problème de mise en page, pas de logique. */}
-            {activeProfile?.isConfigured && (
-              <div className={`mt-4 p-4 rounded-2xl border-2 border-dashed ${borderAccentClass} flex items-center justify-between gap-3 flex-wrap`}>
-                <p className={`text-sm font-semibold ${textHighlight}`}>🎯 Zones prêtes pour {isCustomProfileTab ? activeProfile.name : selectedProfileActivity} — génère une séance en Crescendo ou en Allure Constante pour les utiliser.</p>
-                <button onClick={() => setShowAthleticProfile(false)} className={`shrink-0 px-4 py-2 rounded-xl font-bold text-sm text-white ${bgAccentClass} hover:brightness-110`}>
-                  Générer une playlist →
-                </button>
-              </div>
-            )}
+            {/* Renvoi vers la génération (retour direct : "une fois profil
+                athlétique complété pour une activité faudrait un message qui
+                suggère de générer une playlist") — remonté ici, juste après
+                le calcul des zones et AVANT "Ajuster manuellement" (retour
+                direct suivant : "je ne devrais pas avoir besoin d'ajuster
+                manuellement pour générer, si les zones de base me conviennent
+                je dois pouvoir cliquer directement sur générer"). Affiché
+                maintenant SANS condition (voir le commentaire ci-dessus) —
+                le clic accepte implicitement les valeurs par défaut affichées
+                si rien n'a encore été réellement configuré (`computeAndApplyZones`
+                avec la cadence déjà pré-remplie dans l'Assistant Rapide, voir
+                `baseCadenceDraft`), avant de rejoindre le générateur. */}
+            <div className={`mt-4 p-4 rounded-2xl border-2 border-dashed ${borderAccentClass} flex items-center justify-between gap-3 flex-wrap`}>
+              <p className={`text-sm font-semibold ${textHighlight}`}>
+                {activeProfile?.isConfigured
+                  ? `🎯 Zones prêtes pour ${isCustomProfileTab ? activeProfile.name : selectedProfileActivity} — génère une séance en Crescendo ou en Allure Constante pour les utiliser.`
+                  : `🎯 Valeurs par défaut ci-dessus pour ${isCustomProfileTab ? (activeProfile?.name || 'cette activité') : selectedProfileActivity} — si elles te conviennent, génère directement (ajustables à tout moment ensuite).`}
+              </p>
+              <button
+                onClick={() => { if (activeProfile?.isConfigured || computeAndApplyZones()) setShowAthleticProfile(false); }}
+                className={`shrink-0 px-4 py-2 rounded-xl font-bold text-sm text-white ${bgAccentClass} hover:brightness-110`}
+              >
+                Générer une playlist →
+              </button>
+            </div>
 
             <button
               onClick={() => setShowExpertZones(!showExpertZones)}
