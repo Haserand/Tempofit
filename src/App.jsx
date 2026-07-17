@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Activity, Clock, Music, Play, List, Plus, Check, Settings, Pause, Search, X, Heart, ListPlus, Loader2, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Edit3, Copy, Trophy, Upload, ChevronUp, ChevronDown, Target, MessageCircle, ExternalLink, Sun, Moon, Gauge } from 'lucide-react';
 import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, WEAK_DEEZER_KEYWORD_GENRES, getGenreLocalDepthWarning, normalizeGenreForDisplay, genreDisplayLabel, getGenresForDisplay } from './musicCatalog';
-import { NAUGHTY_ROUTINE_NAMES, AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from './appConfig';
+import { NAUGHTY_ROUTINE_NAMES, AVAILABLE_ICONS, AUTO_GEN_OPTIONS, getZoneForValue } from './appConfig';
 
 // =====================================================================================
 // CONSTANTES GLOBALES & CONFIGURATION
@@ -2631,7 +2631,7 @@ export default function App() {
             {view === 'playlist' && currentPlaylist && (
               <PlaylistDetailView
                 theme={themeTokens} colorMode={theme} isNaughtyMode={isNaughtyMode}
-                currentPlaylist={currentPlaylist} savedPlaylists={savedPlaylists}
+                currentPlaylist={currentPlaylist} savedPlaylists={savedPlaylists} getProfileForWorkout={getProfileForWorkout}
                 isEditingPlaylistName={isEditingPlaylistName} setIsEditingPlaylistName={setIsEditingPlaylistName}
                 editedPlaylistName={editedPlaylistName} setEditedPlaylistName={setEditedPlaylistName}
                 handleRenamePlaylist={handleRenamePlaylist}
@@ -3038,21 +3038,34 @@ export default function App() {
                 </div>
 
                 {editingRoutine.isIntervalMode && (
-                  editingRoutine.isCrescendoMode ? (
+                  editingRoutine.isCrescendoMode ? (() => {
+                    // Même "règle d'or" ergonomie que GeneratorView.jsx (voir
+                    // crescendoWarmupColor et al. là-bas) : couleur = vraie zone
+                    // du BPM de ce segment, pas 3 couleurs fixes par rôle.
+                    // Repli sur les anciennes couleurs (sky/accent/emerald) si
+                    // aucun profil n'est configuré pour cette activité.
+                    const editAccentFallback = isNaughtyMode ? '#f43f5e' : '#ef4444';
+                    const editWarmupZone = getZoneForValue(editingRoutine.crescendoWarmupBpm ?? (isNaughtyMode ? 40 : 80), editingRoutine.workoutType, getProfileForWorkout, editingRoutine.customActivity);
+                    const editCoreZone = getZoneForValue(editingRoutine.bpm, editingRoutine.workoutType, getProfileForWorkout, editingRoutine.customActivity);
+                    const editCooldownZone = getZoneForValue(editingRoutine.crescendoCooldownBpm ?? (isNaughtyMode ? 40 : 80), editingRoutine.workoutType, getProfileForWorkout, editingRoutine.customActivity);
+                    const editWarmupColor = editWarmupZone?.color || '#0ea5e9';
+                    const editCoreColor = editCoreZone?.color || editAccentFallback;
+                    const editCooldownColor = editCooldownZone?.color || '#10b981';
+                    return (
                     <div className="space-y-5">
                       <div className="space-y-3">
                         <label className={`text-sm font-bold ${textMuted}`}>Répartition de l'effort</label>
                         <div className="flex justify-between text-xs font-bold">
-                          <span className="text-sky-500 dark:text-sky-400">Échauffement {editingRoutine.crescendoWarmupPct ?? 15}%</span>
+                          <span style={{ color: editWarmupColor }}>Échauffement {editingRoutine.crescendoWarmupPct ?? 15}%</span>
                           <span className={textColorClass}>Cœur {100 - (editingRoutine.crescendoWarmupPct ?? 15) - (editingRoutine.crescendoCooldownPct ?? 15)}%</span>
-                          <span className="text-emerald-500 dark:text-emerald-400">Retour au calme {editingRoutine.crescendoCooldownPct ?? 15}%</span>
+                          <span style={{ color: editCooldownColor }}>Retour au calme {editingRoutine.crescendoCooldownPct ?? 15}%</span>
                         </div>
                         <DualRangeSlider
                           leftValue={editingRoutine.crescendoWarmupPct ?? 15} rightValue={editingRoutine.crescendoCooldownPct ?? 15} minMiddle={CRESCENDO_MIN_MAIN_PCT}
                           onChangeLeft={(val) => setEditingRoutine({ ...editingRoutine, crescendoWarmupPct: val })}
                           onChangeRight={(val) => setEditingRoutine({ ...editingRoutine, crescendoCooldownPct: val })}
-                          leftColorClass="bg-sky-400 dark:bg-sky-500" middleColorClass={bgAccentClass} rightColorClass="bg-emerald-400 dark:bg-emerald-500"
-                          leftHandleBorderClass="border-sky-500" rightHandleBorderClass="border-emerald-500"
+                          leftColor={editWarmupColor} middleColor={editCoreColor} rightColor={editCooldownColor}
+                          leftHandleBorderColor={editWarmupColor} rightHandleBorderColor={editCooldownColor}
                           leftAriaLabel="Part de l'échauffement" rightAriaLabel="Part du retour au calme"
                         />
                       </div>
@@ -3066,7 +3079,7 @@ export default function App() {
                                 phase est à 0%. */}
                             <div className={(editingRoutine.crescendoWarmupPct ?? 15) === 0 ? 'opacity-40 grayscale pointer-events-none' : ''}>
                               <div className="flex justify-between items-center mb-1">
-                                <span className="text-xs font-bold text-sky-500 dark:text-sky-400">BPM Échauffement{(editingRoutine.crescendoWarmupPct ?? 15) === 0 && ' (0% — sans effet)'}</span>
+                                <span className="text-xs font-bold" style={{ color: editWarmupColor }}>BPM Échauffement{(editingRoutine.crescendoWarmupPct ?? 15) === 0 && ' (0% — sans effet)'}</span>
                                 <span className={`text-sm font-black ${textHighlight}`}>{editingRoutine.crescendoWarmupBpm}</span>
                               </div>
                               <input
@@ -3081,12 +3094,13 @@ export default function App() {
                                   }));
                                 }}
                                 disabled={(editingRoutine.crescendoWarmupPct ?? 15) === 0}
-                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none accent-sky-500 disabled:cursor-not-allowed"
+                                style={{ accentColor: editWarmupColor }}
+                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none disabled:cursor-not-allowed"
                               />
                             </div>
                             <div className={(editingRoutine.crescendoCooldownPct ?? 15) === 0 ? 'opacity-40 grayscale pointer-events-none' : ''}>
                               <div className="flex justify-between items-center mb-1">
-                                <span className="text-xs font-bold text-emerald-500 dark:text-emerald-400">BPM Retour au calme{(editingRoutine.crescendoCooldownPct ?? 15) === 0 && ' (0% — sans effet)'}</span>
+                                <span className="text-xs font-bold" style={{ color: editCooldownColor }}>BPM Retour au calme{(editingRoutine.crescendoCooldownPct ?? 15) === 0 && ' (0% — sans effet)'}</span>
                                 <span className={`text-sm font-black ${textHighlight}`}>{editingRoutine.crescendoCooldownBpm}</span>
                               </div>
                               <input
@@ -3094,7 +3108,8 @@ export default function App() {
                                 value={editingRoutine.crescendoCooldownBpm ?? (isNaughtyMode ? 40 : 80)}
                                 onChange={(e) => setEditingRoutine({ ...editingRoutine, crescendoCooldownBpm: parseInt(e.target.value) || (isNaughtyMode ? 40 : 80) })}
                                 disabled={(editingRoutine.crescendoCooldownPct ?? 15) === 0}
-                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none accent-emerald-500 disabled:cursor-not-allowed"
+                                style={{ accentColor: editCooldownColor }}
+                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none disabled:cursor-not-allowed"
                               />
                             </div>
                         </div>
@@ -3102,7 +3117,8 @@ export default function App() {
 
                       <p className={`text-[11px] ${textMuted}`}>Les 3 portions se recalculent automatiquement selon ces réglages.</p>
                     </div>
-                  ) : (
+                    );
+                  })() : (
                     <div className={`text-xs p-3 rounded-xl ${inputBg} border ${inputBorder} ${textMuted}`}>
                       Cette routine est en mode Fractionné : les portions détaillées ne sont pas éditables depuis cette fenêtre pour l'instant. Les réglages ci-dessus (BPM, genres, marge d'erreur) s'appliqueront quand même à l'ensemble des portions.
                     </div>
