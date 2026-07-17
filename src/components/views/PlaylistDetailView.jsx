@@ -90,7 +90,7 @@ const RealDataDot = (props) => {
  */
 export default function PlaylistDetailView({
   theme, colorMode, isNaughtyMode,
-  currentPlaylist, savedPlaylists,
+  currentPlaylist, savedPlaylists, getProfileForWorkout,
   isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
   handleSavePlaylist, handleUnsavePlaylist, handleShare,
   shareImageFile, showToast,
@@ -1257,7 +1257,7 @@ export default function PlaylistDetailView({
           none` par sécurité (jamais interactif, jamais censé être vu). */}
       <div style={{ position: 'fixed', left: '-9999px', top: 0, pointerEvents: 'none' }} aria-hidden="true">
         <div ref={summaryCardRef}>
-          <SessionSummaryCard playlist={currentPlaylist} topTrackCovers={summaryCovers} isNaughtyMode={isNaughtyMode} />
+          <SessionSummaryCard playlist={currentPlaylist} topTrackCovers={summaryCovers} isNaughtyMode={isNaughtyMode} getProfileForWorkout={getProfileForWorkout} />
         </div>
       </div>
     </div>
