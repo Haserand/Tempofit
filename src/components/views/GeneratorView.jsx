@@ -425,7 +425,7 @@ export default function GeneratorView({
                       Les noms de zone (Récupération, Endurance, Seuil, Vitesse) viennent du vocabulaire classique des coachs de course à pied — ils décrivent un niveau d'effort, pas ta fréquence cardiaque : "Seuil" ne parle jamais de battements par minute ici.
                     </p>
                     <p className={textMuted}>
-                      Le lien avec la musique : ce chiffre en {activityCadenceUnit} devient ensuite directement ta cible BPM au moment de générer une playlist (c'est le principe de l'app — caler le tempo des morceaux sur ta cadence). Toujours ajustable au {activityCadenceUnit} près via le bouton "Ajuster manuellement" ci-dessous.
+                      Le lien avec la musique : ce chiffre en {activityCadenceUnit} sert seulement de POINT DE DÉPART suggéré pour le curseur BPM au moment de générer une playlist — rien ne t'oblige à le garder. Ta fréquence cardiaque, ta cadence et le tempo de musique que tu préfères sont 3 nombres indépendants ; dès que tu touches le curseur BPM du générateur, ton choix est gardé tel quel, jamais recalculé depuis ce profil. Toujours ajustable au {activityCadenceUnit} près via le bouton "Ajuster manuellement" ci-dessous.
                     </p>
                   </div>
                 )}
