@@ -2653,6 +2653,7 @@ export default function App() {
                 bpmDistributionData={bpmDistributionData} genreDistributionData={genreDistributionData}
                 setPlaylistPlannedDate={setPlaylistPlannedDate}
                 markPlaylistAsCompleted={markPlaylistAsCompleted} renderCompletionsList={renderCompletionsList}
+                getRankStyle={getRankStyle}
               />
             )}
           </main>
