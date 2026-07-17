@@ -346,7 +346,7 @@ export default function App() {
     addFavoriteArtistValidated, toggleTrackFavorite, toggleArtistFavorite,
   } = useFavorites(showToast);
 
-  // Profil Athlétique (zones de cadence/BPM) — voir useAthleticProfile.js.
+  // Profil Athlétique (zones de cadence, en PPM) — voir useAthleticProfile.js.
   // Pas encore connecté au générateur ni aux stats à ce stade (étape 1/2 du
   // plan : modèle de données + interface Réglages d'abord) ; `athleticProfile`
   // est déjà exposé aux autres vues dès maintenant pour que le branchement
