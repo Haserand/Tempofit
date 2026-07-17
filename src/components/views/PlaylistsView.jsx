@@ -130,7 +130,7 @@ export default function PlaylistsView({
       <button
         onClick={() => setPage(Math.max(0, page - 1))}
         disabled={page === 0}
-        className={`p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800`}
+        className={`p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed ${textMuted} hover:${textHighlight} hover:bg-surface-hover`}
       >
         <ChevronLeft size={18} />
       </button>
@@ -138,7 +138,7 @@ export default function PlaylistsView({
       <button
         onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
         disabled={page >= totalPages - 1}
-        className={`p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800`}
+        className={`p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed ${textMuted} hover:${textHighlight} hover:bg-surface-hover`}
       >
         <ChevronRight size={18} />
       </button>
