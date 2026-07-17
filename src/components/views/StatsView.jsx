@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Activity, Flame, Upload, ChevronUp, ChevronDown, ChevronRight, Gauge, Share2, Loader2 } from 'lucide-react';
-import { ATHLETIC_ZONES } from '../../appConfig';
+import { ATHLETIC_ZONES, getZoneForValue } from '../../appConfig';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { NAUGHTY_WORKOUT_LABELS } from '../../appConfig';
 import { genreDisplayLabel } from '../../musicCatalog';
@@ -145,23 +145,12 @@ export default function StatsView({
     ? Object.values(athleticProfile.activities || {}).some(p => p.isConfigured) || (athleticProfile.custom || []).some(c => c.isConfigured)
     : false;
   // Classe un BPM réel dans la zone dont la valeur est la plus proche (voisin
-  // le plus proche) plutôt que des bornes fixes à calculer à la main — évite
-  // les cas limites si les zones ne sont pas régulièrement espacées (ex.
-  // ajustées à la main en mode Expert plutôt que via l'Assistant Rapide).
-  // `activityName` = le profil de QUELLE activité utiliser pour ce titre
-  // précis (voir l'appel dans la boucle des titres plus bas).
-  const classifyIntoZone = (bpmVal, activityName) => {
-    const profile = getProfileForWorkout ? getProfileForWorkout(activityName) : null;
-    if (!profile || !profile.isConfigured) return null;
-    let bestKey = null, bestDist = Infinity;
-    ATHLETIC_ZONES.forEach(z => {
-      const zoneVal = profile[z.key];
-      if (zoneVal == null) return;
-      const dist = Math.abs(bpmVal - zoneVal);
-      if (dist < bestDist) { bestDist = dist; bestKey = z.key; }
-    });
-    return bestKey;
-  };
+  // le plus proche) — délègue maintenant à `getZoneForValue` (appConfig.js),
+  // seule source de vérité pour cette classification (règle d'or ergonomie :
+  // même logique de couleur/zone dans TOUTES les vues, plus une copie privée
+  // ici). `activityName` = le profil de QUELLE activité utiliser pour ce
+  // titre précis (voir l'appel dans la boucle des titres plus bas).
+  const classifyIntoZone = (bpmVal, activityName) => getZoneForValue(bpmVal, activityName, getProfileForWorkout)?.key || null;
 
   playlistsForStats.forEach(pl => {
     if (!pl.completions || pl.completions.length === 0) return;
