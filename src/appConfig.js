@@ -82,9 +82,10 @@ const NAUGHTY_ROUTINE_NAMES = ["🍑 Cardio Horizontal", "🔥 Entraînement au 
 // ci ne contient que les métadonnées d'AFFICHAGE, partagées par SettingsView,
 // GeneratorView et StatsView : un seul endroit à modifier si l'ordre, les
 // libellés ou les couleurs doivent changer).
-// ⚠️ "Cadence"/"Allure musicale", jamais "Cardio" (voir useAthleticProfile.js) :
-// une zone de fréquence CARDIAQUE réelle existe déjà ailleurs dans l'app
-// (import Garmin/Strava, voir useSessionAnalysis.js) — les deux ne doivent
+// ⚠️ "Cadence" (en PPM, pas par minute), jamais "Cardio" NI "BPM" (voir
+// useAthleticProfile.js) : une zone de fréquence CARDIAQUE réelle existe déjà
+// ailleurs dans l'app (import Garmin/Strava, voir useSessionAnalysis.js), et
+// "BPM" (battements par minute) est une unité MUSICALE — les 3 ne doivent
 // jamais se confondre dans le vocabulaire affiché à l'écran.
 const ATHLETIC_ZONES = [
   { key: 'zone1', label: 'Récupération / Échauffement', shortLabel: 'Récupération', color: '#3b82f6' },
