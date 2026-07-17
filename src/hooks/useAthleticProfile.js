@@ -72,12 +72,29 @@ const ATHLETIC_BPM_FLOOR = 40;
 // la cadence musicale plaquée sur un effort à vélo varie en pratique moins
 // largement entre "à l'aise" et "à fond" qu'en course à pied (où l'écart
 // d'allure ressenti entre footing et fractionné est plus marqué) — 5 BPM/palier
-// pour Cyclisme contre 10 pour Course à pied. Honnêteté : pour une activité
-// personnalisée (patin, elliptique...), impossible de deviner un espacement
-// spécifique sans plus d'info sur le sport — la valeur par défaut (10) s'y
-// applique, ajustable de toute façon au BPM près en mode Expert.
+// pour Cyclisme contre 15 pour Course à pied.
+//
+// RETOUR DIRECT ("VMA à seulement +20 par rapport à ma cadence de footing,
+// ça me semble absurde") — vérifié plutôt que supposé : les données réelles de
+// cadence de course (nombreuses sources, ex. McMillan Running, RunBikeCalc,
+// TrainingPeaks) montrent un écart de cadence entre un footing facile
+// (~150-170 pas/min) et un effort proche de la VMA/vitesse (~180-200+)
+// généralement dans une fourchette de 20 à 45 pas/min selon les études —
+// PAS la centaine de pas/min qu'un sprint pur (100m) donnerait, une confusion
+// fréquente : la VMA (Vitesse Maximale Aérobie) N'EST PAS la vitesse de sprint
+// — c'est l'allure maximale tenable en continu ~6 minutes (VO2max), très
+// différente d'un sprint bref. L'ancien espacement (10, soit 30 BPM d'écart
+// total entre Récupération et Vitesse/VMA) était donc bas mais pas
+// délirant — remonté à 15 (45 BPM d'écart total) pour se situer plus
+// confortablement dans la fourchette documentée, sans pour autant viser une
+// cadence de sprint qui ne correspondrait pas à ce qu'est réellement la VMA.
+//
+// Honnêteté : pour une activité personnalisée (patin, elliptique...),
+// impossible de deviner un espacement spécifique sans plus d'info sur le
+// sport — la valeur par défaut (10) s'y applique, ajustable de toute façon au
+// BPM près en mode Expert.
 const ZONE_SPACING_BY_ACTIVITY = {
-  'Course à pied': 10,
+  'Course à pied': 15,
   'Cyclisme': 5,
 };
 const DEFAULT_ZONE_SPACING = 10;
@@ -119,6 +136,11 @@ const buildDefaultPreviewProfile = (activityKey) => {
   const spacing = ZONE_SPACING_BY_ACTIVITY[activityKey] ?? DEFAULT_ZONE_SPACING;
   return { isConfigured: false, baseCadence: base, ...computeZonesFromBaseCadence(base, spacing) };
 };
+
+// Espacement RÉEL utilisé pour une activité donnée — exposé pour que l'UI
+// (infobulle "méthode de calcul", GeneratorView.jsx) puisse afficher le vrai
+// chiffre plutôt que de deviner/dupliquer la table ZONE_SPACING_BY_ACTIVITY.
+const getZoneSpacingForActivity = (activityKey) => ZONE_SPACING_BY_ACTIVITY[activityKey] ?? DEFAULT_ZONE_SPACING;
 
 export function useAthleticProfile() {
   const [athleticProfile, setAthleticProfile] = usePersistentState('athleticProfile', () => ({
@@ -287,7 +309,7 @@ export function useAthleticProfile() {
 
   return {
     athleticProfile, setAthleticProfile,
-    computeZonesFromBaseCadence, getDefaultBaseCadence, buildDefaultPreviewProfile,
+    computeZonesFromBaseCadence, getDefaultBaseCadence, buildDefaultPreviewProfile, getZoneSpacingForActivity,
     setBaseCadenceForActivity, setZoneForActivity, resetActivityProfile,
     addCustomActivity, removeCustomActivity, setBaseCadenceForCustom, setZoneForCustom,
     getProfileForWorkout,
