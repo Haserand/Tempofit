@@ -258,25 +258,21 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
   const catalogStubsByGenre = await Promise.all(genresToQuery.map(async (genre) => {
     const artists = ARTIST_CATALOG[genre];
     if (!artists || artists.length === 0) return [];
-    // BUG CORRIGÉ (retour direct, capture d'écran à l'appui : recherche
-    // "Métal", seulement 2 titres réellement étiquetés "Métal" chez Deezer
-    // avant une majorité de "Rock") — cet appel n'ajustait jamais
-    // `maxArtistsToTry`/`candidatesPerArtist`, retombant donc sur les
-    // valeurs par défaut de `searchArtistsForBpm` (4 artistes, 6 titres —
-    // voir musicEngine.js), bien plus SHALLOW que ce que le moteur de
-    // génération utilise pour ce même renfort catalogue (8 à 20 artistes
-    // selon les genres, voir buildSegmentTracks/getSingleMatchingTrack).
-    // Deezer classe la quasi-totalité du Metal en "Rock" (jamais "Metal") —
-    // seule une poignée d'artistes du catalogue ont par hasard un titre
-    // vraiment étiqueté "Metal" chez Deezer. Ne tester que 4 artistes au
-    // hasard laissait donc perdre l'essentiel de ces rares correspondances
-    // directes. `needsDeepCatalogSearch` : vrai si TOUS les genres demandés
-    // n'ont AUCUN mot-clé Deezer fiable (ni fort, ni faible — voir
-    // DEEZER_GENRE_KEYWORDS/WEAK_DEEZER_KEYWORD_GENRES) — c'est-à-dire
-    // exactement les genres qui reposent ENTIÈREMENT sur ce renfort
-    // catalogue pour ne pas partir totalement à l'aveugle, comme "Métal".
+    // BUG CORRIGÉ (retour direct : "on est d'accord que c'est tous les
+    // artistes qu'il doit tester ?") — un `maxArtistsToTry` fini, même élevé
+    // (20), ne garantit PAS de tester tout le catalogue : c'est un SEUIL
+    // D'ARRÊT ANTICIPÉ (voir searchArtistsForBpm, musicEngine.js), pas un
+    // nombre d'artistes réellement essayés. Si les premiers artistes du lot
+    // mélangé remontent chacun leur quota de titres — même hors-genre, le tri
+    // par genre n'intervient qu'APRÈS coup ici — le seuil pouvait être atteint
+    // bien avant la fin du catalogue. En lui passant la TAILLE RÉELLE du
+    // catalogue de ce genre comme `maxArtistsToTry`, le seuil devient
+    // pratiquement inatteignable avant d'avoir épuisé la liste entière —
+    // exactement le comportement déjà voulu et corrigé une 1ère fois pour
+    // K-pop (voir le commentaire de searchArtistsForBpm), qui n'avait
+    // simplement pas été repris ici, un chemin de code séparé.
     const needsDeepCatalogSearch = genresToQuery.every(g => !DEEZER_GENRE_KEYWORDS[g] || WEAK_DEEZER_KEYWORD_GENRES.includes(g));
-    const stubs = await searchArtistsForBpm(artists, minBpm, maxBpm, [], needsDeepCatalogSearch ? 20 : 8, needsDeepCatalogSearch ? 10 : 6);
+    const stubs = await searchArtistsForBpm(artists, minBpm, maxBpm, [], needsDeepCatalogSearch ? artists.length : 8, needsDeepCatalogSearch ? 10 : 6);
     return stubs.map(s => ({ ...s, matchedGenre: genre, _fromCatalog: true }));
   }));
 
