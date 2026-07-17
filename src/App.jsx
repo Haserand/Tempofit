@@ -692,7 +692,7 @@ export default function App() {
       }
     };
     return (
-    <div key={key} className={"flex items-center gap-2 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border border-transparent hover:" + cardBorder}>
+    <div key={key} className={"flex items-center gap-2 p-2 rounded-xl hover:bg-surface-hover transition-colors border border-transparent hover:" + cardBorder}>
       {/* Bouton lecture/pause de l'extrait audio 30s (Deezer). Désactivé si aucun extrait disponible. */}
       <button
         onClick={() => togglePreview(track)}
@@ -2373,7 +2373,7 @@ export default function App() {
             className={`relative p-3 rounded-full shadow-lg border hover:scale-110 transition-transform flex items-center justify-center ${
               userStats.unlockedTrophies.length > 0
                 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-500 border-yellow-200 dark:border-yellow-700/50'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 border-gray-200 dark:border-gray-700'
+                : 'bg-surface-hover text-gray-400 dark:text-gray-600 border-gray-200 dark:border-gray-700'
             }`}
           >
             <Trophy size={22} className={userStats.unlockedTrophies.length > 0 ? "fill-yellow-500" : ""} />
@@ -2681,7 +2681,7 @@ export default function App() {
                   {isBpmSearchMode ? <Target className={textColorClass}/> : <Search className={textColorClass}/>}
                   <span>{isBpmSearchMode ? "Titres à ce BPM" : "Rechercher un titre"}</span>
                 </h3>
-                <button onClick={closeSearchModal} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><X size={20}/></button>
+                <button onClick={closeSearchModal} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
               </div>
               {/* Disclaimer honnête : l'utilisateur n'a pas besoin de savoir qu'on passe par
                   une API, mais mérite de savoir que les résultats viennent d'un service tiers
@@ -2805,7 +2805,7 @@ export default function App() {
             <div className={"p-8 rounded-3xl w-full max-w-sm shadow-2xl transform transition-all border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-6">
                 <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}><ImageIcon className="text-purple-500"/> <span>Personnaliser l'image</span></h3>
-                <button onClick={() => setIsIconPickerOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><X size={20}/></button>
+                <button onClick={() => setIsIconPickerOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
               </div>
               <div className="grid grid-cols-4 gap-3">
                 {AVAILABLE_ICONS.map(icon => (
@@ -2877,7 +2877,7 @@ export default function App() {
             <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl transform transition-all border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-6">
                 <h3 className={"text-2xl font-bold " + textHighlight}>Activité personnalisée</h3>
-                <button onClick={() => setIsCustomActivityModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><X size={20}/></button>
+                <button onClick={() => setIsCustomActivityModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
               </div>
               <input type="text" value={tempCustomActivity} onChange={e => setTempCustomActivity(e.target.value)} placeholder="Ex: Yoga..." className={"w-full rounded-xl px-4 py-4 text-lg focus:outline-none focus:border-red-500 mb-8 border " + inputBg + " " + inputBorder + " " + textHighlight} autoFocus onKeyDown={(e) => { if(e.key === 'Enter') { setCustomActivity(tempCustomActivity); setIsCustomActivityModalOpen(false); if (!isNaughtyMode) applyProfileBpmIfUntouched(getProfileForWorkout('Autre', tempCustomActivity)); } }} />
               <div className="flex justify-end space-x-3">
@@ -2909,7 +2909,7 @@ export default function App() {
                 <h3 className={"text-2xl font-bold flex items-center space-x-2 " + textHighlight}>
                   <BookmarkPlus className={isNaughtyMode ? "text-rose-500" : "text-yellow-500"}/> <span>Nouvelle Routine</span>
                 </h3>
-                <button onClick={() => setIsSavingRoutineModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><X size={20}/></button>
+                <button onClick={() => setIsSavingRoutineModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
               </div>
               <div className="space-y-4 mb-6">
                 <input type="text" value={newRoutineName} onChange={e => setNewRoutineName(e.target.value)} placeholder="Nom (Ex: 5km Rapide)" className={"w-full rounded-xl px-4 py-3 font-bold outline-none border " + inputBg + " " + inputBorder + " " + textHighlight} onKeyDown={(e) => e.key === 'Enter' && handleSaveRoutine()} autoFocus />
@@ -2925,7 +2925,7 @@ export default function App() {
                     <span className="text-[10px] bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded-full uppercase tracking-wider">Premium</span>
                   </label>
                   <select value={newRoutineFreq} onChange={e => setNewRoutineFreq(e.target.value)} className={"w-full rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-blue-500 border " + inputBg + " " + inputBorder + " " + textHighlight}>
-                    {AUTO_GEN_OPTIONS.map(opt => <option key={opt} value={opt} className="bg-white dark:bg-gray-900">{opt}</option>)}
+                    {AUTO_GEN_OPTIONS.map(opt => <option key={opt} value={opt} className="bg-surface">{opt}</option>)}
                   </select>
                   <p className="text-xs text-gray-400 mt-2">Permet à TempoFit de préparer automatiquement ces playlists en arrière-plan.</p>
                 </div>
@@ -2948,7 +2948,7 @@ export default function App() {
                   <Edit3 className={textColorClass}/>
                   <span>Éditer la routine</span>
                 </h3>
-                <button onClick={() => { setIsEditRoutineModalOpen(false); setEditingRoutine(null); }} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><X size={20}/></button>
+                <button onClick={() => { setIsEditRoutineModalOpen(false); setEditingRoutine(null); }} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
               </div>
 
               <div className="flex-1 overflow-y-auto no-scrollbar space-y-5 pr-1">
@@ -3007,7 +3007,7 @@ export default function App() {
                           const current = editingRoutine.selectedGenres;
                           if (isSelected) { if (current.length > 1) setEditingRoutine({...editingRoutine, selectedGenres: current.filter(g => g !== genre)}); }
                           else setEditingRoutine({...editingRoutine, selectedGenres: [...current, genre]});
-                        }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                        }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
                           {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                         </button>
                       );
@@ -3028,7 +3028,7 @@ export default function App() {
                             const current = editingRoutine.selectedGenres;
                             if (isSelected) { if (current.length > 1) setEditingRoutine({...editingRoutine, selectedGenres: current.filter(g => g !== genre)}); }
                             else setEditingRoutine({...editingRoutine, selectedGenres: [...current, genre]});
-                          }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-gray-100 dark:bg-gray-800 ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                          }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
                             {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                           </button>
                         );
@@ -3150,7 +3150,7 @@ export default function App() {
                   <Share2 className={textColorClass}/>
                   <span>Partager</span>
                 </h3>
-                <button onClick={() => setIsShareModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"><X size={20}/></button>
+                <button onClick={() => setIsShareModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
               </div>
               <div className={`p-4 rounded-xl mb-6 text-sm ${inputBg} border ${inputBorder} ${textHighlight}`}>
                 {shareData.text}
@@ -3163,7 +3163,7 @@ export default function App() {
                   de plus, pas un gros bouton séparé qui dominait tout le reste. */}
               <div className={`grid gap-2 mb-4 ${typeof navigator !== 'undefined' && navigator.share ? 'grid-cols-4' : 'grid-cols-3'}`}>
                 {typeof navigator !== 'undefined' && navigator.share && (
-                  <button onClick={shareNative} title="Autres options" className={`flex flex-col items-center gap-1.5 py-3.5 rounded-xl ${cardBg} border ${cardBorder} hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors`}>
+                  <button onClick={shareNative} title="Autres options" className={`flex flex-col items-center gap-1.5 py-3.5 rounded-xl ${cardBg} border ${cardBorder} hover:bg-surface-hover transition-colors`}>
                     <Share2 size={18} className={textColorClass}/>
                     <span className={`text-[11px] font-bold ${textMuted}`}>Plus</span>
                   </button>
@@ -3172,7 +3172,7 @@ export default function App() {
                   <MessageCircle size={18} className="text-[#25D366]"/>
                   <span className="text-[11px] font-bold text-[#25D366]">WhatsApp</span>
                 </button>
-                <button onClick={shareToTwitter} title="X (Twitter)" className={`flex flex-col items-center gap-1.5 py-3.5 rounded-xl ${cardBg} border ${cardBorder} hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors`}>
+                <button onClick={shareToTwitter} title="X (Twitter)" className={`flex flex-col items-center gap-1.5 py-3.5 rounded-xl ${cardBg} border ${cardBorder} hover:bg-surface-hover transition-colors`}>
                   <span className={`text-base font-black leading-none ${textHighlight}`}>𝕏</span>
                   <span className={`text-[11px] font-bold ${textMuted}`}>X</span>
                 </button>
