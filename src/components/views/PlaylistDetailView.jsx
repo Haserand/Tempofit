@@ -26,7 +26,7 @@ const CustomChartTooltip = ({ active, payload, isNaughtyMode, currentUnit, metri
     const data = payload[0].payload;
     return (
       <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl min-w-[200px]">
-        {data.trackName && <p className="font-black text-sm text-gray-900 dark:text-white mb-1 truncate">{data.trackName}</p>}
+        {data.trackName && <p className="font-black text-sm text-main mb-1 truncate">{data.trackName}</p>}
         {/* "Début" = position de ce titre dans la séance ; "Durée" = longueur du
             titre lui-même — deux informations distinctes, clairement étiquetées. */}
         <p className="text-xs text-gray-500 font-medium mb-1 flex items-center space-x-1">
@@ -652,20 +652,20 @@ export default function PlaylistDetailView({
             {/* Sélecteur cadence/FC — n'apparaît que si les DEUX métriques sont
                 présentes pour cette séance précise. */}
             {availableMetrics.cadence && availableMetrics.heartRate && (
-              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-                <button onClick={() => setSelectedMetric('cadence')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (selectedMetric === 'cadence' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted)}>Cadence ({playlistCadenceUnit})</button>
-                <button onClick={() => setSelectedMetric('heartRate')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (selectedMetric === 'heartRate' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted)}>Fréquence cardiaque</button>
+              <div className="flex items-center bg-surface-hover rounded-lg p-1">
+                <button onClick={() => setSelectedMetric('cadence')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (selectedMetric === 'cadence' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted)}>Cadence ({playlistCadenceUnit})</button>
+                <button onClick={() => setSelectedMetric('heartRate')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (selectedMetric === 'heartRate' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted)}>Fréquence cardiaque</button>
               </div>
             )}
             {currentActualData && (
-              <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+              <div className="flex items-center gap-2 bg-surface-hover p-1 rounded-lg">
                 <button onClick={() => setDataOffset(o => o - 10)} className="px-2 py-1 bg-white dark:bg-gray-700 rounded text-xs font-bold text-gray-700 dark:text-gray-200 shadow-sm">-10s</button>
                 <span className={"text-xs font-bold w-24 text-center " + textMuted}>Décalage: {dataOffset > 0 ? '+' : ''}{dataOffset}s</span>
                 <button onClick={() => setDataOffset(o => o + 10)} className="px-2 py-1 bg-white dark:bg-gray-700 rounded text-xs font-bold text-gray-700 dark:text-gray-200 shadow-sm">+10s</button>
               </div>
             )}
-            <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-              <button onClick={() => setChartAxisType('temps')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartAxisType === 'temps' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted)}>Temps (Min)</button>
+            <div className="flex items-center bg-surface-hover rounded-lg p-1">
+              <button onClick={() => setChartAxisType('temps')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartAxisType === 'temps' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted)}>Temps (Min)</button>
               {/* Toujours proposé, même pour une playlist générée en mode Temps (pas
                   seulement `targetMode === 'distance'`, comme c'était le cas avant —
                   régression signalée directement) : une distance est calculable pour
@@ -675,14 +675,14 @@ export default function PlaylistDetailView({
                   pas mesurée — mais l'estimation reste utile et cohérente avec le
                   reste de l'app (même logique déjà utilisée pour le trophée "100
                   Bornes au Compteur", qui cumule aussi cette distance estimée). */}
-              <button onClick={() => setChartAxisType('distance')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartAxisType === 'distance' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted)}>Distance</button>
+              <button onClick={() => setChartAxisType('distance')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartAxisType === 'distance' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted)}>Distance</button>
             </div>
             {/* Sélecteur km/mi : purement cosmétique, ne change jamais l'unité
                 réellement utilisée pour générer la playlist. */}
             {chartAxisType === 'distance' && (
-              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-                <button onClick={() => setChartDistanceUnitOverride('km')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartDistanceUnit === 'km' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted)}>km</button>
-                <button onClick={() => setChartDistanceUnitOverride('mi')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartDistanceUnit === 'mi' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : textMuted)}>mi</button>
+              <div className="flex items-center bg-surface-hover rounded-lg p-1">
+                <button onClick={() => setChartDistanceUnitOverride('km')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartDistanceUnit === 'km' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted)}>km</button>
+                <button onClick={() => setChartDistanceUnitOverride('mi')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartDistanceUnit === 'mi' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted)}>mi</button>
               </div>
             )}
           </div>
@@ -703,7 +703,7 @@ export default function PlaylistDetailView({
                 onClick={() => setSelectedSegmentIdx(Math.max(0, selectedSegmentIdx - 1))}
                 disabled={selectedSegmentIdx === 0}
                 title="Titre précédent"
-                className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent`}
+                className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent`}
               >
                 <ChevronLeft size={18}/>
               </button>
@@ -725,7 +725,7 @@ export default function PlaylistDetailView({
                 onClick={() => setSelectedSegmentIdx(Math.min(trackSegments.length - 1, selectedSegmentIdx + 1))}
                 disabled={selectedSegmentIdx === trackSegments.length - 1}
                 title="Titre suivant"
-                className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent`}
+                className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent`}
               >
                 <ChevronRight size={18}/>
               </button>
@@ -746,7 +746,7 @@ export default function PlaylistDetailView({
                   ce menu ici ouvre aussi le menu de la ligne correspondante dans
                   la liste, cohérent puisque c'est le même titre). */}
               <div className="relative shrink-0">
-                <button onClick={() => setOpenTrackMenuIndex(openTrackMenuIndex === selectedSegmentIdx ? null : selectedSegmentIdx)} className={`p-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-gray-100 dark:hover:bg-gray-800`} title="Plus d'options">
+                <button onClick={() => setOpenTrackMenuIndex(openTrackMenuIndex === selectedSegmentIdx ? null : selectedSegmentIdx)} className={`p-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-surface-hover`} title="Plus d'options">
                   <MoreVertical size={16}/>
                 </button>
                 {openTrackMenuIndex === selectedSegmentIdx && (
@@ -758,14 +758,14 @@ export default function PlaylistDetailView({
                           "favoriser l'artiste" reste possible (voir isLocked). */}
                       {!isLocked && (
                         <>
-                          <button onClick={() => { handleDuplicateTrack(selectedSegmentIdx); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                          <button onClick={() => { handleDuplicateTrack(selectedSegmentIdx); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
                             <Plus size={16} className="text-green-500"/> Dupliquer ce titre
                           </button>
                           <div className={`h-px my-1 ${cardBorder} border-t`}></div>
-                          <button onClick={() => { handleReplaceTrackSameArtist(selectedSegmentIdx); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                          <button onClick={() => { handleReplaceTrackSameArtist(selectedSegmentIdx); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
                             <User size={16} className="text-purple-500"/> Remplacer (même artiste)
                           </button>
-                          <button onClick={() => { handleReplaceTrack(selectedSegmentIdx); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                          <button onClick={() => { handleReplaceTrack(selectedSegmentIdx); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
                             <RefreshCw size={16} className="text-blue-500"/> Remplacer (recherche large)
                           </button>
                           <div className={`h-px my-1 ${cardBorder} border-t`}></div>
@@ -775,7 +775,7 @@ export default function PlaylistDetailView({
                         const seg = trackSegments[selectedSegmentIdx];
                         const artistIsFav = favorites.artists.includes(seg.track.artist);
                         return (
-                          <button onClick={() => { toggleArtistFavorite(seg.track.artist); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                          <button onClick={() => { toggleArtistFavorite(seg.track.artist); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
                             <Star size={16} className="text-amber-500" fill={artistIsFav ? 'currentColor' : 'none'}/> {artistIsFav ? `Retirer ${seg.track.artist} des favoris` : `Favoriser l'artiste (${seg.track.artist})`}
                           </button>
                         );
@@ -1079,14 +1079,14 @@ export default function PlaylistDetailView({
                           favoris globaux, jamais cette playlist : reste possible. */}
                       {!isLocked && (
                         <>
-                          <button onClick={() => { handleDuplicateTrack(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                          <button onClick={() => { handleDuplicateTrack(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
                             <Plus size={16} className="text-green-500"/> Dupliquer ce titre
                           </button>
                           <div className={`h-px my-1 ${cardBorder} border-t`}></div>
-                          <button onClick={() => { handleReplaceTrackSameArtist(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                          <button onClick={() => { handleReplaceTrackSameArtist(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
                             <User size={16} className="text-purple-500"/> Remplacer (même artiste)
                           </button>
-                          <button onClick={() => { handleReplaceTrack(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                          <button onClick={() => { handleReplaceTrack(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
                             <RefreshCw size={16} className="text-blue-500"/> Remplacer (recherche large)
                           </button>
                           <div className={`h-px my-1 ${cardBorder} border-t`}></div>
@@ -1095,7 +1095,7 @@ export default function PlaylistDetailView({
                       {(() => {
                         const artistIsFav = favorites.artists.includes(track.artist);
                         return (
-                          <button onClick={() => { toggleArtistFavorite(track.artist); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${textHighlight}`}>
+                          <button onClick={() => { toggleArtistFavorite(track.artist); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
                             <Star size={16} className="text-amber-500" fill={artistIsFav ? 'currentColor' : 'none'}/> {artistIsFav ? `Retirer ${track.artist} des favoris` : `Favoriser l'artiste (${track.artist})`}
                           </button>
                         );
