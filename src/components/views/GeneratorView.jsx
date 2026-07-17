@@ -440,11 +440,17 @@ export default function GeneratorView({
                 le clic accepte implicitement les valeurs par défaut affichées
                 si rien n'a encore été réellement configuré (`computeAndApplyZones`
                 avec la cadence déjà pré-remplie dans l'Assistant Rapide, voir
-                `baseCadenceDraft`), avant de rejoindre le générateur. */}
+                `baseCadenceDraft`), avant de rejoindre le générateur.
+                RETOUR DIRECT SUIVANT (même que pour le bandeau inverse plus
+                bas) : "génère une séance en Crescendo ou en Allure Constante"
+                nommait 2 modes précis, devenu incomplet depuis que le
+                Fractionné en bénéficie aussi (motif de segments par défaut).
+                Reformulé en restant vague ("génère une séance") pour ne plus
+                dépendre du nombre de modes concernés. */}
             <div className={`mt-4 p-4 rounded-2xl border-2 border-dashed ${borderAccentClass} flex items-center justify-between gap-3 flex-wrap`}>
               <p className={`text-sm font-semibold ${textHighlight}`}>
                 {activeProfile?.isConfigured
-                  ? `🎯 Zones prêtes pour ${isCustomProfileTab ? activeProfile.name : selectedProfileActivity} — génère une séance en Crescendo ou en Allure Constante pour les utiliser.`
+                  ? `🎯 Zones prêtes pour ${isCustomProfileTab ? activeProfile.name : selectedProfileActivity} — génère une séance pour les utiliser.`
                   : `🎯 Valeurs par défaut ci-dessus pour ${isCustomProfileTab ? (activeProfile?.name || 'cette activité') : selectedProfileActivity} — si elles te conviennent, génère directement (ajustables à tout moment ensuite).`}
               </p>
               <button
@@ -496,24 +502,28 @@ export default function GeneratorView({
               génération, le badge "calculé depuis ton profil" (étape 3) prend
               le relais.
               RETOUR DIRECT SUIVANT : "le profil athlétique ne s'applique plus
-              uniquement au Crescendo" — ce texte ne mentionnait que ce mode,
-              devenu inexact depuis que le même mécanisme s'applique aussi à
-              Allure Constante (voir setStructureMode, useGeneratorForm.js).
-              Reformulé pour mentionner les 2, sans sur-promettre pour autant
-              sur le Fractionné : lui bénéficie bien d'un motif de segments
-              par défaut basé sur le profil (voir la même fonction), mais
-              PAS du même badge "calculé depuis ton profil" que les 2 autres
-              (aucune zone unique à mettre en avant sur des segments libres)
-              — ne pas le citer ici évite d'annoncer une équivalence qui
-              n'existe pas vraiment à l'écran pour ce mode-là. "Zones d'allure"
-              également corrigé en "zones de cadence" (même nettoyage
-              terminologique que le reste de la page — l'allure, en min/km,
-              est une notion différente de la cadence, en PPM). */}
+              uniquement au Crescendo" — ce texte listait "Crescendo et
+              Allure Constante", devenu à son tour incomplet depuis que le
+              Fractionné en bénéficie aussi (motif de segments par défaut basé
+              sur le profil, voir setStructureMode dans useGeneratorForm.js).
+              RETOUR DIRECT ENCORE SUIVANT : plutôt que de courir après une
+              liste de modes vouée à se périmer à chaque nouvelle extension,
+              reformulé en restant volontairement VAGUE ("des paramètres
+              ajustés à ta cadence") — reste vrai quel que soit le nombre de
+              modes concernés à l'avenir, sans jamais promettre une
+              équivalence exacte entre eux (le Fractionné n'a par exemple pas
+              le même badge "calculé depuis ton profil" que Crescendo/
+              Constante, faute d'une zone unique à mettre en avant sur des
+              segments libres — rester vague évite justement d'avoir à
+              détailler cette nuance ici). "Zones d'allure" également corrigé
+              en "zones de cadence" plus haut (même nettoyage terminologique
+              que le reste de la page — l'allure, en min/km, est une notion
+              différente de la cadence, en PPM). */}
           {!isNaughtyMode && configuredProfilesCount === 0 && (
             <div className={`${cardBg} rounded-2xl border ${cardBorder} p-4 flex items-center justify-between gap-3 flex-wrap`}>
               <div className="flex items-center gap-3 min-w-0">
                 <div className={`shrink-0 p-2 rounded-xl ${bgAccentClass} text-white`}><Gauge size={18}/></div>
-                <p className={`text-sm ${textMuted}`}>Configure ton <span className={`font-semibold ${textHighlight}`}>Profil Athlétique</span> pour que Crescendo et Allure Constante te proposent automatiquement tes zones de cadence.</p>
+                <p className={`text-sm ${textMuted}`}>Configure ton <span className={`font-semibold ${textHighlight}`}>Profil Athlétique</span> pour que le générateur te propose automatiquement des paramètres ajustés à ta cadence.</p>
               </div>
               <button onClick={() => setShowAthleticProfile(true)} className={`shrink-0 text-sm font-bold underline ${textColorClass}`}>
                 Configurer →
