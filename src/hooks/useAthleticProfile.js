@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { usePersistentState } from './usePersistentState';
+import { WORKOUT_DEFAULT_BPM } from '../appConfig';
 
 /**
  * useAthleticProfile — regroupe le "Profil Athlétique" de l'utilisateur : ses
@@ -90,6 +91,35 @@ const computeZonesFromBaseCadence = (base, spacing = DEFAULT_ZONE_SPACING) => ({
   zone4: Math.max(ATHLETIC_BPM_FLOOR, base + spacing * 2),
 });
 
+// Cadence de base CRÉDIBLE par activité, utilisée uniquement pour PRÉ-REMPLIR
+// l'Assistant Rapide et les champs Expert avant toute vraie saisie (retour
+// direct : "il devrait toujours y avoir un nombre par défaut... pour inciter
+// l'utilisateur à manipuler... des valeurs crédibles par discipline") —
+// jamais pour décider `isConfigured`, qui reste strictement réservé à "la
+// personne a réellement validé/ajusté quelque chose ici" (voir plus bas).
+// Réutilise volontairement `WORKOUT_DEFAULT_BPM` (appConfig.js) plutôt que
+// d'inventer de nouveaux chiffres : ce sont déjà les BPM par défaut du wizard
+// pour ces mêmes activités (160 Course à pied, 140 Cyclisme), donc déjà des
+// valeurs crédibles et cohérentes avec le reste de l'app. "Autre"/repli pour
+// toute activité personnalisée, faute d'un chiffre spécifique par discipline
+// pour une activité inconnue à l'avance (patin, elliptique...).
+const getDefaultBaseCadence = (activityKey) => WORKOUT_DEFAULT_BPM.standard[activityKey] ?? WORKOUT_DEFAULT_BPM.standard['Autre'];
+
+// Profil "aperçu" complet (cadence de base + 4 zones déjà calculées) pour une
+// activité qui n'a JAMAIS été configurée — `isConfigured` reste `false` :
+// ceci sert de valeur d'AFFICHAGE par défaut (voir GeneratorView.jsx), pas
+// une vraie configuration silencieuse. Sert aussi de bloc de départ dans
+// `setZoneForActivity`/`setZoneForCustom` ci-dessous : si la personne ajuste
+// UNE SEULE zone à la main sans être jamais passée par l'Assistant Rapide,
+// les 3 AUTRES zones doivent se retrouver enregistrées avec ces mêmes valeurs
+// par défaut déjà affichées à l'écran — jamais `null` en douce alors que
+// l'écran, lui, montrait déjà un chiffre.
+const buildDefaultPreviewProfile = (activityKey) => {
+  const base = getDefaultBaseCadence(activityKey);
+  const spacing = ZONE_SPACING_BY_ACTIVITY[activityKey] ?? DEFAULT_ZONE_SPACING;
+  return { isConfigured: false, baseCadence: base, ...computeZonesFromBaseCadence(base, spacing) };
+};
+
 export function useAthleticProfile() {
   const [athleticProfile, setAthleticProfile] = usePersistentState('athleticProfile', () => ({
     activities: {
@@ -148,7 +178,14 @@ export function useAthleticProfile() {
   const setZoneForActivity = (activityKey, zoneKey, rawValue) => {
     const value = parseInt(rawValue);
     setAthleticProfile(prev => {
-      const current = prev.activities[activityKey] || emptyProfile();
+      const existing = prev.activities[activityKey];
+      // BUG évité (retour direct, section Assistant Rapide) : si l'activité
+      // n'a JAMAIS été configurée, on part du profil "aperçu" déjà affiché à
+      // l'écran (voir buildDefaultPreviewProfile) plutôt que de zones à
+      // `null` — sinon ajuster UNE SEULE zone à la main aurait silencieusement
+      // enregistré les 3 AUTRES à `null`, alors que l'écran, lui, montrait
+      // déjà un chiffre par défaut pour chacune.
+      const current = (existing && existing.isConfigured) ? existing : buildDefaultPreviewProfile(activityKey);
       return {
         ...prev,
         activities: {
@@ -199,9 +236,18 @@ export function useAthleticProfile() {
     const value = parseInt(rawValue);
     setAthleticProfile(prev => ({
       ...prev,
-      custom: prev.custom.map(c => c.id === id
-        ? { ...c, isConfigured: true, [zoneKey]: Number.isFinite(value) && value > 0 ? Math.max(ATHLETIC_BPM_FLOOR, value) : c[zoneKey] }
-        : c),
+      custom: prev.custom.map(c => {
+        if (c.id !== id) return c;
+        // Même seed que setZoneForActivity ci-dessus : part du profil aperçu
+        // déjà affiché (nom générique "custom", repli WORKOUT_DEFAULT_BPM.Autre)
+        // plutôt que de zones à `null`, si jamais configuré.
+        const current = c.isConfigured ? c : { ...c, ...buildDefaultPreviewProfile('__custom__') };
+        return {
+          ...current,
+          isConfigured: true,
+          [zoneKey]: Number.isFinite(value) && value > 0 ? Math.max(ATHLETIC_BPM_FLOOR, value) : current[zoneKey],
+        };
+      }),
     }));
   };
 
@@ -241,7 +287,7 @@ export function useAthleticProfile() {
 
   return {
     athleticProfile, setAthleticProfile,
-    computeZonesFromBaseCadence,
+    computeZonesFromBaseCadence, getDefaultBaseCadence, buildDefaultPreviewProfile,
     setBaseCadenceForActivity, setZoneForActivity, resetActivityProfile,
     addCustomActivity, removeCustomActivity, setBaseCadenceForCustom, setZoneForCustom,
     getProfileForWorkout,
