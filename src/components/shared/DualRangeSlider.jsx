@@ -29,8 +29,13 @@ import { useRef } from 'react';
 export default function DualRangeSlider({
   leftValue, rightValue, minMiddle = 10,
   onChangeLeft, onChangeRight,
-  leftColorClass, middleColorClass, rightColorClass,
-  leftHandleBorderClass, rightHandleBorderClass,
+  // Couleurs en HEX (via `style`), pas en classes Tailwind : ces couleurs
+  // viennent maintenant de `getZoneForValue` (appConfig.js — "règle d'or"
+  // ergonomie, une couleur = une zone d'intensité dans TOUTE l'app), donc
+  // dynamiques et potentiellement absentes du bundle CSS purgé par Tailwind
+  // si elles étaient passées en classes (ex. `bg-${color}`).
+  leftColor, middleColor, rightColor,
+  leftHandleBorderColor, rightHandleBorderColor,
   leftAriaLabel = 'Poignée gauche', rightAriaLabel = 'Poignée droite',
 }) {
   const trackRef = useRef(null);
@@ -63,9 +68,9 @@ export default function DualRangeSlider({
   return (
     <div ref={trackRef} className="relative h-8 flex items-center select-none touch-none">
       <div className="absolute inset-x-0 h-2.5 rounded-full overflow-hidden flex pointer-events-none">
-        <div className={`h-full ${leftColorClass}`} style={{ width: `${boundaryLeft}%` }} />
-        <div className={`h-full ${middleColorClass}`} style={{ width: `${boundaryRight - boundaryLeft}%` }} />
-        <div className={`h-full ${rightColorClass}`} style={{ width: `${100 - boundaryRight}%` }} />
+        <div className="h-full" style={{ width: `${boundaryLeft}%`, backgroundColor: leftColor }} />
+        <div className="h-full" style={{ width: `${boundaryRight - boundaryLeft}%`, backgroundColor: middleColor }} />
+        <div className="h-full" style={{ width: `${100 - boundaryRight}%`, backgroundColor: rightColor }} />
       </div>
 
       <div
@@ -77,8 +82,8 @@ export default function DualRangeSlider({
           if (e.key === 'ArrowLeft') onChangeLeft(Math.max(0, leftValue - 1));
           if (e.key === 'ArrowRight') onChangeLeft(Math.min(boundaryRight - minMiddle, leftValue + 1));
         }}
-        className={`absolute w-5 h-5 rounded-full bg-white border-[3px] ${leftHandleBorderClass} shadow-md cursor-grab active:cursor-grabbing touch-none`}
-        style={{ left: `${boundaryLeft}%`, transform: 'translateX(-50%)' }}
+        className="absolute w-5 h-5 rounded-full bg-white border-[3px] shadow-md cursor-grab active:cursor-grabbing touch-none"
+        style={{ left: `${boundaryLeft}%`, transform: 'translateX(-50%)', borderColor: leftHandleBorderColor }}
       />
       <div
         role="slider" tabIndex={0} aria-label={rightAriaLabel}
@@ -89,8 +94,8 @@ export default function DualRangeSlider({
           if (e.key === 'ArrowLeft') onChangeRight(Math.min(100 - boundaryLeft - minMiddle, rightValue + 1));
           if (e.key === 'ArrowRight') onChangeRight(Math.max(0, rightValue - 1));
         }}
-        className={`absolute w-5 h-5 rounded-full bg-white border-[3px] ${rightHandleBorderClass} shadow-md cursor-grab active:cursor-grabbing touch-none`}
-        style={{ left: `${boundaryRight}%`, transform: 'translateX(-50%)' }}
+        className="absolute w-5 h-5 rounded-full bg-white border-[3px] shadow-md cursor-grab active:cursor-grabbing touch-none"
+        style={{ left: `${boundaryRight}%`, transform: 'translateX(-50%)', borderColor: rightHandleBorderColor }}
       />
     </div>
   );
