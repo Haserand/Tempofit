@@ -829,7 +829,14 @@ export default function App() {
     setResultsContextLabel(`${targetBpm} BPM ± ${tolerance}`);
     setNoUsableResultsHint(false);
     try {
-      const { results } = await fetchBpmSearchResults(targetBpm, tolerance, genres);
+      // RETOUR DIRECT ("affichage progressif plutôt qu'attendre la fin") —
+      // `onProgress` est appelé à chaque lot résolu (voir fetchBpmSearchResults,
+      // searchEngine.js), avec le résultat COMPLET déjà retrié jusque-là — pas
+      // juste le dernier lot. Permet de voir les premiers titres apparaître
+      // rapidement plutôt que d'attendre la recherche exhaustive en entier.
+      const { results } = await fetchBpmSearchResults(targetBpm, tolerance, genres, (partialResults) => {
+        setWorldSearchResults(partialResults);
+      });
       setWorldSearchResults(results);
       if (results.length === 0) setNoUsableResultsHint(true);
     } catch(e) {
@@ -2719,6 +2726,18 @@ export default function App() {
                   </div>
                 ) : (worldSearchResults.length > 0 || (!searchHasMoreResults && worldSearchOtherResults.length > 0)) ? (
                   <>
+                    {/* RETOUR DIRECT (affichage progressif) : indicateur discret que la
+                        recherche continue en arrière-plan même une fois les premiers
+                        résultats déjà affichés — sans ça, rien ne distingue "la recherche
+                        est terminée" de "encore en cours, potentiellement d'autres titres
+                        à venir". Uniquement en mode BPM (seul chemin concerné par la
+                        recherche progressive, voir fetchBpmSearchResults). */}
+                    {isBpmSearchMode && isWorldSearching && worldSearchResults.length > 0 && (
+                      <div className={`flex items-center gap-2 text-xs font-semibold px-1 pb-2 ${textMuted}`}>
+                        <Loader2 size={12} className="animate-spin"/>
+                        <span>Recherche toujours en cours — d'autres titres peuvent encore apparaître...</span>
+                      </div>
+                    )}
                     {resultsContextLabel && !isBpmSearchMode && worldSearchResults.length > 0 && (
                       <div className={`text-xs font-bold uppercase tracking-wider mb-2 px-1 ${textMuted}`}>{resultsContextLabel}</div>
                     )}
