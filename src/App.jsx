@@ -2913,7 +2913,7 @@ export default function App() {
               </div>
               <div className="space-y-4 mb-6">
                 <input type="text" value={newRoutineName} onChange={e => setNewRoutineName(e.target.value)} placeholder="Nom (Ex: 5km Rapide)" className={"w-full rounded-xl px-4 py-3 font-bold outline-none border " + inputBg + " " + inputBorder + " " + textHighlight} onKeyDown={(e) => e.key === 'Enter' && handleSaveRoutine()} autoFocus />
-                <div className="flex justify-between bg-gray-50 dark:bg-gray-900 p-2 rounded-xl border border-gray-200 dark:border-gray-800">
+                <div className="flex justify-between bg-gray-50 dark:bg-gray-900 p-2 rounded-xl border border-divider">
                   {AVAILABLE_ICONS.slice(0, isNaughtyMode ? 14 : 8).map(icon => (
                     <button key={icon} onClick={() => setNewRoutineIcon(icon)} className={"text-xl p-2 rounded-lg transition-transform " + (newRoutineIcon === icon ? 'bg-white dark:bg-gray-800 shadow-sm scale-110' : 'grayscale opacity-50')}>{icon}</button>
                   ))}
