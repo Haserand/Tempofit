@@ -326,7 +326,7 @@ export default function PlaylistDetailView({
       <div className={"relative rounded-3xl p-6 md:p-8 border shadow-xl flex flex-col md:flex-row items-center md:items-end space-y-6 md:space-y-0 md:space-x-8 bg-gradient-to-br " + (isNaughtyMode ? 'from-rose-50 to-rose-100 dark:from-gray-900 dark:to-rose-950/40' : 'from-gray-50 to-gray-200 dark:from-gray-900 dark:to-gray-800') + " " + (currentPlaylistRankStyle ? currentPlaylistRankStyle.border : (isNaughtyMode ? 'border-rose-200 dark:border-rose-900/50' : cardBorder))}>
         {currentPlaylistRankStyle && (
           <span
-            className="absolute -top-3 -right-3 text-3xl z-10"
+            className="absolute -top-2 -right-2 text-xl z-10"
             title={`${currentPlaylist.completions.length} fois — la ${currentPlaylistRank === 0 ? 'plus' : currentPlaylistRank === 1 ? '2e plus' : '3e plus'} utilisée`}
           >
             {currentPlaylistRankStyle.emoji}
@@ -389,6 +389,18 @@ export default function PlaylistDetailView({
               })()}
             </div>
 
+            {/* RETOUR DIRECT ("la date de base à laquelle ça a été fait
+                devrait être à gauche") — la toute PREMIÈRE date de complétion
+                (currentPlaylist.completions[0], l'historique en garde une
+                liste complète mais celle-ci est LA date d'origine), affichée
+                ici en repère informatif — pas cliquable, juste un rappel du
+                "depuis quand" avant les actions qui suivent. */}
+            {isLocked && currentPlaylist.completions.length > 0 && (
+              <span className={`text-xs font-semibold shrink-0 ${textMuted}`}>
+                Réalisée le {new Date(currentPlaylist.completions[0].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </span>
+            )}
+
             {/* "Planifier" déplacé ici, sur la même ligne que les infos de la
                 playlist (retour direct : "le bouton de planification doit être
                 au même niveau que les infos de la playlist, pas dans la ligne
@@ -428,6 +440,37 @@ export default function PlaylistDetailView({
                   type="date"
                   value={currentPlaylist.plannedDate || ''}
                   onChange={(e) => setPlaylistPlannedDate(currentPlaylist.id, e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+              </label>
+            )}
+
+            {/* RETOUR DIRECT ("marquer comme refaite devrait être une option
+                à droite de planifier à nouveau") — déplacé ici (juste à côté
+                de "Planifier à nouveau"), retiré du bandeau vert plus bas.
+                Compact ici (icône + libellé court) plutôt que le bouton pleine
+                largeur d'avant — cette ligne étant déjà partagée avec
+                plusieurs autres contrôles, contrairement au bandeau vert qui
+                lui a toute la largeur pour lui. Même mécanique (showPicker,
+                markPlaylistAsCompleted) qu'avant, seul l'EMPLACEMENT et le
+                style changent. */}
+            {isLocked && markPlaylistAsCompleted && (
+              <label
+                onClick={(e) => {
+                  if (addCompletionDateInputRef.current?.showPicker) {
+                    e.preventDefault();
+                    addCompletionDateInputRef.current.showPicker();
+                  }
+                }}
+                title="Marquer comme refaite (ajouter une nouvelle date de complétion)"
+                className={`relative flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm cursor-pointer transition-colors border ${inputBg} hover:bg-green-100 dark:hover:bg-green-900/20 hover:text-green-600 ${inputBorder} ${textMuted} shrink-0`}
+              >
+                <Circle size={16}/>
+                <span>Marquer comme refaite</span>
+                <input
+                  ref={addCompletionDateInputRef}
+                  type="date"
+                  onChange={(e) => { if (e.target.value) markPlaylistAsCompleted(currentPlaylist.id, e.target.value); e.target.value = ''; }}
                   className="absolute inset-0 opacity-0 cursor-pointer"
                 />
               </label>
@@ -480,37 +523,24 @@ export default function PlaylistDetailView({
 
           {/* Bandeau "séance déjà réalisée" (retour direct) : dates de
               complétion + import Garmin/Strava (voir renderCompletionsList,
-              App.jsx — même rendu que sur la carte dans "Mes Séances") et
-              possibilité d'ajouter une NOUVELLE date pour rejouer la même
-              séance plus tard. C'est la SEULE façon d'enrichir cette playlist
-              une fois verrouillée : la playlist en elle-même (titres, ordre)
-              ne bouge plus, seul son historique d'utilisation le peut. */}
+              App.jsx — même rendu que sur la carte dans "Mes Séances").
+              RETOUR DIRECT SUIVANT : "l'option d'importer ses données me
+              semble prioritaire et devrait être à la place du marquer comme
+              refaite" — ce bandeau ne contenait auparavant QUE deux choses de
+              poids équivalent (les dates + import, ET un gros bouton "Marquer
+              comme refaite" juste après). Le bouton a été déplacé plus haut,
+              en compagnon compact de "Planifier à nouveau" (voir plus haut,
+              même mécanique, même ref `addCompletionDateInputRef` — d'où sa
+              suppression D'ICI, pour ne pas avoir 2 éléments sur la même ref)
+              — ce qui laisse maintenant les dates de complétion ET leur
+              import Garmin/Strash comme SEUL contenu de ce bandeau, sans
+              rien pour lui faire concurrence visuellement. */}
           {isLocked && (
             <div className={`w-full mt-4 p-4 rounded-2xl border border-green-200 dark:border-green-900/40 bg-green-50/60 dark:bg-green-900/10`}>
               <div className="flex items-center gap-2 text-green-700 dark:text-green-400 text-sm font-bold mb-3">
                 <Lock size={15}/> Séance déjà réalisée — verrouillée pour préserver ton historique
               </div>
               {renderCompletionsList && renderCompletionsList(currentPlaylist)}
-              {markPlaylistAsCompleted && (
-                <label
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (addCompletionDateInputRef.current?.showPicker) {
-                      e.preventDefault();
-                      addCompletionDateInputRef.current.showPicker();
-                    }
-                  }}
-                  className={`relative mt-2 flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 text-xs font-bold cursor-pointer rounded-lg transition-colors border ${inputBg} hover:bg-green-100 dark:hover:bg-green-900/20 hover:text-green-600 ${inputBorder} ${textMuted}`}
-                >
-                  <Circle size={14}/> Marquer comme refaite (ajouter une date)
-                  <input
-                    ref={addCompletionDateInputRef}
-                    type="date"
-                    onChange={(e) => { e.stopPropagation(); if (e.target.value) markPlaylistAsCompleted(currentPlaylist.id, e.target.value); e.target.value = ''; }}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                  />
-                </label>
-              )}
             </div>
           )}
         </div>
