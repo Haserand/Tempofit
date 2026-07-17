@@ -9,7 +9,7 @@ import { formatDuration } from '../../utils/format';
 import DualRangeSlider from '../shared/DualRangeSlider';
 import {
   WORKOUT_TYPES, NAUGHTY_WORKOUT_ORDER, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_LABELS,
-  WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, ATHLETIC_ZONES,
+  WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, ATHLETIC_ZONES, getCadenceUnitLabel,
 } from '../../appConfig';
 
 /**
@@ -155,6 +155,14 @@ export default function GeneratorView({
   // lui passer une clé bidon retombe proprement sur le repli générique
   // ("Autre") déjà utilisé ailleurs dans l'app.
   const defaultPreviewProfile = buildDefaultPreviewProfile(isCustomProfileTab ? '__custom__' : selectedProfileActivity);
+  // RETOUR DIRECT : "parler de PPM pour du cyclisme n'est pas adapté" — unité
+  // de cadence affichée, propre à l'activité en cours (voir
+  // getCadenceUnitLabel, appConfig.js : PPM pour la course, RPM pour le vélo,
+  // repli générique "cad/min" pour une activité personnalisée). Réutilisée à
+  // TOUS les endroits de cette page qui affichent une cadence — Assistant
+  // Rapide, cartes de zones, mode Expert, infobulle, message d'erreur — pour
+  // ne pas avoir à corriger le même "PPM" figé à 6 endroits différents.
+  const activityCadenceUnit = getCadenceUnitLabel(isCustomProfileTab ? '__custom__' : selectedProfileActivity);
 
   // Brouillon de saisie de l'Assistant Rapide — RE-DÉRIVÉ à chaque changement
   // d'onglet (voir l'effet juste en dessous) puisque chaque activité a
@@ -263,7 +271,7 @@ export default function GeneratorView({
           {showAthleticProfile ? 'Mon Profil Athlétique' : (isNaughtyMode ? "Prépare l'ambiance..." : "Sculpte ta séance")}
         </h1>
         <p className="text-lg font-medium text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
-          {showAthleticProfile ? "Définis tes zones de cadence (en PPM, pas par minute) par activité." : displaySubtitleGen}
+          {showAthleticProfile ? "Définis tes zones de cadence par activité." : displaySubtitleGen}
         </p>
       </div>
 
@@ -365,7 +373,7 @@ export default function GeneratorView({
                 </button>
                 {showZoneCalcInfo && (
                   <div className={`absolute z-20 top-full left-0 mt-2 w-72 p-3 rounded-xl border shadow-xl text-xs font-medium leading-relaxed ${cardBg} ${cardBorder} ${textMuted}`}>
-                    Zone 2 = ta cadence tapée ci-dessous. Les 3 autres s'en écartent par palier fixe de {getZoneSpacingForActivity(isCustomProfileTab ? '__custom__' : selectedProfileActivity)} PPM (Zone 1 = -1 palier, Zone 3 = +1, Zone 4 = +2) — une progression simple autour de ta cadence, pas une vraie formule physiologique (%VMA...). Toujours ajustable au PPM près en mode Expert.
+                    Zone 2 = ta cadence tapée ci-dessous. Les 3 autres s'en écartent par palier fixe de {getZoneSpacingForActivity(isCustomProfileTab ? '__custom__' : selectedProfileActivity)} {activityCadenceUnit} (Zone 1 = -1 palier, Zone 3 = +1, Zone 4 = +2) — une progression simple autour de ta cadence, pas une vraie formule physiologique (%VMA...). Toujours ajustable au {activityCadenceUnit} près en mode Expert.
                   </div>
                 )}
               </div>
@@ -406,14 +414,14 @@ export default function GeneratorView({
                     onKeyDown={(e) => e.key === 'Enter' && computeAndApplyZones()}
                     className={`bg-transparent w-full text-lg font-bold outline-none ${textHighlight}`}
                   />
-                  <span className={`text-sm font-bold shrink-0 ${textMuted}`}>PPM</span>
+                  <span className={`text-sm font-bold shrink-0 ${textMuted}`}>{activityCadenceUnit}</span>
                 </div>
                 <button onClick={computeAndApplyZones} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110 shrink-0`}>
                   Calculer mes zones
                 </button>
               </div>
               {cadenceInputError && (
-                <p className="text-xs font-bold text-red-500 mt-2">Indique d'abord un chiffre (ta cadence en PPM, pas par minute) avant de calculer tes zones.</p>
+                <p className="text-xs font-bold text-red-500 mt-2">Indique d'abord un chiffre (ta cadence en {activityCadenceUnit}) avant de calculer tes zones.</p>
               )}
             </div>
 
@@ -442,7 +450,7 @@ export default function GeneratorView({
                     <span className={`text-[11px] font-bold uppercase tracking-wide ${textMuted}`}>{z.shortLabel}</span>
                   </div>
                   <div className={`text-xl font-black ${textHighlight}`}>{activeProfile?.[z.key] ?? defaultPreviewProfile[z.key]}</div>
-                  <div className={`text-[10px] ${textMuted}`}>PPM</div>
+                  <div className={`text-[10px] ${textMuted}`}>{activityCadenceUnit}</div>
                 </div>
               ))}
             </div>
@@ -478,7 +486,7 @@ export default function GeneratorView({
                         onChange={(e) => handleSetZone(z.key, e.target.value)}
                         className={`w-14 bg-transparent text-right font-mono font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${textHighlight}`}
                       />
-                      <span className={`text-xs font-bold ${textMuted}`}>PPM</span>
+                      <span className={`text-xs font-bold ${textMuted}`}>{activityCadenceUnit}</span>
                     </div>
                   </div>
                 ))}
