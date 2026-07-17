@@ -2309,7 +2309,7 @@ export default function App() {
   } = themeTokens;
 
   return (
-    <div className={`${theme === 'dark' ? 'dark' : ''}`}>
+    <div className={`${theme === 'dark' ? 'dark' : ''} ${isNaughtyMode ? 'naughty' : ''}`}>
       <div className={`flex h-screen overflow-hidden ${bgMainApp} ${textMain} font-sans selection:bg-${themeColor}-500 selection:text-white transition-colors duration-500 relative`}>
 
         {/* Toast de notification global : style et icône dépendent de toast.variant
@@ -2389,7 +2389,7 @@ export default function App() {
         <input type="file" accept=".csv" ref={fileInputRef} onChange={handleCSVUpload} className="hidden" />
 
         {/* ============================= SIDEBAR ============================= */}
-        <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-900 border-r ${cardBorder} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r ${cardBorder} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <div className={`p-6 border-b ${cardBorder} flex items-center justify-between`}>
              <div className="flex items-center space-x-3">
                 <div className={`${bgAccentClass} p-1.5 rounded-lg transition-colors duration-500 ${isNaughtyMode ? 'shadow-[0_0_15px_rgba(244,63,94,0.4)]' : ''}`}>
@@ -2401,7 +2401,7 @@ export default function App() {
                <button
                  onClick={toggleTheme}
                  title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
-                 className={`p-2 rounded-lg transition-colors ${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}
+                 className={`p-2 rounded-lg transition-colors ${textMuted} hover:bg-surface-hover hover:${textHighlight}`}
                >
                  {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
                </button>
@@ -2417,7 +2417,7 @@ export default function App() {
               le comportement par défaut d'un <button>, mais explicite plutôt qu'implicite). */}
           <nav className="flex-1 px-4 py-6 space-y-3 overflow-y-auto no-scrollbar">
             
-            <button onClick={() => changeView('generator')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
+            <button onClick={() => changeView('generator')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:${textHighlight}`}`}>
               <Zap size={18} className={view === 'generator' ? 'text-white' : textColorClass} />
               <span className="font-bold text-sm">Générer</span>
             </button>
@@ -2433,33 +2433,33 @@ export default function App() {
             <button
               onClick={() => { changeView('generator'); setShowAthleticProfile(true); }}
               className={`w-full flex items-center space-x-2.5 pl-8 pr-3 py-2 rounded-lg transition-colors select-none cursor-pointer ${view === 'generator' && showAthleticProfile ?
-                `${textColorClass} bg-gray-100 dark:bg-gray-800 font-bold` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}
+                `${textColorClass} bg-surface-hover font-bold` : `${textMuted} hover:bg-surface-hover hover:${textHighlight}`}`}
             >
               <Gauge size={15} className="shrink-0" />
               <span className="text-xs font-semibold">Mon Profil Athlétique</span>
             </button>
 
-            <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
+            <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:${textHighlight}`}`}>
               <ListPlus size={18} />
               <span className="font-bold text-sm">Mes Routines</span>
             </button>
             
-            <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
+            <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:${textHighlight}`}`}>
               <List size={18} />
               <span className="font-bold text-sm">Mes Séances</span>
             </button>
 
-            <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
+            <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:${textHighlight}`}`}>
               <Activity size={18} />
               <span className="font-bold text-sm">Statistiques</span>
             </button>
 
-            <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
+            <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:${textHighlight}`}`}>
               <Star size={18} className={favorites.useFavorites && favorites.artists.length > 0 ? "text-yellow-500 fill-yellow-500/20" : ""} />
               <span className="font-bold text-sm">Mes Favoris</span>
             </button>
 
-            <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'settings' ? `bg-gray-100 dark:bg-gray-800 ${textHighlight}` : `${textMuted} hover:bg-gray-100 dark:hover:bg-gray-800 hover:${textHighlight}`}`}>
+            <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'settings' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:${textHighlight}`}`}>
               <Settings size={18} />
               <span className="font-bold text-sm">Options & Comptes</span>
             </button>
@@ -2482,8 +2482,8 @@ export default function App() {
 
         <div className="flex-1 flex flex-col relative w-full">
           {/* Header mobile (bouton burger + logo) */}
-          <header className={`md:hidden flex items-center p-4 bg-white dark:bg-gray-900 border-b ${cardBorder} z-30`}>
-            <button onClick={() => setIsMobileMenuOpen(true)} className={`p-2 mr-3 ${textMuted} hover:${textHighlight} bg-gray-100 dark:bg-gray-800 rounded-lg`}><Menu size={20} /></button>
+          <header className={`md:hidden flex items-center p-4 bg-surface border-b ${cardBorder} z-30`}>
+            <button onClick={() => setIsMobileMenuOpen(true)} className={`p-2 mr-3 ${textMuted} hover:${textHighlight} bg-surface-hover rounded-lg`}><Menu size={20} /></button>
             <div className="flex items-center space-x-2">
               <span className={`font-bold text-lg tracking-tight ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
             </div>
@@ -2491,7 +2491,7 @@ export default function App() {
 
           {/* Header desktop flottant, n'apparaît qu'après un certain scroll (isScrolled) */}
           <header className={`hidden md:flex absolute top-0 left-0 right-0 p-6 z-30 transition-all duration-300 pointer-events-none ${isScrolled ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-            <div className={`bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border ${cardBorder} shadow-lg px-6 py-3 rounded-full flex items-center space-x-4 pointer-events-auto`}>
+            <div className={`bg-surface/80 backdrop-blur-md border ${cardBorder} shadow-lg px-6 py-3 rounded-full flex items-center space-x-4 pointer-events-auto`}>
               <span className={`font-bold text-sm ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
               <div className={`w-1 h-1 rounded-full ${bgAccentClass}`}></div>
               <span className={`text-sm font-medium ${textMuted}`}>{displaySubtitleGen}</span>
