@@ -242,6 +242,16 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
   const maxBpm = targetBpm + tolerance;
   const genresToQuery = genres && genres.length > 0 ? genres : ['Autre'];
 
+  // Vrai si TOUS les genres demandés n'ont AUCUN mot-clé Deezer fiable (ni
+  // fort, ni faible — voir DEEZER_GENRE_KEYWORDS/WEAK_DEEZER_KEYWORD_GENRES,
+  // musicCatalog.js) — c'est-à-dire les genres qui reposent ENTIÈREMENT sur
+  // le renfort catalogue pour ne pas partir à l'aveugle, comme "Métal".
+  // Remonté ici, au niveau de la fonction (pas seulement dans la recherche
+  // catalogue plus bas) : sert AUSSI à lever le plafond de candidats gardés
+  // avant résolution de genre (voir `uniqueStubs` plus bas) — voir le
+  // commentaire "BUG CORRIGÉ" à cet endroit pour pourquoi c'était nécessaire.
+  const needsDeepCatalogSearch = genresToQuery.every(g => !DEEZER_GENRE_KEYWORDS[g] || WEAK_DEEZER_KEYWORD_GENRES.includes(g));
+
   // BUG CORRIGÉ (cas réel constaté : "Métal" sélectionné → Eagles, AC/DC,
   // Coldplay en tête, aucun avertissement) — cause racine : `DEEZER_GENRE_
   // KEYWORDS` n'a PAS d'entrée pour "Métal" (voir musicCatalog.js : Deezer
@@ -271,7 +281,6 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
     // exactement le comportement déjà voulu et corrigé une 1ère fois pour
     // K-pop (voir le commentaire de searchArtistsForBpm), qui n'avait
     // simplement pas été repris ici, un chemin de code séparé.
-    const needsDeepCatalogSearch = genresToQuery.every(g => !DEEZER_GENRE_KEYWORDS[g] || WEAK_DEEZER_KEYWORD_GENRES.includes(g));
     const stubs = await searchArtistsForBpm(artists, minBpm, maxBpm, [], needsDeepCatalogSearch ? artists.length : 8, needsDeepCatalogSearch ? 10 : 6);
     return stubs.map(s => ({ ...s, matchedGenre: genre, _fromCatalog: true }));
   }));
@@ -284,14 +293,28 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres) => {
     return stubs.map(s => ({ ...s, matchedGenre: genre }));
   }));
 
-  // Catalogue inséré EN PREMIER dans la fusion : quand les 2 recherches
-  // remontent le même titre, la version catalogue (confirmée par artiste,
-  // voir _fromCatalog) l'emporte plutôt que la version générique. Plafond
-  // légèrement relevé (15 → 18) pour laisser de la place aux deux sources à
-  // la fois sans que l'une n'écrase systématiquement l'autre.
+  // BUG CORRIGÉ (retour direct : "impossible que tu aies toujours que 2
+  // morceaux Métal en premier" — vu APRÈS avoir déjà élargi la recherche à
+  // tout le catalogue ci-dessus, ce qui aurait dû suffire) — la vraie cause
+  // était ICI, en aval : `searchArtistsForBpm` mélange ALÉATOIREMENT ses
+  // résultats avant de les renvoyer (voir son dernier `.sort(() => Math.random()
+  // ...)`, musicEngine.js), et ce plafond ne gardait que les 18 PREMIERS de ce
+  // tirage aléatoire — AVANT toute résolution de genre. Résultat : même en
+  // interrogeant les 140 artistes du catalogue Métal, si la grande majorité de
+  // leurs titres sont réellement étiquetés "Rock" chez Deezer (comme documenté
+  // plus haut), les 18 survivants du tirage aléatoire étaient statistiquement
+  // presque tous "Rock" aussi — la recherche plus large ne changeait donc RIEN
+  // au nombre final de vrais résultats "Métal", puisqu'ils étaient perdus AVANT
+  // même d'être identifiés comme tels. Plafond relevé (18 → 50) spécifiquement
+  // pour les genres à recherche profonde : plus de survivants du tirage
+  // aléatoire arrivent jusqu'à la résolution de genre plus bas, donc plus de
+  // chances qu'un vrai résultat "Métal" en fasse partie. Coût : jusqu'à 50 x 2
+  // appels réseau (détail + genre) au lieu de 18 x 2 — acceptable ici car
+  // recherche ponctuelle déclenchée à la main par la personne, pas un chemin
+  // répété en arrière-plan.
   const merged = new Map();
   [...catalogStubsByGenre.flat(), ...stubsByGenre.flat()].forEach(s => { if (!merged.has(s.id)) merged.set(s.id, s); });
-  const uniqueStubs = Array.from(merged.values()).slice(0, 18);
+  const uniqueStubs = Array.from(merged.values()).slice(0, needsDeepCatalogSearch ? 50 : 18);
 
   if (uniqueStubs.length === 0) {
     return { results: [] };
