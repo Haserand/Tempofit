@@ -314,10 +314,24 @@ const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeYoutubeId
   // RIEN à cette recherche. Désormais, si les premiers artistes testés (les
   // plus connus, voir le mélange ci-dessous) ne donnent rien, la recherche
   // continue vraiment jusqu'au bout de la liste avant d'abandonner.
+  //
+  // LOGS DE DIAGNOSTIC (retour direct : "je veux bien mettre des logs et te
+  // montrer console" — sur le fait que 120 artistes Métal ne donnent que
+  // quelques résultats avant le Rock) — affiche, PAR ARTISTE, combien Deezer
+  // renvoie brut pour cette fenêtre BPM précise, plus un résumé final. Permet
+  // de trancher EN CONDITIONS RÉELLES entre 2 hypothèses qu'on ne peut pas
+  // départager sans ces chiffres : (a) le catalogue d'artistes est large mais
+  // peu d'entre eux ont réellement un titre dans CETTE fenêtre BPM précise
+  // (comportement attendu, rien à corriger), ou (b) un vrai problème de code/
+  // requête limite artificiellement ce qui remonte (à creuser si ces logs
+  // montrent au contraire beaucoup de résultats bruts perdus en route).
+  console.log(`[BPM search] "${artistNames.length} artistes au catalogue, fenêtre ${minBpm}-${maxBpm} BPM"`);
   const shuffled = [...artistNames].sort(() => Math.random() - 0.5);
   const BATCH_SIZE = 8;
   const enoughStubs = Math.max(candidatesPerArtist * 2, maxArtistsToTry * candidatesPerArtist);
   const allStubs = [];
+  let artistsTried = 0;
+  let artistsWithAtLeastOneMatch = 0;
   for (let i = 0; i < shuffled.length; i += BATCH_SIZE) {
     const batch = shuffled.slice(i, i + BATCH_SIZE);
     const batchResults = await Promise.all(batch.map(async (artistName) => {
@@ -329,6 +343,11 @@ const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeYoutubeId
         rawStubs = (data && Array.isArray(data.data)) ? data.data : [];
         _artistBpmSearchCache.set(cacheKey, rawStubs);
       }
+      artistsTried++;
+      if (rawStubs.length > 0) {
+        artistsWithAtLeastOneMatch++;
+        console.log(`[BPM search]   ${artistName}: ${rawStubs.length} résultat(s) Deezer brut(s)`);
+      }
       return rawStubs.filter(s => !excludeYoutubeIds.includes(`deezer-${s.id}`));
     }));
     allStubs.push(...batchResults.flat());
@@ -337,6 +356,7 @@ const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeYoutubeId
       await new Promise(resolve => setTimeout(resolve, 250));
     }
   }
+  console.log(`[BPM search] Bilan : ${artistsTried} artiste(s) testé(s), ${artistsWithAtLeastOneMatch} avec au moins 1 résultat, ${allStubs.length} titre(s) brut(s) au total (avant résolution du genre réel).`);
   return allStubs.sort(() => Math.random() - 0.5);
 };
 
