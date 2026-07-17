@@ -794,7 +794,7 @@ export default function StatsView({
               <div className={`shrink-0 p-2.5 rounded-xl ${bgAccentClass} text-white`}><Gauge size={20}/></div>
               <div>
                 <h3 className={`font-bold mb-1 ${textHighlight}`}>Vois comment tu t'entraînes par zone</h3>
-                <p className={`text-sm ${textMuted}`}>Configure ton Profil Athlétique (zones de cadence, en PPM) pour voir la répartition de tes séances entre Récupération, Endurance, Seuil et Vitesse.</p>
+                <p className={`text-sm ${textMuted}`}>Configure ton Profil Athlétique (zones de cadence) pour voir la répartition de tes séances entre Récupération, Endurance, Seuil et Vitesse.</p>
                 <button onClick={() => changeView('generator')} className={`mt-3 text-sm font-bold underline ${textColorClass}`}>
                   Configurer mon Profil Athlétique →
                 </button>
