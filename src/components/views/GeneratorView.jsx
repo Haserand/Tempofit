@@ -57,6 +57,60 @@ export default function GeneratorView({
   // absurdement basse même en ajustement manuel.
   const crescendoBpmFloor = isNaughtyMode ? 40 : 80;
 
+  // --- Profil Athlétique appliqué au wizard (Constante / Crescendo / Fractionné) ---
+  //
+  // Résout le profil de l'activité choisie à l'étape 1, TOUJOURS avec des
+  // valeurs de zones exploitables — un vrai profil configuré si l'utilisateur
+  // en a un, sinon le même "aperçu par défaut crédible" que sur la page
+  // Profil Athlétique elle-même (voir buildDefaultPreviewProfile,
+  // useAthleticProfile.js — retour direct plus haut dans la conversation :
+  // "il devrait toujours y avoir un nombre par défaut... des valeurs
+  // crédibles par discipline"). `isConfigured` reste fidèle à la RÉALITÉ
+  // (`false` pour l'aperçu par défaut) : sert de garde-fou pour tout ce qui
+  // ne doit s'activer qu'avec un VRAI profil (badge "Profil Athlétique",
+  // sélecteur rapide de zones ci-dessous) sans jamais affecter les BPM
+  // eux-mêmes, qui restent crédibles dans les 2 cas.
+  const resolveEffectiveActivityProfile = () => {
+    const real = getProfileForWorkout(workoutType, customActivity);
+    if (real.isConfigured) return real;
+    return buildDefaultPreviewProfile(workoutType === 'Autre' ? (customActivity || '__custom__') : workoutType);
+  };
+
+  // Sélecteur rapide de zone (retour direct : "je devrais pouvoir sélectionner
+  // un de mes 4 zones pour savoir en un instant ce qui correspond à quoi,
+  // plutôt que de devoir me souvenir de mes BPM") — SEULEMENT si un VRAI
+  // profil existe pour cette activité (`isConfigured`), pas avec le simple
+  // aperçu par défaut : choisir explicitement "une de mes zones" n'a de sens
+  // que si les zones sont vraiment calibrées pour cette personne, pas des
+  // valeurs génériques. Réutilisé aux 5 endroits où un curseur BPM peut se
+  // relier à une zone (voir plus bas) — cohérence globale plutôt qu'un
+  // sélecteur réinventé à chaque fois : mêmes couleurs/libellés courts que la
+  // page Profil Athlétique elle-même (ATHLETIC_ZONES, appConfig.js).
+  const renderZoneQuickPicks = (currentBpm, onSelectZone) => {
+    const effectiveProfile = resolveEffectiveActivityProfile();
+    if (!effectiveProfile.isConfigured) return null;
+    return (
+      <div className="flex flex-wrap gap-1.5 mt-2">
+        {ATHLETIC_ZONES.map(z => {
+          const zoneBpm = effectiveProfile[z.key];
+          const isActive = currentBpm === zoneBpm;
+          return (
+            <button
+              key={z.key}
+              onClick={() => onSelectZone(zoneBpm)}
+              title={`${z.label} — ${zoneBpm} BPM`}
+              className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold border transition-colors ${isActive ? 'text-white' : `${inputBg} ${inputBorder} ${textMuted} hover:${textHighlight}`}`}
+              style={isActive ? { backgroundColor: z.color, borderColor: z.color } : {}}
+            >
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
+              {z.shortLabel} · {zoneBpm}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
   // Profil Athlétique — DÉPLACÉ depuis Options & Comptes (retour direct :
   // "personne ne le verra là-bas", ça sert au générateur, ça doit vivre ici),
   // puis `showAthleticProfile` lui-même REMONTÉ dans App.jsx (retour direct
@@ -321,6 +375,29 @@ export default function GeneratorView({
               </div>
             )}
 
+            {/* Renvoi vers la génération une fois CETTE activité configurée
+                (retour direct : "une fois profil athlétique complété pour une
+                activité faudrait un message qui suggère de générer une
+                playlist") — remonté ici, juste après le calcul des zones et
+                AVANT "Ajuster manuellement" (retour direct suivant : "je ne
+                devrais pas avoir besoin d'ajuster manuellement pour générer,
+                si les zones de base me conviennent je dois pouvoir cliquer
+                directement sur générer"). Fonctionnellement, ce bandeau n'a
+                jamais dépendu de `showExpertZones` — il ne s'affichait déjà
+                que sur `activeProfile?.isConfigured`, sans rapport avec le
+                repli manuel — mais sa position APRÈS le bloc "Ajuster
+                manuellement" donnait l'impression contraire (fallait-il
+                déplier et régler quelque chose avant de pouvoir continuer ?).
+                Purement un problème de mise en page, pas de logique. */}
+            {activeProfile?.isConfigured && (
+              <div className={`mt-4 p-4 rounded-2xl border-2 border-dashed ${borderAccentClass} flex items-center justify-between gap-3 flex-wrap`}>
+                <p className={`text-sm font-semibold ${textHighlight}`}>🎯 Zones prêtes pour {isCustomProfileTab ? activeProfile.name : selectedProfileActivity} — tu peux générer une séance en Crescendo qui les utilise.</p>
+                <button onClick={() => setShowAthleticProfile(false)} className={`shrink-0 px-4 py-2 rounded-xl font-bold text-sm text-white ${bgAccentClass} hover:brightness-110`}>
+                  Générer une playlist →
+                </button>
+              </div>
+            )}
+
             <button
               onClick={() => setShowExpertZones(!showExpertZones)}
               className={`mt-4 flex items-center gap-1.5 text-sm font-bold ${textColorClass}`}
@@ -348,20 +425,6 @@ export default function GeneratorView({
                     </div>
                   </div>
                 ))}
-              </div>
-            )}
-
-            {/* Renvoi vers la génération une fois CETTE activité configurée
-                (retour direct : "une fois profil athlétique complété pour une
-                activité faudrait un message qui suggère de générer une
-                playlist") — apparaît juste après le calcul/ajustement des
-                zones, pas de façon permanente. */}
-            {activeProfile?.isConfigured && (
-              <div className={`mt-5 p-4 rounded-2xl border-2 border-dashed ${borderAccentClass} flex items-center justify-between gap-3 flex-wrap`}>
-                <p className={`text-sm font-semibold ${textHighlight}`}>🎯 Zones prêtes pour {isCustomProfileTab ? activeProfile.name : selectedProfileActivity} — tu peux générer une séance en Crescendo qui les utilise.</p>
-                <button onClick={() => setShowAthleticProfile(false)} className={`shrink-0 px-4 py-2 rounded-xl font-bold text-sm text-white ${bgAccentClass} hover:brightness-110`}>
-                  Générer une playlist →
-                </button>
               </div>
             )}
           </div>
@@ -588,7 +651,7 @@ export default function GeneratorView({
                       return (
                         <button
                           key={mode}
-                          onClick={() => setStructureMode(mode, getProfileForWorkout(workoutType, customActivity))}
+                          onClick={() => setStructureMode(mode, resolveEffectiveActivityProfile())}
                           className={`flex flex-col items-start text-left p-4 rounded-2xl border-2 transition-all duration-200 ${isSelected ? `${borderAccentClass} ${bgMainApp}` : `${inputBorder} ${inputBg} hover:border-gray-300 dark:hover:border-gray-600`}`}
                         >
                           <div className={`p-2 rounded-xl mb-2 ${isSelected ? bgAccentClass : 'bg-gray-200 dark:bg-gray-700'}`}>
@@ -641,6 +704,7 @@ export default function GeneratorView({
                         <Gauge size={12}/> Calculé depuis ton Profil Athlétique
                       </div>
                     )}
+                    {renderZoneQuickPicks(bpm, (zoneBpm) => setBpmManual(zoneBpm))}
                   </div>
 
                   {targetMode === 'distance' ? (
@@ -749,6 +813,7 @@ export default function GeneratorView({
                                 disabled={crescendoWarmupPct === 0}
                                 className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none accent-sky-500 disabled:cursor-not-allowed"
                               />
+                              {renderZoneQuickPicks(crescendoWarmupBpm, setCrescendoWarmupBpm)}
                             </div>
                             <div className={crescendoCooldownPct === 0 ? 'opacity-40 grayscale pointer-events-none' : ''}>
                               <div className="flex justify-between items-center mb-1">
@@ -762,6 +827,7 @@ export default function GeneratorView({
                                 disabled={crescendoCooldownPct === 0}
                                 className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none accent-emerald-500 disabled:cursor-not-allowed"
                               />
+                              {renderZoneQuickPicks(crescendoCooldownBpm, setCrescendoCooldownBpm)}
                             </div>
                         </div>
 
@@ -816,11 +882,14 @@ export default function GeneratorView({
                         <div className="flex items-center gap-4 p-4">
                           <div className={`w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center font-bold text-sm ${textHighlight}`}>{index + 1}</div>
                           <div className="flex-1 flex gap-3">
-                            <div className={`flex-1 flex items-center bg-white dark:bg-gray-900 rounded-lg px-3 py-2 shadow-sm`}>
-                              <input type="number" value={segment.bpm} onChange={(e) => setSegments(segments.map(s => s.id === segment.id ? { ...s, bpm: parseInt(e.target.value) || 0 } : s))} className={`w-full bg-transparent text-lg font-bold outline-none ${textHighlight}`} />
-                              <span className={`text-xs font-bold ${textMuted}`}>BPM</span>
+                            <div className="flex-1">
+                              <div className={`flex items-center bg-white dark:bg-gray-900 rounded-lg px-3 py-2 shadow-sm`}>
+                                <input type="number" value={segment.bpm} onChange={(e) => setSegments(segments.map(s => s.id === segment.id ? { ...s, bpm: parseInt(e.target.value) || 0 } : s))} className={`w-full bg-transparent text-lg font-bold outline-none ${textHighlight}`} />
+                                <span className={`text-xs font-bold ${textMuted}`}>BPM</span>
+                              </div>
+                              {renderZoneQuickPicks(segment.bpm, (zoneBpm) => setSegments(segments.map(s => s.id === segment.id ? { ...s, bpm: zoneBpm } : s)))}
                             </div>
-                            <div className={`flex-1 flex items-center bg-white dark:bg-gray-900 rounded-lg px-3 py-2 shadow-sm`}>
+                            <div className={`flex-1 flex items-center bg-white dark:bg-gray-900 rounded-lg px-3 py-2 shadow-sm h-fit`}>
                               <input type="number" step={targetMode==='distance'?'0.1':'1'} value={segment.durationValue} onChange={(e) => setSegments(segments.map(s => s.id === segment.id ? { ...s, durationValue: parseFloat(e.target.value) || 0 } : s))} className={`w-full bg-transparent text-lg font-bold outline-none ${textHighlight}`} />
                               <span className={`text-xs font-bold ${textMuted}`}>{targetMode === 'distance' ? distanceUnit : 'Min'}</span>
                             </div>
@@ -888,7 +957,31 @@ export default function GeneratorView({
                       );
                     })}
                   </div>
-                  <button onClick={() => setSegments([...segments, { id: Date.now(), bpm: segments[segments.length - 1].bpm, durationValue: targetMode==='distance'?1:10 }])} className={`w-full py-4 mt-4 border-2 border-dashed ${inputBorder} rounded-xl flex items-center justify-center gap-2 font-bold transition-colors ${textMuted} hover:${textHighlight} hover:border-gray-400 bg-gray-50 dark:bg-gray-800/50`}>
+                  <button
+                    onClick={() => {
+                      // Retour direct : "alternance entre VMA et EF ad vitam
+                      // eternam" — continue le motif au-delà des 5 segments
+                      // par défaut (voir setStructureMode, useGeneratorForm.js)
+                      // plutôt que de simplement dupliquer le BPM du dernier
+                      // segment tel quel. Ne s'applique qu'à partir du 2e
+                      // segment (le 1er reste l'échauffement, jamais concerné
+                      // par l'alternance) et seulement si le dernier segment
+                      // correspond bien à l'une des 2 valeurs de zone — sinon
+                      // (BPM personnalisé, hors zones) le comportement
+                      // d'origine (dupliquer) reste le plus sûr.
+                      const last = segments[segments.length - 1];
+                      const effectiveProfile = resolveEffectiveActivityProfile();
+                      const vmaBpm = effectiveProfile.zone4;
+                      const efBpm = effectiveProfile.zone2;
+                      let nextBpm = last.bpm;
+                      if (segments.length >= 2 && vmaBpm && efBpm) {
+                        if (last.bpm === vmaBpm) nextBpm = efBpm;
+                        else if (last.bpm === efBpm) nextBpm = vmaBpm;
+                      }
+                      setSegments([...segments, { id: Date.now(), bpm: nextBpm, durationValue: targetMode==='distance'?1:10 }]);
+                    }}
+                    className={`w-full py-4 mt-4 border-2 border-dashed ${inputBorder} rounded-xl flex items-center justify-center gap-2 font-bold transition-colors ${textMuted} hover:${textHighlight} hover:border-gray-400 bg-gray-50 dark:bg-gray-800/50`}
+                  >
                     <Plus size={20} /><span>Ajouter une portion</span>
                   </button>
                 </div>
