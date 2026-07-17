@@ -429,7 +429,7 @@ export default function GeneratorView({
                 Purement un problème de mise en page, pas de logique. */}
             {activeProfile?.isConfigured && (
               <div className={`mt-4 p-4 rounded-2xl border-2 border-dashed ${borderAccentClass} flex items-center justify-between gap-3 flex-wrap`}>
-                <p className={`text-sm font-semibold ${textHighlight}`}>🎯 Zones prêtes pour {isCustomProfileTab ? activeProfile.name : selectedProfileActivity} — tu peux générer une séance en Crescendo qui les utilise.</p>
+                <p className={`text-sm font-semibold ${textHighlight}`}>🎯 Zones prêtes pour {isCustomProfileTab ? activeProfile.name : selectedProfileActivity} — génère une séance en Crescendo ou en Allure Constante pour les utiliser.</p>
                 <button onClick={() => setShowAthleticProfile(false)} className={`shrink-0 px-4 py-2 rounded-xl font-bold text-sm text-white ${bgAccentClass} hover:brightness-110`}>
                   Générer une playlist →
                 </button>
@@ -474,13 +474,27 @@ export default function GeneratorView({
               remplir le profil athlétique") — seulement si RIEN n'a jamais été
               configuré (voir configuredProfilesCount) : une fois au moins une
               activité configurée, plus la peine d'insister à chaque
-              génération, le badge "calculé depuis ton profil" (étape 3, mode
-              Crescendo) prend le relais. */}
+              génération, le badge "calculé depuis ton profil" (étape 3) prend
+              le relais.
+              RETOUR DIRECT SUIVANT : "le profil athlétique ne s'applique plus
+              uniquement au Crescendo" — ce texte ne mentionnait que ce mode,
+              devenu inexact depuis que le même mécanisme s'applique aussi à
+              Allure Constante (voir setStructureMode, useGeneratorForm.js).
+              Reformulé pour mentionner les 2, sans sur-promettre pour autant
+              sur le Fractionné : lui bénéficie bien d'un motif de segments
+              par défaut basé sur le profil (voir la même fonction), mais
+              PAS du même badge "calculé depuis ton profil" que les 2 autres
+              (aucune zone unique à mettre en avant sur des segments libres)
+              — ne pas le citer ici évite d'annoncer une équivalence qui
+              n'existe pas vraiment à l'écran pour ce mode-là. "Zones d'allure"
+              également corrigé en "zones de cadence" (même nettoyage
+              terminologique que le reste de la page — l'allure, en min/km,
+              est une notion différente de la cadence, en PPM). */}
           {!isNaughtyMode && configuredProfilesCount === 0 && (
             <div className={`${cardBg} rounded-2xl border ${cardBorder} p-4 flex items-center justify-between gap-3 flex-wrap`}>
               <div className="flex items-center gap-3 min-w-0">
                 <div className={`shrink-0 p-2 rounded-xl ${bgAccentClass} text-white`}><Gauge size={18}/></div>
-                <p className={`text-sm ${textMuted}`}>Configure ton <span className={`font-semibold ${textHighlight}`}>Profil Athlétique</span> pour que le mode Crescendo propose automatiquement tes zones d'allure.</p>
+                <p className={`text-sm ${textMuted}`}>Configure ton <span className={`font-semibold ${textHighlight}`}>Profil Athlétique</span> pour que Crescendo et Allure Constante te proposent automatiquement tes zones de cadence.</p>
               </div>
               <button onClick={() => setShowAthleticProfile(true)} className={`shrink-0 text-sm font-bold underline ${textColorClass}`}>
                 Configurer →
