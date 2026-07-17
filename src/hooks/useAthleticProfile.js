@@ -4,15 +4,24 @@ import { WORKOUT_DEFAULT_BPM } from '../appConfig';
 
 /**
  * useAthleticProfile — regroupe le "Profil Athlétique" de l'utilisateur : ses
- * zones d'intensité de CADENCE musicale (BPM), pas de fréquence cardiaque
- * (voir la remarque terminologie plus bas). Persisté comme tout le reste via
- * `usePersistentState`, même convention que useFavorites/useUserStats/
- * useRoutines.
+ * zones d'intensité de CADENCE (en PPM, pas par minute — le rythme de tes
+ * pas/pédalage), PAS de fréquence cardiaque, ET PAS non plus de BPM musical
+ * au sens strict (voir la remarque terminologie plus bas). Persisté comme
+ * tout le reste via `usePersistentState`, même convention que
+ * useFavorites/useUserStats/useRoutines.
  *
- * ⚠️ TERMINOLOGIE (consigne explicite) : on parle de "Cadence" ou "Allure
- * musicale", JAMAIS de "Cardio" — ce mot est déjà pris par la fréquence
- * cardiaque réelle (voir useSessionAnalysis.js, l'analyse Cadence PPM vs FC
- * importée d'un Garmin/Strava).
+ * ⚠️ TERMINOLOGIE (consigne explicite, précisée après un retour direct sur
+ * une confusion réelle dans cette même page) : on parle de "Cadence", en PPM
+ * (pas par minute) — JAMAIS de "Cardio" (déjà pris par la fréquence cardiaque
+ * réelle, voir useSessionAnalysis.js, l'analyse Cadence PPM vs FC importée
+ * d'un Garmin/Strava) NI de "BPM" (battements par minute — une unité MUSICALE,
+ * qui décrit le tempo d'une chanson, pas le rythme de tes pas). Le nombre
+ * stocké ici (`baseCadence`, `zone1..zone4`) reste le MÊME qu'un BPM cible de
+ * génération une fois appliqué à la musique (c'est tout le principe de l'app :
+ * caler le tempo d'une chanson sur ta cadence de pas) — mais le LIBELLÉ
+ * affiché à l'écran doit refléter DE QUOI on parle à cet instant précis : ta
+ * cadence physique ici (PPM), le tempo de la musique une fois dans le wizard
+ * de génération (BPM, à raison — voir GeneratorView.jsx, étape 3).
  *
  * ─────────────────────────────────────────────────────────────────────────
  * ÉVOLUTION MULTI-ACTIVITÉS (cette session) : un seul profil global devient
@@ -58,21 +67,23 @@ import { WORKOUT_DEFAULT_BPM } from '../appConfig';
  * Crescendo) ET StatsView (répartition par zone).
  */
 
-// Plancher bas volontairement généreux (40 BPM) : même plancher que le mode
-// Intime ailleurs dans l'app (voir GeneratorView, bpmFloor) — sert seulement
-// à éviter une Zone 1 absurde si quelqu'un saisit une cadence de base très
-// basse, jamais un vrai jugement sur ce qui est "trop lent". Sport-agnostique
-// volontairement : c'est une borne de sécurité sur un BPM MUSICAL, pas sur une
-// vraie cadence physiologique (RPM à vélo, foulées/min en course...), donc pas
-// de raison de la faire varier par sport.
+// Plancher bas volontairement généreux (40 PPM) : même valeur numérique que
+// le plancher BPM du mode Intime ailleurs dans l'app (voir GeneratorView,
+// bpmFloor — coïncidence de valeur, pas la même unité, voir la remarque
+// terminologie plus haut) — sert seulement à éviter une Zone 1 absurde si
+// quelqu'un saisit une cadence de base très basse, jamais un vrai jugement
+// sur ce qui est "trop lent". Sport-agnostique volontairement : c'est une
+// borne de sécurité sur une CADENCE (PPM — le rythme de tes pas/pédalage,
+// PAS le tempo d'une chanson), donc pas de raison d'en faire une borne
+// différente par sport.
 const ATHLETIC_BPM_FLOOR = 40;
 
-// Espacement (en BPM) entre 2 zones consécutives, selon l'activité — consigne
+// Espacement (en PPM) entre 2 zones consécutives, selon l'activité — consigne
 // explicite ("adapte le calcul mathématique en fonction du type de sport") :
-// la cadence musicale plaquée sur un effort à vélo varie en pratique moins
-// largement entre "à l'aise" et "à fond" qu'en course à pied (où l'écart
-// d'allure ressenti entre footing et fractionné est plus marqué) — 5 BPM/palier
-// pour Cyclisme contre 15 pour Course à pied.
+// la cadence plaquée sur un effort à vélo varie en pratique moins largement
+// entre "à l'aise" et "à fond" qu'en course à pied (où l'écart d'allure
+// ressenti entre footing et fractionné est plus marqué) — 5 PPM/palier pour
+// Cyclisme contre 15 pour Course à pied.
 //
 // RETOUR DIRECT ("VMA à seulement +20 par rapport à ma cadence de footing,
 // ça me semble absurde") — vérifié plutôt que supposé : les données réelles de
@@ -83,16 +94,21 @@ const ATHLETIC_BPM_FLOOR = 40;
 // PAS la centaine de pas/min qu'un sprint pur (100m) donnerait, une confusion
 // fréquente : la VMA (Vitesse Maximale Aérobie) N'EST PAS la vitesse de sprint
 // — c'est l'allure maximale tenable en continu ~6 minutes (VO2max), très
-// différente d'un sprint bref. L'ancien espacement (10, soit 30 BPM d'écart
+// différente d'un sprint bref. L'ancien espacement (10, soit 30 PPM d'écart
 // total entre Récupération et Vitesse/VMA) était donc bas mais pas
-// délirant — remonté à 15 (45 BPM d'écart total) pour se situer plus
+// délirant — remonté à 15 (45 PPM d'écart total) pour se situer plus
 // confortablement dans la fourchette documentée, sans pour autant viser une
 // cadence de sprint qui ne correspondrait pas à ce qu'est réellement la VMA.
+//
+// RETOUR DIRECT SUIVANT ("confusion entre cadence et BPM — cadence = PPM,
+// pas BPM") : tous les commentaires de ce fichier ont été relus pour ne plus
+// dire "BPM"/"musical" là où il s'agit en réalité de la cadence PHYSIQUE de
+// la personne — voir la docstring en tête de fichier pour la règle complète.
 //
 // Honnêteté : pour une activité personnalisée (patin, elliptique...),
 // impossible de deviner un espacement spécifique sans plus d'info sur le
 // sport — la valeur par défaut (10) s'y applique, ajustable de toute façon au
-// BPM près en mode Expert.
+// PPM près en mode Expert.
 const ZONE_SPACING_BY_ACTIVITY = {
   'Course à pied': 15,
   'Cyclisme': 5,
