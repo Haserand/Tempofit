@@ -29,7 +29,7 @@
  * sans risque (même logique que `searchWorldMusicApi` conservée dans App.jsx).
  */
 
-import { ARTIST_CATALOG, DEEZER_GENRE_KEYWORDS, WEAK_DEEZER_KEYWORD_GENRES, isDirectGenreMatch, genreRoughlyMatches, detectTitleStyleConflict, detectLanguageVersionConflict, isLiveOrPerformanceVersion } from './musicCatalog';
+import { ARTIST_CATALOG, DEEZER_GENRE_KEYWORDS, WEAK_DEEZER_KEYWORD_GENRES, GENRES_NEEDING_DEEP_CATALOG_SEARCH, isDirectGenreMatch, genreRoughlyMatches, detectTitleStyleConflict, detectLanguageVersionConflict, isLiveOrPerformanceVersion } from './musicCatalog';
 import { formatDuration } from './utils/format';
 
 
@@ -941,6 +941,19 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   // fiable pour ces genres) prend seul le relais, avec une profondeur de
   // recherche renforcée (voir plus bas).
   const allEffectiveGenresWeak = genresForQuery.length > 0 && genresForQuery.every(g => WEAK_DEEZER_KEYWORD_GENRES.includes(g));
+  // BUG CORRIGÉ (retour direct, logs de diagnostic à l'appui — recherche
+  // "Métal" : seulement 8 artistes testés/6 candidats au lieu de 120/10) —
+  // `allEffectiveGenresWeak` (juste au-dessus) ne capture QUE les genres sans
+  // mot-clé Deezer fiable — or "Métal" A bien un mot-clé ('metal'), donc
+  // n'était JAMAIS considéré comme ayant besoin d'une recherche profonde par
+  // catalogue, malgré tous les commentaires de cette session affirmant le
+  // contraire (jamais revérifiés directement dans musicCatalog.js). Variable
+  // séparée, dédiée à la PROFONDEUR de recherche catalogue (voir plus bas) —
+  // `allEffectiveGenresWeak` continue de ne servir qu'à la décision "sauter
+  // la recherche généraliste par mot-clé" (ligne suivante), qui elle reste
+  // valide : rien ne prouve que le mot-clé 'metal' pose le même problème de
+  // collision que 'asian' pour K-pop.
+  const needsDeepCatalogSearch = genresForQuery.length > 0 && genresForQuery.every(g => GENRES_NEEDING_DEEP_CATALOG_SEARCH.includes(g));
 
   if (!allEffectiveGenresWeak) {
     try {
@@ -1041,8 +1054,8 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
       // source fiable (genres à mot-clé Deezer fragile, voir plus haut) — sinon
       // les réglages habituels suffisent, Deezer en direct ayant déjà pu
       // apporter l'essentiel du pool.
-      const stubs = await searchArtistsForBpm(catalogArtists, minBpm, maxBpm, localExcludeIds, allEffectiveGenresWeak ? 20 : 8, allEffectiveGenresWeak ? 10 : 6);
-      const details = await fetchInBatches(stubs.slice(0, allEffectiveGenresWeak ? 60 : 30), 10, async (s) => {
+      const stubs = await searchArtistsForBpm(catalogArtists, minBpm, maxBpm, localExcludeIds, needsDeepCatalogSearch ? 20 : 8, needsDeepCatalogSearch ? 10 : 6);
+      const details = await fetchInBatches(stubs.slice(0, needsDeepCatalogSearch ? 60 : 30), 10, async (s) => {
         const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
         return full;
       });
@@ -1170,7 +1183,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
       // catalogue (jamais vérifié à l'époque). Sans ce correctif, un tel titre
       // repassait la porte que ce garde-fou est censé fermer, et ressortait
       // marqué "Genre non confirmé" — exactement le symptôme observé.
-      const trustedOnly = allEffectiveGenresWeak
+      const trustedOnly = needsDeepCatalogSearch
         ? availablePool.filter(t => (t._isLocalDB && !t._genreMismatch) || (!t._deezerId && !t._isLocalDB))
         : availablePool;
       if (trustedOnly.length === 0) break;
