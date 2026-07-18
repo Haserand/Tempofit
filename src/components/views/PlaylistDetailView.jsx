@@ -160,6 +160,20 @@ export default function PlaylistDetailView({
   // partout ailleurs (getProfileForWorkout, useAthleticProfile.js).
   const playlistCadenceUnit = getCadenceUnitLabel(currentPlaylist.workoutType === 'Autre' ? (currentPlaylist.config?.customActivity || '__custom__') : currentPlaylist.workoutType);
 
+  // RETOUR DIRECT ("je veux que par défaut il y ait un profil fictif et que
+  // ça se base dessus") — "Répartition par BPM" (plus bas) classe maintenant
+  // TOUJOURS par zone (voir bpmDistributionData, App.jsx —
+  // getProfileForWorkoutOrDefault), avec repli sur un profil par défaut si
+  // rien n'est configuré pour l'activité de CETTE séance. Calculé ici pour
+  // savoir lequel des 2 cas afficher dans le sous-titre (même distinction
+  // honnête que "Tes zones d'intensité" dans StatsView.jsx) — même
+  // résolution d'activité qu'ailleurs (Mode Intime : le vrai nom est dans
+  // `config.workoutName`, pas `workoutType`, qui vaut toujours "Ambiance").
+  const bpmChartActivityName = isNaughtyMode
+    ? (currentPlaylist.config?.workoutName || currentPlaylist.workoutType || 'Autre')
+    : (currentPlaylist.workoutType || 'Autre');
+  const isBpmChartUsingRealProfile = !!(getProfileForWorkout && getProfileForWorkout(bpmChartActivityName)?.isConfigured);
+
   // Médaille "la plus/2e plus/3e plus utilisée" (retour direct : "quand je
   // suis dans la playlist d'une session que je fais le plus... faudrait
   // aussi le symbole") — déjà affichée sur la carte dans "Mes Séances"
@@ -1150,7 +1164,7 @@ export default function PlaylistDetailView({
             <span>
               Titres associés
               {selectedDetailGenre.size > 0 && <> · <span className={textColorClass}>{[...selectedDetailGenre].join(', ')}</span></>}
-              {selectedDetailBpmBucket.size > 0 && <> · <span className={textColorClass}>{[...selectedDetailBpmBucket].join(', ')} BPM</span></>}
+              {selectedDetailBpmBucket.size > 0 && <> · <span className={textColorClass}>{[...selectedDetailBpmBucket].join(', ')}</span></>}
             </span>
             <button onClick={() => { setSelectedDetailGenre(new Set()); setSelectedDetailBpmBucket(new Set()); }} className={`underline ${textMuted} hover:text-main`}>
               Réinitialiser
@@ -1356,7 +1370,20 @@ export default function PlaylistDetailView({
           )}
         </div>
         <div className={`${cardBg} rounded-3xl p-6 border ${cardBorder} shadow-xl`}>
-          <h3 className={`font-bold text-lg mb-4 flex items-center gap-2 ${textHighlight}`}><Activity className={textColorClass} size={20}/> Répartition par BPM</h3>
+          <h3 className={`font-bold text-lg flex items-center gap-2 ${textHighlight}`}><Activity className={textColorClass} size={20}/> Tes zones d'intensité</h3>
+          {/* RETOUR DIRECT ("je veux que par défaut il y ait un profil
+              fictif") — ce graphique classe maintenant TOUJOURS par zone
+              (voir bpmDistributionData, App.jsx), plus jamais par tranche
+              brute de BPM tant qu'une classification par zone reste possible
+              (quasi toujours vrai) — renommé de "Répartition par BPM" à "Tes
+              zones d'intensité" pour rester honnête sur ce qu'il montre
+              vraiment (des noms de zone, pas des plages de BPM), même
+              sous-titre de provenance que son équivalent dans StatsView.jsx. */}
+          <p className={`text-xs mb-4 ${textMuted}`}>
+            {isBpmChartUsingRealProfile
+              ? 'Basé sur ton Profil Athlétique.'
+              : 'Estimation par défaut (aucun Profil Athlétique configuré pour cette activité).'}
+          </p>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -1396,7 +1423,7 @@ export default function PlaylistDetailView({
           </div>
           {selectedDetailBpmBucket.size > 0 && (
             <div className={`mt-4 pt-4 border-t ${cardBorder} space-y-1`}>
-              <div className={`text-xs font-bold uppercase tracking-wide mb-2 ${textMuted}`}>Titres · {[...selectedDetailBpmBucket].join(', ')} BPM</div>
+              <div className={`text-xs font-bold uppercase tracking-wide mb-2 ${textMuted}`}>Titres · {[...selectedDetailBpmBucket].join(', ')}</div>
               {currentPlaylist.tracks.filter(t => selectedDetailBpmBucket.has(trackBpmBucketLabel(t))).map((t, i) => (
                 <div key={i} className="flex items-center justify-between gap-2 text-sm py-1">
                   <div className="min-w-0">
