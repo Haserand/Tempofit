@@ -2145,9 +2145,37 @@ export default function App() {
       );
     }
     const longLabel = new Date(iso.slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+    // RETOUR DIRECT ("pas complètement intuitif qu'on peut modifier la date —
+    // ajoute une indication visuelle, genre le crayon du titre") — avant,
+    // seul un `hover:underline` signalait que c'était cliquable : invisible
+    // tant qu'on n'a pas déjà survolé (donc inutile pour DÉCOUVRIR que c'est
+    // modifiable), et carrément absent au toucher (mobile/tablette, où
+    // "hover" n'existe pas). Corrigé avec 2 indices TOUJOURS visibles,
+    // jamais seulement au survol :
+    //   - un soulignement POINTILLÉ sur la date (convention "texte éditable
+    //     en ligne", déjà utilisée par des apps comme Notion/Linear) ;
+    //   - la MÊME icône crayon que celle du titre juste en dessous (Edit3),
+    //     pour que le geste "il y a un crayon à côté = je peux modifier ce
+    //     texte" soit reconnu une seule fois puis réutilisé partout dans la
+    //     page, plutôt qu'un nouveau signal à apprendre.
+    // Le survol reste utile en PLUS (couleur qui se renforce), pas comme
+    // seul indice.
     return (
-      <button onClick={() => setEditingCompletion({ playlistId: playlist.id, isoDate: iso })} className="hover:underline" title="Modifier cette date">
-        Réalisée le {longLabel}
+      <button
+        onClick={() => setEditingCompletion({ playlistId: playlist.id, isoDate: iso })}
+        className={`inline-flex items-center gap-1 group/date`}
+        title="Modifier cette date"
+      >
+        {/* `text-main` en dur (pas `${textHighlight}` interpolé dans le nom de
+            variant) : Tailwind scanne le code SOURCE pour repérer les noms de
+            classes à générer — une classe reconstruite au runtime via
+            template literal (`group-hover/date:${textHighlight}`) n'apparaît
+            jamais telle quelle dans le code, donc jamais générée. `textHighlight`
+            vaut toujours littéralement "text-main" depuis le Design System
+            sémantique (voir useTheme.js) — mais ça reste une variable, pas un
+            littéral, donc dangereux à interpoler dans un préfixe de variant. */}
+        <span className="underline decoration-dotted underline-offset-2 group-hover/date:text-main">Réalisée le {longLabel}</span>
+        <Edit3 size={11} className="opacity-60 group-hover/date:opacity-100 transition-opacity shrink-0" />
       </button>
     );
   };
