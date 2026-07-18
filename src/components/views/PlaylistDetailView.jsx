@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Pause, Play,
   GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, Calendar, ChevronDown, ChevronUp,
-  Camera, Loader2, ChevronLeft, ChevronRight, Lock, Circle, Upload,
+  Camera, Loader2, ChevronLeft, ChevronRight, Lock, Upload,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, CartesianGrid, ReferenceArea, ReferenceLine, XAxis, YAxis,
@@ -117,7 +117,7 @@ export default function PlaylistDetailView({
   setIsBpmSearchMode, setIsSearchModalOpen,
   bpmDistributionData, genreDistributionData,
   setPlaylistPlannedDate,
-  markPlaylistAsCompleted, renderCompletionsList, renderTopCompletionDate,
+  renderCompletionsList, renderTopCompletionDate,
   getRankStyle, triggerCSVUpload,
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass, borderAccentClass, inputBg, inputBorder } = theme;
@@ -130,10 +130,6 @@ export default function PlaylistDetailView({
   // partout (Safari en particulier peut ignorer ce clic précis, sans aucune
   // erreur visible) — d'où le retour "le bouton Planifier ne fonctionne pas".
   const plannedDateInputRef = useRef(null);
-  // Même filet de sécurité pour "Marquer comme refaite" ci-dessous (nouvelle
-  // date de complétion depuis la fiche détaillée, pas seulement depuis la
-  // carte dans "Mes Séances").
-  const addCompletionDateInputRef = useRef(null);
 
   // --- Verrouillage d'une séance déjà réalisée (retour direct) ---
   // Une fois qu'AU MOINS une date de complétion existe, cette playlist devient
@@ -534,36 +530,18 @@ export default function PlaylistDetailView({
               </label>
             )}
 
-            {/* RETOUR DIRECT ("marquer comme refaite devrait être une option
-                à droite de planifier à nouveau") — déplacé ici (juste à côté
-                de "Planifier à nouveau"), retiré du bandeau vert plus bas.
-                Compact ici (icône + libellé court) plutôt que le bouton pleine
-                largeur d'avant — cette ligne étant déjà partagée avec
-                plusieurs autres contrôles, contrairement au bandeau vert qui
-                lui a toute la largeur pour lui. Même mécanique (showPicker,
-                markPlaylistAsCompleted) qu'avant, seul l'EMPLACEMENT et le
-                style changent. */}
-            {isLocked && markPlaylistAsCompleted && (
-              <label
-                onClick={(e) => {
-                  if (addCompletionDateInputRef.current?.showPicker) {
-                    e.preventDefault();
-                    addCompletionDateInputRef.current.showPicker();
-                  }
-                }}
-                title="Marquer comme refaite (ajouter une nouvelle date de complétion)"
-                className={`relative flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm cursor-pointer transition-colors border ${inputBg} hover:bg-green-100 dark:hover:bg-green-900/20 hover:text-green-600 ${inputBorder} ${textMuted} shrink-0`}
-              >
-                <Circle size={16}/>
-                <span>Marquer comme refaite</span>
-                <input
-                  ref={addCompletionDateInputRef}
-                  type="date"
-                  onChange={(e) => { if (e.target.value) markPlaylistAsCompleted(currentPlaylist.id, e.target.value); e.target.value = ''; }}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                />
-              </label>
-            )}
+            {/* RETOUR DIRECT ("ça ne sert à rien de pouvoir marquer comme
+                refaite si je peux déjà planifier à nouveau — les séances se
+                marquent comme faites depuis la partie Playlist") — bouton
+                "Marquer comme refaite" retiré d'ici. Il appelait exactement
+                `markPlaylistAsCompleted`, la MÊME fonction que le bouton
+                "Marquer comme faite"/"Ajouter une date" déjà présent sur la
+                carte de cette playlist dans "Mes Séances" (voir
+                PlaylistCard.jsx) — un doublon pur, pas une variante. Gardé
+                UNIQUEMENT là-bas : "Planifier à nouveau" ci-dessus reste ici
+                (fonction différente — une intention future, `plannedDate`,
+                qui n'enregistre AUCUNE complétion tant que la séance n'est
+                pas réellement marquée faite depuis "Mes Séances"). */}
           </div>
 
           {/* Ligne 3 : badges secondaires (retour direct : "aère... entre le
