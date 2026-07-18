@@ -65,7 +65,7 @@ import { WORKOUT_DEFAULT_BPM } from '../appConfig';
  *
  * "Autre/Personnalisé" : PAS une 3e clé fixe dans `activities`, mais un
  * tableau `custom` — chaque activité personnalisée (ex. "Elliptique") y est
- * une entrée `{ id, name, isConfigured, baseCadence, zone1..zone4 }`,
+ * une entrée `{ id, name, isConfigured, targetBpm, zone1..zone4 }`,
  * indépendante des autres. Se raccroche au mécanisme EXISTANT de
  * `useCustomActivity.js` (le nom tapé dans la modale "Autre" à l'étape 1) via
  * `getProfileForWorkout(workoutType, customActivityName)` plus bas : si le nom
@@ -84,11 +84,12 @@ import { WORKOUT_DEFAULT_BPM } from '../appConfig';
  * quelconques" — sert de garde-fou pour GeneratorView (pré-remplissage
  * Crescendo) ET StatsView (répartition par zone).
  *
- * Note de nommage interne : les champs restent `baseCadence`/`zone1..zone4`
- * en interne (pas renommés en `targetBpm`/etc.) pour ne rien casser dans les
- * données déjà persistées (`usePersistentState`) des utilisateurs existants
- * — seul ce qui est AFFICHÉ à l'écran change de sens, pas la forme des
- * données stockées.
+ * Note de nommage interne : le champ `baseCadence` a été renommé en
+ * `targetBpm` (avec `zone1..zone4`, cohérence inchangée) — pas de migration
+ * nécessaire, aucun utilisateur existant n'avait encore de profil persisté.
+ * Si ce n'était pas le cas, il aurait fallu lire l'ancien nom en plus du
+ * nouveau le temps d'une migration, comme pour l'ancien format plat (V1,
+ * voir plus haut).
  */
 
 // Plancher bas volontairement généreux (40 PPM) : même valeur numérique que
@@ -122,7 +123,7 @@ const ZONE_SPACING_BY_ACTIVITY = {
 };
 const DEFAULT_ZONE_SPACING = 10;
 
-const emptyProfile = () => ({ isConfigured: false, baseCadence: null, zone1: null, zone2: null, zone3: null, zone4: null });
+const emptyProfile = () => ({ isConfigured: false, targetBpm: null, zone1: null, zone2: null, zone3: null, zone4: null });
 
 const computeZonesFromBaseBpm = (base, spacing = DEFAULT_ZONE_SPACING) => ({
   zone1: Math.max(ATHLETIC_BPM_FLOOR, base - spacing),
@@ -158,7 +159,7 @@ const getDefaultBaseBpm = (activityKey) => WORKOUT_DEFAULT_BPM.standard[activity
 const buildDefaultPreviewProfile = (activityKey) => {
   const base = getDefaultBaseBpm(activityKey);
   const spacing = ZONE_SPACING_BY_ACTIVITY[activityKey] ?? DEFAULT_ZONE_SPACING;
-  return { isConfigured: false, baseCadence: base, ...computeZonesFromBaseBpm(base, spacing) };
+  return { isConfigured: false, targetBpm: base, ...computeZonesFromBaseBpm(base, spacing) };
 };
 
 // Espacement RÉEL utilisé pour une activité donnée — exposé pour que l'UI
@@ -190,7 +191,7 @@ export function useAthleticProfile() {
         activities: {
           'Course à pied': {
             isConfigured: athleticProfile.isConfigured,
-            baseCadence: athleticProfile.baseCadence,
+            targetBpm: athleticProfile.targetBpm,
             zone1: athleticProfile.zone1, zone2: athleticProfile.zone2,
             zone3: athleticProfile.zone3, zone4: athleticProfile.zone4,
           },
@@ -212,7 +213,7 @@ export function useAthleticProfile() {
       ...prev,
       activities: {
         ...prev.activities,
-        [activityKey]: { isConfigured: true, baseCadence: base, ...computeZonesFromBaseBpm(base, spacing) },
+        [activityKey]: { isConfigured: true, targetBpm: base, ...computeZonesFromBaseBpm(base, spacing) },
       },
     }));
   };
@@ -273,7 +274,7 @@ export function useAthleticProfile() {
     setAthleticProfile(prev => ({
       ...prev,
       custom: prev.custom.map(c => c.id === id
-        ? { ...c, isConfigured: true, baseCadence: base, ...computeZonesFromBaseBpm(base, DEFAULT_ZONE_SPACING) }
+        ? { ...c, isConfigured: true, targetBpm: base, ...computeZonesFromBaseBpm(base, DEFAULT_ZONE_SPACING) }
         : c),
     }));
   };
