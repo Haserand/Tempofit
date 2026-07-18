@@ -41,9 +41,9 @@ export default function GeneratorView({
   setCurrentPlaylist, setIsBpmSearchMode, setSearchQuery, setWorldSearchResults,
   setResultsContextLabel, setNoUsableResultsHint, setIsSearchModalOpen, searchTracksByBpm,
   executeGeneration, isGenerating, getActiveWorkoutName, setIsSavingRoutineModalOpen,
-  athleticProfile, setBaseCadenceForActivity, setZoneForActivity, resetActivityProfile,
-  addCustomActivity, removeCustomActivity, setBaseCadenceForCustom, setZoneForCustom, getProfileForWorkout,
-  getDefaultBaseCadence, buildDefaultPreviewProfile, getZoneSpacingForActivity,
+  athleticProfile, setBaseBpmForActivity, setZoneForActivity, resetActivityProfile,
+  addCustomActivity, removeCustomActivity, setBaseBpmForCustom, setZoneForCustom, getProfileForWorkout,
+  getDefaultBaseBpm, buildDefaultPreviewProfile, getZoneSpacingForActivity,
   showAthleticProfile, setShowAthleticProfile,
 }) {
   const {
@@ -165,7 +165,7 @@ export default function GeneratorView({
   // tant que l'activité n'a jamais été réellement configurée
   // (`activeProfile?.isConfigured`), jamais pour décider quoi que ce soit
   // ailleurs (badges "Profil configuré", pré-remplissage Crescendo...), qui
-  // continuent de se fier strictement à `isConfigured`. `getDefaultBaseCadence`
+  // continuent de se fier strictement à `isConfigured`. `getDefaultBaseBpm`
   // n'a pas de valeur spécifique pour une activité personnalisée (aucun moyen
   // de deviner un chiffre par discipline pour un sport inconnu à l'avance) —
   // lui passer une clé bidon retombe proprement sur le repli générique
@@ -180,7 +180,7 @@ export default function GeneratorView({
   // `getCadenceUnitLabel`/`playlistCadenceUnit` (PlaylistDetailView.jsx) :
   // celui-là reste correct et inchangé, il affiche une VRAIE cadence
   // physique importée d'un Garmin/Strava, un cas totalement différent.
-  const activityCadenceUnit = 'BPM';
+  const zoneBpmUnit = 'BPM';
 
   // Brouillon de saisie de l'Assistant Rapide — RE-DÉRIVÉ à chaque changement
   // d'onglet (voir l'effet juste en dessous) puisque chaque activité a
@@ -188,11 +188,11 @@ export default function GeneratorView({
   // unique où un seul brouillon suffisait. Pré-rempli avec une valeur
   // crédible par défaut (`defaultPreviewProfile.baseCadence`) plutôt que vide
   // tant que rien n'a encore été configuré.
-  const [baseCadenceDraft, setBaseCadenceDraft] = useState(activeProfile?.baseCadence ?? defaultPreviewProfile.baseCadence);
+  const [baseBpmDraft, setBaseBpmDraft] = useState(activeProfile?.baseCadence ?? defaultPreviewProfile.baseCadence);
   // BUG CORRIGÉ (retour direct : "le bouton calculer mes zones ne marche
   // pas") — `computeAndApplyZones` faisait bien un `return` silencieux si le
-  // champ était vide ou invalide (`if (!baseCadenceDraft) return;`, et
-  // `setBaseCadenceForActivity`/`setBaseCadenceForCustom` refusent eux-mêmes
+  // champ était vide ou invalide (`if (!baseBpmDraft) return;`, et
+  // `setBaseBpmForActivity`/`setBaseBpmForCustom` refusent eux-mêmes
   // toute valeur <= 0 ou non numérique, voir useAthleticProfile.js) — mais
   // RIEN ne le signalait à l'écran : ni message, ni bordure rouge, ni le
   // moindre indice. Un clic sur "Calculer mes zones" sans avoir tapé de
@@ -201,22 +201,22 @@ export default function GeneratorView({
   // c'était très exactement, mais sans jamais l'expliquer. Ce cas reste
   // possible malgré la pré-saisie par défaut ci-dessus (la personne peut
   // vider le champ à la main), d'où ce garde-fou conservé tel quel.
-  const [cadenceInputError, setCadenceInputError] = useState(false);
+  const [bpmInputError, setBpmInputError] = useState(false);
   useEffect(() => {
-    setBaseCadenceDraft(activeProfile?.baseCadence ?? buildDefaultPreviewProfile(isCustomProfileTab ? '__custom__' : selectedProfileActivity).baseCadence);
-    setCadenceInputError(false);
+    setBaseBpmDraft(activeProfile?.baseCadence ?? buildDefaultPreviewProfile(isCustomProfileTab ? '__custom__' : selectedProfileActivity).baseCadence);
+    setBpmInputError(false);
     setShowZoneCalcInfo(false);
   }, [selectedProfileActivity]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const computeAndApplyZones = () => {
-    const parsed = parseInt(baseCadenceDraft);
-    if (!baseCadenceDraft || !Number.isFinite(parsed) || parsed <= 0) {
-      setCadenceInputError(true);
+    const parsed = parseInt(baseBpmDraft);
+    if (!baseBpmDraft || !Number.isFinite(parsed) || parsed <= 0) {
+      setBpmInputError(true);
       return false;
     }
-    setCadenceInputError(false);
-    if (isCustomProfileTab) setBaseCadenceForCustom(selectedProfileActivity, baseCadenceDraft);
-    else setBaseCadenceForActivity(selectedProfileActivity, baseCadenceDraft);
+    setBpmInputError(false);
+    if (isCustomProfileTab) setBaseBpmForCustom(selectedProfileActivity, baseBpmDraft);
+    else setBaseBpmForActivity(selectedProfileActivity, baseBpmDraft);
     return true;
   };
   const handleSetZone = (zoneKey, value) => {
@@ -240,7 +240,7 @@ export default function GeneratorView({
   // PIVOT DE MODÈLE : on demande maintenant directement le BPM MUSICAL voulu
   // à une intensité tranquille, pas une cadence physique (voir
   // useAthleticProfile.js, docstring en tête de fichier, pour le pourquoi).
-  const baseCadenceQuestion = selectedProfileActivity === 'Course à pied'
+  const baseBpmQuestion = selectedProfileActivity === 'Course à pied'
     ? "Quel tempo de musique veux-tu lors d'un footing lent ?"
     : selectedProfileActivity === 'Cyclisme'
       ? "Quel tempo de musique veux-tu lors d'une sortie tranquille ?"
@@ -423,7 +423,7 @@ export default function GeneratorView({
             </div>
 
             {/* Assistant Rapide : une seule question, 4 zones calculées d'un
-                coup (voir computeZonesFromBaseCadence, useAthleticProfile.js).
+                coup (voir computeZonesFromBaseBpm, useAthleticProfile.js).
                 ─────────────────────────────────────────────────────────────
                 PIVOT DE MODÈLE (retour direct, cas concret : "à ma zone 4,
                 cœur à 170 bpm, pas à 160, musique voulue à 180") — ce champ
@@ -441,23 +441,23 @@ export default function GeneratorView({
                 vs "BPM cible"), qui lui affiche une vraie cadence physique
                 importée d'un Garmin/Strava — cas différent, inchangé. */}
             <div className={`p-4 rounded-2xl ${inputBg} border ${inputBorder}`}>
-              <label className={`text-sm font-bold block mb-2 ${textHighlight}`}>{baseCadenceQuestion}</label>
+              <label className={`text-sm font-bold block mb-2 ${textHighlight}`}>{baseBpmQuestion}</label>
               <div className="flex flex-col sm:flex-row gap-3">
-                <div className={`flex-1 flex items-center px-4 py-3 rounded-xl border ${cadenceInputError ? 'border-red-500' : inputBorder} ${cardBg}`}>
+                <div className={`flex-1 flex items-center px-4 py-3 rounded-xl border ${bpmInputError ? 'border-red-500' : inputBorder} ${cardBg}`}>
                   <input
                     type="number" min="40" max="220" placeholder="ex : 160"
-                    value={baseCadenceDraft}
-                    onChange={(e) => { setBaseCadenceDraft(e.target.value); if (cadenceInputError) setCadenceInputError(false); }}
+                    value={baseBpmDraft}
+                    onChange={(e) => { setBaseBpmDraft(e.target.value); if (bpmInputError) setBpmInputError(false); }}
                     onKeyDown={(e) => e.key === 'Enter' && computeAndApplyZones()}
                     className={`bg-transparent w-full text-lg font-bold outline-none ${textHighlight}`}
                   />
-                  <span className={`text-sm font-bold shrink-0 ${textMuted}`}>{activityCadenceUnit}</span>
+                  <span className={`text-sm font-bold shrink-0 ${textMuted}`}>{zoneBpmUnit}</span>
                 </div>
                 <button onClick={computeAndApplyZones} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110 shrink-0`}>
                   Calculer mes zones
                 </button>
               </div>
-              {cadenceInputError && (
+              {bpmInputError && (
                 <p className="text-xs font-bold text-red-500 mt-2">Indique d'abord un chiffre (le BPM que tu veux) avant de calculer tes zones.</p>
               )}
             </div>
@@ -487,7 +487,7 @@ export default function GeneratorView({
                     <span className={`text-[11px] font-bold uppercase tracking-wide ${textMuted}`}>{z.shortLabel}</span>
                   </div>
                   <div className={`text-xl font-black ${textHighlight}`}>{activeProfile?.[z.key] ?? defaultPreviewProfile[z.key]}</div>
-                  <div className={`text-[10px] ${textMuted}`}>{activityCadenceUnit}</div>
+                  <div className={`text-[10px] ${textMuted}`}>{zoneBpmUnit}</div>
                 </div>
               ))}
             </div>
@@ -523,7 +523,7 @@ export default function GeneratorView({
                         onChange={(e) => handleSetZone(z.key, e.target.value)}
                         className={`w-14 bg-transparent text-right font-mono font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${textHighlight}`}
                       />
-                      <span className={`text-xs font-bold ${textMuted}`}>{activityCadenceUnit}</span>
+                      <span className={`text-xs font-bold ${textMuted}`}>{zoneBpmUnit}</span>
                     </div>
                   </div>
                 ))}
@@ -539,7 +539,7 @@ export default function GeneratorView({
                 le clic accepte implicitement les valeurs par défaut affichées
                 si rien n'a encore été réellement configuré
                 (`computeAndApplyZones` avec la cadence déjà pré-remplie dans
-                l'Assistant Rapide, voir `baseCadenceDraft`), avant de
+                l'Assistant Rapide, voir `baseBpmDraft`), avant de
                 rejoindre le générateur.
                 RETOUR DIRECT SUIVANT : "pas la peine d'avoir le texte
                 explicatif ou les pointillés en rouge" — simplifié en simple
