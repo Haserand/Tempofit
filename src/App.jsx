@@ -2532,7 +2532,7 @@ export default function App() {
                <button
                  onClick={toggleTheme}
                  title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
-                 className={`p-2 rounded-lg transition-colors ${textMuted} hover:bg-surface-hover hover:${textHighlight}`}
+                 className={`p-2 rounded-lg transition-colors ${textMuted} hover:bg-surface-hover hover:text-main`}
                >
                  {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
                </button>
@@ -2548,7 +2548,7 @@ export default function App() {
               le comportement par défaut d'un <button>, mais explicite plutôt qu'implicite). */}
           <nav className="flex-1 px-4 py-6 space-y-3 overflow-y-auto no-scrollbar">
             
-            <button onClick={() => changeView('generator')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:${textHighlight}`}`}>
+            <button onClick={() => changeView('generator')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
               <Zap size={18} className={view === 'generator' ? 'text-white' : textColorClass} />
               <span className="font-bold text-sm">Générer</span>
             </button>
@@ -2564,33 +2564,33 @@ export default function App() {
             <button
               onClick={() => { changeView('generator'); setShowAthleticProfile(true); }}
               className={`w-full flex items-center space-x-2.5 pl-8 pr-3 py-2 rounded-lg transition-colors select-none cursor-pointer ${view === 'generator' && showAthleticProfile ?
-                `${textColorClass} bg-surface-hover font-bold` : `${textMuted} hover:bg-surface-hover hover:${textHighlight}`}`}
+                `${textColorClass} bg-surface-hover font-bold` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}
             >
               <Gauge size={15} className="shrink-0" />
               <span className="text-xs font-semibold">Mon Profil Athlétique</span>
             </button>
 
-            <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:${textHighlight}`}`}>
+            <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
               <ListPlus size={18} />
               <span className="font-bold text-sm">Mes Routines</span>
             </button>
             
-            <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:${textHighlight}`}`}>
+            <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
               <List size={18} />
               <span className="font-bold text-sm">Mes Séances</span>
             </button>
 
-            <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:${textHighlight}`}`}>
+            <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
               <Activity size={18} />
               <span className="font-bold text-sm">Statistiques</span>
             </button>
 
-            <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:${textHighlight}`}`}>
+            <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
               <Star size={18} className={favorites.useFavorites && favorites.artists.length > 0 ? "text-yellow-500 fill-yellow-500/20" : ""} />
               <span className="font-bold text-sm">Mes Favoris</span>
             </button>
 
-            <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'settings' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:${textHighlight}`}`}>
+            <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'settings' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
               <Settings size={18} />
               <span className="font-bold text-sm">Options & Comptes</span>
             </button>
@@ -2604,7 +2604,7 @@ export default function App() {
               href="https://www.linkedin.com/in/damiengrange/"
               target="_blank"
               rel="noopener noreferrer"
-              className={`text-xs font-medium ${textMuted} hover:${textHighlight} transition-colors`}
+              className={`text-xs font-medium ${textMuted} hover:text-main transition-colors`}
             >
               Un projet créé par <span className="font-bold underline">Damien Grangé</span>
             </a>
@@ -2614,7 +2614,7 @@ export default function App() {
         <div className="flex-1 flex flex-col relative w-full">
           {/* Header mobile (bouton burger + logo) */}
           <header className={`md:hidden flex items-center p-4 bg-surface border-b ${cardBorder} z-30`}>
-            <button onClick={() => setIsMobileMenuOpen(true)} className={`p-2 mr-3 ${textMuted} hover:${textHighlight} bg-surface-hover rounded-lg`}><Menu size={20} /></button>
+            <button onClick={() => setIsMobileMenuOpen(true)} className={`p-2 mr-3 ${textMuted} hover:text-main bg-surface-hover rounded-lg`}><Menu size={20} /></button>
             <div className="flex items-center space-x-2">
               <span className={`font-bold text-lg tracking-tight ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
             </div>
@@ -3118,10 +3118,10 @@ export default function App() {
                       <input type="number" min="0" max="59" value={editingRoutine.minutes} onChange={e => setEditingRoutine({...editingRoutine, minutes: e.target.value})} className={`bg-transparent w-full font-bold outline-none ${textHighlight} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
                       <span className={`text-sm font-bold ${textMuted} mr-1`}>Min</span>
                       <div className="flex flex-col">
-                        <button type="button" onClick={() => setEditingRoutine(r => ({...r, minutes: (parseInt(r.minutes) || 0) + 1 > 59 ? 0 : (parseInt(r.minutes) || 0) + 1}))} className={`${textMuted} hover:${textHighlight}`}>
+                        <button type="button" onClick={() => setEditingRoutine(r => ({...r, minutes: (parseInt(r.minutes) || 0) + 1 > 59 ? 0 : (parseInt(r.minutes) || 0) + 1}))} className={`${textMuted} hover:text-main`}>
                           <ChevronUp size={14} />
                         </button>
-                        <button type="button" onClick={() => setEditingRoutine(r => ({...r, minutes: (parseInt(r.minutes) || 0) - 1 < 0 ? 59 : (parseInt(r.minutes) || 0) - 1}))} className={`${textMuted} hover:${textHighlight}`}>
+                        <button type="button" onClick={() => setEditingRoutine(r => ({...r, minutes: (parseInt(r.minutes) || 0) - 1 < 0 ? 59 : (parseInt(r.minutes) || 0) - 1}))} className={`${textMuted} hover:text-main`}>
                           <ChevronDown size={14} />
                         </button>
                       </div>
@@ -3140,13 +3140,13 @@ export default function App() {
                           const current = editingRoutine.selectedGenres;
                           if (isSelected) { if (current.length > 1) setEditingRoutine({...editingRoutine, selectedGenres: current.filter(g => g !== genre)}); }
                           else setEditingRoutine({...editingRoutine, selectedGenres: [...current, genre]});
-                        }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                        }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}>
                           {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                         </button>
                       );
                     })}
                     {!isNaughtyMode && (
-                      <button onClick={() => setShowExtraGenres(!showExtraGenres)} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 border-dashed ${cardBorder} ${textMuted} hover:${textHighlight}`}>
+                      <button onClick={() => setShowExtraGenres(!showExtraGenres)} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 border-dashed ${cardBorder} ${textMuted} hover:text-main`}>
                         {showExtraGenres ? '− Moins de genres' : '+ Plus de genres'}
                       </button>
                     )}
@@ -3161,7 +3161,7 @@ export default function App() {
                             const current = editingRoutine.selectedGenres;
                             if (isSelected) { if (current.length > 1) setEditingRoutine({...editingRoutine, selectedGenres: current.filter(g => g !== genre)}); }
                             else setEditingRoutine({...editingRoutine, selectedGenres: [...current, genre]});
-                          }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                          }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}>
                             {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                           </button>
                         );
@@ -3318,7 +3318,7 @@ export default function App() {
               <button onClick={copyToClipboard} className={`w-full py-4 text-white font-bold rounded-xl shadow-md hover:brightness-110 transition-all flex items-center justify-center gap-2 ${bgAccentClass}`}>
                 <Copy size={18}/> Copier le lien
               </button>
-              <button onClick={shareViaEmail} className={`w-full py-3 mt-2 rounded-xl text-sm font-bold ${textMuted} hover:${textHighlight} transition-colors flex items-center justify-center gap-2`}>
+              <button onClick={shareViaEmail} className={`w-full py-3 mt-2 rounded-xl text-sm font-bold ${textMuted} hover:text-main transition-colors flex items-center justify-center gap-2`}>
                 <MessageCircle size={16}/> Envoyer par e-mail
               </button>
             </div>
