@@ -7,9 +7,6 @@ import { NAUGHTY_ROUTINE_NAMES, getZoneForValue, ATHLETIC_ZONES, DISTRIBUTION_CO
 // CONSTANTES GLOBALES & CONFIGURATION
 // =====================================================================================
 
-const SPOTIFY_AUTH_BASE = 'https://accounts.spotify.com/authorize?';
-const SPOTIFY_TOKEN_BASE = 'https://accounts.spotify.com/api/token';
-
 // --- CLÉ API GETSONGBPM ---
 // Déplacée côté serveur (api/getsongbpm.js) : la clé n'apparaît plus du tout dans
 // ce fichier ni dans le bundle envoyé au navigateur. Elle doit être configurée
@@ -30,7 +27,6 @@ const SPOTIFY_TOKEN_BASE = 'https://accounts.spotify.com/api/token';
 // texte est maintenant écrit en dur à son unique point d'usage.
 
 import { safeFetchJson, deezerFetch, resolveDeezerGenre, getSingleMatchingTrack, buildSegmentTracks, deduceCrescendoBpm, buildCrescendoSegments, findSameArtistReplacement, recalculateTimeline, createPlaylistData } from './musicEngine';
-import { fetchSpotifyRawData, resolveTracksBpm } from './spotifyEngine';
 import { parseGarminCsv } from './workoutDataEngine';
 import { dedupeAppend, fetchWorldSearchResults, fetchBpmSearchResults } from './searchEngine';
 import { useTheme } from './hooks/useTheme';
@@ -40,6 +36,7 @@ import { useCustomActivity } from './hooks/useCustomActivity';
 import { useGeneratorForm } from './hooks/useGeneratorForm';
 import { useTrackSearch, SEARCH_LOADING_MESSAGES } from './hooks/useTrackSearch';
 import { useFavorites } from './hooks/useFavorites';
+import { useSpotifyImport } from './hooks/useSpotifyImport';
 import { useAthleticProfile } from './hooks/useAthleticProfile';
 import { useRoutines } from './hooks/useRoutines';
 import { useUserStats } from './hooks/useUserStats';
@@ -163,181 +160,15 @@ export default function App() {
    * à ARTIST_CATALOG : plus de liste de titres codés en dur à consulter ici — voir
    * musicCatalog.js pour le détail de ce changement d'architecture.)
    */
-  // --- DÉBUT : MOTEUR SPOTIFY (Version Unifiée & Sécurisée) ---
-  // Authentification OAuth2 PKCE (Proof Key for Code Exchange) : flow adapté
-  // aux apps 100% front-end car il ne nécessite pas de "client secret" caché
-  // côté serveur — contrairement au flow "Authorization Code" classique.
-  const SPOTIFY_CLIENT_ID = '38d8a04ac20047cebe31d20a2cd65d52';
-  const REDIRECT_URI = window.location.origin + window.location.pathname; 
-  const [spotifyToken, setSpotifyToken] = useState(window.localStorage.getItem("spotify_token"));
-  const hasFetchedToken = useRef(false); // Garde-fou anti double-échange du "code" (StrictMode / re-render)
+  // --- MOTEUR SPOTIFY : extrait dans hooks/useSpotifyImport.js (retour
+  //     direct : "comment tu diviserais App.jsx ?" — après les 8 modales,
+  //     ce module était le 2e chantier identifié). Le hook est appelé plus
+  //     bas, APRÈS useFavorites (dont il a besoin : `setFavorites`). ---
 
-  // Au montage : si l'URL contient un paramètre "code" (retour de la redirection
-  // Spotify après consentement de l'utilisateur), on l'échange contre un token
-  // d'accès via l'endpoint /api/token, en fournissant le "code_verifier" PKCE
-  // généré avant la redirection et stocké temporairement en localStorage.
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    let code = urlParams.get('code');
-
-    if (code && !hasFetchedToken.current) {
-      hasFetchedToken.current = true;
-      const codeVerifier = window.localStorage.getItem('code_verifier');
-      
-      fetch(SPOTIFY_TOKEN_BASE, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          client_id: SPOTIFY_CLIENT_ID,
-          grant_type: 'authorization_code',
-          code: code,
-          redirect_uri: REDIRECT_URI,
-          code_verifier: codeVerifier,
-        }),
-      })
-      .then(res => res.json())
-      .then(data => {
-        if(data.access_token) {
-           window.localStorage.setItem("spotify_token", data.access_token);
-           setSpotifyToken(data.access_token);
-           // Nettoie l'URL (retire ?code=...) pour éviter un ré-échange si l'utilisateur rafraîchit.
-           window.history.replaceState({}, document.title, REDIRECT_URI);
-           showToast("✅ Connexion à Spotify réussie !");
-        }
-      }).catch(err => console.error(err));
-    }
-  }, []);
-
-  // Génère une chaîne aléatoire cryptographiquement sûre (utilisée comme code_verifier PKCE).
-  const generateRandomString = (length) => {
-    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    const values = crypto.getRandomValues(new Uint8Array(length));
-    return values.reduce((acc, x) => acc + possible[x % possible.length], "");
-  };
-
-  // Hash SHA-256 du code_verifier → donnera le code_challenge envoyé à Spotify.
-  const sha256 = async (plain) => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(plain);
-    return window.crypto.subtle.digest('SHA-256', data);
-  };
-
-  // Encodage base64url (variante base64 sans padding, compatible URL) requis par PKCE.
-  const base64encode = (input) => {
-    return btoa(String.fromCharCode(...new Uint8Array(input)))
-      .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-  };
-
-  // Lance le flow de connexion Spotify : génère le couple verifier/challenge PKCE,
-  // stocke le verifier pour pouvoir le réutiliser au retour, puis redirige
-  // l'utilisateur vers la page de consentement Spotify.
-  const loginSpotify = async () => {
-    window.localStorage.removeItem("spotify_token");
-    setSpotifyToken(null);
-    
-    const codeVerifier = generateRandomString(64);
-    window.localStorage.setItem('code_verifier', codeVerifier);
-    const hashed = await sha256(codeVerifier);
-    const codeChallenge = base64encode(hashed);
-
-    const params = new URLSearchParams({
-      response_type: 'code',
-      client_id: SPOTIFY_CLIENT_ID,
-      scope: 'user-read-private user-read-email user-top-read user-library-read user-follow-read playlist-modify-public playlist-modify-private',
-      redirect_uri: REDIRECT_URI,
-      code_challenge_method: 'S256',
-      code_challenge: codeChallenge,
-      show_dialog: 'true' 
-    });
-    
-    window.location.href = SPOTIFY_AUTH_BASE + params.toString();
-  };
-
-  /**
-   * Récupère les titres likés Spotify en suivant la pagination de l'API (`next`
-   * URL renvoyée par Spotify tant qu'il reste des pages), plutôt que la seule
-   * première page de 50 titres comme avant. Plafonné à `maxTracks` : au-delà,
-   * chaque titre supplémentaire coûte un appel réseau de résolution BPM (voir
-   * `resolveRealBPM`), donc une bibliothèque de plusieurs milliers de titres
-   * likés rendrait la synchro extrêmement longue et risquerait de déclencher du
-   * rate-limiting côté Deezer/GetSongBPM. 200 est un compromis raisonnable ;
-   * augmente cette valeur si besoin, en gardant en tête le coût en requêtes.
-   */
-  /**
-   * Récupère les titres likés ET les artistes suivis de l'utilisateur sur Spotify,
-   * résout le BPM réel (+ extrait audio) de chaque titre via `resolveRealBPM`, et
-   * alimente `spotifyTrackPool` (utilisé en priorité par `getSingleMatchingTrack`)
-   * ainsi que `favorites` (utilisés eux aussi en priorité, voir même fonction).
-   *
-   * `favorites.artists` combine désormais deux sources : les artistes des titres
-   * likés (comme avant) ET les artistes explicitement suivis via /me/following
-   * (nouveau) — avant, seule la première source existait, ce qui ne reflétait pas
-   * vraiment "les artistes que tu aimes" au sens Spotify du terme.
-   *
-   * ⚠️ Performance/quota : `Promise.all` lance une résolution BPM par titre en
-   * parallèle. Avec la pagination (jusqu'à 200 titres désormais, contre 50 avant),
-   * ça peut représenter un nombre significatif de requêtes quasi simultanées vers
-   * Deezer/GetSongBPM — la synchro peut prendre plusieurs dizaines de secondes.
-   */
-  const syncSpotifyFavorites = async (tokenToUse) => {
-    const token = tokenToUse || spotifyToken;
-    if (!token || token === "undefined" || token === "null") return;
-
-    try {
-      showToast("⚡ Récupération de ta bibliothèque Spotify...");
-
-      const { rawTracks, followedArtistNames } = await fetchSpotifyRawData(token);
-
-      if (rawTracks.length === 0 && followedArtistNames.length === 0) {
-        showToast("Synchro terminée (Aucun titre liké ni artiste suivi trouvé).");
-        return;
-      }
-
-      showToast("🔍 Interrogation du Moteur de Vérité BPM TempoFit...");
-      const analyzedPool = await resolveTracksBpm(rawTracks);
-      setSpotifyTrackPool(analyzedPool);
-
-      // Fusion avec les favoris déjà présents (ajoutés manuellement ou via une
-      // recherche BPM) plutôt que remplacement complet — une synchro Spotify ne
-      // doit pas effacer ce que l'utilisateur a choisi lui-même dans l'app.
-      setFavorites(prev => {
-        const artistsFromTracks = analyzedPool.map(t => t.artist);
-        const mergedArtists = Array.from(new Set([...prev.artists, ...followedArtistNames, ...artistsFromTracks])).slice(0, 40);
-
-        const existingIds = new Set(prev.tracks.map(t => t.youtubeId));
-        const newTracks = analyzedPool.filter(t => !existingIds.has(t.youtubeId));
-        const mergedTracks = [...prev.tracks, ...newTracks];
-
-        return { ...prev, useFavorites: true, artists: mergedArtists, tracks: mergedTracks };
-      });
-
-      showToast(`🎯 ${analyzedPool.length} titres et ${followedArtistNames.length} artistes suivis synchronisés !`);
-    } catch (e) {
-      console.error("Erreur d'importation :", e);
-      if(e.message === "Token expiré") {
-          window.localStorage.removeItem("spotify_token");
-          setSpotifyToken(null);
-          showToast("❌ Ta session Spotify a expiré. Reconnecte-toi !", 'error');
-      } else {
-          showToast("❌ Erreur lors de l'importation.", 'error');
-      }
-    }
-  };
-
-  // Synchronise automatiquement dès qu'un token Spotify valide est disponible
-  // (au montage si déjà connecté, ou juste après le login OAuth ci-dessus).
-  useEffect(() => {
-     if (spotifyToken && spotifyToken !== "undefined" && spotifyToken !== "null") {
-         syncSpotifyFavorites(spotifyToken);
-     }
-  }, [spotifyToken]);
-  // --- FIN : MOTEUR SPOTIFY ---
 
   const [isNaughtyMode, setIsNaughtyMode] = useState(false);
   const { toast, showToast } = useToast();
 
-  // Pool de morceaux Spotify de l'utilisateur, déjà résolus en BPM (voir syncSpotifyFavorites).
-  const [spotifyTrackPool, setSpotifyTrackPool] = useState([]);
   // favorites.tracks contient des objets complets (bpm, extrait audio...), pas de
   // simples chaînes — nécessaire pour que getSingleMatchingTrack puisse s'en servir
   // en priorité, et pour permettre l'écoute d'extrait dans la vue Favoris.
@@ -358,6 +189,12 @@ export default function App() {
     isAddingArtist, setIsAddingArtist,
     addFavoriteArtistValidated, toggleTrackFavorite, toggleArtistFavorite,
   } = useFavorites(showToast);
+
+  // MOTEUR SPOTIFY (voir hooks/useSpotifyImport.js) — appelé ICI, après
+  // useFavorites, parce qu'il a besoin de `setFavorites` (la synchro fusionne
+  // les titres likés/artistes suivis dans les favoris existants).
+  const { spotifyToken, setSpotifyToken, spotifyTrackPool, setSpotifyTrackPool, loginSpotify, syncSpotifyFavorites, REDIRECT_URI } = useSpotifyImport(setFavorites, showToast);
+
 
   // Profil Athlétique (BPM cibles par zone d'effort) — voir useAthleticProfile.js.
   // Pas encore connecté au générateur ni aux stats à ce stade (étape 1/2 du
