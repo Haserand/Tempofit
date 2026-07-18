@@ -2027,6 +2027,16 @@ export default function App() {
   // maintenant porté par chaque entrée de donnée plutôt que recalculé par
   // INDEX côté PlaylistDetailView (qui n'a aucun moyen de savoir si une
   // entrée vient d'une zone ou d'une tranche générique).
+  // RETOUR DIRECT ("je veux que par défaut il y ait un profil fictif et que
+  // ça se base dessus") — `getProfileForWorkoutOrDefault` (au lieu de
+  // `getProfileForWorkout`) : ce graphique classe maintenant TOUJOURS par
+  // zone, avec un repli sur les mêmes valeurs par défaut déjà utilisées par
+  // "Tes zones d'intensité" (StatsView.jsx) si aucun vrai profil n'est
+  // configuré pour cette activité — jamais un repli sur les tranches brutes
+  // de 20 BPM tant qu'une classification par zone reste possible. Les
+  // tranches brutes restent le filet de sécurité ULTIME (si même le profil
+  // par défaut ne peut rien classer, cas déjà quasi impossible puisque
+  // `buildDefaultPreviewProfile` fournit toujours 4 valeurs).
   const bpmDistributionData = useMemo(() => {
     if (!currentPlaylist) return [];
     const activityName = isNaughtyMode
@@ -2037,7 +2047,7 @@ export default function App() {
     let matchedAnyZone = false;
     currentPlaylist.tracks.forEach(t => {
       if (!t.bpm) return;
-      const zone = getZoneForValue(t.bpm, activityName, getProfileForWorkout);
+      const zone = getZoneForValue(t.bpm, activityName, getProfileForWorkoutOrDefault);
       if (zone) {
         matchedAnyZone = true;
         zoneSeconds[zone.key] = (zoneSeconds[zone.key] || 0) + (t.duration || 0);
@@ -2058,7 +2068,7 @@ export default function App() {
     return Object.entries(buckets)
       .map(([name, value], i) => ({ name, value, sortKey: parseInt(name), color: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }))
       .sort((a, b) => a.sortKey - b.sortKey);
-  }, [currentPlaylist, isNaughtyMode, getProfileForWorkout]);
+  }, [currentPlaylist, isNaughtyMode, getProfileForWorkoutOrDefault]);
 
   // Répartition par style musical, pondérée par la durée elle aussi. Le champ
   // `genre` de chaque titre est désormais résolu via la vraie chaîne Deezer
