@@ -2160,6 +2160,12 @@ export default function App() {
     //     page, plutôt qu'un nouveau signal à apprendre.
     // Le survol reste utile en PLUS (couleur qui se renforce), pas comme
     // seul indice.
+    // RETOUR DIRECT ("'Réalisée le' me semble de trop, autant juste laisser
+    // la date") — retiré : le contexte immédiat (juste à côté du badge
+    // "Verrouillée", lui-même juste avant "Planifier à nouveau") suffit à
+    // lire "date à laquelle c'est arrivé" sans le répéter en toutes lettres
+    // — même logique déjà appliquée à "Planifier à nouveau" juste à côté,
+    // qui affiche sa date SANS "Planifiée le" devant une fois choisie.
     return (
       <button
         onClick={() => setEditingCompletion({ playlistId: playlist.id, isoDate: iso })}
@@ -2174,7 +2180,7 @@ export default function App() {
             vaut toujours littéralement "text-main" depuis le Design System
             sémantique (voir useTheme.js) — mais ça reste une variable, pas un
             littéral, donc dangereux à interpoler dans un préfixe de variant. */}
-        <span className="underline decoration-dotted underline-offset-2 group-hover/date:text-main">Réalisée le {longLabel}</span>
+        <span className="underline decoration-dotted underline-offset-2 group-hover/date:text-main">{longLabel}</span>
         <Edit3 size={11} className="opacity-60 group-hover/date:opacity-100 transition-opacity shrink-0" />
       </button>
     );
