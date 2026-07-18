@@ -9,14 +9,23 @@ import {
   Tooltip as RechartsTooltip, Legend, Line, PieChart, Pie, Cell,
 } from 'recharts';
 import { getGenresForDisplay, genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog';
-import { getCadenceUnitLabel } from '../../appConfig';
+import { getCadenceUnitLabel, DISTRIBUTION_COLORS } from '../../appConfig';
 import { formatDuration } from '../../utils/format';
 import { deezerFetch } from '../../musicEngine';
 import SessionSummaryCard from '../shared/SessionSummaryCard';
 
-// Couleurs des 2 donuts en bas de page (répartition BPM / style) — statique,
-// n'utilisée que dans ce composant.
-const DISTRIBUTION_COLORS = ['#f43f5e', '#3b82f6', '#f59e0b', '#22c55e', '#a855f7', '#06b6d4', '#ec4899', '#84cc16'];
+// Couleur du donut "Répartition par style" (genre musical, pas de zone
+// d'intensité concernée) : `DISTRIBUTION_COLORS` (appConfig.js, partagée
+// avec App.jsx), assignée par INDEX comme avant.
+//
+// Le donut "Répartition par BPM" ne l'utilise plus directement — RETOUR
+// DIRECT (capture d'écran, couleurs/valeurs incohérentes avec le Profil
+// Athlétique) : chaque entrée de `bpmDistributionData` (App.jsx) porte
+// maintenant son propre `color`, déjà résolu depuis `ATHLETIC_ZONES` quand un
+// profil est configuré pour cette activité (mêmes couleurs que Stats/
+// Générer/le bilan de séance), avec un repli sur cette même palette générique
+// uniquement si aucun profil n'est configuré — voir bpmDistributionData dans
+// App.jsx pour le détail.
 
 // Tooltip personnalisé affiché au survol d'un point du graphique BPM. Affiche
 // le nom du morceau (si dispo), le temps écoulé, et selon les données
@@ -1208,7 +1217,7 @@ export default function PlaylistDetailView({
                   onClick={(entry) => selectDetailBpmBucket(entry.name)}
                   style={{ cursor: 'pointer' }}
                 >
-                  {bpmDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} opacity={selectedDetailBpmBucket && selectedDetailBpmBucket !== entry.name ? 0.35 : 1} />)}
+                  {bpmDistributionData.map((entry, i) => <Cell key={i} fill={entry.color} opacity={selectedDetailBpmBucket && selectedDetailBpmBucket !== entry.name ? 0.35 : 1} />)}
                 </Pie>
                 <RechartsTooltip formatter={(value, name) => {
                   const total = bpmDistributionData.reduce((s, e) => s + e.value, 0);
@@ -1228,7 +1237,7 @@ export default function PlaylistDetailView({
                   onClick={() => selectDetailBpmBucket(entry.name)}
                   className={`flex items-center gap-1.5 text-xs font-bold rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedDetailBpmBucket === entry.name ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
                 >
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }}></span>
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }}></span>
                   <span className={textHighlight}>{entry.name}</span>
                   <span className={textMuted}>{pct}%</span>
                 </button>
