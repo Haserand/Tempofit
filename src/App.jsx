@@ -2166,6 +2166,13 @@ export default function App() {
     // lire "date à laquelle c'est arrivé" sans le répéter en toutes lettres
     // — même logique déjà appliquée à "Planifier à nouveau" juste à côté,
     // qui affiche sa date SANS "Planifiée le" devant une fois choisie.
+    // RETOUR DIRECT ("les pointillés sous la date ne semblent pas utiles, il
+    // y a déjà l'infobulle et le crayon") — 3 indices, c'était un de trop :
+    // le crayon (Edit3, toujours visible) suffit déjà à signaler "modifiable"
+    // au même titre que celui du titre juste en dessous, et le `title`
+    // (tooltip "Modifier cette date") reste dispo au survol. Le soulignement
+    // pointillé retiré ici — la couleur qui se renforce au survol
+    // (group-hover/date:text-main) reste comme seul retour visuel du survol.
     return (
       <button
         onClick={() => setEditingCompletion({ playlistId: playlist.id, isoDate: iso })}
@@ -2180,7 +2187,7 @@ export default function App() {
             vaut toujours littéralement "text-main" depuis le Design System
             sémantique (voir useTheme.js) — mais ça reste une variable, pas un
             littéral, donc dangereux à interpoler dans un préfixe de variant. */}
-        <span className="underline decoration-dotted underline-offset-2 group-hover/date:text-main">{longLabel}</span>
+        <span className="group-hover/date:text-main">{longLabel}</span>
         <Edit3 size={11} className="opacity-60 group-hover/date:opacity-100 transition-opacity shrink-0" />
       </button>
     );
