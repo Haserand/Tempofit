@@ -424,7 +424,7 @@ export default function App() {
   // ici casserait le bouton d'écoute silencieusement après coup.
   const [savedPlaylists, setSavedPlaylists] = usePersistentState('savedPlaylists', () => [{
     id: 'playlist-example-1',
-    name: '🏃 Exemple : Session Rock/Métal',
+    name: 'Exemple : Session Rock/Métal',
     workoutType: 'Course à pied',
     avgPace: 330,
     targetMode: 'time',
