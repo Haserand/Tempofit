@@ -3,29 +3,48 @@ import { usePersistentState } from './usePersistentState';
 import { WORKOUT_DEFAULT_BPM } from '../appConfig';
 
 /**
- * useAthleticProfile — regroupe le "Profil Athlétique" de l'utilisateur : ses
- * zones d'intensité de CADENCE (en PPM, pas par minute — le rythme de tes
- * pas/pédalage), PAS de fréquence cardiaque, ET PAS non plus de BPM musical
- * au sens strict (voir la remarque terminologie plus bas). Persisté comme
- * tout le reste via `usePersistentState`, même convention que
- * useFavorites/useUserStats/useRoutines.
+ * useAthleticProfile — regroupe le "Profil Athlétique" de l'utilisateur : le
+ * BPM MUSICAL qu'il souhaite entendre à chaque zone d'intensité d'effort
+ * (Récupération/Endurance/Seuil/Vitesse). Persisté comme tout le reste via
+ * `usePersistentState`, même convention que useFavorites/useUserStats/useRoutines.
  *
- * ⚠️ TERMINOLOGIE (consigne explicite, précisée après un retour direct sur
- * une confusion réelle dans cette même page) : on parle de "Cadence", en PPM
- * (pas par minute) — JAMAIS de "Cardio" (déjà pris par la fréquence cardiaque
- * réelle, voir useSessionAnalysis.js, l'analyse Cadence PPM vs FC importée
- * d'un Garmin/Strava) NI de "BPM" (battements par minute — une unité MUSICALE,
- * qui décrit le tempo d'une chanson, pas le rythme de tes pas). Le nombre
- * stocké ici (`baseCadence`, `zone1..zone4`) reste le MÊME qu'un BPM cible de
- * génération une fois appliqué à la musique (c'est tout le principe de l'app :
- * caler le tempo d'une chanson sur ta cadence de pas) — mais le LIBELLÉ
- * affiché à l'écran doit refléter DE QUOI on parle à cet instant précis : ta
- * cadence physique ici (PPM), le tempo de la musique une fois dans le wizard
- * de génération (BPM, à raison — voir GeneratorView.jsx, étape 3).
+ * ⚠️ PIVOT DE MODÈLE (retour direct, avec un cas concret : "à ma zone 4, mon
+ * cœur est à 170 bpm, mes pas à 160, et je veux de la musique à 180") — ce
+ * fichier prétendait avant stocker une CADENCE PHYSIQUE (PPM, le rythme des
+ * pas), silencieusement recopiée telle quelle comme cible BPM de génération.
+ * Or ce sont 3 nombres INDÉPENDANTS pour la plupart des gens :
+ *   - la fréquence cardiaque réelle (mesure physiologique, en retard sur
+ *     l'effort, sensible à la chaleur/fatigue/forme du jour — un mauvais
+ *     tempo littéral : 170 bpm cardiaque donnerait une musique bien plus
+ *     agressive que ce qu'on a généralement envie d'entendre) ;
+ *   - la cadence physique réelle (rythme des pas — la seule des 3 qui ait un
+ *     sens rythmique réel, mais rien n'oblige la musique à la matcher au
+ *     PPM près, voir le cas ci-dessus) ;
+ *   - le tempo de musique qu'on a ENVIE d'entendre à cette intensité — la
+ *     seule des 3 qui compte vraiment pour la génération, et déjà (avant ce
+ *     pivot) ce que StatsView classait en pratique dans son camembert "zones"
+ *     (`classifyIntoZone(t.bpm, ...)` classe le BPM du TITRE généré, jamais
+ *     une cadence réelle importée) — le code faisait déjà ça, seul le texte
+ *     à l'écran prétendait encore parler de cadence physique.
+ *
+ * Ce fichier stocke maintenant DIRECTEMENT ce 3e nombre : le BPM musical
+ * cible par zone, décidé par l'utilisateur en s'appuyant sur ce qu'il veut
+ * (sa cadence, sa FC, son ressenti — le mélange qui lui parle), pas une
+ * conversion automatique depuis l'un des deux autres. Les zones
+ * (Récupération/Endurance/Seuil/Vitesse, `ATHLETIC_ZONES` dans appConfig.js)
+ * restent des noms génériques de NIVEAU D'EFFORT — empruntés au vocabulaire
+ * des coachs de course à pied, indépendants de la fréquence cardiaque —
+ * pas une promesse que le nombre associé soit "physique" plutôt que musical.
+ *
+ * La vraie cadence physique et la vraie fréquence cardiaque restent
+ * mesurables et affichées ailleurs, sans changement : import Garmin/Strava
+ * réel (voir useSessionAnalysis.js et `getCadenceUnitLabel`/`playlistCadenceUnit`
+ * dans PlaylistDetailView.jsx, qui eux parlent bien de cadence physique en
+ * PPM/RPM — un cas totalement différent de ce fichier, jamais mélangé).
  *
  * ─────────────────────────────────────────────────────────────────────────
- * ÉVOLUTION MULTI-ACTIVITÉS (cette session) : un seul profil global devient
- * un DICTIONNAIRE de profils par activité :
+ * ÉVOLUTION MULTI-ACTIVITÉS (session précédente) : un seul profil global
+ * devient un DICTIONNAIRE de profils par activité :
  *
  *   { activities: { 'Course à pied': {...}, 'Cyclisme': {...} }, custom: [...] }
  *
@@ -56,59 +75,47 @@ import { WORKOUT_DEFAULT_BPM } from '../appConfig';
  * fantôme.
  *
  * "Musculation" n'a volontairement PAS de 3e emplacement dédié dans
- * `activities` (le plan ne le demandait pas, et la notion de "cadence" y est
- * moins naturelle qu'en course/vélo) — la choisir à l'étape 1 retombe sur le
- * repli standard comme n'importe quelle activité sans profil configuré.
+ * `activities` (le plan ne le demandait pas) — la choisir à l'étape 1 retombe
+ * sur le repli standard comme n'importe quelle activité sans profil configuré.
  * ─────────────────────────────────────────────────────────────────────────
  *
  * `isConfigured` (par profil, pas global) : distingue "l'utilisateur a
  * réellement rempli CE profil au moins une fois" de "valeurs par défaut
  * quelconques" — sert de garde-fou pour GeneratorView (pré-remplissage
  * Crescendo) ET StatsView (répartition par zone).
+ *
+ * Note de nommage interne : les champs restent `baseCadence`/`zone1..zone4`
+ * en interne (pas renommés en `targetBpm`/etc.) pour ne rien casser dans les
+ * données déjà persistées (`usePersistentState`) des utilisateurs existants
+ * — seul ce qui est AFFICHÉ à l'écran change de sens, pas la forme des
+ * données stockées.
  */
 
 // Plancher bas volontairement généreux (40 PPM) : même valeur numérique que
+// Plancher bas volontairement généreux (40 BPM) : même valeur numérique que
 // le plancher BPM du mode Intime ailleurs dans l'app (voir GeneratorView,
-// bpmFloor — coïncidence de valeur, pas la même unité, voir la remarque
-// terminologie plus haut) — sert seulement à éviter une Zone 1 absurde si
-// quelqu'un saisit une cadence de base très basse, jamais un vrai jugement
-// sur ce qui est "trop lent". Sport-agnostique volontairement : c'est une
-// borne de sécurité sur une CADENCE (PPM — le rythme de tes pas/pédalage,
-// PAS le tempo d'une chanson), donc pas de raison d'en faire une borne
-// différente par sport.
+// bpmFloor) — sert seulement à éviter une Zone 1 absurde si quelqu'un saisit
+// un BPM cible très bas, jamais un vrai jugement sur ce qui est "trop lent".
+// Sport-agnostique volontairement : c'est une borne de sécurité sur un BPM
+// MUSICAL cible (voir le pivot de modèle dans la docstring en tête de
+// fichier), donc pas de raison d'en faire une borne différente par sport.
 const ATHLETIC_BPM_FLOOR = 40;
 
-// Espacement (en PPM) entre 2 zones consécutives, selon l'activité — consigne
-// explicite ("adapte le calcul mathématique en fonction du type de sport") :
-// la cadence plaquée sur un effort à vélo varie en pratique moins largement
-// entre "à l'aise" et "à fond" qu'en course à pied (où l'écart d'allure
-// ressenti entre footing et fractionné est plus marqué) — 5 PPM/palier pour
-// Cyclisme contre 15 pour Course à pied.
-//
-// RETOUR DIRECT ("VMA à seulement +20 par rapport à ma cadence de footing,
-// ça me semble absurde") — vérifié plutôt que supposé : les données réelles de
-// cadence de course (nombreuses sources, ex. McMillan Running, RunBikeCalc,
-// TrainingPeaks) montrent un écart de cadence entre un footing facile
-// (~150-170 pas/min) et un effort proche de la VMA/vitesse (~180-200+)
-// généralement dans une fourchette de 20 à 45 pas/min selon les études —
-// PAS la centaine de pas/min qu'un sprint pur (100m) donnerait, une confusion
-// fréquente : la VMA (Vitesse Maximale Aérobie) N'EST PAS la vitesse de sprint
-// — c'est l'allure maximale tenable en continu ~6 minutes (VO2max), très
-// différente d'un sprint bref. L'ancien espacement (10, soit 30 PPM d'écart
-// total entre Récupération et Vitesse/VMA) était donc bas mais pas
-// délirant — remonté à 15 (45 PPM d'écart total) pour se situer plus
-// confortablement dans la fourchette documentée, sans pour autant viser une
-// cadence de sprint qui ne correspondrait pas à ce qu'est réellement la VMA.
-//
-// RETOUR DIRECT SUIVANT ("confusion entre cadence et BPM — cadence = PPM,
-// pas BPM") : tous les commentaires de ce fichier ont été relus pour ne plus
-// dire "BPM"/"musical" là où il s'agit en réalité de la cadence PHYSIQUE de
-// la personne — voir la docstring en tête de fichier pour la règle complète.
+// Espacement (en BPM) entre 2 zones consécutives, selon l'activité — reste un
+// point de départ RAISONNABLE inspiré de l'écart de cadence réel observé entre
+// un footing facile et un effort proche de la VMA (20 à 45 pas/min selon
+// McMillan Running/RunBikeCalc/TrainingPeaks) : ces zones décrivent maintenant
+// un BPM MUSICAL cible, pas une cadence physique mesurée (voir le pivot de
+// modèle en tête de fichier) — mais l'écart type entre zones reste un repère
+// crédible pour espacer 4 tempos progressifs, même si rien n'oblige à le
+// suivre à la lettre (ajustable au BPM près via "Ajuster manuellement").
+// 5 BPM/palier pour Cyclisme (progression plus resserrée en pratique) contre
+// 15 pour Course à pied.
 //
 // Honnêteté : pour une activité personnalisée (patin, elliptique...),
 // impossible de deviner un espacement spécifique sans plus d'info sur le
 // sport — la valeur par défaut (10) s'y applique, ajustable de toute façon au
-// PPM près en mode Expert.
+// BPM près via "Ajuster manuellement".
 const ZONE_SPACING_BY_ACTIVITY = {
   'Course à pied': 15,
   'Cyclisme': 5,
@@ -124,21 +131,22 @@ const computeZonesFromBaseCadence = (base, spacing = DEFAULT_ZONE_SPACING) => ({
   zone4: Math.max(ATHLETIC_BPM_FLOOR, base + spacing * 2),
 });
 
-// Cadence de base CRÉDIBLE par activité, utilisée uniquement pour PRÉ-REMPLIR
-// l'Assistant Rapide et les champs Expert avant toute vraie saisie (retour
-// direct : "il devrait toujours y avoir un nombre par défaut... pour inciter
-// l'utilisateur à manipuler... des valeurs crédibles par discipline") —
-// jamais pour décider `isConfigured`, qui reste strictement réservé à "la
-// personne a réellement validé/ajusté quelque chose ici" (voir plus bas).
-// Réutilise volontairement `WORKOUT_DEFAULT_BPM` (appConfig.js) plutôt que
-// d'inventer de nouveaux chiffres : ce sont déjà les BPM par défaut du wizard
-// pour ces mêmes activités (160 Course à pied, 140 Cyclisme), donc déjà des
-// valeurs crédibles et cohérentes avec le reste de l'app. "Autre"/repli pour
-// toute activité personnalisée, faute d'un chiffre spécifique par discipline
-// pour une activité inconnue à l'avance (patin, elliptique...).
+// BPM cible CRÉDIBLE par activité, utilisée uniquement pour PRÉ-REMPLIR
+// l'Assistant Rapide et les champs "Ajuster manuellement" avant toute vraie
+// saisie (retour direct : "il devrait toujours y avoir un nombre par
+// défaut... pour inciter l'utilisateur à manipuler... des valeurs crédibles
+// par discipline") — jamais pour décider `isConfigured`, qui reste
+// strictement réservé à "la personne a réellement validé/ajusté quelque
+// chose ici" (voir plus bas). Réutilise volontairement `WORKOUT_DEFAULT_BPM`
+// (appConfig.js) plutôt que d'inventer de nouveaux chiffres : ce sont déjà
+// les BPM par défaut du wizard pour ces mêmes activités (160 Course à pied,
+// 140 Cyclisme), donc déjà des valeurs crédibles et cohérentes avec le reste
+// de l'app. "Autre"/repli pour toute activité personnalisée, faute d'un
+// chiffre spécifique par discipline pour une activité inconnue à l'avance
+// (patin, elliptique...).
 const getDefaultBaseCadence = (activityKey) => WORKOUT_DEFAULT_BPM.standard[activityKey] ?? WORKOUT_DEFAULT_BPM.standard['Autre'];
 
-// Profil "aperçu" complet (cadence de base + 4 zones déjà calculées) pour une
+// Profil "aperçu" complet (BPM de base + 4 zones déjà calculées) pour une
 // activité qui n'a JAMAIS été configurée — `isConfigured` reste `false` :
 // ceci sert de valeur d'AFFICHAGE par défaut (voir GeneratorView.jsx), pas
 // une vraie configuration silencieuse. Sert aussi de bloc de départ dans
