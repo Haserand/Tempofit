@@ -2765,7 +2765,7 @@ export default function App() {
                 setIsBpmSearchMode={setIsBpmSearchMode} setIsSearchModalOpen={setIsSearchModalOpen}
                 bpmDistributionData={bpmDistributionData} genreDistributionData={genreDistributionData}
                 setPlaylistPlannedDate={setPlaylistPlannedDate}
-                markPlaylistAsCompleted={markPlaylistAsCompleted} renderCompletionsList={renderCompletionsList}
+                renderCompletionsList={renderCompletionsList}
                 getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload}
               />
             )}
