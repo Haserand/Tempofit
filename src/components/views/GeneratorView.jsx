@@ -493,29 +493,41 @@ export default function GeneratorView({
                 encore configuré — sans écrire de fausses zones tant que ce
                 n'est pas le cas (voir le garde-fou dans
                 useAthleticProfile.js). */}
-            {isCadenceIntentEligible(isCustomProfileTab ? '__custom__' : selectedProfileActivity) && (
-              <div className="space-y-2">
-                <label className={`text-sm font-bold block ${textHighlight}`}>Tu veux de la musique qui...</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { value: 'energy', title: 'Matche l\'intensité', desc: 'BPM très différent selon la zone (calme en récup, énergique en VMA)' },
-                    { value: 'sync', title: 'Suit ton rythme', desc: 'BPM proche de ta cadence réelle, peu importe la zone' },
-                  ].map(({ value, title, desc }) => {
-                    const isSelected = (activeProfile?.cadenceIntent || 'energy') === value;
-                    return (
+            {/* RETOUR DIRECT ("les écrans des 2 modes touchent la bulle en
+                dessous et sont très gros, plus élégant") — remplacé par le
+                MÊME style de pilule compacte déjà utilisé pour "Par Durée /
+                Par Distance" (étape 2, voir plus bas dans ce fichier) au lieu
+                de 2 grandes cartes avec bordure + description sur 2 lignes
+                chacune. Une seule ligne de description SOUS la pilule (celle
+                de l'option choisie, pas les 2 en même temps) plutôt que
+                répétée dans chaque carte — même info, beaucoup moins de
+                hauteur. Le label "Tu veux de la musique qui..." disparaît :
+                les 2 libellés de la pilule + la description suffisent à se
+                comprendre sans phrase d'intro séparée. */}
+            {isCadenceIntentEligible(isCustomProfileTab ? '__custom__' : selectedProfileActivity) && (() => {
+              const cadenceIntentOptions = [
+                { value: 'energy', title: 'Matche l\'intensité', desc: 'BPM très différent selon la zone (calme en récup, énergique en VMA).' },
+                { value: 'sync', title: 'Suit ton rythme', desc: 'BPM proche de ta cadence réelle, peu importe la zone.' },
+              ];
+              const currentIntent = activeProfile?.cadenceIntent || 'energy';
+              const selectedOption = cadenceIntentOptions.find(o => o.value === currentIntent);
+              return (
+                <div className="space-y-1.5">
+                  <div className="flex bg-surface-hover rounded-xl p-1">
+                    {cadenceIntentOptions.map(({ value, title }) => (
                       <button
                         key={value}
                         onClick={() => isCustomProfileTab ? setCadenceIntentForCustom(selectedProfileActivity, value) : setCadenceIntentForActivity(selectedProfileActivity, value)}
-                        className={`flex flex-col items-start text-left p-3 rounded-xl border-2 transition-all ${isSelected ? `${borderAccentClass} ${bgMainApp}` : `${inputBorder} ${inputBg} hover:border-gray-300 dark:hover:border-gray-600`}`}
+                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${currentIntent === value ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted}`}
                       >
-                        <span className={`font-bold text-sm ${textHighlight}`}>{title}</span>
-                        <span className={`text-xs mt-0.5 ${textMuted}`}>{desc}</span>
+                        {title}
                       </button>
-                    );
-                  })}
+                    ))}
+                  </div>
+                  <p className={`text-xs ${textMuted}`}>{selectedOption.desc}</p>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Assistant Rapide : une seule question, 4 zones calculées d'un
                 coup (voir computeZonesFromBaseBpm, useAthleticProfile.js).
