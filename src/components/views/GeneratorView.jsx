@@ -257,14 +257,6 @@ export default function GeneratorView({
     if (isCustomProfileTab) setZoneForCustom(selectedProfileActivity, zoneKey, value);
     else setZoneForActivity(selectedProfileActivity, zoneKey, value);
   };
-  const handleResetProfile = () => {
-    if (isCustomProfileTab) {
-      removeCustomActivity(selectedProfileActivity);
-      setSelectedProfileActivity('Course à pied');
-    } else {
-      resetActivityProfile(selectedProfileActivity);
-    }
-  };
   const confirmAddCustomActivity = () => {
     const id = addCustomActivity(newCustomActivityName);
     if (id) { setSelectedProfileActivity(id); setNewCustomActivityName(''); setShowAddCustomActivity(false); }
@@ -346,25 +338,60 @@ export default function GeneratorView({
                 (voir useAthleticProfile.js, pas de suppression possible pour ces
                 2-là), activités personnalisées ajoutées/retirables à volonté. */}
             <div className="flex flex-wrap items-center gap-2 mb-4">
-              {['Course à pied', 'Cyclisme'].map(key => (
-                <button
-                  key={key}
-                  onClick={() => setSelectedProfileActivity(key)}
-                  className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${selectedProfileActivity === key ?
-                    `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}
-                >
-                  {key}{athleticProfile.activities[key]?.isConfigured && ' ✓'}
-                </button>
-              ))}
+              {/* RETOUR DIRECT ("je ne comprends pas que le cercle de relance
+                  corresponde à une suppression du profil — il faudrait que ce
+                  bouton soit dans l'encart de l'activité, au survol, avec une
+                  infobulle") — déplacé DANS l'onglet de l'activité concernée
+                  (au lieu d'un bouton isolé à côté du titre "BPM cibles par
+                  zone", sans lien visuel évident avec UNE activité précise) :
+                  n'apparaît qu'au survol de l'onglet ACTIF et déjà configuré
+                  (`group-hover`, invisible sinon — pas de bruit visuel
+                  permanent), avec un `title` explicite. `pr-7` sur l'onglet
+                  sélectionné+configuré laisse la place à l'icône sans que le
+                  texte ne passe dessous. */}
+              {['Course à pied', 'Cyclisme'].map(key => {
+                const isSelected = selectedProfileActivity === key;
+                const isConfigured = athleticProfile.activities[key]?.isConfigured;
+                return (
+                  <div key={key} className="relative group">
+                    <button
+                      onClick={() => setSelectedProfileActivity(key)}
+                      className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ?
+                        `${bgAccentClass} ${borderAccentClass} text-white ${isConfigured ? 'pr-7' : ''}` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}
+                    >
+                      {key}{isConfigured && ' ✓'}
+                    </button>
+                    {isSelected && isConfigured && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); resetActivityProfile(key); }}
+                        title="Effacer ce profil — repartir de zéro pour cette activité"
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-white/70 hover:text-white hover:bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <RotateCcw size={12}/>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
               {athleticProfile.custom.map(c => (
-                <button
-                  key={c.id}
-                  onClick={() => setSelectedProfileActivity(c.id)}
-                  className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${selectedProfileActivity === c.id ?
-                    `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}
-                >
-                  {c.name}{c.isConfigured && ' ✓'}
-                </button>
+                <div key={c.id} className="relative group">
+                  <button
+                    onClick={() => setSelectedProfileActivity(c.id)}
+                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${selectedProfileActivity === c.id ?
+                      `${bgAccentClass} ${borderAccentClass} text-white ${c.isConfigured ? 'pr-7' : ''}` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}
+                  >
+                    {c.name}{c.isConfigured && ' ✓'}
+                  </button>
+                  {selectedProfileActivity === c.id && c.isConfigured && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeCustomActivity(c.id); setSelectedProfileActivity('Course à pied'); }}
+                      title="Supprimer cette activité personnalisée"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-white/70 hover:text-white hover:bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 size={12}/>
+                    </button>
+                  )}
+                </div>
               ))}
               {!showAddCustomActivity ? (
                 <button
@@ -396,8 +423,7 @@ export default function GeneratorView({
                 (le bouton réinitialiser/supprimer a toujours besoin d'un point
                 d'ancrage sur cette ligne), mais ne répète plus le nom déjà
                 visible sur l'onglet actif. */}
-            <div className="flex items-start justify-between gap-4 mb-2">
-              <div className="relative flex items-center gap-1.5">
+            <div className="relative flex items-center gap-1.5 mb-2">
                 <span className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>
                   BPM cibles par zone
                 </span>
@@ -470,12 +496,6 @@ export default function GeneratorView({
                     </p>
                   </div>
                 )}
-              </div>
-              {activeProfile?.isConfigured && (
-                <button onClick={handleResetProfile} title={isCustomProfileTab ? "Supprimer cette activité" : "Effacer ce profil"} className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20`}>
-                  {isCustomProfileTab ? <Trash2 size={18}/> : <RotateCcw size={18}/>}
-                </button>
-              )}
             </div>
 
             {/* RETOUR DIRECT ("en course à pied, la cadence de pas varie peu
