@@ -123,7 +123,7 @@ export default function StatsView({
   const bpmBucketGenreCounts = {}; // tranche -> { genre -> count }
   const genreActivityCounts = {}; // genre -> { activité -> count }
 
-  // Profil Athlétique (zones de cadence, voir useAthleticProfile.js) —
+  // Profil Athlétique (BPM cibles par zone d'effort, voir useAthleticProfile.js) —
   // temps passé (secondes) dans chaque zone, tout historique ET ce mois-ci
   // uniquement (pour la légende motivante, voir plus bas).
   //
@@ -726,13 +726,17 @@ export default function StatsView({
             )}
           </div>
 
-          {/* Profil Athlétique — répartition du temps par zone de cadence (voir
-              useAthleticProfile.js). Empty-state si le profil n'est pas configuré,
-              en pointant vers Générer (là où vit désormais cette configuration —
-              retour direct : "personne ne le verra dans Options & Comptes"). */}
+          {/* Profil Athlétique — répartition du temps par zone d'effort/BPM
+              (voir useAthleticProfile.js — pivot de modèle : ce camembert
+              classe le BPM MUSICAL des titres générés dans les zones du
+              profil, jamais une cadence physique réelle mesurée ; c'était
+              déjà le cas avant le pivot, seul le titre affiché mentait).
+              Empty-state si le profil n'est pas configuré, en pointant vers
+              Générer (là où vit désormais cette configuration — retour
+              direct : "personne ne le verra dans Options & Comptes"). */}
           {hasAnyAthleticProfileConfigured ? (
             <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
-              <h3 className={`font-bold mb-4 flex items-center gap-2 ${textHighlight}`}><Gauge size={18} className={textColorClass}/> Tes zones de cadence</h3>
+              <h3 className={`font-bold mb-4 flex items-center gap-2 ${textHighlight}`}><Gauge size={18} className={textColorClass}/> Tes zones d'intensité</h3>
               {zoneBreakdown.length === 0 ? (
                 <p className={`text-sm ${textMuted}`}>Aucune séance terminée n'a encore de BPM réel exploitable pour ce découpage par zone.</p>
               ) : (
@@ -783,7 +787,7 @@ export default function StatsView({
               <div className={`shrink-0 p-2.5 rounded-xl ${bgAccentClass} text-white`}><Gauge size={20}/></div>
               <div>
                 <h3 className={`font-bold mb-1 ${textHighlight}`}>Vois comment tu t'entraînes par zone</h3>
-                <p className={`text-sm ${textMuted}`}>Configure ton Profil Athlétique (zones de cadence) pour voir la répartition de tes séances entre Récupération, Endurance, Seuil et Vitesse.</p>
+                <p className={`text-sm ${textMuted}`}>Configure ton Profil Athlétique (BPM cibles par zone) pour voir la répartition de tes séances entre Récupération, Endurance, Seuil et Vitesse.</p>
                 <button onClick={() => changeView('generator')} className={`mt-3 text-sm font-bold underline ${textColorClass}`}>
                   Configurer mon Profil Athlétique →
                 </button>
