@@ -420,9 +420,15 @@ export default function PlaylistDetailView({
                   <p className={`text-xs font-semibold uppercase tracking-wide ${textMuted}`}>
                     {renderTopCompletionDate ? renderTopCompletionDate(currentPlaylist) : new Date(currentPlaylist.completions[0].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </p>
+                  {/* RETOUR DIRECT ("'Séance déjà réalisée' me semble
+                      suffisant comme infobulle pour Verrouillée") — raccourci :
+                      le badge affiche déjà "Verrouillée" (le POURQUOI est
+                      visible directement, pas besoin de le répéter dans le
+                      tooltip) et "plus aucune modification possible" ne
+                      faisait que reformuler ce que "verrouillée" dit déjà. */}
                   <span
                     className={`text-xs font-bold flex items-center gap-1 ${textColorClass}`}
-                    title="Séance déjà réalisée — verrouillée pour préserver ton historique, plus aucune modification possible"
+                    title="Séance déjà réalisée"
                   >
                     <Lock size={12}/> Verrouillée
                   </span>
