@@ -186,9 +186,9 @@ export default function GeneratorView({
   // d'onglet (voir l'effet juste en dessous) puisque chaque activité a
   // maintenant sa propre cadence de base, contrairement à l'ancien profil
   // unique où un seul brouillon suffisait. Pré-rempli avec une valeur
-  // crédible par défaut (`defaultPreviewProfile.baseCadence`) plutôt que vide
+  // crédible par défaut (`defaultPreviewProfile.targetBpm`) plutôt que vide
   // tant que rien n'a encore été configuré.
-  const [baseBpmDraft, setBaseBpmDraft] = useState(activeProfile?.baseCadence ?? defaultPreviewProfile.baseCadence);
+  const [baseBpmDraft, setBaseBpmDraft] = useState(activeProfile?.targetBpm ?? defaultPreviewProfile.targetBpm);
   // BUG CORRIGÉ (retour direct : "le bouton calculer mes zones ne marche
   // pas") — `computeAndApplyZones` faisait bien un `return` silencieux si le
   // champ était vide ou invalide (`if (!baseBpmDraft) return;`, et
@@ -203,7 +203,7 @@ export default function GeneratorView({
   // vider le champ à la main), d'où ce garde-fou conservé tel quel.
   const [bpmInputError, setBpmInputError] = useState(false);
   useEffect(() => {
-    setBaseBpmDraft(activeProfile?.baseCadence ?? buildDefaultPreviewProfile(isCustomProfileTab ? '__custom__' : selectedProfileActivity).baseCadence);
+    setBaseBpmDraft(activeProfile?.targetBpm ?? buildDefaultPreviewProfile(isCustomProfileTab ? '__custom__' : selectedProfileActivity).targetBpm);
     setBpmInputError(false);
     setShowZoneCalcInfo(false);
   }, [selectedProfileActivity]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -434,7 +434,7 @@ export default function GeneratorView({
                 nombres indépendants pour la plupart des gens (fréquence
                 cardiaque réelle, cadence de pas réelle, tempo de musique
                 voulu). Voir la docstring de useAthleticProfile.js pour le
-                raisonnement complet. Les noms internes (`baseCadence`,
+                raisonnement complet. Les noms internes (`targetBpm`,
                 `zone1..4`) restent inchangés (pas de migration de données
                 nécessaire) — seul ce qui est DEMANDÉ/AFFICHÉ change de sens.
                 Ne pas confondre avec PlaylistDetailView.jsx ("Cadence (PPM)"
