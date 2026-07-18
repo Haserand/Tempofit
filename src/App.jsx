@@ -2111,7 +2111,19 @@ export default function App() {
   ];
   const getRankStyle = (rank) => (rank >= 0 && rank < 3) ? RANK_STYLES[rank] : null;
 
-  const renderCompletionsList = (playlist) => {
+  // RETOUR DIRECT (capture d'écran à l'appui) : "pourquoi garder la petite
+  // icône d'import quand il y a déjà la grosse en bas ?" — sur
+  // PlaylistDetailView.jsx, le gros bouton "Complète ta séance" cible
+  // TOUJOURS `mostRecentCompletionIso` (voir plus bas dans ce fichier) ; pour
+  // CETTE date précise, la petite icône de la liste faisait doublon pur.
+  // Mais cette même liste sert AUSSI sur PlaylistCard.jsx (grille "Mes
+  // Séances"), où il n'y a PAS de gros bouton — impossible de juste
+  // supprimer l'icône partout, seulement là où elle est vraiment redondante.
+  // `hideUploadForDate` (optionnel, `null` par défaut = rien de caché) :
+  // l'appelant indique QUELLE date est déjà couverte par un CTA plus gros
+  // ailleurs sur l'écran ; seule cette icône-là disparaît (date + bouton
+  // "retirer" restent, pour garder la cohérence visuelle de la pastille).
+  const renderCompletionsList = (playlist, hideUploadForDate = null) => {
     const completions = playlist.completions || [];
     const dataByDate = playlist.actualDataByDate || {};
     return (
@@ -2133,14 +2145,17 @@ export default function App() {
               </button>
               {/* Import Garmin/Strava rattaché à CETTE séance précise (pas à toute la
                   playlist) — une playlist refaite plusieurs fois peut donc avoir une
-                  analyse Cible vs Réalité différente pour chaque date. */}
-              <button
-                onClick={(e) => triggerCSVUpload(e, playlist, iso)}
-                className={hasData ? "text-purple-500 hover:text-purple-600 transition-colors" : "text-gray-400 hover:text-blue-500 transition-colors"}
-                title={hasData ? "Données déjà importées — cliquer pour remplacer" : "Importer Garmin/Strava (cadence/FC)"}
-              >
-                <Upload size={12}/>
-              </button>
+                  analyse Cible vs Réalité différente pour chaque date. Absent si
+                  `hideUploadForDate` couvre déjà cette date (voir plus haut). */}
+              {iso !== hideUploadForDate && (
+                <button
+                  onClick={(e) => triggerCSVUpload(e, playlist, iso)}
+                  className={hasData ? "text-purple-500 hover:text-purple-600 transition-colors" : "text-gray-400 hover:text-blue-500 transition-colors"}
+                  title={hasData ? "Données déjà importées — cliquer pour remplacer" : "Importer Garmin/Strava (cadence/FC)"}
+                >
+                  <Upload size={12}/>
+                </button>
+              )}
               <button onClick={() => removeCompletionDate(playlist.id, iso)} className="text-gray-400 hover:text-red-500 transition-colors" title="Retirer cette date">
                 <X size={12}/>
               </button>
