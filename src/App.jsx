@@ -2545,7 +2545,7 @@ export default function App() {
             {/* ===================== VIEW: GENERATOR (ASSISTANT MULTI-ETAPES) ===================== */}
             {view === 'generator' && (
               <GeneratorView
-                theme={themeTokens} isNaughtyMode={isNaughtyMode} displaySubtitleGen={displaySubtitleGen}
+                theme={themeTokens} isNaughtyMode={isNaughtyMode} displaySubtitleGen={displaySubtitleGen} showToast={showToast}
                 wizardStep={wizardStep} setWizardStep={setWizardStep}
                 workoutType={workoutType} setWorkoutType={setWorkoutType} customActivity={customActivity}
                 handleOpenCustomActivityModal={handleOpenCustomActivityModal} toggleNaughtyMode={toggleNaughtyMode}
