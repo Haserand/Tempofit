@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Activity, Flame, Upload, ChevronUp, ChevronDown, ChevronRight, Gauge, Share2, Loader2 } from 'lucide-react';
 import { ATHLETIC_ZONES, getZoneForValue } from '../../appConfig';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import { NAUGHTY_WORKOUT_LABELS } from '../../appConfig';
 import { genreDisplayLabel } from '../../musicCatalog';
 import { formatDuration } from '../../utils/format';
@@ -137,6 +137,13 @@ export default function StatsView({
   // de la course — c'est tout l'intérêt du multi-activités.
   const zoneSeconds = { zone1: 0, zone2: 0, zone3: 0, zone4: 0 };
   const zoneSecondsThisMonth = { zone1: 0, zone2: 0, zone3: 0, zone4: 0 };
+  // RETOUR DIRECT ("ajoute les 2" — tendance dans le temps + répartition par
+  // activité, voir plus bas pour le rendu) : mêmes bruts que `zoneSeconds`/
+  // `zoneSecondsThisMonth` ci-dessus, juste éclatés par activité et par mois
+  // plutôt qu'agrégés globalement — remplis dans LA MÊME boucle de titres
+  // plus bas (une seule passe sur les données, pas une 2e boucle dédiée).
+  const zoneSecondsByActivity = {}; // activité -> { zone1..zone4 }
+  const zoneSecondsByMonth = {}; // 'AAAA-MM' -> { zone1..zone4 }
   const nowForZones = new Date();
   // Y a-t-il AU MOINS un profil VRAIMENT configuré quelque part (une activité
   // "built-in" ou personnalisée) ? Ne gate plus l'affichage du camembert
@@ -188,11 +195,12 @@ export default function StatsView({
         bpmTargetCounts[pl.config.bpm] = (bpmTargetCounts[pl.config.bpm] || 0) + 1;
       }
       // Calculé ici (avant la boucle des titres, qui en a besoin pour
-      // zoneSecondsThisMonth) plutôt que plus bas où il servait avant
-      // uniquement au regroupement par mois — même variable `d` réutilisée
-      // pour les deux, pas recalculée deux fois.
+      // zoneSecondsThisMonth/zoneSecondsByMonth) plutôt que plus bas où il
+      // servait avant uniquement au regroupement par mois — même variable
+      // `d`/`monthKey` réutilisée pour tout, jamais recalculée 2 fois.
       const d = new Date(dateStr);
       const isThisMonth = !isNaN(d) && d.getFullYear() === nowForZones.getFullYear() && d.getMonth() === nowForZones.getMonth();
+      const monthKey = !isNaN(d) ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : null;
       genres.forEach(g => {
         genreSeconds[g] = (genreSeconds[g] || 0) + perGenreSeconds;
         genreSessions[g] = (genreSessions[g] || 0) + 1;
@@ -261,14 +269,20 @@ export default function StatsView({
           if (zoneKey) {
             zoneSeconds[zoneKey] += t.duration || 0;
             if (isThisMonth) zoneSecondsThisMonth[zoneKey] += t.duration || 0;
+            if (!zoneSecondsByActivity[activity]) zoneSecondsByActivity[activity] = { zone1: 0, zone2: 0, zone3: 0, zone4: 0 };
+            zoneSecondsByActivity[activity][zoneKey] += t.duration || 0;
+            if (monthKey) {
+              if (!zoneSecondsByMonth[monthKey]) zoneSecondsByMonth[monthKey] = { zone1: 0, zone2: 0, zone3: 0, zone4: 0 };
+              zoneSecondsByMonth[monthKey][zoneKey] += t.duration || 0;
+            }
           }
         }
       });
       // Regroupement par mois (année-mois) plutôt que par semaine ISO — plus simple
-      // à calculer sans librairie de dates dédiée.
-      if (!isNaN(d)) {
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        sessionsByMonth[key] = (sessionsByMonth[key] || 0) + 1;
+      // à calculer sans librairie de dates dédiée. Réutilise `monthKey` calculé plus
+      // haut (avant la boucle des titres) plutôt que de le recalculer ici.
+      if (monthKey) {
+        sessionsByMonth[monthKey] = (sessionsByMonth[monthKey] || 0) + 1;
         weekdayCounts[d.getDay()] = (weekdayCounts[d.getDay()] || 0) + 1;
         uniqueDays.add(d.toISOString().slice(0, 10));
       }
@@ -301,6 +315,23 @@ export default function StatsView({
         .map(z => `${z.pct}% ${z.shortLabel}`)
         .join(', ')
     : null;
+
+  // RETOUR DIRECT ("ajoute les 2" — répartition par activité, à côté du
+  // total agrégé ci-dessus) : le camembert global mélange toutes tes
+  // activités ensemble, ce qui peut brouiller la lecture si tu pratiques
+  // plusieurs sports avec des profils très différents (ex. 90% Récupération
+  // en course, mais 60% Seuil en vélo — invisible dans un seul agrégat).
+  // Une entrée par activité, seulement celles avec au moins un titre classé
+  // (`zoneSecondsByActivity`, rempli dans la boucle plus haut) — triée par
+  // volume décroissant, comme `activityBreakdown` juste en dessous.
+  const zoneBreakdownByActivity = Object.entries(zoneSecondsByActivity)
+    .map(([activity, secs]) => {
+      const zones = ATHLETIC_ZONES.map(z => ({ ...z, seconds: secs[z.key] })).filter(z => z.seconds > 0);
+      const total = zones.reduce((s, z) => s + z.seconds, 0);
+      return { activity, total, zones: zones.map(z => ({ ...z, pct: Math.round((z.seconds / total) * 100) })) };
+    })
+    .filter(a => a.total > 0)
+    .sort((a, b) => b.total - a.total);
 
   const activityBreakdown = Object.entries(activitySeconds)
     .map(([activity, seconds]) => ({ activity, seconds, sessions: activitySessions[activity] }))
@@ -351,6 +382,26 @@ export default function StatsView({
   const timeline = Object.entries(sessionsByMonth)
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([key, count]) => { const [y, m] = key.split('-'); return { label: `${monthLabels[m]} ${y}`, count }; });
+
+  // RETOUR DIRECT ("ajoute les 2" — tendance dans le temps, à côté de la
+  // répartition par activité ci-dessus) : le % global (zoneBreakdown) ou même
+  // mensuel (zoneMonthSummary) ne montre qu'UN instant T — impossible de voir
+  // si ta part de Récupération augmente ou diminue mois après mois. En
+  // MINUTES (pas en %) volontairement : un mois avec 2x plus de séances doit
+  // se voir comme une barre plus haute, pas comme des proportions identiques
+  // qui masqueraient ce changement de volume (même raisonnement que le total
+  // en tête de carte du camembert, voir zoneTotalSeconds plus haut). Un
+  // dataKey PAR ZONE (zone1..zone4) empilé dans le rendu (stackId) plutôt
+  // qu'un objet imbriqué : c'est le format que Recharts attend pour un
+  // BarChart empilé.
+  const zoneTrendData = Object.entries(zoneSecondsByMonth)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([key, secs]) => {
+      const [y, m] = key.split('-');
+      const entry = { label: `${monthLabels[m]} ${y}` };
+      ATHLETIC_ZONES.forEach(z => { entry[z.key] = Math.round((secs[z.key] || 0) / 60); }); // minutes, plus lisible qu'en secondes sur l'axe Y
+      return entry;
+    });
 
   const avgBpm = bpmCount > 0 ? Math.round(bpmSum / bpmCount) : null;
   // BPM le plus fréquent parmi toutes les séances — "Allure favorite" du
@@ -690,6 +741,33 @@ export default function StatsView({
                   partout. Durée totale du mois ajoutée en fin de phrase (même
                   logique que ci-dessus : le % seul ne dit pas si le mois a été
                   copieux ou maigre en entraînement). */}
+              {/* RETOUR DIRECT ("ajoute les 2" — répartition par activité) —
+                  seulement si au moins 2 activités ont des titres classés :
+                  pas la peine de répéter le camembert du dessus pour une
+                  seule activité, l'info serait identique. */}
+              {zoneBreakdownByActivity.length > 1 && (
+                <div className={`mt-4 pt-4 border-t ${cardBorder} space-y-3`}>
+                  <div className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>Détail par activité</div>
+                  {zoneBreakdownByActivity.map(a => (
+                    <div key={a.activity}>
+                      <div className="flex items-center justify-between text-sm mb-1">
+                        <span className={`font-semibold ${textHighlight}`}>{a.activity}</span>
+                        <span className={textMuted}>{formatDuration(a.total)}</span>
+                      </div>
+                      <div className="h-2 rounded-full overflow-hidden flex">
+                        {a.zones.map((z, i) => (
+                          <div key={i} style={{ width: `${z.pct}%`, backgroundColor: z.color }}></div>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 mt-1 text-xs">
+                        {a.zones.map((z, i) => (
+                          <span key={i} className={textMuted}><span className={`font-semibold ${textHighlight}`}>{z.pct}%</span> {z.shortLabel}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               {zoneMonthSummary && (
                 <p className={`text-sm text-center mt-4 pt-4 border-t ${cardBorder} ${textHighlight}`}>
                   <span className="font-bold">Ce mois-ci</span> : {zoneMonthSummary} <span className={textMuted}>({formatDuration(zoneTotalSecondsThisMonth)} au total)</span>
@@ -703,6 +781,41 @@ export default function StatsView({
                   <span className={textMuted}> pour affiner cette répartition avec tes vraies zones.</span>
                 </p>
               )}
+            </div>
+          )}
+
+          {/* RETOUR DIRECT ("ajoute les 2" — tendance dans le temps) — même
+              garde-fou que "Ton évolution" plus bas (au moins 2 mois
+              distincts, sinon une seule barre n'apprend rien). En minutes
+              (voir zoneTrendData plus haut), empilées par zone : une barre
+              plus haute d'un mois sur l'autre montre un volume d'entraînement
+              en hausse, ce qu'un % seul ne peut jamais montrer. */}
+          {zoneTrendData.length > 1 && (
+            <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
+              <h3 className={`font-bold ${textHighlight}`}>Ton évolution par zone</h3>
+              <p className={`text-xs mb-4 ${textMuted}`}>Minutes passées dans chaque zone, mois par mois.</p>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={zoneTrendData}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                  <XAxis dataKey="label" fontSize={12} />
+                  <YAxis allowDecimals={false} fontSize={12} unit="m" />
+                  <RechartsTooltip formatter={(value, name) => {
+                    const z = ATHLETIC_ZONES.find(z => z.key === name);
+                    return [`${value} min`, z ? z.shortLabel : name];
+                  }} />
+                  {ATHLETIC_ZONES.map(z => (
+                    <Bar key={z.key} dataKey={z.key} stackId="zones" fill={z.color} radius={z.key === 'zone4' ? [4, 4, 0, 0] : 0} />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2">
+                {ATHLETIC_ZONES.map(z => (
+                  <div key={z.key} className="flex items-center gap-1.5 text-xs font-bold">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
+                    <span className={textMuted}>{z.shortLabel}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
