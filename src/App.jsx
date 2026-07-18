@@ -101,10 +101,15 @@ export default function App() {
   // uniquement sur bascule explicite. Un seul pipeline de calcul/rendu pour les
   // deux (voir playlistsForStats plus bas), pas 2 pages dupliquées à maintenir.
   const [statsMode, setStatsMode] = useState('standard');
-  // Genre/tranche BPM actuellement "ouvert" dans les donuts de la page Statistiques
-  // (clic sur une part = aperçu ciblé dessous) — voir plus bas pour le détail.
-  const [selectedStatsGenre, setSelectedStatsGenre] = useState(null);
-  const [selectedStatsBpmBucket, setSelectedStatsBpmBucket] = useState(null);
+  // Genre/tranche BPM actuellement "ouvert(s)" dans les donuts de la page
+  // Statistiques (clic sur une part = aperçu ciblé dessous) — voir plus bas
+  // pour le détail. RETOUR DIRECT ("faut pouvoir sélectionner plusieurs
+  // zones graphiques à la fois, pareil partout où y a les camemberts") :
+  // `Set` plutôt qu'une valeur unique, même changement que
+  // PlaylistDetailView.jsx (selectedDetailGenre/selectedDetailBpmBucket) —
+  // plusieurs parts du MÊME camembert sélectionnables ensemble.
+  const [selectedStatsGenre, setSelectedStatsGenre] = useState(() => new Set());
+  const [selectedStatsBpmBucket, setSelectedStatsBpmBucket] = useState(() => new Set());
   // Ligne actuellement dépliée dans les tables de la vue détaillée (genre ou
   // artiste) — voir plus bas. Contrairement au zoom léger de la vue simple
   // (plafonné à 3), ici la liste dépliée est COMPLÈTE, cohérent avec le principe
