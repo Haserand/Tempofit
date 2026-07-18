@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Play, List, Plus, Check, Settings, Pause, Search, X, Heart, ListPlus, Loader2, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Edit3, Copy, Trophy, Upload, ChevronUp, ChevronDown, Target, MessageCircle, ExternalLink, Sun, Moon, Gauge } from 'lucide-react';
-import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, WEAK_DEEZER_KEYWORD_GENRES, getGenreLocalDepthWarning, normalizeGenreForDisplay, genreDisplayLabel, getGenresForDisplay } from './musicCatalog';
-import { NAUGHTY_ROUTINE_NAMES, AVAILABLE_ICONS, AUTO_GEN_OPTIONS, getZoneForValue, ATHLETIC_ZONES, DISTRIBUTION_COLORS } from './appConfig';
+import { Activity, Clock, Music, Play, List, Plus, Check, Settings, Pause, X, Heart, ListPlus, Loader2, Star, AlertCircle, Zap, Menu, Edit3, Trophy, Upload, Sun, Moon, Gauge } from 'lucide-react';
+import { ARTIST_CATALOG, EXTRA_GENRES, WEAK_DEEZER_KEYWORD_GENRES, normalizeGenreForDisplay, genreDisplayLabel, getGenresForDisplay } from './musicCatalog';
+import { NAUGHTY_ROUTINE_NAMES, getZoneForValue, ATHLETIC_ZONES, DISTRIBUTION_COLORS } from './appConfig';
 
 // =====================================================================================
 // CONSTANTES GLOBALES & CONFIGURATION
@@ -56,6 +56,14 @@ import DualRangeSlider from './components/shared/DualRangeSlider';
 import StatsView from './components/views/StatsView';
 import GeneratorView from './components/views/GeneratorView';
 import PlaylistDetailView from './components/views/PlaylistDetailView';
+import CustomActivityModal from './components/modals/CustomActivityModal';
+import SavingRoutineModal from './components/modals/SavingRoutineModal';
+import ShareModal from './components/modals/ShareModal';
+import IconPickerModal from './components/modals/IconPickerModal';
+import PendingNavigationModal from './components/modals/PendingNavigationModal';
+import PendingUnsaveModal from './components/modals/PendingUnsaveModal';
+import SearchModal from './components/modals/SearchModal';
+import EditRoutineModal from './components/modals/EditRoutineModal';
 // Début du découpage de App.jsx en composants de vue (voir passation) : chaque
 // vue extraite vit dans src/components/views/, et consomme le hook useTheme
 // plutôt que de redéfinir ses propres classes de couleur.
@@ -2839,524 +2847,84 @@ export default function App() {
             tempo est certifié par l'API. Si une playlist est actuellement affichée,
             le titre choisi y est ajouté ; sinon, il est ajouté aux favoris (utile
             pour "nourrir" l'algorithme de génération). */}
-        {isSearchModalOpen && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={closeSearchModal}>
-            <div className={"p-6 md:p-8 rounded-3xl w-full max-w-lg shadow-2xl flex flex-col max-h-[80vh] border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-center mb-1">
-                <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
-                  {isBpmSearchMode ? <Target className={textColorClass}/> : <Search className={textColorClass}/>}
-                  <span>{isBpmSearchMode ? "Titres à ce BPM" : "Rechercher un titre"}</span>
-                </h3>
-                <button onClick={closeSearchModal} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
-              </div>
-              {/* Disclaimer honnête : l'utilisateur n'a pas besoin de savoir qu'on passe par
-                  une API, mais mérite de savoir que les résultats viennent d'un service tiers
-                  (Deezer) et peuvent être incomplets ou approximatifs — sans jargon technique. */}
-              <p className={`text-xs mb-5 ${textMuted}`}>* Connecté via Deezer — le BPM peut être approximatif, et certains titres peuvent rester introuvables.</p>
+        <SearchModal
+          theme={themeTokens}
+          isSearchModalOpen={isSearchModalOpen} closeSearchModal={closeSearchModal}
+          isBpmSearchMode={isBpmSearchMode} bpmSearchParams={bpmSearchParams} searchTracksByBpm={searchTracksByBpm}
+          searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchWorldMusicApi={searchWorldMusicApi}
+          isWorldSearching={isWorldSearching} worldSearchResults={worldSearchResults} worldSearchOtherResults={worldSearchOtherResults}
+          searchLoadingMessage={searchLoadingMessage} searchElapsedSeconds={searchElapsedSeconds}
+          searchHasMoreResults={searchHasMoreResults} isLoadingMoreResults={isLoadingMoreResults}
+          resultsContextLabel={resultsContextLabel} searchActiveArtistName={searchActiveArtistName} noUsableResultsHint={noUsableResultsHint}
+          currentPlaylist={currentPlaylist} favorites={favorites}
+          renderSearchResultRow={renderSearchResultRow}
+        />
 
-              {isBpmSearchMode ? (
-                <div className={`mb-4 px-4 py-3 rounded-xl border ${inputBorder} ${inputBg} flex items-center justify-between`}>
-                  <span className={`text-sm font-bold ${textMuted}`}>Cible : <span className={textColorClass}>{bpmSearchParams.bpm} BPM ± {bpmSearchParams.tolerance}</span> · {bpmSearchParams.genres.length > 0 ? bpmSearchParams.genres.map(genreDisplayLabel).join(', ') : 'tous genres'}</span>
-                  <button onClick={() => searchTracksByBpm(bpmSearchParams.bpm, bpmSearchParams.tolerance, bpmSearchParams.genres)} disabled={isWorldSearching} className={`p-2 rounded-lg text-white ${bgAccentClass}`}>
-                    {isWorldSearching ? <Loader2 className="animate-spin" size={16}/> : <RefreshCw size={16}/>}
-                  </button>
-                </div>
-              ) : (
-                <div className="mb-4 flex gap-2">
-                  <div className={"flex-1 flex items-center px-4 py-3 rounded-xl border " + inputBg + " " + inputBorder}>
-                    <Search size={18} className={"mr-3 " + textMuted} />
-                    <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchWorldMusicApi(true)} placeholder="Titre ou artiste (ex: One More Time, Daft Punk)..." className={"bg-transparent w-full font-bold outline-none " + textHighlight} autoFocus />
-                  </div>
-                  <button onClick={() => searchWorldMusicApi(true)} disabled={isWorldSearching} className={"px-4 rounded-xl text-white font-bold transition-transform active:scale-95 flex items-center justify-center " + bgAccentClass}>
-                    {isWorldSearching ? <Loader2 className="animate-spin" size={20}/> : <Search size={20}/>}
-                  </button>
-                </div>
-              )}
+        <IconPickerModal
+          theme={themeTokens}
+          isIconPickerOpen={isIconPickerOpen} setIsIconPickerOpen={setIsIconPickerOpen}
+          currentPlaylist={currentPlaylist} setCurrentPlaylist={setCurrentPlaylist}
+          savedPlaylists={savedPlaylists} setSavedPlaylists={setSavedPlaylists}
+          showToast={showToast}
+        />
 
-              <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 min-h-[200px]">
-                {isWorldSearching && worldSearchResults.length === 0 ? (
-                  // Standardisé sur le même visuel "pilule" que l'indicateur de génération
-                  // (voir plus haut, "Génération en cours...") — retour utilisateur : les
-                  // indicateurs de chargement de l'app étaient trop différents d'un endroit
-                  // à l'autre (ici, un gros bloc vertical centré vs une pilule horizontale
-                  // ailleurs). Même structure exacte reprise : icône + texte + puce
-                  // chronomètre au format M:SS, plutôt qu'un simple "Xs" comme avant.
-                  <div className="flex justify-center py-8">
-                    <div className={`${cardBg} border ${cardBorder} shadow-2xl px-6 py-3 rounded-full flex items-center space-x-3`}>
-                      <Loader2 size={18} className={`animate-spin ${textColorClass}`} />
-                      <span className={`font-medium text-sm ${textHighlight}`}>{searchLoadingMessage}</span>
-                      <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-full ${textMuted} bg-black/5 dark:bg-white/10`}>
-                        {Math.floor(searchElapsedSeconds / 60)}:{String(searchElapsedSeconds % 60).padStart(2, '0')}
-                      </span>
-                    </div>
-                  </div>
-                ) : (worldSearchResults.length > 0 || (!searchHasMoreResults && worldSearchOtherResults.length > 0)) ? (
-                  <>
-                    {/* RETOUR DIRECT (affichage progressif) : indicateur discret que la
-                        recherche continue en arrière-plan même une fois les premiers
-                        résultats déjà affichés — sans ça, rien ne distingue "la recherche
-                        est terminée" de "encore en cours, potentiellement d'autres titres
-                        à venir". Uniquement en mode BPM (seul chemin concerné par la
-                        recherche progressive, voir fetchBpmSearchResults). */}
-                    {isBpmSearchMode && isWorldSearching && worldSearchResults.length > 0 && (
-                      <div className={`flex items-center gap-2 text-xs font-semibold px-1 pb-2 ${textMuted}`}>
-                        <Loader2 size={12} className="animate-spin"/>
-                        <span>Recherche toujours en cours — d'autres titres peuvent encore apparaître...</span>
-                      </div>
-                    )}
-                    {resultsContextLabel && !isBpmSearchMode && worldSearchResults.length > 0 && (
-                      <div className={`text-xs font-bold uppercase tracking-wider mb-2 px-1 ${textMuted}`}>{resultsContextLabel}</div>
-                    )}
-                    {(() => {
-                      // Filtre les titres déjà en favoris — pas la peine de les
-                      // remontrer à chaque nouvelle recherche identique. Uniquement
-                      // hors contexte playlist : dans une playlist, un titre déjà
-                      // en favoris reste pertinent à ajouter, la notion de
-                      // "favori" n'a rien à voir avec ce qu'on cherche à faire ici.
-                      const isAlreadyFav = (t) => !currentPlaylist && favorites.tracks.some(f => f.youtubeId === t.youtubeId);
-                      const visibleMainResults = worldSearchResults.filter(t => !isAlreadyFav(t));
-                      return (
-                        <>
-                          {worldSearchResults.length > 0 && visibleMainResults.length === 0 && (
-                            <div className={`text-xs italic px-1 pb-1 ${textMuted}`}>Tous les titres trouvés ici sont déjà dans tes favoris.</div>
-                          )}
-                          {visibleMainResults.map((track, i) => renderSearchResultRow(track, i))}
-                        </>
-                      );
-                    })()}
-                    {searchHasMoreResults && !isBpmSearchMode && (
-                      <button
-                        onClick={() => searchWorldMusicApi(false)}
-                        disabled={isLoadingMoreResults}
-                        className={"w-full mt-1 py-2.5 rounded-xl border-2 border-dashed text-sm font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-60 " + inputBorder + " " + textMuted + " hover:" + textHighlight + " hover:border-gray-400"}
-                      >
-                        {isLoadingMoreResults ? <Loader2 className="animate-spin" size={16}/> : <ChevronDown size={16}/>}
-                        <span>{isLoadingMoreResults ? "Chargement..." : "Voir plus de résultats"}</span>
-                      </button>
-                    )}
-                    {/* Réserve "autres résultats" (titres qui matchent le texte tapé
-                        mais pas l'artiste identifié, ex. Starboy pour "daft punk") —
-                        révélée seulement une fois la recherche générale épuisée
-                        (searchHasMoreResults = false), jamais avant : voir searchWorldMusicApi. */}
-                    {!searchHasMoreResults && !isBpmSearchMode && worldSearchOtherResults.length > 0 && (
-                      <>
-                        <div className={`text-xs font-bold uppercase tracking-wider mt-4 mb-2 px-1 ${textMuted}`}>Autres résultats pour "{searchQuery}" (pas {searchActiveArtistName})</div>
-                        {worldSearchOtherResults.filter(t => !(!currentPlaylist && favorites.tracks.some(f => f.youtubeId === t.youtubeId))).map((track, i) => renderSearchResultRow(track, `other-${i}`))}
-                      </>
-                    )}
-                  </>
-                ) : (
-                  (isBpmSearchMode || searchQuery.length > 0) && !isWorldSearching ? (
-                    noUsableResultsHint ? (
-                      <div className={`text-center py-8 px-4 font-medium ${textMuted}`}>
-                        {isBpmSearchMode
-                          ? <>Aucun titre trouvé pile à {bpmSearchParams.bpm} BPM (± {bpmSearchParams.tolerance}) pour ces genres.<br/>Essaie d'élargir la marge d'erreur.</>
-                          : <>Aucun titre avec un BPM connu trouvé pour "{searchQuery}".<br/>Essaie une orthographe différente, ou un titre plus précis.</>
-                        }
-                      </div>
-                    ) : (
-                      <div className={`text-center py-8 font-medium ${textMuted}`}>Aucun résultat.</div>
-                    )
-                  ) : (
-                    <div className={`text-center py-8 font-medium ${textMuted}`}>Tape un titre ou un nom d'artiste pour chercher son BPM.</div>
-                  )
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        <PendingNavigationModal
+          theme={themeTokens}
+          pendingNavigation={pendingNavigation} setPendingNavigation={setPendingNavigation}
+          resolvePendingNavigation={resolvePendingNavigation}
+        />
 
-        {isIconPickerOpen && currentPlaylist && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsIconPickerOpen(false)}>
-            <div className={"p-8 rounded-3xl w-full max-w-sm shadow-2xl transform transition-all border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-center mb-6">
-                <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}><ImageIcon className="text-purple-500"/> <span>Personnaliser l'image</span></h3>
-                <button onClick={() => setIsIconPickerOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
-              </div>
-              <div className="grid grid-cols-4 gap-3">
-                {AVAILABLE_ICONS.map(icon => (
-                  <button key={icon} onClick={() => { setCurrentPlaylist({...currentPlaylist, coverIcon: icon}); setSavedPlaylists(savedPlaylists.map(p => p.id === currentPlaylist.id ? {...p, coverIcon: icon} : p)); setIsIconPickerOpen(false); showToast("Image de playlist mise à jour !"); }} className={"text-3xl p-4 bg-gray-50 dark:bg-gray-800 rounded-xl hover:scale-110 hover:shadow-md transition-all " + (currentPlaylist.coverIcon === icon ? 'ring-2 ring-purple-500 bg-purple-50 dark:bg-purple-900/20' : '')}>{icon}</button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+        <PendingUnsaveModal
+          theme={themeTokens}
+          pendingUnsavePlaylist={pendingUnsavePlaylist} setPendingUnsavePlaylist={setPendingUnsavePlaylist}
+          removeSavedPlaylist={removeSavedPlaylist}
+        />
 
-        {pendingNavigation && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setPendingNavigation(null)}>
-            <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
-              <div className="flex items-start gap-3 mb-4">
-                <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 shrink-0">
-                  <AlertCircle size={22} />
-                </div>
-                <div>
-                  <h3 className={"text-xl font-bold " + textHighlight}>Playlist non sauvegardée</h3>
-                  <p className={"text-sm mt-1 " + textMuted}>Cette playlist n'a pas encore été sauvegardée — si tu quittes maintenant, elle sera définitivement perdue.</p>
-                </div>
-              </div>
-              <div className="flex flex-col gap-2 mt-6">
-                <button onClick={() => resolvePendingNavigation(true)} className={"w-full px-6 py-3 text-white font-bold rounded-xl shadow-md " + bgAccentClass}>
-                  Sauvegarder et continuer
-                </button>
-                <button onClick={() => resolvePendingNavigation(false)} className={"w-full px-6 py-3 font-bold rounded-xl border hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition-colors " + cardBorder + " " + textHighlight}>
-                  Continuer sans sauvegarder
-                </button>
-                <button onClick={() => setPendingNavigation(null)} className={"w-full px-6 py-3 font-medium hover:" + textHighlight + " " + textMuted}>
-                  Annuler
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Extrait dans CustomActivityModal.jsx (retour direct : "comment tu
+            diviserais App.jsx ?" — modales déplacées une par une, en
+            commençant par les plus petites/autonomes). */}
+        <CustomActivityModal
+          theme={themeTokens} isNaughtyMode={isNaughtyMode}
+          isCustomActivityModalOpen={isCustomActivityModalOpen} setIsCustomActivityModalOpen={setIsCustomActivityModalOpen}
+          tempCustomActivity={tempCustomActivity} setTempCustomActivity={setTempCustomActivity} setCustomActivity={setCustomActivity}
+          getProfileForWorkout={getProfileForWorkout} applyProfileBpmIfUntouched={applyProfileBpmIfUntouched}
+          userStats={userStats} checkTrophies={checkTrophies}
+        />
 
-        {pendingUnsavePlaylist && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setPendingUnsavePlaylist(null)}>
-            <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
-              <div className="flex items-start gap-3 mb-4">
-                <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 shrink-0">
-                  <AlertCircle size={22} />
-                </div>
-                <div>
-                  <h3 className={"text-xl font-bold " + textHighlight}>Retirer cette playlist ?</h3>
-                  <p className={"text-sm mt-1 " + textMuted}>
-                    {pendingUnsavePlaylist.completions && pendingUnsavePlaylist.completions.length > 0
-                      ? `Elle a déjà été faite ${pendingUnsavePlaylist.completions.length}x`
-                      : 'Elle a des données réelles importées (Garmin/Strava)'}
-                    {' '}— la retirer effacera aussi définitivement cet historique.
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-col gap-2 mt-6">
-                <button onClick={() => { removeSavedPlaylist(pendingUnsavePlaylist.id); setPendingUnsavePlaylist(null); }} className="w-full px-6 py-3 font-bold rounded-xl border border-red-200 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                  Retirer quand même
-                </button>
-                <button onClick={() => setPendingUnsavePlaylist(null)} className={"w-full px-6 py-3 font-medium hover:" + textHighlight + " " + textMuted}>
-                  Annuler
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <SavingRoutineModal
+          theme={themeTokens} isNaughtyMode={isNaughtyMode}
+          isSavingRoutineModalOpen={isSavingRoutineModalOpen} setIsSavingRoutineModalOpen={setIsSavingRoutineModalOpen}
+          newRoutineName={newRoutineName} setNewRoutineName={setNewRoutineName}
+          newRoutineIcon={newRoutineIcon} setNewRoutineIcon={setNewRoutineIcon}
+          newRoutineFreq={newRoutineFreq} setNewRoutineFreq={setNewRoutineFreq}
+          handleSaveRoutine={handleSaveRoutine}
+        />
 
-        {isCustomActivityModalOpen && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsCustomActivityModalOpen(false)}>
-            <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl transform transition-all border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-center mb-6">
-                <h3 className={"text-2xl font-bold " + textHighlight}>Activité personnalisée</h3>
-                <button onClick={() => setIsCustomActivityModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
-              </div>
-              <input type="text" value={tempCustomActivity} onChange={e => setTempCustomActivity(e.target.value)} placeholder="Ex: Yoga..." className={"w-full rounded-xl px-4 py-4 text-lg focus:outline-none focus:border-red-500 mb-8 border " + inputBg + " " + inputBorder + " " + textHighlight} autoFocus onKeyDown={(e) => { if(e.key === 'Enter') { setCustomActivity(tempCustomActivity); setIsCustomActivityModalOpen(false); if (!isNaughtyMode) applyProfileBpmIfUntouched(getProfileForWorkout('Autre', tempCustomActivity)); } }} />
-              <div className="flex justify-end space-x-3">
-                <button onClick={() => setIsCustomActivityModalOpen(false)} className={"px-6 py-3 font-medium hover:" + textHighlight + " " + textMuted}>Annuler</button>
-                <button onClick={() => {
-                  setCustomActivity(tempCustomActivity);
-                  setIsCustomActivityModalOpen(false);
-                  // Même pré-remplissage BPM que Course à pied/Cyclisme à
-                  // l'étape 1 (voir applyProfileBpmIfUntouched,
-                  // useGeneratorForm.js) — pour une activité personnalisée,
-                  // le nom n'est connu qu'à cette confirmation, pas au moment
-                  // où "Autre" est cliqué (voir GeneratorView.jsx, où le nom
-                  // n'existe pas encore à ce stade).
-                  if (!isNaughtyMode) applyProfileBpmIfUntouched(getProfileForWorkout('Autre', tempCustomActivity));
-                  // Easter egg : taper "Rick Astley" dans l'activité personnalisée débloque le trophée dédié.
-                  if (tempCustomActivity.toLowerCase().includes('rick astley')) {
-                    checkTrophies({ ...userStats, hasRickroll: true });
-                  }
-                }} className={"px-6 py-3 text-white font-bold rounded-xl shadow-md " + bgAccentClass}>Valider</button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Extrait dans EditRoutineModal.jsx — modale d'édition d'une routine
+            existante, contrairement à la modale de création elle propose un
+            choix explicite à la sauvegarde : "cette séance seulement" ou
+            "toujours pour cette routine". */}
+        <EditRoutineModal
+          theme={themeTokens} isNaughtyMode={isNaughtyMode}
+          isEditRoutineModalOpen={isEditRoutineModalOpen} setIsEditRoutineModalOpen={setIsEditRoutineModalOpen}
+          editingRoutine={editingRoutine} setEditingRoutine={setEditingRoutine}
+          showExtraGenres={showExtraGenres} setShowExtraGenres={setShowExtraGenres}
+          getProfileForWorkout={getProfileForWorkout} CRESCENDO_MIN_MAIN_PCT={CRESCENDO_MIN_MAIN_PCT}
+          applyRoutineEditOnce={applyRoutineEditOnce} applyRoutineEditPermanently={applyRoutineEditPermanently}
+        />
 
-        {isSavingRoutineModalOpen && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsSavingRoutineModalOpen(false)}>
-            <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-center mb-6">
-                <h3 className={"text-2xl font-bold flex items-center space-x-2 " + textHighlight}>
-                  <BookmarkPlus className={isNaughtyMode ? "text-rose-500" : "text-yellow-500"}/> <span>Nouvelle Routine</span>
-                </h3>
-                <button onClick={() => setIsSavingRoutineModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
-              </div>
-              <div className="space-y-4 mb-6">
-                <input type="text" value={newRoutineName} onChange={e => setNewRoutineName(e.target.value)} placeholder="Nom (Ex: 5km Rapide)" className={"w-full rounded-xl px-4 py-3 font-bold outline-none border " + inputBg + " " + inputBorder + " " + textHighlight} onKeyDown={(e) => e.key === 'Enter' && handleSaveRoutine()} autoFocus />
-                <div className="flex justify-between bg-gray-50 dark:bg-gray-900 p-2 rounded-xl border border-divider">
-                  {AVAILABLE_ICONS.slice(0, isNaughtyMode ? 14 : 8).map(icon => (
-                    <button key={icon} onClick={() => setNewRoutineIcon(icon)} className={"text-xl p-2 rounded-lg transition-transform " + (newRoutineIcon === icon ? 'bg-white dark:bg-gray-800 shadow-sm scale-110' : 'grayscale opacity-50')}>{icon}</button>
-                  ))}
-                </div>
 
-                <div className="pt-2">
-                  <label className={"block text-sm font-bold mb-2 flex justify-between items-center " + textMuted}>
-                    <span>Fréquence de génération auto.</span>
-                    <span className="text-[10px] bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded-full uppercase tracking-wider">Premium</span>
-                  </label>
-                  <select value={newRoutineFreq} onChange={e => setNewRoutineFreq(e.target.value)} className={"w-full rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-blue-500 border " + inputBg + " " + inputBorder + " " + textHighlight}>
-                    {AUTO_GEN_OPTIONS.map(opt => <option key={opt} value={opt} className="bg-surface">{opt}</option>)}
-                  </select>
-                  <p className="text-xs text-gray-400 mt-2">Permet à TempoFit de préparer automatiquement ces playlists en arrière-plan.</p>
-                </div>
-              </div>
-              <button onClick={handleSaveRoutine} className={"w-full py-4 text-white font-bold rounded-xl shadow-md hover:brightness-110 transition-all " + bgAccentClass}>Enregistrer la routine</button>
-            </div>
-          </div>
-        )}
-
-        {/* Modale d'édition d'une routine existante. Contrairement à la modale de
-            création, elle propose un choix explicite à la sauvegarde : appliquer les
-            changements uniquement à la génération lancée maintenant ("cette séance
-            seulement"), ou les répercuter sur la routine elle-même pour toutes les
-            générations futures ("toujours pour cette routine"). */}
-        {isEditRoutineModalOpen && editingRoutine && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => { setIsEditRoutineModalOpen(false); setEditingRoutine(null); }}>
-            <div className={"p-6 md:p-8 rounded-3xl w-full max-w-lg shadow-2xl flex flex-col max-h-[85vh] border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-center mb-6">
-                <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
-                  <Edit3 className={textColorClass}/>
-                  <span>Éditer la routine</span>
-                </h3>
-                <button onClick={() => { setIsEditRoutineModalOpen(false); setEditingRoutine(null); }} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto no-scrollbar space-y-5 pr-1">
-                <input type="text" value={editingRoutine.name} onChange={e => setEditingRoutine({...editingRoutine, name: e.target.value})} className={`w-full rounded-xl px-4 py-3 font-bold outline-none border ${inputBg} ${inputBorder} ${textHighlight}`} placeholder="Nom de la routine" />
-
-                <div>
-                  <div className="flex justify-between items-end mb-2">
-                    <label className={`text-sm font-bold ${textMuted}`}>Rythme cible</label>
-                    <span className={`text-xl font-black ${textColorClass}`}>{editingRoutine.bpm} <span className={`text-xs font-bold ${textMuted}`}>BPM</span></span>
-                  </div>
-                  <input type="range" min={isNaughtyMode ? "40" : "80"} max={isNaughtyMode ? "180" : "220"} value={editingRoutine.bpm} onChange={e => setEditingRoutine({...editingRoutine, bpm: parseInt(e.target.value)})} className={`w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none ${isNaughtyMode ? 'accent-rose-500' : 'accent-red-500'}`} />
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-end mb-2">
-                    <label className={`text-sm font-bold ${textMuted}`}>Marge d'erreur</label>
-                    <span className={`text-sm font-black ${textColorClass}`}>± {editingRoutine.bpmTolerance} BPM</span>
-                  </div>
-                  <input type="range" min="0" max="30" value={editingRoutine.bpmTolerance} onChange={e => setEditingRoutine({...editingRoutine, bpmTolerance: parseInt(e.target.value)})} className={`w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none ${isNaughtyMode ? 'accent-rose-500' : 'accent-red-500'}`} />
-                </div>
-
-                {editingRoutine.targetMode === 'distance' ? (
-                  <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-3 justify-between`}>
-                    <input type="number" min="0" step="0.1" value={editingRoutine.distanceVal} onChange={e => setEditingRoutine({...editingRoutine, distanceVal: e.target.value})} className={`bg-transparent w-full font-bold outline-none ${textHighlight}`} />
-                    <span className={`text-sm font-bold ${textMuted}`}>{editingRoutine.distanceUnit}</span>
-                  </div>
-                ) : (
-                  <div className="flex gap-3">
-                    <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-3 justify-between`}>
-                      <input type="number" min="0" value={editingRoutine.hours} onChange={e => setEditingRoutine({...editingRoutine, hours: e.target.value})} className={`bg-transparent w-full font-bold outline-none ${textHighlight}`} />
-                      <span className={`text-sm font-bold ${textMuted}`}>Heures</span>
-                    </div>
-                    <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-3 justify-between`}>
-                      <input type="number" min="0" max="59" value={editingRoutine.minutes} onChange={e => setEditingRoutine({...editingRoutine, minutes: e.target.value})} className={`bg-transparent w-full font-bold outline-none ${textHighlight} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
-                      <span className={`text-sm font-bold ${textMuted} mr-1`}>Min</span>
-                      <div className="flex flex-col">
-                        <button type="button" onClick={() => setEditingRoutine(r => ({...r, minutes: (parseInt(r.minutes) || 0) + 1 > 59 ? 0 : (parseInt(r.minutes) || 0) + 1}))} className={`${textMuted} hover:text-main`}>
-                          <ChevronUp size={14} />
-                        </button>
-                        <button type="button" onClick={() => setEditingRoutine(r => ({...r, minutes: (parseInt(r.minutes) || 0) - 1 < 0 ? 59 : (parseInt(r.minutes) || 0) - 1}))} className={`${textMuted} hover:text-main`}>
-                          <ChevronDown size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className={`text-sm font-bold ${textMuted} block mb-3`}>Genres</label>
-                  <div className="flex flex-wrap gap-2">
-                    {(isNaughtyMode ? NAUGHTY_GENRES : STANDARD_GENRES).map(genre => {
-                      const isSelected = editingRoutine.selectedGenres.includes(genre);
-                      const warning = getGenreLocalDepthWarning(genre);
-                      return (
-                        <button key={genre} onClick={() => {
-                          const current = editingRoutine.selectedGenres;
-                          if (isSelected) { if (current.length > 1) setEditingRoutine({...editingRoutine, selectedGenres: current.filter(g => g !== genre)}); }
-                          else setEditingRoutine({...editingRoutine, selectedGenres: [...current, genre]});
-                        }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}>
-                          {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
-                        </button>
-                      );
-                    })}
-                    {!isNaughtyMode && (
-                      <button onClick={() => setShowExtraGenres(!showExtraGenres)} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 border-dashed ${cardBorder} ${textMuted} hover:text-main`}>
-                        {showExtraGenres ? '− Moins de genres' : '+ Plus de genres'}
-                      </button>
-                    )}
-                  </div>
-                  {!isNaughtyMode && showExtraGenres && (
-                    <div className="flex flex-wrap gap-2 pt-2">
-                      {EXTRA_GENRES.map(genre => {
-                        const isSelected = editingRoutine.selectedGenres.includes(genre);
-                        const warning = getGenreLocalDepthWarning(genre);
-                        return (
-                          <button key={genre} onClick={() => {
-                            const current = editingRoutine.selectedGenres;
-                            if (isSelected) { if (current.length > 1) setEditingRoutine({...editingRoutine, selectedGenres: current.filter(g => g !== genre)}); }
-                            else setEditingRoutine({...editingRoutine, selectedGenres: [...current, genre]});
-                          }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}>
-                            {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {editingRoutine.isIntervalMode && (
-                  editingRoutine.isCrescendoMode ? (() => {
-                    // Même "règle d'or" ergonomie que GeneratorView.jsx (voir
-                    // crescendoWarmupColor et al. là-bas) : couleur = vraie zone
-                    // du BPM de ce segment, pas 3 couleurs fixes par rôle.
-                    // Repli sur les anciennes couleurs (sky/accent/emerald) si
-                    // aucun profil n'est configuré pour cette activité.
-                    const editAccentFallback = isNaughtyMode ? '#f43f5e' : '#ef4444';
-                    const editWarmupZone = getZoneForValue(editingRoutine.crescendoWarmupBpm ?? (isNaughtyMode ? 40 : 80), editingRoutine.workoutType, getProfileForWorkout, editingRoutine.customActivity);
-                    const editCoreZone = getZoneForValue(editingRoutine.bpm, editingRoutine.workoutType, getProfileForWorkout, editingRoutine.customActivity);
-                    const editCooldownZone = getZoneForValue(editingRoutine.crescendoCooldownBpm ?? (isNaughtyMode ? 40 : 80), editingRoutine.workoutType, getProfileForWorkout, editingRoutine.customActivity);
-                    const editWarmupColor = editWarmupZone?.color || '#0ea5e9';
-                    const editCoreColor = editCoreZone?.color || editAccentFallback;
-                    const editCooldownColor = editCooldownZone?.color || '#10b981';
-                    return (
-                    <div className="space-y-5">
-                      <div className="space-y-3">
-                        <label className={`text-sm font-bold ${textMuted}`}>Répartition de l'effort</label>
-                        <div className="flex justify-between text-xs font-bold">
-                          <span style={{ color: editWarmupColor }}>Échauffement {editingRoutine.crescendoWarmupPct ?? 15}%</span>
-                          <span className={textColorClass}>Cœur {100 - (editingRoutine.crescendoWarmupPct ?? 15) - (editingRoutine.crescendoCooldownPct ?? 15)}%</span>
-                          <span style={{ color: editCooldownColor }}>Retour au calme {editingRoutine.crescendoCooldownPct ?? 15}%</span>
-                        </div>
-                        <DualRangeSlider
-                          leftValue={editingRoutine.crescendoWarmupPct ?? 15} rightValue={editingRoutine.crescendoCooldownPct ?? 15} minMiddle={CRESCENDO_MIN_MAIN_PCT}
-                          onChangeLeft={(val) => setEditingRoutine({ ...editingRoutine, crescendoWarmupPct: val })}
-                          onChangeRight={(val) => setEditingRoutine({ ...editingRoutine, crescendoCooldownPct: val })}
-                          leftColor={editWarmupColor} middleColor={editCoreColor} rightColor={editCooldownColor}
-                          leftHandleBorderColor={editWarmupColor} rightHandleBorderColor={editCooldownColor}
-                          leftAriaLabel="Part de l'échauffement" rightAriaLabel="Part du retour au calme"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <p className={`text-xs ${textMuted}`}>BPM personnalisé pour ces 2 phases :</p>
-
-                        <div className={`space-y-4 p-3 rounded-xl ${inputBg} border ${inputBorder}`}>
-                            {/* Même correctif que dans le wizard (GeneratorView.jsx) : griser
-                                plutôt que laisser un BPM "actif" trompeur quand la part de cette
-                                phase est à 0%. */}
-                            <div className={(editingRoutine.crescendoWarmupPct ?? 15) === 0 ? 'opacity-40 grayscale pointer-events-none' : ''}>
-                              <div className="flex justify-between items-center mb-1">
-                                <span className="text-xs font-bold" style={{ color: editWarmupColor }}>BPM Échauffement{(editingRoutine.crescendoWarmupPct ?? 15) === 0 && ' (0% — sans effet)'}</span>
-                                <span className={`text-sm font-black ${textHighlight}`}>{editingRoutine.crescendoWarmupBpm}</span>
-                              </div>
-                              <input
-                                type="range" min={isNaughtyMode ? 40 : 80} max={editingRoutine.bpm}
-                                value={editingRoutine.crescendoWarmupBpm ?? (isNaughtyMode ? 40 : 80)}
-                                onChange={(e) => {
-                                  const val = parseInt(e.target.value) || (isNaughtyMode ? 40 : 80);
-                                  setEditingRoutine(prev => ({
-                                    ...prev,
-                                    crescendoWarmupBpm: val,
-                                    crescendoCooldownBpm: (prev.crescendoCooldownBpm != null && prev.crescendoCooldownBpm > val) ? val : prev.crescendoCooldownBpm,
-                                  }));
-                                }}
-                                disabled={(editingRoutine.crescendoWarmupPct ?? 15) === 0}
-                                style={{ accentColor: editWarmupColor }}
-                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none disabled:cursor-not-allowed"
-                              />
-                            </div>
-                            <div className={(editingRoutine.crescendoCooldownPct ?? 15) === 0 ? 'opacity-40 grayscale pointer-events-none' : ''}>
-                              <div className="flex justify-between items-center mb-1">
-                                <span className="text-xs font-bold" style={{ color: editCooldownColor }}>BPM Retour au calme{(editingRoutine.crescendoCooldownPct ?? 15) === 0 && ' (0% — sans effet)'}</span>
-                                <span className={`text-sm font-black ${textHighlight}`}>{editingRoutine.crescendoCooldownBpm}</span>
-                              </div>
-                              <input
-                                type="range" min={isNaughtyMode ? 40 : 80} max={editingRoutine.crescendoWarmupBpm ?? editingRoutine.bpm}
-                                value={editingRoutine.crescendoCooldownBpm ?? (isNaughtyMode ? 40 : 80)}
-                                onChange={(e) => setEditingRoutine({ ...editingRoutine, crescendoCooldownBpm: parseInt(e.target.value) || (isNaughtyMode ? 40 : 80) })}
-                                disabled={(editingRoutine.crescendoCooldownPct ?? 15) === 0}
-                                style={{ accentColor: editCooldownColor }}
-                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none disabled:cursor-not-allowed"
-                              />
-                            </div>
-                        </div>
-                      </div>
-
-                      <p className={`text-[11px] ${textMuted}`}>Les 3 portions se recalculent automatiquement selon ces réglages.</p>
-                    </div>
-                    );
-                  })() : (
-                    <div className={`text-xs p-3 rounded-xl ${inputBg} border ${inputBorder} ${textMuted}`}>
-                      Cette routine est en mode Fractionné : les portions détaillées ne sont pas éditables depuis cette fenêtre pour l'instant. Les réglages ci-dessus (BPM, genres, marge d'erreur) s'appliqueront quand même à l'ensemble des portions.
-                    </div>
-                  )
-                )}
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 pt-6 mt-2 border-t border-gray-100 dark:border-gray-800">
-                <button onClick={applyRoutineEditOnce} className={`flex-1 py-3.5 rounded-xl font-bold border-2 ${cardBorder} ${textHighlight} hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors`}>
-                  Cette séance seulement
-                </button>
-                <button onClick={applyRoutineEditPermanently} className={`flex-1 py-3.5 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
-                  Toujours pour cette routine
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Modale de partage — BUG CORRIGÉ : handleShare() préparait shareData et ouvrait
-            isShareModalOpen, mais aucune fenêtre ne s'affichait nulle part avant ça (le
-            bouton "Partager" ne faisait donc rien de visible). copyToClipboard existait
-            déjà et n'attendait que son interface. */}
-        {isShareModalOpen && shareData && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsShareModalOpen(false)}>
-            <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-center mb-6">
-                <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
-                  <Share2 className={textColorClass}/>
-                  <span>Partager</span>
-                </h3>
-                <button onClick={() => setIsShareModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
-              </div>
-              <div className={`p-4 rounded-xl mb-6 text-sm ${inputBg} border ${inputBorder} ${textHighlight}`}>
-                {shareData.text}
-              </div>
-
-              {/* Boutons directs vers les réseaux les plus courants — tuiles discrètes
-                  (fond léger + accent coloré) plutôt que des blocs pleins saturés qui se
-                  battaient visuellement entre eux. Le partage natif (menu "Partager"
-                  habituel du téléphone/OS, quand disponible) est intégré comme une tuile
-                  de plus, pas un gros bouton séparé qui dominait tout le reste. */}
-              <div className={`grid gap-2 mb-4 ${typeof navigator !== 'undefined' && navigator.share ? 'grid-cols-4' : 'grid-cols-3'}`}>
-                {typeof navigator !== 'undefined' && navigator.share && (
-                  <button onClick={shareNative} title="Autres options" className={`flex flex-col items-center gap-1.5 py-3.5 rounded-xl ${cardBg} border ${cardBorder} hover:bg-surface-hover transition-colors`}>
-                    <Share2 size={18} className={textColorClass}/>
-                    <span className={`text-[11px] font-bold ${textMuted}`}>Plus</span>
-                  </button>
-                )}
-                <button onClick={shareToWhatsApp} title="WhatsApp" className="flex flex-col items-center gap-1.5 py-3.5 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/30 transition-colors">
-                  <MessageCircle size={18} className="text-[#25D366]"/>
-                  <span className="text-[11px] font-bold text-[#25D366]">WhatsApp</span>
-                </button>
-                <button onClick={shareToTwitter} title="X (Twitter)" className={`flex flex-col items-center gap-1.5 py-3.5 rounded-xl ${cardBg} border ${cardBorder} hover:bg-surface-hover transition-colors`}>
-                  <span className={`text-base font-black leading-none ${textHighlight}`}>𝕏</span>
-                  <span className={`text-[11px] font-bold ${textMuted}`}>X</span>
-                </button>
-                <button onClick={shareToFacebook} title="Facebook" className="flex flex-col items-center gap-1.5 py-3.5 rounded-xl bg-[#1877F2]/10 hover:bg-[#1877F2]/20 border border-[#1877F2]/30 transition-colors">
-                  <ExternalLink size={18} className="text-[#1877F2]"/>
-                  <span className="text-[11px] font-bold text-[#1877F2]">Facebook</span>
-                </button>
-              </div>
-
-              <button onClick={copyToClipboard} className={`w-full py-4 text-white font-bold rounded-xl shadow-md hover:brightness-110 transition-all flex items-center justify-center gap-2 ${bgAccentClass}`}>
-                <Copy size={18}/> Copier le lien
-              </button>
-              <button onClick={shareViaEmail} className={`w-full py-3 mt-2 rounded-xl text-sm font-bold ${textMuted} hover:text-main transition-colors flex items-center justify-center gap-2`}>
-                <MessageCircle size={16}/> Envoyer par e-mail
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Extrait dans ShareModal.jsx — BUG CORRIGÉ (historique, gardé pour
+            mémoire) : handleShare() préparait shareData et ouvrait
+            isShareModalOpen, mais aucune fenêtre ne s'affichait nulle part
+            avant ça (le bouton "Partager" ne faisait donc rien de visible).
+            copyToClipboard existait déjà et n'attendait que son interface. */}
+        <ShareModal
+          theme={themeTokens}
+          isShareModalOpen={isShareModalOpen} setIsShareModalOpen={setIsShareModalOpen} shareData={shareData}
+          shareNative={shareNative} shareToWhatsApp={shareToWhatsApp} shareToTwitter={shareToTwitter} shareToFacebook={shareToFacebook}
+          copyToClipboard={copyToClipboard} shareViaEmail={shareViaEmail}
+        />
 
       </div>
     </div>
