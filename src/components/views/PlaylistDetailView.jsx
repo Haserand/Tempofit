@@ -474,8 +474,19 @@ export default function PlaylistDetailView({
                     isLocked ? "Refaire cette séance" : "Planifier cette séance"
                   }
                 >
+                  {/* RETOUR DIRECT ("le calendrier pour 'planifier à
+                      nouveau' me semble suffisant") — nuance par rapport aux
+                      simplifications précédentes (Verrouillée, corbeille) :
+                      là où "Planifier"/"Planifier à nouveau" est un label
+                      GÉNÉRIQUE sans info propre (l'icône + le tooltip
+                      suffisent, retiré ci-dessous), la DATE effectivement
+                      planifiée (`plannedDate`) est une vraie donnée, pas un
+                      simple libellé — la garder affichée évite d'avoir à
+                      cliquer pour savoir QUAND c'est planifié. */}
                   <Calendar size={14} />
-                  <span>{currentPlaylist.plannedDate ? new Date(currentPlaylist.plannedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : (isLocked ? 'Planifier à nouveau' : 'Planifier')}</span>
+                  {currentPlaylist.plannedDate && (
+                    <span>{new Date(currentPlaylist.plannedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
+                  )}
                   <input
                     ref={plannedDateInputRef}
                     type="date"
