@@ -636,7 +636,37 @@ export default function PlaylistDetailView({
               Séances" qui vivait ici a été retiré (retour direct : "prend
               trop de place") — remplacé par l'icône compacte en haut à
               droite de la carte (voir plus haut). */}
-          <div className="flex items-center justify-center md:justify-start gap-3 mt-2">
+          <div className="flex items-center flex-wrap justify-center md:justify-start gap-3 mt-2">
+            {/* RETOUR DIRECT ("j'imagine le bouton d'import de données et le
+                bouton de partage sur la même ligne : d'abord importer, puis
+                partager") — l'ancien bouton pleine largeur (voir plus bas
+                dans ce fichier pour l'historique de ce bouton) rejoint cette
+                ligne, réduit d'un CTA "phare" (px-6 py-5, texte base) à la
+                taille d'un bouton inline (px-4 py-2, texte sm) pour tenir à
+                côté de "Partager" — garde son fond blanc/texte noir forcé et
+                son animation `animate-pulse` (seules dérogations à la règle
+                "ne toucher aucune couleur", toujours d'actualité : ce bouton
+                doit rester visuellement distinct/prioritaire même réduit).
+                Positionné AVANT "Partager" (ordre demandé : importer d'abord,
+                partager ensuite). */}
+            {isLocked && triggerCSVUpload && (
+              <button
+                onClick={(e) => triggerCSVUpload(e, currentPlaylist, mostRecentCompletionIso)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm shrink-0 bg-white text-black shadow-lg transition-transform hover:scale-[1.02] ${hasImportedDataForMostRecent ? 'animate-in fade-in zoom-in duration-500' : 'animate-pulse'}`}
+              >
+                {hasImportedDataForMostRecent ? (
+                  <>
+                    <CheckCircle size={16} className="text-green-500 shrink-0" />
+                    <span>Données importées</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={16} className="shrink-0" />
+                    <span>Importe tes données</span>
+                  </>
+                )}
+              </button>
+            )}
             {/* RETOUR DIRECT ("le bilan en image devrait être une option
                 contenue dans le bouton Partager") — les 2 anciens boutons
                 ("Partager" = lien/texte via navigator.share, "Bilan en
@@ -700,39 +730,10 @@ export default function PlaylistDetailView({
               maintenant tout en haut de la carte, à côté de la date — voir
               plus haut. */}
 
-          {/* RETOUR DIRECT (maquette UI/UX complète, points 3 et 4) : "gros
-              bouton importer ses données", CTA phare de fin de séance — pleine
-              largeur, fond blanc/texte noir FORCÉ (seule dérogation demandée
-              à la règle "ne toucher aucune couleur"), 2 états distincts :
-              - Pas encore importé : `animate-pulse` léger + texte incitatif.
-              - Déjà importé (pour la date la plus récente) : icône de
-                validation verte + texte gratifiant, `animate-in` ponctuel
-                plutôt qu'une boucle infinie (un "aha" au moment où l'état
-                bascule, pas une sollicitation permanente une fois acquis).
-              Cible la date de complétion la plus RÉCENTE (voir
-              mostRecentCompletionIso plus haut) — les dates plus anciennes
-              restent gérables individuellement dans le bandeau juste
-              au-dessus. `triggerCSVUpload` : même fonction que celle déjà
-              utilisée sur la carte dans "Mes Séances" (voir App.jsx), pas une
-              2e logique d'import dupliquée. */}
-          {isLocked && triggerCSVUpload && (
-            <button
-              onClick={(e) => triggerCSVUpload(e, currentPlaylist, mostRecentCompletionIso)}
-              className={`w-full mt-6 px-6 py-5 rounded-2xl font-black text-base flex items-center justify-center gap-3 bg-white text-black shadow-lg transition-transform hover:scale-[1.01] ${hasImportedDataForMostRecent ? 'animate-in fade-in zoom-in duration-500' : 'animate-pulse'}`}
-            >
-              {hasImportedDataForMostRecent ? (
-                <>
-                  <CheckCircle size={22} className="text-green-500 shrink-0" />
-                  <span>C'est cool, tu as importé tes données !</span>
-                </>
-              ) : (
-                <>
-                  <Upload size={22} className="shrink-0" />
-                  <span>Complète ta séance : importe tes données sportives !</span>
-                </>
-              )}
-            </button>
-          )}
+          {/* Le bouton "Complète ta séance : importe tes données sportives !"
+              qui vivait ici en CTA pleine largeur a rejoint la ligne
+              Partager juste au-dessus (retour direct : "sur la même ligne,
+              importer d'abord, partager ensuite") — il n'est plus ici. */}
         </div>
       </div>
 
