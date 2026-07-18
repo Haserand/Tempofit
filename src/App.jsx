@@ -356,6 +356,7 @@ export default function App() {
     computeZonesFromBaseBpm, getDefaultBaseBpm, buildDefaultPreviewProfile, getZoneSpacingForActivity,
     setBaseBpmForActivity, setZoneForActivity, resetActivityProfile,
     addCustomActivity, removeCustomActivity, setBaseBpmForCustom, setZoneForCustom, getProfileForWorkout,
+    getProfileForWorkoutOrDefault,
     resetAthleticProfile,
   } = useAthleticProfile();
 
@@ -2622,6 +2623,7 @@ export default function App() {
               <StatsView
                 theme={themeTokens} savedPlaylists={savedPlaylists} userStats={userStats} changeView={changeView}
                 setCurrentPlaylist={setCurrentPlaylist} athleticProfile={athleticProfile} getProfileForWorkout={getProfileForWorkout}
+                getProfileForWorkoutOrDefault={getProfileForWorkoutOrDefault}
                 shareImageFile={shareImageFileWithTrophy} showToast={showToast}
                 statsMode={statsMode} setStatsMode={setStatsMode}
                 selectedStatsGenre={selectedStatsGenre} setSelectedStatsGenre={setSelectedStatsGenre}
