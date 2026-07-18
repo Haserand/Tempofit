@@ -638,11 +638,23 @@ export default function StatsView({
                   derrière un CTA — et un rappel plus discret (pas un bloc
                   entier) pour inviter à configurer un vrai profil, seulement
                   si rien ne l'est encore. */}
-              <p className={`text-xs mb-4 ${textMuted}`}>
+              <p className={`text-xs mb-1 ${textMuted}`}>
                 {hasAnyAthleticProfileConfigured
                   ? 'Basé sur ton Profil Athlétique — pas le même découpage que "Tes BPM" plus bas.'
                   : "Estimation par défaut (aucun Profil Athlétique configuré) — pas le même découpage que \"Tes BPM\" plus bas."}
               </p>
+              {/* RETOUR DIRECT ("est-ce que ça vaut le coup de montrer le
+                  temps passé dans chaque zone ?") — jusqu'ici seul le %
+                  était affiché (la donnée en secondes existait déjà dans
+                  `zoneBreakdown`/`zoneTotalSeconds`, juste jamais montrée).
+                  Le % seul répond à "comment mes séances SE RÉPARTISSENT",
+                  mais pas à "combien de temps j'ai VRAIMENT passé" — les deux
+                  se lisent différemment dans le temps : un % peut rester
+                  stable (85/15) alors que le volume réel augmente d'un mois
+                  sur l'autre, ce que le % seul ne montre jamais. Ajouté à 2
+                  endroits : le total en tête de carte, et la durée à côté du
+                  % de chaque zone dans la légende. */}
+              <p className={`text-sm font-bold mb-4 ${textHighlight}`}>{formatDuration(zoneTotalSeconds)} au total, toutes zones confondues.</p>
               <div className="w-full h-56 md:h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -667,7 +679,7 @@ export default function StatsView({
                     <div key={i} className="flex items-center gap-1.5 text-xs font-bold">
                       <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
                       <span className={textHighlight}>{z.shortLabel}</span>
-                      <span className={textMuted}>{pct}%</span>
+                      <span className={textMuted}>{pct}% · {formatDuration(z.seconds)}</span>
                     </div>
                   );
                 })}
@@ -675,10 +687,12 @@ export default function StatsView({
               {/* Légende motivante scopée au mois en cours — voir
                   zoneMonthSummary. Absente s'il n'y a aucune séance ce
                   mois-ci dans une zone connue, plutôt qu'une phrase à 0%
-                  partout. */}
+                  partout. Durée totale du mois ajoutée en fin de phrase (même
+                  logique que ci-dessus : le % seul ne dit pas si le mois a été
+                  copieux ou maigre en entraînement). */}
               {zoneMonthSummary && (
                 <p className={`text-sm text-center mt-4 pt-4 border-t ${cardBorder} ${textHighlight}`}>
-                  <span className="font-bold">Ce mois-ci</span> : {zoneMonthSummary}
+                  <span className="font-bold">Ce mois-ci</span> : {zoneMonthSummary} <span className={textMuted}>({formatDuration(zoneTotalSecondsThisMonth)} au total)</span>
                 </p>
               )}
               {!hasAnyAthleticProfileConfigured && (
