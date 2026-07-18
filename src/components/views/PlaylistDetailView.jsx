@@ -531,7 +531,7 @@ export default function PlaylistDetailView({
           ) : (
             <h2 className={"text-2xl md:text-4xl font-black flex items-center gap-3 justify-center md:justify-start " + textHighlight}>
               <span className="truncate min-w-0" title={currentPlaylist.name}>{currentPlaylist.name}</span>
-              <button onClick={() => { setEditedPlaylistName(currentPlaylist.name); setIsEditingPlaylistName(true); }} className={`p-1.5 rounded-lg ${textMuted} hover:${textHighlight} transition-colors shrink-0`} title="Renommer la playlist">
+              <button onClick={() => { setEditedPlaylistName(currentPlaylist.name); setIsEditingPlaylistName(true); }} className={`p-1.5 rounded-lg ${textMuted} hover:text-main transition-colors shrink-0`} title="Renommer la playlist">
                 <Edit3 size={20}/>
               </button>
             </h2>
@@ -730,7 +730,7 @@ export default function PlaylistDetailView({
                 onClick={() => setSelectedSegmentIdx(Math.max(0, selectedSegmentIdx - 1))}
                 disabled={selectedSegmentIdx === 0}
                 title="Titre précédent"
-                className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent`}
+                className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:text-main hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent`}
               >
                 <ChevronLeft size={18}/>
               </button>
@@ -752,7 +752,7 @@ export default function PlaylistDetailView({
                 onClick={() => setSelectedSegmentIdx(Math.min(trackSegments.length - 1, selectedSegmentIdx + 1))}
                 disabled={selectedSegmentIdx === trackSegments.length - 1}
                 title="Titre suivant"
-                className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent`}
+                className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:text-main hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent`}
               >
                 <ChevronRight size={18}/>
               </button>
@@ -773,7 +773,7 @@ export default function PlaylistDetailView({
                   ce menu ici ouvre aussi le menu de la ligne correspondante dans
                   la liste, cohérent puisque c'est le même titre). */}
               <div className="relative shrink-0">
-                <button onClick={() => setOpenTrackMenuIndex(openTrackMenuIndex === selectedSegmentIdx ? null : selectedSegmentIdx)} className={`p-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-surface-hover`} title="Plus d'options">
+                <button onClick={() => setOpenTrackMenuIndex(openTrackMenuIndex === selectedSegmentIdx ? null : selectedSegmentIdx)} className={`p-2 rounded-lg transition-colors ${textMuted} hover:text-main hover:bg-surface-hover`} title="Plus d'options">
                   <MoreVertical size={16}/>
                 </button>
                 {openTrackMenuIndex === selectedSegmentIdx && (
@@ -1020,7 +1020,7 @@ export default function PlaylistDetailView({
               {selectedDetailGenre && <> · <span className={textColorClass}>{selectedDetailGenre}</span></>}
               {selectedDetailBpmBucket && <> · <span className={textColorClass}>{selectedDetailBpmBucket} BPM</span></>}
             </span>
-            <button onClick={() => { setSelectedDetailGenre(null); setSelectedDetailBpmBucket(null); }} className={`underline ${textMuted} hover:${textHighlight}`}>
+            <button onClick={() => { setSelectedDetailGenre(null); setSelectedDetailBpmBucket(null); }} className={`underline ${textMuted} hover:text-main`}>
               Réinitialiser
             </button>
           </div>
