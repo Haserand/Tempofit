@@ -508,7 +508,7 @@ export default function StatsView({
           {statsMode === 'naughty' ? (
             <button
               onClick={() => { setStatsMode('standard'); setSelectedStatsGenre(null); setSelectedStatsBpmBucket(null); }}
-              className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${textMuted} hover:${textHighlight} hover:bg-surface-hover`}
+              className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${textMuted} hover:text-main hover:bg-surface-hover`}
             >
               ← Stats standards
             </button>
@@ -1048,7 +1048,7 @@ export default function StatsView({
           {/* Bascule vers la vue détaillée. */}
           <button
             onClick={() => setShowAdvancedStats(!showAdvancedStats)}
-            className={`w-full py-4 rounded-2xl border-2 border-dashed ${cardBorder} flex items-center justify-center gap-2 font-bold transition-colors ${textMuted} hover:${textHighlight} hover:border-gray-400`}
+            className={`w-full py-4 rounded-2xl border-2 border-dashed ${cardBorder} flex items-center justify-center gap-2 font-bold transition-colors ${textMuted} hover:text-main hover:border-gray-400`}
           >
             {showAdvancedStats ? <ChevronUp size={20}/> : <ChevronDown size={20}/>}
             {showAdvancedStats ? "Revenir à la vue simple" : "Voir le détail complet"}
