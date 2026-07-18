@@ -99,7 +99,7 @@ const RealDataDot = (props) => {
  */
 export default function PlaylistDetailView({
   theme, colorMode, isNaughtyMode,
-  currentPlaylist, savedPlaylists, getProfileForWorkout,
+  currentPlaylist, savedPlaylists, getProfileForWorkout, getProfileForWorkoutOrDefault,
   isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
   handleSavePlaylist, handleUnsavePlaylist, handleShare,
   shareImageFile, showToast,
@@ -173,6 +173,25 @@ export default function PlaylistDetailView({
     ? (currentPlaylist.config?.workoutName || currentPlaylist.workoutType || 'Autre')
     : (currentPlaylist.workoutType || 'Autre');
   const isBpmChartUsingRealProfile = !!(getProfileForWorkout && getProfileForWorkout(bpmChartActivityName)?.isConfigured);
+
+  // RETOUR DIRECT ("en course à pied, la cadence de pas varie peu selon la
+  // zone — proposer une visualisation Synchro uniquement si l'utilisateur
+  // active l'option") — si l'activité de CETTE séance est réglée sur
+  // `cadenceIntent: 'sync'`, remplace le camembert par zone par un indicateur
+  // d'écart : un chiffre ("Écart moyen") + les titres positionnés sur un axe
+  // BPM autour de la cible. Un camembert par ZONE n'aurait presque aucun
+  // intérêt en sync — les 4 zones sont volontairement resserrées (voir
+  // SYNC_ZONE_SPACING_BY_ACTIVITY, useAthleticProfile.js), donc la quasi-
+  // totalité des titres tomberaient dans la même part.
+  const bpmChartProfile = getProfileForWorkoutOrDefault ? getProfileForWorkoutOrDefault(bpmChartActivityName) : null;
+  const isSyncMode = bpmChartProfile?.cadenceIntent === 'sync';
+  const syncTarget = bpmChartProfile?.targetBpm ?? null;
+  const syncTrackGaps = (isSyncMode && syncTarget)
+    ? currentPlaylist.tracks.filter(t => t.bpm).map(t => ({ title: t.title, artist: t.artist, bpm: t.bpm, gap: t.bpm - syncTarget }))
+    : [];
+  const syncAvgGap = syncTrackGaps.length > 0
+    ? Math.round(syncTrackGaps.reduce((s, t) => s + Math.abs(t.gap), 0) / syncTrackGaps.length)
+    : null;
 
   // Médaille "la plus/2e plus/3e plus utilisée" (retour direct : "quand je
   // suis dans la playlist d'une session que je fais le plus... faudrait
@@ -1380,10 +1399,63 @@ export default function PlaylistDetailView({
               vraiment (des noms de zone, pas des plages de BPM), même
               sous-titre de provenance que son équivalent dans StatsView.jsx. */}
           <p className={`text-xs mb-4 ${textMuted}`}>
-            {isBpmChartUsingRealProfile
-              ? 'Basé sur ton Profil Athlétique.'
-              : 'Estimation par défaut (aucun Profil Athlétique configuré pour cette activité).'}
+            {isSyncMode
+              ? 'Mode Synchro — la musique doit suivre ta cadence, pas ton intensité.'
+              : (isBpmChartUsingRealProfile
+                  ? 'Basé sur ton Profil Athlétique.'
+                  : 'Estimation par défaut (aucun Profil Athlétique configuré pour cette activité).')}
           </p>
+          {isSyncMode ? (
+            /* RETOUR DIRECT ("indicateur d'écart : un chiffre + les points
+                autour d'une ligne cible, ça te convient ?" → "oui") — pas de
+                camembert ici : en Synchro, ce qui compte c'est "est-ce que la
+                musique est restée proche de MA cadence", pas une répartition
+                par zone (les 4 zones sont volontairement resserrées, un
+                camembert y serait presque unicolore). `syncTarget` = le BPM
+                de base entré dans le Profil Athlétique (zone2/targetBpm) —
+                LA cible de synchro pour cette activité. */
+            syncTrackGaps.length > 0 ? (
+              <div>
+                <div className={`text-2xl font-black mb-1 ${textHighlight}`}>
+                  Écart moyen : <span className={textColorClass}>{syncAvgGap} BPM</span>
+                </div>
+                <p className={`text-xs mb-4 ${textMuted}`}>Cible : {syncTarget} BPM — chaque point est un titre, positionné selon son écart à la cible.</p>
+                {/* Axe horizontal simple (pas Recharts, ce n'est pas vraiment un
+                    "chart" au sens graphique de données — juste une frise) : la
+                    cible est TOUJOURS au centre (50%), l'écart max observé fixe
+                    l'échelle des bords, jamais une valeur arbitraire qui
+                    écraserait ou exagérerait les écarts réels. */}
+                {(() => {
+                  const maxAbsGap = Math.max(10, ...syncTrackGaps.map(t => Math.abs(t.gap)));
+                  return (
+                    <div className="relative h-16 mt-2">
+                      <div className={`absolute left-0 right-0 top-1/2 h-px ${cardBorder} border-t`}></div>
+                      <div className={`absolute left-1/2 top-0 bottom-0 w-px ${isNaughtyMode ? 'bg-rose-500' : 'bg-red-500'}`}></div>
+                      {syncTrackGaps.map((t, i) => {
+                        const pct = 50 + (t.gap / maxAbsGap) * 45; // 45% de marge de chaque côté, jamais collé au bord
+                        return (
+                          <div
+                            key={i}
+                            title={`${t.title} — ${t.bpm} BPM (${t.gap > 0 ? '+' : ''}${t.gap})`}
+                            className={`absolute w-2.5 h-2.5 rounded-full -translate-x-1/2 shadow ${isNaughtyMode ? 'bg-rose-400' : 'bg-red-400'}`}
+                            style={{ left: `${pct}%`, top: `${8 + (i % 3) * 14}px` }}
+                          ></div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+                <div className={`flex justify-between text-[10px] mt-1 ${textMuted}`}>
+                  <span>Plus lent</span>
+                  <span>Cible ({syncTarget})</span>
+                  <span>Plus rapide</span>
+                </div>
+              </div>
+            ) : (
+              <p className={`text-sm ${textMuted}`}>Aucun titre avec BPM exploitable pour cette séance.</p>
+            )
+          ) : (
+          <>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -1434,6 +1506,8 @@ export default function PlaylistDetailView({
                 </div>
               ))}
             </div>
+          )}
+          </>
           )}
         </div>
       </div>
