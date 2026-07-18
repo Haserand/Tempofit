@@ -391,30 +391,84 @@ export default function PlaylistDetailView({
               autour, elle redevient un simple prolongement discret de cette
               ligne de statut plutôt qu'un bloc à part avec son propre poids
               visuel. */}
-          {isLocked && currentPlaylist.completions.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-3 flex-wrap">
-                <p className={`text-xs font-semibold uppercase tracking-wide ${textMuted}`}>
-                  {renderTopCompletionDate ? renderTopCompletionDate(currentPlaylist) : `Réalisée le ${new Date(currentPlaylist.completions[0].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`}
-                </p>
-                <span
-                  className={`text-xs font-bold flex items-center gap-1 ${textColorClass}`}
-                  title="Séance déjà réalisée — verrouillée pour préserver ton historique, plus aucune modification possible"
+          {/* RETOUR DIRECT ("le planifier à nouveau devrait être en haut,
+              avec les infos relatives aux dates") — "Planifier"/"Planifier à
+              nouveau" rejoint la ligne date + statut verrouillé : les 2
+              parlent de "quand" (déjà fait / prévu ensuite), ça n'avait pas
+              de sens de les séparer en 2 lignes distinctes. Reste visible
+              même AVANT toute complétion (`!isLocked`, libellé "Planifier"
+              tout court) — seule la partie date/verrouillé reste
+              conditionnée à `isLocked`, la logique d'origine n'a pas changé,
+              seul l'EMPLACEMENT du bouton. */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-3 flex-wrap">
+              {isLocked && currentPlaylist.completions.length > 0 && (
+                <>
+                  <p className={`text-xs font-semibold uppercase tracking-wide ${textMuted}`}>
+                    {renderTopCompletionDate ? renderTopCompletionDate(currentPlaylist) : `Réalisée le ${new Date(currentPlaylist.completions[0].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+                  </p>
+                  <span
+                    className={`text-xs font-bold flex items-center gap-1 ${textColorClass}`}
+                    title="Séance déjà réalisée — verrouillée pour préserver ton historique, plus aucune modification possible"
+                  >
+                    <Lock size={12}/> Verrouillée
+                  </span>
+                </>
+              )}
+              {/* "Planifier" déplacé ici (retour direct, 2 tours de suite :
+                  d'abord "au même niveau que les infos de la playlist", puis
+                  "avec les infos relatives aux dates") — reste identique en
+                  tout point (même handler, même filet de sécurité showPicker,
+                  même libellé conditionnel selon isLocked), seul
+                  l'EMPLACEMENT change à nouveau. N'apparaît que si la
+                  playlist est déjà sauvegardée (même condition qu'avant),
+                  puisque planifier une séance qui n'est pas encore dans "Mes
+                  Séances" n'a pas de sens. */}
+              {savedPlaylists.find(p => p.id === currentPlaylist.id) && (
+                <label
+                  onClick={(e) => {
+                    // showPicker() force l'ouverture explicitement là où l'API existe
+                    // (Chrome/Edge récents) — sans ce filet, le clic pouvait ne
+                    // simplement rien faire dans certains navigateurs. Sur les
+                    // navigateurs sans showPicker (Safari plus anciens, Firefox),
+                    // on laisse le comportement natif label→input inchangé.
+                    if (plannedDateInputRef.current?.showPicker) {
+                      e.preventDefault();
+                      plannedDateInputRef.current.showPicker();
+                    }
+                  }}
+                  className={`relative flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold text-xs transition-colors border cursor-pointer bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shrink-0 ${cardBorder} ${textHighlight}`}
+                  title={
+                    // Une fois la séance déjà réalisée, "planifier" ne peut plus
+                    // vouloir dire "prévoir sa première fois" — ça ne peut plus
+                    // être qu'une intention de la refaire plus tard.
+                    isLocked
+                      ? "Planifier une date pour REFAIRE cette séance (optionnel — sert juste à trier 'Mes Séances')"
+                      : "Planifier une date pour cette séance (optionnel — sert juste à trier 'Mes Séances')"
+                  }
                 >
-                  <Lock size={12}/> Verrouillée
-                </span>
-              </div>
-              {/* N'affiche cette liste que s'il reste au moins UNE date au-delà
-                  de `completions[0]` (déjà montrée, éditable, juste au-dessus) :
-                  sur une séance jamais rejouée (le cas le plus courant), il
-                  n'y aurait plus rien à montrer ici. */}
-              {renderCompletionsList && currentPlaylist.completions.length > 1 && (
-                <div className="pt-0.5">
-                  {renderCompletionsList(currentPlaylist, mostRecentCompletionIso, [currentPlaylist.completions[0]])}
-                </div>
+                  <Calendar size={14} />
+                  <span>{currentPlaylist.plannedDate ? new Date(currentPlaylist.plannedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : (isLocked ? 'Planifier à nouveau' : 'Planifier')}</span>
+                  <input
+                    ref={plannedDateInputRef}
+                    type="date"
+                    value={currentPlaylist.plannedDate || ''}
+                    onChange={(e) => setPlaylistPlannedDate(currentPlaylist.id, e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                  />
+                </label>
               )}
             </div>
-          )}
+            {/* N'affiche cette liste que s'il reste au moins UNE date au-delà
+                de `completions[0]` (déjà montrée, éditable, juste au-dessus) :
+                sur une séance jamais rejouée (le cas le plus courant), il
+                n'y aurait plus rien à montrer ici. */}
+            {isLocked && renderCompletionsList && currentPlaylist.completions.length > 1 && (
+              <div className="pt-0.5">
+                {renderCompletionsList(currentPlaylist, mostRecentCompletionIso, [currentPlaylist.completions[0]])}
+              </div>
+            )}
+          </div>
 
           {/* RETOUR DIRECT ("le titre doit être sur une seule ligne") — à
               text-5xl, ce titre passait sur 2 lignes dès qu'il dépassait
@@ -479,69 +533,6 @@ export default function PlaylistDetailView({
                 </>
               );
             })()}
-          </div>
-
-          {/* Ligne 2 : actions principales "Planifier à nouveau" / "Marquer
-              comme refaite" — leur PROPRE ligne désormais (retour direct),
-              avec de l'air au-dessus (pt-1, via le space-y-4 du parent) plutôt
-              que collées aux infos de la playlist. */}
-          <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
-            {/* "Planifier" déplacé ici, sur la même ligne que les infos de la
-                playlist (retour direct : "le bouton de planification doit être
-                au même niveau que les infos de la playlist, pas dans la ligne
-                du bas") — reste identique en tout point (même handler, même
-                filet de sécurité showPicker, même libellé conditionnel selon
-                isLocked), seul l'EMPLACEMENT change. N'apparaît que si la
-                playlist est déjà sauvegardée (même condition qu'avant),
-                puisque planifier une séance qui n'est pas encore dans "Mes
-                Séances" n'a pas de sens. */}
-            {savedPlaylists.find(p => p.id === currentPlaylist.id) && (
-              <label
-                onClick={(e) => {
-                  // showPicker() force l'ouverture explicitement là où l'API existe
-                  // (Chrome/Edge récents) — sans ce filet, le clic pouvait ne
-                  // simplement rien faire dans certains navigateurs. Sur les
-                  // navigateurs sans showPicker (Safari plus anciens, Firefox),
-                  // on laisse le comportement natif label→input inchangé.
-                  if (plannedDateInputRef.current?.showPicker) {
-                    e.preventDefault();
-                    plannedDateInputRef.current.showPicker();
-                  }
-                }}
-                className={`relative flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors border cursor-pointer bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shrink-0 ${cardBorder} ${textHighlight}`}
-                title={
-                  // Une fois la séance déjà réalisée, "planifier" ne peut plus
-                  // vouloir dire "prévoir sa première fois" — ça ne peut plus
-                  // être qu'une intention de la refaire plus tard.
-                  isLocked
-                    ? "Planifier une date pour REFAIRE cette séance (optionnel — sert juste à trier 'Mes Séances')"
-                    : "Planifier une date pour cette séance (optionnel — sert juste à trier 'Mes Séances')"
-                }
-              >
-                <Calendar size={16} />
-                <span>{currentPlaylist.plannedDate ? new Date(currentPlaylist.plannedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : (isLocked ? 'Planifier à nouveau' : 'Planifier')}</span>
-                <input
-                  ref={plannedDateInputRef}
-                  type="date"
-                  value={currentPlaylist.plannedDate || ''}
-                  onChange={(e) => setPlaylistPlannedDate(currentPlaylist.id, e.target.value)}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                />
-              </label>
-            )}
-
-            {/* RETOUR DIRECT ("ça ne sert à rien de pouvoir marquer comme
-                refaite si je peux déjà planifier à nouveau — les séances se
-                marquent comme faites depuis la partie Playlist") — bouton
-                "Marquer comme refaite" retiré d'ici. Il appelait exactement
-                `markPlaylistAsCompleted`, la MÊME fonction que le bouton
-                "Marquer comme faite"/"Ajouter une date" déjà présent sur la
-                carte de cette playlist dans "Mes Séances" (voir
-                PlaylistCard.jsx) — un doublon pur, pas une variante. Gardé
-                UNIQUEMENT là-bas : "Planifier à nouveau" ci-dessus reste ici
-                (fonction différente — une intention future, `plannedDate`,
-                qui n'enregistre AUCUNE complétion tant que la séance n'est
-                pas réellement marquée faite depuis "Mes Séances"). */}
           </div>
 
           {/* Ligne 3 : badges secondaires (retour direct : "aère... entre le
