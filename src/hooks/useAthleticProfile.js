@@ -327,6 +327,29 @@ export function useAthleticProfile() {
     return match || emptyProfile();
   };
 
+  // RETOUR DIRECT ("si je n'ai pas validé de profil mais fait des séances
+  // normalement, je devrais avoir des stats — ce sera juste celles par
+  // défaut, non ?") — variante de `getProfileForWorkout` pour les affichages
+  // où "rien" est pire que "une estimation non confirmée" (typiquement
+  // StatsView, une page privée). Si l'activité n'a jamais été configurée,
+  // renvoie `buildDefaultPreviewProfile` (les mêmes valeurs par défaut déjà
+  // montrées, grisées, sur la page Profil Athlétique elle-même — donc jamais
+  // inventées pour l'occasion) PLUTÔT que `emptyProfile()` (zones à `null`,
+  // rien à classer). `isConfigured` reste `false` sur ce qui est renvoyé —
+  // ne PAS l'utiliser pour un badge/contexte qui doit rester honnête sur "ce
+  // profil a vraiment été rempli" (ex. `bpmSourceIsProfile` dans
+  // useGeneratorForm.js, ou l'export image `SessionSummaryCard.jsx`, partagé
+  // publiquement — ceux-là continuent d'utiliser `getProfileForWorkout` tel
+  // quel, sans repli).
+  const getProfileForWorkoutOrDefault = (workoutTypeOrName, customActivityName = '') => {
+    const profile = getProfileForWorkout(workoutTypeOrName, customActivityName);
+    if (profile.isConfigured) return profile;
+    const nameToMatch = (workoutTypeOrName === 'Autre' && customActivityName && customActivityName.trim())
+      ? '__custom__'
+      : workoutTypeOrName;
+    return buildDefaultPreviewProfile(nameToMatch);
+  };
+
   const resetAthleticProfile = () => setAthleticProfile({
     activities: { 'Course à pied': emptyProfile(), 'Cyclisme': emptyProfile() },
     custom: [],
@@ -337,7 +360,7 @@ export function useAthleticProfile() {
     computeZonesFromBaseBpm, getDefaultBaseBpm, buildDefaultPreviewProfile, getZoneSpacingForActivity,
     setBaseBpmForActivity, setZoneForActivity, resetActivityProfile,
     addCustomActivity, removeCustomActivity, setBaseBpmForCustom, setZoneForCustom,
-    getProfileForWorkout,
+    getProfileForWorkout, getProfileForWorkoutOrDefault,
     resetAthleticProfile,
   };
 }
