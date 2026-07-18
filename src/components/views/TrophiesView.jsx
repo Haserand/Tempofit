@@ -84,13 +84,13 @@ export default function TrophiesView({ theme, userStats, handleShare }) {
       <div className={`inline-flex items-center bg-surface-hover rounded-xl p-1`}>
         <button
           onClick={() => setActiveTab('visible')}
-          className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'visible' ? `${bgAccentClass} text-white shadow-sm` : `${textMuted} hover:${textHighlight}`}`}
+          className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'visible' ? `${bgAccentClass} text-white shadow-sm` : `${textMuted} hover:text-main`}`}
         >
           Trophées ({visibleTrophies.filter(t => userStats.unlockedTrophies.includes(t.id)).length}/{visibleTrophies.length})
         </button>
         <button
           onClick={() => setActiveTab('secret')}
-          className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-1.5 ${activeTab === 'secret' ? `${bgAccentClass} text-white shadow-sm` : `${textMuted} hover:${textHighlight}`}`}
+          className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-1.5 ${activeTab === 'secret' ? `${bgAccentClass} text-white shadow-sm` : `${textMuted} hover:text-main`}`}
         >
           <Lock size={13}/> Secrets ({unlockedSecretCount}/{secretTrophies.length})
         </button>
