@@ -226,6 +226,16 @@ const WORKOUT_DEFAULT_TARGET = {
 const AVAILABLE_ICONS = ["🏃‍♂️", "🚴‍♀️", "🏋️‍♂️", "🧘‍♀️", "🔥", "⚡", "🎵", "🏆", "🎧", "🎸", "🥁", "🎹", "🍑", "🍆", "🕺"];
 const AUTO_GEN_OPTIONS = ["Manuel", "1 fois / jour", "2 fois / jour", "1 fois / semaine"];
 
+// Palette générique par INDEX (pas sémantique — pas de lien avec une zone
+// précise) pour des répartitions qui n'ont rien à voir avec l'intensité
+// d'effort : genre musical (PlaylistDetailView.jsx, "Répartition par style"),
+// et repli du camembert BPM d'une séance quand aucun Profil Athlétique n'est
+// configuré pour son activité (voir bpmDistributionData, App.jsx — celui-là
+// utilise `ATHLETIC_ZONES`/`getZoneForValue` en priorité, cette palette n'est
+// qu'un filet de sécurité). Partagée ici plutôt que dupliquée dans les 2
+// fichiers qui l'utilisaient chacun leur propre copie identique.
+const DISTRIBUTION_COLORS = ['#f43f5e', '#3b82f6', '#f59e0b', '#22c55e', '#a855f7', '#06b6d4', '#ec4899', '#84cc16'];
+
 export {
   TROPHIES_DATA,
   TROPHY_CATEGORIES,
@@ -240,5 +250,6 @@ export {
   WORKOUT_DEFAULT_BPM,
   WORKOUT_DEFAULT_TARGET,
   AVAILABLE_ICONS,
-  AUTO_GEN_OPTIONS
+  AUTO_GEN_OPTIONS,
+  DISTRIBUTION_COLORS
 };
