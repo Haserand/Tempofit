@@ -418,7 +418,7 @@ export default function PlaylistDetailView({
               {isLocked && currentPlaylist.completions.length > 0 && (
                 <>
                   <p className={`text-xs font-semibold uppercase tracking-wide ${textMuted}`}>
-                    {renderTopCompletionDate ? renderTopCompletionDate(currentPlaylist) : `Réalisée le ${new Date(currentPlaylist.completions[0].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+                    {renderTopCompletionDate ? renderTopCompletionDate(currentPlaylist) : new Date(currentPlaylist.completions[0].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </p>
                   <span
                     className={`text-xs font-bold flex items-center gap-1 ${textColorClass}`}
