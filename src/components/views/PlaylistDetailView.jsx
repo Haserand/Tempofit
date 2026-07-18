@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Pause, Play,
   GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, Calendar, ChevronDown, ChevronUp,
-  Camera, Loader2, ChevronLeft, ChevronRight, Lock, Upload,
+  Camera, Loader2, ChevronLeft, ChevronRight, Lock, Upload, Trash2,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, CartesianGrid, ReferenceArea, ReferenceLine, XAxis, YAxis,
@@ -348,49 +348,26 @@ export default function PlaylistDetailView({
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
       <div className={"relative rounded-3xl p-6 md:p-8 border shadow-xl flex flex-col md:flex-row items-center md:items-end space-y-6 md:space-y-0 md:space-x-8 bg-gradient-to-br " + (isNaughtyMode ? 'from-rose-50 to-rose-100 dark:from-gray-900 dark:to-rose-950/40' : 'from-gray-50 to-gray-200 dark:from-gray-900 dark:to-gray-800') + " " + (currentPlaylistRankStyle ? currentPlaylistRankStyle.border : (isNaughtyMode ? 'border-rose-200 dark:border-rose-900/50' : cardBorder))}>
-        {/* RETOUR DIRECT ("le bouton sauvegarder/supprimer prend trop de
-            place — une indication visuelle en haut à droite, check vert =
-            dedans, X rouge = retirer") — remplace le gros bouton texte de la
-            ligne de badges plus bas (voir Ligne 3) par une icône compacte,
-            groupée ici avec le badge de rang déjà présent dans ce coin (même
-            position `-top-2 -right-2`, l'un à côté de l'autre plutôt que
-            superposés). Convention reprise telle quelle de l'ancien bouton
-            (CheckCircle vert au repos → X rouge au survol, MÊMES handlers
-            `handleSavePlaylist`/`handleUnsavePlaylist`, y compris la
-            confirmation déjà intégrée à `handleUnsavePlaylist` si la séance a
-            de l'historique à perdre) — seule la présentation change (icône
-            seule plutôt que bouton pleine largeur avec texte), pas la
-            logique. État "pas encore sauvegardée" : icône `Save` neutre,
-            toujours nécessaire pour pouvoir l'ajouter la première fois. */}
-        <div className="absolute -top-2 -right-2 z-10 flex items-center gap-1.5">
-          {currentPlaylistRankStyle && (
-            <span
-              className="text-xl"
-              title={`${currentPlaylist.completions.length} fois — la ${currentPlaylistRank === 0 ? 'plus' : currentPlaylistRank === 1 ? '2e plus' : '3e plus'} utilisée`}
-            >
-              {currentPlaylistRankStyle.emoji}
-            </span>
-          )}
-          {!savedPlaylists.find(p => p.id === currentPlaylist.id) ? (
-            <button
-              onClick={handleSavePlaylist}
-              title="Ajoute cette séance à 'Mes Séances', ton journal de séances (passées et à venir)."
-              className={`p-1.5 rounded-full shadow-md border transition-colors bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-main ${cardBorder} ${textMuted}`}
-            >
-              <Save size={16} />
-            </button>
-          ) : (
-            <button
-              onClick={handleUnsavePlaylist}
-              title="Retirer de 'Mes Séances' — si cette playlist a déjà été faite ou a des données importées, cet historique sera perdu avec elle."
-              className="group p-1.5 rounded-full shadow-md border transition-colors bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 dark:hover:text-red-400 border-green-200 dark:border-green-800 hover:border-red-200 dark:hover:border-red-800"
-            >
-              <CheckCircle size={16} className="group-hover:hidden" />
-              <X size={16} className="hidden group-hover:block" />
-            </button>
-          )}
-        </div>
-
+        {/* RETOUR DIRECT ("prends du recul — si la séance est faite, elle
+            est de base sauvegardée, l'utilisateur le sait déjà ; juste
+            besoin d'une option pour SUPPRIMER, une corbeille comme celle
+            déjà utilisée sur les cartes de Mes Séances ; et l'icône doit
+            être dans la ligne des infos de date, pas ici dans ce coin") —
+            l'icône check/X ajoutée au tour précédent ici, à côté du badge de
+            rang, est retirée : ce coin redevient réservé au SEUL badge de
+            rang (le check vert présumait qu'il fallait CONFIRMER que la
+            séance est sauvegardée, alors que pour une séance déjà réalisée
+            c'est un fait acquis, pas une info à afficher). Voir plus bas
+            (ligne date/statut) pour la corbeille, désormais au bon endroit
+            et avec la bonne icône. */}
+        {currentPlaylistRankStyle && (
+          <span
+            className="absolute -top-2 -right-2 text-xl z-10"
+            title={`${currentPlaylist.completions.length} fois — la ${currentPlaylistRank === 0 ? 'plus' : currentPlaylistRank === 1 ? '2e plus' : '3e plus'} utilisée`}
+          >
+            {currentPlaylistRankStyle.emoji}
+          </span>
+        )}
         <div className="relative group/cover">
           <div className={"w-32 h-32 md:w-48 md:h-48 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-inner text-5xl md:text-7xl " + inputBg}>
             <div className={"absolute inset-0 opacity-10 dark:opacity-20 " + (isNaughtyMode ? 'bg-rose-500' : 'bg-red-500')}></div>
@@ -493,6 +470,44 @@ export default function PlaylistDetailView({
                     className="absolute inset-0 opacity-0 cursor-pointer"
                   />
                 </label>
+              )}
+              {/* RETOUR DIRECT ("prends du recul — si la séance est faite,
+                  elle est de base sauvegardée, l'utilisateur le sait ; juste
+                  besoin d'une option pour supprimer, une corbeille comme
+                  celle déjà utilisée sur les cartes de Mes Séances ; l'icône
+                  dans la bulle, tout à droite des options de date, pas sur
+                  la ligne du coin") — remplace l'ancien check/X du coin
+                  supérieur droit. Une séance verrouillée EST forcément déjà
+                  sauvegardée (les complétions vivent directement sur l'objet
+                  playlist dans `savedPlaylists`) — plus besoin de le
+                  CONFIRMER visuellement, juste de permettre de la retirer.
+                  `ml-auto` pousse la corbeille tout à droite de cette ligne
+                  (au lieu de rester collée aux autres badges) ; même icône
+                  (`Trash2`) et même teinte au survol (gris → rouge) que la
+                  corbeille des cartes dans "Mes Séances" (PlaylistCard.jsx)
+                  — un seul vocabulaire visuel pour "supprimer" dans toute
+                  l'app. `handleUnsavePlaylist` reste la même fonction
+                  qu'avant (confirmation déjà intégrée si historique à
+                  perdre). Repli "Ajouter à Mes Séances" si la playlist n'est
+                  pas encore sauvegardée (seul cas où cette ligne serait sinon
+                  vide, puisque date/verrouillé/planifier ne s'affichent que
+                  pour une playlist déjà sauvegardée). */}
+              {savedPlaylists.find(p => p.id === currentPlaylist.id) ? (
+                <button
+                  onClick={handleUnsavePlaylist}
+                  title="Retirer de 'Mes Séances' — si cette playlist a déjà été faite ou a des données importées, cet historique sera perdu avec elle."
+                  className={`ml-auto p-1.5 rounded-lg transition-colors shrink-0 ${textMuted} hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20`}
+                >
+                  <Trash2 size={16} />
+                </button>
+              ) : (
+                <button
+                  onClick={handleSavePlaylist}
+                  title="Ajoute cette séance à 'Mes Séances', ton journal de séances (passées et à venir)."
+                  className={`ml-auto flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold text-xs transition-colors border bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shrink-0 ${cardBorder} ${textHighlight}`}
+                >
+                  <Save size={14} /> <span>Ajouter à Mes Séances</span>
+                </button>
               )}
             </div>
             {/* N'affiche cette liste que s'il reste au moins UNE date au-delà
