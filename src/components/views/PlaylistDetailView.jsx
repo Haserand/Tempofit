@@ -9,7 +9,7 @@ import {
   Tooltip as RechartsTooltip, Legend, Line, PieChart, Pie, Cell,
 } from 'recharts';
 import { getGenresForDisplay, genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog';
-import { getCadenceUnitLabel, DISTRIBUTION_COLORS } from '../../appConfig';
+import { getCadenceUnitLabel, DISTRIBUTION_COLORS, getZoneForValue } from '../../appConfig';
 import { formatDuration } from '../../utils/format';
 import { deezerFetch } from '../../musicEngine';
 import SessionSummaryCard from '../shared/SessionSummaryCard';
@@ -363,7 +363,22 @@ export default function PlaylistDetailView({
   // bpmDistributionData (App.jsx) — recalculé ici par titre pour comparer
   // chaque titre à la part cliquée, plutôt que de dupliquer un état séparé.
   const trackGenreLabel = (t) => genreDisplayLabel(normalizeGenreForDisplay(t.genre, t.artist, t.title));
-  const trackBpmBucketLabel = (t) => { const b = Math.floor(t.bpm / 20) * 20; return `${b}-${b + 19}`; };
+  // BUG CORRIGÉ (retour direct : "quand j'ai le graphique par type d'effort,
+  // ça devrait aussi sélectionner les musiques ?" — ça AURAIT dû déjà le
+  // faire, ça ne le faisait pas) — ce camembert classe maintenant SOIT par
+  // zone d'effort (`bpmDistributionData` en mode zone, `isBpmChartUsingRealProfile`)
+  // SOIT par tranche brute de 20 BPM (repli), voir plus haut. Mais cette
+  // fonction calculait TOUJOURS la tranche brute, même en mode zone — un clic
+  // sur "Seuil" mettait `selectedDetailBpmBucket` à `{'Seuil'}`, alors que
+  // chaque titre était comparé à sa tranche "140-159" : aucune correspondance
+  // possible, la sélection dans le camembert n'avait donc jamais d'effet sur
+  // la liste des titres ni sur la courbe. Corrigé en calculant le MÊME type
+  // de label que celui affiché dans le camembert, selon le mode actif.
+  const trackBpmBucketLabel = (t) => {
+    if (isBpmChartUsingRealProfile) return getZoneForValue(t.bpm, bpmChartActivityName, getProfileForWorkout)?.shortLabel || null;
+    const b = Math.floor(t.bpm / 20) * 20;
+    return `${b}-${b + 19}`;
+  };
   const hasDetailFilter = selectedDetailGenre.size > 0 || selectedDetailBpmBucket.size > 0;
   // OR à l'intérieur d'un même camembert (n'importe laquelle des parts
   // sélectionnées suffit à matcher), ET entre les 2 camemberts (style ET BPM
