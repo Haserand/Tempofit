@@ -586,7 +586,7 @@ export default function PlaylistDetailView({
               <div className="flex items-center gap-2 text-green-700 dark:text-green-400 text-sm font-bold mb-3">
                 <Lock size={15}/> Séance déjà réalisée — verrouillée pour préserver ton historique
               </div>
-              {renderCompletionsList && renderCompletionsList(currentPlaylist)}
+              {renderCompletionsList && renderCompletionsList(currentPlaylist, mostRecentCompletionIso)}
             </div>
           )}
 
