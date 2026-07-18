@@ -9,7 +9,7 @@ import { formatDuration } from '../../utils/format';
 import DualRangeSlider from '../shared/DualRangeSlider';
 import {
   WORKOUT_TYPES, NAUGHTY_WORKOUT_ORDER, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_LABELS,
-  WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, ATHLETIC_ZONES, getCadenceUnitLabel, getZoneForValue,
+  WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, ATHLETIC_ZONES, getZoneForValue,
 } from '../../appConfig';
 
 /**
@@ -171,14 +171,16 @@ export default function GeneratorView({
   // lui passer une clé bidon retombe proprement sur le repli générique
   // ("Autre") déjà utilisé ailleurs dans l'app.
   const defaultPreviewProfile = buildDefaultPreviewProfile(isCustomProfileTab ? '__custom__' : selectedProfileActivity);
-  // RETOUR DIRECT : "parler de PPM pour du cyclisme n'est pas adapté" — unité
-  // de cadence affichée, propre à l'activité en cours (voir
-  // getCadenceUnitLabel, appConfig.js : PPM pour la course, RPM pour le vélo,
-  // repli générique "cad/min" pour une activité personnalisée). Réutilisée à
-  // TOUS les endroits de cette page qui affichent une cadence — Assistant
-  // Rapide, cartes de zones, mode Expert, infobulle, message d'erreur — pour
-  // ne pas avoir à corriger le même "PPM" figé à 6 endroits différents.
-  const activityCadenceUnit = getCadenceUnitLabel(isCustomProfileTab ? '__custom__' : selectedProfileActivity);
+  // PIVOT DE MODÈLE (retour direct, cas concret : "à ma zone 4, cœur à
+  // 170 bpm, pas à 160, musique voulue à 180" — 3 nombres indépendants) :
+  // ce profil ne prétend plus stocker une cadence physique (PPM/RPM,
+  // propre à l'activité) mais directement le BPM MUSICAL cible par zone,
+  // décidé par l'utilisateur — donc une seule unité, "BPM", quelle que soit
+  // l'activité (course, vélo, personnalisée). Ne pas confondre avec
+  // `getCadenceUnitLabel`/`playlistCadenceUnit` (PlaylistDetailView.jsx) :
+  // celui-là reste correct et inchangé, il affiche une VRAIE cadence
+  // physique importée d'un Garmin/Strava, un cas totalement différent.
+  const activityCadenceUnit = 'BPM';
 
   // Brouillon de saisie de l'Assistant Rapide — RE-DÉRIVÉ à chaque changement
   // d'onglet (voir l'effet juste en dessous) puisque chaque activité a
@@ -234,12 +236,15 @@ export default function GeneratorView({
     if (id) { setSelectedProfileActivity(id); setNewCustomActivityName(''); setShowAddCustomActivity(false); }
   };
   // Question de l'Assistant Rapide adaptée à l'activité — un footing et une
-  // sortie vélo n'évoquent pas la même "cadence tranquille" pour qui répond.
+  // sortie vélo n'évoquent pas la même intensité "tranquille" pour qui répond.
+  // PIVOT DE MODÈLE : on demande maintenant directement le BPM MUSICAL voulu
+  // à une intensité tranquille, pas une cadence physique (voir
+  // useAthleticProfile.js, docstring en tête de fichier, pour le pourquoi).
   const baseCadenceQuestion = selectedProfileActivity === 'Course à pied'
-    ? "Quelle est ta cadence habituelle lors d'un footing lent ?"
+    ? "Quel tempo de musique veux-tu lors d'un footing lent ?"
     : selectedProfileActivity === 'Cyclisme'
-      ? "Quelle est ta cadence habituelle lors d'une sortie tranquille ?"
-      : `Quelle est ta cadence habituelle pour ${activeProfile ? `"${activeProfile.name}"` : 'cette activité'}, à une intensité tranquille ?`;
+      ? "Quel tempo de musique veux-tu lors d'une sortie tranquille ?"
+      : `Quel tempo de musique veux-tu pour ${activeProfile ? `"${activeProfile.name}"` : 'cette activité'}, à une intensité tranquille ?`;
   const configuredProfilesCount = Object.values(athleticProfile.activities).filter(p => p.isConfigured).length
     + athleticProfile.custom.filter(c => c.isConfigured).length;
 
@@ -287,7 +292,7 @@ export default function GeneratorView({
           {showAthleticProfile ? 'Mon Profil Athlétique' : (isNaughtyMode ? "Prépare l'ambiance..." : "Sculpte ta séance")}
         </h1>
         <p className="text-lg font-medium text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
-          {showAthleticProfile ? "Définis tes zones de cadence par activité." : displaySubtitleGen}
+          {showAthleticProfile ? "Définis ton BPM musical cible par zone d'effort, pour chaque activité." : displaySubtitleGen}
         </p>
       </div>
 
@@ -360,7 +365,7 @@ export default function GeneratorView({
             <div className="flex items-start justify-between gap-4 mb-2">
               <div className="relative flex items-center gap-1.5">
                 <span className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>
-                  Zones de cadence
+                  BPM cibles par zone
                 </span>
                 {/* RETOUR DIRECT : "je ne vois pas infobulle expliquant le
                     calcul automatique" — l'ancien <span title="..."> ne
@@ -370,16 +375,16 @@ export default function GeneratorView({
                     souris et au tactile, et reste ouvert le temps de lire au
                     lieu de disparaître si le curseur/doigt bouge.
                     La formule elle-même est une simple progression linéaire
-                    autour de la cadence tapée (base ± un espacement fixe par
-                    palier, voir ZONE_SPACING_BY_ACTIVITY dans
-                    useAthleticProfile.js), volontairement PAS une vraie
-                    formule physiologique (%VMA, VO2max...).
-                    RETOUR DIRECT PRÉCÉDENT : "confusion entre cadence et BPM —
-                    cadence = PPM (pas par minute), pas BPM (battements par
-                    minute)" — cette cadence-là porte sur tes PAS, pas sur la
-                    musique ; espacement propre à chaque activité, affiché ici
-                    pour que le calcul reste transparent plutôt qu'une boîte
-                    noire. */}
+                    autour du BPM tapé (base ± un espacement fixe par palier,
+                    voir ZONE_SPACING_BY_ACTIVITY dans useAthleticProfile.js),
+                    volontairement PAS une vraie formule physiologique
+                    (%VMA, VO2max...).
+                    PIVOT DE MODÈLE (retour direct, cas concret : "à ma zone 4,
+                    cœur à 170 bpm, pas à 160, musique voulue à 180") : ce
+                    profil demande maintenant directement le BPM MUSICAL
+                    voulu à chaque zone d'effort, plus une cadence physique
+                    silencieusement recopiée comme cible — voir la docstring
+                    de useAthleticProfile.js pour le détail du raisonnement. */}
                 <button
                   type="button"
                   onClick={() => setShowZoneCalcInfo(!showZoneCalcInfo)}
@@ -387,45 +392,25 @@ export default function GeneratorView({
                 >
                   <Info size={13}/>
                 </button>
-                {/* BUG CORRIGÉ (retour direct, capture d'écran à l'appui) : 3 problèmes
-                    distincts sur ce popover.
-                    1. Lisibilité — `w-72` (288px) était trop étroit pour ce texte
-                       (6 lignes tassées), en `${textMuted}` (gris, contraste faible
-                       pour un paragraphe entier) et sans aucun fond opaque qui le
-                       distingue clairement du contenu juste en dessous (la question
-                       "Quelle est ta cadence habituelle..." + le champ + le bouton
-                       "Calculer" restaient visibles en partie autour/à travers,
-                       donnant une impression de superposition confuse plutôt qu'une
-                       vraie bulle flottante). Élargi, contraste texte relevé, et un
-                       fond de recul (backdrop cliquable pour fermer) ajouté pour que
-                       la bulle se détache sans ambiguïté du reste de l'écran.
-                    2. "mode Expert" — ce nom n'existe NULLE PART ailleurs à l'écran :
-                       le bouton réel juste en dessous s'appelle "Ajuster manuellement"
-                       (`showExpertZones` n'est qu'un nom de variable interne, jamais
-                       censé fuiter dans un texte visible). Corrigé pour désigner le
-                       vrai bouton par son vrai nom.
-                    3. Confusion BPM/PPM (retour direct) — ce popover ne clarifiait
-                       jamais LE LIEN entre cette cadence (PPM, tes pas) et le BPM de
-                       la musique généré ensuite : "Seuil" n'est pas un terme cardiaque
-                       ici, c'est le nom de zone d'effort classique en course à pied
-                       (Récupération/Endurance/Seuil/Vitesse — utilisé par les coachs
-                       indépendamment de la fréquence cardiaque), appliqué à ta cadence.
-                       Le vrai lien avec la musique : ce même chiffre sert ENSUITE de
-                       cible BPM au générateur (le principe de l'app) — rendu explicite
-                       ci-dessous plutôt que seulement documenté en commentaire de code. */}
+                {/* Popover élargi (w-80/w-96, contraste texte relevé, backdrop
+                    cliquable pour fermer) après un retour direct sur
+                    l'ancienne version (trop étroite, texte gris peu lisible,
+                    superposée de façon confuse avec la question/le bouton
+                    juste en dessous). Contenu réécrit pour le pivot de
+                    modèle : BPM musical cible directement, zones nommées par
+                    NIVEAU D'EFFORT (vocabulaire de coach de course à pied),
+                    jamais présentées comme une mesure cardiaque ou une
+                    cadence physique. */}
                 {showZoneCalcInfo && (
                   <div className="fixed inset-0 z-30" onClick={() => setShowZoneCalcInfo(false)} />
                 )}
                 {showZoneCalcInfo && (
                   <div className={`absolute z-40 top-full left-0 mt-2 w-80 sm:w-96 p-4 rounded-xl border shadow-2xl text-xs font-medium leading-relaxed ${cardBg} ${cardBorder} ${textHighlight}`}>
                     <p className="mb-2">
-                      Zone 2 = ta cadence tapée ci-dessous. Les 3 autres s'en écartent par palier fixe de {getZoneSpacingForActivity(isCustomProfileTab ? '__custom__' : selectedProfileActivity)} {activityCadenceUnit} (Zone 1 = -1 palier, Zone 3 = +1, Zone 4 = +2) — une progression simple autour de ta cadence, pas une vraie formule physiologique (%VMA...).
-                    </p>
-                    <p className="mb-2">
-                      Les noms de zone (Récupération, Endurance, Seuil, Vitesse) viennent du vocabulaire classique des coachs de course à pied — ils décrivent un niveau d'effort, pas ta fréquence cardiaque : "Seuil" ne parle jamais de battements par minute ici.
+                      Zone 2 = le BPM que tu tapes ci-dessous. Les 3 autres s'en écartent par palier fixe de {getZoneSpacingForActivity(isCustomProfileTab ? '__custom__' : selectedProfileActivity)} BPM (Zone 1 = -1 palier, Zone 3 = +1, Zone 4 = +2) — une progression simple autour de ton BPM, pas une vraie formule physiologique (%VMA...).
                     </p>
                     <p className={textMuted}>
-                      Le lien avec la musique : ce chiffre en {activityCadenceUnit} sert seulement de POINT DE DÉPART suggéré pour le curseur BPM au moment de générer une playlist — rien ne t'oblige à le garder. Ta fréquence cardiaque, ta cadence et le tempo de musique que tu préfères sont 3 nombres indépendants ; dès que tu touches le curseur BPM du générateur, ton choix est gardé tel quel, jamais recalculé depuis ce profil. Toujours ajustable au {activityCadenceUnit} près via le bouton "Ajuster manuellement" ci-dessous.
+                      Les noms de zone (Récupération, Endurance, Seuil, Vitesse) viennent du vocabulaire des coachs de course à pied — ils décrivent un niveau d'effort, pas une mesure précise. Le chiffre associé est directement le tempo de musique que TU veux à cette intensité : ta fréquence cardiaque et ta cadence de pas peuvent t'aider à en juger, mais ce ne sont pas les mêmes nombres et rien ne les convertit automatiquement l'un dans l'autre. Toujours ajustable au BPM près via le bouton "Ajuster manuellement" ci-dessous — et modifiable librement au moment de générer, ce profil ne fait que suggérer un point de départ.
                     </p>
                   </div>
                 )}
@@ -440,22 +425,21 @@ export default function GeneratorView({
             {/* Assistant Rapide : une seule question, 4 zones calculées d'un
                 coup (voir computeZonesFromBaseCadence, useAthleticProfile.js).
                 ─────────────────────────────────────────────────────────────
-                RETOUR DIRECT ("confusion entre cadence et BPM — cadence =
-                PPM, pas de battements par minute") — corrigé ici : cette
-                cadence porte sur des PAS par minute (le rythme de tes
-                foulées/pédalage), pas sur des BATTEMENTS par minute (unité
-                musicale). L'app fait déjà cette distinction correctement
-                ailleurs (voir PlaylistDetailView.jsx, l'analyse Garmin/Strava
-                : "Cadence (PPM)" vs "BPM cible") — jamais reprise ici avant.
-                Le nombre reste le MÊME dans les 2 cas (le principe de l'app :
-                caler le tempo d'une chanson sur ta cadence de pas), donc rien
-                ne change dans les calculs ni dans le state (toujours
-                `baseCadence`/`zone1..4` en interne) — seul le LIBELLÉ affiché
-                change pour refléter ce dont on parle à cet instant précis :
-                ta cadence physique ici, le BPM de la musique une fois
-                appliqué à la génération (voir les curseurs de l'étape 3 du
-                wizard, eux bien en BPM — c'est déjà la bonne unité là-bas,
-                puisqu'on y parle du tempo des morceaux, pas de tes pas). */}
+                PIVOT DE MODÈLE (retour direct, cas concret : "à ma zone 4,
+                cœur à 170 bpm, pas à 160, musique voulue à 180") — ce champ
+                demande directement le BPM MUSICAL que l'utilisateur veut à
+                une intensité tranquille, pas une cadence physique. L'ancienne
+                version demandait "ta cadence habituelle" (PPM) puis recopiait
+                silencieusement ce nombre comme cible BPM — or ce sont 3
+                nombres indépendants pour la plupart des gens (fréquence
+                cardiaque réelle, cadence de pas réelle, tempo de musique
+                voulu). Voir la docstring de useAthleticProfile.js pour le
+                raisonnement complet. Les noms internes (`baseCadence`,
+                `zone1..4`) restent inchangés (pas de migration de données
+                nécessaire) — seul ce qui est DEMANDÉ/AFFICHÉ change de sens.
+                Ne pas confondre avec PlaylistDetailView.jsx ("Cadence (PPM)"
+                vs "BPM cible"), qui lui affiche une vraie cadence physique
+                importée d'un Garmin/Strava — cas différent, inchangé. */}
             <div className={`p-4 rounded-2xl ${inputBg} border ${inputBorder}`}>
               <label className={`text-sm font-bold block mb-2 ${textHighlight}`}>{baseCadenceQuestion}</label>
               <div className="flex flex-col sm:flex-row gap-3">
@@ -474,7 +458,7 @@ export default function GeneratorView({
                 </button>
               </div>
               {cadenceInputError && (
-                <p className="text-xs font-bold text-red-500 mt-2">Indique d'abord un chiffre (ta cadence en {activityCadenceUnit}) avant de calculer tes zones.</p>
+                <p className="text-xs font-bold text-red-500 mt-2">Indique d'abord un chiffre (le BPM que tu veux) avant de calculer tes zones.</p>
               )}
             </div>
 
@@ -588,21 +572,25 @@ export default function GeneratorView({
               RETOUR DIRECT ENCORE SUIVANT : plutôt que de courir après une
               liste de modes vouée à se périmer à chaque nouvelle extension,
               reformulé en restant volontairement VAGUE ("des paramètres
-              ajustés à ta cadence") — reste vrai quel que soit le nombre de
+              ajustés à ton profil") — reste vrai quel que soit le nombre de
               modes concernés à l'avenir, sans jamais promettre une
               équivalence exacte entre eux (le Fractionné n'a par exemple pas
               le même badge "calculé depuis ton profil" que Crescendo/
               Constante, faute d'une zone unique à mettre en avant sur des
               segments libres — rester vague évite justement d'avoir à
-              détailler cette nuance ici). "Zones d'allure" également corrigé
-              en "zones de cadence" plus haut (même nettoyage terminologique
-              que le reste de la page — l'allure, en min/km, est une notion
-              différente de la cadence, en PPM). */}
+              détailler cette nuance ici).
+              PIVOT DE MODÈLE (retour direct, cas concret : cœur à 170 bpm,
+              pas à 160, musique voulue à 180) : "ajustés à ta cadence" ne
+              disait plus la vérité — le profil ne stocke plus une cadence
+              physique mais un BPM musical cible choisi par l'utilisateur,
+              voir useAthleticProfile.js. Reformulé en "ajustés à ton profil",
+              volontairement générique plutôt que de réintroduire un mot qui a
+              déjà causé une confusion. */}
           {!isNaughtyMode && configuredProfilesCount === 0 && (
             <div className={`${cardBg} rounded-2xl border ${cardBorder} p-4 flex items-center justify-between gap-3 flex-wrap`}>
               <div className="flex items-center gap-3 min-w-0">
                 <div className={`shrink-0 p-2 rounded-xl ${bgAccentClass} text-white`}><Gauge size={18}/></div>
-                <p className={`text-sm ${textMuted}`}>Configure ton <span className={`font-semibold ${textHighlight}`}>Profil Athlétique</span> pour que le générateur te propose automatiquement des paramètres ajustés à ta cadence.</p>
+                <p className={`text-sm ${textMuted}`}>Configure ton <span className={`font-semibold ${textHighlight}`}>Profil Athlétique</span> pour que le générateur te propose automatiquement un BPM ajusté à chaque zone d'effort.</p>
               </div>
               <button onClick={() => setShowAthleticProfile(true)} className={`shrink-0 text-sm font-bold underline ${textColorClass}`}>
                 Configurer →
