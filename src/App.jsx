@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Activity, Clock, Music, Play, List, Plus, Check, Settings, Pause, Search, X, Heart, ListPlus, Loader2, Star, AlertCircle, Zap, BookmarkPlus, Menu, RefreshCw, Share2, Image as ImageIcon, Edit3, Copy, Trophy, Upload, ChevronUp, ChevronDown, Target, MessageCircle, ExternalLink, Sun, Moon, Gauge } from 'lucide-react';
 import { ARTIST_CATALOG, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, WEAK_DEEZER_KEYWORD_GENRES, getGenreLocalDepthWarning, normalizeGenreForDisplay, genreDisplayLabel, getGenresForDisplay } from './musicCatalog';
-import { NAUGHTY_ROUTINE_NAMES, AVAILABLE_ICONS, AUTO_GEN_OPTIONS, getZoneForValue } from './appConfig';
+import { NAUGHTY_ROUTINE_NAMES, AVAILABLE_ICONS, AUTO_GEN_OPTIONS, getZoneForValue, ATHLETIC_ZONES, DISTRIBUTION_COLORS } from './appConfig';
 
 // =====================================================================================
 // CONSTANTES GLOBALES & CONFIGURATION
@@ -1999,8 +1999,50 @@ export default function App() {
   // Répartition de la playlist par tranche de BPM, pondérée par la DURÉE de chaque
   // titre (pas juste un compte de titres) — donne une vue "combien de temps de la
   // séance à chaque niveau d'intensité", complémentaire à la courbe déjà affichée.
+  //
+  // RETOUR DIRECT (capture d'écran à l'appui, avec un Profil Athlétique déjà
+  // configuré) : "ni les mêmes valeurs ni les mêmes couleurs" que le Profil
+  // Athlétique (145/160/175/190 BPM, couleurs zone1-4) — ce camembert
+  // utilisait un découpage GÉNÉRIQUE en tranches de 20 BPM alignées sur des
+  // multiples de 20 (120-139, 140-159...), coloré par simple INDEX dans une
+  // palette arc-en-ciel fixe (`DISTRIBUTION_COLORS`, PlaylistDetailView.jsx),
+  // sans aucun lien avec `ATHLETIC_ZONES`/`getZoneForValue` — la même
+  // incohérence déjà corrigée ailleurs (SessionSummaryCard.jsx, le camembert
+  // "Tes zones" de StatsView, le visuel Crescendo) avait été oubliée sur CE
+  // graphique précis, propre à la fiche d'une séance.
+  //
+  // Corrigé en réutilisant `getZoneForValue` : classe chaque titre dans sa
+  // VRAIE zone si un profil est configuré pour cette activité — même
+  // logique/mêmes couleurs que partout ailleurs (`ATHLETIC_ZONES`, ordre
+  // Récupération → Vitesse). Repli sur l'ancien découpage générique
+  // UNIQUEMENT si aucun profil n'est configuré pour cette activité
+  // (`matchedAnyZone` reste `false`) — jamais un graphique vide juste parce
+  // que l'utilisateur n'a pas rempli son Profil Athlétique. Le `color` est
+  // maintenant porté par chaque entrée de donnée plutôt que recalculé par
+  // INDEX côté PlaylistDetailView (qui n'a aucun moyen de savoir si une
+  // entrée vient d'une zone ou d'une tranche générique).
   const bpmDistributionData = useMemo(() => {
     if (!currentPlaylist) return [];
+    const activityName = isNaughtyMode
+      ? (currentPlaylist.config?.workoutName || currentPlaylist.workoutType || 'Autre')
+      : (currentPlaylist.workoutType || 'Autre');
+
+    const zoneSeconds = {};
+    let matchedAnyZone = false;
+    currentPlaylist.tracks.forEach(t => {
+      if (!t.bpm) return;
+      const zone = getZoneForValue(t.bpm, activityName, getProfileForWorkout);
+      if (zone) {
+        matchedAnyZone = true;
+        zoneSeconds[zone.key] = (zoneSeconds[zone.key] || 0) + (t.duration || 0);
+      }
+    });
+    if (matchedAnyZone) {
+      return ATHLETIC_ZONES
+        .filter(z => zoneSeconds[z.key] > 0)
+        .map(z => ({ name: z.shortLabel, value: zoneSeconds[z.key], color: z.color }));
+    }
+
     const buckets = {};
     currentPlaylist.tracks.forEach(t => {
       const bucketStart = Math.floor(t.bpm / 20) * 20;
@@ -2008,9 +2050,9 @@ export default function App() {
       buckets[label] = (buckets[label] || 0) + t.duration;
     });
     return Object.entries(buckets)
-      .map(([name, value]) => ({ name, value, sortKey: parseInt(name) }))
+      .map(([name, value], i) => ({ name, value, sortKey: parseInt(name), color: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }))
       .sort((a, b) => a.sortKey - b.sortKey);
-  }, [currentPlaylist]);
+  }, [currentPlaylist, isNaughtyMode, getProfileForWorkout]);
 
   // Répartition par style musical, pondérée par la durée elle aussi. Le champ
   // `genre` de chaque titre est désormais résolu via la vraie chaîne Deezer
