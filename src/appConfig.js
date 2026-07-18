@@ -112,18 +112,31 @@ const ATHLETIC_ZONES = [
 // `activityNameOrType` = le nom déjà résolu de l'activité, même convention
 // que `useAthleticProfile.getProfileForWorkout` (id WORKOUT_TYPES ou nom
 // d'activité personnalisée déjà résolu par l'appelant).
-// `getProfileForWorkout` = la fonction exposée par le hook useAthleticProfile,
-// passée en paramètre plutôt qu'importée ici (ce fichier de config n'a pas
-// accès aux hooks React).
+// `getProfileForWorkout` = la fonction de résolution de profil, passée en
+// paramètre plutôt qu'importée ici (ce fichier de config n'a pas accès aux
+// hooks React) — et c'est ELLE qui décide de la rigueur, pas cette fonction :
+// - `getProfileForWorkout` (useAthleticProfile.js) : strict, renvoie des
+//   zones à `null` si l'activité n'a jamais été configurée → ce classifieur
+//   renvoie alors `null` (repli attendu à l'appelant).
+// - `getProfileForWorkoutOrDefault` (useAthleticProfile.js) : renvoie une
+//   estimation par défaut CRÉDIBLE si l'activité n'est pas configurée (retour
+//   direct : "je devrais avoir des stats même sans profil validé, ce sera
+//   juste celles par défaut, non ?") → ce classifieur classe alors bel et
+//   bien la valeur, contre ces valeurs par défaut. À utiliser uniquement
+//   là où "une estimation non confirmée" vaut mieux que "rien" (typiquement
+//   une page privée comme StatsView) — PAS pour un export partagé publiquement
+//   (SessionSummaryCard.jsx) ni un badge qui affirme "calculé depuis TON
+//   profil" (bpmSourceIsProfile, useGeneratorForm.js), qui doivent rester
+//   honnêtes sur ce qui a vraiment été configuré.
 //
-// Renvoie `null` si aucun profil n'est configuré pour cette activité (ou si
-// `value`/`getProfileForWorkout` sont absents) — à l'appelant de décider du
-// repli visuel (couleur neutre, palette générique...), jamais une couleur
-// inventée silencieusement ici.
+// Renvoie `null` si le résolveur passé en paramètre ne renvoie aucune valeur
+// exploitable pour cette activité (ou si `value`/`getProfileForWorkout` sont
+// absents) — à l'appelant de décider du repli visuel (couleur neutre,
+// palette générique...), jamais une couleur inventée silencieusement ici.
 const getZoneForValue = (value, activityNameOrType, getProfileForWorkout, customActivityName = '') => {
   if (value == null || !getProfileForWorkout) return null;
   const profile = getProfileForWorkout(activityNameOrType, customActivityName);
-  if (!profile || !profile.isConfigured) return null;
+  if (!profile) return null;
   let best = null, bestDist = Infinity;
   ATHLETIC_ZONES.forEach(z => {
     const zoneVal = profile[z.key];
