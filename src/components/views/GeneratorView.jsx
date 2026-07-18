@@ -115,7 +115,7 @@ export default function GeneratorView({
               key={z.key}
               onClick={() => onSelectZone(zoneBpm)}
               title={`${z.label} — ${zoneBpm} BPM`}
-              className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold border transition-colors ${isActive ? 'text-white' : `${inputBg} ${inputBorder} ${textMuted} hover:${textHighlight}`}`}
+              className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold border transition-colors ${isActive ? 'text-white' : `${inputBg} ${inputBorder} ${textMuted} hover:text-main`}`}
               style={isActive ? { backgroundColor: z.color, borderColor: z.color } : {}}
             >
               <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
@@ -350,7 +350,7 @@ export default function GeneratorView({
                   key={key}
                   onClick={() => setSelectedProfileActivity(key)}
                   className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${selectedProfileActivity === key ?
-                    `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:${textHighlight}`}`}
+                    `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}
                 >
                   {key}{athleticProfile.activities[key]?.isConfigured && ' ✓'}
                 </button>
@@ -360,7 +360,7 @@ export default function GeneratorView({
                   key={c.id}
                   onClick={() => setSelectedProfileActivity(c.id)}
                   className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${selectedProfileActivity === c.id ?
-                    `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:${textHighlight}`}`}
+                    `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}
                 >
                   {c.name}{c.isConfigured && ' ✓'}
                 </button>
@@ -368,7 +368,7 @@ export default function GeneratorView({
               {!showAddCustomActivity ? (
                 <button
                   onClick={() => setShowAddCustomActivity(true)}
-                  className={`px-4 py-2 rounded-full text-sm font-bold border-2 border-dashed ${cardBorder} ${textMuted} hover:${textHighlight}`}
+                  className={`px-4 py-2 rounded-full text-sm font-bold border-2 border-dashed ${cardBorder} ${textMuted} hover:text-main`}
                 >
                   + Ajouter une autre activité
                 </button>
@@ -421,7 +421,7 @@ export default function GeneratorView({
                 <button
                   type="button"
                   onClick={() => setShowZoneCalcInfo(!showZoneCalcInfo)}
-                  className={`${textMuted} hover:${textHighlight} transition-colors`}
+                  className={`${textMuted} hover:text-main transition-colors`}
                 >
                   <Info size={13}/>
                 </button>
@@ -704,7 +704,7 @@ export default function GeneratorView({
                           }
                         }}
                         className={`w-full flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all duration-300 ${isSelected ? `${isNaughtyMode ?
-                          'bg-rose-100 dark:bg-rose-900/20 border-rose-500 text-rose-500 dark:text-rose-400' : 'bg-red-50 dark:bg-red-600/10 border-red-500 text-red-600 dark:text-red-500'}` : `${bgMainApp} ${cardBorder} ${textMuted} hover:${textHighlight} hover:border-gray-300 dark:hover:border-gray-600`}`}
+                          'bg-rose-100 dark:bg-rose-900/20 border-rose-500 text-rose-500 dark:text-rose-400' : 'bg-red-50 dark:bg-red-600/10 border-red-500 text-red-600 dark:text-red-500'}` : `${bgMainApp} ${cardBorder} ${textMuted} hover:text-main hover:border-gray-300 dark:hover:border-gray-600`}`}
                       >
                         <Icon size={32} className="mb-3" />
                         <span className="font-bold text-center">
@@ -776,10 +776,10 @@ export default function GeneratorView({
                             <span className={`${textHighlight} mx-1 font-bold text-xl`}>:</span>
                             <input type="number" min="0" max="59" value={paceSec} onChange={(e) => setPaceSec(e.target.value)} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
                             <div className="flex flex-col mr-1">
-                              <button type="button" onClick={() => setPaceSec(s => { const v = (parseInt(s) || 0) + 1; return v > 59 ? 0 : v; })} className={`${textMuted} hover:${textHighlight}`}>
+                              <button type="button" onClick={() => setPaceSec(s => { const v = (parseInt(s) || 0) + 1; return v > 59 ? 0 : v; })} className={`${textMuted} hover:text-main`}>
                                 <ChevronUp size={12} />
                               </button>
-                              <button type="button" onClick={() => setPaceSec(s => { const v = (parseInt(s) || 0) - 1; return v < 0 ? 59 : v; })} className={`${textMuted} hover:${textHighlight}`}>
+                              <button type="button" onClick={() => setPaceSec(s => { const v = (parseInt(s) || 0) - 1; return v < 0 ? 59 : v; })} className={`${textMuted} hover:text-main`}>
                                 <ChevronDown size={12} />
                               </button>
                             </div>
@@ -804,10 +804,10 @@ export default function GeneratorView({
                           <input type="number" min="0" max="59" value={minutes} onChange={(e) => setMinutes(e.target.value)} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
                           <span className={`font-bold text-lg ${textMuted} mr-2`}>Min</span>
                           <div className="flex flex-col">
-                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) + 1; return v > 59 ? 0 : v; })} className={`p-0.5 rounded ${textMuted} hover:${textHighlight} hover:bg-black/5 dark:hover:bg-white/10`}>
+                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) + 1; return v > 59 ? 0 : v; })} className={`p-0.5 rounded ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}>
                               <ChevronUp size={16} />
                             </button>
-                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) - 1; return v < 0 ? 59 : v; })} className={`p-0.5 rounded ${textMuted} hover:${textHighlight} hover:bg-black/5 dark:hover:bg-white/10`}>
+                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) - 1; return v < 0 ? 59 : v; })} className={`p-0.5 rounded ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}>
                               <ChevronDown size={16} />
                             </button>
                           </div>
@@ -930,10 +930,10 @@ export default function GeneratorView({
                             <span className={`${textHighlight} mx-1 font-bold text-xl`}>:</span>
                             <input type="number" min="0" max="59" value={paceSec} onChange={(e) => setPaceSec(e.target.value)} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
                             <div className="flex flex-col mr-1">
-                              <button type="button" onClick={() => setPaceSec(s => { const v = (parseInt(s) || 0) + 1; return v > 59 ? 0 : v; })} className={`${textMuted} hover:${textHighlight}`}>
+                              <button type="button" onClick={() => setPaceSec(s => { const v = (parseInt(s) || 0) + 1; return v > 59 ? 0 : v; })} className={`${textMuted} hover:text-main`}>
                                 <ChevronUp size={12} />
                               </button>
-                              <button type="button" onClick={() => setPaceSec(s => { const v = (parseInt(s) || 0) - 1; return v < 0 ? 59 : v; })} className={`${textMuted} hover:${textHighlight}`}>
+                              <button type="button" onClick={() => setPaceSec(s => { const v = (parseInt(s) || 0) - 1; return v < 0 ? 59 : v; })} className={`${textMuted} hover:text-main`}>
                                 <ChevronDown size={12} />
                               </button>
                             </div>
@@ -956,10 +956,10 @@ export default function GeneratorView({
                           <input type="number" min="0" max="59" value={minutes} onChange={(e) => setMinutes(e.target.value)} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
                           <span className={`font-bold text-lg ${textMuted} mr-2`}>Min</span>
                           <div className="flex flex-col">
-                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) + 1; return v > 59 ? 0 : v; })} className={`p-0.5 rounded ${textMuted} hover:${textHighlight} hover:bg-black/5 dark:hover:bg-white/10`}>
+                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) + 1; return v > 59 ? 0 : v; })} className={`p-0.5 rounded ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}>
                               <ChevronUp size={16} />
                             </button>
-                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) - 1; return v < 0 ? 59 : v; })} className={`p-0.5 rounded ${textMuted} hover:${textHighlight} hover:bg-black/5 dark:hover:bg-white/10`}>
+                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) - 1; return v < 0 ? 59 : v; })} className={`p-0.5 rounded ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}>
                               <ChevronDown size={16} />
                             </button>
                           </div>
@@ -1106,7 +1106,7 @@ export default function GeneratorView({
                           <button
                             onClick={() => setExpandedSegmentGenreId(isGenreExpanded ? null : segment.id)}
                             title={hasOverride ? `Genre spécifique : ${segment.selectedGenres.join(', ')}` : "Genre global de la séance (cliquer pour définir un genre spécifique à cette portion)"}
-                            className={`p-2 rounded-lg transition-colors ${hasOverride ? `${bgAccentClass} text-white` : `${textMuted} hover:${textHighlight} hover:bg-gray-200 dark:hover:bg-gray-700`}`}
+                            className={`p-2 rounded-lg transition-colors ${hasOverride ? `${bgAccentClass} text-white` : `${textMuted} hover:text-main hover:bg-gray-200 dark:hover:bg-gray-700`}`}
                           >
                             <Music size={18} />
                           </button>
@@ -1121,7 +1121,7 @@ export default function GeneratorView({
                                 {hasOverride ? "Style personnalisé pour cette portion" : "Suit le style musical de toute la séance"}
                               </span>
                               {hasOverride && (
-                                <button onClick={() => resetSegmentGenre(segment.id)} className={`text-xs font-bold underline ${textMuted} hover:${textHighlight}`}>
+                                <button onClick={() => resetSegmentGenre(segment.id)} className={`text-xs font-bold underline ${textMuted} hover:text-main`}>
                                   Revenir au genre global
                                 </button>
                               )}
@@ -1131,7 +1131,7 @@ export default function GeneratorView({
                                 const isSelected = (segment.selectedGenres || []).includes(genre);
                                 const warning = getGenreLocalDepthWarning(genre);
                                 return (
-                                  <button key={genre} onClick={() => toggleSegmentGenre(segment.id, genre)} title={warning || undefined} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                                  <button key={genre} onClick={() => toggleSegmentGenre(segment.id, genre)} title={warning || undefined} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}>
                                     {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                                   </button>
                                 );
@@ -1139,7 +1139,7 @@ export default function GeneratorView({
                               <button
                                 onClick={() => setShowExtraGenres(!showExtraGenres)}
                                 title="Certains genres ci-dessous : génération un peu plus longue."
-                                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border-2 border-dashed ${cardBorder} ${textMuted} hover:${textHighlight}`}
+                                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border-2 border-dashed ${cardBorder} ${textMuted} hover:text-main`}
                               >
                                 {showExtraGenres ? '− Moins de genres' : '+ Plus de genres'}
                               </button>
@@ -1150,7 +1150,7 @@ export default function GeneratorView({
                                   const isSelected = (segment.selectedGenres || []).includes(genre);
                                   const warning = getGenreLocalDepthWarning(genre);
                                   return (
-                                    <button key={genre} onClick={() => toggleSegmentGenre(segment.id, genre)} title={warning || undefined} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                                    <button key={genre} onClick={() => toggleSegmentGenre(segment.id, genre)} title={warning || undefined} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}>
                                       {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                                     </button>
                                   );
@@ -1186,7 +1186,7 @@ export default function GeneratorView({
                       }
                       setSegments([...segments, { id: Date.now(), bpm: nextBpm, durationValue: targetMode==='distance'?1:10 }]);
                     }}
-                    className={`w-full py-4 mt-4 border-2 border-dashed ${inputBorder} rounded-xl flex items-center justify-center gap-2 font-bold transition-colors ${textMuted} hover:${textHighlight} hover:border-gray-400 bg-gray-50 dark:bg-gray-800/50`}
+                    className={`w-full py-4 mt-4 border-2 border-dashed ${inputBorder} rounded-xl flex items-center justify-center gap-2 font-bold transition-colors ${textMuted} hover:text-main hover:border-gray-400 bg-gray-50 dark:bg-gray-800/50`}
                   >
                     <Plus size={20} /><span>Ajouter une portion</span>
                   </button>
@@ -1216,7 +1216,7 @@ export default function GeneratorView({
                     const warning = getGenreLocalDepthWarning(genre);
                     return (
                       <button key={genre} onClick={() => toggleGenre(genre)} title={warning || undefined} className={`px-5 py-3 rounded-full text-base font-bold transition-all duration-200 border-2 ${isSelected ?
-                        `${bgAccentClass} ${borderAccentClass} text-white shadow-md scale-105` : `bg-surface-hover ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                        `${bgAccentClass} ${borderAccentClass} text-white shadow-md scale-105` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}>
                         {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                       </button>
                     )
@@ -1226,7 +1226,7 @@ export default function GeneratorView({
                     <button
                       onClick={() => setShowExtraGenres(!showExtraGenres)}
                       title="Certains genres ci-dessous : génération un peu plus longue."
-                      className={`px-5 py-3 rounded-full text-base font-bold transition-all duration-200 border-2 border-dashed ${cardBorder} ${textMuted} hover:${textHighlight}`}
+                      className={`px-5 py-3 rounded-full text-base font-bold transition-all duration-200 border-2 border-dashed ${cardBorder} ${textMuted} hover:text-main`}
                     >
                       {showExtraGenres ? '− Moins de genres' : '+ Plus de genres'}
                     </button>
@@ -1239,7 +1239,7 @@ export default function GeneratorView({
                       const warning = getGenreLocalDepthWarning(genre);
                       return (
                         <button key={genre} onClick={() => toggleGenre(genre)} title={warning || undefined} className={`px-5 py-3 rounded-full text-base font-bold transition-all duration-200 border-2 ${isSelected ?
-                          `${bgAccentClass} ${borderAccentClass} text-white shadow-md scale-105` : `bg-surface-hover ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                          `${bgAccentClass} ${borderAccentClass} text-white shadow-md scale-105` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}>
                           {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                         </button>
                       )
@@ -1289,7 +1289,7 @@ export default function GeneratorView({
                         <span className={`text-xs ${textMuted}`}>%</span>
                       </div>
                     ))}
-                    <button onClick={() => { setGenreWeights(equalSplitWeights(selectedGenres)); setLockedGenreWeights(new Set()); }} className={`text-xs font-bold underline ${textMuted} hover:${textHighlight}`}>
+                    <button onClick={() => { setGenreWeights(equalSplitWeights(selectedGenres)); setLockedGenreWeights(new Set()); }} className={`text-xs font-bold underline ${textMuted} hover:text-main`}>
                       Répartition égale
                     </button>
                     <p className={`text-xs w-full ${textMuted}`}>Répartition indicative : le moteur essaie de s'en rapprocher, mais un genre avec moins de titres disponibles peut finir légèrement sous-représenté (un avertissement s'affichera si l'écart est important).</p>
@@ -1351,7 +1351,7 @@ export default function GeneratorView({
                 setNoUsableResultsHint(false);
                 setIsSearchModalOpen(true);
                 searchTracksByBpm(bpm, bpmTolerance, selectedGenres);
-              }} className={`w-full py-4 rounded-2xl border-2 border-dashed ${inputBorder} flex items-center justify-center gap-2 font-bold transition-colors ${textMuted} hover:${textHighlight} hover:border-gray-400 bg-gray-50 dark:bg-gray-800/50`}>
+              }} className={`w-full py-4 rounded-2xl border-2 border-dashed ${inputBorder} flex items-center justify-center gap-2 font-bold transition-colors ${textMuted} hover:text-main hover:border-gray-400 bg-gray-50 dark:bg-gray-800/50`}>
                 <Target size={20} /><span>Explorer les titres à {bpm} BPM</span>
               </button>
 
@@ -1388,7 +1388,7 @@ export default function GeneratorView({
         {wizardStep < 4 && (
           <div className="mt-auto pt-8 flex justify-between items-center border-t border-gray-100 dark:border-gray-800">
             {wizardStep > 1 ? (
-              <button onClick={() => setWizardStep(wizardStep - 1)} className={`px-6 py-3 rounded-xl font-bold flex items-center space-x-2 ${textMuted} hover:${textHighlight} bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`}>
+              <button onClick={() => setWizardStep(wizardStep - 1)} className={`px-6 py-3 rounded-xl font-bold flex items-center space-x-2 ${textMuted} hover:text-main bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`}>
                 <ChevronLeft size={20}/> <span>Précédent</span>
               </button>
             ) : <div/>}
@@ -1400,7 +1400,7 @@ export default function GeneratorView({
         )}
         {wizardStep === 4 && (
           <div className="mt-4 flex justify-start">
-            <button onClick={() => setWizardStep(3)} className={`px-6 py-2 rounded-xl font-bold flex items-center space-x-2 ${textMuted} hover:${textHighlight} transition-colors`}>
+            <button onClick={() => setWizardStep(3)} className={`px-6 py-2 rounded-xl font-bold flex items-center space-x-2 ${textMuted} hover:text-main transition-colors`}>
               <ChevronLeft size={18}/> <span>Retour aux réglages</span>
             </button>
           </div>
