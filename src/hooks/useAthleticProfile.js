@@ -124,7 +124,7 @@ const DEFAULT_ZONE_SPACING = 10;
 
 const emptyProfile = () => ({ isConfigured: false, baseCadence: null, zone1: null, zone2: null, zone3: null, zone4: null });
 
-const computeZonesFromBaseCadence = (base, spacing = DEFAULT_ZONE_SPACING) => ({
+const computeZonesFromBaseBpm = (base, spacing = DEFAULT_ZONE_SPACING) => ({
   zone1: Math.max(ATHLETIC_BPM_FLOOR, base - spacing),
   zone2: Math.max(ATHLETIC_BPM_FLOOR, base),
   zone3: Math.max(ATHLETIC_BPM_FLOOR, base + spacing),
@@ -144,7 +144,7 @@ const computeZonesFromBaseCadence = (base, spacing = DEFAULT_ZONE_SPACING) => ({
 // de l'app. "Autre"/repli pour toute activité personnalisée, faute d'un
 // chiffre spécifique par discipline pour une activité inconnue à l'avance
 // (patin, elliptique...).
-const getDefaultBaseCadence = (activityKey) => WORKOUT_DEFAULT_BPM.standard[activityKey] ?? WORKOUT_DEFAULT_BPM.standard['Autre'];
+const getDefaultBaseBpm = (activityKey) => WORKOUT_DEFAULT_BPM.standard[activityKey] ?? WORKOUT_DEFAULT_BPM.standard['Autre'];
 
 // Profil "aperçu" complet (BPM de base + 4 zones déjà calculées) pour une
 // activité qui n'a JAMAIS été configurée — `isConfigured` reste `false` :
@@ -156,9 +156,9 @@ const getDefaultBaseCadence = (activityKey) => WORKOUT_DEFAULT_BPM.standard[acti
 // par défaut déjà affichées à l'écran — jamais `null` en douce alors que
 // l'écran, lui, montrait déjà un chiffre.
 const buildDefaultPreviewProfile = (activityKey) => {
-  const base = getDefaultBaseCadence(activityKey);
+  const base = getDefaultBaseBpm(activityKey);
   const spacing = ZONE_SPACING_BY_ACTIVITY[activityKey] ?? DEFAULT_ZONE_SPACING;
-  return { isConfigured: false, baseCadence: base, ...computeZonesFromBaseCadence(base, spacing) };
+  return { isConfigured: false, baseCadence: base, ...computeZonesFromBaseBpm(base, spacing) };
 };
 
 // Espacement RÉEL utilisé pour une activité donnée — exposé pour que l'UI
@@ -204,7 +204,7 @@ export function useAthleticProfile() {
 
   // ─── Activités "built-in" (Course à pied, Cyclisme) ───────────────────────
 
-  const setBaseCadenceForActivity = (activityKey, rawValue) => {
+  const setBaseBpmForActivity = (activityKey, rawValue) => {
     const base = parseInt(rawValue);
     if (!Number.isFinite(base) || base <= 0) return;
     const spacing = ZONE_SPACING_BY_ACTIVITY[activityKey] ?? DEFAULT_ZONE_SPACING;
@@ -212,7 +212,7 @@ export function useAthleticProfile() {
       ...prev,
       activities: {
         ...prev.activities,
-        [activityKey]: { isConfigured: true, baseCadence: base, ...computeZonesFromBaseCadence(base, spacing) },
+        [activityKey]: { isConfigured: true, baseCadence: base, ...computeZonesFromBaseBpm(base, spacing) },
       },
     }));
   };
@@ -267,13 +267,13 @@ export function useAthleticProfile() {
     setAthleticProfile(prev => ({ ...prev, custom: prev.custom.filter(c => c.id !== id) }));
   };
 
-  const setBaseCadenceForCustom = (id, rawValue) => {
+  const setBaseBpmForCustom = (id, rawValue) => {
     const base = parseInt(rawValue);
     if (!Number.isFinite(base) || base <= 0) return;
     setAthleticProfile(prev => ({
       ...prev,
       custom: prev.custom.map(c => c.id === id
-        ? { ...c, isConfigured: true, baseCadence: base, ...computeZonesFromBaseCadence(base, DEFAULT_ZONE_SPACING) }
+        ? { ...c, isConfigured: true, baseCadence: base, ...computeZonesFromBaseBpm(base, DEFAULT_ZONE_SPACING) }
         : c),
     }));
   };
@@ -333,9 +333,9 @@ export function useAthleticProfile() {
 
   return {
     athleticProfile, setAthleticProfile,
-    computeZonesFromBaseCadence, getDefaultBaseCadence, buildDefaultPreviewProfile, getZoneSpacingForActivity,
-    setBaseCadenceForActivity, setZoneForActivity, resetActivityProfile,
-    addCustomActivity, removeCustomActivity, setBaseCadenceForCustom, setZoneForCustom,
+    computeZonesFromBaseBpm, getDefaultBaseBpm, buildDefaultPreviewProfile, getZoneSpacingForActivity,
+    setBaseBpmForActivity, setZoneForActivity, resetActivityProfile,
+    addCustomActivity, removeCustomActivity, setBaseBpmForCustom, setZoneForCustom,
     getProfileForWorkout,
     resetAthleticProfile,
   };
