@@ -144,6 +144,14 @@ export default function StatsView({
   // plus bas (une seule passe sur les données, pas une 2e boucle dédiée).
   const zoneSecondsByActivity = {}; // activité -> { zone1..zone4 }
   const zoneSecondsByMonth = {}; // 'AAAA-MM' -> { zone1..zone4 }
+  // RETOUR DIRECT ("proposer une visualisation par sync uniquement si
+  // l'utilisateur active l'option") — accumulé dans LA MÊME boucle de titres
+  // que le reste (une seule passe), mais séparément de zoneSeconds* : un
+  // titre dont l'activité est en mode Synchro (`cadenceIntent: 'sync'`)
+  // n'est PAS classé par zone ci-dessous (pas de sens en synchro, voir
+  // useAthleticProfile.js) — il alimente ce tableau à la place. activité ->
+  // { target, tracks: [{title, artist, bpm, gap}] }.
+  const syncTracksByActivity = {};
   const nowForZones = new Date();
   // Y a-t-il AU MOINS un profil VRAIMENT configuré quelque part (une activité
   // "built-in" ou personnalisée) ? Ne gate plus l'affichage du camembert
@@ -265,15 +273,21 @@ export default function StatsView({
         // déjà `null` si aucun profil configuré pour cette activité, pas
         // besoin de re-vérifier `isConfigured` ici en plus.
         if (t.bpm) {
-          const zoneKey = classifyIntoZone(t.bpm, activity);
-          if (zoneKey) {
-            zoneSeconds[zoneKey] += t.duration || 0;
-            if (isThisMonth) zoneSecondsThisMonth[zoneKey] += t.duration || 0;
-            if (!zoneSecondsByActivity[activity]) zoneSecondsByActivity[activity] = { zone1: 0, zone2: 0, zone3: 0, zone4: 0 };
-            zoneSecondsByActivity[activity][zoneKey] += t.duration || 0;
-            if (monthKey) {
-              if (!zoneSecondsByMonth[monthKey]) zoneSecondsByMonth[monthKey] = { zone1: 0, zone2: 0, zone3: 0, zone4: 0 };
-              zoneSecondsByMonth[monthKey][zoneKey] += t.duration || 0;
+          const profileForActivity = getProfileForWorkoutOrDefault ? getProfileForWorkoutOrDefault(activity) : null;
+          if (profileForActivity?.cadenceIntent === 'sync') {
+            if (!syncTracksByActivity[activity]) syncTracksByActivity[activity] = { target: profileForActivity.targetBpm, tracks: [] };
+            syncTracksByActivity[activity].tracks.push({ title: t.title, artist: t.artist, bpm: t.bpm, gap: t.bpm - profileForActivity.targetBpm });
+          } else {
+            const zoneKey = classifyIntoZone(t.bpm, activity);
+            if (zoneKey) {
+              zoneSeconds[zoneKey] += t.duration || 0;
+              if (isThisMonth) zoneSecondsThisMonth[zoneKey] += t.duration || 0;
+              if (!zoneSecondsByActivity[activity]) zoneSecondsByActivity[activity] = { zone1: 0, zone2: 0, zone3: 0, zone4: 0 };
+              zoneSecondsByActivity[activity][zoneKey] += t.duration || 0;
+              if (monthKey) {
+                if (!zoneSecondsByMonth[monthKey]) zoneSecondsByMonth[monthKey] = { zone1: 0, zone2: 0, zone3: 0, zone4: 0 };
+                zoneSecondsByMonth[monthKey][zoneKey] += t.duration || 0;
+              }
             }
           }
         }
@@ -332,6 +346,25 @@ export default function StatsView({
     })
     .filter(a => a.total > 0)
     .sort((a, b) => b.total - a.total);
+
+  // RETOUR DIRECT ("proposer une visualisation par sync uniquement si
+  // l'utilisateur active l'option") — un résumé par activité en mode
+  // Synchro (`syncTracksByActivity`, rempli dans la boucle plus haut) :
+  // écart moyen (en valeur absolue — un écart de -8 et +8 doivent compter
+  // pareil, aucun des deux n'est "plus proche" de la cible) + la liste des
+  // titres avec leur écart signé, pour le nuage de points. VIDE (tableau) si
+  // aucune activité n'est en mode Synchro — c'est ce qui permet à la section
+  // entière de rester masquée par défaut (voir plus bas), exactement comme
+  // demandé.
+  const syncActivitySummaries = Object.entries(syncTracksByActivity)
+    .map(([activity, { target, tracks }]) => ({
+      activity,
+      target,
+      avgGap: tracks.length > 0 ? Math.round(tracks.reduce((s, t) => s + Math.abs(t.gap), 0) / tracks.length) : 0,
+      tracks,
+    }))
+    .filter(a => a.tracks.length > 0)
+    .sort((a, b) => b.tracks.length - a.tracks.length);
 
   const activityBreakdown = Object.entries(activitySeconds)
     .map(([activity, seconds]) => ({ activity, seconds, sessions: activitySessions[activity] }))
@@ -847,6 +880,53 @@ export default function StatsView({
               </div>
             </div>
           )}
+
+          {/* RETOUR DIRECT ("proposer une visualisation par sync uniquement
+              si l'utilisateur active l'option") — section entière absente si
+              `syncActivitySummaries` est vide (aucune activité en mode
+              Synchro) : jamais un bloc à moitié vide pour qui n'a jamais
+              touché à cette option. Un chiffre ("Écart moyen") + un nuage de
+              points autour d'une cible plutôt qu'un camembert par zone — en
+              synchro, les 4 zones sont volontairement resserrées (voir
+              SYNC_ZONE_SPACING_BY_ACTIVITY, useAthleticProfile.js), un
+              camembert y serait presque unicolore et n'apprendrait rien. Une
+              carte par activité en synchro (comme "Détail par activité"
+              ci-dessus pour les zones), pas un seul agrégat : les cibles de
+              cadence diffèrent d'une activité à l'autre (ex. course vs
+              vélo), les mélanger n'aurait pas de sens. */}
+          {syncActivitySummaries.length > 0 && syncActivitySummaries.map(({ activity, target, avgGap, tracks }) => {
+            const maxAbsGap = Math.max(10, ...tracks.map(t => Math.abs(t.gap)));
+            return (
+              <div key={activity} className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
+                <h3 className={`font-bold flex items-center gap-2 ${textHighlight}`}><Activity size={18} className={textColorClass}/> Ta synchro cadence — {activity}</h3>
+                <p className={`text-xs mb-4 ${textMuted}`}>La musique doit suivre ta cadence, pas ton intensité — {tracks.length} titre{tracks.length > 1 ? 's' : ''} avec BPM exploitable.</p>
+                <div className={`text-2xl font-black mb-1 ${textHighlight}`}>
+                  Écart moyen : <span className={textColorClass}>{avgGap} BPM</span>
+                </div>
+                <p className={`text-xs mb-2 ${textMuted}`}>Cible : {target} BPM</p>
+                <div className="relative h-16 mt-2">
+                  <div className={`absolute left-0 right-0 top-1/2 h-px ${cardBorder} border-t`}></div>
+                  <div className={`absolute left-1/2 top-0 bottom-0 w-px ${textColorClass.includes('rose') ? 'bg-rose-500' : 'bg-red-500'}`}></div>
+                  {tracks.map((t, i) => {
+                    const pct = 50 + (t.gap / maxAbsGap) * 45;
+                    return (
+                      <div
+                        key={i}
+                        title={`${t.title} — ${t.bpm} BPM (${t.gap > 0 ? '+' : ''}${t.gap})`}
+                        className={`absolute w-2.5 h-2.5 rounded-full -translate-x-1/2 shadow ${textColorClass.includes('rose') ? 'bg-rose-400' : 'bg-red-400'}`}
+                        style={{ left: `${pct}%`, top: `${8 + (i % 3) * 14}px` }}
+                      ></div>
+                    );
+                  })}
+                </div>
+                <div className={`flex justify-between text-[10px] mt-1 ${textMuted}`}>
+                  <span>Plus lent</span>
+                  <span>Cible ({target})</span>
+                  <span>Plus rapide</span>
+                </div>
+              </div>
+            );
+          })}
 
           <p className={`text-xs font-bold uppercase tracking-wide pt-2 ${textMuted}`}>🎵 Musique</p>
 
