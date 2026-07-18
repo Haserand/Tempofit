@@ -117,7 +117,7 @@ export default function PlaylistDetailView({
   setIsBpmSearchMode, setIsSearchModalOpen,
   bpmDistributionData, genreDistributionData,
   setPlaylistPlannedDate,
-  markPlaylistAsCompleted, renderCompletionsList,
+  markPlaylistAsCompleted, renderCompletionsList, renderTopCompletionDate,
   getRankStyle, triggerCSVUpload,
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass, borderAccentClass, inputBg, inputBorder } = theme;
@@ -375,7 +375,7 @@ export default function PlaylistDetailView({
               source de vérité, juste déplacée. */}
           {isLocked && currentPlaylist.completions.length > 0 && (
             <p className={`text-xs font-semibold uppercase tracking-wide ${textMuted}`}>
-              Réalisée le {new Date(currentPlaylist.completions[0].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+              {renderTopCompletionDate ? renderTopCompletionDate(currentPlaylist) : `Réalisée le ${new Date(currentPlaylist.completions[0].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`}
             </p>
           )}
 
@@ -586,7 +586,12 @@ export default function PlaylistDetailView({
               <div className="flex items-center gap-2 text-green-700 dark:text-green-400 text-sm font-bold mb-3">
                 <Lock size={15}/> Séance déjà réalisée — verrouillée pour préserver ton historique
               </div>
-              {renderCompletionsList && renderCompletionsList(currentPlaylist, mostRecentCompletionIso)}
+              {/* N'affiche cette liste que s'il reste au moins UNE date au-delà
+                  de `completions[0]` (déjà montrée, éditable, dans l'en-tête —
+                  voir renderTopCompletionDate plus haut) : sur une séance
+                  jamais rejouée (le cas le plus courant), il n'y aurait plus
+                  rien à montrer ici, autant ne pas rendre un conteneur vide. */}
+              {renderCompletionsList && currentPlaylist.completions.length > 1 && renderCompletionsList(currentPlaylist, mostRecentCompletionIso, [currentPlaylist.completions[0]])}
             </div>
           )}
 
