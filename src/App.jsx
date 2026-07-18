@@ -362,6 +362,7 @@ export default function App() {
     setBaseBpmForActivity, setZoneForActivity, resetActivityProfile,
     addCustomActivity, removeCustomActivity, setBaseBpmForCustom, setZoneForCustom, getProfileForWorkout,
     getProfileForWorkoutOrDefault,
+    setCadenceIntentForActivity, setCadenceIntentForCustom, isCadenceIntentEligible,
     resetAthleticProfile,
   } = useAthleticProfile();
 
@@ -2700,6 +2701,8 @@ export default function App() {
                 setBaseBpmForCustom={setBaseBpmForCustom} setZoneForCustom={setZoneForCustom} getProfileForWorkout={getProfileForWorkout}
                 getDefaultBaseBpm={getDefaultBaseBpm} buildDefaultPreviewProfile={buildDefaultPreviewProfile}
                 getZoneSpacingForActivity={getZoneSpacingForActivity}
+                setCadenceIntentForActivity={setCadenceIntentForActivity} setCadenceIntentForCustom={setCadenceIntentForCustom}
+                isCadenceIntentEligible={isCadenceIntentEligible}
                 showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
               />
             )}
@@ -2792,6 +2795,7 @@ export default function App() {
               <PlaylistDetailView
                 theme={themeTokens} colorMode={theme} isNaughtyMode={isNaughtyMode}
                 currentPlaylist={currentPlaylist} savedPlaylists={savedPlaylists} getProfileForWorkout={getProfileForWorkout}
+                getProfileForWorkoutOrDefault={getProfileForWorkoutOrDefault}
                 renderTopCompletionDate={renderTopCompletionDate}
                 isEditingPlaylistName={isEditingPlaylistName} setIsEditingPlaylistName={setIsEditingPlaylistName}
                 editedPlaylistName={editedPlaylistName} setEditedPlaylistName={setEditedPlaylistName}
