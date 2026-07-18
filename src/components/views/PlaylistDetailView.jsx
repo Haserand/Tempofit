@@ -660,11 +660,17 @@ export default function PlaylistDetailView({
                 "ne toucher aucune couleur", toujours d'actualité : ce bouton
                 doit rester visuellement distinct/prioritaire même réduit).
                 Positionné AVANT "Partager" (ordre demandé : importer d'abord,
-                partager ensuite). */}
+                partager ensuite).
+                RETOUR DIRECT SUIVANT ("redonne-lui un peu plus de poids,
+                peut-être un peu plus large, mais surtout pas plus haut") —
+                `px-4` → `px-6` (plus large) et `font-black` (plus gras,
+                undistinguishable en HAUTEUR) — `py-2` INCHANGÉ exprès : ne
+                touche à rien qui joue sur la hauteur de la ligne, uniquement
+                la largeur/le poids visuel du texte. */}
             {isLocked && triggerCSVUpload && (
               <button
                 onClick={(e) => triggerCSVUpload(e, currentPlaylist, mostRecentCompletionIso)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm shrink-0 bg-white text-black shadow-lg transition-transform hover:scale-[1.02] ${hasImportedDataForMostRecent ? 'animate-in fade-in zoom-in duration-500' : 'animate-pulse'}`}
+                className={`flex items-center gap-2 px-6 py-2 rounded-lg font-black text-sm shrink-0 bg-white text-black shadow-lg transition-transform hover:scale-[1.02] ${hasImportedDataForMostRecent ? 'animate-in fade-in zoom-in duration-500' : 'animate-pulse'}`}
               >
                 {hasImportedDataForMostRecent ? (
                   <>
