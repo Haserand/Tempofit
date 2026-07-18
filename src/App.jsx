@@ -346,16 +346,16 @@ export default function App() {
     addFavoriteArtistValidated, toggleTrackFavorite, toggleArtistFavorite,
   } = useFavorites(showToast);
 
-  // Profil Athlétique (zones de cadence, en PPM) — voir useAthleticProfile.js.
+  // Profil Athlétique (BPM cibles par zone d'effort) — voir useAthleticProfile.js.
   // Pas encore connecté au générateur ni aux stats à ce stade (étape 1/2 du
   // plan : modèle de données + interface Réglages d'abord) ; `athleticProfile`
   // est déjà exposé aux autres vues dès maintenant pour que le branchement
   // des étapes suivantes n'ait qu'à consommer ce state, pas à le redéfinir.
   const {
     athleticProfile, setAthleticProfile,
-    computeZonesFromBaseCadence, getDefaultBaseCadence, buildDefaultPreviewProfile, getZoneSpacingForActivity,
-    setBaseCadenceForActivity, setZoneForActivity, resetActivityProfile,
-    addCustomActivity, removeCustomActivity, setBaseCadenceForCustom, setZoneForCustom, getProfileForWorkout,
+    computeZonesFromBaseBpm, getDefaultBaseBpm, buildDefaultPreviewProfile, getZoneSpacingForActivity,
+    setBaseBpmForActivity, setZoneForActivity, resetActivityProfile,
+    addCustomActivity, removeCustomActivity, setBaseBpmForCustom, setZoneForCustom, getProfileForWorkout,
     resetAthleticProfile,
   } = useAthleticProfile();
 
@@ -2536,10 +2536,10 @@ export default function App() {
                 setIsSearchModalOpen={setIsSearchModalOpen} searchTracksByBpm={searchTracksByBpm}
                 executeGeneration={executeGeneration} isGenerating={isGenerating}
                 getActiveWorkoutName={getActiveWorkoutName} setIsSavingRoutineModalOpen={setIsSavingRoutineModalOpen}
-                athleticProfile={athleticProfile} setBaseCadenceForActivity={setBaseCadenceForActivity} setZoneForActivity={setZoneForActivity}
+                athleticProfile={athleticProfile} setBaseBpmForActivity={setBaseBpmForActivity} setZoneForActivity={setZoneForActivity}
                 resetActivityProfile={resetActivityProfile} addCustomActivity={addCustomActivity} removeCustomActivity={removeCustomActivity}
-                setBaseCadenceForCustom={setBaseCadenceForCustom} setZoneForCustom={setZoneForCustom} getProfileForWorkout={getProfileForWorkout}
-                getDefaultBaseCadence={getDefaultBaseCadence} buildDefaultPreviewProfile={buildDefaultPreviewProfile}
+                setBaseBpmForCustom={setBaseBpmForCustom} setZoneForCustom={setZoneForCustom} getProfileForWorkout={getProfileForWorkout}
+                getDefaultBaseBpm={getDefaultBaseBpm} buildDefaultPreviewProfile={buildDefaultPreviewProfile}
                 getZoneSpacingForActivity={getZoneSpacingForActivity}
                 showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
               />
