@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Play, List, Plus, Check, Settings, Pause, X, Heart, ListPlus, Loader2, Star, AlertCircle, Zap, Menu, Edit3, Trophy, Upload, Sun, Moon, Gauge } from 'lucide-react';
+import { Activity, Clock, Music, Play, Plus, Check, Pause, X, Heart, Loader2, AlertCircle, Zap, Menu, Edit3, Trophy, Upload } from 'lucide-react';
 import { ARTIST_CATALOG, EXTRA_GENRES, WEAK_DEEZER_KEYWORD_GENRES, normalizeGenreForDisplay, genreDisplayLabel, getGenresForDisplay } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getZoneForValue, ATHLETIC_ZONES, DISTRIBUTION_COLORS } from './appConfig';
 
@@ -61,6 +61,7 @@ import PendingNavigationModal from './components/modals/PendingNavigationModal';
 import PendingUnsaveModal from './components/modals/PendingUnsaveModal';
 import SearchModal from './components/modals/SearchModal';
 import EditRoutineModal from './components/modals/EditRoutineModal';
+import Sidebar from './components/shared/Sidebar';
 // Début du découpage de App.jsx en composants de vue (voir passation) : chaque
 // vue extraite vit dans src/components/views/, et consomme le hook useTheme
 // plutôt que de redéfinir ses propres classes de couleur.
@@ -2395,96 +2396,18 @@ export default function App() {
         <input type="file" accept=".csv" ref={fileInputRef} onChange={handleCSVUpload} className="hidden" />
 
         {/* ============================= SIDEBAR ============================= */}
-        <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r ${cardBorder} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          <div className={`p-6 border-b ${cardBorder} flex items-center justify-between`}>
-             <div className="flex items-center space-x-3">
-                <div className={`${bgAccentClass} p-1.5 rounded-lg transition-colors duration-500 ${isNaughtyMode ? 'shadow-[0_0_15px_rgba(244,63,94,0.4)]' : ''}`}>
-                  {isNaughtyMode ? <Heart size={20} className="text-white fill-white" /> : <Activity size={20} className="text-white" />}
-                </div>
-                <span className={`font-bold text-xl tracking-tight leading-none ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
-             </div>
-             <div className="flex items-center gap-1">
-               <button
-                 onClick={toggleTheme}
-                 title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
-                 className={`p-2 rounded-lg transition-colors ${textMuted} hover:bg-surface-hover hover:text-main`}
-               >
-                 {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-               </button>
-               <button className="md:hidden text-gray-500 hover:text-gray-900 dark:hover:text-white" onClick={() => setIsMobileMenuOpen(false)}><X size={20} /></button>
-             </div>
-          </div>
-          
-          {/* `select-none` sur chaque bouton ci-dessous (retour utilisateur) : sans ça,
-              le texte des libellés (ex. "Mes Séances") reste sélectionnable comme du
-              texte normal, donc le curseur affiche un I-beam (texte éditable) au survol
-              du label — trompeur pour un bouton, même si le clic fonctionnait déjà
-              correctement partout. `cursor-pointer` ajouté en plus par sécurité (déjà
-              le comportement par défaut d'un <button>, mais explicite plutôt qu'implicite). */}
-          <nav className="flex-1 px-4 py-6 space-y-3 overflow-y-auto no-scrollbar">
-            
-            <button onClick={() => changeView('generator')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
-              <Zap size={18} className={view === 'generator' ? 'text-white' : textColorClass} />
-              <span className="font-bold text-sm">Générer</span>
-            </button>
-
-            {/* Sous-menu de "Générer" (retour direct : "personne ne le verra dans
-                Options & Comptes", puis "j'imaginais ça en sous-menu de Générer") —
-                indenté et en retrait visuel (pas de pastille pleine, icône/texte
-                plus petits, léger décalage à gauche) pour bien signaler que ce
-                n'est pas une section de même niveau que les autres, mais une
-                sous-partie de "Générer" spécifiquement. Ouvre directement le
-                panneau (voir showAthleticProfile, remonté dans App.jsx) plutôt que
-                d'atterrir sur Générer avec le panneau encore replié. */}
-            <button
-              onClick={() => { changeView('generator'); setShowAthleticProfile(true); }}
-              className={`w-full flex items-center space-x-2.5 pl-8 pr-3 py-2 rounded-lg transition-colors select-none cursor-pointer ${view === 'generator' && showAthleticProfile ?
-                `${textColorClass} bg-surface-hover font-bold` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}
-            >
-              <Gauge size={15} className="shrink-0" />
-              <span className="text-xs font-semibold">Mon Profil Athlétique</span>
-            </button>
-
-            <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
-              <ListPlus size={18} />
-              <span className="font-bold text-sm">Mes Routines</span>
-            </button>
-            
-            <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
-              <List size={18} />
-              <span className="font-bold text-sm">Mes Séances</span>
-            </button>
-
-            <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
-              <Activity size={18} />
-              <span className="font-bold text-sm">Statistiques</span>
-            </button>
-
-            <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
-              <Star size={18} className={favorites.useFavorites && favorites.artists.length > 0 ? "text-yellow-500 fill-yellow-500/20" : ""} />
-              <span className="font-bold text-sm">Mes Favoris</span>
-            </button>
-
-            <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'settings' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
-              <Settings size={18} />
-              <span className="font-bold text-sm">Options & Comptes</span>
-            </button>
-
-          </nav>
-
-          {/* Crédit du projet, en bas de la sidebar — discret, ouvre dans un nouvel onglet
-              pour ne pas faire quitter l'app en un clic accidentel. */}
-          <div className={`px-4 py-4 border-t ${cardBorder} text-center`}>
-            <a
-              href="https://www.linkedin.com/in/damiengrange/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`text-xs font-medium ${textMuted} hover:text-main transition-colors`}
-            >
-              Un projet créé par <span className="font-bold underline">Damien Grangé</span>
-            </a>
-          </div>
-        </aside>
+        {/* Extrait dans components/shared/Sidebar.jsx (retour direct : "comment
+            tu diviserais App.jsx ?" — 3e et dernier chantier de cette série,
+            après les 8 modales et le moteur Spotify). */}
+        <Sidebar
+          cardBorder={cardBorder} bgAccentClass={bgAccentClass} isNaughtyMode={isNaughtyMode}
+          textHighlight={textHighlight} textColorClass={textColorClass} textMuted={textMuted}
+          theme={theme} toggleTheme={toggleTheme}
+          isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen}
+          changeView={changeView} view={view}
+          showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
+          favorites={favorites}
+        />
 
         <div className="flex-1 flex flex-col relative w-full">
           {/* Header mobile (bouton burger + logo) */}
