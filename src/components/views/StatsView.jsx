@@ -23,7 +23,7 @@ import GlobalStatsShareCard from '../shared/GlobalStatsShareCard';
  * playlist. Toujours lire `pl.config?.selectedGenres` / `pl.config?.bpm`.
  */
 export default function StatsView({
-  theme, savedPlaylists, userStats, changeView, setCurrentPlaylist, athleticProfile, getProfileForWorkout,
+  theme, savedPlaylists, userStats, changeView, setCurrentPlaylist, athleticProfile, getProfileForWorkout, getProfileForWorkoutOrDefault,
   shareImageFile, showToast,
   statsMode, setStatsMode,
   selectedStatsGenre, setSelectedStatsGenre,
@@ -138,19 +138,31 @@ export default function StatsView({
   const zoneSeconds = { zone1: 0, zone2: 0, zone3: 0, zone4: 0 };
   const zoneSecondsThisMonth = { zone1: 0, zone2: 0, zone3: 0, zone4: 0 };
   const nowForZones = new Date();
-  // Y a-t-il AU MOINS un profil configuré quelque part (une activité
-  // "built-in" ou personnalisée) ? Sert de garde-fou pour le panneau plus bas
-  // (pas la peine de l'afficher si rien n'a jamais été configuré).
+  // Y a-t-il AU MOINS un profil VRAIMENT configuré quelque part (une activité
+  // "built-in" ou personnalisée) ? Ne gate plus l'affichage du camembert
+  // (voir classifyIntoZone plus bas, qui classe maintenant même sans profil
+  // configuré) — sert seulement à savoir si on doit encore montrer le
+  // rappel "configure ton profil pour affiner" à côté du graphique.
   const hasAnyAthleticProfileConfigured = athleticProfile
     ? Object.values(athleticProfile.activities || {}).some(p => p.isConfigured) || (athleticProfile.custom || []).some(c => c.isConfigured)
     : false;
   // Classe un BPM réel dans la zone dont la valeur est la plus proche (voisin
-  // le plus proche) — délègue maintenant à `getZoneForValue` (appConfig.js),
-  // seule source de vérité pour cette classification (règle d'or ergonomie :
-  // même logique de couleur/zone dans TOUTES les vues, plus une copie privée
-  // ici). `activityName` = le profil de QUELLE activité utiliser pour ce
+  // le plus proche) — délègue à `getZoneForValue` (appConfig.js), seule
+  // source de vérité pour cette classification (règle d'or ergonomie : même
+  // logique de couleur/zone dans TOUTES les vues, plus une copie privée ici).
+  //
+  // RETOUR DIRECT ("si je n'ai pas validé de profil mais fait des séances
+  // normalement, je devrais avoir des stats — ce sera juste celles par
+  // défaut, non ?") — `getProfileForWorkoutOrDefault` (au lieu de
+  // `getProfileForWorkout`) plutôt qu'un camembert vide/CTA bloquant tant
+  // qu'aucun profil n'est configuré : retombe sur les mêmes valeurs par
+  // défaut déjà montrées, grisées, sur la page Profil Athlétique — jamais
+  // inventées pour l'occasion. StatsView est une page privée (jamais
+  // partagée), donc "une estimation non confirmée" y est préférable à "rien"
+  // — contrairement à `SessionSummaryCard.jsx` (export public) qui reste
+  // strict. `activityName` = le profil de QUELLE activité utiliser pour ce
   // titre précis (voir l'appel dans la boucle des titres plus bas).
-  const classifyIntoZone = (bpmVal, activityName) => getZoneForValue(bpmVal, activityName, getProfileForWorkout)?.key || null;
+  const classifyIntoZone = (bpmVal, activityName) => getZoneForValue(bpmVal, activityName, getProfileForWorkoutOrDefault)?.key || null;
 
   playlistsForStats.forEach(pl => {
     if (!pl.completions || pl.completions.length === 0) return;
@@ -606,65 +618,77 @@ export default function StatsView({
             </div>
           </div>
 
-          {hasAnyAthleticProfileConfigured ? (
-            <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
-              <h3 className={`font-bold flex items-center gap-2 ${textHighlight}`}><Gauge size={18} className={textColorClass}/> Tes zones d'intensité</h3>
-              <p className={`text-xs mb-4 ${textMuted}`}>Basé sur ton Profil Athlétique — pas le même découpage que "Tes BPM" plus bas.</p>
-              {zoneBreakdown.length === 0 ? (
-                <p className={`text-sm ${textMuted}`}>Aucune séance terminée n'a encore de BPM réel exploitable pour ce découpage par zone.</p>
-              ) : (
-                <>
-                  <div className="w-full h-56 md:h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={zoneBreakdown} dataKey="seconds" nameKey="shortLabel"
-                          cx="50%" cy="50%" innerRadius={55} outerRadius={85}
-                          paddingAngle={3} cornerRadius={4} stroke="none"
-                        >
-                          {zoneBreakdown.map((z, i) => <Cell key={i} fill={z.color} />)}
-                        </Pie>
-                        <RechartsTooltip formatter={(value, name) => {
-                          const pct = zoneTotalSeconds > 0 ? Math.round((value / zoneTotalSeconds) * 100) : 0;
-                          return [`${formatDuration(value)} (${pct}%)`, name];
-                        }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2">
-                    {zoneBreakdown.map((z, i) => {
-                      const pct = zoneTotalSeconds > 0 ? Math.round((z.seconds / zoneTotalSeconds) * 100) : 0;
-                      return (
-                        <div key={i} className="flex items-center gap-1.5 text-xs font-bold">
-                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
-                          <span className={textHighlight}>{z.shortLabel}</span>
-                          <span className={textMuted}>{pct}%</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {/* Légende motivante scopée au mois en cours — voir
-                      zoneMonthSummary. Absente s'il n'y a aucune séance ce
-                      mois-ci dans une zone connue, plutôt qu'une phrase à 0%
-                      partout. */}
-                  {zoneMonthSummary && (
-                    <p className={`text-sm text-center mt-4 pt-4 border-t ${cardBorder} ${textHighlight}`}>
-                      <span className="font-bold">Ce mois-ci</span> : {zoneMonthSummary}
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-          ) : (
+          {zoneBreakdown.length === 0 ? (
             <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder} flex items-start gap-4`}>
               <div className={`shrink-0 p-2.5 rounded-xl ${bgAccentClass} text-white`}><Gauge size={20}/></div>
               <div>
                 <h3 className={`font-bold mb-1 ${textHighlight}`}>Vois comment tu t'entraînes par zone</h3>
-                <p className={`text-sm ${textMuted}`}>Configure ton Profil Athlétique (BPM cibles par zone) pour voir la répartition de tes séances entre Récupération, Endurance, Seuil et Vitesse.</p>
-                <button onClick={() => changeView('generator')} className={`mt-3 text-sm font-bold underline ${textColorClass}`}>
-                  Configurer mon Profil Athlétique →
-                </button>
+                <p className={`text-sm ${textMuted}`}>Termine au moins une séance pour voir la répartition de tes séances entre Récupération, Endurance, Seuil et Vitesse.</p>
               </div>
+            </div>
+          ) : (
+            <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
+              <h3 className={`font-bold flex items-center gap-2 ${textHighlight}`}><Gauge size={18} className={textColorClass}/> Tes zones d'intensité</h3>
+              {/* RETOUR DIRECT ("je devrais avoir des stats même sans profil
+                  validé, ce sera juste celles par défaut, non ?") — ce
+                  camembert s'affiche maintenant dès qu'il y a des séances
+                  avec BPM, même sans profil configuré (voir classifyIntoZone
+                  plus haut, `getProfileForWorkoutOrDefault`). Sous-titre
+                  honnête sur la provenance plutôt qu'un blocage total
+                  derrière un CTA — et un rappel plus discret (pas un bloc
+                  entier) pour inviter à configurer un vrai profil, seulement
+                  si rien ne l'est encore. */}
+              <p className={`text-xs mb-4 ${textMuted}`}>
+                {hasAnyAthleticProfileConfigured
+                  ? 'Basé sur ton Profil Athlétique — pas le même découpage que "Tes BPM" plus bas.'
+                  : "Estimation par défaut (aucun Profil Athlétique configuré) — pas le même découpage que \"Tes BPM\" plus bas."}
+              </p>
+              <div className="w-full h-56 md:h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={zoneBreakdown} dataKey="seconds" nameKey="shortLabel"
+                      cx="50%" cy="50%" innerRadius={55} outerRadius={85}
+                      paddingAngle={3} cornerRadius={4} stroke="none"
+                    >
+                      {zoneBreakdown.map((z, i) => <Cell key={i} fill={z.color} />)}
+                    </Pie>
+                    <RechartsTooltip formatter={(value, name) => {
+                      const pct = zoneTotalSeconds > 0 ? Math.round((value / zoneTotalSeconds) * 100) : 0;
+                      return [`${formatDuration(value)} (${pct}%)`, name];
+                    }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2">
+                {zoneBreakdown.map((z, i) => {
+                  const pct = zoneTotalSeconds > 0 ? Math.round((z.seconds / zoneTotalSeconds) * 100) : 0;
+                  return (
+                    <div key={i} className="flex items-center gap-1.5 text-xs font-bold">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
+                      <span className={textHighlight}>{z.shortLabel}</span>
+                      <span className={textMuted}>{pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Légende motivante scopée au mois en cours — voir
+                  zoneMonthSummary. Absente s'il n'y a aucune séance ce
+                  mois-ci dans une zone connue, plutôt qu'une phrase à 0%
+                  partout. */}
+              {zoneMonthSummary && (
+                <p className={`text-sm text-center mt-4 pt-4 border-t ${cardBorder} ${textHighlight}`}>
+                  <span className="font-bold">Ce mois-ci</span> : {zoneMonthSummary}
+                </p>
+              )}
+              {!hasAnyAthleticProfileConfigured && (
+                <p className={`text-xs text-center mt-3 pt-3 border-t ${cardBorder}`}>
+                  <button onClick={() => changeView('generator')} className={`font-bold underline ${textColorClass}`}>
+                    Configurer ton Profil Athlétique →
+                  </button>
+                  <span className={textMuted}> pour affiner cette répartition avec tes vraies zones.</span>
+                </p>
+              )}
             </div>
           )}
 
