@@ -737,9 +737,14 @@ export default function GeneratorView({
           {/* ETAPE 2 : OBJECTIF (temps vs distance, option HIIT) */}
           {wizardStep === 2 && (
             <div className="space-y-8 animate-in slide-in-from-right-8 duration-300">
-              {/* Le choix Temps/Distance n'a pas de sens en mode Intime : le mode reste
-                  forcé sur "temps" (voir toggleNaughtyMode) et ce sélecteur est masqué. */}
-              {!isNaughtyMode && (
+              {/* Le choix Temps/Distance n'a pas de sens en mode Intime (le mode reste
+                  forcé sur "temps", voir toggleNaughtyMode) NI pour la Musculation
+                  (retour direct : "absurde d'avoir un bouton distance" — on ne
+                  soulève pas des poids "sur 5 km") — ce sélecteur est masqué dans
+                  les 2 cas, `targetMode` forcé sur 'time' pour Musculation via le
+                  même effet que celui qui gère déjà le repli par défaut à l'étape 1
+                  (voir plus haut, `setTargetMode(defaultTarget.targetMode)`). */}
+              {!isNaughtyMode && workoutType !== 'Musculation' && (
                 <>
                   <div className="space-y-4">
                     <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
@@ -846,11 +851,31 @@ export default function GeneratorView({
                     <SlidersHorizontal className={textColorClass} size={24} /> <span>Structure de l'effort</span>
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {[
+                    {/* RETOUR DIRECT ("en Musculation, 'Allure Constante' et
+                        'Distance' n'ont pas de sens — mais 'type d'effort'
+                        oui") — les 3 mêmes MODES restent valables quelle que
+                        soit l'activité (le moteur de génération ne connaît
+                        que `constant`/`crescendo`/`interval`, voir
+                        useGeneratorForm.js), seul le VOCABULAIRE change :
+                        "Allure" (la vitesse à laquelle on court/pédale) et
+                        "HIIT" (jargon cardio) ne veulent rien dire pour de la
+                        musculation, où l'unité naturelle est la SÉRIE (temps
+                        sous tension) et le REPOS entre séries — déjà
+                        exactement ce que "Fractionné" modélise techniquement
+                        (des segments à BPM différents), juste mal nommé pour
+                        ce contexte. "Crescendo" reste inchangé : monter en
+                        intensité puis redescendre en fin de séance (échauffement
+                        → série principale → retour au calme) est un concept
+                        tout aussi valable en musculation qu'en course. */}
+                    {(workoutType === 'Musculation' ? [
+                      { mode: 'constant', icon: Gauge, title: 'Effort Constant', desc: 'Même intensité tout au long de la séance' },
+                      { mode: 'crescendo', icon: TrendingUp, title: 'Crescendo', desc: 'Montée progressive, avec retour au calme' },
+                      { mode: 'interval', icon: ListPlus, title: 'Par Blocs / Circuit', desc: 'Séries et repos personnalisés à la main' },
+                    ] : [
                       { mode: 'constant', icon: Gauge, title: 'Allure Constante', desc: 'Un rythme stable de bout en bout' },
                       { mode: 'crescendo', icon: TrendingUp, title: 'Crescendo', desc: 'Montée progressive, avec retour au calme' },
                       { mode: 'interval', icon: ListPlus, title: 'Fractionné / HIIT', desc: 'Intervalles personnalisés à la main' },
-                    ].map(({ mode, icon: Icon, title, desc }) => {
+                    ]).map(({ mode, icon: Icon, title, desc }) => {
                       const isSelected = structureMode === mode;
                       return (
                         <button
