@@ -420,18 +420,31 @@ export default function PlaylistDetailView({
             </div>
           )}
 
+          {/* RETOUR DIRECT ("le titre doit être sur une seule ligne") — à
+              text-5xl, ce titre passait sur 2 lignes dès qu'il dépassait
+              ~20 caractères (ex. "Exemple : Session Rock/Métal"). Taille
+              réduite (text-2xl/text-4xl) pour que la plupart des titres
+              tiennent sur une ligne SANS jamais être coupés — et `truncate`
+              en filet de sécurité pour les noms vraiment longs (renommage
+              libre par l'utilisateur, aucune limite de longueur imposée à la
+              saisie) : mieux vaut "Un très long nom de séan…" que de
+              re-passer sur 2 lignes. Le texte doit être dans son PROPRE
+              `<span>` avec `min-w-0` pour que `truncate` fonctionne dans un
+              parent `flex` (sur l'élément flex lui-même, `truncate` seul ne
+              suffit pas — un flex-item ne rétrécit pas sous son contenu par
+              défaut). */}
           {isEditingPlaylistName ? (
             <div className="flex items-center gap-2 justify-center md:justify-start">
               <input
                 type="text" autoFocus value={editedPlaylistName} onChange={e => setEditedPlaylistName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleRenamePlaylist(); if (e.key === 'Escape') setIsEditingPlaylistName(false); }}
-                className={`text-3xl md:text-5xl font-black bg-transparent outline-none border-b-2 ${borderAccentClass} ${textHighlight} w-full`}
+                className={`text-2xl md:text-4xl font-black bg-transparent outline-none border-b-2 ${borderAccentClass} ${textHighlight} w-full`}
               />
               <button onClick={handleRenamePlaylist} className={`p-2 rounded-lg text-white shrink-0 ${bgAccentClass}`}><Check size={20}/></button>
             </div>
           ) : (
-            <h2 className={"text-3xl md:text-5xl font-black flex items-center gap-3 justify-center md:justify-start " + textHighlight}>
-              {currentPlaylist.name}
+            <h2 className={"text-2xl md:text-4xl font-black flex items-center gap-3 justify-center md:justify-start " + textHighlight}>
+              <span className="truncate min-w-0" title={currentPlaylist.name}>{currentPlaylist.name}</span>
               <button onClick={() => { setEditedPlaylistName(currentPlaylist.name); setIsEditingPlaylistName(true); }} className={`p-1.5 rounded-lg ${textMuted} hover:${textHighlight} transition-colors shrink-0`} title="Renommer la playlist">
                 <Edit3 size={20}/>
               </button>
