@@ -417,21 +417,24 @@ export default function PlaylistDetailView({
             <div className="flex items-center gap-3 flex-wrap">
               {isLocked && currentPlaylist.completions.length > 0 && (
                 <>
+                  {/* RETOUR DIRECT ("le cadenas me semble suffisant, et
+                      faudrait le mettre avant la date : on a fait (verrou),
+                      à une date donnée (la date)") — 2 changements : le mot
+                      "Verrouillée" retiré (l'icône + le tooltip "Séance déjà
+                      réalisée" suffisent déjà, même logique que la corbeille
+                      plus loin, déjà icône seule sans texte) ; et le cadenas
+                      passe AVANT la date pour suivre l'ordre de lecture
+                      naturel du fait ("c'est verrouillé") puis de son détail
+                      ("depuis quand"). */}
+                  <span
+                    className={`text-xs font-bold flex items-center ${textColorClass}`}
+                    title="Séance déjà réalisée"
+                  >
+                    <Lock size={12}/>
+                  </span>
                   <p className={`text-xs font-semibold uppercase tracking-wide ${textMuted}`}>
                     {renderTopCompletionDate ? renderTopCompletionDate(currentPlaylist) : new Date(currentPlaylist.completions[0].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </p>
-                  {/* RETOUR DIRECT ("'Séance déjà réalisée' me semble
-                      suffisant comme infobulle pour Verrouillée") — raccourci :
-                      le badge affiche déjà "Verrouillée" (le POURQUOI est
-                      visible directement, pas besoin de le répéter dans le
-                      tooltip) et "plus aucune modification possible" ne
-                      faisait que reformuler ce que "verrouillée" dit déjà. */}
-                  <span
-                    className={`text-xs font-bold flex items-center gap-1 ${textColorClass}`}
-                    title="Séance déjà réalisée"
-                  >
-                    <Lock size={12}/> Verrouillée
-                  </span>
                 </>
               )}
               {/* "Planifier" déplacé ici (retour direct, 2 tours de suite :
