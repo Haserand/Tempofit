@@ -28,13 +28,13 @@ import { NAUGHTY_ROUTINE_NAMES, getZoneForValue, ATHLETIC_ZONES, DISTRIBUTION_CO
 
 import { safeFetchJson, deezerFetch, resolveDeezerGenre, getSingleMatchingTrack, buildSegmentTracks, deduceCrescendoBpm, buildCrescendoSegments, findSameArtistReplacement, recalculateTimeline, createPlaylistData } from './musicEngine';
 import { parseGarminCsv } from './workoutDataEngine';
-import { dedupeAppend, fetchWorldSearchResults, fetchBpmSearchResults } from './searchEngine';
 import { useTheme } from './hooks/useTheme';
 import { usePersistentState } from './hooks/usePersistentState';
 import { useToast } from './hooks/useToast';
 import { useCustomActivity } from './hooks/useCustomActivity';
 import { useGeneratorForm } from './hooks/useGeneratorForm';
-import { useTrackSearch, SEARCH_LOADING_MESSAGES } from './hooks/useTrackSearch';
+import { useTrackSearch } from './hooks/useTrackSearch';
+import { useDeezerSearch } from './hooks/useDeezerSearch';
 import { useFavorites } from './hooks/useFavorites';
 import { useSpotifyImport } from './hooks/useSpotifyImport';
 import { useAthleticProfile } from './hooks/useAthleticProfile';
@@ -350,9 +350,16 @@ export default function App() {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
   // --- Recherche manuelle de titre via une base musicale externe (ajout précis à une playlist ou aux favoris) ---
-  // Regroupé dans useTrackSearch (state uniquement — la logique de recherche
-  // elle-même, ex. searchWorldMusicApi, reste ici : trop volumineuse et
-  // imbriquée pour être déplacée sans risque ce soir).
+  // `useTrackSearch()` regroupe l'ÉTAT (texte tapé, résultats, pagination...),
+  // `useDeezerSearch(search, ...)` la LOGIQUE qui l'utilise (voir
+  // hooks/useDeezerSearch.js — retour direct : "prends du recul, regarde si
+  // ça vaut le coup" sur une note précédente jugeant tout ce bloc trop
+  // risqué à extraire, qui s'est avérée trop large une fois relue en
+  // détail). Capturé une seule fois dans `search` (appel UNIQUE du hook,
+  // jamais 2 fois — sinon 2 états indépendants) puis déstructuré, pour
+  // pouvoir à la fois garder les noms courts utilisés partout ailleurs dans
+  // ce fichier ET passer l'objet complet à useDeezerSearch.
+  const search = useTrackSearch();
   const {
     searchQuery, setSearchQuery,
     isWorldSearching, setIsWorldSearching,
@@ -368,7 +375,7 @@ export default function App() {
     searchLoadingMessage, setSearchLoadingMessage,
     worldSearchOtherResults, setWorldSearchOtherResults,
     bpmSearchParams, setBpmSearchParams,
-  } = useTrackSearch();
+  } = search;
   // Chrono affiché pendant le chargement — repart de 0 à chaque nouvelle
   // recherche, incrémente chaque seconde tant que isWorldSearching est vrai.
   const searchElapsedSeconds = useElapsedTimer(isWorldSearching);
@@ -449,78 +456,14 @@ export default function App() {
    *    texte générale : `reset = true` repart de l'index 0 et vide tout ;
    *    `reset = false` (bouton "Voir plus") ajoute la page suivante des 2 côtés.
    */
-  // Le calcul (appels Deezer/GetSongBPM, résolution BPM en cascade, tri
-  // artiste prioritaire/reste) vit désormais dans fetchWorldSearchResults
-  // (searchEngine.js) — voir ce fichier pour tout l'historique/raisonnement
-  // (3 versions successives, cas "Bohemian Rhapsody" faux positif d'artiste,
-  // etc.). Cette fonction ne fait plus que l'orchestration React : spinners,
-  // puis application du résultat reçu sur le state, à l'identique du
-  // comportement d'origine.
-  const searchWorldMusicApi = async (reset = true) => {
-    if (!searchQuery.trim()) return;
-    if (reset) {
-      setIsWorldSearching(true);
-      setSearchLoadingMessage(SEARCH_LOADING_MESSAGES[Math.floor(Math.random() * SEARCH_LOADING_MESSAGES.length)]);
-      setWorldSearchResults([]);
-      setWorldSearchOtherResults([]);
-      setResultsContextLabel(null);
-      setNoUsableResultsHint(false);
-      setSearchHasMoreResults(false);
-    } else {
-      setIsLoadingMoreResults(true);
-    }
-
-    try {
-      const result = await fetchWorldSearchResults(searchQuery, {
-        reset,
-        offset: searchResultsOffset,
-        activeArtistName: searchActiveArtistName,
-        isNaughtyMode,
-      });
-
-      setSearchActiveArtistName(result.activeArtistName);
-
-      if (result.noResults) {
-        setNoUsableResultsHint(true);
-      } else {
-        setWorldSearchResults(prev => dedupeAppend(prev, result.matched, reset));
-        setWorldSearchOtherResults(prev => dedupeAppend(prev, result.other, reset));
-        if (reset) setResultsContextLabel(result.contextLabel);
-        setSearchResultsOffset(result.newOffset);
-        setSearchHasMoreResults(result.hasMore);
-        if (reset && result.emptyAfterFormatting) setNoUsableResultsHint(true); // titres trouvés mais aucun n'a de BPM connu
-      }
-    } catch(e) {
-      // Erreur réseau réelle (proxy CORS injoignable, hors-ligne...) — loggée en
-      // console (pas de tag DEBUG, permanent) pour ne pas retomber sur "Aucun
-      // résultat." sans aucune trace exploitable si ça se reproduit un jour.
-      console.error('[TempoFit] Erreur dans searchWorldMusicApi :', e);
-      showToast("Erreur réseau lors de la recherche.", 'error');
-    }
-    setIsWorldSearching(false);
-    setIsLoadingMoreResults(false);
-  };
-
-  // Ferme la modale de recherche et réinitialise tout son état — centralisé ici
-  // (au lieu d'être dupliqué sur le clic du fond et sur le bouton X) pour que
-  // l'ajout de nouvel état (searchResultsOffset, searchHasMoreResults,
-  // searchActiveArtistName, worldSearchOtherResults) n'oublie aucun des 2 endroits.
-  // (voir sa définition juste après renderSearchResultRow ci-dessous)
-
-  // Corrige le BPM d'un titre à la main (voir editingBpmId) — met à jour les 2
-  // listes possibles (résultats visibles ET réserve cachée, un titre pouvant
-  // être dans l'une ou l'autre) puisqu'on ne sait pas laquelle le contient sans
-  // le revérifier. `_bpmSource: 'manual'` retire le "~" (l'utilisateur devient
-  // lui-même la source la plus fiable qui soit sur SON propre correctif).
-  const commitBpmEdit = (track, rawValue) => {
-    setEditingBpmId(null);
-    const parsed = parseInt(rawValue, 10);
-    if (!parsed || parsed <= 0 || parsed === track.bpm) return; // valeur invalide ou inchangée : rien à faire
-    const updateList = (list) => list.map(t => t.youtubeId === track.youtubeId ? { ...t, bpm: parsed, _bpmSource: 'manual' } : t);
-    setWorldSearchResults(prev => updateList(prev));
-    setWorldSearchOtherResults(prev => updateList(prev));
-    showToast(`BPM corrigé : ${parsed}`);
-  };
+  // RETOUR DIRECT ("prends du recul, regarde si ça vaut le coup" — sur une
+  // note de session précédente jugeant tout le bloc "recherche Deezer" trop
+  // risqué à extraire) : relu en détail, seule `renderSearchResultRow`
+  // (juste en dessous) touchait vraiment plusieurs domaines (favoris,
+  // playlist en cours, lecture audio) — les 4 autres fonctions ne
+  // dépendaient QUE de l'état de recherche + showToast + isNaughtyMode,
+  // extraites sans risque dans hooks/useDeezerSearch.js.
+  const { searchWorldMusicApi, commitBpmEdit, closeSearchModal, searchTracksByBpm } = useDeezerSearch(search, showToast, isNaughtyMode);
 
   // Une seule ligne de résultat de recherche (bouton extrait + ajout/favori) —
   // extraite en fonction réutilisable pour être partagée entre la liste
@@ -635,69 +578,9 @@ export default function App() {
     );
   };
 
-  const closeSearchModal = () => {
-    setIsSearchModalOpen(false);
-    setSearchQuery("");
-    setIsBpmSearchMode(false);
-    setWorldSearchResults([]);
-    setWorldSearchOtherResults([]);
-    setResultsContextLabel(null);
-    setNoUsableResultsHint(false);
-    setSearchResultsOffset(0);
-    setSearchHasMoreResults(false);
-    setSearchActiveArtistName(null);
-    setEditingBpmId(null); // évite qu'un champ d'édition BPM reste "ouvert" en mémoire après fermeture
-  };
+  // closeSearchModal, searchTracksByBpm : voir hooks/useDeezerSearch.js (même
+  // hook call que searchWorldMusicApi/commitBpmEdit, plus haut).
 
-  /**
-   * Recherche des titres dont le BPM tombe pile dans la fourchette [targetBpm-tolerance,
-   * targetBpm+tolerance], en tenant compte des genres fournis. Utilise le filtre avancé
-   * natif de Deezer `bpm_min:`/`bpm_max:` (non documenté officiellement mais confirmé
-   * fonctionnel), combiné à un mot-clé de genre en texte libre. Une recherche est lancée
-   * par genre (Deezer ne supporte pas de "OU" entre plusieurs genres dans une seule
-   * requête), puis les résultats sont fusionnés et dédupliqués.
-   *
-   * Paramètres explicites (plutôt que de lire directement le state du wizard) pour que
-   * cette fonction soit réutilisable depuis plusieurs endroits de l'app : le générateur
-   * (étape 4) ET la page Cœur & Favoris, qui ont chacun leurs propres réglages BPM/genres.
-   */
-  // Calcul déplacé dans fetchBpmSearchResults (searchEngine.js) — cette
-  // fonction ne fait plus que l'orchestration React (spinners + application
-  // du résultat), comportement inchangé par rapport à l'original.
-  const searchTracksByBpm = async (targetBpm, tolerance, genres) => {
-    setBpmSearchParams({ bpm: targetBpm, tolerance, genres: genres || [] });
-    setIsWorldSearching(true);
-    // Même logique que le bandeau "Génération en cours" (voir isGeneratingSlowGenre,
-    // executeGeneration) : message dédié quand un genre au mot-clé Deezer fragile
-    // (K-pop, J-pop & C-pop, Bandes originales) est demandé, ici plutôt que dans
-    // un avertissement statique avant le clic — partagé par le wizard ("Explorer
-    // les titres à X BPM") ET la page Favoris ("Chercher des titres à X BPM"),
-    // qui passent tous les deux par cette même fonction.
-    setSearchLoadingMessage(
-      (genres || []).some(g => WEAK_DEEZER_KEYWORD_GENRES.includes(g))
-        ? "Recherche plus approfondie pour ce genre..."
-        : SEARCH_LOADING_MESSAGES[Math.floor(Math.random() * SEARCH_LOADING_MESSAGES.length)]
-    );
-    setWorldSearchResults([]);
-    setResultsContextLabel(`${targetBpm} BPM ± ${tolerance}`);
-    setNoUsableResultsHint(false);
-    try {
-      // RETOUR DIRECT ("affichage progressif plutôt qu'attendre la fin") —
-      // `onProgress` est appelé à chaque lot résolu (voir fetchBpmSearchResults,
-      // searchEngine.js), avec le résultat COMPLET déjà retrié jusque-là — pas
-      // juste le dernier lot. Permet de voir les premiers titres apparaître
-      // rapidement plutôt que d'attendre la recherche exhaustive en entier.
-      const { results } = await fetchBpmSearchResults(targetBpm, tolerance, genres, (partialResults) => {
-        setWorldSearchResults(partialResults);
-      });
-      setWorldSearchResults(results);
-      if (results.length === 0) setNoUsableResultsHint(true);
-    } catch(e) {
-      showToast("Erreur réseau lors de la recherche.", 'error');
-    }
-    setIsWorldSearching(false);
-  };
-  
   // NOTE : un bloc "recherche locale simple (titre/artiste)" existait ici
   // (allTracksDb + searchResults), construit sur l'ancienne base de titres
   // codés en dur. Code mort trouvé au passage : son résultat (`searchResults`)
