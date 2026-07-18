@@ -315,17 +315,30 @@ export default function PlaylistDetailView({
   // Stats. Indépendants l'un de l'autre (comme dans StatsView) : rien n'empêche
   // de combiner un filtre genre ET un filtre BPM à la fois si les deux sont
   // actifs. Un re-clic sur la même part la désélectionne (toggle).
-  const [selectedDetailGenre, setSelectedDetailGenre] = useState(null);
-  const [selectedDetailBpmBucket, setSelectedDetailBpmBucket] = useState(null);
+  // RETOUR DIRECT ("faut pouvoir sélectionner plusieurs zones graphiques à
+  // la fois, pas juste une, partout où y a les camemberts") — passés d'une
+  // valeur unique (`useState(null)`) à un `Set` : plusieurs parts du MÊME
+  // camembert peuvent être sélectionnées ensemble (ex. "Rock" ET "Métal" en
+  // même temps sur "Répartition par style"). Toujours indépendants l'un de
+  // l'autre entre les 2 camemberts (style vs BPM) — rien n'empêche de
+  // combiner un filtre style ET un filtre BPM en plus de la multi-sélection
+  // à l'intérieur de chacun. Un re-clic sur une part déjà sélectionnée la
+  // retire du Set (toggle), comme avant.
+  const [selectedDetailGenre, setSelectedDetailGenre] = useState(() => new Set());
+  const [selectedDetailBpmBucket, setSelectedDetailBpmBucket] = useState(() => new Set());
   // Même regroupement que celui utilisé pour construire genreDistributionData/
   // bpmDistributionData (App.jsx) — recalculé ici par titre pour comparer
   // chaque titre à la part cliquée, plutôt que de dupliquer un état séparé.
   const trackGenreLabel = (t) => genreDisplayLabel(normalizeGenreForDisplay(t.genre, t.artist, t.title));
   const trackBpmBucketLabel = (t) => { const b = Math.floor(t.bpm / 20) * 20; return `${b}-${b + 19}`; };
-  const hasDetailFilter = selectedDetailGenre !== null || selectedDetailBpmBucket !== null;
+  const hasDetailFilter = selectedDetailGenre.size > 0 || selectedDetailBpmBucket.size > 0;
+  // OR à l'intérieur d'un même camembert (n'importe laquelle des parts
+  // sélectionnées suffit à matcher), ET entre les 2 camemberts (style ET BPM
+  // si les deux ont une sélection) — même logique qu'avant, juste `.has()`
+  // sur un Set au lieu d'une égalité stricte sur une seule valeur.
   const trackMatchesDetailFilter = (t) =>
-    (selectedDetailGenre === null || trackGenreLabel(t) === selectedDetailGenre) &&
-    (selectedDetailBpmBucket === null || trackBpmBucketLabel(t) === selectedDetailBpmBucket);
+    (selectedDetailGenre.size === 0 || selectedDetailGenre.has(trackGenreLabel(t))) &&
+    (selectedDetailBpmBucket.size === 0 || selectedDetailBpmBucket.has(trackBpmBucketLabel(t)));
 
   // BUG CORRIGÉ (retour direct) : le clic direct sur la courbe (surbrillance
   // ROUGE d'UN segment précis, `selectedSegmentIdx`, pré-existant) et le clic
@@ -339,16 +352,24 @@ export default function PlaylistDetailView({
   // mutuellement exclusifs : sélectionner l'un efface l'autre, un seul
   // "pourquoi c'est en surbrillance" possible à la fois.
   const selectDetailGenre = (name) => {
-    setSelectedDetailGenre(prev => prev === name ? null : name);
+    setSelectedDetailGenre(prev => {
+      const next = new Set(prev);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
     setSelectedSegmentIdx(null);
   };
   const selectDetailBpmBucket = (name) => {
-    setSelectedDetailBpmBucket(prev => prev === name ? null : name);
+    setSelectedDetailBpmBucket(prev => {
+      const next = new Set(prev);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
     setSelectedSegmentIdx(null);
   };
   const handleChartClickAndClearZoomFilter = (state) => {
-    setSelectedDetailGenre(null);
-    setSelectedDetailBpmBucket(null);
+    setSelectedDetailGenre(new Set());
+    setSelectedDetailBpmBucket(new Set());
     handleChartClick(state);
   };
 
@@ -1128,10 +1149,10 @@ export default function PlaylistDetailView({
           <div className={`flex items-center justify-between gap-3 px-4 py-2.5 text-xs font-bold border-b ${cardBorder} bg-black/5 dark:bg-white/5 ${textHighlight}`}>
             <span>
               Titres associés
-              {selectedDetailGenre && <> · <span className={textColorClass}>{selectedDetailGenre}</span></>}
-              {selectedDetailBpmBucket && <> · <span className={textColorClass}>{selectedDetailBpmBucket} BPM</span></>}
+              {selectedDetailGenre.size > 0 && <> · <span className={textColorClass}>{[...selectedDetailGenre].join(', ')}</span></>}
+              {selectedDetailBpmBucket.size > 0 && <> · <span className={textColorClass}>{[...selectedDetailBpmBucket].join(', ')} BPM</span></>}
             </span>
-            <button onClick={() => { setSelectedDetailGenre(null); setSelectedDetailBpmBucket(null); }} className={`underline ${textMuted} hover:text-main`}>
+            <button onClick={() => { setSelectedDetailGenre(new Set()); setSelectedDetailBpmBucket(new Set()); }} className={`underline ${textMuted} hover:text-main`}>
               Réinitialiser
             </button>
           </div>
@@ -1288,7 +1309,7 @@ export default function PlaylistDetailView({
                   onClick={(entry) => selectDetailGenre(entry.name)}
                   style={{ cursor: 'pointer' }}
                 >
-                  {genreDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} opacity={selectedDetailGenre && selectedDetailGenre !== entry.name ? 0.35 : 1} />)}
+                  {genreDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} opacity={selectedDetailGenre.size > 0 && !selectedDetailGenre.has(entry.name) ? 0.35 : 1} />)}
                 </Pie>
                 <RechartsTooltip formatter={(value, name) => {
                   const total = genreDistributionData.reduce((s, e) => s + e.value, 0);
@@ -1306,7 +1327,7 @@ export default function PlaylistDetailView({
                 <button
                   key={i}
                   onClick={() => selectDetailGenre(entry.name)}
-                  className={`flex items-center gap-1.5 text-xs font-bold rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedDetailGenre === entry.name ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+                  className={`flex items-center gap-1.5 text-xs font-bold rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedDetailGenre.has(entry.name) ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
                 >
                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }}></span>
                   <span className={textHighlight}>{entry.name}</span>
@@ -1319,10 +1340,10 @@ export default function PlaylistDetailView({
               la mise en évidence dans la liste plus haut (voir hasDetailFilter/
               trackMatchesDetailFilter) ne suffisait pas, il fallait aussi voir
               CES titres directement sous le camembert, sans remonter la page. */}
-          {selectedDetailGenre && (
+          {selectedDetailGenre.size > 0 && (
             <div className={`mt-4 pt-4 border-t ${cardBorder} space-y-1`}>
-              <div className={`text-xs font-bold uppercase tracking-wide mb-2 ${textMuted}`}>Titres · {selectedDetailGenre}</div>
-              {currentPlaylist.tracks.filter(t => trackGenreLabel(t) === selectedDetailGenre).map((t, i) => (
+              <div className={`text-xs font-bold uppercase tracking-wide mb-2 ${textMuted}`}>Titres · {[...selectedDetailGenre].join(', ')}</div>
+              {currentPlaylist.tracks.filter(t => selectedDetailGenre.has(trackGenreLabel(t))).map((t, i) => (
                 <div key={i} className="flex items-center justify-between gap-2 text-sm py-1">
                   <div className="min-w-0">
                     <div className={`font-semibold truncate ${textHighlight}`}>{t.title}</div>
@@ -1346,7 +1367,7 @@ export default function PlaylistDetailView({
                   onClick={(entry) => selectDetailBpmBucket(entry.name)}
                   style={{ cursor: 'pointer' }}
                 >
-                  {bpmDistributionData.map((entry, i) => <Cell key={i} fill={entry.color} opacity={selectedDetailBpmBucket && selectedDetailBpmBucket !== entry.name ? 0.35 : 1} />)}
+                  {bpmDistributionData.map((entry, i) => <Cell key={i} fill={entry.color} opacity={selectedDetailBpmBucket.size > 0 && !selectedDetailBpmBucket.has(entry.name) ? 0.35 : 1} />)}
                 </Pie>
                 <RechartsTooltip formatter={(value, name) => {
                   const total = bpmDistributionData.reduce((s, e) => s + e.value, 0);
@@ -1364,7 +1385,7 @@ export default function PlaylistDetailView({
                 <button
                   key={i}
                   onClick={() => selectDetailBpmBucket(entry.name)}
-                  className={`flex items-center gap-1.5 text-xs font-bold rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedDetailBpmBucket === entry.name ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+                  className={`flex items-center gap-1.5 text-xs font-bold rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedDetailBpmBucket.has(entry.name) ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
                 >
                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }}></span>
                   <span className={textHighlight}>{entry.name}</span>
@@ -1373,10 +1394,10 @@ export default function PlaylistDetailView({
               );
             })}
           </div>
-          {selectedDetailBpmBucket && (
+          {selectedDetailBpmBucket.size > 0 && (
             <div className={`mt-4 pt-4 border-t ${cardBorder} space-y-1`}>
-              <div className={`text-xs font-bold uppercase tracking-wide mb-2 ${textMuted}`}>Titres · {selectedDetailBpmBucket} BPM</div>
-              {currentPlaylist.tracks.filter(t => trackBpmBucketLabel(t) === selectedDetailBpmBucket).map((t, i) => (
+              <div className={`text-xs font-bold uppercase tracking-wide mb-2 ${textMuted}`}>Titres · {[...selectedDetailBpmBucket].join(', ')} BPM</div>
+              {currentPlaylist.tracks.filter(t => selectedDetailBpmBucket.has(trackBpmBucketLabel(t))).map((t, i) => (
                 <div key={i} className="flex items-center justify-between gap-2 text-sm py-1">
                   <div className="min-w-0">
                     <div className={`font-semibold truncate ${textHighlight}`}>{t.title}</div>
