@@ -658,12 +658,26 @@ export default function GeneratorView({
                 bouton, sans l'encart à bordure en pointillés ni le texte
                 d'accompagnement (qui expliquait surtout "pourquoi" ce bouton
                 est là, jugé superflu une fois que son EMPLACEMENT — juste
-                après les réglages, avant rien d'autre — parle de lui-même). */}
+                après les réglages, avant rien d'autre — parle de lui-même).
+                RETOUR DIRECT SUIVANT ("pas évident que ce bouton entraîne
+                une sauvegarde des valeurs") — vrai : le clic appelle
+                `computeAndApplyZones()`, qui PERSISTE les 4 zones (via
+                `setBaseBpmForActivity`/`setBaseBpmForCustom`) si l'activité
+                n'était pas encore configurée — un effet de bord réel, mais
+                invisible dans un bouton qui ne parlait QUE de "générer".
+                Libellé conditionnel plutôt qu'un toast après coup ou un
+                texte d'accompagnement séparé (déjà retiré juste avant, voir
+                note ci-dessus) : dit AVANT le clic ce qui va se passer, sans
+                réintroduire l'encart qu'on venait de simplifier. Une fois
+                l'activité déjà configurée (`activeProfile?.isConfigured`),
+                `computeAndApplyZones()` ne s'exécute même pas (court-circuit
+                `||`) — le libellé redevient simplement "Générer une
+                playlist →", exact dans ce cas. */}
             <button
               onClick={() => { if (activeProfile?.isConfigured || computeAndApplyZones()) setShowAthleticProfile(false); }}
               className={`w-full mt-4 px-4 py-3 rounded-xl font-bold text-sm text-white ${bgAccentClass} hover:brightness-110`}
             >
-              Générer une playlist →
+              {activeProfile?.isConfigured ? 'Générer une playlist →' : 'Enregistrer mon profil et générer →'}
             </button>
           </div>
         )
