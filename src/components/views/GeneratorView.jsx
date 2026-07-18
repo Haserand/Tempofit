@@ -437,13 +437,35 @@ export default function GeneratorView({
                 {showZoneCalcInfo && (
                   <div className="fixed inset-0 z-30" onClick={() => setShowZoneCalcInfo(false)} />
                 )}
+                {/* RETOUR DIRECT ("le texte est bon mais l'infobulle est
+                    difficilement lisible, longue — faudrait pas justifier ?")
+                    — le justifié n'a PAS été appliqué volontairement : sur
+                    une colonne aussi étroite (~320-380px), sans coupure de
+                    mots, justifier crée des espaces irréguliers entre les
+                    mots ("rivières") plutôt que d'améliorer la lecture — un
+                    problème de typographie connu, pire encore avec des mots
+                    français longs. Le vrai correctif : `text-xs` → `text-sm`
+                    (trop petit pour 3 paragraphes de lecture), le 2e
+                    paragraphe (~85 mots d'un bloc) éclaté en 3 plus courts
+                    par idée, quelques mots-clés en gras comme points
+                    d'ancrage visuel (pas pour décorer — pour qu'un survol
+                    rapide capte l'essentiel sans tout relire), et plus
+                    d'espace entre paragraphes (space-y-3 plutôt que mb-2 sur
+                    un seul). Popover légèrement élargi en écho (moins de
+                    lignes par paragraphe à texte plus gros). */}
                 {showZoneCalcInfo && (
-                  <div className={`absolute z-40 top-full left-0 mt-2 w-80 sm:w-96 p-4 rounded-xl border shadow-2xl text-xs font-medium leading-relaxed ${cardBg} ${cardBorder} ${textHighlight}`}>
-                    <p className="mb-2">
-                      Zone 2 = le BPM que tu tapes ci-dessous. Les 3 autres s'en écartent par palier fixe de {getZoneSpacingForActivity(isCustomProfileTab ? '__custom__' : selectedProfileActivity)} BPM (Zone 1 = -1 palier, Zone 3 = +1, Zone 4 = +2) — une progression simple autour de ton BPM, pas une vraie formule physiologique (%VMA...).
+                  <div className={`absolute z-40 top-full left-0 mt-2 w-80 sm:w-[26rem] p-4 rounded-xl border shadow-2xl text-sm leading-relaxed space-y-3 ${cardBg} ${cardBorder} ${textHighlight}`}>
+                    <p>
+                      <strong>Zone 2</strong> = le BPM que tu tapes ci-dessous. Les 3 autres s'en écartent par palier fixe de {getZoneSpacingForActivity(isCustomProfileTab ? '__custom__' : selectedProfileActivity)} BPM (Zone 1 = -1 palier, Zone 3 = +1, Zone 4 = +2) — une progression simple autour de ton BPM, pas une vraie formule physiologique (%VMA...).
                     </p>
                     <p className={textMuted}>
-                      Les noms de zone (Récupération, Endurance, Seuil, Vitesse) viennent du vocabulaire des coachs de course à pied — ils décrivent un niveau d'effort, pas une mesure précise. Le chiffre associé est directement le tempo de musique que TU veux à cette intensité : ta fréquence cardiaque et ta cadence de pas peuvent t'aider à en juger, mais ce ne sont pas les mêmes nombres et rien ne les convertit automatiquement l'un dans l'autre. Toujours ajustable au BPM près via le bouton "Ajuster manuellement" ci-dessous — et modifiable librement au moment de générer, ce profil ne fait que suggérer un point de départ.
+                      Les noms de zone (Récupération, Endurance, Seuil, Vitesse) viennent du vocabulaire des coachs de course à pied — ils décrivent un <strong className={textHighlight}>niveau d'effort</strong>, pas une mesure précise.
+                    </p>
+                    <p className={textMuted}>
+                      Le chiffre associé est directement le <strong className={textHighlight}>tempo de musique que TU veux</strong> à cette intensité : ta fréquence cardiaque et ta cadence de pas peuvent t'aider à en juger, mais ce ne sont pas les mêmes nombres et rien ne les convertit automatiquement l'un dans l'autre.
+                    </p>
+                    <p className={textMuted}>
+                      Toujours ajustable au BPM près via <strong className={textHighlight}>"Ajuster manuellement"</strong> ci-dessous — et modifiable librement au moment de générer, ce profil ne fait que suggérer un point de départ.
                     </p>
                   </div>
                 )}
