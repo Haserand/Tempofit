@@ -10,7 +10,7 @@ import { Settings, Link as LinkIcon, Globe, Copy, Check, AlertTriangle } from 'l
  * Ça garde App.jsx propriétaire de la vérité (spotifyToken, localStorage...)
  * et rend ce composant facile à relire ou tester isolément.
  *
- * Le Profil Athlétique (zones de cadence) a été DÉPLACÉ vers GeneratorView.jsx
+ * Le Profil Athlétique (BPM cibles par zone d'effort) a été DÉPLACÉ vers GeneratorView.jsx
  * (retour direct : "personne ne le verra dans Options & Comptes" — ça sert au
  * générateur, ça doit vivre là où on génère, pas dans un menu qu'on ouvre
  * rarement). Voir GeneratorView.jsx pour l'UI, useAthleticProfile.js pour le
