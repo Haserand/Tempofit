@@ -44,6 +44,7 @@ export default function GeneratorView({
   athleticProfile, setBaseBpmForActivity, setZoneForActivity, resetActivityProfile,
   addCustomActivity, removeCustomActivity, setBaseBpmForCustom, setZoneForCustom, getProfileForWorkout,
   getDefaultBaseBpm, buildDefaultPreviewProfile, getZoneSpacingForActivity,
+  setCadenceIntentForActivity, setCadenceIntentForCustom, isCadenceIntentEligible,
   showAthleticProfile, setShowAthleticProfile, showToast,
 }) {
   const {
@@ -89,7 +90,7 @@ export default function GeneratorView({
   const resolveEffectiveActivityProfile = () => {
     const real = getProfileForWorkout(workoutType, customActivity);
     if (real.isConfigured) return real;
-    return buildDefaultPreviewProfile(workoutType === 'Autre' ? (customActivity || '__custom__') : workoutType);
+    return buildDefaultPreviewProfile(workoutType === 'Autre' ? (customActivity || '__custom__') : workoutType, real.cadenceIntent || 'energy');
   };
 
   // Sélecteur rapide de zone (retour direct : "je devrais pouvoir sélectionner
@@ -170,7 +171,7 @@ export default function GeneratorView({
   // de deviner un chiffre par discipline pour un sport inconnu à l'avance) —
   // lui passer une clé bidon retombe proprement sur le repli générique
   // ("Autre") déjà utilisé ailleurs dans l'app.
-  const defaultPreviewProfile = buildDefaultPreviewProfile(isCustomProfileTab ? '__custom__' : selectedProfileActivity);
+  const defaultPreviewProfile = buildDefaultPreviewProfile(isCustomProfileTab ? '__custom__' : selectedProfileActivity, activeProfile?.cadenceIntent || 'energy');
   // PIVOT DE MODÈLE (retour direct, cas concret : "à ma zone 4, cœur à
   // 170 bpm, pas à 160, musique voulue à 180" — 3 nombres indépendants) :
   // ce profil ne prétend plus stocker une cadence physique (PPM/RPM,
@@ -233,7 +234,7 @@ export default function GeneratorView({
     showToast("📊 Tes graphiques passés vont refléter ces nouvelles valeurs.");
   };
   useEffect(() => {
-    setBaseBpmDraft(activeProfile?.targetBpm ?? buildDefaultPreviewProfile(isCustomProfileTab ? '__custom__' : selectedProfileActivity).targetBpm);
+    setBaseBpmDraft(activeProfile?.targetBpm ?? buildDefaultPreviewProfile(isCustomProfileTab ? '__custom__' : selectedProfileActivity, activeProfile?.cadenceIntent || 'energy').targetBpm);
     setBpmInputError(false);
     setShowZoneCalcInfo(false);
     hadConfiguredOnEntry.current = activeProfile?.isConfigured ?? false;
@@ -456,7 +457,7 @@ export default function GeneratorView({
                 {showZoneCalcInfo && (
                   <div className={`absolute z-40 top-full left-0 mt-2 w-80 sm:w-[26rem] p-4 rounded-xl border shadow-2xl text-sm leading-relaxed space-y-3 ${cardBg} ${cardBorder} ${textHighlight}`}>
                     <p>
-                      <strong>Zone 2</strong> = le BPM que tu tapes ci-dessous. Les 3 autres s'en écartent par palier fixe de {getZoneSpacingForActivity(isCustomProfileTab ? '__custom__' : selectedProfileActivity)} BPM (Zone 1 = -1 palier, Zone 3 = +1, Zone 4 = +2) — une progression simple autour de ton BPM, pas une vraie formule physiologique (%VMA...).
+                      <strong>Zone 2</strong> = le BPM que tu tapes ci-dessous. Les 3 autres s'en écartent par palier fixe de {getZoneSpacingForActivity(isCustomProfileTab ? '__custom__' : selectedProfileActivity, activeProfile?.cadenceIntent || 'energy')} BPM (Zone 1 = -1 palier, Zone 3 = +1, Zone 4 = +2) — une progression simple autour de ton BPM, pas une vraie formule physiologique (%VMA...).
                     </p>
                     <p className={textMuted}>
                       Les noms de zone (Récupération, Endurance, Seuil, Vitesse) viennent du vocabulaire des coachs de course à pied — ils décrivent un <strong className={textHighlight}>niveau d'effort</strong>, pas une mesure précise.
@@ -476,6 +477,45 @@ export default function GeneratorView({
                 </button>
               )}
             </div>
+
+            {/* RETOUR DIRECT ("en course à pied, la cadence de pas varie peu
+                selon la zone — personnaliser le BPM par zone a-t-il un
+                sens ?") — challengé puis creusé ensemble : deux INTENTIONS
+                différentes coexistent, avec des besoins d'espacement de zone
+                opposés (voir SYNC_ZONE_SPACING_BY_ACTIVITY,
+                useAthleticProfile.js pour le détail). Ce toggle choisit
+                laquelle, AVANT l'Assistant Rapide (l'espacement en dépend).
+                Masqué pour les activités où "cadence" n'a pas de sens
+                (Musculation — pas de rythme cyclique comparable, déjà établi
+                pour "Allure"/"Distance") via `isCadenceIntentEligible`.
+                Bascule immédiatement persistée (`setCadenceIntentForActivity`/
+                `setCadenceIntentForCustom`) même si le profil n'est pas
+                encore configuré — sans écrire de fausses zones tant que ce
+                n'est pas le cas (voir le garde-fou dans
+                useAthleticProfile.js). */}
+            {isCadenceIntentEligible(isCustomProfileTab ? '__custom__' : selectedProfileActivity) && (
+              <div className="space-y-2">
+                <label className={`text-sm font-bold block ${textHighlight}`}>Tu veux de la musique qui...</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { value: 'energy', title: 'Matche l\'intensité', desc: 'BPM très différent selon la zone (calme en récup, énergique en VMA)' },
+                    { value: 'sync', title: 'Suit ton rythme', desc: 'BPM proche de ta cadence réelle, peu importe la zone' },
+                  ].map(({ value, title, desc }) => {
+                    const isSelected = (activeProfile?.cadenceIntent || 'energy') === value;
+                    return (
+                      <button
+                        key={value}
+                        onClick={() => isCustomProfileTab ? setCadenceIntentForCustom(selectedProfileActivity, value) : setCadenceIntentForActivity(selectedProfileActivity, value)}
+                        className={`flex flex-col items-start text-left p-3 rounded-xl border-2 transition-all ${isSelected ? `${borderAccentClass} ${bgMainApp}` : `${inputBorder} ${inputBg} hover:border-gray-300 dark:hover:border-gray-600`}`}
+                      >
+                        <span className={`font-bold text-sm ${textHighlight}`}>{title}</span>
+                        <span className={`text-xs mt-0.5 ${textMuted}`}>{desc}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Assistant Rapide : une seule question, 4 zones calculées d'un
                 coup (voir computeZonesFromBaseBpm, useAthleticProfile.js).
