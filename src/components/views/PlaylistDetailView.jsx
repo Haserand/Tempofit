@@ -248,6 +248,13 @@ export default function PlaylistDetailView({
   const summaryCardRef = useRef(null);
   const [summaryCovers, setSummaryCovers] = useState({});
   const [isExportingSummary, setIsExportingSummary] = useState(false);
+  // RETOUR DIRECT ("le bilan en image devrait être une option contenue dans
+  // le bouton Partager") — ce state pilote le petit menu déroulant qui
+  // regroupe maintenant les 2 façons de partager cette séance (lien texte vs
+  // image récap) sous UN SEUL bouton "Partager", au lieu de 2 boutons côte à
+  // côte. Purement local à cette vue (pas dans App.jsx) : ce n'est qu'un état
+  // d'affichage UI, pas une donnée persistée ni partagée ailleurs.
+  const [isShareMenuOpen, setIsShareMenuOpen] = useState(false);
 
   const exportSessionSummaryImage = async () => {
     if (!currentPlaylist || isExportingSummary) return;
@@ -630,23 +637,58 @@ export default function PlaylistDetailView({
               trop de place") — remplacé par l'icône compacte en haut à
               droite de la carte (voir plus haut). */}
           <div className="flex items-center justify-center md:justify-start gap-3 mt-2">
-            <button onClick={() => handleShare('playlist', currentPlaylist)} className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40">
-              <Share2 size={16} /> <span>Partager</span>
-            </button>
-            {/* Bilan Visuel de Séance — génère une image récapitulative
-                (durée, BPM moyen, zones d'intensité, top titres) et déclenche
-                le partage natif du téléphone (Story Instagram, WhatsApp...),
-                voir exportSessionSummaryImage plus haut et
-                SessionSummaryCard.jsx pour le rendu capturé. */}
-            <button
-              onClick={exportSessionSummaryImage}
-              disabled={isExportingSummary}
-              title="Générer une image de bilan à partager (Story Instagram, WhatsApp...)"
-              className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/40 disabled:opacity-60 disabled:cursor-wait"
-            >
-              {isExportingSummary ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
-              <span>{isExportingSummary ? 'Génération...' : 'Bilan en image'}</span>
-            </button>
+            {/* RETOUR DIRECT ("le bilan en image devrait être une option
+                contenue dans le bouton Partager") — les 2 anciens boutons
+                ("Partager" = lien/texte via navigator.share, "Bilan en
+                image" = capture + navigator.share d'un fichier, voir
+                exportSessionSummaryImage plus haut et SessionSummaryCard.jsx
+                pour le rendu capturé) sont maintenant 2 options d'un même
+                menu déroulant sous UN SEUL bouton "Partager" — ce sont deux
+                variantes de la même intention ("partager cette séance"), pas
+                deux actions indépendantes justifiant chacune leur bouton.
+                Même style de menu que celui déjà utilisé pour les options
+                d'un titre (voir openTrackMenuIndex plus bas) — backdrop
+                cliquable pour fermer, un seul menu de ce type ouvert à la
+                fois puisqu'ils utilisent des state différents (pas de
+                conflit, mais pas la peine d'en laisser 2 ouverts ensemble
+                pour autant : chaque clic ferme d'abord l'ancien). */}
+            <div className="relative">
+              <button
+                onClick={() => setIsShareMenuOpen(o => !o)}
+                className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40"
+              >
+                <Share2 size={16} /> <span>Partager</span>
+              </button>
+              {isShareMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setIsShareMenuOpen(false)}></div>
+                  <div className={`absolute left-0 top-full mt-1 z-20 w-64 rounded-xl border shadow-2xl overflow-hidden ${cardBg} ${cardBorder}`}>
+                    <button
+                      onClick={() => { setIsShareMenuOpen(false); handleShare('playlist', currentPlaylist); }}
+                      className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}
+                    >
+                      <Share2 size={16} className="text-blue-500 shrink-0"/> Partager le lien
+                    </button>
+                    <div className={`h-px my-1 ${cardBorder} border-t`}></div>
+                    {/* Bilan Visuel de Séance — génère une image récapitulative
+                        (durée, BPM moyen, zones d'intensité, top titres) et
+                        déclenche le partage natif du téléphone (Story
+                        Instagram, WhatsApp...). Le menu se ferme AVANT de
+                        lancer l'export (pas après) — la génération peut
+                        prendre un instant, inutile de laisser le menu ouvert
+                        pendant ce temps. */}
+                    <button
+                      onClick={() => { setIsShareMenuOpen(false); exportSessionSummaryImage(); }}
+                      disabled={isExportingSummary}
+                      className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors disabled:opacity-60 disabled:cursor-wait ${textHighlight}`}
+                    >
+                      {isExportingSummary ? <Loader2 size={16} className="text-purple-500 shrink-0 animate-spin" /> : <Camera size={16} className="text-purple-500 shrink-0" />}
+                      {isExportingSummary ? 'Génération...' : 'Bilan en image'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           {/* L'ancien bandeau "Séance déjà réalisée" (gros encart vert avec
