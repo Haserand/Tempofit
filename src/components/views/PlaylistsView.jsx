@@ -130,7 +130,7 @@ export default function PlaylistsView({
       <button
         onClick={() => setPage(Math.max(0, page - 1))}
         disabled={page === 0}
-        className={`p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed ${textMuted} hover:${textHighlight} hover:bg-surface-hover`}
+        className={`p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed ${textMuted} hover:text-main hover:bg-surface-hover`}
       >
         <ChevronLeft size={18} />
       </button>
@@ -138,7 +138,7 @@ export default function PlaylistsView({
       <button
         onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
         disabled={page >= totalPages - 1}
-        className={`p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed ${textMuted} hover:${textHighlight} hover:bg-surface-hover`}
+        className={`p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed ${textMuted} hover:text-main hover:bg-surface-hover`}
       >
         <ChevronRight size={18} />
       </button>
@@ -169,7 +169,7 @@ export default function PlaylistsView({
           <div className="space-y-4">
             <h2 className={`text-sm font-bold uppercase tracking-wider ${textMuted}`}>À planifier</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <button onClick={() => changeView('generator')} className={`rounded-2xl border-2 border-dashed ${cardBorder} flex flex-col items-center justify-center gap-2 py-10 font-bold transition-colors ${textMuted} hover:${textHighlight} hover:border-gray-400`}>
+              <button onClick={() => changeView('generator')} className={`rounded-2xl border-2 border-dashed ${cardBorder} flex flex-col items-center justify-center gap-2 py-10 font-bold transition-colors ${textMuted} hover:text-main hover:border-gray-400`}>
                 <Plus size={28} />
                 <span>Générer une nouvelle playlist</span>
               </button>
