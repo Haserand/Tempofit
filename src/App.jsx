@@ -2111,6 +2111,47 @@ export default function App() {
   ];
   const getRankStyle = (rank) => (rank >= 0 && rank < 3) ? RANK_STYLES[rank] : null;
 
+  // RETOUR DIRECT (capture d'écran, 2 tours de suite) : "la date est écrite
+  // 2 fois (en-tête + pastille du bas), inutile de garder l'option du bas —
+  // je dois pouvoir modifier la date depuis celle du HAUT". L'en-tête
+  // n'affichait jusqu'ici QUE `completions[0]` en texte statique, jamais
+  // éditable — toute édition de date passait forcément par la pastille du
+  // bas (`renderCompletionsList`). Ce helper la rend éditable directement,
+  // en réutilisant le MÊME state `editingCompletion`/`editCompletionDate`
+  // que la pastille (une seule logique d'édition de date dans toute l'app,
+  // pas une 2e copiée pour l'en-tête) — seul le format d'affichage change
+  // (long : "18 juil. 2026", cohérent avec le style de sur-titre existant,
+  // vs court "18/07/2026" dans les pastilles).
+  //
+  // Ne gère QUE `completions[0]` (la première réalisation) — volontairement,
+  // pas toutes les dates : une playlist rejouée plusieurs fois a plusieurs
+  // dates, l'en-tête n'a la place/le sens d'en montrer qu'une. Les autres
+  // restent gérables individuellement dans la pastille du bas, qui exclut
+  // maintenant `completions[0]` pour ne plus la répéter (voir
+  // PlaylistDetailView.jsx, l'appel à `renderCompletionsList` passe
+  // `skipDates={[currentPlaylist.completions[0]]}`).
+  const renderTopCompletionDate = (playlist) => {
+    const iso = playlist.completions?.[0];
+    if (!iso) return null;
+    const isEditing = editingCompletion && editingCompletion.playlistId === playlist.id && editingCompletion.isoDate === iso;
+    if (isEditing) {
+      return (
+        <input
+          type="date" autoFocus defaultValue={iso}
+          onBlur={(e) => { editCompletionDate(playlist.id, iso, e.target.value); setEditingCompletion(null); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCompletion(null); }}
+          className={`px-2 py-1 rounded-lg text-xs font-bold normal-case tracking-normal ${inputBg} border ${borderAccentClass} ${textHighlight}`}
+        />
+      );
+    }
+    const longLabel = new Date(iso.slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+    return (
+      <button onClick={() => setEditingCompletion({ playlistId: playlist.id, isoDate: iso })} className="hover:underline" title="Modifier cette date">
+        Réalisée le {longLabel}
+      </button>
+    );
+  };
+
   // RETOUR DIRECT (capture d'écran à l'appui) : "pourquoi garder la petite
   // icône d'import quand il y a déjà la grosse en bas ?" — sur
   // PlaylistDetailView.jsx, le gros bouton "Complète ta séance" cible
@@ -2123,8 +2164,12 @@ export default function App() {
   // l'appelant indique QUELLE date est déjà couverte par un CTA plus gros
   // ailleurs sur l'écran ; seule cette icône-là disparaît (date + bouton
   // "retirer" restent, pour garder la cohérence visuelle de la pastille).
-  const renderCompletionsList = (playlist, hideUploadForDate = null) => {
-    const completions = playlist.completions || [];
+  // `skipDates` (optionnel, tableau vide par défaut) : dates à ne PAS
+  // afficher DU TOUT dans cette liste — sert à exclure `completions[0]`
+  // quand l'en-tête (`renderTopCompletionDate`) la montre déjà, pour ne plus
+  // la répéter une 2e fois (retour direct : "la date est écrite 2 fois").
+  const renderCompletionsList = (playlist, hideUploadForDate = null, skipDates = []) => {
+    const completions = (playlist.completions || []).filter(iso => !skipDates.includes(iso));
     const dataByDate = playlist.actualDataByDate || {};
     return (
       <div onClick={(e) => e.stopPropagation()} className="flex flex-wrap items-center gap-1.5">
@@ -2691,6 +2736,7 @@ export default function App() {
               <PlaylistDetailView
                 theme={themeTokens} colorMode={theme} isNaughtyMode={isNaughtyMode}
                 currentPlaylist={currentPlaylist} savedPlaylists={savedPlaylists} getProfileForWorkout={getProfileForWorkout}
+                renderTopCompletionDate={renderTopCompletionDate}
                 isEditingPlaylistName={isEditingPlaylistName} setIsEditingPlaylistName={setIsEditingPlaylistName}
                 editedPlaylistName={editedPlaylistName} setEditedPlaylistName={setEditedPlaylistName}
                 handleRenamePlaylist={handleRenamePlaylist}
