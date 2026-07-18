@@ -493,17 +493,20 @@ export default function GeneratorView({
                 encore configuré — sans écrire de fausses zones tant que ce
                 n'est pas le cas (voir le garde-fou dans
                 useAthleticProfile.js). */}
-            {/* RETOUR DIRECT ("les écrans des 2 modes touchent la bulle en
-                dessous et sont très gros, plus élégant") — remplacé par le
-                MÊME style de pilule compacte déjà utilisé pour "Par Durée /
-                Par Distance" (étape 2, voir plus bas dans ce fichier) au lieu
-                de 2 grandes cartes avec bordure + description sur 2 lignes
-                chacune. Une seule ligne de description SOUS la pilule (celle
-                de l'option choisie, pas les 2 en même temps) plutôt que
-                répétée dans chaque carte — même info, beaucoup moins de
-                hauteur. Le label "Tu veux de la musique qui..." disparaît :
-                les 2 libellés de la pilule + la description suffisent à se
-                comprendre sans phrase d'intro séparée. */}
+            {/* RETOUR DIRECT ("pas sur fond noir, et l'option sélectionnée en
+                rouge comme le reste") — le style repris de "Par Durée /
+                Distance" (fond blanc pour l'option choisie) détonnait avec la
+                convention utilisée PARTOUT ailleurs dans l'app pour "option
+                choisie" (accent rouge/rose — onglets d'activité juste
+                au-dessus, cartes "Structure de l'effort", etc.), pas du
+                blanc. Bascule sur `bgAccentClass`, cohérent avec tout le
+                reste de cette page.
+                RETOUR DIRECT SUIVANT ("infobulle utile pour les 2 options")
+                — jusqu'ici seule la description de l'option DÉJÀ choisie
+                s'affichait (en dessous) ; celle de l'option non choisie
+                n'était visible qu'après avoir cliqué dessus. `title` natif
+                sur chaque bouton (survol) donne accès aux 2 descriptions
+                sans devoir choisir pour voir. */}
             {isCadenceIntentEligible(isCustomProfileTab ? '__custom__' : selectedProfileActivity) && (() => {
               const cadenceIntentOptions = [
                 { value: 'energy', title: 'Matche l\'intensité', desc: 'BPM très différent selon la zone (calme en récup, énergique en VMA).' },
@@ -513,12 +516,13 @@ export default function GeneratorView({
               const selectedOption = cadenceIntentOptions.find(o => o.value === currentIntent);
               return (
                 <div className="space-y-1.5">
-                  <div className="flex bg-surface-hover rounded-xl p-1">
-                    {cadenceIntentOptions.map(({ value, title }) => (
+                  <div className={`flex ${inputBg} border ${inputBorder} rounded-xl p-1`}>
+                    {cadenceIntentOptions.map(({ value, title, desc }) => (
                       <button
                         key={value}
+                        title={desc}
                         onClick={() => isCustomProfileTab ? setCadenceIntentForCustom(selectedProfileActivity, value) : setCadenceIntentForActivity(selectedProfileActivity, value)}
-                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${currentIntent === value ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted}`}
+                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${currentIntent === value ? `${bgAccentClass} text-white shadow-sm` : `${textMuted} hover:text-main`}`}
                       >
                         {title}
                       </button>
