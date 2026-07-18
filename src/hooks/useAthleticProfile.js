@@ -123,7 +123,40 @@ const ZONE_SPACING_BY_ACTIVITY = {
 };
 const DEFAULT_ZONE_SPACING = 10;
 
-const emptyProfile = () => ({ isConfigured: false, targetBpm: null, zone1: null, zone2: null, zone3: null, zone4: null });
+// RETOUR DIRECT ("en course à pied, on vise plutôt une cadence de pas fixe
+// (~180 PPM) qui varie peu selon la zone d'effort — est-ce que personnaliser
+// le BPM par zone a un sens dans ce cas ?") — challengé puis creusé ensemble :
+// la cadence réelle varie un peu selon l'intensité (données coureurs elite :
+// ~165-175 PPM en footing facile, ~185-195+ en seuil/VMA), mais BEAUCOUP
+// moins que ce que notre espacement par défaut (15 BPM/palier, 45 BPM
+// d'écart total Récupération→Vitesse) laisse penser. Deux INTENTIONS
+// différentes coexistent en réalité, avec des besoins d'espacement opposés :
+//   - "Énergie par zone" (le modèle par défaut, INCHANGÉ) : la musique doit
+//     correspondre à l'AMBIANCE de l'effort (calme en récup, énergique en
+//     VMA) — écart large entre zones, voulu.
+//   - "Synchro cadence" (nouveau, opt-in) : la musique doit suivre le RYTHME
+//     RÉEL des pas/pédalage — écart faible entre zones, puisque la cadence
+//     elle-même varie peu.
+// Espacement resserré utilisé UNIQUEMENT si `cadenceIntent === 'sync'` pour
+// cette activité (voir plus bas) — sinon `ZONE_SPACING_BY_ACTIVITY` ci-dessus
+// reste la référence, comportement 100% inchangé par défaut.
+const SYNC_ZONE_SPACING_BY_ACTIVITY = {
+  'Course à pied': 6,
+  'Cyclisme': 3,
+};
+const DEFAULT_SYNC_ZONE_SPACING = 4;
+
+// Activités où la notion même de "cadence" (un rythme de mouvement répété,
+// pas/pédalage) n'a pas de sens — Musculation n'a pas de rythme cyclique
+// comparable (déjà établi : ni distance, ni "allure", voir GeneratorView.jsx),
+// donc pas de mode Synchro proposé pour elle. Toute activité personnalisée
+// reste éligible par défaut : impossible de savoir à l'avance si "Elliptique"
+// ou "Corde à sauter" en ont une, mais BEAUCOUP en ont — mieux vaut proposer
+// l'option et laisser la personne juger, que la cacher par excès de prudence.
+const CADENCE_INTENT_INELIGIBLE_ACTIVITIES = ['Musculation'];
+const isCadenceIntentEligible = (activityKey) => !CADENCE_INTENT_INELIGIBLE_ACTIVITIES.includes(activityKey);
+
+const emptyProfile = () => ({ isConfigured: false, targetBpm: null, zone1: null, zone2: null, zone3: null, zone4: null, cadenceIntent: 'energy' });
 
 const computeZonesFromBaseBpm = (base, spacing = DEFAULT_ZONE_SPACING) => ({
   zone1: Math.max(ATHLETIC_BPM_FLOOR, base - spacing),
@@ -156,16 +189,23 @@ const getDefaultBaseBpm = (activityKey) => WORKOUT_DEFAULT_BPM.standard[activity
 // les 3 AUTRES zones doivent se retrouver enregistrées avec ces mêmes valeurs
 // par défaut déjà affichées à l'écran — jamais `null` en douce alors que
 // l'écran, lui, montrait déjà un chiffre.
-const buildDefaultPreviewProfile = (activityKey) => {
+const buildDefaultPreviewProfile = (activityKey, cadenceIntent = 'energy') => {
   const base = getDefaultBaseBpm(activityKey);
-  const spacing = ZONE_SPACING_BY_ACTIVITY[activityKey] ?? DEFAULT_ZONE_SPACING;
-  return { isConfigured: false, targetBpm: base, ...computeZonesFromBaseBpm(base, spacing) };
+  const spacing = cadenceIntent === 'sync'
+    ? (SYNC_ZONE_SPACING_BY_ACTIVITY[activityKey] ?? DEFAULT_SYNC_ZONE_SPACING)
+    : (ZONE_SPACING_BY_ACTIVITY[activityKey] ?? DEFAULT_ZONE_SPACING);
+  return { isConfigured: false, targetBpm: base, cadenceIntent, ...computeZonesFromBaseBpm(base, spacing) };
 };
 
 // Espacement RÉEL utilisé pour une activité donnée — exposé pour que l'UI
 // (infobulle "méthode de calcul", GeneratorView.jsx) puisse afficher le vrai
-// chiffre plutôt que de deviner/dupliquer la table ZONE_SPACING_BY_ACTIVITY.
-const getZoneSpacingForActivity = (activityKey) => ZONE_SPACING_BY_ACTIVITY[activityKey] ?? DEFAULT_ZONE_SPACING;
+// chiffre plutôt que de deviner/dupliquer les tables d'espacement.
+// `cadenceIntent` optionnel (repli 'energy', comportement historique
+// inchangé si l'appelant ne sait rien du mode Synchro).
+const getZoneSpacingForActivity = (activityKey, cadenceIntent = 'energy') =>
+  cadenceIntent === 'sync'
+    ? (SYNC_ZONE_SPACING_BY_ACTIVITY[activityKey] ?? DEFAULT_SYNC_ZONE_SPACING)
+    : (ZONE_SPACING_BY_ACTIVITY[activityKey] ?? DEFAULT_ZONE_SPACING);
 
 export function useAthleticProfile() {
   const [athleticProfile, setAthleticProfile] = usePersistentState('athleticProfile', () => ({
@@ -194,6 +234,7 @@ export function useAthleticProfile() {
             targetBpm: athleticProfile.targetBpm,
             zone1: athleticProfile.zone1, zone2: athleticProfile.zone2,
             zone3: athleticProfile.zone3, zone4: athleticProfile.zone4,
+            cadenceIntent: 'energy',
           },
           'Cyclisme': emptyProfile(),
         },
@@ -208,14 +249,54 @@ export function useAthleticProfile() {
   const setBaseBpmForActivity = (activityKey, rawValue) => {
     const base = parseInt(rawValue);
     if (!Number.isFinite(base) || base <= 0) return;
-    const spacing = ZONE_SPACING_BY_ACTIVITY[activityKey] ?? DEFAULT_ZONE_SPACING;
-    setAthleticProfile(prev => ({
-      ...prev,
-      activities: {
-        ...prev.activities,
-        [activityKey]: { isConfigured: true, targetBpm: base, ...computeZonesFromBaseBpm(base, spacing) },
-      },
-    }));
+    setAthleticProfile(prev => {
+      // Respecte l'intention DÉJÀ choisie pour cette activité (sync ou
+      // énergie) si elle existe — sinon 'energy' par défaut (comportement
+      // historique, avant l'existence du mode Synchro).
+      const cadenceIntent = prev.activities[activityKey]?.cadenceIntent || 'energy';
+      const spacing = getZoneSpacingForActivity(activityKey, cadenceIntent);
+      return {
+        ...prev,
+        activities: {
+          ...prev.activities,
+          [activityKey]: { isConfigured: true, targetBpm: base, cadenceIntent, ...computeZonesFromBaseBpm(base, spacing) },
+        },
+      };
+    });
+  };
+
+  // RETOUR DIRECT ("proposer une visualisation par sync uniquement si
+  // l'utilisateur active l'option") — bascule l'intention ET recalcule
+  // immédiatement les 4 zones autour du MÊME BPM de base (`targetBpm`
+  // courant, ou le défaut crédible si jamais configuré), avec le nouvel
+  // espacement correspondant. Sans ce recalcul, changer d'intention laisserait
+  // les anciennes zones (mal espacées pour la nouvelle intention) jusqu'à ce
+  // que la personne relance l'Assistant Rapide — un état incohérent entre
+  // "ce qui est coché" et "ce qui est affiché".
+  const setCadenceIntentForActivity = (activityKey, intent) => {
+    if (intent !== 'energy' && intent !== 'sync') return;
+    setAthleticProfile(prev => {
+      const existing = prev.activities[activityKey];
+      // Si l'activité n'a JAMAIS été configurée, ne pas écrire de vraies
+      // valeurs de zone maintenant : `isConfigured: false` doit garder des
+      // zones à `null` (invariant dont dépend `getProfileForWorkout`, le
+      // résolveur STRICT utilisé par l'export public/les badges — voir
+      // useAthleticProfile.js en tête de fichier). Juste mémoriser
+      // l'intention choisie, appliquée dès que "Calculer mes zones" sera
+      // réellement utilisé (voir setBaseBpmForActivity ci-dessus, qui lit
+      // déjà `cadenceIntent` en priorité).
+      if (!existing?.isConfigured) {
+        return { ...prev, activities: { ...prev.activities, [activityKey]: { ...emptyProfile(), cadenceIntent: intent } } };
+      }
+      const spacing = getZoneSpacingForActivity(activityKey, intent);
+      return {
+        ...prev,
+        activities: {
+          ...prev.activities,
+          [activityKey]: { ...existing, cadenceIntent: intent, ...computeZonesFromBaseBpm(existing.targetBpm, spacing) },
+        },
+      };
+    });
   };
 
   // Mode Expert : ajuste UNE zone à la fois, sans recalculer les 3 autres —
@@ -273,9 +354,28 @@ export function useAthleticProfile() {
     if (!Number.isFinite(base) || base <= 0) return;
     setAthleticProfile(prev => ({
       ...prev,
-      custom: prev.custom.map(c => c.id === id
-        ? { ...c, isConfigured: true, targetBpm: base, ...computeZonesFromBaseBpm(base, DEFAULT_ZONE_SPACING) }
-        : c),
+      custom: prev.custom.map(c => {
+        if (c.id !== id) return c;
+        const cadenceIntent = c.cadenceIntent || 'energy';
+        const spacing = getZoneSpacingForActivity('__custom__', cadenceIntent);
+        return { ...c, isConfigured: true, targetBpm: base, cadenceIntent, ...computeZonesFromBaseBpm(base, spacing) };
+      }),
+    }));
+  };
+
+  // Même garde-fou que setCadenceIntentForActivity ci-dessus : ne recalcule
+  // de vraies zones que si l'activité personnalisée est DÉJÀ configurée,
+  // sinon mémorise juste l'intention (zones restent à `null`).
+  const setCadenceIntentForCustom = (id, intent) => {
+    if (intent !== 'energy' && intent !== 'sync') return;
+    setAthleticProfile(prev => ({
+      ...prev,
+      custom: prev.custom.map(c => {
+        if (c.id !== id) return c;
+        if (!c.isConfigured) return { ...c, cadenceIntent: intent };
+        const spacing = getZoneSpacingForActivity('__custom__', intent);
+        return { ...c, cadenceIntent: intent, ...computeZonesFromBaseBpm(c.targetBpm, spacing) };
+      }),
     }));
   };
 
@@ -360,6 +460,7 @@ export function useAthleticProfile() {
     computeZonesFromBaseBpm, getDefaultBaseBpm, buildDefaultPreviewProfile, getZoneSpacingForActivity,
     setBaseBpmForActivity, setZoneForActivity, resetActivityProfile,
     addCustomActivity, removeCustomActivity, setBaseBpmForCustom, setZoneForCustom,
+    setCadenceIntentForActivity, setCadenceIntentForCustom, isCadenceIntentEligible,
     getProfileForWorkout, getProfileForWorkoutOrDefault,
     resetAthleticProfile,
   };
