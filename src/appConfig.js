@@ -168,8 +168,8 @@ const getCadenceUnitLabel = (activityKeyOrName) => CADENCE_UNIT_BY_ACTIVITY[acti
 
 const WORKOUT_TYPES = [
   { id: 'Course à pied', icon: Footprints },
-  { id: 'Musculation', icon: Dumbbell },
   { id: 'Cyclisme', icon: Bike },
+  { id: 'Musculation', icon: Dumbbell },
   { id: 'Autre', icon: MoreHorizontal } 
 ];
 
