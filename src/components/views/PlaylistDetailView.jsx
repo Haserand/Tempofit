@@ -464,9 +464,14 @@ export default function PlaylistDetailView({
                     // Une fois la séance déjà réalisée, "planifier" ne peut plus
                     // vouloir dire "prévoir sa première fois" — ça ne peut plus
                     // être qu'une intention de la refaire plus tard.
-                    isLocked
-                      ? "Planifier une date pour REFAIRE cette séance (optionnel — sert juste à trier 'Mes Séances')"
-                      : "Planifier une date pour cette séance (optionnel — sert juste à trier 'Mes Séances')"
+                    //
+                    // RETOUR DIRECT ("'Refaire cette séance' me semble
+                    // suffisant avec l'icône calendrier") — raccourci : le
+                    // bouton affiche déjà "Planifier"/"Planifier à nouveau"
+                    // (le QUOI est visible), le tooltip n'a plus qu'à ajouter
+                    // le POURQUOI, pas réexpliquer le mécanisme de tri déjà
+                    // sous-entendu par l'icône calendrier.
+                    isLocked ? "Refaire cette séance" : "Planifier cette séance"
                   }
                 >
                   <Calendar size={14} />
