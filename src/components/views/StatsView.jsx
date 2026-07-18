@@ -153,31 +153,24 @@ export default function StatsView({
   // { target, tracks: [{title, artist, bpm, gap}] }.
   const syncTracksByActivity = {};
   const nowForZones = new Date();
-  // Y a-t-il AU MOINS un profil VRAIMENT configuré quelque part (une activité
-  // "built-in" ou personnalisée) ? Ne gate plus l'affichage du camembert
-  // (voir classifyIntoZone plus bas, qui classe maintenant même sans profil
-  // configuré) — sert seulement à savoir si on doit encore montrer le
-  // rappel "configure ton profil pour affiner" à côté du graphique.
-  const hasAnyAthleticProfileConfigured = athleticProfile
-    ? Object.values(athleticProfile.activities || {}).some(p => p.isConfigured) || (athleticProfile.custom || []).some(c => c.isConfigured)
-    : false;
   // Classe un BPM réel dans la zone dont la valeur est la plus proche (voisin
   // le plus proche) — délègue à `getZoneForValue` (appConfig.js), seule
   // source de vérité pour cette classification (règle d'or ergonomie : même
   // logique de couleur/zone dans TOUTES les vues, plus une copie privée ici).
   //
-  // RETOUR DIRECT ("si je n'ai pas validé de profil mais fait des séances
-  // normalement, je devrais avoir des stats — ce sera juste celles par
-  // défaut, non ?") — `getProfileForWorkoutOrDefault` (au lieu de
-  // `getProfileForWorkout`) plutôt qu'un camembert vide/CTA bloquant tant
-  // qu'aucun profil n'est configuré : retombe sur les mêmes valeurs par
-  // défaut déjà montrées, grisées, sur la page Profil Athlétique — jamais
-  // inventées pour l'occasion. StatsView est une page privée (jamais
-  // partagée), donc "une estimation non confirmée" y est préférable à "rien"
-  // — contrairement à `SessionSummaryCard.jsx` (export public) qui reste
-  // strict. `activityName` = le profil de QUELLE activité utiliser pour ce
-  // titre précis (voir l'appel dans la boucle des titres plus bas).
-  const classifyIntoZone = (bpmVal, activityName) => getZoneForValue(bpmVal, activityName, getProfileForWorkoutOrDefault)?.key || null;
+  // RETOUR DIRECT ("le jargon 'effort' (Récupération/Seuil) a-t-il un sens
+  // avec une estimation par défaut, ou tranches de BPM brutes dans ce cas ?")
+  // — revenu à `getProfileForWorkout` (strict), pas
+  // `getProfileForWorkoutOrDefault`. Le mode Synchro (voir plus bas,
+  // `syncTracksByActivity`) applique déjà cette règle — il ne s'active JAMAIS
+  // sans profil réellement configuré. Le camembert par zone suivait avant une
+  // règle différente (repli par défaut), incohérente avec ça : le jargon
+  // "effort" prétend connaître TA zone réelle, ce qui n'a de sens qu'avec un
+  // vrai profil — sinon "Tes BPM" (tranches brutes, plus bas) fait déjà très
+  // bien le travail sans fausse prétention de personnalisation.
+  // `activityName` = le profil de QUELLE activité utiliser pour ce titre
+  // précis (voir l'appel dans la boucle des titres plus bas).
+  const classifyIntoZone = (bpmVal, activityName) => getZoneForValue(bpmVal, activityName, getProfileForWorkout)?.key || null;
 
   playlistsForStats.forEach(pl => {
     if (!pl.completions || pl.completions.length === 0) return;
@@ -736,26 +729,24 @@ export default function StatsView({
               <div className={`shrink-0 p-2.5 rounded-xl ${bgAccentClass} text-white`}><Gauge size={20}/></div>
               <div>
                 <h3 className={`font-bold mb-1 ${textHighlight}`}>Vois comment tu t'entraînes par zone</h3>
-                <p className={`text-sm ${textMuted}`}>Termine au moins une séance pour voir la répartition de tes séances entre Récupération, Endurance, Seuil et Vitesse.</p>
+                <p className={`text-sm ${textMuted}`}>Configure ton Profil Athlétique (BPM cibles par zone) pour voir la répartition de tes séances entre Récupération, Endurance, Seuil et Vitesse.</p>
+                <button onClick={() => changeView('generator')} className={`mt-3 text-sm font-bold underline ${textColorClass}`}>
+                  Configurer mon Profil Athlétique →
+                </button>
               </div>
             </div>
           ) : (
             <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
               <h3 className={`font-bold flex items-center gap-2 ${textHighlight}`}><Gauge size={18} className={textColorClass}/> Tes zones d'intensité</h3>
-              {/* RETOUR DIRECT ("je devrais avoir des stats même sans profil
-                  validé, ce sera juste celles par défaut, non ?") — ce
-                  camembert s'affiche maintenant dès qu'il y a des séances
-                  avec BPM, même sans profil configuré (voir classifyIntoZone
-                  plus haut, `getProfileForWorkoutOrDefault`). Sous-titre
-                  honnête sur la provenance plutôt qu'un blocage total
-                  derrière un CTA — et un rappel plus discret (pas un bloc
-                  entier) pour inviter à configurer un vrai profil, seulement
-                  si rien ne l'est encore. */}
-              <p className={`text-xs mb-1 ${textMuted}`}>
-                {hasAnyAthleticProfileConfigured
-                  ? 'Basé sur ton Profil Athlétique — pas le même découpage que "Tes BPM" plus bas.'
-                  : "Estimation par défaut (aucun Profil Athlétique configuré) — pas le même découpage que \"Tes BPM\" plus bas."}
-              </p>
+              {/* RETOUR DIRECT ("le jargon 'effort' a-t-il un sens avec une
+                  estimation par défaut ?") — redevenu strict : ce camembert
+                  n'apparaît QUE s'il y a de vraies données classées (voir
+                  classifyIntoZone plus haut, `getProfileForWorkout`) — donc
+                  toujours "Basé sur ton Profil Athlétique" ici, plus de
+                  branche "estimation par défaut" (elle ne peut plus se
+                  produire : sans profil réel, `zoneBreakdown` reste vide,
+                  voir le CTA ci-dessus à la place). */}
+              <p className={`text-xs mb-1 ${textMuted}`}>Basé sur ton Profil Athlétique — pas le même découpage que "Tes BPM" plus bas.</p>
               {/* RETOUR DIRECT ("est-ce que ça vaut le coup de montrer le
                   temps passé dans chaque zone ?") — jusqu'ici seul le %
                   était affiché (la donnée en secondes existait déjà dans
@@ -833,14 +824,6 @@ export default function StatsView({
               {zoneMonthSummary && (
                 <p className={`text-sm text-center mt-4 pt-4 border-t ${cardBorder} ${textHighlight}`}>
                   <span className="font-bold">Ce mois-ci</span> : {zoneMonthSummary} <span className={textMuted}>({formatDuration(zoneTotalSecondsThisMonth)} au total)</span>
-                </p>
-              )}
-              {!hasAnyAthleticProfileConfigured && (
-                <p className={`text-xs text-center mt-3 pt-3 border-t ${cardBorder}`}>
-                  <button onClick={() => changeView('generator')} className={`font-bold underline ${textColorClass}`}>
-                    Configurer ton Profil Athlétique →
-                  </button>
-                  <span className={textMuted}> pour affiner cette répartition avec tes vraies zones.</span>
                 </p>
               )}
             </div>
