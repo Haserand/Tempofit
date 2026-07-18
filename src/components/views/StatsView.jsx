@@ -370,6 +370,35 @@ export default function StatsView({
   // seulement : un aperçu, pas un doublon de la vue détaillée existante.
   const topNEntries = (counts, n = 3) => Object.entries(counts || {}).sort((a, b) => b[1] - a[1]).slice(0, n);
   const topNTracksFromMap = (tracksMap, n = 3) => Object.values(tracksMap || {}).sort((a, b) => b.count - a.count).slice(0, n);
+  // RETOUR DIRECT ("faut pouvoir sélectionner plusieurs zones graphiques à la
+  // fois") — `genreArtistCounts`/`genreBpmBuckets`/`genreTrackCounts` (et
+  // leurs équivalents `bpmBucket*`) sont des dictionnaires PAR VALEUR (une
+  // sous-table par genre, ou par tranche de BPM). Avec plusieurs valeurs
+  // sélectionnées à la fois (`selectedStatsGenre`/`selectedStatsBpmBucket`,
+  // des `Set` désormais), le "Zoom" doit fusionner ces sous-tables plutôt que
+  // n'en lire qu'une seule — ces 2 helpers font cette fusion (somme des
+  // comptes sur les clés communes) avant de passer à `topNEntries`/
+  // `topNTracksFromMap`, qui eux n'ont pas besoin de savoir qu'il y a
+  // plusieurs sélections derrière.
+  const mergeCountMaps = (dictOfDicts, selectedKeys) => {
+    const merged = {};
+    selectedKeys.forEach(k => {
+      Object.entries(dictOfDicts[k] || {}).forEach(([innerKey, count]) => {
+        merged[innerKey] = (merged[innerKey] || 0) + count;
+      });
+    });
+    return merged;
+  };
+  const mergeTrackMaps = (dictOfDicts, selectedKeys) => {
+    const merged = {};
+    selectedKeys.forEach(k => {
+      Object.entries(dictOfDicts[k] || {}).forEach(([trackKey, info]) => {
+        if (!merged[trackKey]) merged[trackKey] = { ...info, count: 0 };
+        merged[trackKey].count += info.count;
+      });
+    });
+    return merged;
+  };
   // BPM moyen réel d'un titre (pas le BPM cible de la séance) — même clé
   // "titre|||artiste" que trackBpmSum/trackBpmCount plus haut. Utilisé par le
   // récap de titres des zooms genre/BPM ci-dessous (voir "Titres écoutés").
@@ -507,14 +536,14 @@ export default function StatsView({
           )}
           {statsMode === 'naughty' ? (
             <button
-              onClick={() => { setStatsMode('standard'); setSelectedStatsGenre(null); setSelectedStatsBpmBucket(null); }}
+              onClick={() => { setStatsMode('standard'); setSelectedStatsGenre(new Set()); setSelectedStatsBpmBucket(new Set()); }}
               className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${textMuted} hover:text-main hover:bg-surface-hover`}
             >
               ← Stats standards
             </button>
           ) : (
             <button
-              onClick={() => { setStatsMode('naughty'); setSelectedStatsGenre(null); setSelectedStatsBpmBucket(null); }}
+              onClick={() => { setStatsMode('naughty'); setSelectedStatsGenre(new Set()); setSelectedStatsBpmBucket(new Set()); }}
               title="Stats Mode Intime"
               className="p-2 rounded-lg text-gray-400 hover:text-rose-500 transition-colors cursor-pointer"
             >
@@ -829,11 +858,11 @@ export default function StatsView({
                   <PieChart>
                     <Pie
                       data={genreBreakdown} dataKey="seconds" nameKey="genre" innerRadius={45} outerRadius={80} paddingAngle={2}
-                      onClick={(entry) => setSelectedStatsGenre(prev => prev === entry.genre ? null : entry.genre)}
+                      onClick={(entry) => setSelectedStatsGenre(prev => { const next = new Set(prev); next.has(entry.genre) ? next.delete(entry.genre) : next.add(entry.genre); return next; })}
                       style={{ cursor: 'pointer' }}
                     >
                       {genreBreakdown.map((entry, i) => (
-                        <Cell key={entry.genre} fill={COLORS[i % COLORS.length]} opacity={selectedStatsGenre && selectedStatsGenre !== entry.genre ? 0.35 : 1} />
+                        <Cell key={entry.genre} fill={COLORS[i % COLORS.length]} opacity={selectedStatsGenre.size > 0 && !selectedStatsGenre.has(entry.genre) ? 0.35 : 1} />
                       ))}
                     </Pie>
                     <RechartsTooltip formatter={(value, name) => [formatDuration(Math.round(value)), name]} />
@@ -843,8 +872,8 @@ export default function StatsView({
                   {genreBreakdown.map((g, i) => (
                     <button
                       key={g.genre}
-                      onClick={() => setSelectedStatsGenre(prev => prev === g.genre ? null : g.genre)}
-                      className={`w-full flex items-center justify-between text-sm rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedStatsGenre === g.genre ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+                      onClick={() => setSelectedStatsGenre(prev => { const next = new Set(prev); next.has(g.genre) ? next.delete(g.genre) : next.add(g.genre); return next; })}
+                      className={`w-full flex items-center justify-between text-sm rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedStatsGenre.has(g.genre) ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }}></span>
@@ -854,14 +883,18 @@ export default function StatsView({
                     </button>
                   ))}
                 </div>
-                {selectedStatsGenre && (
+                {selectedStatsGenre.size > 0 && (() => {
+                  const mergedArtists = mergeCountMaps(genreArtistCounts, selectedStatsGenre);
+                  const mergedBpm = mergeCountMaps(genreBpmBuckets, selectedStatsGenre);
+                  const mergedTracks = mergeTrackMaps(genreTrackCounts, selectedStatsGenre);
+                  return (
                   <div className={`w-full text-sm space-y-1.5 pt-3 border-t ${cardBorder}`}>
-                    <div className={`font-bold ${textHighlight}`}>Zoom : {selectedStatsGenre}</div>
+                    <div className={`font-bold ${textHighlight}`}>Zoom : {[...selectedStatsGenre].join(', ')}</div>
                     <div className={textMuted}>
-                      <span className="font-semibold">Artistes</span> : {topNEntries(genreArtistCounts[selectedStatsGenre]).map(([a, c]) => `${a} (${c})`).join(', ') || '—'}
+                      <span className="font-semibold">Artistes</span> : {topNEntries(mergedArtists).map(([a, c]) => `${a} (${c})`).join(', ') || '—'}
                     </div>
                     <div className={textMuted}>
-                      <span className="font-semibold">BPM</span> : {bpmBucketOrder.filter(b => (genreBpmBuckets[selectedStatsGenre] || {})[b]).map(b => `${b} (${genreBpmBuckets[selectedStatsGenre][b]})`).join(', ') || '—'}
+                      <span className="font-semibold">BPM</span> : {bpmBucketOrder.filter(b => mergedBpm[b]).map(b => `${b} (${mergedBpm[b]})`).join(', ') || '—'}
                     </div>
                     {/* Récap complet des titres écoutés dans ce genre (pas
                         seulement le top 3, comme la ligne "Artistes"/"BPM"
@@ -872,7 +905,7 @@ export default function StatsView({
                         historique. */}
                     <div className={`font-semibold ${textHighlight} pt-1`}>Titres écoutés</div>
                     <div className="max-h-48 overflow-y-auto no-scrollbar space-y-1 -mx-1.5">
-                      {topNTracksFromMap(genreTrackCounts[selectedStatsGenre], Infinity).map((t, i) => (
+                      {topNTracksFromMap(mergedTracks, Infinity).map((t, i) => (
                         <div key={i} className={`flex items-center justify-between gap-2 px-1.5 py-1 rounded-lg ${i % 2 === 0 ? '' : 'bg-black/5 dark:bg-white/5'}`}>
                           <div className="min-w-0">
                             <div className={`font-semibold truncate ${textHighlight}`}>{t.title}</div>
@@ -881,12 +914,13 @@ export default function StatsView({
                           <span className={`shrink-0 text-xs font-bold ${textMuted}`}>{t.count}x</span>
                         </div>
                       )) }
-                      {Object.keys(genreTrackCounts[selectedStatsGenre] || {}).length === 0 && (
+                      {Object.keys(mergedTracks).length === 0 && (
                         <div className={textMuted}>—</div>
                       )}
                     </div>
                   </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
 
@@ -899,11 +933,11 @@ export default function StatsView({
                     <PieChart>
                       <Pie
                         data={bpmDistribution} dataKey="count" nameKey="label" innerRadius={45} outerRadius={80} paddingAngle={2}
-                        onClick={(entry) => setSelectedStatsBpmBucket(prev => prev === entry.label ? null : entry.label)}
+                        onClick={(entry) => setSelectedStatsBpmBucket(prev => { const next = new Set(prev); next.has(entry.label) ? next.delete(entry.label) : next.add(entry.label); return next; })}
                         style={{ cursor: 'pointer' }}
                       >
                         {bpmDistribution.map((entry, i) => (
-                          <Cell key={entry.label} fill={COLORS[i % COLORS.length]} opacity={selectedStatsBpmBucket && selectedStatsBpmBucket !== entry.label ? 0.35 : 1} />
+                          <Cell key={entry.label} fill={COLORS[i % COLORS.length]} opacity={selectedStatsBpmBucket.size > 0 && !selectedStatsBpmBucket.has(entry.label) ? 0.35 : 1} />
                         ))}
                       </Pie>
                       <RechartsTooltip formatter={(value, name) => [`${value} titre${value > 1 ? 's' : ''}`, `${name} BPM`]} />
@@ -913,8 +947,8 @@ export default function StatsView({
                     {bpmDistribution.map((b, i) => (
                       <button
                         key={b.label}
-                        onClick={() => setSelectedStatsBpmBucket(prev => prev === b.label ? null : b.label)}
-                        className={`w-full flex items-center justify-between text-sm rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedStatsBpmBucket === b.label ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+                        onClick={() => setSelectedStatsBpmBucket(prev => { const next = new Set(prev); next.has(b.label) ? next.delete(b.label) : next.add(b.label); return next; })}
+                        className={`w-full flex items-center justify-between text-sm rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedStatsBpmBucket.has(b.label) ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }}></span>
@@ -924,18 +958,22 @@ export default function StatsView({
                       </button>
                     ))}
                   </div>
-                  {selectedStatsBpmBucket && (
+                  {selectedStatsBpmBucket.size > 0 && (() => {
+                    const mergedArtists = mergeCountMaps(bpmBucketArtistCounts, selectedStatsBpmBucket);
+                    const mergedGenres = mergeCountMaps(bpmBucketGenreCounts, selectedStatsBpmBucket);
+                    const mergedTracks = mergeTrackMaps(bpmBucketTrackCounts, selectedStatsBpmBucket);
+                    return (
                     <div className={`w-full text-sm space-y-1.5 pt-3 border-t ${cardBorder}`}>
-                      <div className={`font-bold ${textHighlight}`}>Zoom : {selectedStatsBpmBucket} BPM</div>
+                      <div className={`font-bold ${textHighlight}`}>Zoom : {[...selectedStatsBpmBucket].join(', ')} BPM</div>
                       <div className={textMuted}>
-                        <span className="font-semibold">Artistes</span> : {topNEntries(bpmBucketArtistCounts[selectedStatsBpmBucket]).map(([a, c]) => `${a} (${c})`).join(', ') || '—'}
+                        <span className="font-semibold">Artistes</span> : {topNEntries(mergedArtists).map(([a, c]) => `${a} (${c})`).join(', ') || '—'}
                       </div>
                       <div className={textMuted}>
-                        <span className="font-semibold">Styles</span> : {topNEntries(bpmBucketGenreCounts[selectedStatsBpmBucket]).map(([g, c]) => `${g} (${c})`).join(', ') || '—'}
+                        <span className="font-semibold">Styles</span> : {topNEntries(mergedGenres).map(([g, c]) => `${g} (${c})`).join(', ') || '—'}
                       </div>
                       <div className={`font-semibold ${textHighlight} pt-1`}>Titres écoutés</div>
                       <div className="max-h-48 overflow-y-auto no-scrollbar space-y-1 -mx-1.5">
-                        {topNTracksFromMap(bpmBucketTrackCounts[selectedStatsBpmBucket], Infinity).map((t, i) => (
+                        {topNTracksFromMap(mergedTracks, Infinity).map((t, i) => (
                           <div key={i} className={`flex items-center justify-between gap-2 px-1.5 py-1 rounded-lg ${i % 2 === 0 ? '' : 'bg-black/5 dark:bg-white/5'}`}>
                             <div className="min-w-0">
                               <div className={`font-semibold truncate ${textHighlight}`}>{t.title}</div>
@@ -944,12 +982,13 @@ export default function StatsView({
                             <span className={`shrink-0 text-xs font-bold ${textMuted}`}>{t.count}x</span>
                           </div>
                         ))}
-                        {Object.keys(bpmBucketTrackCounts[selectedStatsBpmBucket] || {}).length === 0 && (
+                        {Object.keys(mergedTracks).length === 0 && (
                           <div className={textMuted}>—</div>
                         )}
                       </div>
                     </div>
-                  )}
+                    );
+                  })()}
                 </div>
               </div>
             )}
