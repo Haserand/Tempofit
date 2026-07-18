@@ -66,7 +66,7 @@ export default function FavoritesView({
                   </button>
                 </div>
               ))}
-              <button onClick={() => { setCurrentPlaylist(null); setIsBpmSearchMode(false); setIsSearchModalOpen(true); }} className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 border-dashed ${inputBorder} ${textMuted} hover:${textHighlight} hover:border-gray-400 transition-colors font-bold text-sm`}>
+              <button onClick={() => { setCurrentPlaylist(null); setIsBpmSearchMode(false); setIsSearchModalOpen(true); }} className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 border-dashed ${inputBorder} ${textMuted} hover:text-main hover:border-gray-400 transition-colors font-bold text-sm`}>
                 <Plus size={16}/> Ajouter un titre
               </button>
             </div>
@@ -151,7 +151,7 @@ export default function FavoritesView({
                     <button key={genre} onClick={() => {
                       if (isSelected) setFavSelectedGenres(favSelectedGenres.filter(g => g !== genre));
                       else setFavSelectedGenres([...favSelectedGenres, genre]);
-                    }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                    }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}>
                       {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                     </button>
                   );
@@ -160,7 +160,7 @@ export default function FavoritesView({
                   <button
                     onClick={() => setShowExtraGenres(!showExtraGenres)}
                     title="Certains genres ci-dessous : génération un peu plus longue."
-                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 border-dashed ${cardBorder} ${textMuted} hover:${textHighlight}`}
+                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 border-dashed ${cardBorder} ${textMuted} hover:text-main`}
                   >
                     {showExtraGenres ? '− Moins de genres' : '+ Plus de genres'}
                   </button>
@@ -175,7 +175,7 @@ export default function FavoritesView({
                       <button key={genre} onClick={() => {
                         if (isSelected) setFavSelectedGenres(favSelectedGenres.filter(g => g !== genre));
                         else setFavSelectedGenres([...favSelectedGenres, genre]);
-                      }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:${textHighlight}`}`}>
+                      }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}>
                         {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
                       </button>
                     );
