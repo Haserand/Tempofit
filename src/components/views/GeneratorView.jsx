@@ -44,7 +44,7 @@ export default function GeneratorView({
   athleticProfile, setBaseBpmForActivity, setZoneForActivity, resetActivityProfile,
   addCustomActivity, removeCustomActivity, setBaseBpmForCustom, setZoneForCustom, getProfileForWorkout,
   getDefaultBaseBpm, buildDefaultPreviewProfile, getZoneSpacingForActivity,
-  showAthleticProfile, setShowAthleticProfile,
+  showAthleticProfile, setShowAthleticProfile, showToast,
 }) {
   const {
     cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass,
@@ -202,10 +202,42 @@ export default function GeneratorView({
   // possible malgré la pré-saisie par défaut ci-dessus (la personne peut
   // vider le champ à la main), d'où ce garde-fou conservé tel quel.
   const [bpmInputError, setBpmInputError] = useState(false);
+  // RETOUR DIRECT ("réfléchis entre garder les anciens graphiques tel quel +
+  // infobulle, ou les adapter au nouveau profil") — décision : on ADAPTE
+  // déjà tout, sans rien figer (voir getZoneForValue, appConfig.js — chaque
+  // graphique reclasse ses données EN DIRECT depuis le profil ACTUEL, aucun
+  // instantané stocké par séance). C'est un choix assumé, pas un oubli : ces
+  // zones sont une préférence redéfinissable, pas une mesure physiologique
+  // figée, donc pas de "vérité historique" à préserver en la gelant — et une
+  // simple faute de frappe corrigée doit se répercuter sur l'historique, pas
+  // y rester figée. Compromis retenu plutôt qu'un vrai système de gel (qui
+  // demanderait un instantané des seuils par séance, un changement de schéma
+  // bien plus lourd pour un cas rare) : un toast simple, une fois, au moment
+  // de la sauvegarde d'un profil DÉJÀ configuré — jamais à la toute première
+  // configuration (rien à réévaluer dans ce cas, l'historique n'a pas encore
+  // été classé avec d'anciennes valeurs).
+  //
+  // `hadConfiguredOnEntry` : photographie l'état "configuré ou non" au moment
+  // où l'onglet/l'activité est ouvert, PAS l'état courant — sans ça,
+  // `computeAndApplyZones` marquerait `isConfigured: true` dès la 1ère
+  // sauvegarde et le toast se déclencherait quand même juste après coup, à
+  // tort, pour une 1ère configuration. `toastShownThisVisit` : au plus UN
+  // toast par visite de cet onglet, même si plusieurs zones sont ajustées à
+  // la main d'affilée (4 champs "Ajuster manuellement") — sinon un ajustement
+  // manuel des 4 zones déclencherait 4 toasts identiques à la suite.
+  const hadConfiguredOnEntry = useRef(false);
+  const toastShownThisVisit = useRef(false);
+  const notifyPastGraphsWillUpdate = () => {
+    if (!hadConfiguredOnEntry.current || toastShownThisVisit.current || !showToast) return;
+    toastShownThisVisit.current = true;
+    showToast("📊 Tes graphiques passés vont refléter ces nouvelles valeurs.");
+  };
   useEffect(() => {
     setBaseBpmDraft(activeProfile?.targetBpm ?? buildDefaultPreviewProfile(isCustomProfileTab ? '__custom__' : selectedProfileActivity).targetBpm);
     setBpmInputError(false);
     setShowZoneCalcInfo(false);
+    hadConfiguredOnEntry.current = activeProfile?.isConfigured ?? false;
+    toastShownThisVisit.current = false;
   }, [selectedProfileActivity]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const computeAndApplyZones = () => {
@@ -217,6 +249,7 @@ export default function GeneratorView({
     setBpmInputError(false);
     if (isCustomProfileTab) setBaseBpmForCustom(selectedProfileActivity, baseBpmDraft);
     else setBaseBpmForActivity(selectedProfileActivity, baseBpmDraft);
+    notifyPastGraphsWillUpdate();
     return true;
   };
   const handleSetZone = (zoneKey, value) => {
@@ -521,6 +554,7 @@ export default function GeneratorView({
                         type="number" min="40" max="220"
                         value={activeProfile?.[z.key] ?? defaultPreviewProfile[z.key]}
                         onChange={(e) => handleSetZone(z.key, e.target.value)}
+                        onBlur={notifyPastGraphsWillUpdate}
                         className={`w-14 bg-transparent text-right font-mono font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${textHighlight}`}
                       />
                       <span className={`text-xs font-bold ${textMuted}`}>{zoneBpmUnit}</span>
