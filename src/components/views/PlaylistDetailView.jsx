@@ -433,15 +433,27 @@ export default function PlaylistDetailView({
                       passe AVANT la date pour suivre l'ordre de lecture
                       naturel du fait ("c'est verrouillé") puis de son détail
                       ("depuis quand"). */}
-                  <span
-                    className={`text-xs font-bold flex items-center ${textColorClass}`}
-                    title="Séance déjà réalisée"
-                  >
-                    <Lock size={12}/>
-                  </span>
-                  <p className={`text-xs font-semibold uppercase tracking-wide ${textMuted}`}>
-                    {renderTopCompletionDate ? renderTopCompletionDate(currentPlaylist) : new Date(currentPlaylist.completions[0].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </p>
+                  {/* RETOUR DIRECT ("essaie de resserrer le lien visuel
+                      entre le cadenas et la date, plutôt que de les empiler")
+                      — groupés dans leur propre conteneur `gap-1.5` (plus
+                      serré que le `gap-3` du reste de la ligne, qui sépare
+                      des éléments plus indépendants comme le bouton
+                      "Planifier") : le cadenas qualifie directement la date
+                      ("cette date est verrouillée"), les rapprocher rend ce
+                      lien plus lisible sans empiler ni casser l'alignement
+                      horizontal du reste de la ligne (cadenas/calendrier/
+                      corbeille, tous côte à côte). */}
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`text-xs font-bold flex items-center ${textColorClass}`}
+                      title="Séance déjà réalisée"
+                    >
+                      <Lock size={12}/>
+                    </span>
+                    <p className={`text-xs font-semibold uppercase tracking-wide ${textMuted}`}>
+                      {renderTopCompletionDate ? renderTopCompletionDate(currentPlaylist) : new Date(currentPlaylist.completions[0].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
                 </>
               )}
               {/* "Planifier" déplacé ici (retour direct, 2 tours de suite :
