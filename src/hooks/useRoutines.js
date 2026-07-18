@@ -29,7 +29,7 @@ function simpleHash(str) {
  */
 export function useRoutines(isNaughtyMode, showToast) {
   const [routines, setRoutines] = usePersistentState('routines', () => [{
-    id: 'routine-1', name: '🏃‍♂️ Mon 5km Quotidien', workoutType: 'Course à pied', customActivity: '',
+    id: 'routine-1', name: 'Mon 5km Quotidien', workoutType: 'Course à pied', customActivity: '',
     isIntervalMode: false, bpm: 160, selectedGenres: ['Métal', 'Rock'], bpmTolerance: 10, crossfade: 2,
     segments: [], coverIcon: '🏃‍♂️', autoGenFreq: 'Manuel', manualGenerations: 0, recentTrackIds: [],
     targetMode: 'distance', distanceVal: 5, distanceUnit: 'km', paceMin: 5, paceSec: 30, hours: 0, minutes: 27,
