@@ -491,11 +491,21 @@ export default function PlaylistDetailView({
                   perdre). Repli "Ajouter à Mes Séances" si la playlist n'est
                   pas encore sauvegardée (seul cas où cette ligne serait sinon
                   vide, puisque date/verrouillé/planifier ne s'affichent que
-                  pour une playlist déjà sauvegardée). */}
+                  pour une playlist déjà sauvegardée).
+                  RETOUR DIRECT SUIVANT ("pas la peine de mettre un texte au
+                  survol quand il y a déjà un message d'avertissement qui
+                  arrive au clic") — le `title` du bouton corbeille répétait
+                  MOT POUR MOT l'avertissement de la modale de confirmation
+                  (`requestUnsavePlaylist`/`handleUnsavePlaylist`, voir
+                  App.jsx) : la même phrase lue 2 fois, une fois de trop.
+                  Retiré ici — l'icône poubelle seule suffit à communiquer
+                  l'intention (convention universelle), et la modale reste le
+                  SEUL endroit où le détail ("historique perdu") s'affiche,
+                  au moment où il compte vraiment (juste avant de confirmer),
+                  pas en survolant. */}
               {savedPlaylists.find(p => p.id === currentPlaylist.id) ? (
                 <button
                   onClick={handleUnsavePlaylist}
-                  title="Retirer de 'Mes Séances' — si cette playlist a déjà été faite ou a des données importées, cet historique sera perdu avec elle."
                   className={`ml-auto p-1.5 rounded-lg transition-colors shrink-0 ${textMuted} hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20`}
                 >
                   <Trash2 size={16} />
