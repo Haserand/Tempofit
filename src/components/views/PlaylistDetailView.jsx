@@ -373,10 +373,51 @@ export default function PlaylistDetailView({
               Reprend la même donnée que l'ancien emplacement (juste retiré de
               la ligne meta-infos plus bas, voir plus loin) — pas une 2e
               source de vérité, juste déplacée. */}
+          {/* RETOUR DIRECT (capture d'écran à l'appui, 2 tours de suite) :
+              "la notion de séance déjà réalisée ne doit pas être un gros
+              bouton vert en fin d'encart — en haut, rouge, plus fin, sans
+              encart. Le vert renvoie du positif, pas le fait qu'on ne puisse
+              plus modifier." Distinction importante entre 2 messages
+              différents qui partageaient avant le même vert "succès" comme
+              s'ils disaient la même chose :
+              - "Sauvegardée dans Mes Séances" (bouton plus haut, inchangé) :
+                une vraie bonne nouvelle, reste vert.
+              - "Verrouillée" : une RESTRICTION (plus aucune modification
+                possible), pas un accomplissement — le vert lui prêtait à
+                tort le même ton positif. Remonté à côté de la date (même
+                niveau d'information : "quand" + "peut-on encore y toucher"),
+                dans `textColorClass` (le rouge/rose D'ACCENT déjà utilisé
+                partout ailleurs dans l'app pour ce qui mérite l'attention —
+                pas une couleur d'alarme inventée pour l'occasion), en texte
+                fin (text-xs) plutôt qu'un gros encart à fond coloré.
+              La liste des dates supplémentaires (séance rejouée) reste
+              affichée juste en dessous si besoin — plus de carte/bordure
+              autour, elle redevient un simple prolongement discret de cette
+              ligne de statut plutôt qu'un bloc à part avec son propre poids
+              visuel. */}
           {isLocked && currentPlaylist.completions.length > 0 && (
-            <p className={`text-xs font-semibold uppercase tracking-wide ${textMuted}`}>
-              {renderTopCompletionDate ? renderTopCompletionDate(currentPlaylist) : `Réalisée le ${new Date(currentPlaylist.completions[0].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`}
-            </p>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-3 flex-wrap">
+                <p className={`text-xs font-semibold uppercase tracking-wide ${textMuted}`}>
+                  {renderTopCompletionDate ? renderTopCompletionDate(currentPlaylist) : `Réalisée le ${new Date(currentPlaylist.completions[0].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+                </p>
+                <span
+                  className={`text-xs font-bold flex items-center gap-1 ${textColorClass}`}
+                  title="Séance déjà réalisée — verrouillée pour préserver ton historique, plus aucune modification possible"
+                >
+                  <Lock size={12}/> Verrouillée
+                </span>
+              </div>
+              {/* N'affiche cette liste que s'il reste au moins UNE date au-delà
+                  de `completions[0]` (déjà montrée, éditable, juste au-dessus) :
+                  sur une séance jamais rejouée (le cas le plus courant), il
+                  n'y aurait plus rien à montrer ici. */}
+              {renderCompletionsList && currentPlaylist.completions.length > 1 && (
+                <div className="pt-0.5">
+                  {renderCompletionsList(currentPlaylist, mostRecentCompletionIso, [currentPlaylist.completions[0]])}
+                </div>
+              )}
+            </div>
           )}
 
           {isEditingPlaylistName ? (
@@ -560,40 +601,14 @@ export default function PlaylistDetailView({
             </button>
           </div>
 
-          {/* Bandeau "séance déjà réalisée" (retour direct) : dates de
-              complétion + import Garmin/Strava (voir renderCompletionsList,
-              App.jsx — même rendu que sur la carte dans "Mes Séances").
-              RETOUR DIRECT SUIVANT : "l'option d'importer ses données me
-              semble prioritaire et devrait être à la place du marquer comme
-              refaite" — ce bandeau ne contenait auparavant QUE deux choses de
-              poids équivalent (les dates + import, ET un gros bouton "Marquer
-              comme refaite" juste après). Le bouton a été déplacé plus haut,
-              en compagnon compact de "Planifier à nouveau" (voir plus haut,
-              même mécanique, même ref `addCompletionDateInputRef` — d'où sa
-              suppression D'ICI, pour ne pas avoir 2 éléments sur la même ref)
-              — ce qui laisse maintenant les dates de complétion ET leur
-              import Garmin/Strash comme SEUL contenu de ce bandeau, sans
-              rien pour lui faire concurrence visuellement.
-              RETOUR DIRECT ENCORE SUIVANT (maquette UI/UX complète) : ce
-              bandeau garde son rôle de gestion FINE (plusieurs dates
-              possibles, import/suppression par date précise) — mt-6 (au lieu
-              de mt-4) pour bien le détacher des badges juste au-dessus. Le
-              vrai CTA "Importer mes données" phare est maintenant le gros
-              bouton tout en bas de la carte (voir plus loin), cette liste
-              détaillée reste secondaire/utilitaire. */}
-          {isLocked && (
-            <div className={`w-full mt-6 p-4 rounded-2xl border border-green-200 dark:border-green-900/40 bg-green-50/60 dark:bg-green-900/10`}>
-              <div className="flex items-center gap-2 text-green-700 dark:text-green-400 text-sm font-bold mb-3">
-                <Lock size={15}/> Séance déjà réalisée — verrouillée pour préserver ton historique
-              </div>
-              {/* N'affiche cette liste que s'il reste au moins UNE date au-delà
-                  de `completions[0]` (déjà montrée, éditable, dans l'en-tête —
-                  voir renderTopCompletionDate plus haut) : sur une séance
-                  jamais rejouée (le cas le plus courant), il n'y aurait plus
-                  rien à montrer ici, autant ne pas rendre un conteneur vide. */}
-              {renderCompletionsList && currentPlaylist.completions.length > 1 && renderCompletionsList(currentPlaylist, mostRecentCompletionIso, [currentPlaylist.completions[0]])}
-            </div>
-          )}
+          {/* L'ancien bandeau "Séance déjà réalisée" (gros encart vert avec
+              cadenas) a été retiré d'ici — retour direct : "ne doit pas être
+              un gros bouton vert en fin d'encart, il doit être en haut,
+              rouge et plus fin, sans encart, le vert renvoie du positif pas
+              le fait qu'on ne puisse plus modifier". Son contenu (statut
+              verrouillé + dates de complétion supplémentaires) vit
+              maintenant tout en haut de la carte, à côté de la date — voir
+              plus haut. */}
 
           {/* RETOUR DIRECT (maquette UI/UX complète, points 3 et 4) : "gros
               bouton importer ses données", CTA phare de fin de séance — pleine
