@@ -16,7 +16,7 @@ import { Settings, Link as LinkIcon, Globe, Copy, Check, AlertTriangle } from 'l
  * rarement). Voir GeneratorView.jsx pour l'UI, useAthleticProfile.js pour le
  * state — inchangés, seul l'EMPLACEMENT dans l'app a changé.
  */
-export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri }) {
+export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, deezerToken, loginDeezer, setDeezerToken, deezerRedirectUri }) {
   const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg } = theme;
   // Retour direct : erreur Spotify "redirect_uri: Not matching configuration"
   // au clic sur "Lier mon compte" — ce n'est PAS un bug de ce code (voir
@@ -40,9 +40,24 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
     }).catch(() => {});
   };
 
+  // Même aide au dépannage, côté Deezer (voir le bloc Deezer plus bas).
+  const [copiedDeezer, setCopiedDeezer] = useState(false);
+  const copyDeezerRedirectUri = () => {
+    if (!deezerRedirectUri) return;
+    navigator.clipboard.writeText(deezerRedirectUri).then(() => {
+      setCopiedDeezer(true);
+      setTimeout(() => setCopiedDeezer(false), 2000);
+    }).catch(() => {});
+  };
+
   const disconnectSpotify = () => {
     window.localStorage.removeItem("spotify_token");
     setSpotifyToken(null);
+  };
+
+  const disconnectDeezer = () => {
+    window.localStorage.removeItem("deezer_token");
+    setDeezerToken(null);
   };
 
   return (
@@ -97,6 +112,59 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                 className={`shrink-0 p-1.5 rounded-md transition-colors ${copied ? 'text-green-500' : textMuted + ' hover:text-amber-600'}`}
               >
                 {copied ? <Check size={16}/> : <Copy size={16}/>}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* RETOUR DIRECT ("intégrer une alternative gratuite à Spotify, pas
+            besoin de Premium") — Deezer n'exige ni abonnement Premium côté
+            propriétaire de l'app, ni liste blanche d'utilisateurs comme le
+            Mode Développement Spotify (voir SettingsView.jsx, bloc Spotify
+            ci-dessus, et la conversation qui a mené à cette intégration).
+            Bloc structurellement identique à celui de Spotify juste
+            au-dessus, même logique connecté/déconnecté — les 2 comptes
+            peuvent être liés en même temps, sans exclusion mutuelle. */}
+        <div className="h-4"></div>
+        <div className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${deezerToken ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : inputBorder + ' ' + inputBg}`}>
+          <div className="flex items-center space-x-4">
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${deezerToken ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'}`}>
+              <LinkIcon size={24} />
+            </div>
+            <div>
+              <h4 className={`font-bold text-lg ${textHighlight}`}>Deezer</h4>
+              <p className={`text-sm ${textMuted}`}>{deezerToken ? 'Connecté (Accès à 90M de titres)' : 'Non connecté — gratuit, pas de Premium requis'}</p>
+            </div>
+          </div>
+
+          {!deezerToken ? (
+            <button onClick={loginDeezer} className="px-6 py-3 bg-[#A238FF] hover:bg-[#b45cff] text-white font-black rounded-xl shadow-md transition-all flex items-center space-x-2">
+              <span>Lier mon compte</span>
+            </button>
+          ) : (
+            <button onClick={disconnectDeezer} className={`px-4 py-2 bg-gray-200 dark:bg-gray-800 font-bold rounded-lg hover:bg-red-100 hover:text-red-500 transition-all text-gray-500`}>
+              Déconnecter
+            </button>
+          )}
+        </div>
+
+        {/* Même aide au dépannage que pour Spotify, adaptée au tableau de
+            bord Deezer (https://developers.deezer.com/myapps → l'app
+            concernée → Settings → Redirect URI). */}
+        {!deezerToken && deezerRedirectUri && (
+          <div className={`mt-4 p-4 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10`}>
+            <div className="flex items-start gap-2 text-sm font-bold text-amber-700 dark:text-amber-400 mb-2">
+              <AlertTriangle size={16} className="shrink-0 mt-0.5"/>
+              <span>Erreur de redirection Deezer ? Cette URL doit être enregistrée dans le Dashboard développeur Deezer de cette app (Settings → Redirect URI), à l'identique.</span>
+            </div>
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${inputBorder} ${inputBg}`}>
+              <code className={`flex-1 text-xs font-mono truncate ${textHighlight}`}>{deezerRedirectUri}</code>
+              <button
+                onClick={copyDeezerRedirectUri}
+                title="Copier cette URL"
+                className={`shrink-0 p-1.5 rounded-md transition-colors ${copiedDeezer ? 'text-green-500' : textMuted + ' hover:text-amber-600'}`}
+              >
+                {copiedDeezer ? <Check size={16}/> : <Copy size={16}/>}
               </button>
             </div>
           </div>
