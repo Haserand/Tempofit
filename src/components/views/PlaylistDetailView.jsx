@@ -387,6 +387,22 @@ export default function PlaylistDetailView({
   const trackMatchesDetailFilter = (t) =>
     (selectedDetailGenre.size === 0 || selectedDetailGenre.has(trackGenreLabel(t))) &&
     (selectedDetailBpmBucket.size === 0 || selectedDetailBpmBucket.has(trackBpmBucketLabel(t)));
+  // RETOUR DIRECT ("croiser les données des graphiques : voir les morceaux
+  // Metal dans les 2 catégories, pas juste Rock ET Metal dans les 2
+  // catégories") — jusqu'ici les 2 mini-listes "Titres" sous les camemberts
+  // ne regardaient QUE leur propre axe (`selectedDetailGenre.has(...)` seul
+  // pour celle du style, `selectedDetailBpmBucket.has(...)` seul pour celle
+  // du BPM), en ignorant complètement une sélection active sur l'AUTRE
+  // camembert — alors que `trackMatchesDetailFilter` ci-dessus fait déjà ce
+  // croisement (ET) correctement pour la liste principale de titres plus
+  // haut sur la page. Réutilisé tel quel ci-dessous : les 2 mini-listes
+  // affichent maintenant le même sous-ensemble croisé (Metal ET 140-159 BPM,
+  // pas Metal seul d'un côté et 140-159 BPM seul de l'autre), avec un même
+  // libellé combiné dans les 2 en-têtes.
+  const activeDetailFilterLabel = [
+    selectedDetailGenre.size > 0 ? [...selectedDetailGenre].join(', ') : null,
+    selectedDetailBpmBucket.size > 0 ? `${[...selectedDetailBpmBucket].join(', ')}${!isBpmChartUsingRealProfile ? ' BPM' : ''}` : null,
+  ].filter(Boolean).join(' · ');
 
   // BUG CORRIGÉ (retour direct) : le clic direct sur la courbe (surbrillance
   // ROUGE d'UN segment précis, `selectedSegmentIdx`, pré-existant) et le clic
@@ -1388,10 +1404,10 @@ export default function PlaylistDetailView({
               la mise en évidence dans la liste plus haut (voir hasDetailFilter/
               trackMatchesDetailFilter) ne suffisait pas, il fallait aussi voir
               CES titres directement sous le camembert, sans remonter la page. */}
-          {selectedDetailGenre.size > 0 && (
+          {hasDetailFilter && (
             <div className={`mt-4 pt-4 border-t ${cardBorder} space-y-1`}>
-              <div className={`text-xs font-bold uppercase tracking-wide mb-2 ${textMuted}`}>Titres · {[...selectedDetailGenre].join(', ')}</div>
-              {currentPlaylist.tracks.filter(t => selectedDetailGenre.has(trackGenreLabel(t))).map((t, i) => (
+              <div className={`text-xs font-bold uppercase tracking-wide mb-2 ${textMuted}`}>Titres · {activeDetailFilterLabel}</div>
+              {currentPlaylist.tracks.filter(trackMatchesDetailFilter).map((t, i) => (
                 <div key={i} className="flex items-center justify-between gap-2 text-sm py-1">
                   <div className="min-w-0">
                     <div className={`font-semibold truncate ${textHighlight}`}>{t.title}</div>
@@ -1512,10 +1528,10 @@ export default function PlaylistDetailView({
               );
             })}
           </div>
-          {selectedDetailBpmBucket.size > 0 && (
+          {hasDetailFilter && (
             <div className={`mt-4 pt-4 border-t ${cardBorder} space-y-1`}>
-              <div className={`text-xs font-bold uppercase tracking-wide mb-2 ${textMuted}`}>Titres · {[...selectedDetailBpmBucket].join(', ')}{!isBpmChartUsingRealProfile ? ' BPM' : ''}</div>
-              {currentPlaylist.tracks.filter(t => selectedDetailBpmBucket.has(trackBpmBucketLabel(t))).map((t, i) => (
+              <div className={`text-xs font-bold uppercase tracking-wide mb-2 ${textMuted}`}>Titres · {activeDetailFilterLabel}</div>
+              {currentPlaylist.tracks.filter(trackMatchesDetailFilter).map((t, i) => (
                 <div key={i} className="flex items-center justify-between gap-2 text-sm py-1">
                   <div className="min-w-0">
                     <div className={`font-semibold truncate ${textHighlight}`}>{t.title}</div>
