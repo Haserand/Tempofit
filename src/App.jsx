@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Play, Plus, Check, Pause, X, Heart, Loader2, AlertCircle, Zap, Menu, Edit3, Trophy, Upload } from 'lucide-react';
-import { ARTIST_CATALOG, EXTRA_GENRES, WEAK_DEEZER_KEYWORD_GENRES, normalizeGenreForDisplay, genreDisplayLabel, getGenresForDisplay } from './musicCatalog';
+import { Activity, Clock, Music, Check, X, Heart, Loader2, AlertCircle, Zap, Menu, Edit3, Trophy, Upload } from 'lucide-react';
+import { ARTIST_CATALOG, EXTRA_GENRES, WEAK_DEEZER_KEYWORD_GENRES, normalizeGenreForDisplay, genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getZoneForValue, ATHLETIC_ZONES, DISTRIBUTION_COLORS } from './appConfig';
 
 // =====================================================================================
@@ -465,118 +465,11 @@ export default function App() {
   // extraites sans risque dans hooks/useDeezerSearch.js.
   const { searchWorldMusicApi, commitBpmEdit, closeSearchModal, searchTracksByBpm } = useDeezerSearch(search, showToast, isNaughtyMode);
 
-  // Une seule ligne de résultat de recherche (bouton extrait + ajout/favori) —
-  // extraite en fonction réutilisable pour être partagée entre la liste
-  // principale (worldSearchResults) et la réserve "autres résultats" révélée en
-  // bas une fois la recherche épuisée (voir worldSearchOtherResults).
-  const renderSearchResultRow = (track, key) => {
-    const isEditingThisBpm = editingBpmId === track.youtubeId;
-    const isAlreadyFavorited = !currentPlaylist && favorites.tracks.some(t => t.youtubeId === track.youtubeId);
-    const addOrToggleFavorite = () => {
-      // Si on est dans la vue Playlist, on l'ajoute. Sinon, ça bascule dans les Favoris !
-      if (currentPlaylist) handleAddManualTrack(track);
-      else if (isAlreadyFavorited) {
-         setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.youtubeId !== track.youtubeId) }));
-         showToast("Retiré de tes favoris.");
-      } else {
-         setFavorites(prev => ({
-           ...prev,
-           artists: Array.from(new Set([...prev.artists, track.artist])),
-           tracks: [...prev.tracks, track]
-         }));
-         showToast("🎵 Ajouté à tes favoris !");
-      }
-    };
-    return (
-    <div key={key} className={"flex items-center gap-2 p-2 rounded-xl hover:bg-surface-hover transition-colors border border-transparent hover:" + cardBorder}>
-      {/* Bouton lecture/pause de l'extrait audio 30s (Deezer). Désactivé si aucun extrait disponible. */}
-      <button
-        onClick={() => togglePreview(track)}
-        disabled={!track.preview}
-        title={track.preview ? "Écouter un extrait" : "Extrait non disponible pour ce titre (source sans aperçu audio)"}
-        className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
-      >
-        {playingPreviewId === track.youtubeId ? <Pause size={16} fill="currentColor"/> : <Play size={16} fill="currentColor" className="ml-0.5"/>}
-      </button>
-
-      <button onClick={addOrToggleFavorite} className="flex-1 min-w-0 text-left">
-        <div className="truncate">
-          <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
-          <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${getGenresForDisplay(track.genre, track.artist, track.title).join(', ')}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Genre Deezer différent — peut quand même correspondre.">⚠️ Genre non confirmé</span>}{track._bpmSource === 'detected' && <span className="ml-1 text-amber-500 font-bold" title="BPM deviné par l'app, pas garanti.">⚠️ BPM estimé</span>}</div>
-        </div>
-      </button>
-
-      <div className="flex items-center gap-1.5 shrink-0">
-        {isEditingThisBpm ? (
-          <input
-            type="number"
-            autoFocus
-            defaultValue={track.bpm}
-            onFocus={(e) => e.target.select()}
-            onBlur={(e) => commitBpmEdit(track, e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur();
-              if (e.key === 'Escape') setEditingBpmId(null);
-            }}
-            className={`w-16 text-right font-mono text-sm font-bold bg-transparent border-b outline-none ${textColorClass} ${inputBorder}`}
-          />
-        ) : (track._bpmSource === 'detected' || track._bpmSource === 'manual') ? (
-          // L'édition n'est proposée QUE là où il y a un doute réel à corriger :
-          // `detected` (deviné par analyse audio, ambiguïté d'octave documentée
-          // plus haut) et `manual` (pour pouvoir se corriger à nouveau soi-même).
-          //
-          // ⚠️ Décision prise après retour utilisateur : au départ, TOUS les BPM
-          // étaient éditables, y compris ceux fournis directement par Deezer —
-          // ce qui n'a pas de sens ("corriger" une valeur qu'on n'a aucune
-          // raison de mettre en doute), et affaiblissait le signal du crayon
-          // pour les cas où il compte vraiment. Un titre `deezer`/`getsongbpm`
-          // s'affiche donc maintenant en texte simple, sans bouton ni crayon —
-          // le risque, sinon, est qu'un utilisateur tape un chiffre erroné sur
-          // un titre déjà fiable, et fausse silencieusement le matching BPM
-          // plus tard (le générateur choisirait ce titre pour un tempo qu'il
-          // n'a en réalité pas, puisque seule la métadonnée aurait changé, pas
-          // l'audio réel).
-          //
-          // Titre choisi avec soin : "~" seul (déjà présent) signale l'incertitude
-          // sans expliquer quoi faire. Le texte au survol dit explicitement
-          // qu'un clic permet de corriger — la seule vraie parade à une
-          // détection audio par nature ambiguë (voir le long historique de
-          // cette fonction plus haut) est de laisser l'utilisateur trancher
-          // lui-même quand il connaît la vraie valeur.
-          //
-          // Icône crayon TOUJOURS visible (pas seulement au survol) : le `title`
-          // (infobulle native) et un simple `hover:underline` sont tous les deux
-          // invisibles sur écran tactile (pas de survol au doigt) — sans indice
-          // visuel permanent, ce bouton ne se distinguait pas de texte normal
-          // sur mobile. Le `title` reste en plus, pour la souris/clavier.
-          <button
-            onClick={() => setEditingBpmId(track.youtubeId)}
-            title={
-              track._bpmSource === 'detected'
-                ? "BPM deviné, pas garanti — touche pour corriger."
-                : "BPM corrigé à la main. Touche pour modifier."
-            }
-            className={"flex items-center gap-1 font-mono text-sm font-bold " + textColorClass}
-          >
-            <span>{track._bpmSource === 'detected' ? '~' : ''}{track.bpm} BPM</span>
-            <Edit3 size={12} className="opacity-50"/>
-          </button>
-        ) : (
-          // Source fiable (Deezer ou GetSongBPM) : pas d'affordance d'édition —
-          // voir le commentaire ci-dessus pour le raisonnement complet.
-          <span className={"font-mono text-sm font-bold " + textColorClass}>{track.bpm} BPM</span>
-        )}
-        <button onClick={addOrToggleFavorite} title={isAlreadyFavorited ? "Retirer des favoris" : "Ajouter"}>
-          {isAlreadyFavorited ? (
-            <Check size={16} className="text-green-500" />
-          ) : (
-            <Plus size={16} className={textMuted}/>
-          )}
-        </button>
-      </div>
-    </div>
-    );
-  };
+  // renderSearchResultRow : déplacée dans SearchModal.jsx (retour direct :
+  // "continue avec renderSearchResultRow" — elle produit du JSX propre à
+  // cette modale, ça n'avait pas de sens qu'elle vive ailleurs que là où
+  // elle s'affiche). Ses dépendances (favoris, playlist en cours, lecture
+  // audio...) sont maintenant passées en props à SearchModal directement.
 
   // closeSearchModal, searchTracksByBpm : voir hooks/useDeezerSearch.js (même
   // hook call que searchWorldMusicApi/commitBpmEdit, plus haut).
@@ -2499,8 +2392,10 @@ export default function App() {
           searchLoadingMessage={searchLoadingMessage} searchElapsedSeconds={searchElapsedSeconds}
           searchHasMoreResults={searchHasMoreResults} isLoadingMoreResults={isLoadingMoreResults}
           resultsContextLabel={resultsContextLabel} searchActiveArtistName={searchActiveArtistName} noUsableResultsHint={noUsableResultsHint}
-          currentPlaylist={currentPlaylist} favorites={favorites}
-          renderSearchResultRow={renderSearchResultRow}
+          currentPlaylist={currentPlaylist} favorites={favorites} setFavorites={setFavorites}
+          editingBpmId={editingBpmId} setEditingBpmId={setEditingBpmId} commitBpmEdit={commitBpmEdit}
+          handleAddManualTrack={handleAddManualTrack} togglePreview={togglePreview} playingPreviewId={playingPreviewId}
+          showToast={showToast}
         />
 
         <IconPickerModal
