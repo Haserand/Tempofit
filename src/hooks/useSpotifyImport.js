@@ -32,16 +32,22 @@ export function useSpotifyImport(setFavorites, showToast) {
   const [spotifyTrackPool, setSpotifyTrackPool] = useState([]);
   const hasFetchedToken = useRef(false); // Garde-fou anti double-échange du "code" (StrictMode / re-render)
 
-  // Au montage : si l'URL contient un paramètre "code" (retour de la redirection
-  // Spotify après consentement de l'utilisateur), on l'échange contre un token
-  // d'accès via l'endpoint /api/token, en fournissant le "code_verifier" PKCE
-  // généré avant la redirection et stocké temporairement en localStorage.
+  // Au montage : si l'URL contient un paramètre "code" ET que ce code a été
+  // posé pour SPOTIFY (voir `oauth_provider_pending`, ajouté quand
+  // useDeezerImport.js est arrivé — Deezer redirige vers la MÊME URL de
+  // l'app, sans paramètre distinctif possible côté fournisseur : sans ce
+  // marqueur, les 2 hooks tenteraient chacun d'échanger le même code contre
+  // LEUR token respectif au retour), on l'échange contre un token d'accès
+  // via l'endpoint /api/token, en fournissant le "code_verifier" PKCE généré
+  // avant la redirection et stocké temporairement en localStorage.
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     let code = urlParams.get('code');
+    const pendingProvider = window.localStorage.getItem('oauth_provider_pending');
 
-    if (code && !hasFetchedToken.current) {
+    if (code && pendingProvider === 'spotify' && !hasFetchedToken.current) {
       hasFetchedToken.current = true;
+      window.localStorage.removeItem('oauth_provider_pending');
       const codeVerifier = window.localStorage.getItem('code_verifier');
 
       fetch(SPOTIFY_TOKEN_BASE, {
@@ -95,6 +101,7 @@ export function useSpotifyImport(setFavorites, showToast) {
   const loginSpotify = async () => {
     window.localStorage.removeItem("spotify_token");
     setSpotifyToken(null);
+    window.localStorage.setItem('oauth_provider_pending', 'spotify');
 
     const codeVerifier = generateRandomString(64);
     window.localStorage.setItem('code_verifier', codeVerifier);
