@@ -170,6 +170,19 @@ export function useSpotifyImport(setFavorites, showToast) {
         window.localStorage.removeItem("spotify_token");
         setSpotifyToken(null);
         showToast("❌ Ta session Spotify a expiré. Reconnecte-toi !", 'error');
+      } else if (e.message === "Accès Spotify refusé") {
+        // RETOUR DIRECT (boucle infinie constatée : reconnexion → 403 →
+        // "expiré" → reconnexion...) — un 403 signifie que le token est
+        // VALIDE mais que Spotify refuse quand même la requête : se
+        // reconnecter ne peut RIEN y changer, donc surtout ne pas vider le
+        // token ni pousser vers une nouvelle reconnexion ici (ça ne ferait
+        // que répéter le même échec). Cause la plus probable actuellement :
+        // restriction du Mode Développement Spotify (l'app doit avoir un
+        // propriétaire Spotify Premium depuis mars 2026, et le compte qui se
+        // connecte doit figurer dans "Users and Access" du tableau de bord
+        // développeur — voir developer.spotify.com/dashboard), pas un
+        // problème réglable depuis TempoFit lui-même.
+        showToast("❌ Spotify refuse l'accès — pas ta session, vérifie le compte développeur de l'app.", 'error');
       } else {
         showToast("❌ Erreur lors de l'importation.", 'error');
       }
