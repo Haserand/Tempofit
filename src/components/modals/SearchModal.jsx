@@ -1,19 +1,18 @@
-import { X, Target, Search, RefreshCw, Loader2, ChevronDown } from 'lucide-react';
-import { genreDisplayLabel } from '../../musicCatalog';
+import { X, Target, Search, RefreshCw, Loader2, ChevronDown, Play, Pause, Edit3, Check, Plus } from 'lucide-react';
+import { genreDisplayLabel, getGenresForDisplay } from '../../musicCatalog';
 
 /**
  * SearchModal — recherche manuelle d'un titre (par nom/artiste, ou par BPM
  * cible depuis un camembert "Titres à ce BPM"). Extrait de App.jsx (voir
  * CustomActivityModal.jsx pour le contexte de cette série d'extractions).
  *
- * La plus grosse des modales extraites, et la plus "à plat" en props —
- * volontairement laissée telle quelle dans cette passe (extraction pure,
- * mécanique, sans rien réorganiser en plus) plutôt que d'en profiter pour
- * réinventer sa gestion d'état : `renderSearchResultRow` reste défini dans
- * App.jsx et arrive ici en prop, comme les autres fonctions de rendu déjà
- * partagées avec les vues (ex. `renderCompletionsList`, PlaylistDetailView).
- * Un futur découpage de cette modale (ex. en sous-composants "mode texte" vs
- * "mode BPM") est un chantier à part, plus risqué, pas fait ici.
+ * `renderSearchResultRow` vit maintenant ICI (retour direct : "prends du
+ * recul, regarde si ça vaut le coup" sur useDeezerSearch.js, puis "continue
+ * avec renderSearchResultRow") plutôt que reçue en prop depuis App.jsx —
+ * elle produit du JSX propre à CETTE modale (une ligne de résultat), ça n'a
+ * jamais eu de sens qu'elle vive ailleurs que là où elle s'affiche. Ses
+ * dépendances (favoris, playlist en cours, lecture audio, édition BPM)
+ * arrivent en props individuelles, comme le reste de cette modale.
  */
 export default function SearchModal({
   theme,
@@ -24,12 +23,127 @@ export default function SearchModal({
   searchLoadingMessage, searchElapsedSeconds,
   searchHasMoreResults, isLoadingMoreResults,
   resultsContextLabel, searchActiveArtistName, noUsableResultsHint,
-  currentPlaylist, favorites,
-  renderSearchResultRow,
+  currentPlaylist, favorites, setFavorites,
+  editingBpmId, setEditingBpmId, commitBpmEdit,
+  handleAddManualTrack, togglePreview, playingPreviewId,
+  showToast,
 }) {
   const { cardBg, cardBorder, textHighlight, textColorClass, textMuted, inputBg, inputBorder, bgAccentClass } = theme;
 
   if (!isSearchModalOpen) return null;
+
+  // Une seule ligne de résultat de recherche (bouton extrait + ajout/favori) —
+  // extraite en fonction réutilisable pour être partagée entre la liste
+  // principale (worldSearchResults) et la réserve "autres résultats" révélée en
+  // bas une fois la recherche épuisée (voir worldSearchOtherResults).
+  const renderSearchResultRow = (track, key) => {
+    const isEditingThisBpm = editingBpmId === track.youtubeId;
+    const isAlreadyFavorited = !currentPlaylist && favorites.tracks.some(t => t.youtubeId === track.youtubeId);
+    const addOrToggleFavorite = () => {
+      // Si on est dans la vue Playlist, on l'ajoute. Sinon, ça bascule dans les Favoris !
+      if (currentPlaylist) handleAddManualTrack(track);
+      else if (isAlreadyFavorited) {
+         setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.youtubeId !== track.youtubeId) }));
+         showToast("Retiré de tes favoris.");
+      } else {
+         setFavorites(prev => ({
+           ...prev,
+           artists: Array.from(new Set([...prev.artists, track.artist])),
+           tracks: [...prev.tracks, track]
+         }));
+         showToast("🎵 Ajouté à tes favoris !");
+      }
+    };
+    return (
+    <div key={key} className={"flex items-center gap-2 p-2 rounded-xl hover:bg-surface-hover transition-colors border border-transparent hover:" + cardBorder}>
+      {/* Bouton lecture/pause de l'extrait audio 30s (Deezer). Désactivé si aucun extrait disponible. */}
+      <button
+        onClick={() => togglePreview(track)}
+        disabled={!track.preview}
+        title={track.preview ? "Écouter un extrait" : "Extrait non disponible pour ce titre (source sans aperçu audio)"}
+        className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
+      >
+        {playingPreviewId === track.youtubeId ? <Pause size={16} fill="currentColor"/> : <Play size={16} fill="currentColor" className="ml-0.5"/>}
+      </button>
+
+      <button onClick={addOrToggleFavorite} className="flex-1 min-w-0 text-left">
+        <div className="truncate">
+          <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
+          <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${getGenresForDisplay(track.genre, track.artist, track.title).join(', ')}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Genre Deezer différent — peut quand même correspondre.">⚠️ Genre non confirmé</span>}{track._bpmSource === 'detected' && <span className="ml-1 text-amber-500 font-bold" title="BPM deviné par l'app, pas garanti.">⚠️ BPM estimé</span>}</div>
+        </div>
+      </button>
+
+      <div className="flex items-center gap-1.5 shrink-0">
+        {isEditingThisBpm ? (
+          <input
+            type="number"
+            autoFocus
+            defaultValue={track.bpm}
+            onFocus={(e) => e.target.select()}
+            onBlur={(e) => commitBpmEdit(track, e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur();
+              if (e.key === 'Escape') setEditingBpmId(null);
+            }}
+            className={`w-16 text-right font-mono text-sm font-bold bg-transparent border-b outline-none ${textColorClass} ${inputBorder}`}
+          />
+        ) : (track._bpmSource === 'detected' || track._bpmSource === 'manual') ? (
+          // L'édition n'est proposée QUE là où il y a un doute réel à corriger :
+          // `detected` (deviné par analyse audio, ambiguïté d'octave documentée
+          // plus haut) et `manual` (pour pouvoir se corriger à nouveau soi-même).
+          //
+          // ⚠️ Décision prise après retour utilisateur : au départ, TOUS les BPM
+          // étaient éditables, y compris ceux fournis directement par Deezer —
+          // ce qui n'a pas de sens ("corriger" une valeur qu'on n'a aucune
+          // raison de mettre en doute), et affaiblissait le signal du crayon
+          // pour les cas où il compte vraiment. Un titre `deezer`/`getsongbpm`
+          // s'affiche donc maintenant en texte simple, sans bouton ni crayon —
+          // le risque, sinon, est qu'un utilisateur tape un chiffre erroné sur
+          // un titre déjà fiable, et fausse silencieusement le matching BPM
+          // plus tard (le générateur choisirait ce titre pour un tempo qu'il
+          // n'a en réalité pas, puisque seule la métadonnée aurait changé, pas
+          // l'audio réel).
+          //
+          // Titre choisi avec soin : "~" seul (déjà présent) signale l'incertitude
+          // sans expliquer quoi faire. Le texte au survol dit explicitement
+          // qu'un clic permet de corriger — la seule vraie parade à une
+          // détection audio par nature ambiguë (voir le long historique de
+          // cette fonction plus haut) est de laisser l'utilisateur trancher
+          // lui-même quand il connaît la vraie valeur.
+          //
+          // Icône crayon TOUJOURS visible (pas seulement au survol) : le `title`
+          // (infobulle native) et un simple `hover:underline` sont tous les deux
+          // invisibles sur écran tactile (pas de survol au doigt) — sans indice
+          // visuel permanent, ce bouton ne se distinguait pas de texte normal
+          // sur mobile. Le `title` reste en plus, pour la souris/clavier.
+          <button
+            onClick={() => setEditingBpmId(track.youtubeId)}
+            title={
+              track._bpmSource === 'detected'
+                ? "BPM deviné, pas garanti — touche pour corriger."
+                : "BPM corrigé à la main. Touche pour modifier."
+            }
+            className={"flex items-center gap-1 font-mono text-sm font-bold " + textColorClass}
+          >
+            <span>{track._bpmSource === 'detected' ? '~' : ''}{track.bpm} BPM</span>
+            <Edit3 size={12} className="opacity-50"/>
+          </button>
+        ) : (
+          // Source fiable (Deezer ou GetSongBPM) : pas d'affordance d'édition —
+          // voir le commentaire ci-dessus pour le raisonnement complet.
+          <span className={"font-mono text-sm font-bold " + textColorClass}>{track.bpm} BPM</span>
+        )}
+        <button onClick={addOrToggleFavorite} title={isAlreadyFavorited ? "Retirer des favoris" : "Ajouter"}>
+          {isAlreadyFavorited ? (
+            <Check size={16} className="text-green-500" />
+          ) : (
+            <Plus size={16} className={textMuted}/>
+          )}
+        </button>
+      </div>
+    </div>
+    );
+  };
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={closeSearchModal}>
