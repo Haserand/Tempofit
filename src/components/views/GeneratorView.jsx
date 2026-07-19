@@ -548,13 +548,15 @@ export default function GeneratorView({
                       </button>
                     ))}
                   </div>
-                  {/* RETOUR DIRECT ("séparer un peu plus les 2 parties, et le
-                      texte doit avoir même taille/graisse/couleur que le
-                      label 'BPM cibles par zone' juste au-dessus") — `mt-3`
-                      au lieu du `space-y-1.5` d'avant (collé au bloc toggle),
-                      et `text-xs font-bold` pour matcher exactement le label
-                      de la ligne 427 (déjà même couleur, `textMuted`). */}
-                  <p className={`text-xs font-bold mt-3 ${textMuted}`}>{selectedOption.desc}</p>
+                  {/* RETOUR DIRECT ("même espacement texte→bloc que pour le
+                      titre 'BPM cibles par zone' au-dessus, qui utilise
+                      mb-2 avant son bloc toggle") — `mt-2` ici au lieu de
+                      `mt-3`, pour matcher exactement cet autre espacement
+                      plutôt qu'une valeur proche mais différente. Taille/
+                      graisse/couleur (`text-xs font-bold ${textMuted}`)
+                      déjà alignées sur ce même label lors du réglage
+                      précédent. */}
+                  <p className={`text-xs font-bold mt-2 ${textMuted}`}>{selectedOption.desc}</p>
                 </div>
               );
             })()}
