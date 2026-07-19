@@ -37,6 +37,7 @@ import { useTrackSearch } from './hooks/useTrackSearch';
 import { useDeezerSearch } from './hooks/useDeezerSearch';
 import { useFavorites } from './hooks/useFavorites';
 import { useSpotifyImport } from './hooks/useSpotifyImport';
+import { useDeezerImport } from './hooks/useDeezerImport';
 import { useAthleticProfile } from './hooks/useAthleticProfile';
 import { useRoutines } from './hooks/useRoutines';
 import { useUserStats } from './hooks/useUserStats';
@@ -195,6 +196,14 @@ export default function App() {
   // useFavorites, parce qu'il a besoin de `setFavorites` (la synchro fusionne
   // les titres likés/artistes suivis dans les favoris existants).
   const { spotifyToken, setSpotifyToken, spotifyTrackPool, setSpotifyTrackPool, loginSpotify, syncSpotifyFavorites, REDIRECT_URI } = useSpotifyImport(setFavorites, showToast);
+
+  // MOTEUR DEEZER (voir hooks/useDeezerImport.js) — même raison d'être ici
+  // (après useFavorites), et fusionne dans les MÊMES favoris que Spotify :
+  // le moteur de génération (musicEngine.js) lit `favorites` comme source
+  // unique, peu importe la plateforme d'origine de chaque titre. Alternative
+  // gratuite à Spotify, ajoutée sans toucher à l'intégration existante — les
+  // deux peuvent être connectés en même temps.
+  const { deezerToken, setDeezerToken, loginDeezer, syncDeezerFavorites, REDIRECT_URI: DEEZER_REDIRECT_URI } = useDeezerImport(setFavorites, showToast);
 
 
   // Profil Athlétique (BPM cibles par zone d'effort) — voir useAthleticProfile.js.
@@ -2303,6 +2312,8 @@ export default function App() {
               <SettingsView
                 theme={themeTokens} spotifyToken={spotifyToken} loginSpotify={loginSpotify} setSpotifyToken={setSpotifyToken}
                 spotifyRedirectUri={REDIRECT_URI}
+                deezerToken={deezerToken} loginDeezer={loginDeezer} setDeezerToken={setDeezerToken}
+                deezerRedirectUri={DEEZER_REDIRECT_URI}
               />
             )}
 
