@@ -188,21 +188,27 @@ export function useGeneratorForm(isNaughtyMode, athleticProfile) {
         && finalCooldown === profileWarmupCooldownBpm;
       setBpmSourceIsProfile(allThreeComeFromProfile);
 
-      // Resserre la marge d'erreur par défaut (14 BPM, pensée pour le mode
-      // Allure Constante) UNE SEULE FOIS en entrant en Crescendo — retour
-      // direct après constat chiffré : avec les BPM déduits par défaut
-      // (`deduceCrescendoBpm`, écart de 15 BPM entre Retour au calme et
-      // Échauffement dans le cas courant), une tolérance de ±14 fait
-      // CHEVAUCHER les 2 zones de recherche (jusqu'à 28 BPM de recoupement
-      // selon le BPM cible) — un même titre pouvait alors satisfaire les 2
-      // phases à la fois, ce qui va à l'encontre même de l'idée du Crescendo
-      // (des paliers distincts). 7 BPM laisse une marge de sécurité dans le
-      // cas le plus serré tout en restant un point de départ raisonnable, pas
-      // un plafond dur — l'utilisateur garde la main via le curseur de
-      // l'étape 4, comme pour tout le reste ici (voir `bpmToleranceTouched` :
-      // ne s'applique QUE si l'utilisateur n'a jamais touché ce réglage lui-
-      // même, jamais après un choix délibéré, même si ce choix retombe sur 14).
-      if (!bpmToleranceTouched) setBpmToleranceRaw(7);
+      // RETOUR DIRECT ("mettre marge d'erreur à 5 pour être au plus proche du
+      // mode Synchro du Profil Athlétique") — l'ancienne valeur fixe (7,
+      // pensée pour l'espacement ÉNERGIE par défaut, ~15 BPM/palier en
+      // course) ne pouvait pas refléter le mode Synchro (bien plus resserré :
+      // 6 BPM/palier en course, 3 en vélo — voir SYNC_ZONE_SPACING_BY_ACTIVITY,
+      // useAthleticProfile.js) ni même les autres activités en énergie (5
+      // BPM/palier en vélo). Plutôt que deviner une 2e constante, calculée ici
+      // depuis le VRAI écart entre le Cœur de séance et l'Échauffement/Retour
+      // au calme qu'on vient de sceller juste au-dessus (`effectiveMainBpm`/
+      // `warmupSeed`/`cooldownSeed`) — reflète automatiquement l'espacement
+      // RÉELLEMENT actif (énergie ou sync, quelle que soit l'activité, profil
+      // configuré ou non), sans dépendre d'un nouveau paramètre externe.
+      // `Math.floor(écart / 2)` : la même logique qu'avant (éviter que les 2
+      // zones de recherche ±tolérance se chevauchent), appliquée à l'écart
+      // réel plutôt qu'à une estimation. Bornée à [3, 14] : 3 pour éviter une
+      // recherche trop étroite sur les espacements les plus serrés (Synchro
+      // vélo notamment), 14 pour ne jamais dépasser la marge par défaut du
+      // mode Allure Constante (aucune raison d'être PLUS large qu'elle).
+      const tightestGap = Math.min(Math.abs(effectiveMainBpm - warmupSeed), Math.abs(effectiveMainBpm - cooldownSeed));
+      const dynamicTolerance = tightestGap > 0 ? Math.min(14, Math.max(3, Math.floor(tightestGap / 2))) : 7;
+      if (!bpmToleranceTouched) setBpmToleranceRaw(dynamicTolerance);
     } else if (mode === 'constant') {
       // Même badge qu'en Crescendo, mais basé sur la SEULE valeur pertinente ici
       // (pas de triplet Échauffement/Cœur/Retour au calme — juste le rythme
