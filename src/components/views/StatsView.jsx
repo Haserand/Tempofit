@@ -3,7 +3,7 @@ import { Activity, Flame, Upload, ChevronUp, ChevronDown, ChevronRight, Gauge, S
 import { ATHLETIC_ZONES, getZoneForValue } from '../../appConfig';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import { NAUGHTY_WORKOUT_LABELS } from '../../appConfig';
-import { genreDisplayLabel } from '../../musicCatalog';
+import { genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog';
 import { formatDuration } from '../../utils/format';
 import GlobalStatsShareCard from '../shared/GlobalStatsShareCard';
 
@@ -172,10 +172,34 @@ export default function StatsView({
   // précis (voir l'appel dans la boucle des titres plus bas).
   const classifyIntoZone = (bpmVal, activityName) => getZoneForValue(bpmVal, activityName, getProfileForWorkout)?.key || null;
 
+  // RETOUR DIRECT ("recalculer un vrai genre par titre, pour pouvoir croiser
+  // style × BPM comme dans PlaylistDetailView.jsx") — jusqu'ici un titre
+  // était crédité à TOUS les genres tagués sur SA SÉANCE (`pl.config.
+  // selectedGenres`), jamais à son propre genre réel : une séance "Rock +
+  // Metal" comptait chacun de ses titres dans les deux catégories à la fois,
+  // sans distinction. Repli sur le 1er genre de séance UNIQUEMENT si le
+  // titre lui-même n'a aucun genre exploitable (`t.genre` absent — anciennes
+  // données, ou titre ajouté manuellement sans résolution Deezer).
+  // `normalizeGenreForDisplay` renvoie l'identifiant CANONIQUE (pas le
+  // libellé d'affichage — voir sa doc dans musicCatalog.js), cohérent avec
+  // le reste de cette page qui indexe toujours ses tables sur le nom
+  // canonique et n'applique `genreDisplayLabel` qu'au moment de l'affichage.
+  const trackGenreLabel = (t, sessionGenres) =>
+    t.genre ? normalizeGenreForDisplay(t.genre, t.artist, t.title) : ((sessionGenres && sessionGenres[0]) || 'Autre');
+
+  // Une entrée par OCCURRENCE de titre (une séance rejouée 3x compte 3
+  // occurrences) — sert uniquement au croisement style×BPM du panneau
+  // "Zoom" plus bas (voir hasStatsFilter/trackOccurrenceMatchesFilter) :
+  // contrairement à `genreArtistCounts`/`genreBpmBuckets`/etc. (agrégés PAR
+  // genre ou PAR tranche BPM séparément, toujours utiles pour la vue
+  // avancée à un seul axe), cette liste plate permet de filtrer sur LES DEUX
+  // axes à la fois avant de recompter, plutôt que de fusionner 2 tables déjà
+  // agrégées indépendamment sans lien entre elles.
+  const allTrackOccurrences = [];
+
   playlistsForStats.forEach(pl => {
     if (!pl.completions || pl.completions.length === 0) return;
     const genres = (pl.config?.selectedGenres && pl.config.selectedGenres.length > 0) ? pl.config.selectedGenres : ['Autre'];
-    const perGenreSeconds = (pl.totalDuration || 0) / genres.length;
     // En Mode Intime, `pl.workoutType` vaut toujours "Ambiance" (écrasé volontairement
     // pour la discrétion sur les cartes de playlist). L'activité RÉELLE est toujours
     // dans `pl.config.workoutName`.
@@ -202,15 +226,15 @@ export default function StatsView({
       const d = new Date(dateStr);
       const isThisMonth = !isNaN(d) && d.getFullYear() === nowForZones.getFullYear() && d.getMonth() === nowForZones.getMonth();
       const monthKey = !isNaN(d) ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : null;
-      genres.forEach(g => {
-        genreSeconds[g] = (genreSeconds[g] || 0) + perGenreSeconds;
-        genreSessions[g] = (genreSessions[g] || 0) + 1;
-        if (!genreActivityCounts[g]) genreActivityCounts[g] = {};
-        genreActivityCounts[g][activity] = (genreActivityCounts[g][activity] || 0) + 1;
-      });
       activitySeconds[activity] = (activitySeconds[activity] || 0) + (pl.totalDuration || 0);
       activitySessions[activity] = (activitySessions[activity] || 0) + 1;
       allSessions.push({ date: dateStr, duration: pl.totalDuration || 0, bpm: pl.config?.bpm || null, activity, genres, name: pl.name });
+      // Genres RÉELLEMENT rencontrés parmi les titres de CETTE séance (voir
+      // trackGenreLabel) — remplit `genreSessions`/`genreActivityCounts` à la
+      // même granularité qu'avant (1 fois par genre PRÉSENT dans la séance,
+      // pas 1 fois par titre), mais dérivée des vrais genres de titres plutôt
+      // que des tags de séance déclarés.
+      const sessionGenresPresent = new Set();
       (pl.tracks || []).forEach(t => {
         if (!t.artist) return;
         artistCounts[t.artist] = (artistCounts[t.artist] || 0) + 1;
@@ -229,20 +253,21 @@ export default function StatsView({
         trackActivityCounts[key][activity] = (trackActivityCounts[key][activity] || 0) + 1;
         if (t.bpm) { trackBpmSum[key] = (trackBpmSum[key] || 0) + t.bpm; trackBpmCount[key] = (trackBpmCount[key] || 0) + 1; }
 
-        // Zoom par genre : chaque genre sélectionné pour CETTE séance (pas le genre
-        // réel du titre) reçoit ce titre.
-        genres.forEach(g => {
-          if (!genreArtistCounts[g]) genreArtistCounts[g] = {};
-          genreArtistCounts[g][t.artist] = (genreArtistCounts[g][t.artist] || 0) + 1;
-          if (!genreTrackCounts[g]) genreTrackCounts[g] = {};
-          if (!genreTrackCounts[g][key]) genreTrackCounts[g][key] = { title: t.title, artist: t.artist, count: 0 };
-          genreTrackCounts[g][key].count += 1;
-          if (t.bpm) {
-            if (!genreBpmBuckets[g]) genreBpmBuckets[g] = {};
-            const b = bpmBucketLabel(t.bpm);
-            genreBpmBuckets[g][b] = (genreBpmBuckets[g][b] || 0) + 1;
-          }
-        });
+        // Genre RÉEL de CE titre (pas des genres de séance) — voir le retour
+        // direct plus haut, trackGenreLabel.
+        const g = trackGenreLabel(t, genres);
+        sessionGenresPresent.add(g);
+        genreSeconds[g] = (genreSeconds[g] || 0) + (t.duration || 0);
+        if (!genreArtistCounts[g]) genreArtistCounts[g] = {};
+        genreArtistCounts[g][t.artist] = (genreArtistCounts[g][t.artist] || 0) + 1;
+        if (!genreTrackCounts[g]) genreTrackCounts[g] = {};
+        if (!genreTrackCounts[g][key]) genreTrackCounts[g][key] = { title: t.title, artist: t.artist, count: 0 };
+        genreTrackCounts[g][key].count += 1;
+        if (t.bpm) {
+          if (!genreBpmBuckets[g]) genreBpmBuckets[g] = {};
+          const b = bpmBucketLabel(t.bpm);
+          genreBpmBuckets[g][b] = (genreBpmBuckets[g][b] || 0) + 1;
+        }
 
         if (t.bpm) {
           const bucket = bpmBucketLabel(t.bpm);
@@ -252,11 +277,13 @@ export default function StatsView({
           if (!bpmBucketTrackCounts[bucket]) bpmBucketTrackCounts[bucket] = {};
           if (!bpmBucketTrackCounts[bucket][key]) bpmBucketTrackCounts[bucket][key] = { title: t.title, artist: t.artist, count: 0 };
           bpmBucketTrackCounts[bucket][key].count += 1;
-          genres.forEach(g => {
-            if (!bpmBucketGenreCounts[bucket]) bpmBucketGenreCounts[bucket] = {};
-            bpmBucketGenreCounts[bucket][g] = (bpmBucketGenreCounts[bucket][g] || 0) + 1;
-          });
+          if (!bpmBucketGenreCounts[bucket]) bpmBucketGenreCounts[bucket] = {};
+          bpmBucketGenreCounts[bucket][g] = (bpmBucketGenreCounts[bucket][g] || 0) + 1;
         }
+
+        // Liste plate pour le croisement style×BPM du panneau Zoom — voir
+        // allTrackOccurrences plus haut.
+        allTrackOccurrences.push({ title: t.title, artist: t.artist, bpm: t.bpm || null, genre: g });
 
         // Profil Athlétique : classe ce titre dans la zone la plus proche DU
         // PROFIL DE L'ACTIVITÉ DE CETTE SÉANCE (`activity`, déjà calculé plus
@@ -284,6 +311,16 @@ export default function StatsView({
             }
           }
         }
+      });
+      // Séance comptée 1 fois par genre RÉELLEMENT présent parmi ses titres
+      // (sessionGenresPresent) — repli sur les genres de séance déclarés
+      // uniquement si aucun titre n'a pu être attribué à un genre (aucun
+      // titre avec artiste valide dans cette séance).
+      const genresForThisSession = sessionGenresPresent.size > 0 ? sessionGenresPresent : new Set(genres);
+      genresForThisSession.forEach(g => {
+        genreSessions[g] = (genreSessions[g] || 0) + 1;
+        if (!genreActivityCounts[g]) genreActivityCounts[g] = {};
+        genreActivityCounts[g][activity] = (genreActivityCounts[g][activity] || 0) + 1;
       });
       // Regroupement par mois (année-mois) plutôt que par semaine ISO — plus simple
       // à calculer sans librairie de dates dédiée. Réutilise `monthKey` calculé plus
@@ -396,35 +433,48 @@ export default function StatsView({
   // seulement : un aperçu, pas un doublon de la vue détaillée existante.
   const topNEntries = (counts, n = 3) => Object.entries(counts || {}).sort((a, b) => b[1] - a[1]).slice(0, n);
   const topNTracksFromMap = (tracksMap, n = 3) => Object.values(tracksMap || {}).sort((a, b) => b.count - a.count).slice(0, n);
-  // RETOUR DIRECT ("faut pouvoir sélectionner plusieurs zones graphiques à la
-  // fois") — `genreArtistCounts`/`genreBpmBuckets`/`genreTrackCounts` (et
-  // leurs équivalents `bpmBucket*`) sont des dictionnaires PAR VALEUR (une
-  // sous-table par genre, ou par tranche de BPM). Avec plusieurs valeurs
-  // sélectionnées à la fois (`selectedStatsGenre`/`selectedStatsBpmBucket`,
-  // des `Set` désormais), le "Zoom" doit fusionner ces sous-tables plutôt que
-  // n'en lire qu'une seule — ces 2 helpers font cette fusion (somme des
-  // comptes sur les clés communes) avant de passer à `topNEntries`/
-  // `topNTracksFromMap`, qui eux n'ont pas besoin de savoir qu'il y a
-  // plusieurs sélections derrière.
-  const mergeCountMaps = (dictOfDicts, selectedKeys) => {
-    const merged = {};
-    selectedKeys.forEach(k => {
-      Object.entries(dictOfDicts[k] || {}).forEach(([innerKey, count]) => {
-        merged[innerKey] = (merged[innerKey] || 0) + count;
-      });
+  // RETOUR DIRECT ("croiser les données des graphiques : voir les morceaux
+  // Metal dans les 2 catégories, pas juste Rock ET Metal dans les 2
+  // catégories") — l'ancienne approche (2 helpers `mergeCountMaps`/
+  // `mergeTrackMaps`, supprimés) fusionnait plusieurs valeurs sélectionnées
+  // À L'INTÉRIEUR d'un même camembert (ex. Rock + Metal ensemble), mais ne
+  // croisait jamais les 2 camemberts ENTRE EUX (style ET BPM) : sélectionner
+  // Metal + 140-159 BPM montrait "tout Metal" d'un côté et "tout 140-159" de
+  // l'autre, jamais leur intersection.
+  // `allTrackOccurrences` (une entrée par occurrence de titre, genre RÉEL
+  // inclus — voir trackGenreLabel) permet maintenant ce vrai croisement : on
+  // filtre d'abord sur LES DEUX sélections à la fois, puis on recompte
+  // artistes/titres/tranches BPM/genres à partir de ce sous-ensemble déjà
+  // croisé — même principe que `trackMatchesDetailFilter` dans
+  // PlaylistDetailView.jsx, appliqué ici à tout l'historique plutôt qu'à une
+  // seule playlist.
+  const hasStatsFilter = selectedStatsGenre.size > 0 || selectedStatsBpmBucket.size > 0;
+  const trackOccurrenceMatchesStatsFilter = (occ) =>
+    (selectedStatsGenre.size === 0 || selectedStatsGenre.has(occ.genre)) &&
+    (selectedStatsBpmBucket.size === 0 || (occ.bpm != null && selectedStatsBpmBucket.has(bpmBucketLabel(occ.bpm))));
+  const statsZoomArtistCounts = {};
+  const statsZoomGenreCounts = {};
+  const statsZoomBpmCounts = {};
+  const statsZoomTrackCounts = {};
+  if (hasStatsFilter) {
+    allTrackOccurrences.filter(trackOccurrenceMatchesStatsFilter).forEach(occ => {
+      statsZoomArtistCounts[occ.artist] = (statsZoomArtistCounts[occ.artist] || 0) + 1;
+      statsZoomGenreCounts[occ.genre] = (statsZoomGenreCounts[occ.genre] || 0) + 1;
+      if (occ.bpm != null) {
+        const b = bpmBucketLabel(occ.bpm);
+        statsZoomBpmCounts[b] = (statsZoomBpmCounts[b] || 0) + 1;
+      }
+      const trackKey = `${occ.title}|||${occ.artist}`;
+      if (!statsZoomTrackCounts[trackKey]) statsZoomTrackCounts[trackKey] = { title: occ.title, artist: occ.artist, count: 0 };
+      statsZoomTrackCounts[trackKey].count += 1;
     });
-    return merged;
-  };
-  const mergeTrackMaps = (dictOfDicts, selectedKeys) => {
-    const merged = {};
-    selectedKeys.forEach(k => {
-      Object.entries(dictOfDicts[k] || {}).forEach(([trackKey, info]) => {
-        if (!merged[trackKey]) merged[trackKey] = { ...info, count: 0 };
-        merged[trackKey].count += info.count;
-      });
-    });
-    return merged;
-  };
+  }
+  // Libellé combiné des 2 filtres actifs pour l'en-tête "Zoom" — même format
+  // que `activeDetailFilterLabel` dans PlaylistDetailView.jsx.
+  const activeStatsFilterLabel = [
+    selectedStatsGenre.size > 0 ? [...selectedStatsGenre].map(genreDisplayLabel).join(', ') : null,
+    selectedStatsBpmBucket.size > 0 ? `${[...selectedStatsBpmBucket].join(', ')} BPM` : null,
+  ].filter(Boolean).join(' · ');
   // BPM moyen réel d'un titre (pas le BPM cible de la séance) — même clé
   // "titre|||artiste" que trackBpmSum/trackBpmCount plus haut. Utilisé par le
   // récap de titres des zooms genre/BPM ci-dessous (voir "Titres écoutés").
@@ -946,18 +996,15 @@ export default function StatsView({
                     </button>
                   ))}
                 </div>
-                {selectedStatsGenre.size > 0 && (() => {
-                  const mergedArtists = mergeCountMaps(genreArtistCounts, selectedStatsGenre);
-                  const mergedBpm = mergeCountMaps(genreBpmBuckets, selectedStatsGenre);
-                  const mergedTracks = mergeTrackMaps(genreTrackCounts, selectedStatsGenre);
+                {hasStatsFilter && (() => {
                   return (
                   <div className={`w-full text-sm space-y-1.5 pt-3 border-t ${cardBorder}`}>
-                    <div className={`font-bold ${textHighlight}`}>Zoom : {[...selectedStatsGenre].join(', ')}</div>
+                    <div className={`font-bold ${textHighlight}`}>Zoom : {activeStatsFilterLabel}</div>
                     <div className={textMuted}>
-                      <span className="font-semibold">Artistes</span> : {topNEntries(mergedArtists).map(([a, c]) => `${a} (${c})`).join(', ') || '—'}
+                      <span className="font-semibold">Artistes</span> : {topNEntries(statsZoomArtistCounts).map(([a, c]) => `${a} (${c})`).join(', ') || '—'}
                     </div>
                     <div className={textMuted}>
-                      <span className="font-semibold">BPM</span> : {bpmBucketOrder.filter(b => mergedBpm[b]).map(b => `${b} (${mergedBpm[b]})`).join(', ') || '—'}
+                      <span className="font-semibold">BPM</span> : {bpmBucketOrder.filter(b => statsZoomBpmCounts[b]).map(b => `${b} (${statsZoomBpmCounts[b]})`).join(', ') || '—'}
                     </div>
                     {/* Récap complet des titres écoutés dans ce genre (pas
                         seulement le top 3, comme la ligne "Artistes"/"BPM"
@@ -968,7 +1015,7 @@ export default function StatsView({
                         historique. */}
                     <div className={`font-semibold ${textHighlight} pt-1`}>Titres écoutés</div>
                     <div className="max-h-48 overflow-y-auto no-scrollbar space-y-1 -mx-1.5">
-                      {topNTracksFromMap(mergedTracks, Infinity).map((t, i) => (
+                      {topNTracksFromMap(statsZoomTrackCounts, Infinity).map((t, i) => (
                         <div key={i} className={`flex items-center justify-between gap-2 px-1.5 py-1 rounded-lg ${i % 2 === 0 ? '' : 'bg-black/5 dark:bg-white/5'}`}>
                           <div className="min-w-0">
                             <div className={`font-semibold truncate ${textHighlight}`}>{t.title}</div>
@@ -977,7 +1024,7 @@ export default function StatsView({
                           <span className={`shrink-0 text-xs font-bold ${textMuted}`}>{t.count}x</span>
                         </div>
                       )) }
-                      {Object.keys(mergedTracks).length === 0 && (
+                      {Object.keys(statsZoomTrackCounts).length === 0 && (
                         <div className={textMuted}>—</div>
                       )}
                     </div>
@@ -1021,22 +1068,19 @@ export default function StatsView({
                       </button>
                     ))}
                   </div>
-                  {selectedStatsBpmBucket.size > 0 && (() => {
-                    const mergedArtists = mergeCountMaps(bpmBucketArtistCounts, selectedStatsBpmBucket);
-                    const mergedGenres = mergeCountMaps(bpmBucketGenreCounts, selectedStatsBpmBucket);
-                    const mergedTracks = mergeTrackMaps(bpmBucketTrackCounts, selectedStatsBpmBucket);
+                  {hasStatsFilter && (() => {
                     return (
                     <div className={`w-full text-sm space-y-1.5 pt-3 border-t ${cardBorder}`}>
-                      <div className={`font-bold ${textHighlight}`}>Zoom : {[...selectedStatsBpmBucket].join(', ')} BPM</div>
+                      <div className={`font-bold ${textHighlight}`}>Zoom : {activeStatsFilterLabel}</div>
                       <div className={textMuted}>
-                        <span className="font-semibold">Artistes</span> : {topNEntries(mergedArtists).map(([a, c]) => `${a} (${c})`).join(', ') || '—'}
+                        <span className="font-semibold">Artistes</span> : {topNEntries(statsZoomArtistCounts).map(([a, c]) => `${a} (${c})`).join(', ') || '—'}
                       </div>
                       <div className={textMuted}>
-                        <span className="font-semibold">Styles</span> : {topNEntries(mergedGenres).map(([g, c]) => `${g} (${c})`).join(', ') || '—'}
+                        <span className="font-semibold">Styles</span> : {topNEntries(statsZoomGenreCounts).map(([g, c]) => `${g} (${c})`).join(', ') || '—'}
                       </div>
                       <div className={`font-semibold ${textHighlight} pt-1`}>Titres écoutés</div>
                       <div className="max-h-48 overflow-y-auto no-scrollbar space-y-1 -mx-1.5">
-                        {topNTracksFromMap(mergedTracks, Infinity).map((t, i) => (
+                        {topNTracksFromMap(statsZoomTrackCounts, Infinity).map((t, i) => (
                           <div key={i} className={`flex items-center justify-between gap-2 px-1.5 py-1 rounded-lg ${i % 2 === 0 ? '' : 'bg-black/5 dark:bg-white/5'}`}>
                             <div className="min-w-0">
                               <div className={`font-semibold truncate ${textHighlight}`}>{t.title}</div>
@@ -1045,7 +1089,7 @@ export default function StatsView({
                             <span className={`shrink-0 text-xs font-bold ${textMuted}`}>{t.count}x</span>
                           </div>
                         ))}
-                        {Object.keys(mergedTracks).length === 0 && (
+                        {Object.keys(statsZoomTrackCounts).length === 0 && (
                           <div className={textMuted}>—</div>
                         )}
                       </div>
