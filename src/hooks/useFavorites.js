@@ -21,19 +21,30 @@ import { usePersistentState } from './usePersistentState';
  * de la page, pas des données à conserver d'une session à l'autre.
  */
 export function useFavorites(showToast) {
+  // RETOUR DIRECT ("par défaut, est-ce pertinent de pousser vers Métal, plutôt
+  // dur à identifier ?") — 'Métal' est explicitement documenté dans
+  // musicCatalog.js (`GENRES_NEEDING_DEEP_CATALOG_SEARCH`) comme un genre
+  // fragile à rechercher : Deezer classe la quasi-totalité des titres Metal
+  // réels sous "Rock" dans son propre système de genres, jamais "Metal" — la
+  // recherche pour ce genre dépend donc d'un renfort par catalogue d'artistes,
+  // plus lent et plus sujet aux erreurs de correspondance (voir le bug
+  // "Infected Rain"/"Mental Crush" de la passation précédente). Basculé sur
+  // Rock, qui n'a pas ce problème — mêmes titres déjà validés que la playlist
+  // de démo (voir App.jsx, `ex-track-1`/`ex-track-4`), pas de nouvel ID
+  // YouTube inventé ici.
   const [favorites, setFavorites] = usePersistentState('favorites', () => ({
     useFavorites: true,
-    artists: ['Metallica', 'System Of A Down'],
+    artists: ['The Killers', 'AC/DC'],
     tracks: [
-      { youtubeId: 'uRyAIyq53FY', title: 'Master of Puppets', artist: 'Metallica', bpm: 212, duration: 515, preview: null, genre: 'Métal' },
-      { youtubeId: 'CSvFpBOe8eY', title: 'Chop Suey!', artist: 'System Of A Down', bpm: 128, duration: 210, preview: null, genre: 'Métal' }
+      { youtubeId: 'gGdGFtwPNsQ', title: 'Mr. Brightside', artist: 'The Killers', bpm: 148, duration: 222, preview: null, genre: 'Rock' },
+      { youtubeId: 'v2AC41dglnM', title: 'Thunderstruck', artist: 'AC/DC', bpm: 133, duration: 292, preview: null, genre: 'Rock' }
     ]
   }));
   // Réglages du sélecteur BPM/genre propre à la page Cœur & Favoris (indépendant
   // de ceux du wizard de génération, qui a son propre contexte bpm/selectedGenres).
   const [favBpmTarget, setFavBpmTarget] = useState(140);
   const [favBpmTolerance, setFavBpmTolerance] = useState(10);
-  const [favSelectedGenres, setFavSelectedGenres] = useState(['Métal']);
+  const [favSelectedGenres, setFavSelectedGenres] = useState(['Rock']);
   const [newFavArtist, setNewFavArtist] = useState("");
   const [isAddingArtist, setIsAddingArtist] = useState(false);
 
