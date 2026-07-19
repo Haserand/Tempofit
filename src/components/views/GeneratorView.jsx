@@ -535,7 +535,7 @@ export default function GeneratorView({
               const currentIntent = activeProfile?.cadenceIntent || 'energy';
               const selectedOption = cadenceIntentOptions.find(o => o.value === currentIntent);
               return (
-                <div className="space-y-1.5">
+                <div>
                   <div className={`flex ${inputBg} border ${inputBorder} rounded-xl p-1`}>
                     {cadenceIntentOptions.map(({ value, title, desc }) => (
                       <button
@@ -548,7 +548,13 @@ export default function GeneratorView({
                       </button>
                     ))}
                   </div>
-                  <p className={`text-xs ${textMuted}`}>{selectedOption.desc}</p>
+                  {/* RETOUR DIRECT ("séparer un peu plus les 2 parties, et le
+                      texte doit avoir même taille/graisse/couleur que le
+                      label 'BPM cibles par zone' juste au-dessus") — `mt-3`
+                      au lieu du `space-y-1.5` d'avant (collé au bloc toggle),
+                      et `text-xs font-bold` pour matcher exactement le label
+                      de la ligne 427 (déjà même couleur, `textMuted`). */}
+                  <p className={`text-xs font-bold mt-3 ${textMuted}`}>{selectedOption.desc}</p>
                 </div>
               );
             })()}
