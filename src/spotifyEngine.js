@@ -81,15 +81,24 @@ export const resolveRealBPM = async (title, artist) => {
  * milliers de titres likés rendrait la synchro extrêmement longue et
  * risquerait de déclencher du rate-limiting côté Deezer/GetSongBPM.
  *
- * Lève une exception "Token expiré" si Spotify répond 401/403 — à
- * l'appelant de la traiter (déconnexion, message dédié).
+ * RETOUR DIRECT (boucle infinie constatée en usage réel : reconnexion →
+ * 403 → "token expiré" → reconnexion → 403...) — 401 et 403 étaient traités
+ * comme la même chose ("Token expiré"), alors qu'ils n'ont RIEN à voir : 401
+ * = token vraiment invalide/expiré, se reconnecter le corrige. 403 = le
+ * token est VALIDE mais Spotify refuse quand même l'accès — le plus souvent
+ * une restriction de compte côté Spotify (App en Mode Développement, voir
+ * useSpotifyImport.js pour le détail), qu'aucune reconnexion ne peut
+ * résoudre. Lève maintenant 2 erreurs distinctes, à l'appelant de les
+ * traiter différemment (déconnexion forcée pour 401, message dédié SANS
+ * pousser à se reconnecter pour 403).
  */
 export const fetchAllLikedTracks = async (token, maxTracks = 200) => {
   let allTracks = [];
   let url = SPOTIFY_API_BASE + '/me/tracks?limit=50';
   while (url && allTracks.length < maxTracks) {
     const res = await fetch(url, { headers: { Authorization: "Bearer " + token } });
-    if (res.status === 401 || res.status === 403) throw new Error("Token expiré");
+    if (res.status === 401) throw new Error("Token expiré");
+    if (res.status === 403) throw new Error("Accès Spotify refusé");
     const data = await res.json();
     const items = data.items ? data.items.map(i => i.track) : [];
     allTracks = allTracks.concat(items);
