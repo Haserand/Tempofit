@@ -379,6 +379,20 @@ export default function App() {
     handleShareBase(type, item);
     if (!userStats.hasSharedSomething) checkTrophies({ ...userStats, hasSharedSomething: true });
   };
+  // RETOUR DIRECT ("insérer le bilan image directement dans l'option de
+  // partage, avec une croix pour le retirer") — état de la génération en
+  // arrière-plan du Bilan Visuel de Séance, vécu ICI (pas dans
+  // PlaylistDetailView.jsx) parce que ShareModal, qui doit le LIRE pour
+  // afficher l'aperçu, est rendu une seule fois globalement dans App.jsx —
+  // pas à l'intérieur de PlaylistDetailView. La génération elle-même (qui a
+  // besoin d'une réf DOM sur la carte hors-écran) reste dans
+  // PlaylistDetailView.jsx, qui reçoit ces setters en props pour y écrire le
+  // résultat au fur et à mesure.
+  const [summaryImageStatus, setSummaryImageStatus] = useState('idle'); // idle | loading | ready | error
+  const [summaryImageFile, setSummaryImageFile] = useState(null);
+  const [summaryImagePreviewUrl, setSummaryImagePreviewUrl] = useState(null);
+  const [includeSummaryImage, setIncludeSummaryImage] = useState(true);
+
   // Même trophée "Ambassadeur" que handleShare ci-dessus, pour le Bilan
   // Visuel de Séance (voir PlaylistDetailView.jsx) — un partage RÉUSSI ou une
   // image téléchargée comptent tous les deux comme un usage réel de la
@@ -2428,6 +2442,10 @@ export default function App() {
                 handleRenamePlaylist={handleRenamePlaylist}
                 handleSavePlaylist={handleSavePlaylist} handleUnsavePlaylist={requestUnsavePlaylist} handleShare={handleShare}
                 shareImageFile={shareImageFileWithTrophy} showToast={showToast}
+                summaryImageStatus={summaryImageStatus} setSummaryImageStatus={setSummaryImageStatus}
+                summaryImageFile={summaryImageFile} setSummaryImageFile={setSummaryImageFile}
+                summaryImagePreviewUrl={summaryImagePreviewUrl} setSummaryImagePreviewUrl={setSummaryImagePreviewUrl}
+                includeSummaryImage={includeSummaryImage} setIncludeSummaryImage={setIncludeSummaryImage}
                 currentActualData={currentActualData} selectedMetric={selectedMetric} setSelectedMetric={setSelectedMetric}
                 analysisStats={analysisStats}
                 selectedAnalysisDate={selectedAnalysisDate} setSelectedAnalysisDate={setSelectedAnalysisDate}
@@ -2543,6 +2561,10 @@ export default function App() {
           isShareModalOpen={isShareModalOpen} setIsShareModalOpen={setIsShareModalOpen} shareData={shareData}
           shareNative={shareNative} shareToWhatsApp={shareToWhatsApp} shareToTwitter={shareToTwitter} shareToFacebook={shareToFacebook}
           copyToClipboard={copyToClipboard} shareViaEmail={shareViaEmail}
+          shareImageFile={shareImageFileWithTrophy}
+          summaryImageStatus={summaryImageStatus} summaryImageFile={summaryImageFile}
+          summaryImagePreviewUrl={summaryImagePreviewUrl}
+          includeSummaryImage={includeSummaryImage} setIncludeSummaryImage={setIncludeSummaryImage}
         />
 
         <AuthModal
