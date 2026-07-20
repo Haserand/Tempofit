@@ -24,12 +24,16 @@ export default function Sidebar({
   return (
     <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r ${cardBorder} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className={`p-6 border-b ${cardBorder} flex items-center justify-between`}>
-         <div className="flex items-center space-x-3">
+         <button
+           onClick={() => changeView('generator')}
+           title="Retour à l'accueil"
+           className="flex items-center space-x-3 cursor-pointer"
+         >
             <div className={`${bgAccentClass} p-1.5 rounded-lg transition-colors duration-500 ${isNaughtyMode ? 'shadow-[0_0_15px_rgba(244,63,94,0.4)]' : ''}`}>
               {isNaughtyMode ? <Heart size={20} className="text-white fill-white" /> : <Activity size={20} className="text-white" />}
             </div>
             <span className={`font-bold text-xl tracking-tight leading-none ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
-         </div>
+         </button>
          <div className="flex items-center gap-1">
            <button
              onClick={toggleTheme}
