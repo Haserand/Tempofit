@@ -11,7 +11,7 @@ import {
 import { getGenresForDisplay, genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog';
 import { getCadenceUnitLabel, DISTRIBUTION_COLORS, getZoneForValue } from '../../appConfig';
 import { formatDuration } from '../../utils/format';
-import { deezerFetch } from '../../musicEngine';
+import { deezerFetch, resolveDeezerTrackByTitleArtist } from '../../musicEngine';
 import SessionSummaryCard from '../shared/SessionSummaryCard';
 
 // Couleur du donut "Répartition par style" (genre musical, pas de zone
@@ -99,7 +99,7 @@ const RealDataDot = (props) => {
  */
 export default function PlaylistDetailView({
   theme, colorMode, isNaughtyMode,
-  currentPlaylist, savedPlaylists, getProfileForWorkout, getProfileForWorkoutOrDefault,
+  currentPlaylist, setCurrentPlaylist, savedPlaylists, getProfileForWorkout, getProfileForWorkoutOrDefault,
   isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
   handleSavePlaylist, handleUnsavePlaylist, handleShare,
   showToast,
@@ -271,6 +271,45 @@ export default function PlaylistDetailView({
       }
     }
     return null;
+  };
+
+  /**
+   * RETOUR DIRECT ("on peut pas mettre à jour les liens des musiques à
+   * chaque fois qu'un utilisateur clique dessus ?") — enveloppe
+   * `togglePreview` (useAudioPreview.js, inchangée) : si l'extrait est déjà
+   * connu (cas normal, immense majorité des titres), comportement
+   * IDENTIQUE à avant, appel direct. Si `preview` est encore `null` (titre
+   * d'une playlist ensemencée pas encore résolu — voir
+   * data/curatedSessions.js, App.jsx `openCuratedPlaylist`), résout
+   * D'ABORD le vrai titre Deezer par titre+artiste (recherche déterministe,
+   * voir resolveDeezerTrackByTitleArtist, musicEngine.js), MET À JOUR ce
+   * titre dans la playlist affichée (pour que les clics suivants n'aient
+   * plus besoin de re-résoudre, et que favoris/graphiques voient aussi le
+   * nouvel identifiant Deezer), PUIS lance la lecture.
+   *
+   * Comparaison par `id` (pas par référence d'objet `===`, ni par
+   * `youtubeId` qui change justement lors de cette résolution) pour
+   * retrouver ce titre précis dans `currentPlaylist.tracks` : `id` est LE
+   * champ stable par occurrence dans la liste (distinct de `youtubeId`, qui
+   * identifie la chanson — voir musicEngine.js, createPlaylistData), jamais
+   * modifié ici.
+   */
+  const resolveAndTogglePreview = async (track, getNextTrack) => {
+    if (track.preview) { togglePreview(track, getNextTrack); return; }
+
+    const resolved = await resolveDeezerTrackByTitleArtist(track.title, track.artist);
+    if (!resolved || !resolved.preview) {
+      showToast("Extrait audio introuvable pour ce titre.", 'error');
+      return;
+    }
+
+    const updatedTrack = { ...track, youtubeId: `deezer-${resolved.id}`, preview: resolved.preview };
+    setCurrentPlaylist(prev => ({
+      ...prev,
+      tracks: prev.tracks.map(t => t.id === track.id ? updatedTrack : t),
+    }));
+
+    togglePreview(updatedTrack, getNextTrack);
   };
 
   // --- Bilan Visuel de Séance (export image) ---
@@ -946,7 +985,7 @@ export default function PlaylistDetailView({
                 <ChevronLeft size={18}/>
               </button>
               <button
-                onClick={() => togglePreview(trackSegments[selectedSegmentIdx].track, getNextTrackForAutoAdvance)}
+                onClick={() => resolveAndTogglePreview(trackSegments[selectedSegmentIdx].track, getNextTrackForAutoAdvance)}
                 disabled={!trackSegments[selectedSegmentIdx].track.preview}
                 title={trackSegments[selectedSegmentIdx].track.preview ? "Écouter un extrait" : "Extrait non disponible pour ce titre (source sans aperçu audio)"}
                 className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-colors ${trackSegments[selectedSegmentIdx].track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
@@ -1258,7 +1297,7 @@ export default function PlaylistDetailView({
               </div>
               <div className={"w-6 text-center font-medium text-xs " + textMuted}>{index + 1}</div>
               <button
-                onClick={() => togglePreview(track, getNextTrackForAutoAdvance)}
+                onClick={() => resolveAndTogglePreview(track, getNextTrackForAutoAdvance)}
                 disabled={!track.preview}
                 title={track.preview ? "Écouter un extrait" : "Extrait non disponible pour ce titre (source sans aperçu audio)"}
                 className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors mr-2 ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
