@@ -27,6 +27,7 @@ import { NAUGHTY_ROUTINE_NAMES, getZoneForValue, ATHLETIC_ZONES, DISTRIBUTION_CO
 // texte est maintenant écrit en dur à son unique point d'usage.
 
 import { safeFetchJson, deezerFetch, resolveDeezerGenre, getSingleMatchingTrack, buildSegmentTracks, deduceCrescendoBpm, buildCrescendoSegments, findSameArtistReplacement, recalculateTimeline, createPlaylistData } from './musicEngine';
+import { decodePlaylistFromSharing } from './utils/playlistShareCode';
 import { parseGarminCsv } from './workoutDataEngine';
 import { useTheme } from './hooks/useTheme';
 import { usePersistentState } from './hooks/usePersistentState';
@@ -55,6 +56,7 @@ import StatsView from './components/views/StatsView';
 import GeneratorView from './components/views/GeneratorView';
 import PlaylistDetailView from './components/views/PlaylistDetailView';
 import CustomActivityModal from './components/modals/CustomActivityModal';
+import ImportSharedPlaylistModal from './components/modals/ImportSharedPlaylistModal';
 import SavingRoutineModal from './components/modals/SavingRoutineModal';
 import ShareModal from './components/modals/ShareModal';
 import AuthModal from './components/modals/AuthModal';
@@ -240,6 +242,35 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // RETOUR DIRECT ("rendre le lien de partage réellement importable, sans
+  // feed communautaire complet") — détecte `?import=...` (voir useShare.js,
+  // playlistShareCode.js) au montage, une seule fois. `importedPlaylistPreview`
+  // reste le payload DÉCODÉ tel quel (clés courtes ti/ar/bp/du...), pas
+  // encore une vraie playlist — voir `importSharedPlaylist` plus bas, qui
+  // fait la conversion au moment du clic sur "Ajouter à Mes Séances", pas ici
+  // (pas besoin de la construire avant que l'utilisateur confirme vouloir
+  // l'ajouter).
+  const [importedPlaylistPreview, setImportedPlaylistPreview] = useState(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('import');
+    if (!code) return;
+
+    const decoded = decodePlaylistFromSharing(code);
+    if (decoded) {
+      setImportedPlaylistPreview(decoded);
+      setIsImportModalOpen(true);
+    } else {
+      showToast("❌ Ce lien de playlist est invalide ou corrompu.", 'error');
+    }
+    // Nettoie l'URL dans les 2 cas (valide ou pas) — évite de re-proposer le
+    // même import à chaque rafraîchissement de la page.
+    window.history.replaceState({}, document.title, window.location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   // Profil Athlétique (BPM cibles par zone d'effort) — voir useAthleticProfile.js.
   // Pas encore connecté au générateur ni aux stats à ce stade (étape 1/2 du
@@ -342,6 +373,59 @@ export default function App() {
       { id: 'ex-track-5', segmentIndex: 1, targetSegmentBpm: 128, title: 'Chop Suey!', artist: 'System Of A Down', genre: 'Métal', bpm: 128, duration: 210, youtubeId: 'CSvFpBOe8eY', preview: null, startTimeStr: '15m 28s', startDistVal: 2.81 }
     ]
   }]);
+
+  /**
+   * Transforme le payload décodé (voir playlistShareCode.js — clés courtes,
+   * aucun historique personnel) en une VRAIE playlist de l'app, exactement
+   * dans la même forme que celles produites par createPlaylistData
+   * (musicEngine.js) — même `recalculateTimeline` réutilisé pour calculer
+   * `startTimeStr`/`startDistVal`/`totalDuration`, plutôt que de les deviner
+   * à la main ici.
+   *
+   * Repart TOUJOURS à zéro : nouvel id, `createdAt` d'aujourd'hui,
+   * `completions`/`actualDataByDate` vides, `status: 'pending'` — importer
+   * la playlist de quelqu'un d'autre n'importe JAMAIS son historique
+   * d'utilisation, seulement sa structure (titres, BPM, activité).
+   */
+  const importSharedPlaylist = () => {
+    if (!importedPlaylistPreview) return;
+    const preview = importedPlaylistPreview;
+
+    const genres = Array.from(new Set(preview.tracks.map(t => t.ge).filter(Boolean)));
+    const avgBpm = Math.round(preview.tracks.reduce((s, t) => s + (t.bp || 0), 0) / preview.tracks.length) || 120;
+
+    const rawPlaylist = {
+      id: `pl-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: `${preview.name} (importée)`,
+      workoutType: preview.workoutType || 'Autre',
+      avgPace: preview.avgPace, targetMode: preview.targetMode, distanceUnit: preview.distanceUnit,
+      tolerance: preview.tolerance, crossfade: preview.crossfade,
+      tracks: preview.tracks.map(t => ({
+        title: t.ti, artist: t.ar, bpm: t.bp, duration: t.du,
+        genre: t.ge || 'Genre inconnu',
+        // Réutilise le même identifiant que la playlist d'origine si présent
+        // (c'est le titre lui-même qu'il désigne, ex. "deezer-12345" — pas un
+        // marqueur de propriété, plusieurs playlists de comptes différents
+        // peuvent légitimement pointer vers le même titre). Repli sur un
+        // identifiant généré UNIQUEMENT si absent du payload.
+        youtubeId: t.id || `imported-${Math.random().toString(36).slice(2)}`,
+        preview: t.pv || null,
+      })),
+      isNaughty: false, fallbackTrackCount: 0,
+      coverIcon: preview.coverIcon || '🎧', createdAt: new Date().toLocaleDateString(),
+      status: 'pending', actualDataByDate: {},
+      config: { workoutName: preview.workoutType, targetMode: preview.targetMode, bpm: avgBpm, tolerance: preview.tolerance, selectedGenres: genres.length ? genres : ['Autre'] },
+    };
+
+    const finalPlaylist = recalculateTimeline(rawPlaylist);
+    setSavedPlaylists(prev => [finalPlaylist, ...prev]);
+    setIsImportModalOpen(false);
+    setImportedPlaylistPreview(null);
+    showToast("✅ Playlist ajoutée à Mes Séances !");
+    setCurrentPlaylist(finalPlaylist);
+    changeView('playlist');
+  };
+
   const [isGenerating, setIsGenerating] = useState(false);
   // Nombre total de playlists du lot en cours de génération, et combien sont déjà
   // terminées — sert uniquement à afficher un message de progression rassurant
@@ -2571,6 +2655,12 @@ export default function App() {
           theme={themeTokens}
           isAuthModalOpen={isAuthModalOpen} setIsAuthModalOpen={setIsAuthModalOpen}
           signUp={signUp} signIn={signIn} showToast={showToast}
+        />
+
+        <ImportSharedPlaylistModal
+          theme={themeTokens}
+          isOpen={isImportModalOpen} onClose={() => { setIsImportModalOpen(false); setImportedPlaylistPreview(null); }}
+          preview={importedPlaylistPreview} onImport={importSharedPlaylist}
         />
 
       </div>
