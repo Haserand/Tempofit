@@ -773,61 +773,38 @@ export default function App() {
   };
 
   /**
-   * Applique un modèle de séance ensemencé (voir data/curatedSessions.js,
-   * DiscoverView.jsx) au formulaire du générateur, puis y navigue.
-   *
-   * Ordre d'application important, pas arbitraire :
-   *   1. `setCrescendoWarmupBpm(null)`/`setCrescendoCooldownBpm(null)` AVANT
-   *      tout — sinon un réglage laissé par un modèle Crescendo déjà essayé
-   *      dans cette même session empêcherait la ré-estimation automatique
-   *      depuis le NOUVEAU bpm du modèle (seed "une fois, jamais après" dans
-   *      setStructureMode, useGeneratorForm.js).
-   *   2. `setBpmManual`/`setBpmTolerance` (pas les setters "raw") : ils
-   *      marquent respectivement `bpmTouchedManually`/`bpmToleranceTouched`
-   *      à `true` — sans ça, `setStructureMode` ci-dessous pourrait
-   *      recalculer/écraser silencieusement ces 2 valeurs (seed profil BPM,
-   *      tolérance auto-resserrée en Crescendo, voir useGeneratorForm.js).
-   *   3. `structureMode` EN DERNIER (juste avant `segments`) : ses effets de
-   *      bord (badge "profil", tolérance Crescendo) lisent bpm/targetMode/
-   *      hours-minutes déjà posés juste au-dessus. Aucun `activityProfile`
-   *      passé en 2e argument — le Profil Athlétique de l'utilisateur ne
-   *      doit PAS venir écraser les valeurs précises du modèle.
-   *   4. `segments` (Fractionné uniquement) APRÈS `structureMode` — celui-ci
-   *      ne les touche que si un profil est fourni (absent ici), donc aucun
-   *      risque d'écrasement. Le Crescendo, lui, n'a rien à faire ici : ses
-   *      segments se recalculent tout seuls (effet interne de
-   *      useGeneratorForm.js) dès que structureMode/bpm/targetMode/
-   *      hours-minutes sont posés — jamais stockés directement.
+   * PIVOT PRODUIT (retour direct) — remplace `applyTemplateToGenerator`
+   * (ancienne version, pré-remplissait le formulaire du générateur). Un
+   * modèle de séance ensemencé est maintenant une VRAIE playlist figée (voir
+   * data/curatedSessions.js, `tracks`) : injectée directement dans
+   * `currentPlaylist` et ouverte sur PlaylistDetailView, exactement comme
+   * une playlist fraîchement générée ou importée via lien partagé (voir
+   * `importSharedPlaylist`, même fichier, même principe de reconstruction
+   * via `recalculateTimeline` plutôt que deviner `startTimeStr`/
+   * `totalDuration` à la main). Pas encore dans `savedPlaylists` — comme
+   * pour une génération classique, c'est au clic sur "Sauvegarder"
+   * (PlaylistDetailView, déjà existant) que ça devient permanent.
    */
-  const applyTemplateToGenerator = (template) => {
-    const p = template.payload;
+  const openCuratedPlaylist = (template) => {
+    const avgBpm = Math.round(template.tracks.reduce((s, t) => s + (t.bpm || 0), 0) / template.tracks.length) || 120;
+    const genres = Array.from(new Set(template.tracks.map(t => t.genre).filter(Boolean)));
 
-    setWorkoutType(p.workoutType);
+    const rawPlaylist = {
+      id: `pl-curated-${template.id}-${Date.now()}`,
+      name: template.title,
+      workoutType: template.workoutType,
+      avgPace: 330, targetMode: 'time', distanceUnit: 'km',
+      tolerance: 10, crossfade: 2,
+      tracks: template.tracks.map(t => ({ ...t })),
+      isNaughty: false, fallbackTrackCount: 0,
+      coverIcon: '🎧', createdAt: new Date().toLocaleDateString(),
+      status: 'pending', actualDataByDate: {},
+      config: { workoutName: template.workoutType, targetMode: 'time', bpm: avgBpm, selectedGenres: genres.length ? genres : ['Autre'] },
+    };
 
-    setCrescendoWarmupBpm(null);
-    setCrescendoCooldownBpm(null);
-
-    setBpmManual(p.bpm);
-    setBpmTolerance(p.bpmTolerance);
-    setSelectedGenres(p.selectedGenres);
-    setGenreWeights(equalSplitWeights(p.selectedGenres));
-    setLockedGenreWeights(new Set());
-    setTargetMode(p.targetMode);
-    if (p.targetMode === 'distance') {
-      setDistanceVal(p.distanceVal);
-      setDistanceUnit(p.distanceUnit || 'km');
-    } else {
-      setHours(p.hours || 0);
-      setMinutes(p.minutes ?? 30);
-    }
-
-    setStructureMode(p.structureMode);
-
-    if (p.structureMode === 'interval' && p.segments) {
-      setSegments(p.segments.map((s, i) => ({ ...s, id: Date.now() + i })));
-    }
-
-    changeView('generator');
+    const finalPlaylist = recalculateTimeline(rawPlaylist);
+    setCurrentPlaylist(finalPlaylist);
+    changeView('playlist');
   };
 
   // Pendant à `changeView` : avertit aussi à la fermeture d'onglet / F5, pas
@@ -2493,7 +2470,7 @@ export default function App() {
             )}
 
             {view === 'discover' && (
-              <DiscoverView theme={themeTokens} onUseTemplate={applyTemplateToGenerator} />
+              <DiscoverView theme={themeTokens} onPlayTemplate={openCuratedPlaylist} />
             )}
 
             {view === 'routines' && (
