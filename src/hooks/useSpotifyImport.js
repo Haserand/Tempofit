@@ -32,22 +32,21 @@ export function useSpotifyImport(setFavorites, showToast) {
   const [spotifyTrackPool, setSpotifyTrackPool] = useState([]);
   const hasFetchedToken = useRef(false); // Garde-fou anti double-échange du "code" (StrictMode / re-render)
 
-  // Au montage : si l'URL contient un paramètre "code" ET que ce code a été
-  // posé pour SPOTIFY (voir `oauth_provider_pending`, ajouté quand
-  // useDeezerImport.js est arrivé — Deezer redirige vers la MÊME URL de
-  // l'app, sans paramètre distinctif possible côté fournisseur : sans ce
-  // marqueur, les 2 hooks tenteraient chacun d'échanger le même code contre
-  // LEUR token respectif au retour), on l'échange contre un token d'accès
-  // via l'endpoint /api/token, en fournissant le "code_verifier" PKCE généré
-  // avant la redirection et stocké temporairement en localStorage.
+  // RETOUR DIRECT ("supprime tout ce qui ne sert plus à rien niveau Deezer")
+  // — ce garde-fou existait UNIQUEMENT parce que Deezer Connect (retiré, voir
+  // DEEZER-CONNECT-REMOVED.md) redirigeait vers la MÊME URL que Spotify,
+  // sans paramètre distinctif possible côté fournisseur : sans lui, les 2
+  // hooks auraient chacun tenté d'échanger le même `?code=` contre LEUR
+  // token respectif. Spotify étant redevenu le seul flow OAuth de l'app,
+  // `oauth_provider_pending` n'a plus rien à départager — simplifié en
+  // conséquence, retour au simple `if (code && !hasFetchedToken.current)`
+  // d'avant ce garde-fou.
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     let code = urlParams.get('code');
-    const pendingProvider = window.localStorage.getItem('oauth_provider_pending');
 
-    if (code && pendingProvider === 'spotify' && !hasFetchedToken.current) {
+    if (code && !hasFetchedToken.current) {
       hasFetchedToken.current = true;
-      window.localStorage.removeItem('oauth_provider_pending');
       const codeVerifier = window.localStorage.getItem('code_verifier');
 
       fetch(SPOTIFY_TOKEN_BASE, {
@@ -101,7 +100,6 @@ export function useSpotifyImport(setFavorites, showToast) {
   const loginSpotify = async () => {
     window.localStorage.removeItem("spotify_token");
     setSpotifyToken(null);
-    window.localStorage.setItem('oauth_provider_pending', 'spotify');
 
     const codeVerifier = generateRandomString(64);
     window.localStorage.setItem('code_verifier', codeVerifier);
