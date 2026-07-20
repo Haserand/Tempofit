@@ -49,7 +49,7 @@ export default function PlaylistCard({
       selectedGenres: genres
     };
     return renderConfigInfoLine(infoSource, (
-      <div className="flex items-center space-x-1"><List size={14}/><span>{playlist.tracks.length} titres</span></div>
+      <div className="flex items-center space-x-1" title="Nombre de titres"><List size={14}/><span>{playlist.tracks.length}</span></div>
     ));
   })();
 
