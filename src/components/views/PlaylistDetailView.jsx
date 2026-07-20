@@ -103,6 +103,8 @@ export default function PlaylistDetailView({
   isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
   handleSavePlaylist, handleUnsavePlaylist, handleShare,
   shareImageFile, showToast,
+  summaryImageStatus, setSummaryImageStatus, summaryImageFile, setSummaryImageFile,
+  summaryImagePreviewUrl, setSummaryImagePreviewUrl, includeSummaryImage, setIncludeSummaryImage,
   currentActualData, selectedMetric, setSelectedMetric, analysisStats,
   selectedAnalysisDate, setSelectedAnalysisDate, formatCompletionDate, availableMetrics,
   dataOffset, setDataOffset,
@@ -289,48 +291,122 @@ export default function PlaylistDetailView({
   // d'affichage UI, pas une donnée persistée ni partagée ailleurs.
   const [isShareMenuOpen, setIsShareMenuOpen] = useState(false);
 
+  // RETOUR DIRECT ("insérer le bilan image directement dans l'option de
+  // partage, avec une croix pour le retirer") — DEUXIÈME évolution de ce
+  // chantier (voir le commentaire juste au-dessus pour la 1re, qui a fusionné
+  // 2 boutons en 1 menu). Cette fois, l'image se génère TOUTE SEULE en
+  // arrière-plan dès l'ouverture du menu "Partager" (voir
+  // startBackgroundImageGeneration, déclenché par le clic sur le bouton
+  // "Partager" plus bas), PUIS s'affiche en aperçu dans ShareModal — plutôt
+  // que d'exiger un clic dédié sur "Bilan en image" pour la voir.
+  //
+  // Volontairement PAS bloquant pour le partage texte/lien : générer cette
+  // image coûte cher (pochettes Deezer + capture html2canvas, potentiellement
+  // lent sur un téléphone modeste) — qui veut juste copier un lien n'a
+  // aucune raison d'attendre que cette génération se termine.
+  //
+  // `summaryImageStatus`/`summaryImageFile`/`summaryImagePreviewUrl`/
+  // `includeSummaryImage` sont reçus EN PROPS (pas des useState locaux) —
+  // ShareModal.jsx, qui doit les LIRE pour afficher l'aperçu, est rendu une
+  // seule fois globalement dans App.jsx, PAS à l'intérieur de cette vue :
+  // cet état doit donc vivre à un niveau que les deux peuvent atteindre. La
+  // génération elle-même (qui a besoin de `summaryCardRef`, une réf DOM sur
+  // la carte hors-écran rendue plus bas dans CE composant) reste en revanche
+  // ici, où vit cette réf.
+
+  // Réinitialise tout si on change de playlist (navigation vers une autre
+  // séance sans démonter ce composant) — sinon l'aperçu d'une AUTRE séance
+  // pourrait rester affiché par erreur. Révoque l'URL d'objet précédente
+  // (évite une fuite mémoire, même principe que pour les autres previews
+  // blob de l'app).
+  useEffect(() => {
+    setSummaryImageStatus('idle');
+    setSummaryImageFile(null);
+    setIncludeSummaryImage(true);
+    setSummaryImagePreviewUrl(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPlaylist?.id]);
+
+  /**
+   * Génération PURE de l'image (pochettes → attente du rendu → capture
+   * html2canvas → File) — ne partage ni ne télécharge rien elle-même,
+   * contrairement à l'ancienne version de cette fonction. Utilisée à la fois
+   * par la génération en arrière-plan (au clic sur "Partager") et par
+   * `exportSessionSummaryImage` (au clic sur "Bilan en image", en repli si
+   * jamais rien n'était encore prêt à ce moment-là).
+   */
+  const generateSummaryImageFile = async () => {
+    // 1. Pochettes des 3 premiers titres — uniquement pour ceux sourcés de
+    // Deezer (youtubeId de la forme "deezer-{id}") ; un titre favori/
+    // Spotify sans équivalent n'a pas d'ID Deezer exploitable, repli sur
+    // l'icône générique dans SessionSummaryCard (composant volontairement
+    // pur, aucun appel réseau dedans — voir sa docstring).
+    const topTracks = currentPlaylist.tracks.slice(0, 3);
+    const covers = {};
+    await Promise.all(topTracks.map(async (t) => {
+      if (!t.youtubeId || !t.youtubeId.startsWith('deezer-')) return;
+      try {
+        const { data } = await deezerFetch(`https://api.deezer.com/track/${t.youtubeId.replace('deezer-', '')}`);
+        if (data?.album?.cover_medium) covers[t.youtubeId] = data.album.cover_medium;
+      } catch (e) { /* pas de pochette pour ce titre — repli déjà géré côté composant */ }
+    }));
+    setSummaryCovers(covers);
+
+    // 2. Laisse le temps au DOM de re-render avec les pochettes, ET aux
+    // <img> de réellement finir de charger, AVANT de capturer — html2canvas
+    // capture l'état du DOM à l'instant T ; une image encore en cours de
+    // chargement à ce moment-là apparaîtrait vide sur la capture finale.
+    await new Promise(resolve => setTimeout(resolve, 50));
+    if (summaryCardRef.current) {
+      const imgs = Array.from(summaryCardRef.current.querySelectorAll('img'));
+      await Promise.all(imgs.map(img => img.complete ? Promise.resolve() : new Promise(res => { img.onload = res; img.onerror = res; })));
+    }
+
+    // 3. Capture — import dynamique : html2canvas est une librairie assez
+    // lourde pour une fonctionnalité optionnelle, pas la peine de l'inclure
+    // dans le bundle principal chargé par tout le monde dès le départ.
+    const { default: html2canvas } = await import('html2canvas');
+    const canvas = await html2canvas(summaryCardRef.current, { scale: 2, backgroundColor: null, useCORS: true });
+
+    // 4. Canvas -> Blob -> File.
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('Conversion en image échouée');
+    return new File([blob], 'tempofit-bilan-de-seance.png', { type: 'image/png' });
+  };
+
+  // Lance la génération en arrière-plan — ne fait rien si déjà en cours ou
+  // déjà prête pour CETTE playlist (voir le useEffect de reset ci-dessus
+  // pour le changement de playlist).
+  const startBackgroundImageGeneration = async () => {
+    if (!currentPlaylist || summaryImageStatus === 'loading' || summaryImageStatus === 'ready') return;
+    setSummaryImageStatus('loading');
+    try {
+      const file = await generateSummaryImageFile();
+      setSummaryImageFile(file);
+      setSummaryImagePreviewUrl(URL.createObjectURL(file));
+      setSummaryImageStatus('ready');
+    } catch (e) {
+      // Échec silencieux ici (contrairement à exportSessionSummaryImage qui,
+      // lui, affiche un toast) — cette génération est un bonus discret en
+      // arrière-plan, pas une action explicitement demandée par
+      // l'utilisateur : un toast d'erreur pour quelque chose qu'il n'a pas
+      // lui-même déclenché serait plus perturbant qu'utile. ShareModal reste
+      // pleinement utilisable en mode texte/lien si ça échoue.
+      setSummaryImageStatus('error');
+    }
+  };
+
   const exportSessionSummaryImage = async () => {
     if (!currentPlaylist || isExportingSummary) return;
     setIsExportingSummary(true);
     try {
-      // 1. Pochettes des 3 premiers titres — uniquement pour ceux sourcés de
-      // Deezer (youtubeId de la forme "deezer-{id}") ; un titre favori/
-      // Spotify sans équivalent n'a pas d'ID Deezer exploitable, repli sur
-      // l'icône générique dans SessionSummaryCard (composant volontairement
-      // pur, aucun appel réseau dedans — voir sa docstring).
-      const topTracks = currentPlaylist.tracks.slice(0, 3);
-      const covers = {};
-      await Promise.all(topTracks.map(async (t) => {
-        if (!t.youtubeId || !t.youtubeId.startsWith('deezer-')) return;
-        try {
-          const { data } = await deezerFetch(`https://api.deezer.com/track/${t.youtubeId.replace('deezer-', '')}`);
-          if (data?.album?.cover_medium) covers[t.youtubeId] = data.album.cover_medium;
-        } catch (e) { /* pas de pochette pour ce titre — repli déjà géré côté composant */ }
-      }));
-      setSummaryCovers(covers);
-
-      // 2. Laisse le temps au DOM de re-render avec les pochettes, ET aux
-      // <img> de réellement finir de charger, AVANT de capturer — html2canvas
-      // capture l'état du DOM à l'instant T ; une image encore en cours de
-      // chargement à ce moment-là apparaîtrait vide sur la capture finale.
-      await new Promise(resolve => setTimeout(resolve, 50));
-      if (summaryCardRef.current) {
-        const imgs = Array.from(summaryCardRef.current.querySelectorAll('img'));
-        await Promise.all(imgs.map(img => img.complete ? Promise.resolve() : new Promise(res => { img.onload = res; img.onerror = res; })));
-      }
-
-      // 3. Capture — import dynamique : html2canvas est une librairie assez
-      // lourde pour une fonctionnalité optionnelle, pas la peine de l'inclure
-      // dans le bundle principal chargé par tout le monde dès le départ.
-      const { default: html2canvas } = await import('html2canvas');
-      const canvas = await html2canvas(summaryCardRef.current, { scale: 2, backgroundColor: null, useCORS: true });
-
-      // 4. Canvas -> Blob -> File, puis partage natif (voir shareImageFile,
-      // useShare.js) — Web Share API avec fichiers si supporté, sinon repli
-      // en téléchargement direct (déjà géré dans le hook).
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-      if (!blob) throw new Error('Conversion en image échouée');
-      const file = new File([blob], 'tempofit-bilan-de-seance.png', { type: 'image/png' });
+      // Réutilise l'image déjà générée en arrière-plan si elle est prête
+      // (cas courant : le menu "Partager" a déjà lancé la génération) —
+      // sinon la génère à la demande, comme avant ce chantier.
+      const file = (summaryImageStatus === 'ready' && summaryImageFile) ? summaryImageFile : await generateSummaryImageFile();
       await shareImageFile(file, currentPlaylist.name, "Mon bilan de séance sur TempoFit 💪🎧");
     } catch (e) {
       if (showToast) showToast("Impossible de générer l'image du bilan — réessaie dans un instant.", 'error');
@@ -787,7 +863,13 @@ export default function PlaylistDetailView({
                 pour autant : chaque clic ferme d'abord l'ancien). */}
             <div className="relative">
               <button
-                onClick={() => setIsShareMenuOpen(o => !o)}
+                onClick={() => {
+                  setIsShareMenuOpen(o => {
+                    const opening = !o;
+                    if (opening) startBackgroundImageGeneration();
+                    return opening;
+                  });
+                }}
                 className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40"
               >
                 <Share2 size={16} /> <span>Partager</span>
