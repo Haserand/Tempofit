@@ -100,6 +100,14 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                 Déconnecter
               </button>
             </div>
+            {/* RETOUR DIRECT ("un petit compteur discret, visible seulement
+                une fois connecté") — délibérément discret (texte simple, pas
+                de carte/badge qui attirerait l'œil) : c'est une curiosité
+                perso, pas une métrique à mettre en avant (voir la
+                discussion : un bandeau public aurait été contre-productif
+                tant que ce chiffre est faible). N'apparaît QUE si
+                `userCount` a été récupéré (voir AuthContext.jsx) — jamais
+                tant que déconnecté ou en cours de chargement. */}
             {userCount !== null && (
               <p className={`text-xs mt-2 ${textMuted}`}>{userCount} compte{userCount > 1 ? 's' : ''} TempoFit créé{userCount > 1 ? 's' : ''} au total.</p>
             )}
@@ -115,7 +123,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                 <p className={`text-sm ${textMuted}`}>Données enregistrées uniquement sur cet appareil</p>
               </div>
             </div>
-            <button onClick={openAuthModal} className={`px-6 py-3 text-white font-black rounded-xl shadow-md transition-all hover:brightness-110 ${bgAccentClass}`}>
+            <button onClick={openAuthModal} className={`min-w-[168px] justify-center px-6 py-3 text-white font-black rounded-xl shadow-md transition-all hover:brightness-110 flex items-center ${bgAccentClass}`}>
               Se connecter
             </button>
           </div>
@@ -137,7 +145,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           </div>
 
           {!spotifyToken ? (
-            <button onClick={loginSpotify} className="px-6 py-3 bg-[#1DB954] hover:bg-[#1ed760] text-black font-black rounded-xl shadow-md transition-all flex items-center space-x-2">
+            <button onClick={loginSpotify} className="min-w-[168px] justify-center px-6 py-3 bg-[#1DB954] hover:bg-[#1ed760] text-black font-black rounded-xl shadow-md transition-all flex items-center space-x-2">
               <span>Lier mon compte</span>
             </button>
           ) : (
@@ -147,6 +155,16 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           )}
         </div>
 
+        {/* RETOUR DIRECT ("un seul message jaune suffit quand les 2 comptes
+            ont le souci, pour gagner de la place") — Spotify et Deezer
+            calculent tous les deux `origin + pathname` comme URL de
+            redirection : c'est LITTÉRALEMENT la même chaîne dans les 2 cas,
+            donc l'afficher 2 fois quand les 2 comptes sont déconnectés en
+            même temps n'apportait rien. 3 cas maintenant, pas 2 :
+              - seul Spotify a le souci (Deezer déjà connecté) → boîte Spotify seule
+              - seul Deezer a le souci (Spotify déjà connecté) → boîte Deezer seule
+              - LES DEUX ont le souci → une seule boîte fusionnée plus bas,
+                ni celle-ci ni celle de Deezer ne s'affichent ici */}
         {!spotifyToken && deezerToken && spotifyRedirectUri && (
           <div className={`mt-4 p-4 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10`}>
             <div className="flex items-start gap-2 text-sm font-bold text-amber-700 dark:text-amber-400 mb-2">
@@ -166,6 +184,14 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           </div>
         )}
 
+        {/* RETOUR DIRECT ("intégrer une alternative gratuite à Spotify, pas
+            besoin de Premium") — Deezer n'exige ni abonnement Premium côté
+            propriétaire de l'app, ni liste blanche d'utilisateurs comme le
+            Mode Développement Spotify (voir SettingsView.jsx, bloc Spotify
+            ci-dessus, et la conversation qui a mené à cette intégration).
+            Bloc structurellement identique à celui de Spotify juste
+            au-dessus, même logique connecté/déconnecté — les 2 comptes
+            peuvent être liés en même temps, sans exclusion mutuelle. */}
         <div className="h-4"></div>
         <div className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${deezerToken ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : inputBorder + ' ' + inputBg}`}>
           <div className="flex items-center space-x-4">
@@ -179,7 +205,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           </div>
 
           {!deezerToken ? (
-            <button onClick={loginDeezer} className="px-6 py-3 bg-[#A238FF] hover:bg-[#b45cff] text-white font-black rounded-xl shadow-md transition-all flex items-center space-x-2">
+            <button onClick={loginDeezer} className="min-w-[168px] justify-center px-6 py-3 bg-[#A238FF] hover:bg-[#b45cff] text-white font-black rounded-xl shadow-md transition-all flex items-center space-x-2">
               <span>Lier mon compte</span>
             </button>
           ) : (
@@ -189,6 +215,8 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           )}
         </div>
 
+        {/* Cas "seul Deezer a le souci" (Spotify déjà connecté) — voir le
+            commentaire au-dessus de la boîte Spotify pour les 3 cas. */}
         {!deezerToken && spotifyToken && deezerRedirectUri && (
           <div className={`mt-4 p-4 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10`}>
             <div className="flex items-start gap-2 text-sm font-bold text-amber-700 dark:text-amber-400 mb-2">
@@ -208,6 +236,10 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           </div>
         )}
 
+        {/* Cas "LES DEUX ont le souci" — une seule boîte, même URL affichée
+            une seule fois (voir le commentaire au-dessus de la boîte
+            Spotify). Réutilise `copied`/`copyRedirectUri` (peu importe
+            lequel des 2 états, l'URL copiée est identique). */}
         {!spotifyToken && !deezerToken && (spotifyRedirectUri || deezerRedirectUri) && (
           <div className={`mt-4 p-4 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10`}>
             <div className="flex items-start gap-2 text-sm font-bold text-amber-700 dark:text-amber-400 mb-2">
