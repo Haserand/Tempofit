@@ -34,6 +34,13 @@ export function AuthProvider({ children }) {
   // fois) — évite un "flash" où l'app croit un instant que personne n'est
   // connecté avant de découvrir le contraire.
   const [authLoading, setAuthLoading] = useState(isSupabaseConfigured);
+  // RETOUR DIRECT ("un petit compteur discret, visible seulement une fois
+  // connecté") — nombre total de comptes créés (voir
+  // supabase-user-count.sql, `get_registered_users_count`, une fonction
+  // dédiée qui ne renvoie QUE ce nombre, jamais de données personnelles).
+  // `null` = pas encore récupéré (ou déconnecté) ; distinct de `0`, un
+  // nombre valide en soi.
+  const [userCount, setUserCount] = useState(null);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -54,6 +61,18 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Récupère le nombre de comptes UNIQUEMENT une fois connecté (la fonction
+  // RPC elle-même refuse déjà les appels non authentifiés côté serveur, voir
+  // supabase-user-count.sql — ce `if (!user)` évite juste un appel réseau
+  // inutile qu'on sait voué à échouer). Remis à `null` à la déconnexion,
+  // plutôt que de laisser un chiffre affiché qui ne devrait plus l'être.
+  useEffect(() => {
+    if (!isSupabaseConfigured || !user) { setUserCount(null); return; }
+    supabase.rpc('get_registered_users_count').then(({ data, error }) => {
+      if (!error && typeof data === 'number') setUserCount(data);
+    });
+  }, [user]);
+
   const signUp = async (email, password) => {
     if (!isSupabaseConfigured) return { error: "Les comptes ne sont pas encore configurés côté serveur." };
     const { error } = await supabase.auth.signUp({ email, password });
@@ -72,7 +91,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, authLoading, signUp, signIn, signOut, isSupabaseConfigured }}>
+    <AuthContext.Provider value={{ user, authLoading, signUp, signIn, signOut, isSupabaseConfigured, userCount }}>
       {children}
     </AuthContext.Provider>
   );
@@ -82,7 +101,7 @@ export function AuthProvider({ children }) {
 // arriver, main.jsx l'enveloppe autour de <App/> — mais évite un plantage
 // plutôt qu'un écran blanc si jamais un composant est testé isolément).
 const FALLBACK = {
-  user: null, authLoading: false, isSupabaseConfigured: false,
+  user: null, authLoading: false, isSupabaseConfigured: false, userCount: null,
   signUp: async () => ({ error: "AuthProvider manquant." }),
   signIn: async () => ({ error: "AuthProvider manquant." }),
   signOut: async () => {},
