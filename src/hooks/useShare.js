@@ -104,7 +104,8 @@ export function useShare(showToast) {
   // Partage d'un FICHIER (image) via le Web Share API — différent de
   // `shareNative` ci-dessus, qui ne partage qu'un texte/lien. Ajouté pour le
   // Bilan Visuel de Séance (voir PlaylistDetailView.jsx,
-  // exportSessionSummaryImage) : `navigator.share({ files: [...] })` n'est
+  // generateSummaryImageFile, et ShareModal.jsx qui l'appelle une fois
+  // l'image prête) : `navigator.share({ files: [...] })` n'est
   // supporté que sur un sous-ensemble de navigateurs/OS (essentiellement
   // mobile) — `navigator.canShare({ files })` permet de le vérifier AVANT
   // d'essayer, plutôt que de laisser `.share()` échouer silencieusement.
