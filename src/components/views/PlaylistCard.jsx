@@ -71,7 +71,7 @@ export default function PlaylistCard({
     >
       {rankStyle && <span className="absolute -top-2 -right-2 text-xl" title={`${playlist.completions.length} fois — la ${rank === 0 ? 'plus' : rank === 1 ? '2e plus' : '3e plus'} utilisée`}>{rankStyle.emoji}</span>}
 
-      <div className="flex items-start justify-between mb-3">
+      <div className="flex items-start justify-between mb-3 gap-2">
         <div className="flex items-center gap-2 min-w-0">
           {draggable && (
             <div className="shrink-0 cursor-grab active:cursor-grabbing text-gray-400" title="Glisser pour réordonner">
@@ -81,8 +81,16 @@ export default function PlaylistCard({
           <div className={`w-16 h-16 text-3xl rounded-xl flex items-center justify-center bg-gradient-to-br ${isNaughtyMode ? 'from-rose-400 to-rose-600' : 'from-gray-800 to-black dark:from-gray-200 dark:to-white'} shrink-0`}>
             {playlist.coverIcon || <Music size={24} className={isNaughtyMode ? 'text-white' : 'text-white dark:text-black'} />}
           </div>
+          <h3 className={`font-bold text-lg flex items-center gap-2 min-w-0 ${textHighlight}`}>
+            <span className="truncate">{playlist.name}</span>
+            {playlist.config?.isIntervalMode && (
+              <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full text-white shrink-0 ${bgAccentClass}`}>
+                {playlist.config?.isCrescendoMode ? 'Crescendo' : 'Fractionné'}
+              </span>
+            )}
+          </h3>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           {onSetPlannedDate && (
             <label
               onClick={(e) => {
@@ -118,14 +126,6 @@ export default function PlaylistCard({
         </div>
       </div>
 
-      <h3 className={`font-bold text-lg flex items-center gap-2 ${textHighlight}`}>
-        {playlist.name}
-        {playlist.config?.isIntervalMode && (
-          <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full text-white shrink-0 ${bgAccentClass}`}>
-            {playlist.config?.isCrescendoMode ? 'Crescendo' : 'Fractionné'}
-          </span>
-        )}
-      </h3>
       {configInfo}
 
       <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
