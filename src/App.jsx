@@ -216,6 +216,30 @@ export default function App() {
   const { user, signUp, signIn, signOut, isSupabaseConfigured } = useAuthContext();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
+  // RETOUR DIRECT ("pas de message d'erreur quand je clique sur un lien
+  // expiré ?") — Supabase redirige bien vers l'app avec le détail de
+  // l'erreur (lien de confirmation expiré/déjà utilisé, etc.), mais dans le
+  // HASH de l'URL (`#error=access_denied&error_code=otp_expired&
+  // error_description=...`), jamais lu ni affiché nulle part jusqu'ici —
+  // l'utilisateur retombait silencieusement sur l'accueil, sans savoir si sa
+  // confirmation avait marché ou pas. Lu UNE SEULE FOIS au montage (ce hash
+  // n'apparaît que juste après une redirection Supabase, jamais en usage
+  // normal de l'app), puis nettoyé de l'URL pour ne pas re-déclencher ce
+  // toast à chaque rafraîchissement de la page.
+  useEffect(() => {
+    if (!window.location.hash.includes('error=')) return;
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const errorCode = hashParams.get('error_code');
+    if (errorCode === 'otp_expired') {
+      showToast("❌ Ce lien de confirmation a expiré ou a déjà été utilisé — redemande-en un nouveau.", 'error');
+    } else {
+      const description = hashParams.get('error_description');
+      showToast(`❌ ${description ? decodeURIComponent(description.replace(/\+/g, ' ')) : 'Erreur de confirmation du compte.'}`, 'error');
+    }
+    window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   // Profil Athlétique (BPM cibles par zone d'effort) — voir useAthleticProfile.js.
   // Pas encore connecté au générateur ni aux stats à ce stade (étape 1/2 du
