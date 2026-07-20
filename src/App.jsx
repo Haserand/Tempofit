@@ -56,6 +56,7 @@ import GeneratorView from './components/views/GeneratorView';
 import PlaylistDetailView from './components/views/PlaylistDetailView';
 import CustomActivityModal from './components/modals/CustomActivityModal';
 import ImportSharedPlaylistModal from './components/modals/ImportSharedPlaylistModal';
+import DiscoverView from './components/views/DiscoverView';
 import MiniPlayerBar from './components/shared/MiniPlayerBar';
 import SavingRoutineModal from './components/modals/SavingRoutineModal';
 import ShareModal from './components/modals/ShareModal';
@@ -769,6 +770,64 @@ export default function App() {
     // mises à jour du même clic, la dernière (`true`) l'emporte, donc ce cas
     // précis n'est pas cassé par ce reset.
     if (newView === 'generator') { setWizardStep(1); setShowAthleticProfile(false); }
+  };
+
+  /**
+   * Applique un modèle de séance ensemencé (voir data/curatedSessions.js,
+   * DiscoverView.jsx) au formulaire du générateur, puis y navigue.
+   *
+   * Ordre d'application important, pas arbitraire :
+   *   1. `setCrescendoWarmupBpm(null)`/`setCrescendoCooldownBpm(null)` AVANT
+   *      tout — sinon un réglage laissé par un modèle Crescendo déjà essayé
+   *      dans cette même session empêcherait la ré-estimation automatique
+   *      depuis le NOUVEAU bpm du modèle (seed "une fois, jamais après" dans
+   *      setStructureMode, useGeneratorForm.js).
+   *   2. `setBpmManual`/`setBpmTolerance` (pas les setters "raw") : ils
+   *      marquent respectivement `bpmTouchedManually`/`bpmToleranceTouched`
+   *      à `true` — sans ça, `setStructureMode` ci-dessous pourrait
+   *      recalculer/écraser silencieusement ces 2 valeurs (seed profil BPM,
+   *      tolérance auto-resserrée en Crescendo, voir useGeneratorForm.js).
+   *   3. `structureMode` EN DERNIER (juste avant `segments`) : ses effets de
+   *      bord (badge "profil", tolérance Crescendo) lisent bpm/targetMode/
+   *      hours-minutes déjà posés juste au-dessus. Aucun `activityProfile`
+   *      passé en 2e argument — le Profil Athlétique de l'utilisateur ne
+   *      doit PAS venir écraser les valeurs précises du modèle.
+   *   4. `segments` (Fractionné uniquement) APRÈS `structureMode` — celui-ci
+   *      ne les touche que si un profil est fourni (absent ici), donc aucun
+   *      risque d'écrasement. Le Crescendo, lui, n'a rien à faire ici : ses
+   *      segments se recalculent tout seuls (effet interne de
+   *      useGeneratorForm.js) dès que structureMode/bpm/targetMode/
+   *      hours-minutes sont posés — jamais stockés directement.
+   */
+  const applyTemplateToGenerator = (template) => {
+    const p = template.payload;
+
+    setWorkoutType(p.workoutType);
+
+    setCrescendoWarmupBpm(null);
+    setCrescendoCooldownBpm(null);
+
+    setBpmManual(p.bpm);
+    setBpmTolerance(p.bpmTolerance);
+    setSelectedGenres(p.selectedGenres);
+    setGenreWeights(equalSplitWeights(p.selectedGenres));
+    setLockedGenreWeights(new Set());
+    setTargetMode(p.targetMode);
+    if (p.targetMode === 'distance') {
+      setDistanceVal(p.distanceVal);
+      setDistanceUnit(p.distanceUnit || 'km');
+    } else {
+      setHours(p.hours || 0);
+      setMinutes(p.minutes ?? 30);
+    }
+
+    setStructureMode(p.structureMode);
+
+    if (p.structureMode === 'interval' && p.segments) {
+      setSegments(p.segments.map((s, i) => ({ ...s, id: Date.now() + i })));
+    }
+
+    changeView('generator');
   };
 
   // Pendant à `changeView` : avertit aussi à la fermeture d'onglet / F5, pas
@@ -2431,6 +2490,10 @@ export default function App() {
                 isCadenceIntentEligible={isCadenceIntentEligible}
                 showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
               />
+            )}
+
+            {view === 'discover' && (
+              <DiscoverView theme={themeTokens} onUseTemplate={applyTemplateToGenerator} />
             )}
 
             {view === 'routines' && (
