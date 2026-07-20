@@ -1,4 +1,4 @@
-import { Heart, Activity, Sun, Moon, X, Zap, Gauge, ListPlus, List, Star, Settings } from 'lucide-react';
+import { Heart, Activity, Sun, Moon, X, Zap, Gauge, ListPlus, List, Star, Settings, Compass } from 'lucide-react';
 
 /**
  * Sidebar — navigation principale (logo, toggle thème clair/sombre, liens
@@ -74,6 +74,11 @@ export default function Sidebar({
         >
           <Gauge size={15} className="shrink-0" />
           <span className="text-xs font-semibold">Mon Profil Athlétique</span>
+        </button>
+
+        <button onClick={() => changeView('discover')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'discover' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <Compass size={18} />
+          <span className="font-bold text-sm">Découvrir</span>
         </button>
 
         <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
