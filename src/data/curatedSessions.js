@@ -20,18 +20,17 @@
  * `coverGradient` : pochette de secours (dégradé Tailwind) — ces playlists
  * n'ont pas de vraie pochette dédiée pour l'instant.
  *
- * `tracks[].youtubeId` (PAS `id`) : nom du champ délibérément gardé
- * identique à celui utilisé PARTOUT AILLEURS dans l'app pour identifier un
- * titre (favoris, mini-lecteur, graphiques BPM — voir PlaylistDetailView.jsx,
- * useAudioPreview.js) — un champ `id` à la place casserait silencieusement
- * toutes ces fonctionnalités une fois la playlist ouverte.
- *
- * ⚠️ `preview: null` partout ici — les URLs d'extrait Deezer EXPIRENT (déjà
- * documenté ailleurs dans ce projet, voir App.jsx) : les coder en dur dans
- * ce fichier statique les ferait casser silencieusement tôt ou tard. Les
- * titres réutilisés ci-dessous (Mr. Brightside, Duality...) sont les MÊMES
- * déjà validés et utilisés comme démo ailleurs dans App.jsx — pas de
- * nouveaux identifiants inventés dans ce mock.
+ * RETOUR DIRECT ("pas de bruit dans l'app, ne pas appeler ça un id YouTube
+ * si ça n'en est pas un") — la version précédente donnait à chaque titre un
+ * `youtubeId` qui était en fait un ANCIEN identifiant YouTube recyclé d'une
+ * démo ailleurs dans l'app (jamais un vrai identifiant Deezer). Retiré ici :
+ * `title`/`artist` suffisent à IDENTIFIER un titre dans ce catalogue. Le
+ * vrai identifiant Deezer et l'extrait audio ne sont RÉSOLUS qu'à la
+ * demande, au moment du clic sur "écouter" (voir
+ * resolveDeezerTrackByTitleArtist, musicEngine.js, et
+ * resolveAndTogglePreview, PlaylistDetailView.jsx) — jamais stockés en dur
+ * ici. Ce choix règle aussi, par construction, le souci des URLs d'extrait
+ * Deezer qui EXPIRENT : rien de figé à faire expirer.
  */
 
 export const curatedSessions = [
@@ -45,11 +44,11 @@ export const curatedSessions = [
     workoutType: 'Course à pied',
     coverGradient: 'from-red-500 to-orange-500',
     tracks: [
-      { youtubeId: 'gGdGFtwPNsQ', title: 'Mr. Brightside', artist: 'The Killers', genre: 'Rock', bpm: 148, duration: 222, preview: null },
-      { youtubeId: 'L_jWHffIx5E', title: 'Smash', artist: 'The Offspring', genre: 'Métal', bpm: 180, duration: 170, preview: null },
-      { youtubeId: 'v2H4l9RpkwM', title: 'Duality', artist: 'Slipknot', genre: 'Métal', bpm: 145, duration: 252, preview: null },
-      { youtubeId: 'v2AC41dglnM', title: 'Thunderstruck', artist: 'AC/DC', genre: 'Rock', bpm: 133, duration: 292, preview: null },
-      { youtubeId: 'CSvFpBOe8eY', title: 'Chop Suey!', artist: 'System Of A Down', genre: 'Métal', bpm: 128, duration: 210, preview: null },
+      { title: 'Mr. Brightside', artist: 'The Killers', genre: 'Rock', bpm: 148, duration: 222 },
+      { title: 'Smash', artist: 'The Offspring', genre: 'Métal', bpm: 180, duration: 170 },
+      { title: 'Duality', artist: 'Slipknot', genre: 'Métal', bpm: 145, duration: 252 },
+      { title: 'Thunderstruck', artist: 'AC/DC', genre: 'Rock', bpm: 133, duration: 292 },
+      { title: 'Chop Suey!', artist: 'System Of A Down', genre: 'Métal', bpm: 128, duration: 210 },
     ],
   },
   {
@@ -62,9 +61,9 @@ export const curatedSessions = [
     workoutType: 'Course à pied',
     coverGradient: 'from-emerald-500 to-teal-600',
     tracks: [
-      { youtubeId: 'CSvFpBOe8eY', title: 'Chop Suey!', artist: 'System Of A Down', genre: 'Métal', bpm: 128, duration: 210, preview: null },
-      { youtubeId: 'v2AC41dglnM', title: 'Thunderstruck', artist: 'AC/DC', genre: 'Rock', bpm: 133, duration: 292, preview: null },
-      { youtubeId: 'gGdGFtwPNsQ', title: 'Mr. Brightside', artist: 'The Killers', genre: 'Rock', bpm: 148, duration: 222, preview: null },
+      { title: 'Chop Suey!', artist: 'System Of A Down', genre: 'Métal', bpm: 128, duration: 210 },
+      { title: 'Thunderstruck', artist: 'AC/DC', genre: 'Rock', bpm: 133, duration: 292 },
+      { title: 'Mr. Brightside', artist: 'The Killers', genre: 'Rock', bpm: 148, duration: 222 },
     ],
   },
   {
@@ -77,10 +76,10 @@ export const curatedSessions = [
     workoutType: 'Cyclisme',
     coverGradient: 'from-purple-500 to-indigo-500',
     tracks: [
-      { youtubeId: 'CSvFpBOe8eY', title: 'Chop Suey!', artist: 'System Of A Down', genre: 'Métal', bpm: 128, duration: 210, preview: null },
-      { youtubeId: 'gGdGFtwPNsQ', title: 'Mr. Brightside', artist: 'The Killers', genre: 'Rock', bpm: 148, duration: 222, preview: null },
-      { youtubeId: 'L_jWHffIx5E', title: 'Smash', artist: 'The Offspring', genre: 'Métal', bpm: 180, duration: 170, preview: null },
-      { youtubeId: 'v2AC41dglnM', title: 'Thunderstruck', artist: 'AC/DC', genre: 'Rock', bpm: 133, duration: 292, preview: null },
+      { title: 'Chop Suey!', artist: 'System Of A Down', genre: 'Métal', bpm: 128, duration: 210 },
+      { title: 'Mr. Brightside', artist: 'The Killers', genre: 'Rock', bpm: 148, duration: 222 },
+      { title: 'Smash', artist: 'The Offspring', genre: 'Métal', bpm: 180, duration: 170 },
+      { title: 'Thunderstruck', artist: 'AC/DC', genre: 'Rock', bpm: 133, duration: 292 },
     ],
   },
   {
@@ -93,9 +92,9 @@ export const curatedSessions = [
     workoutType: 'Course à pied',
     coverGradient: 'from-rose-500 to-red-600',
     tracks: [
-      { youtubeId: 'v2H4l9RpkwM', title: 'Duality', artist: 'Slipknot', genre: 'Métal', bpm: 145, duration: 252, preview: null },
-      { youtubeId: 'L_jWHffIx5E', title: 'Smash', artist: 'The Offspring', genre: 'Métal', bpm: 180, duration: 170, preview: null },
-      { youtubeId: 'gGdGFtwPNsQ', title: 'Mr. Brightside', artist: 'The Killers', genre: 'Rock', bpm: 148, duration: 222, preview: null },
+      { title: 'Duality', artist: 'Slipknot', genre: 'Métal', bpm: 145, duration: 252 },
+      { title: 'Smash', artist: 'The Offspring', genre: 'Métal', bpm: 180, duration: 170 },
+      { title: 'Mr. Brightside', artist: 'The Killers', genre: 'Rock', bpm: 148, duration: 222 },
     ],
   },
   {
@@ -108,8 +107,8 @@ export const curatedSessions = [
     workoutType: 'Musculation',
     coverGradient: 'from-slate-500 to-gray-700',
     tracks: [
-      { youtubeId: 'CSvFpBOe8eY', title: 'Chop Suey!', artist: 'System Of A Down', genre: 'Métal', bpm: 128, duration: 210, preview: null },
-      { youtubeId: 'v2AC41dglnM', title: 'Thunderstruck', artist: 'AC/DC', genre: 'Rock', bpm: 133, duration: 292, preview: null },
+      { title: 'Chop Suey!', artist: 'System Of A Down', genre: 'Métal', bpm: 128, duration: 210 },
+      { title: 'Thunderstruck', artist: 'AC/DC', genre: 'Rock', bpm: 133, duration: 292 },
     ],
   },
 ];
