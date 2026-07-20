@@ -327,6 +327,7 @@ export default function App() {
     crescendoWarmupPct, setCrescendoWarmupPct, crescendoCooldownPct, setCrescendoCooldownPct,
     CRESCENDO_MIN_MAIN_PCT,
     crescendoWarmupBpm, setCrescendoWarmupBpm, crescendoCooldownBpm, setCrescendoCooldownBpm,
+    bpmSourceIsProfile,
     applyProfileBpmIfUntouched,
     allowLongTracks, setAllowLongTracks,
     targetMode, setTargetMode,
@@ -412,7 +413,16 @@ export default function App() {
         // peuvent légitimement pointer vers le même titre). Repli sur un
         // identifiant généré UNIQUEMENT si absent du payload.
         youtubeId: t.id || `imported-${Math.random().toString(36).slice(2)}`,
-        preview: t.pv || null,
+        // BUG ÉVITÉ (trouvé en repassant sur tout le projet) : `t.pv` est
+        // l'extrait audio encodé dans le LIEN au moment du partage — une URL
+        // Deezer, donc soumise à la même expiration déjà documentée pour les
+        // playlists ensemencées (voir data/curatedSessions.js). Un lien
+        // ouvert des semaines après son partage pouvait pointer vers un
+        // extrait mort. Toujours `null` ici désormais : `preview` se résout
+        // à la demande au 1er clic, exactement comme pour les playlists
+        // ensemencées (voir resolveAndTogglePreview, PlaylistDetailView.jsx)
+        // — même mécanisme déjà en place, rien de nouveau à construire.
+        preview: null,
       })),
       isNaughty: false, fallbackTrackCount: 0,
       coverIcon: preview.coverIcon || '🎧', createdAt: new Date().toLocaleDateString(),
@@ -2456,6 +2466,7 @@ export default function App() {
                 CRESCENDO_MIN_MAIN_PCT={CRESCENDO_MIN_MAIN_PCT}
                 crescendoWarmupBpm={crescendoWarmupBpm} setCrescendoWarmupBpm={setCrescendoWarmupBpm}
                 crescendoCooldownBpm={crescendoCooldownBpm} setCrescendoCooldownBpm={setCrescendoCooldownBpm}
+                bpmSourceIsProfile={bpmSourceIsProfile}
                 applyProfileBpmIfUntouched={applyProfileBpmIfUntouched}
                 hours={hours} minutes={minutes} distanceVal={distanceVal} distanceUnit={distanceUnit}
                 paceMin={paceMin} setPaceMin={setPaceMin} paceSec={paceSec} setPaceSec={setPaceSec}
