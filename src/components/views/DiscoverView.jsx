@@ -16,7 +16,7 @@ import TemplateCard from './TemplateCard';
  * opacité réduite, curseur "not-allowed") — pose les bases visuelles de la
  * V2 communautaire sans promettre une fonctionnalité qui n'existe pas encore.
  */
-export default function DiscoverView({ theme, onUseTemplate }) {
+export default function DiscoverView({ theme, onPlayTemplate }) {
   const { textHighlight, textMuted, cardBg, cardBorder } = theme;
 
   const categories = [...new Set(curatedSessions.map(t => t.category))];
@@ -42,9 +42,9 @@ export default function DiscoverView({ theme, onUseTemplate }) {
       {categories.map(category => (
         <div key={category}>
           <h2 className={`text-xl font-bold mb-4 ${textHighlight}`}>{category}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-5">
             {curatedSessions.filter(t => t.category === category).map(template => (
-              <TemplateCard key={template.id} theme={theme} template={template} onUseTemplate={onUseTemplate} />
+              <TemplateCard key={template.id} theme={theme} template={template} onPlayTemplate={onPlayTemplate} />
             ))}
           </div>
         </div>
