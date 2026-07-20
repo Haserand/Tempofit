@@ -4,8 +4,10 @@ import { getZoneForValue, ATHLETIC_ZONES } from '../../appConfig';
 
 /**
  * SessionSummaryCard — "Bilan Visuel de Séance", pensé pour être capturé en
- * image (voir exportSessionSummaryImage dans PlaylistDetailView.jsx, qui
- * utilise html2canvas dessus) et partagé en Story Instagram / WhatsApp.
+ * image (voir generateSummaryImageFile/startBackgroundImageGeneration dans
+ * PlaylistDetailView.jsx, qui utilise html2canvas dessus, et ShareModal.jsx
+ * pour l'aperçu/le partage une fois l'image prête) et partagé en Story
+ * Instagram / WhatsApp.
  *
  * Composant PUREMENT présentationnel — aucun appel réseau ici (voir
  * `topTrackCovers`, résolues par l'appelant AVANT de monter ce composant,
