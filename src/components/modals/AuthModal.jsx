@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, User, Mail, Lock, Loader2 } from 'lucide-react';
+import { X, User, Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 
 /**
  * AuthModal — connexion/inscription par e-mail + mot de passe (voir la
@@ -11,6 +11,13 @@ import { X, User, Mail, Lock, Loader2 } from 'lucide-react';
  * "Dumb" comme les autres vues/modales (voir SettingsView.jsx) : ne touche
  * pas directement à Supabase, appelle `signUp`/`signIn` reçus en props
  * (fournis par App.jsx via useAuthContext) et affiche le résultat.
+ *
+ * RETOUR DIRECT ("d'habitude y a une confirmation du mot de passe, et un
+ * bouton pour voir les caractères") — 2 ajouts standards manquants au 1er
+ * jet : `confirmPassword` (uniquement en mode inscription — se connecter
+ * n'a rien à confirmer, le mot de passe existe déjà) et un bouton
+ * afficher/masquer sur CHAQUE champ mot de passe (le principal ET la
+ * confirmation, pas juste l'un des deux).
  */
 export default function AuthModal({ theme, isAuthModalOpen, setIsAuthModalOpen, signUp, signIn, showToast }) {
   const { cardBg, cardBorder, textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
@@ -18,15 +25,28 @@ export default function AuthModal({ theme, isAuthModalOpen, setIsAuthModalOpen, 
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   if (!isAuthModalOpen) return null;
 
-  const close = () => {
-    setIsAuthModalOpen(false);
+  const resetFields = () => {
     setErrorMsg('');
     setPassword('');
+    setConfirmPassword('');
+    setShowPassword(false);
+  };
+
+  const close = () => {
+    setIsAuthModalOpen(false);
+    resetFields();
+  };
+
+  const switchMode = () => {
+    setMode(mode === 'signup' ? 'signin' : 'signup');
+    resetFields();
   };
 
   const handleSubmit = async (e) => {
@@ -34,6 +54,10 @@ export default function AuthModal({ theme, isAuthModalOpen, setIsAuthModalOpen, 
     setErrorMsg('');
     if (!email.trim() || !password) {
       setErrorMsg('Renseigne un e-mail et un mot de passe.');
+      return;
+    }
+    if (mode === 'signup' && password !== confirmPassword) {
+      setErrorMsg('Les 2 mots de passe ne correspondent pas.');
       return;
     }
     setSubmitting(true);
@@ -75,18 +99,40 @@ export default function AuthModal({ theme, isAuthModalOpen, setIsAuthModalOpen, 
             <Mail size={18} className={textMuted}/>
             <input
               type="email" autoComplete="email" placeholder="ton@email.com"
-              value={email} onChange={e => setEmail(e.target.value)}
+              value={email} onChange={e => { setEmail(e.target.value); setErrorMsg(''); }}
               className={`flex-1 bg-transparent outline-none ${textHighlight}`}
             />
           </div>
+
           <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border ${inputBorder} ${inputBg}`}>
             <Lock size={18} className={textMuted}/>
             <input
-              type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} placeholder="Mot de passe"
-              value={password} onChange={e => setPassword(e.target.value)}
+              type={showPassword ? 'text' : 'password'} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} placeholder="Mot de passe"
+              value={password} onChange={e => { setPassword(e.target.value); setErrorMsg(''); }}
               className={`flex-1 bg-transparent outline-none ${textHighlight}`}
             />
+            <button type="button" onClick={() => setShowPassword(s => !s)} title={showPassword ? 'Masquer' : 'Afficher'} className={`${textMuted} hover:text-main transition-colors`}>
+              {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
+            </button>
           </div>
+
+          {/* Confirmation UNIQUEMENT à l'inscription — se connecter n'a rien à
+              confirmer, le mot de passe existe déjà côté Supabase. Partage
+              `showPassword` avec le champ principal : pas de raison de
+              pouvoir afficher l'un et pas l'autre, c'est le même mot de passe. */}
+          {mode === 'signup' && (
+            <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border ${inputBorder} ${inputBg}`}>
+              <Lock size={18} className={textMuted}/>
+              <input
+                type={showPassword ? 'text' : 'password'} autoComplete="new-password" placeholder="Confirme ton mot de passe"
+                value={confirmPassword} onChange={e => { setConfirmPassword(e.target.value); setErrorMsg(''); }}
+                className={`flex-1 bg-transparent outline-none ${textHighlight}`}
+              />
+              <button type="button" onClick={() => setShowPassword(s => !s)} title={showPassword ? 'Masquer' : 'Afficher'} className={`${textMuted} hover:text-main transition-colors`}>
+                {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
+              </button>
+            </div>
+          )}
 
           {errorMsg && (
             <p className="text-sm font-semibold text-red-500">{errorMsg}</p>
@@ -102,7 +148,7 @@ export default function AuthModal({ theme, isAuthModalOpen, setIsAuthModalOpen, 
         </form>
 
         <button
-          onClick={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setErrorMsg(''); }}
+          onClick={switchMode}
           className={`w-full py-3 mt-2 rounded-xl text-sm font-bold ${textMuted} hover:text-main transition-colors`}
         >
           {mode === 'signup' ? 'Déjà un compte ? Se connecter' : "Pas encore de compte ? S'inscrire"}
