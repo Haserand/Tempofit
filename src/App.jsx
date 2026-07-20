@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Check, X, Heart, Loader2, AlertCircle, Zap, Menu, Edit3, Trophy, Upload } from 'lucide-react';
+import { Activity, Clock, Music, Check, X, Heart, Loader2, AlertCircle, Zap, Menu, Edit3, Trophy, Upload, User as UserIcon } from 'lucide-react';
 import { ARTIST_CATALOG, EXTRA_GENRES, WEAK_DEEZER_KEYWORD_GENRES, normalizeGenreForDisplay, genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getZoneForValue, ATHLETIC_ZONES, DISTRIBUTION_COLORS } from './appConfig';
 
@@ -2170,7 +2170,38 @@ export default function App() {
             pour être incité à aller découvrir les fonctionnalités qui y mènent
             (Favoris, Partager, Planifier...) — décision prise après discussion,
             plutôt que de le masquer complètement avant le 1er trophée. */}
-        <div className="absolute top-4 right-4 md:top-6 md:right-6 z-[60]">
+        {/* RETOUR DIRECT ("le bouton pour se connecter devrait être en haut à
+            droite, pas caché dans un onglet") — jusqu'ici, la seule façon de
+            se connecter était de naviguer jusqu'à Options & Comptes. Ajouté
+            ici, à côté du trophée (même coin, même style visuel — rounded-full,
+            ombre, bordure), visible sur TOUTES les pages plutôt que dans un
+            seul onglet peu fréquenté. Déconnecté → bouton "Se connecter" avec
+            libellé (c'est un appel à l'action, contrairement au trophée qui
+            n'est qu'un indicateur de statut passif — mérite d'être nommé,
+            pas juste une icône). Connecté → pastille avec l'initiale de
+            l'email, renvoie vers Options & Comptes pour se déconnecter ou
+            voir le détail (pas de nouveau menu déroulant à construire pour
+            un cas déjà bien couvert là-bas). */}
+        <div className="absolute top-4 right-4 md:top-6 md:right-6 z-[60] flex items-center gap-2">
+          {isSupabaseConfigured && (
+            user ? (
+              <button
+                onClick={() => changeView('settings')}
+                title={user.email}
+                className="w-11 h-11 rounded-full shadow-lg border hover:scale-110 transition-transform flex items-center justify-center bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-500 border-green-200 dark:border-green-700/50 font-bold"
+              >
+                {user.email.charAt(0).toUpperCase()}
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className={`px-4 py-2.5 rounded-full shadow-lg border hover:scale-105 transition-transform flex items-center gap-1.5 text-sm font-bold ${bgAccentClass} text-white border-transparent`}
+              >
+                <UserIcon size={16} />
+                <span>Se connecter</span>
+              </button>
+            )
+          )}
           <button
             onClick={() => changeView('trophies')}
             className={`relative p-3 rounded-full shadow-lg border hover:scale-110 transition-transform flex items-center justify-center ${
