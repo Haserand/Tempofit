@@ -13,6 +13,17 @@
  * garder l'URL raisonnable — pas de pochettes ni d'historique personnel
  * (completions, actualDataByDate) : une playlist importée démarre TOUJOURS
  * comme neuve, jamais avec l'historique de la personne qui l'a partagée.
+ *
+ * RETOUR DIRECT (audit global après plusieurs chantiers, "les extraits
+ * peuvent pas juste se mettre à jour à chaque clic ?") — l'extrait audio
+ * (`preview`) n'est plus encodé du tout dans le lien : c'est une URL Deezer,
+ * donc soumise à la même expiration déjà documentée pour les playlists
+ * ensemencées (voir data/curatedSessions.js) — un lien ouvert des semaines
+ * après son partage pouvait pointer vers un extrait mort. `App.jsx`
+ * (`importSharedPlaylist`) force maintenant `preview: null` à l'import ; la
+ * résolution se fait à la demande au 1er clic, exactement comme pour les
+ * playlists ensemencées (voir resolveAndTogglePreview,
+ * PlaylistDetailView.jsx) — un champ en moins à encoder, un lien plus court.
  */
 
 // Base64 "URL-safe" (- et _ au lieu de + et /, padding retiré) — évite
@@ -34,7 +45,7 @@ const encodePlaylistForSharing = (playlist) => {
       // le plus sur la longueur finale de l'URL.
       tracks: (playlist.tracks || []).map(t => ({
         ti: t.title, ar: t.artist, bp: t.bpm, du: t.duration,
-        ge: t.genre || null, id: t.youtubeId || null, pv: t.preview || null,
+        ge: t.genre || null, id: t.youtubeId || null,
       })),
     };
     const json = JSON.stringify(payload);
