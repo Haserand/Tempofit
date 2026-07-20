@@ -1,4 +1,4 @@
-import { Music2, Clock, Activity } from 'lucide-react';
+import { Music2, Clock, Activity, Calendar, MapPin } from 'lucide-react';
 import { formatDuration } from '../../utils/format';
 import { getZoneForValue, ATHLETIC_ZONES } from '../../appConfig';
 
@@ -19,6 +19,20 @@ import { getZoneForValue, ATHLETIC_ZONES } from '../../appConfig';
  * taille de la capture dépendante de la largeur de l'écran de la personne au
  * moment de l'export, ce qui n'a pas de sens pour une image destinée à être
  * partagée telle quelle.
+ *
+ * RETOUR DIRECT ("manque la date, le type de sport, la distance ; pas ok de
+ * parler d'intensité") — 2 vrais manques corrigés :
+ *   1. Date/activité/distance existaient déjà dans l'objet `playlist`
+ *      (`completions`, `workoutType`, `config.distanceVal`) mais n'étaient
+ *      jamais affichés sur cette carte précisément — ajoutés en ligne de
+ *      méta sous le titre.
+ *   2. Le libellé "Zones d'intensité" restait affiché même dans la branche
+ *      de repli (tranches BPM brutes, sans profil réel) — incohérent avec la
+ *      règle déjà posée ailleurs dans l'app (StatsView/PlaylistDetailView) :
+ *      le mot "intensité"/"effort" exige un vrai profil configuré, sinon
+ *      c'est une simple répartition par BPM, sans plus de sens qu'une
+ *      tranche brute. Le libellé suit maintenant `matchedAnyZone`, comme le
+ *      contenu du graphique lui-même.
  */
 export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNaughtyMode = false, getProfileForWorkout = null }) {
   if (!playlist) return null;
@@ -34,6 +48,24 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
   const activityName = isNaughtyMode
     ? (playlist.config?.workoutName || playlist.workoutType || 'Autre')
     : (playlist.workoutType || 'Autre');
+
+  // Date affichée : la complétion la plus RÉCENTE si cette séance a déjà été
+  // marquée comme faite au moins une fois (`completions`, un tableau de
+  // dates ISO — voir PlaylistDetailView.jsx pour le même champ), sinon repli
+  // sur la date de création de la playlist (`createdAt`, déjà au format
+  // locale FR — voir musicEngine.js/createPlaylistData) pour ne jamais
+  // laisser cette ligne vide.
+  const displayDate = (playlist.completions && playlist.completions.length > 0)
+    ? new Date(playlist.completions[playlist.completions.length - 1].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+    : (playlist.createdAt || null);
+
+  // Distance UNIQUEMENT pertinente si la séance a été calée "Par Distance"
+  // (`targetMode === 'distance'`) — pas de sens de l'afficher pour une
+  // séance calée par durée, ce serait une valeur de config jamais vraiment
+  // choisie par l'utilisateur pour cette séance-là.
+  const distanceLabel = (playlist.targetMode === 'distance' && playlist.config?.distanceVal)
+    ? `${playlist.config.distanceVal} ${playlist.distanceUnit || 'km'}`
+    : null;
 
   // "Règle d'or" ergonomie (retour direct : une couleur = une zone
   // d'intensité, partout dans l'app, y compris à l'export/au partage) :
@@ -103,7 +135,20 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
         </div>
 
         <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Bilan de séance</p>
-        <h1 className="text-white text-3xl font-black leading-tight mb-6">{playlist.name}</h1>
+        <h1 className="text-white text-3xl font-black leading-tight mb-2">{playlist.name}</h1>
+
+        {/* Ligne de méta : date · activité · distance (si pertinente) — un
+            simple texte gris séparé par des points, pas des badges séparés,
+            pour rester compact sur une seule ligne. */}
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mb-6 text-gray-400 text-xs font-semibold">
+          {displayDate && (
+            <span className="flex items-center gap-1"><Calendar size={12}/> {displayDate}</span>
+          )}
+          <span className="flex items-center gap-1">{displayDate && '·'} <Activity size={12}/> {activityName}</span>
+          {distanceLabel && (
+            <span className="flex items-center gap-1">· <MapPin size={12}/> {distanceLabel}</span>
+          )}
+        </div>
 
         <div className="flex gap-3 mb-6">
           <div className="flex-1 bg-white/5 rounded-2xl p-4 border border-white/10">
@@ -116,10 +161,14 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
           </div>
         </div>
 
-        {/* Zones d'intensité — barres empilées, une par tranche de BPM */}
+        {/* Barres empilées — le libellé dépend de CE QUI EST VRAIMENT affiché
+            (voir la docstring plus haut) : "Zones d'intensité" seulement si
+            `matchedAnyZone` (vraies zones d'effort, profil configuré),
+            "Répartition par BPM" sinon (tranches brutes, sans lien avec un
+            profil réel) — jamais l'un affiché avec le libellé de l'autre. */}
         {bars.length > 0 && (
           <div className="mb-6">
-            <p className="text-gray-400 text-[11px] font-bold uppercase tracking-widest mb-2">Zones d'intensité</p>
+            <p className="text-gray-400 text-[11px] font-bold uppercase tracking-widest mb-2">{matchedAnyZone ? "Zones d'intensité" : "Répartition par BPM"}</p>
             <div className="w-full h-3 rounded-full overflow-hidden flex">
               {bars.map((b, i) => (
                 <div key={i} style={{ width: `${b.pct}%`, backgroundColor: b.color }} />
@@ -137,7 +186,13 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
         )}
 
         {/* Top titres, avec pochette si résolue par l'appelant (voir
-            topTrackCovers) — repli sur une icône générique sinon. */}
+            topTrackCovers) — repli sur une icône générique sinon.
+            RETOUR DIRECT ("titres coupés") : `min-h` + `leading-snug` sur
+            chaque ligne de texte, pour ne jamais dépendre d'une hauteur de
+            ligne par défaut qui varierait d'un navigateur à l'autre au
+            moment de la capture html2canvas — chaque ligne réserve
+            maintenant explicitement sa hauteur plutôt que de la déduire du
+            contenu au pixel près. */}
         {topTracks.length > 0 && (
           <div className="space-y-2">
             <p className="text-gray-400 text-[11px] font-bold uppercase tracking-widest mb-1">Titres marquants</p>
@@ -150,9 +205,9 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
                     <Music2 size={16} className="text-gray-500" />
                   </div>
                 )}
-                <div className="min-w-0">
-                  <p className="text-white text-sm font-bold truncate">{t.title}</p>
-                  <p className="text-gray-400 text-xs truncate">{t.artist}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-white text-sm font-bold truncate leading-snug min-h-[18px]">{t.title}</p>
+                  <p className="text-gray-400 text-xs truncate leading-snug min-h-[16px]">{t.artist}</p>
                 </div>
               </div>
             ))}
