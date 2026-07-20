@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { formatDuration } from '../utils/format';
+import { encodePlaylistForSharing } from '../utils/playlistShareCode';
 
 /**
  * useShare — regroupe l'état et la logique de la modale de partage
@@ -29,7 +30,20 @@ export function useShare(showToast) {
       const text = isCompleted
         ? `Je viens de terminer une séance de ${formatDuration(item.totalDuration)} sur TempoFit ! 💪🎧`
         : `Je viens de générer la session musicale parfaite de ${formatDuration(item.totalDuration)} pour mon entraînement sur TempoFit ! 💪🎧`;
-      setShareData({ type: 'playlist', title: item.name, text, url: window.location.href });
+      // RETOUR DIRECT ("rendre le lien de partage réellement importable") —
+      // avant, `url: window.location.href` pointait juste vers la page
+      // courante de l'app, TOUJOURS la même quelle que soit la playlist
+      // partagée (aucun routage par URL dans cette app — `view`/
+      // `currentPlaylist` sont de simples state React, jamais reflétés dans
+      // l'adresse). Qui ouvrait ce lien retombait sur l'accueil, sans aucun
+      // moyen de savoir QUELLE playlist avait été partagée. Encode
+      // maintenant la playlist elle-même dans l'URL (voir
+      // playlistShareCode.js) — l'app, au chargement, détecte ce paramètre
+      // et propose l'ajout direct (voir App.jsx). Repli sur l'ancien lien
+      // simple si l'encodage échoue (jamais bloquant pour le partage).
+      const code = encodePlaylistForSharing(item);
+      const url = code ? `${window.location.origin}${window.location.pathname}?import=${code}` : window.location.href;
+      setShareData({ type: 'playlist', title: item.name, text, url });
     } else if (type === 'trophy') {
       setShareData({
         type: 'trophy', title: item.name,
