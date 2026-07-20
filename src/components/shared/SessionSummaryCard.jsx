@@ -189,15 +189,25 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
 
         {/* Top titres, avec pochette si résolue par l'appelant (voir
             topTrackCovers) — repli sur une icône générique sinon.
-            RETOUR DIRECT ("titres coupés") : `min-h` + `leading-snug` sur
-            chaque ligne de texte, pour ne jamais dépendre d'une hauteur de
-            ligne par défaut qui varierait d'un navigateur à l'autre au
-            moment de la capture html2canvas — chaque ligne réserve
-            maintenant explicitement sa hauteur plutôt que de la déduire du
-            contenu au pixel près. */}
+            RETOUR DIRECT ("le nom des titres est encore coupé dans l'image
+            téléchargée") — mon 1er correctif (min-h + leading-snug) ne
+            suffisait pas : le haut des lettres restait rogné sur l'image
+            RÉELLEMENT téléchargée (pas un souci d'aperçu cette fois). C'est
+            un souci connu de html2canvas : le rendu texte sur canvas ne
+            reproduit pas toujours fidèlement un interlignage serré,
+            rognant le haut des ascendantes/lettres majuscules. Remplacé par
+            un interlignage plus généreux (`leading-relaxed` au lieu de
+            `leading-snug`) + un peu de marge verticale sur le conteneur
+            (`py-0.5`) plutôt qu'une hauteur minimale fixe (`min-h`, retirée
+            — elle forçait une boîte trop juste, contre-productive ici).
+            "Premiers titres" plutôt que "Titres marquants" : ce sont
+            littéralement les 3 premiers de la playlist dans l'ordre de
+            lecture (`tracks.slice(0, 3)`), pas une sélection par pertinence
+            (BPM, popularité...) — le libellé précédent laissait croire le
+            contraire. */}
         {topTracks.length > 0 && (
           <div className="space-y-2">
-            <p className="text-gray-400 text-[11px] font-bold uppercase tracking-widest mb-1">Titres marquants</p>
+            <p className="text-gray-400 text-[11px] font-bold uppercase tracking-widest mb-1">Premiers titres</p>
             {topTracks.map((t, i) => (
               <div key={i} className="flex items-center gap-3 bg-white/5 rounded-xl p-2.5 border border-white/10">
                 {topTrackCovers[t.youtubeId] ? (
@@ -207,9 +217,9 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
                     <Music2 size={16} className="text-gray-500" />
                   </div>
                 )}
-                <div className="min-w-0 flex-1">
-                  <p className="text-white text-sm font-bold truncate leading-snug min-h-[18px]">{t.title}</p>
-                  <p className="text-gray-400 text-xs truncate leading-snug min-h-[16px]">{t.artist}</p>
+                <div className="min-w-0 flex-1 py-0.5">
+                  <p className="text-white text-sm font-bold truncate leading-relaxed">{t.title}</p>
+                  <p className="text-gray-400 text-xs truncate leading-relaxed">{t.artist}</p>
                 </div>
               </div>
             ))}
