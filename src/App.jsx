@@ -57,6 +57,7 @@ import GeneratorView from './components/views/GeneratorView';
 import PlaylistDetailView from './components/views/PlaylistDetailView';
 import CustomActivityModal from './components/modals/CustomActivityModal';
 import ImportSharedPlaylistModal from './components/modals/ImportSharedPlaylistModal';
+import MiniPlayerBar from './components/shared/MiniPlayerBar';
 import SavingRoutineModal from './components/modals/SavingRoutineModal';
 import ShareModal from './components/modals/ShareModal';
 import AuthModal from './components/modals/AuthModal';
@@ -528,7 +529,11 @@ export default function App() {
   const [editedPlaylistName, setEditedPlaylistName] = useState("");
 
   // --- Lecture des extraits audio (30s, fournis par Deezer) ---
-  const { playingPreviewId, togglePreview } = useAudioPreview(isSearchModalOpen, showToast);
+  const {
+    playingPreviewId, togglePreview,
+    currentTrack: currentPreviewTrack, isPlaying: isPreviewPlaying,
+    pauseCurrentPreview, resumeCurrentPreview, stopCurrentPreview,
+  } = useAudioPreview(showToast);
 
   // --- MOTEUR DE RECHERCHE DEEZER (recherche manuelle titre/artiste avec BPM) ---
   // On utilise l'API publique Deezer (100M+ titres, champ "bpm" par titre, pas de
@@ -2661,6 +2666,13 @@ export default function App() {
           theme={themeTokens}
           isOpen={isImportModalOpen} onClose={() => { setIsImportModalOpen(false); setImportedPlaylistPreview(null); }}
           preview={importedPlaylistPreview} onImport={importSharedPlaylist}
+        />
+
+        <MiniPlayerBar
+          theme={themeTokens}
+          track={currentPreviewTrack} isPlaying={isPreviewPlaying}
+          onTogglePlayPause={() => isPreviewPlaying ? pauseCurrentPreview() : resumeCurrentPreview()}
+          onClose={stopCurrentPreview}
         />
 
       </div>
