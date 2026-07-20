@@ -94,11 +94,17 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           )}
         </div>
 
-        {/* Aide au dépannage "redirect_uri: Not matching configuration" — voir
-            le commentaire plus haut. N'apparaît que tant que Spotify n'est pas
-            connecté : une fois lié avec succès, plus la peine d'encombrer
-            l'écran avec ça. */}
-        {!spotifyToken && spotifyRedirectUri && (
+        {/* RETOUR DIRECT ("un seul message jaune suffit quand les 2 comptes
+            ont le souci, pour gagner de la place") — Spotify et Deezer
+            calculent tous les deux `origin + pathname` comme URL de
+            redirection : c'est LITTÉRALEMENT la même chaîne dans les 2 cas,
+            donc l'afficher 2 fois quand les 2 comptes sont déconnectés en
+            même temps n'apportait rien. 3 cas maintenant, pas 2 :
+              - seul Spotify a le souci (Deezer déjà connecté) → boîte Spotify seule
+              - seul Deezer a le souci (Spotify déjà connecté) → boîte Deezer seule
+              - LES DEUX ont le souci → une seule boîte fusionnée plus bas,
+                ni celle-ci ni celle de Deezer ne s'affichent ici */}
+        {!spotifyToken && deezerToken && spotifyRedirectUri && (
           <div className={`mt-4 p-4 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10`}>
             <div className="flex items-start gap-2 text-sm font-bold text-amber-700 dark:text-amber-400 mb-2">
               <AlertTriangle size={16} className="shrink-0 mt-0.5"/>
@@ -148,10 +154,9 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           )}
         </div>
 
-        {/* Même aide au dépannage que pour Spotify, adaptée au tableau de
-            bord Deezer (https://developers.deezer.com/myapps → l'app
-            concernée → Settings → Redirect URI). */}
-        {!deezerToken && deezerRedirectUri && (
+        {/* Cas "seul Deezer a le souci" (Spotify déjà connecté) — voir le
+            commentaire au-dessus de la boîte Spotify pour les 3 cas. */}
+        {!deezerToken && spotifyToken && deezerRedirectUri && (
           <div className={`mt-4 p-4 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10`}>
             <div className="flex items-start gap-2 text-sm font-bold text-amber-700 dark:text-amber-400 mb-2">
               <AlertTriangle size={16} className="shrink-0 mt-0.5"/>
@@ -165,6 +170,29 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                 className={`shrink-0 p-1.5 rounded-md transition-colors ${copiedDeezer ? 'text-green-500' : textMuted + ' hover:text-amber-600'}`}
               >
                 {copiedDeezer ? <Check size={16}/> : <Copy size={16}/>}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Cas "LES DEUX ont le souci" — une seule boîte, même URL affichée
+            une seule fois (voir le commentaire au-dessus de la boîte
+            Spotify). Réutilise `copied`/`copyRedirectUri` (peu importe
+            lequel des 2 états, l'URL copiée est identique). */}
+        {!spotifyToken && !deezerToken && (spotifyRedirectUri || deezerRedirectUri) && (
+          <div className={`mt-4 p-4 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10`}>
+            <div className="flex items-start gap-2 text-sm font-bold text-amber-700 dark:text-amber-400 mb-2">
+              <AlertTriangle size={16} className="shrink-0 mt-0.5"/>
+              <span>Erreur de redirection Spotify ou Deezer ? Cette URL doit être enregistrée à l'identique dans le Dashboard développeur Spotify (Settings → Redirect URIs) ET dans celui de Deezer (Settings → Redirect URI) — même URL pour les deux.</span>
+            </div>
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${inputBorder} ${inputBg}`}>
+              <code className={`flex-1 text-xs font-mono truncate ${textHighlight}`}>{spotifyRedirectUri || deezerRedirectUri}</code>
+              <button
+                onClick={copyRedirectUri}
+                title="Copier cette URL"
+                className={`shrink-0 p-1.5 rounded-md transition-colors ${copied ? 'text-green-500' : textMuted + ' hover:text-amber-600'}`}
+              >
+                {copied ? <Check size={16}/> : <Copy size={16}/>}
               </button>
             </div>
           </div>
