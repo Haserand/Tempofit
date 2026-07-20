@@ -2530,7 +2530,7 @@ export default function App() {
                 editedPlaylistName={editedPlaylistName} setEditedPlaylistName={setEditedPlaylistName}
                 handleRenamePlaylist={handleRenamePlaylist}
                 handleSavePlaylist={handleSavePlaylist} handleUnsavePlaylist={requestUnsavePlaylist} handleShare={handleShare}
-                shareImageFile={shareImageFileWithTrophy} showToast={showToast}
+                showToast={showToast}
                 summaryImageStatus={summaryImageStatus} setSummaryImageStatus={setSummaryImageStatus}
                 summaryImageFile={summaryImageFile} setSummaryImageFile={setSummaryImageFile}
                 summaryImagePreviewUrl={summaryImagePreviewUrl} setSummaryImagePreviewUrl={setSummaryImagePreviewUrl}
