@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Pause, Play,
   GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, Calendar, ChevronDown, ChevronUp,
-  Camera, Loader2, ChevronLeft, ChevronRight, Lock, Upload, Trash2,
+  ChevronLeft, ChevronRight, Lock, Upload, Trash2,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, CartesianGrid, ReferenceArea, ReferenceLine, XAxis, YAxis,
@@ -102,7 +102,7 @@ export default function PlaylistDetailView({
   currentPlaylist, savedPlaylists, getProfileForWorkout, getProfileForWorkoutOrDefault,
   isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
   handleSavePlaylist, handleUnsavePlaylist, handleShare,
-  shareImageFile, showToast,
+  showToast,
   summaryImageStatus, setSummaryImageStatus, summaryImageFile, setSummaryImageFile,
   summaryImagePreviewUrl, setSummaryImagePreviewUrl, includeSummaryImage, setIncludeSummaryImage,
   currentActualData, selectedMetric, setSelectedMetric, analysisStats,
@@ -282,14 +282,6 @@ export default function PlaylistDetailView({
   // montage du composant lui-même.
   const summaryCardRef = useRef(null);
   const [summaryCovers, setSummaryCovers] = useState({});
-  const [isExportingSummary, setIsExportingSummary] = useState(false);
-  // RETOUR DIRECT ("le bilan en image devrait être une option contenue dans
-  // le bouton Partager") — ce state pilote le petit menu déroulant qui
-  // regroupe maintenant les 2 façons de partager cette séance (lien texte vs
-  // image récap) sous UN SEUL bouton "Partager", au lieu de 2 boutons côte à
-  // côte. Purement local à cette vue (pas dans App.jsx) : ce n'est qu'un état
-  // d'affichage UI, pas une donnée persistée ni partagée ailleurs.
-  const [isShareMenuOpen, setIsShareMenuOpen] = useState(false);
 
   // RETOUR DIRECT ("insérer le bilan image directement dans l'option de
   // partage, avec une croix pour le retirer") — DEUXIÈME évolution de ce
@@ -332,11 +324,10 @@ export default function PlaylistDetailView({
 
   /**
    * Génération PURE de l'image (pochettes → attente du rendu → capture
-   * html2canvas → File) — ne partage ni ne télécharge rien elle-même,
-   * contrairement à l'ancienne version de cette fonction. Utilisée à la fois
-   * par la génération en arrière-plan (au clic sur "Partager") et par
-   * `exportSessionSummaryImage` (au clic sur "Bilan en image", en repli si
-   * jamais rien n'était encore prêt à ce moment-là).
+   * html2canvas → File) — ne partage ni ne télécharge rien elle-même.
+   * Déclenchée en arrière-plan au clic sur "Partager" (voir
+   * startBackgroundImageGeneration ci-dessous) ; ShareModal.jsx affiche
+   * l'aperçu et gère elle-même le partage une fois l'image prête.
    */
   const generateSummaryImageFile = async () => {
     // 1. Pochettes des 3 premiers titres — uniquement pour ceux sourcés de
@@ -389,29 +380,12 @@ export default function PlaylistDetailView({
       setSummaryImagePreviewUrl(URL.createObjectURL(file));
       setSummaryImageStatus('ready');
     } catch (e) {
-      // Échec silencieux ici (contrairement à exportSessionSummaryImage qui,
-      // lui, affiche un toast) — cette génération est un bonus discret en
+      // Échec silencieux ici — cette génération est un bonus discret en
       // arrière-plan, pas une action explicitement demandée par
       // l'utilisateur : un toast d'erreur pour quelque chose qu'il n'a pas
       // lui-même déclenché serait plus perturbant qu'utile. ShareModal reste
       // pleinement utilisable en mode texte/lien si ça échoue.
       setSummaryImageStatus('error');
-    }
-  };
-
-  const exportSessionSummaryImage = async () => {
-    if (!currentPlaylist || isExportingSummary) return;
-    setIsExportingSummary(true);
-    try {
-      // Réutilise l'image déjà générée en arrière-plan si elle est prête
-      // (cas courant : le menu "Partager" a déjà lancé la génération) —
-      // sinon la génère à la demande, comme avant ce chantier.
-      const file = (summaryImageStatus === 'ready' && summaryImageFile) ? summaryImageFile : await generateSummaryImageFile();
-      await shareImageFile(file, currentPlaylist.name, "Mon bilan de séance sur TempoFit 💪🎧");
-    } catch (e) {
-      if (showToast) showToast("Impossible de générer l'image du bilan — réessaie dans un instant.", 'error');
-    } finally {
-      setIsExportingSummary(false);
     }
   };
 
@@ -846,64 +820,23 @@ export default function PlaylistDetailView({
                 )}
               </button>
             )}
-            {/* RETOUR DIRECT ("le bilan en image devrait être une option
-                contenue dans le bouton Partager") — les 2 anciens boutons
-                ("Partager" = lien/texte via navigator.share, "Bilan en
-                image" = capture + navigator.share d'un fichier, voir
-                exportSessionSummaryImage plus haut et SessionSummaryCard.jsx
-                pour le rendu capturé) sont maintenant 2 options d'un même
-                menu déroulant sous UN SEUL bouton "Partager" — ce sont deux
-                variantes de la même intention ("partager cette séance"), pas
-                deux actions indépendantes justifiant chacune leur bouton.
-                Même style de menu que celui déjà utilisé pour les options
-                d'un titre (voir openTrackMenuIndex plus bas) — backdrop
-                cliquable pour fermer, un seul menu de ce type ouvert à la
-                fois puisqu'ils utilisent des state différents (pas de
-                conflit, mais pas la peine d'en laisser 2 ouverts ensemble
-                pour autant : chaque clic ferme d'abord l'ancien). */}
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setIsShareMenuOpen(o => {
-                    const opening = !o;
-                    if (opening) startBackgroundImageGeneration();
-                    return opening;
-                  });
-                }}
-                className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40"
-              >
-                <Share2 size={16} /> <span>Partager</span>
-              </button>
-              {isShareMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setIsShareMenuOpen(false)}></div>
-                  <div className={`absolute left-0 top-full mt-1 z-20 w-64 rounded-xl border shadow-2xl overflow-hidden ${cardBg} ${cardBorder}`}>
-                    <button
-                      onClick={() => { setIsShareMenuOpen(false); handleShare('playlist', currentPlaylist); }}
-                      className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}
-                    >
-                      <Share2 size={16} className="text-blue-500 shrink-0"/> Partager le lien
-                    </button>
-                    <div className={`h-px my-1 ${cardBorder} border-t`}></div>
-                    {/* Bilan Visuel de Séance — génère une image récapitulative
-                        (durée, BPM moyen, zones d'intensité, top titres) et
-                        déclenche le partage natif du téléphone (Story
-                        Instagram, WhatsApp...). Le menu se ferme AVANT de
-                        lancer l'export (pas après) — la génération peut
-                        prendre un instant, inutile de laisser le menu ouvert
-                        pendant ce temps. */}
-                    <button
-                      onClick={() => { setIsShareMenuOpen(false); exportSessionSummaryImage(); }}
-                      disabled={isExportingSummary}
-                      className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors disabled:opacity-60 disabled:cursor-wait ${textHighlight}`}
-                    >
-                      {isExportingSummary ? <Loader2 size={16} className="text-purple-500 shrink-0 animate-spin" /> : <Camera size={16} className="text-purple-500 shrink-0" />}
-                      {isExportingSummary ? 'Génération...' : 'Bilan en image'}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+            {/* RETOUR DIRECT ("plus besoin des 2 boutons si l'image est déjà
+                dans le 1er") — les 2 options de l'ancien menu déroulant
+                ("Partager le lien" vs "Bilan en image") ont fusionné en UN
+                SEUL bouton : depuis le chantier précédent, ShareModal génère
+                déjà l'image en arrière-plan et l'inclut directement dans
+                l'aperçu du partage (avec une croix pour la retirer si on ne
+                la veut pas) — les 2 chemins distincts n'avaient plus de
+                raison d'exister séparément. `startBackgroundImageGeneration`
+                lance la génération au clic (avant, au clic sur "Partager"
+                pour OUVRIR le menu — même déclencheur, juste plus besoin du
+                menu intermédiaire). */}
+            <button
+              onClick={() => { startBackgroundImageGeneration(); handleShare('playlist', currentPlaylist); }}
+              className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40"
+            >
+              <Share2 size={16} /> <span>Partager</span>
+            </button>
           </div>
 
           {/* L'ancien bandeau "Séance déjà réalisée" (gros encart vert avec
@@ -1629,7 +1562,7 @@ export default function PlaylistDetailView({
         </div>
       </div>
 
-      {/* Rendu hors écran, en permanence — voir exportSessionSummaryImage plus
+      {/* Rendu hors écran, en permanence — voir generateSummaryImageFile plus
           haut pour pourquoi (pas monté/démonté à la demande). `pointer-events-
           none` par sécurité (jamais interactif, jamais censé être vu). */}
       <div style={{ position: 'fixed', left: '-9999px', top: 0, pointerEvents: 'none' }} aria-hidden="true">
