@@ -57,6 +57,8 @@ import PlaylistDetailView from './components/views/PlaylistDetailView';
 import CustomActivityModal from './components/modals/CustomActivityModal';
 import SavingRoutineModal from './components/modals/SavingRoutineModal';
 import ShareModal from './components/modals/ShareModal';
+import AuthModal from './components/modals/AuthModal';
+import { useAuthContext } from './contexts/AuthContext';
 import IconPickerModal from './components/modals/IconPickerModal';
 import PendingNavigationModal from './components/modals/PendingNavigationModal';
 import PendingUnsaveModal from './components/modals/PendingUnsaveModal';
@@ -204,6 +206,15 @@ export default function App() {
   // gratuite à Spotify, ajoutée sans toucher à l'intégration existante — les
   // deux peuvent être connectés en même temps.
   const { deezerToken, setDeezerToken, loginDeezer, syncDeezerFavorites, REDIRECT_URI: DEEZER_REDIRECT_URI } = useDeezerImport(setFavorites, showToast);
+
+  // COMPTE UTILISATEUR (voir contexts/AuthContext.jsx) — email/mot de passe
+  // pour commencer (voir la discussion qui a mené à ce chantier). `user`/
+  // `authLoading` sont déjà lus directement par usePersistentState.js (voir
+  // ce fichier) pour la synchro — ici, on n'a besoin que de `signUp`/
+  // `signIn`/`signOut` pour les passer à AuthModal/SettingsView, et de
+  // `isAuthModalOpen` (state propre à CETTE vue, pas au contexte global).
+  const { user, signUp, signIn, signOut, isSupabaseConfigured } = useAuthContext();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
 
   // Profil Athlétique (BPM cibles par zone d'effort) — voir useAthleticProfile.js.
@@ -2314,6 +2325,7 @@ export default function App() {
                 spotifyRedirectUri={REDIRECT_URI}
                 deezerToken={deezerToken} loginDeezer={loginDeezer} setDeezerToken={setDeezerToken}
                 deezerRedirectUri={DEEZER_REDIRECT_URI}
+                user={user} signOut={signOut} isSupabaseConfigured={isSupabaseConfigured} openAuthModal={() => setIsAuthModalOpen(true)}
               />
             )}
 
@@ -2473,6 +2485,12 @@ export default function App() {
           isShareModalOpen={isShareModalOpen} setIsShareModalOpen={setIsShareModalOpen} shareData={shareData}
           shareNative={shareNative} shareToWhatsApp={shareToWhatsApp} shareToTwitter={shareToTwitter} shareToFacebook={shareToFacebook}
           copyToClipboard={copyToClipboard} shareViaEmail={shareViaEmail}
+        />
+
+        <AuthModal
+          theme={themeTokens}
+          isAuthModalOpen={isAuthModalOpen} setIsAuthModalOpen={setIsAuthModalOpen}
+          signUp={signUp} signIn={signIn} showToast={showToast}
         />
 
       </div>
