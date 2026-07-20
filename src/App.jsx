@@ -2209,15 +2209,17 @@ export default function App() {
           {/* Header mobile (bouton burger + logo) */}
           <header className={`md:hidden flex items-center p-4 bg-surface border-b ${cardBorder} z-30`}>
             <button onClick={() => setIsMobileMenuOpen(true)} className={`p-2 mr-3 ${textMuted} hover:text-main bg-surface-hover rounded-lg`}><Menu size={20} /></button>
-            <div className="flex items-center space-x-2">
+            <button onClick={() => changeView('generator')} title="Retour à l'accueil" className="flex items-center space-x-2 cursor-pointer">
               <span className={`font-bold text-lg tracking-tight ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
-            </div>
+            </button>
           </header>
 
           {/* Header desktop flottant, n'apparaît qu'après un certain scroll (isScrolled) */}
           <header className={`hidden md:flex absolute top-0 left-0 right-0 p-6 z-30 transition-all duration-300 pointer-events-none ${isScrolled ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
             <div className={`bg-surface/80 backdrop-blur-md border ${cardBorder} shadow-lg px-6 py-3 rounded-full flex items-center space-x-4 pointer-events-auto`}>
-              <span className={`font-bold text-sm ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
+              <button onClick={() => changeView('generator')} title="Retour à l'accueil" className="cursor-pointer">
+                <span className={`font-bold text-sm ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
+              </button>
               <div className={`w-1 h-1 rounded-full ${bgAccentClass}`}></div>
               <span className={`text-sm font-medium ${textMuted}`}>{displaySubtitleGen}</span>
             </div>
