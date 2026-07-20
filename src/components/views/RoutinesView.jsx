@@ -54,11 +54,21 @@ export default function RoutinesView({
           return (
             <div key={routine.id} className={`${cardBg} rounded-2xl p-6 border ${rankStyle ? rankStyle.border : cardBorder} shadow-sm relative group overflow-hidden flex flex-col`}>
               {rankStyle && <span className="absolute -top-2 -right-2 text-xl" title={`${routine.manualGenerations} générations — la ${rank === 0 ? 'plus' : rank === 1 ? '2e plus' : '3e plus'} utilisée`}>{rankStyle.emoji}</span>}
-              <div className="flex items-start justify-between mb-4">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl bg-surface-hover`}>
-                  {getDisplayRoutineIcon(routine)}
+              <div className="flex items-start justify-between mb-4 gap-2">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl bg-surface-hover shrink-0`}>
+                    {getDisplayRoutineIcon(routine)}
+                  </div>
+                  <h3 className={`font-bold text-xl flex items-center gap-2 min-w-0 ${textHighlight}`}>
+                    <span className="truncate">{getDisplayRoutineName(routine)}</span>
+                    {routine.isIntervalMode && (
+                      <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full text-white shrink-0 ${bgAccentClass}`}>
+                        {routine.isCrescendoMode ? 'Crescendo' : 'Fractionné'}
+                      </span>
+                    )}
+                  </h3>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 shrink-0">
                   {routine.autoGenFreq && routine.autoGenFreq !== 'Manuel' && (() => {
                     let target = 0; let label = "ajd";
                     if (routine.autoGenFreq === '1 fois / jour') target = 1;
@@ -79,14 +89,6 @@ export default function RoutinesView({
                   </button>
                 </div>
               </div>
-              <h3 className={`font-bold text-xl mb-1 flex items-center gap-2 ${textHighlight}`}>
-                {getDisplayRoutineName(routine)}
-                {routine.isIntervalMode && (
-                  <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full text-white shrink-0 ${bgAccentClass}`}>
-                    {routine.isCrescendoMode ? 'Crescendo' : 'Fractionné'}
-                  </span>
-                )}
-              </h3>
               <div>{renderConfigInfoLine(routine)}</div>
               <div className="mt-auto pt-4 border-t border-gray-100 dark:border-gray-800">
                 <div className="flex gap-2 mb-2">
