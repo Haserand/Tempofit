@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 
 /**
  * useAudioPreview — lecture des extraits audio (30s, fournis par Deezer).
@@ -8,38 +8,38 @@ import { useState, useRef, useEffect } from 'react';
  * fois (lazy, via useRef) plutôt qu'avec useState pour éviter de recréer un
  * objet Audio à chaque re-render.
  *
- * `isSearchModalOpen` et `showToast` sont des dépendances externes (définies
- * dans App.jsx) passées en paramètre : la première pour couper l'extrait en
- * cours quand la modale de recherche se ferme, la seconde pour signaler un
- * échec de lecture.
+ * `showToast` est une dépendance externe (définie dans App.jsx) passée en
+ * paramètre, utilisée pour signaler un échec de lecture/reprise.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * ENCHAÎNEMENT AUTOMATIQUE (retour direct : "quand je finis un morceau ça
- * doit passer au suivant") — `togglePreview` accepte maintenant un 2e
- * argument OPTIONNEL, `getNextTrack(endedTrack) => Track|null` : appelé
- * uniquement quand l'extrait se termine NATURELLEMENT (l'événement `ended`
- * du <audio>, jamais sur une pause manuelle), pas à chaque frappe — sans ça,
- * relancer togglePreview() sur le MÊME titre depuis la liste (toggle pause)
- * n'a pas à déclencher d'enchaînement, seule une vraie fin de lecture compte.
- * Un appelant qui n'a aucun concept d'ordre (recherche manuelle, favoris) omet
- * simplement ce 2e argument — comportement inchangé, l'extrait s'arrête comme
- * avant.
+ * MINI-LECTEUR PERSISTANT (retour direct : "l'extrait s'arrête dès qu'on
+ * change de page") — `currentTrack` (le TITRE COMPLET, pas juste son id) est
+ * maintenant exposé en state RÉACTIF (contrairement à `currentTrackRef`, une
+ * simple ref invisible en dehors de ce hook) : un composant de mini-lecteur
+ * global (voir MiniPlayerBar.jsx, monté une fois dans App.jsx, visible sur
+ * toutes les vues) peut ainsi afficher titre/artiste sans dépendre d'un
+ * re-render déclenché ailleurs.
  *
- * Recalculé à CHAQUE fin d'extrait plutôt que figé au moment du clic (via
- * `autoAdvanceResolverRef`, une ref, pas une valeur capturée dans la
- * fermeture) : si la playlist est réordonnée pendant la lecture (glisser-
- * déposer sur la courbe ou la liste), le "titre suivant" réel reste à jour
- * plutôt que de pointer vers une position devenue obsolète.
+ * `isPlaying` est VOLONTAIREMENT distinct de `playingPreviewId` :
+ *   - `playingPreviewId` garde son comportement HISTORIQUE ("stop & oublie"
+ *     dès qu'on re-clique la même ligne dans une liste, voir `togglePreview`
+ *     — inchangé, les listes existantes n'ont rien à changer).
+ *   - `isPlaying`/`currentTrack` alimentent 3 nouvelles actions dédiées au
+ *     mini-lecteur (`pauseCurrentPreview`/`resumeCurrentPreview`/
+ *     `stopCurrentPreview`) : une VRAIE pause n'efface PAS `currentTrack` (le
+ *     titre reste affiché dans la barre, prêt à reprendre), contrairement au
+ *     toggle des listes qui, lui, oublie tout.
  *
- * L'écouteur `ended` n'est posé qu'UNE SEULE FOIS sur l'objet Audio (lazy,
- * comme avant) mais indirectement via `handleEndedRef` (une ref mise à jour
- * à chaque rendu) — sans cette indirection, l'écouteur poser au tout premier
- * appel resterait figé sur la fermeture (closure) de CE moment-là, avec un
- * `showToast`/`getNextTrack` potentiellement obsolètes pour tous les appels
- * suivants.
+ * Ancien comportement retiré : couper l'extrait à la fermeture de la modale
+ * de recherche n'a plus lieu d'être — c'était pour éviter qu'un extrait
+ * continue de jouer invisiblement une fois la fenêtre fermée ; maintenant
+ * qu'il existe un mini-lecteur qui le représente et le contrôle en
+ * permanence, il n'y a plus rien d'"invisible" à ce sujet.
  */
-export function useAudioPreview(isSearchModalOpen, showToast) {
+export function useAudioPreview(showToast) {
   const [playingPreviewId, setPlayingPreviewId] = useState(null);
+  const [currentTrack, setCurrentTrack] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
   const previewAudioRef = useRef(null);
   // Le titre RÉELLEMENT chargé dans le lecteur en ce moment — distinct de
   // `playingPreviewId` (state React, pas toujours à jour de façon synchrone
@@ -61,6 +61,8 @@ export function useAudioPreview(isSearchModalOpen, showToast) {
     audio.currentTime = 0;
     audio.play().catch(() => showToast("Impossible de lire cet extrait.", 'error'));
     setPlayingPreviewId(track.youtubeId);
+    setCurrentTrack(track);
+    setIsPlaying(true);
   };
 
   // Réassigné à CHAQUE rendu (pas dans un useEffect : pas besoin d'attendre
@@ -77,6 +79,8 @@ export function useAudioPreview(isSearchModalOpen, showToast) {
       // Fin de la playlist (ou pas d'enchaînement demandé) : comportement
       // identique à avant cette évolution.
       setPlayingPreviewId(null);
+      setCurrentTrack(null);
+      setIsPlaying(false);
       currentTrackRef.current = null;
       autoAdvanceResolverRef.current = null;
     }
@@ -87,6 +91,8 @@ export function useAudioPreview(isSearchModalOpen, showToast) {
     if (playingPreviewId === track.youtubeId) {
       if (previewAudioRef.current) previewAudioRef.current.pause();
       setPlayingPreviewId(null);
+      setCurrentTrack(null);
+      setIsPlaying(false);
       currentTrackRef.current = null;
       autoAdvanceResolverRef.current = null;
     } else {
@@ -94,16 +100,37 @@ export function useAudioPreview(isSearchModalOpen, showToast) {
     }
   };
 
-  // Coupe l'extrait en cours si la modale de recherche se ferme, pour ne pas
-  // laisser un aperçu jouer en arrière-plan une fois la fenêtre fermée.
-  useEffect(() => {
-    if (!isSearchModalOpen && previewAudioRef.current) {
-      previewAudioRef.current.pause();
-      setPlayingPreviewId(null);
-      currentTrackRef.current = null;
-      autoAdvanceResolverRef.current = null;
+  // Pause SANS effacer `currentTrack` — dédiée au mini-lecteur (voir la
+  // docstring plus haut) : le titre reste affiché dans la barre, prêt à
+  // reprendre, contrairement au toggle des listes ci-dessus qui oublie tout.
+  const pauseCurrentPreview = () => {
+    if (previewAudioRef.current) previewAudioRef.current.pause();
+    setIsPlaying(false);
+  };
+  // Reprend EXACTEMENT où l'extrait avait été mis en pause (`currentTime`
+  // inchangé, contrairement à `playTrack` qui repart toujours de 0) — sinon
+  // rouvrir la lecture depuis le mini-lecteur relancerait l'extrait depuis
+  // le début à chaque pause/reprise.
+  const resumeCurrentPreview = () => {
+    if (previewAudioRef.current && currentTrackRef.current) {
+      previewAudioRef.current.play().catch(() => showToast("Impossible de reprendre la lecture.", 'error'));
+      setIsPlaying(true);
     }
-  }, [isSearchModalOpen]);
+  };
+  // Fermeture complète du mini-lecteur (croix) — arrête tout ET efface le
+  // titre affiché, contrairement à la pause ci-dessus.
+  const stopCurrentPreview = () => {
+    if (previewAudioRef.current) previewAudioRef.current.pause();
+    setPlayingPreviewId(null);
+    setCurrentTrack(null);
+    setIsPlaying(false);
+    currentTrackRef.current = null;
+    autoAdvanceResolverRef.current = null;
+  };
 
-  return { playingPreviewId, togglePreview };
+  return {
+    playingPreviewId, togglePreview,
+    currentTrack, isPlaying,
+    pauseCurrentPreview, resumeCurrentPreview, stopCurrentPreview,
+  };
 }
