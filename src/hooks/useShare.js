@@ -17,11 +17,19 @@ export function useShare(showToast) {
   // Prépare le contenu à partager (playlist ou trophée) et ouvre la modale de partage.
   const handleShare = (type, item) => {
     if (type === 'playlist') {
-      setShareData({
-        type: 'playlist', title: item.name,
-        text: `Je viens de générer la session musicale parfaite de ${formatDuration(item.totalDuration)} pour mon entraînement sur TempoFit ! 💪🎧`,
-        url: window.location.href
-      });
+      // RETOUR DIRECT ("absurde de dire 'je viens de générer' pour une
+      // séance déjà faite") — `handleShare('playlist', ...)` n'est appelé
+      // que depuis PlaylistDetailView.jsx, mais cette page sert aussi bien à
+      // une playlist FRAÎCHEMENT générée (pas encore faite) qu'à une séance
+      // DÉJÀ réalisée une ou plusieurs fois (cadenas visible sur la page,
+      // `completions` non vide) — même signal que `isLocked` déjà utilisé là-bas
+      // pour ce même statut, recalculé ici à l'identique pour garder ce hook
+      // autonome (ne dépend que de l'objet playlist reçu).
+      const isCompleted = !!(item.completions && item.completions.length > 0);
+      const text = isCompleted
+        ? `Je viens de terminer une séance de ${formatDuration(item.totalDuration)} sur TempoFit ! 💪🎧`
+        : `Je viens de générer la session musicale parfaite de ${formatDuration(item.totalDuration)} pour mon entraînement sur TempoFit ! 💪🎧`;
+      setShareData({ type: 'playlist', title: item.name, text, url: window.location.href });
     } else if (type === 'trophy') {
       setShareData({
         type: 'trophy', title: item.name,
