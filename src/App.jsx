@@ -213,7 +213,7 @@ export default function App() {
   // ce fichier) pour la synchro — ici, on n'a besoin que de `signUp`/
   // `signIn`/`signOut` pour les passer à AuthModal/SettingsView, et de
   // `isAuthModalOpen` (state propre à CETTE vue, pas au contexte global).
-  const { user, signUp, signIn, signOut, isSupabaseConfigured } = useAuthContext();
+  const { user, signUp, signIn, signOut, isSupabaseConfigured, userCount } = useAuthContext();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // RETOUR DIRECT ("pas de message d'erreur quand je clique sur un lien
@@ -2383,6 +2383,7 @@ export default function App() {
                 deezerToken={deezerToken} loginDeezer={loginDeezer} setDeezerToken={setDeezerToken}
                 deezerRedirectUri={DEEZER_REDIRECT_URI}
                 user={user} signOut={signOut} isSupabaseConfigured={isSupabaseConfigured} openAuthModal={() => setIsAuthModalOpen(true)}
+                userCount={userCount}
               />
             )}
 
