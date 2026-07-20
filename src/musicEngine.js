@@ -423,6 +423,30 @@ const searchDeezerPage = async (q, limit, maxIndex = 100) => {
   return stubs;
 };
 
+/**
+ * Recherche DÉTERMINISTE (index=0, PAS de décalage aléatoire contrairement à
+ * searchDeezerPage ci-dessus) d'UN titre précis par titre+artiste — utilisée
+ * quand on connaît déjà exactement "quel titre" on veut (voir
+ * resolveAndTogglePreview, PlaylistDetailView.jsx, pour les playlists
+ * ensemencées de data/curatedSessions.js), pas une recherche de plusieurs
+ * candidats variés comme searchDeezerPage.
+ *
+ * Renvoie `{ id, preview }` du 1er résultat Deezer, ou `null` si rien trouvé
+ * ou en cas d'échec réseau — jamais d'exception qui remonte à l'appelant
+ * (même philosophie d'échec silencieux que le reste de ce fichier).
+ */
+const resolveDeezerTrackByTitleArtist = async (title, artist) => {
+  try {
+    const q = `track:"${title}" artist:"${artist}"`;
+    const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=1`);
+    const stub = (data && Array.isArray(data.data)) ? data.data[0] : null;
+    if (!stub) return null;
+    return { id: stub.id, preview: stub.preview || null };
+  } catch (e) {
+    return null;
+  }
+};
+
 const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYoutubeIds, preferredDuration, candidateCap, allowLongTracks = false, allowGenreMismatch = true) => {
   const stubsByGenre = await Promise.all(genresForQuery.map(async (g) => {
     const keyword = DEEZER_GENRE_KEYWORDS[g] || '';
@@ -1555,6 +1579,7 @@ export {
   searchArtistsForBpm,
   fetchInBatches,
   searchDeezerPage,
+  resolveDeezerTrackByTitleArtist,
   searchDeezerForGenres,
   getSingleMatchingTrack,
   buildSegmentTracks,
