@@ -795,7 +795,25 @@ export default function App() {
       workoutType: template.workoutType,
       avgPace: 330, targetMode: 'time', distanceUnit: 'km',
       tolerance: 10, crossfade: 2,
-      tracks: template.tracks.map(t => ({ ...t })),
+      // RETOUR DIRECT ("pas de bruit, ne pas appeler ça un id YouTube si ça
+      // n'en est pas un") — curatedSessions.js n'a plus aucun id de service
+      // par titre (voir ce fichier). `youtubeId` (le nom générique déjà
+      // utilisé PARTOUT ailleurs dans l'app pour identifier un titre, quelle
+      // que soit sa source réelle — favoris, mini-lecteur, graphiques) est
+      // posé ICI avec un préfixe `curated-` clairement interne, PAS un faux
+      // id Deezer/Spotify — remplacé par le vrai `deezer-{id}` dès la 1re
+      // résolution réussie (voir resolveAndTogglePreview,
+      // PlaylistDetailView.jsx). `preview: null` : jamais stocké en dur,
+      // résolu à la demande au clic — voir la même fonction.
+      // BUG ÉVITÉ (trouvé en revérifiant avant de valider) : `id` (par
+      // OCCURRENCE dans la liste, distinct de `youtubeId` qui identifie la
+      // CHANSON elle-même — voir musicEngine.js, createPlaylistData) sert de
+      // clé React ET à l'enchaînement automatique des extraits
+      // (getNextTrackForAutoAdvance, PlaylistDetailView.jsx) : sans lui ici,
+      // ces deux mécanismes se seraient cassés silencieusement sur une
+      // playlist ensemencée (clés React dupliquées, enchaînement qui
+      // retombe toujours sur le même titre).
+      tracks: template.tracks.map((t, i) => ({ ...t, id: `curated-${template.id}-${i}`, youtubeId: `curated-${template.id}-${i}`, preview: null })),
       isNaughty: false, fallbackTrackCount: 0,
       coverIcon: '🎧', createdAt: new Date().toLocaleDateString(),
       status: 'pending', actualDataByDate: {},
@@ -2562,7 +2580,7 @@ export default function App() {
             {view === 'playlist' && currentPlaylist && (
               <PlaylistDetailView
                 theme={themeTokens} colorMode={theme} isNaughtyMode={isNaughtyMode}
-                currentPlaylist={currentPlaylist} savedPlaylists={savedPlaylists} getProfileForWorkout={getProfileForWorkout}
+                currentPlaylist={currentPlaylist} setCurrentPlaylist={setCurrentPlaylist} savedPlaylists={savedPlaylists} getProfileForWorkout={getProfileForWorkout}
                 getProfileForWorkoutOrDefault={getProfileForWorkoutOrDefault}
                 renderTopCompletionDate={renderTopCompletionDate}
                 isEditingPlaylistName={isEditingPlaylistName} setIsEditingPlaylistName={setIsEditingPlaylistName}
