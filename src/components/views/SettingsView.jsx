@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, Link as LinkIcon, Globe, Copy, Check, AlertTriangle } from 'lucide-react';
+import { Settings, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as UserIcon } from 'lucide-react';
 
 /**
  * SettingsView — vue "Options & Comptes" (connexion Spotify).
@@ -16,8 +16,8 @@ import { Settings, Link as LinkIcon, Globe, Copy, Check, AlertTriangle } from 'l
  * rarement). Voir GeneratorView.jsx pour l'UI, useAthleticProfile.js pour le
  * state — inchangés, seul l'EMPLACEMENT dans l'app a changé.
  */
-export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, deezerToken, loginDeezer, setDeezerToken, deezerRedirectUri }) {
-  const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg } = theme;
+export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, deezerToken, loginDeezer, setDeezerToken, deezerRedirectUri, user, signOut, isSupabaseConfigured, openAuthModal }) {
+  const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg, bgAccentClass } = theme;
   // Retour direct : erreur Spotify "redirect_uri: Not matching configuration"
   // au clic sur "Lier mon compte" — ce n'est PAS un bug de ce code (voir
   // App.jsx, `loginSpotify`) : Spotify exige que l'URL de redirection envoyée
@@ -66,7 +66,55 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
         <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}>
           <Settings className={theme.textColorClass} size={36} /> <span>Options & Comptes</span>
         </h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Connecte tes plateformes pour utiliser de vraies musiques.</p>
+        <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Connecte tes plateformes pour utiliser de vraies musiques, et un compte pour retrouver tes données sur tous tes appareils.</p>
+      </div>
+
+      {/* RETOUR DIRECT ("vraiment synchroniser toutes les données entre
+          appareils, email/mot de passe pour commencer") — distincte de la
+          carte "Comptes connectés" juste en dessous : ceci, c'est L'IDENTITÉ
+          TempoFit elle-même (qui synchronise favoris/routines/stats/profil
+          athlétique — voir usePersistentState.js), pas une plateforme de
+          musique externe. Volontairement en premier : savoir "qui es-tu"
+          avant "à quoi es-tu relié". */}
+      <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
+        <h3 className={`font-bold text-xl mb-2 ${textHighlight}`}>Mon compte TempoFit</h3>
+        <p className={`text-sm mb-6 ${textMuted}`}>Connecte-toi pour retrouver tes favoris, routines et stats sur tous tes appareils. Sans compte, tout reste enregistré uniquement sur celui-ci.</p>
+
+        {!isSupabaseConfigured ? (
+          <div className={`p-4 rounded-2xl border ${inputBorder} ${inputBg} text-sm ${textMuted}`}>
+            Comptes pas encore configurés côté serveur.
+          </div>
+        ) : user ? (
+          <div className={`flex items-center justify-between p-4 rounded-2xl border border-green-500 bg-green-50 dark:bg-green-900/20`}>
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center bg-green-500 text-white">
+                <UserIcon size={24} />
+              </div>
+              <div>
+                <h4 className={`font-bold text-lg ${textHighlight}`}>{user.email}</h4>
+                <p className={`text-sm ${textMuted}`}>Connecté — données synchronisées</p>
+              </div>
+            </div>
+            <button onClick={signOut} className={`px-4 py-2 bg-gray-200 dark:bg-gray-800 font-bold rounded-lg hover:bg-red-100 hover:text-red-500 transition-all text-gray-500`}>
+              Déconnecter
+            </button>
+          </div>
+        ) : (
+          <div className={`flex items-center justify-between p-4 rounded-2xl border ${inputBorder} ${inputBg}`}>
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-500">
+                <UserIcon size={24} />
+              </div>
+              <div>
+                <h4 className={`font-bold text-lg ${textHighlight}`}>Non connecté</h4>
+                <p className={`text-sm ${textMuted}`}>Données enregistrées uniquement sur cet appareil</p>
+              </div>
+            </div>
+            <button onClick={openAuthModal} className={`px-6 py-3 text-white font-black rounded-xl shadow-md transition-all hover:brightness-110 ${bgAccentClass}`}>
+              Se connecter
+            </button>
+          </div>
+        )}
       </div>
 
       <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
