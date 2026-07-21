@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Pause, Play,
   GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, Calendar, ChevronDown, ChevronUp,
-  ChevronLeft, ChevronRight, Lock, Upload, Trash2,
+  ChevronLeft, ChevronRight, Lock, Upload, Trash2, Loader2,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, CartesianGrid, ReferenceArea, ReferenceLine, XAxis, YAxis,
@@ -294,22 +294,38 @@ export default function PlaylistDetailView({
    * identifie la chanson — voir musicEngine.js, createPlaylistData), jamais
    * modifié ici.
    */
+  // RETOUR DIRECT ("ça marche pas pour les playlists de la bibliothèque") —
+  // le VRAI bug était ailleurs : les boutons play étaient `disabled={!track.
+  // preview}`, ce qui empêchait le clic de partir AVANT MÊME d'atteindre
+  // cette fonction (déjà correcte). Les boutons ne bloquent plus le clic
+  // (voir plus bas) — `resolvingTrackId` sert maintenant à afficher un vrai
+  // indicateur de chargement pendant la résolution (recherche Deezer, pas
+  // instantanée), ET à empêcher un double-clic rapide de lancer 2
+  // résolutions concurrentes pour le même titre.
+  const [resolvingTrackId, setResolvingTrackId] = useState(null);
+
   const resolveAndTogglePreview = async (track, getNextTrack) => {
     if (track.preview) { togglePreview(track, getNextTrack); return; }
+    if (resolvingTrackId === track.id) return; // déjà en cours pour ce titre précis
 
-    const resolved = await resolveDeezerTrackByTitleArtist(track.title, track.artist);
-    if (!resolved || !resolved.preview) {
-      showToast("Extrait audio introuvable pour ce titre.", 'error');
-      return;
+    setResolvingTrackId(track.id);
+    try {
+      const resolved = await resolveDeezerTrackByTitleArtist(track.title, track.artist);
+      if (!resolved || !resolved.preview) {
+        showToast("Extrait audio introuvable pour ce titre.", 'error');
+        return;
+      }
+
+      const updatedTrack = { ...track, youtubeId: `deezer-${resolved.id}`, preview: resolved.preview };
+      setCurrentPlaylist(prev => ({
+        ...prev,
+        tracks: prev.tracks.map(t => t.id === track.id ? updatedTrack : t),
+      }));
+
+      togglePreview(updatedTrack, getNextTrack);
+    } finally {
+      setResolvingTrackId(null);
     }
-
-    const updatedTrack = { ...track, youtubeId: `deezer-${resolved.id}`, preview: resolved.preview };
-    setCurrentPlaylist(prev => ({
-      ...prev,
-      tracks: prev.tracks.map(t => t.id === track.id ? updatedTrack : t),
-    }));
-
-    togglePreview(updatedTrack, getNextTrack);
   };
 
   // --- Bilan Visuel de Séance (export image) ---
@@ -986,11 +1002,12 @@ export default function PlaylistDetailView({
               </button>
               <button
                 onClick={() => resolveAndTogglePreview(trackSegments[selectedSegmentIdx].track, getNextTrackForAutoAdvance)}
-                disabled={!trackSegments[selectedSegmentIdx].track.preview}
-                title={trackSegments[selectedSegmentIdx].track.preview ? "Écouter un extrait" : "Extrait non disponible pour ce titre (source sans aperçu audio)"}
-                className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-colors ${trackSegments[selectedSegmentIdx].track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
+                title="Écouter un extrait"
+                className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-colors ${bgAccentClass} text-white hover:brightness-110`}
               >
-                {playingPreviewId === trackSegments[selectedSegmentIdx].track.youtubeId ? <Pause size={18} fill="currentColor"/> : <Play size={18} fill="currentColor" className="ml-0.5"/>}
+                {resolvingTrackId === trackSegments[selectedSegmentIdx].track.id
+                  ? <Loader2 size={18} className="animate-spin"/>
+                  : playingPreviewId === trackSegments[selectedSegmentIdx].track.youtubeId ? <Pause size={18} fill="currentColor"/> : <Play size={18} fill="currentColor" className="ml-0.5"/>}
               </button>
               {/* Retour direct : "la flèche pour passer au titre suivant est
                   trop à gauche [comprendre : trop loin du bouton play], je
@@ -1298,11 +1315,12 @@ export default function PlaylistDetailView({
               <div className={"w-6 text-center font-medium text-xs " + textMuted}>{index + 1}</div>
               <button
                 onClick={() => resolveAndTogglePreview(track, getNextTrackForAutoAdvance)}
-                disabled={!track.preview}
-                title={track.preview ? "Écouter un extrait" : "Extrait non disponible pour ce titre (source sans aperçu audio)"}
-                className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors mr-2 ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
+                title="Écouter un extrait"
+                className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors mr-2 ${bgAccentClass} text-white hover:brightness-110`}
               >
-                {playingPreviewId === track.youtubeId ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5"/>}
+                {resolvingTrackId === track.id
+                  ? <Loader2 size={14} className="animate-spin"/>
+                  : playingPreviewId === track.youtubeId ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5"/>}
               </button>
               <div className="flex-1 px-2 min-w-0">
                 <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
