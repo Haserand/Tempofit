@@ -39,6 +39,13 @@ import { Play, Music2 } from 'lucide-react';
  * `template.upvotes` n'est plus affiché du tout dans ce design minimal — le
  * seul signal de confiance qui reste visible est le badge "TEMPOFIT" sur la
  * pochette (`isOfficial`).
+ *
+ * RETOUR DIRECT (5e passe, "la note se voit mal, ajouter une bordure au
+ * survol") — 2 corrections : la note (voir plus bas, `Music2`) est agrandie
+ * et reçoit une ombre portée pour rester visible sur les teintes CLAIRES de
+ * la palette (jaune, citron vert) où elle devenait presque invisible ;
+ * `ring-2 ring-white` apparaît au survol sur la pochette elle-même, pas
+ * seulement sur le bouton play.
  */
 
 // Palette volontairement large et variée (12 teintes) — voir le retour
@@ -64,13 +71,18 @@ export default function TemplateCard({ theme, template, onPlayTemplate }) {
 
   return (
     <div className="group cursor-pointer select-none" onClick={() => onPlayTemplate(template)}>
-      <div className="relative aspect-square rounded-xl overflow-hidden shadow-md bg-surface-hover">
+      <div className="relative aspect-square rounded-xl overflow-hidden shadow-md bg-surface-hover ring-2 ring-transparent group-hover:ring-white transition-all">
         <img src={coverUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
 
-        {/* Repère visuel "pochette d'album" — semi-transparent pour rester
-            discret par-dessus n'importe quelle couleur de fond générée. */}
+        {/* RETOUR DIRECT ("la note se voit mal sur les teintes claires") —
+            agrandie (36 → 56) et une ombre portée (`drop-shadow`) ajoutée :
+            sans elle, une icône blanche semi-transparente devient quasi
+            invisible sur les fonds jaune/citron vert de la palette, alors
+            qu'elle ressortait déjà bien sur les fonds sombres — l'ombre
+            garantit un contraste qui ne dépend plus de la couleur de fond
+            tirée au sort. */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <Music2 size={36} className="text-white/40" />
+          <Music2 size={56} className="text-white/80 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]" />
         </div>
 
         {template.isOfficial && (
