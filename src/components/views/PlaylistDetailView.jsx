@@ -568,7 +568,19 @@ export default function PlaylistDetailView({
         <div className="relative group/cover">
           <div className={"w-32 h-32 md:w-48 md:h-48 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-inner text-5xl md:text-7xl " + inputBg}>
             <div className={"absolute inset-0 opacity-10 dark:opacity-20 " + (isNaughtyMode ? 'bg-rose-500' : 'bg-red-500')}></div>
-            {currentPlaylist.coverIcon}
+            {/* RETOUR DIRECT ("la pochette générée disparaît sur cette
+                fiche") — les playlists ensemencées (voir
+                data/curatedSessions.js, App.jsx `openCuratedPlaylist`) ont
+                un `coverUrl` (image générée DiceBear), en plus de
+                `coverIcon` (l'émoji, gardé en repli). Une playlist générée
+                classiquement ou importée via lien n'a PAS de `coverUrl` —
+                retombe naturellement sur l'émoji comme avant, aucun
+                changement pour elles. */}
+            {currentPlaylist.coverUrl ? (
+              <img src={currentPlaylist.coverUrl} alt="" className="w-full h-full object-cover rounded-lg" />
+            ) : (
+              currentPlaylist.coverIcon
+            )}
           </div>
         </div>
         <div className="flex-1 text-center md:text-left space-y-4 w-full">
