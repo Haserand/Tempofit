@@ -39,7 +39,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Cardio Express',
     workoutType: 'Course à pied',
-    coverGradient: 'from-red-500 to-orange-500',
     tracks: [
       { title: 'Lose Yourself', artist: 'Eminem', genre: 'Rap', bpm: 171, duration: 326 },
       { title: 'Till I Collapse', artist: 'Eminem', genre: 'Rap', bpm: 171, duration: 297 },
@@ -56,7 +55,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Cardio Express',
     workoutType: 'Course à pied',
-    coverGradient: 'from-orange-500 to-amber-500',
     tracks: [
       { title: 'Blitzkrieg Bop', artist: 'Ramones', genre: 'Rock', bpm: 177, duration: 132 },
       { title: 'Blinding Lights', artist: 'The Weeknd', genre: 'Electro', bpm: 171, duration: 200 },
@@ -73,7 +71,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Cardio Express',
     workoutType: 'Course à pied',
-    coverGradient: 'from-pink-500 to-fuchsia-600',
     tracks: [
       { title: 'Titanium', artist: 'David Guetta ft. Sia', genre: 'Electro', bpm: 126, duration: 245 },
       { title: 'Levels', artist: 'Avicii', genre: 'Electro', bpm: 126, duration: 203 },
@@ -90,7 +87,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Cardio Express',
     workoutType: 'Course à pied',
-    coverGradient: 'from-rose-500 to-red-600',
     tracks: [
       { title: 'Lose Yourself', artist: 'Eminem', genre: 'Rap', bpm: 171, duration: 326 },
       { title: "Can't Hold Us", artist: 'Macklemore & Ryan Lewis', genre: 'Rap', bpm: 146, duration: 258 },
@@ -107,7 +103,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Cardio Express',
     workoutType: 'Cyclisme',
-    coverGradient: 'from-amber-500 to-red-500',
     tracks: [
       { title: 'Till I Collapse', artist: 'Eminem', genre: 'Rap', bpm: 171, duration: 297 },
       { title: 'Levels', artist: 'Avicii', genre: 'Electro', bpm: 126, duration: 203 },
@@ -123,7 +118,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Cardio Express',
     workoutType: 'Course à pied',
-    coverGradient: 'from-red-600 to-rose-500',
     tracks: [
       { title: 'Blinding Lights', artist: 'The Weeknd', genre: 'Electro', bpm: 171, duration: 200 },
       { title: 'Lose Yourself', artist: 'Eminem', genre: 'Rap', bpm: 171, duration: 326 },
@@ -142,7 +136,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Endurance Fondamentale',
     workoutType: 'Course à pied',
-    coverGradient: 'from-emerald-500 to-teal-600',
     tracks: [
       { title: 'Mr. Brightside', artist: 'The Killers', genre: 'Rock', bpm: 148, duration: 222 },
       { title: "Sweet Child O' Mine", artist: "Guns N' Roses", genre: 'Rock', bpm: 125, duration: 356 },
@@ -166,7 +159,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Endurance Fondamentale',
     workoutType: 'Cyclisme',
-    coverGradient: 'from-teal-500 to-cyan-500',
     tracks: [
       { title: 'Every Breath You Take', artist: 'The Police', genre: 'Rock', bpm: 87, duration: 254 },
       { title: 'Wonderwall', artist: 'Oasis', genre: 'Rock', bpm: 87, duration: 258 },
@@ -188,7 +180,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Endurance Fondamentale',
     workoutType: 'Course à pied',
-    coverGradient: 'from-green-500 to-emerald-600',
     tracks: [
       { title: "Sweet Child O' Mine", artist: "Guns N' Roses", genre: 'Rock', bpm: 125, duration: 356 },
       { title: 'Smells Like Teen Spirit', artist: 'Nirvana', genre: 'Rock', bpm: 117, duration: 301 },
@@ -210,7 +201,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Endurance Fondamentale',
     workoutType: 'Cyclisme',
-    coverGradient: 'from-lime-500 to-green-600',
     tracks: [
       { title: 'Wonderwall', artist: 'Oasis', genre: 'Rock', bpm: 87, duration: 258 },
       { title: 'Every Breath You Take', artist: 'The Police', genre: 'Rock', bpm: 87, duration: 254 },
@@ -232,7 +222,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Endurance Fondamentale',
     workoutType: 'Course à pied',
-    coverGradient: 'from-cyan-500 to-blue-500',
     tracks: [
       { title: 'Uptown Funk', artist: 'Bruno Mars', genre: 'Pop', bpm: 115, duration: 270 },
       { title: 'Billie Jean', artist: 'Michael Jackson', genre: 'Pop', bpm: 117, duration: 294 },
@@ -255,7 +244,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Endurance Fondamentale',
     workoutType: 'Course à pied',
-    coverGradient: 'from-teal-600 to-emerald-500',
     tracks: [
       { title: 'Harder, Better, Faster, Stronger', artist: 'Daft Punk', genre: 'Electro', bpm: 123, duration: 224 },
       { title: 'One More Time', artist: 'Daft Punk', genre: 'Electro', bpm: 123, duration: 320 },
@@ -280,7 +268,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Force & Renfo',
     workoutType: 'Musculation',
-    coverGradient: 'from-slate-500 to-gray-700',
     tracks: [
       { title: "Sweet Child O' Mine", artist: "Guns N' Roses", genre: 'Rock', bpm: 125, duration: 356 },
       { title: 'Titanium', artist: 'David Guetta ft. Sia', genre: 'Electro', bpm: 126, duration: 245 },
@@ -298,7 +285,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Force & Renfo',
     workoutType: 'Musculation',
-    coverGradient: 'from-zinc-500 to-neutral-700',
     tracks: [
       { title: 'Smells Like Teen Spirit', artist: 'Nirvana', genre: 'Rock', bpm: 117, duration: 301 },
       { title: 'Billie Jean', artist: 'Michael Jackson', genre: 'Pop', bpm: 117, duration: 294 },
@@ -316,7 +302,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Force & Renfo',
     workoutType: 'Musculation',
-    coverGradient: 'from-stone-500 to-gray-600',
     tracks: [
       { title: 'Harder, Better, Faster, Stronger', artist: 'Daft Punk', genre: 'Electro', bpm: 123, duration: 224 },
       { title: 'One More Time', artist: 'Daft Punk', genre: 'Electro', bpm: 123, duration: 320 },
@@ -334,7 +319,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Force & Renfo',
     workoutType: 'Musculation',
-    coverGradient: 'from-gray-600 to-slate-800',
     tracks: [
       { title: 'Billie Jean', artist: 'Michael Jackson', genre: 'Pop', bpm: 117, duration: 294 },
       { title: "Don't Stop Believin'", artist: 'Journey', genre: 'Rock', bpm: 119, duration: 251 },
@@ -352,7 +336,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Force & Renfo',
     workoutType: 'Musculation',
-    coverGradient: 'from-neutral-500 to-zinc-700',
     tracks: [
       { title: 'Titanium', artist: 'David Guetta ft. Sia', genre: 'Electro', bpm: 126, duration: 245 },
       { title: 'Levels', artist: 'Avicii', genre: 'Electro', bpm: 126, duration: 203 },
@@ -370,7 +353,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Force & Renfo',
     workoutType: 'Musculation',
-    coverGradient: 'from-slate-600 to-zinc-800',
     tracks: [
       { title: 'Harder, Better, Faster, Stronger', artist: 'Daft Punk', genre: 'Electro', bpm: 123, duration: 224 },
       { title: "Don't Stop Believin'", artist: 'Journey', genre: 'Rock', bpm: 119, duration: 251 },
@@ -391,7 +373,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Récupération & Flow',
     workoutType: 'Autre',
-    coverGradient: 'from-sky-500 to-indigo-500',
     tracks: [
       { title: 'The Scientist', artist: 'Coldplay', genre: 'Pop', bpm: 73, duration: 309 },
       { title: 'Wonderwall', artist: 'Oasis', genre: 'Rock', bpm: 87, duration: 258 },
@@ -409,7 +390,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Récupération & Flow',
     workoutType: 'Autre',
-    coverGradient: 'from-violet-500 to-purple-600',
     tracks: [
       { title: 'Someone Like You', artist: 'Adele', genre: 'Pop', bpm: 67, duration: 285 },
       { title: 'The Scientist', artist: 'Coldplay', genre: 'Pop', bpm: 73, duration: 309 },
@@ -427,7 +407,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Récupération & Flow',
     workoutType: 'Autre',
-    coverGradient: 'from-indigo-500 to-blue-500',
     tracks: [
       { title: 'Yellow', artist: 'Coldplay', genre: 'Pop', bpm: 87, duration: 269 },
       { title: 'Wonderwall', artist: 'Oasis', genre: 'Rock', bpm: 87, duration: 258 },
@@ -444,7 +423,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Récupération & Flow',
     workoutType: 'Autre',
-    coverGradient: 'from-purple-500 to-violet-600',
     tracks: [
       { title: 'Africa', artist: 'Toto', genre: 'Pop', bpm: 93, duration: 295 },
       { title: 'Yellow', artist: 'Coldplay', genre: 'Pop', bpm: 87, duration: 269 },
@@ -461,7 +439,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Récupération & Flow',
     workoutType: 'Autre',
-    coverGradient: 'from-blue-500 to-violet-500',
     tracks: [
       { title: 'Every Breath You Take', artist: 'The Police', genre: 'Rock', bpm: 87, duration: 254 },
       { title: 'Someone Like You', artist: 'Adele', genre: 'Pop', bpm: 67, duration: 285 },
@@ -478,7 +455,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Récupération & Flow',
     workoutType: 'Autre',
-    coverGradient: 'from-indigo-600 to-purple-500',
     tracks: [
       { title: 'Yellow', artist: 'Coldplay', genre: 'Pop', bpm: 87, duration: 269 },
       { title: 'Someone Like You', artist: 'Adele', genre: 'Pop', bpm: 67, duration: 285 },
@@ -498,7 +474,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Race Day / Performance',
     workoutType: 'Course à pied',
-    coverGradient: 'from-red-500 to-pink-600',
     tracks: [
       { title: 'Blitzkrieg Bop', artist: 'Ramones', genre: 'Rock', bpm: 177, duration: 132 },
       { title: 'Blinding Lights', artist: 'The Weeknd', genre: 'Electro', bpm: 171, duration: 200 },
@@ -520,7 +495,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Race Day / Performance',
     workoutType: 'Course à pied',
-    coverGradient: 'from-rose-600 to-orange-500',
     tracks: [
       { title: 'Lose Yourself', artist: 'Eminem', genre: 'Rap', bpm: 171, duration: 326 },
       { title: 'Blinding Lights', artist: 'The Weeknd', genre: 'Electro', bpm: 171, duration: 200 },
@@ -540,7 +514,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Race Day / Performance',
     workoutType: 'Cyclisme',
-    coverGradient: 'from-orange-600 to-red-500',
     tracks: [
       { title: 'Blitzkrieg Bop', artist: 'Ramones', genre: 'Rock', bpm: 177, duration: 132 },
       { title: 'Till I Collapse', artist: 'Eminem', genre: 'Rap', bpm: 171, duration: 297 },
@@ -560,7 +533,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Race Day / Performance',
     workoutType: 'Cyclisme',
-    coverGradient: 'from-red-600 to-yellow-500',
     tracks: [
       { title: "Don't Stop Me Now", artist: 'Queen', genre: 'Rock', bpm: 156, duration: 211 },
       { title: 'Lose Yourself', artist: 'Eminem', genre: 'Rap', bpm: 171, duration: 326 },
@@ -579,7 +551,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Race Day / Performance',
     workoutType: 'Course à pied',
-    coverGradient: 'from-pink-600 to-red-500',
     tracks: [
       { title: 'Blitzkrieg Bop', artist: 'Ramones', genre: 'Rock', bpm: 177, duration: 132 },
       { title: 'Blinding Lights', artist: 'The Weeknd', genre: 'Electro', bpm: 171, duration: 200 },
@@ -598,7 +569,6 @@ export const curatedSessions = [
     upvotes: 0,
     category: 'Race Day / Performance',
     workoutType: 'Course à pied',
-    coverGradient: 'from-orange-500 to-rose-600',
     tracks: [
       { title: 'Lose Yourself', artist: 'Eminem', genre: 'Rap', bpm: 171, duration: 326 },
       { title: 'Blinding Lights', artist: 'The Weeknd', genre: 'Electro', bpm: 171, duration: 200 },
