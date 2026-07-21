@@ -11,7 +11,7 @@ import {
 import { getGenresForDisplay, genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog';
 import { getCadenceUnitLabel, DISTRIBUTION_COLORS, getZoneForValue } from '../../appConfig';
 import { formatDuration } from '../../utils/format';
-import { deezerFetch, resolveDeezerTrackByTitleArtist } from '../../musicEngine';
+import { deezerFetch } from '../../musicEngine';
 import SessionSummaryCard from '../shared/SessionSummaryCard';
 
 // Couleur du donut "Répartition par style" (genre musical, pas de zone
@@ -110,6 +110,7 @@ export default function PlaylistDetailView({
   dataOffset, setDataOffset,
   chartAxisType, setChartAxisType, chartDistanceUnit, setChartDistanceUnitOverride,
   selectedSegmentIdx, setSelectedSegmentIdx, trackSegments, togglePreview, playingPreviewId,
+  resolveAndPlay, resolvingTrackId,
   unifiedChartData, handleChartClick, chartXDomain, chartXTicks, chartYDomain, distanceDisplayFactor,
   handleChartMouseDown, handleChartMouseMove, handleChartMouseUp, isDraggingChartSegment,
   draggedTrackIndex, handleTrackDragStart, handleTrackDragEnter, handleTrackDragEnd,
@@ -274,18 +275,17 @@ export default function PlaylistDetailView({
   };
 
   /**
-   * RETOUR DIRECT ("on peut pas mettre à jour les liens des musiques à
-   * chaque fois qu'un utilisateur clique dessus ?") — enveloppe
-   * `togglePreview` (useAudioPreview.js, inchangée) : si l'extrait est déjà
-   * connu (cas normal, immense majorité des titres), comportement
-   * IDENTIQUE à avant, appel direct. Si `preview` est encore `null` (titre
-   * d'une playlist ensemencée pas encore résolu — voir
-   * data/curatedSessions.js, App.jsx `openCuratedPlaylist`), résout
-   * D'ABORD le vrai titre Deezer par titre+artiste (recherche déterministe,
-   * voir resolveDeezerTrackByTitleArtist, musicEngine.js), MET À JOUR ce
-   * titre dans la playlist affichée (pour que les clics suivants n'aient
-   * plus besoin de re-résoudre, et que favoris/graphiques voient aussi le
-   * nouvel identifiant Deezer), PUIS lance la lecture.
+   * RETOUR DIRECT ("boutons précédent/suivant depuis le mini-lecteur") —
+   * `resolveAndPlay`/`resolvingTrackId` viennent maintenant de
+   * useAudioPreview.js (reçus en props depuis App.jsx, qui possède le
+   * hook) — la résolution à la demande vivait avant ICI en copie locale,
+   * déplacée pour que le mini-lecteur GLOBAL (visible sur toutes les vues)
+   * puisse s'en servir aussi, pas seulement cette page. Ce wrapper ne fait
+   * plus que la partie SPÉCIFIQUE à cette vue : mettre à jour le titre
+   * résolu dans `currentPlaylist.tracks` (pour que les clics suivants
+   * n'aient plus besoin de re-résoudre, et que favoris/graphiques voient
+   * aussi le nouvel identifiant Deezer) — la résolution et la lecture
+   * elles-mêmes restent dans le hook, partagées.
    *
    * Comparaison par `id` (pas par référence d'objet `===`, ni par
    * `youtubeId` qui change justement lors de cette résolution) pour
@@ -294,37 +294,14 @@ export default function PlaylistDetailView({
    * identifie la chanson — voir musicEngine.js, createPlaylistData), jamais
    * modifié ici.
    */
-  // RETOUR DIRECT ("ça marche pas pour les playlists de la bibliothèque") —
-  // le VRAI bug était ailleurs : les boutons play étaient `disabled={!track.
-  // preview}`, ce qui empêchait le clic de partir AVANT MÊME d'atteindre
-  // cette fonction (déjà correcte). Les boutons ne bloquent plus le clic
-  // (voir plus bas) — `resolvingTrackId` sert maintenant à afficher un vrai
-  // indicateur de chargement pendant la résolution (recherche Deezer, pas
-  // instantanée), ET à empêcher un double-clic rapide de lancer 2
-  // résolutions concurrentes pour le même titre.
-  const [resolvingTrackId, setResolvingTrackId] = useState(null);
-
   const resolveAndTogglePreview = async (track, getNextTrack) => {
     if (track.preview) { togglePreview(track, getNextTrack); return; }
-    if (resolvingTrackId === track.id) return; // déjà en cours pour ce titre précis
-
-    setResolvingTrackId(track.id);
-    try {
-      const resolved = await resolveDeezerTrackByTitleArtist(track.title, track.artist);
-      if (!resolved || !resolved.preview) {
-        showToast("Extrait audio introuvable pour ce titre.", 'error');
-        return;
-      }
-
-      const updatedTrack = { ...track, youtubeId: `deezer-${resolved.id}`, preview: resolved.preview };
+    const updatedTrack = await resolveAndPlay(track, getNextTrack);
+    if (updatedTrack) {
       setCurrentPlaylist(prev => ({
         ...prev,
         tracks: prev.tracks.map(t => t.id === track.id ? updatedTrack : t),
       }));
-
-      togglePreview(updatedTrack, getNextTrack);
-    } finally {
-      setResolvingTrackId(null);
     }
   };
 
