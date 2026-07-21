@@ -22,7 +22,7 @@ export default function DiscoverView({ theme, onPlayTemplate }) {
   const categories = [...new Set(curatedSessions.map(t => t.category))];
 
   return (
-    <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
+    <div className="max-w-7xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
       <div className={`border-b ${cardBorder} pb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4`}>
         <div>
           <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}>
@@ -41,8 +41,8 @@ export default function DiscoverView({ theme, onPlayTemplate }) {
 
       {categories.map(category => (
         <div key={category}>
-          <h2 className={`text-xl font-bold mb-4 ${textHighlight}`}>{category}</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-5">
+          <h2 className={`text-xl font-bold mb-4 sm:mb-6 ${textHighlight}`}>{category}</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
             {curatedSessions.filter(t => t.category === category).map(template => (
               <TemplateCard key={template.id} theme={theme} template={template} onPlayTemplate={onPlayTemplate} />
             ))}
