@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Pause, Play,
   GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, Calendar, ChevronDown, ChevronUp,
-  ChevronLeft, ChevronRight, Lock, Upload, Trash2, Loader2,
+  ChevronLeft, ChevronRight, Lock, Upload, Trash2, Loader2, Music2,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, CartesianGrid, ReferenceArea, ReferenceLine, XAxis, YAxis,
@@ -566,7 +566,11 @@ export default function PlaylistDetailView({
           </span>
         )}
         <div className="relative group/cover">
-          <div className={"w-32 h-32 md:w-48 md:h-48 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-inner text-5xl md:text-7xl " + inputBg}>
+          <button
+            onClick={() => currentPlaylist.tracks[0] && resolveAndTogglePreview(currentPlaylist.tracks[0], getNextTrackForAutoAdvance)}
+            title="Écouter cette playlist"
+            className={"relative w-32 h-32 md:w-48 md:h-48 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-inner text-5xl md:text-7xl cursor-pointer " + inputBg}
+          >
             <div className={"absolute inset-0 opacity-10 dark:opacity-20 " + (isNaughtyMode ? 'bg-rose-500' : 'bg-red-500')}></div>
             {/* RETOUR DIRECT ("la pochette générée disparaît sur cette
                 fiche") — les playlists ensemencées (voir
@@ -575,13 +579,35 @@ export default function PlaylistDetailView({
                 `coverIcon` (l'émoji, gardé en repli). Une playlist générée
                 classiquement ou importée via lien n'a PAS de `coverUrl` —
                 retombe naturellement sur l'émoji comme avant, aucun
-                changement pour elles. */}
+                changement pour elles.
+                RETOUR DIRECT ("il manque la note de musique avec l'ombre")
+                — même repère "pochette d'album" que sur les cartes de
+                Découverte (TemplateCard.jsx), UNIQUEMENT quand une vraie
+                image est affichée (une note par-dessus l'émoji n'aurait pas
+                de sens). */}
             {currentPlaylist.coverUrl ? (
-              <img src={currentPlaylist.coverUrl} alt="" className="w-full h-full object-cover rounded-lg" />
+              <>
+                <img src={currentPlaylist.coverUrl} alt="" className="w-full h-full object-cover rounded-lg" />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <Music2 size={56} className="text-white/80 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]" />
+                </div>
+              </>
             ) : (
               currentPlaylist.coverIcon
             )}
-          </div>
+            {/* RETOUR DIRECT ("cliquer sur le logo doit lancer la playlist")
+                — l'app n'a pas de vraie lecture continue de playlist (juste
+                des extraits de 30s par titre, voir useAudioPreview.js) :
+                "lancer" veut donc dire démarrer le 1er titre, avec le même
+                enchaînement automatique déjà utilisé partout ailleurs sur
+                cette page (getNextTrackForAutoAdvance) — le plus proche de
+                ce que ferait un clic sur une pochette Spotify avec les
+                moyens réels de cette app. Survol : petit bouton play, même
+                logique que TemplateCard.jsx (Découverte). */}
+            <div className="absolute inset-0 bg-black/0 group-hover/cover:bg-black/20 transition-colors flex items-center justify-center">
+              <Play size={32} className="text-white opacity-0 group-hover/cover:opacity-100 transition-opacity fill-white drop-shadow-lg" />
+            </div>
+          </button>
         </div>
         <div className="flex-1 text-center md:text-left space-y-4 w-full">
           {/* RETOUR DIRECT (maquette UI/UX complète) : "isole et remonte la
