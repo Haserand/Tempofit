@@ -28,6 +28,7 @@ import { NAUGHTY_ROUTINE_NAMES, getZoneForValue, ATHLETIC_ZONES, DISTRIBUTION_CO
 
 import { safeFetchJson, deezerFetch, resolveDeezerGenre, getSingleMatchingTrack, buildSegmentTracks, deduceCrescendoBpm, buildCrescendoSegments, findSameArtistReplacement, recalculateTimeline, createPlaylistData } from './musicEngine';
 import { decodePlaylistFromSharing } from './utils/playlistShareCode';
+import { buildCoverUrl } from './utils/coverArt';
 import { parseGarminCsv } from './workoutDataEngine';
 import { useTheme } from './hooks/useTheme';
 import { usePersistentState } from './hooks/usePersistentState';
@@ -825,6 +826,16 @@ export default function App() {
       // retombe toujours sur le même titre).
       tracks: template.tracks.map((t, i) => ({ ...t, id: `curated-${template.id}-${i}`, youtubeId: `curated-${template.id}-${i}`, preview: null })),
       isNaughty: false, fallbackTrackCount: 0,
+      // RETOUR DIRECT ("la pochette générée disparaît sur la fiche détail")
+      // — `coverUrl` n'est stocké NULLE PART dans data/curatedSessions.js
+      // (volontairement, voir ce fichier) : recalculé ici avec la MÊME
+      // fonction que TemplateCard.jsx (utils/coverArt.js) — déterministe par
+      // le titre, donc rigoureusement identique à la pochette déjà vue dans
+      // la grille de Découverte, sans avoir besoin de la faire transiter par
+      // un state/des props séparés. `coverIcon` (l'émoji) reste posé en
+      // repli, au cas où `coverUrl` échouerait à charger un jour (voir
+      // PlaylistDetailView.jsx pour ce repli).
+      coverUrl: buildCoverUrl(template.title),
       coverIcon: '🎧', createdAt: new Date().toLocaleDateString(),
       status: 'pending', actualDataByDate: {},
       config: { workoutName: template.workoutType, targetMode: 'time', bpm: avgBpm, selectedGenres: genres.length ? genres : ['Autre'] },
