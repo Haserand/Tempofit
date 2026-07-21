@@ -546,6 +546,8 @@ export default function App() {
     playingPreviewId, togglePreview,
     currentTrack: currentPreviewTrack, isPlaying: isPreviewPlaying,
     pauseCurrentPreview, resumeCurrentPreview, stopCurrentPreview,
+    resolveAndPlay, resolvingTrackId,
+    skipToNext, skipToPrevious,
   } = useAudioPreview(showToast);
 
   // --- MOTEUR DE RECHERCHE DEEZER (recherche manuelle titre/artiste avec BPM) ---
@@ -2623,6 +2625,7 @@ export default function App() {
                 chartDistanceUnit={chartDistanceUnit} setChartDistanceUnitOverride={setChartDistanceUnitOverride}
                 selectedSegmentIdx={selectedSegmentIdx} setSelectedSegmentIdx={setSelectedSegmentIdx} trackSegments={trackSegments}
                 togglePreview={togglePreview} playingPreviewId={playingPreviewId}
+                resolveAndPlay={resolveAndPlay} resolvingTrackId={resolvingTrackId}
                 unifiedChartData={unifiedChartData} handleChartClick={handleChartClick}
                 handleChartMouseDown={handleChartMouseDown} handleChartMouseMove={handleChartMouseMove} handleChartMouseUp={handleChartMouseUp}
                 isDraggingChartSegment={isDraggingChartSegment}
@@ -2752,6 +2755,8 @@ export default function App() {
           track={currentPreviewTrack} isPlaying={isPreviewPlaying}
           onTogglePlayPause={() => isPreviewPlaying ? pauseCurrentPreview() : resumeCurrentPreview()}
           onClose={stopCurrentPreview}
+          onNext={() => skipToNext(currentPlaylist?.tracks)}
+          onPrevious={() => skipToPrevious(currentPlaylist?.tracks)}
         />
 
       </div>
