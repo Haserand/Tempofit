@@ -1,4 +1,5 @@
 import { Play, Music2 } from 'lucide-react';
+import { buildCoverUrl } from '../../utils/coverArt';
 
 /**
  * TemplateCard — carte d'une playlist ensemencée (voir data/curatedSessions.js),
@@ -25,7 +26,7 @@ import { Play, Music2 } from 'lucide-react';
  * RETOUR DIRECT (4e passe, "pas assez de couleurs différentes, remettre la
  * note de musique au milieu") — 2 corrections :
  *   1. `backgroundColor` forcé avec une LISTE large de teintes (voir
- *      `COVER_BACKGROUND_COLORS` plus bas) — sans lui, DiceBear piochait
+ *      `utils/coverArt.js`, réutilisé ici et par App.jsx) — sans lui, DiceBear piochait
  *      dans son propre choix par défaut, visiblement étroit (bleu/orange/
  *      crème qui reviennent sur presque toutes les pochettes). Une couleur
  *      de cette liste est choisie de façon déterministe à partir du titre
@@ -48,14 +49,6 @@ import { Play, Music2 } from 'lucide-react';
  * seulement sur le bouton play.
  */
 
-// Palette volontairement large et variée (12 teintes) — voir le retour
-// direct plus haut. Format hex SANS le "#" (attendu tel quel par l'API
-// DiceBear pour le paramètre backgroundColor).
-const COVER_BACKGROUND_COLORS = [
-  'f87171', 'fb923c', 'fbbf24', 'a3e635', '4ade80', '2dd4bf',
-  '38bdf8', '818cf8', 'a78bfa', 'e879f9', 'fb7185', '94a3b8',
-].join(',');
-
 export default function TemplateCard({ theme, template, onPlayTemplate }) {
   const { textHighlight, textMuted, bgAccentClass } = theme;
 
@@ -65,9 +58,10 @@ export default function TemplateCard({ theme, template, onPlayTemplate }) {
   // discrète, "45 min" se lit d'un coup d'œil, "44m 58s" alourdit pour rien.
   const totalMinutes = Math.round(template.tracks.reduce((s, t) => s + (t.duration || 0), 0) / 60);
 
-  // `encodeURIComponent` : le titre peut contenir des espaces/apostrophes
-  // ("Powerlifter's Anthem") — doivent être encodés proprement dans l'URL.
-  const coverUrl = `https://api.dicebear.com/10.x/shapes/svg?seed=${encodeURIComponent(template.title)}&backgroundColor=${COVER_BACKGROUND_COLORS}`;
+  // Palette/format d'URL désormais dans utils/coverArt.js (réutilisée telle
+  // quelle par App.jsx, `openCuratedPlaylist`, pour que la pochette
+  // persiste sur la fiche détail de la playlist — voir ce fichier).
+  const coverUrl = buildCoverUrl(template.title);
 
   return (
     <div className="group cursor-pointer select-none" onClick={() => onPlayTemplate(template)}>
