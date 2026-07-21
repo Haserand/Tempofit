@@ -36,7 +36,7 @@
 export const curatedSessions = [
   {
     id: 'tpl-fractionne-10km',
-    title: 'Fractionné Spécial 10km',
+    title: "Runner's High 165",
     author: 'TempoFit Officiel',
     isOfficial: true,
     upvotes: 0,
@@ -53,7 +53,7 @@ export const curatedSessions = [
   },
   {
     id: 'tpl-endurance-fondamentale',
-    title: 'Endurance Fondamentale',
+    title: 'Deep Focus Run',
     author: 'TempoFit Officiel',
     isOfficial: true,
     upvotes: 0,
@@ -68,7 +68,7 @@ export const curatedSessions = [
   },
   {
     id: 'tpl-crescendo-cyclisme',
-    title: 'Montée en Puissance à Vélo',
+    title: 'Power Climb Anthem',
     author: 'TempoFit Officiel',
     isOfficial: true,
     upvotes: 0,
@@ -84,7 +84,7 @@ export const curatedSessions = [
   },
   {
     id: 'tpl-5km-quotidien',
-    title: 'Mon 5km Quotidien',
+    title: 'Neon Run 5K',
     author: 'TempoFit Officiel',
     isOfficial: true,
     upvotes: 0,
@@ -99,7 +99,7 @@ export const curatedSessions = [
   },
   {
     id: 'tpl-muscu-force',
-    title: 'Séance Force en Salle',
+    title: 'Iron Pump Anthem',
     author: 'TempoFit Officiel',
     isOfficial: true,
     upvotes: 0,
