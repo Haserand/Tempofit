@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Activity, Clock, Music, Check, X, Heart, Loader2, AlertCircle, Zap, Menu, Edit3, Trophy, Upload, User as UserIcon } from 'lucide-react';
-import { ARTIST_CATALOG, EXTRA_GENRES, WEAK_DEEZER_KEYWORD_GENRES, normalizeGenreForDisplay, genreDisplayLabel } from './musicCatalog';
-import { NAUGHTY_ROUTINE_NAMES, getZoneForValue, ATHLETIC_ZONES, DISTRIBUTION_COLORS } from './appConfig';
+import { ARTIST_CATALOG, EXTRA_GENRES, WEAK_DEEZER_KEYWORD_GENRES, genreDisplayLabel } from './musicCatalog';
+import { NAUGHTY_ROUTINE_NAMES } from './appConfig';
 
 // =====================================================================================
 // CONSTANTES GLOBALES & CONFIGURATION
@@ -26,7 +26,7 @@ import { NAUGHTY_ROUTINE_NAMES, getZoneForValue, ATHLETIC_ZONES, DISTRIBUTION_CO
 // traduction jamais poursuivi. Retiré pour rester cohérent avec le reste : le
 // texte est maintenant écrit en dur à son unique point d'usage.
 
-import { safeFetchJson, deezerFetch, resolveDeezerGenre, getSingleMatchingTrack, buildSegmentTracks, deduceCrescendoBpm, buildCrescendoSegments, findSameArtistReplacement, recalculateTimeline, createPlaylistData } from './musicEngine';
+import { safeFetchJson, deezerFetch, getSingleMatchingTrack, buildSegmentTracks, deduceCrescendoBpm, buildCrescendoSegments, recalculateTimeline, createPlaylistData } from './musicEngine';
 import { decodePlaylistFromSharing } from './utils/playlistShareCode';
 import { buildCoverUrl } from './utils/coverArt';
 import { parseGarminCsv } from './workoutDataEngine';
@@ -586,11 +586,7 @@ function AppContent({
   // Chrono affiché pendant le chargement — repart de 0 à chaque nouvelle
   // recherche, incrémente chaque seconde tant que isWorldSearching est vrai.
   const searchElapsedSeconds = useElapsedTimer(isWorldSearching);
-  // Édition du nom d'une playlist générée — avant, le nom auto-généré (ex. "Depuis :
-  // 🏃‍♂️ Mon 5km Quotidien") n'était jamais modifiable, ce qui devenait vite peu
-  // pratique pour s'y retrouver une fois plusieurs playlists sauvegardées.
-  const [isEditingPlaylistName, setIsEditingPlaylistName] = useState(false);
-  const [editedPlaylistName, setEditedPlaylistName] = useState("");
+  // MIGRÉ VERS PlaylistDetailContext (édition du nom de la playlist).
 
   // MIGRÉ VERS AudioPlayerContext : useAudioPreview(showToast) n'est plus
   // appelé ici mais à l'intérieur de <AudioPlayerProvider> (instance
@@ -1146,11 +1142,9 @@ function AppContent({
     }
   };
 
-  // Pendant de requestRemoveSavedPlaylist, spécifique à la vue détail : pas
-  // d'id à transmettre depuis là-bas, juste `currentPlaylist`.
-  const requestUnsavePlaylist = () => {
-    if (currentPlaylist) requestRemoveSavedPlaylist(currentPlaylist.id);
-  };
+  // MIGRÉ VERS PlaylistDetailContext (`handleUnsavePlaylist`, même wrapper
+  // autour de requestRemoveSavedPlaylist, gardée ci-dessus car partagée avec
+  // PlaylistsView).
 
   /**
    * Point d'entrée principal de la génération, appelé depuis le wizard (count=1)
@@ -1338,58 +1332,19 @@ function AppContent({
     }
   };
 
-  // Retire un morceau de la playlist en cours et recalcule la timeline en conséquence.
-  const handleRemoveTrack = (indexToRemove) => {
-    if (!currentPlaylist) return;
-    const newTracks = [...currentPlaylist.tracks];
-    newTracks.splice(indexToRemove, 1);
-
-    let updatedPlaylist = { ...currentPlaylist, tracks: newTracks };
-    updatedPlaylist = recalculateTimeline(updatedPlaylist);
-
-    setCurrentPlaylist(updatedPlaylist);
-    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
-  };
-
-  // Ajoute/retire un titre (et son artiste) des favoris DEPUIS une playlist déjà
-  // handleMoveTrack (flèches ↑/↓) supprimée : remplacée par le glisser-déposer
-  // ci-dessous (handleTrackDragStart/handleTrackDragEnter/handleTrackDragEnd),
-  // plus naturel et qui libère de la place sur la ligne de titre.
-
-  /**
-   * Duplique un titre de la playlist (le remet juste après lui-même) — permet de
-   * mettre plusieurs fois le même morceau sans repasser par la recherche à chaque
-   * fois. Le bouton "+" fait office d'ajout ; le "X" déjà existant sur chaque
-   * occurrence fait office de retrait, pas besoin d'un compteur séparé.
-   */
-  const handleDuplicateTrack = (index) => {
-    if (!currentPlaylist) return;
-    const newTracks = [...currentPlaylist.tracks];
-    const duplicated = { ...newTracks[index], id: `track-dup-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` };
-    newTracks.splice(index + 1, 0, duplicated);
-
-    let updatedPlaylist = { ...currentPlaylist, tracks: newTracks };
-    updatedPlaylist = recalculateTimeline(updatedPlaylist);
-
-    setCurrentPlaylist(updatedPlaylist);
-    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
-    showToast("🎵 Titre dupliqué !");
-  };
-
-  const handleRenamePlaylist = () => {
-    const trimmed = editedPlaylistName.trim();
-    if (!trimmed || !currentPlaylist) { setIsEditingPlaylistName(false); return; }
-    const updatedPlaylist = { ...currentPlaylist, name: trimmed };
-    setCurrentPlaylist(updatedPlaylist);
-    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
-    setIsEditingPlaylistName(false);
-  };
+  // MIGRÉ VERS PlaylistDetailContext : handleRemoveTrack, handleDuplicateTrack,
+  // handleRenamePlaylist, handleReplaceTrack, handleReplaceTrackSameArtist,
+  // le drag-and-drop de la liste (draggedTrackIndex/moveTrackTo/
+  // handleTrackDragStart/handleTrackDragEnter/handleTrackDragEnd) et le menu
+  // par titre (openTrackMenuIndex) — tous exclusifs à cette vue, vérifié
+  // qu'aucun n'est appelé ailleurs dans ce fichier avant de les déplacer.
 
   // Planifie (ou déplanifie, si dateStr est vide) une date optionnelle pour une
   // playlist — sert uniquement de clé de TRI dans "Mes Séances" (section
   // "Planifiées"), jamais une contrainte bloquante : une playlist sans date
   // reste utilisable normalement, juste triable manuellement à la place (voir
-  // PlaylistsView, glisser-déposer de la section "À planifier").
+  // PlaylistsView, glisser-déposer de la section "À planifier"). PARTAGÉE avec
+  // PlaylistsView — reste ici, pas migrée dans PlaylistDetailContext.
   const setPlaylistPlannedDate = (playlistId, dateStr) => {
     const value = dateStr || null;
     setSavedPlaylists(savedPlaylists.map(p => p.id === playlistId ? { ...p, plannedDate: value } : p));
@@ -1404,126 +1359,6 @@ function AppContent({
       checkTrophies({ ...userStats, hasPlannedSession: true });
     }
   };
-
-  // Remplace un morceau par un autre correspondant au même BPM cible (utilise
-  // à nouveau la cascade Spotify → local → API mondiale → fallback le plus proche).
-  const handleReplaceTrack = async (indexToReplace) => {
-    if (!currentPlaylist) return;
-    let stats = { ...userStats, replacedTracks: userStats.replacedTracks + 1 };
-    checkTrophies(stats);
-
-    const oldTrack = currentPlaylist.tracks[indexToReplace];
-    const usedIds = currentPlaylist.tracks.map(t => t.trackId);
-    
-    // Requête asynchrone modifiée pour taper dans l'API si nécessaire
-    const newRawTrack = await getSingleMatchingTrack(oldTrack.targetSegmentBpm, currentPlaylist.tolerance || 10, currentPlaylist.config?.selectedGenres || ['Métal'], usedIds, favorites, spotifyTrackPool, null, [], currentPlaylist.config?.allowLongTracks || false);
-
-    const newTracks = [...currentPlaylist.tracks];
-    newTracks[indexToReplace] = {
-      ...newTracks[indexToReplace], title: newRawTrack.title, artist: newRawTrack.artist,
-      genre: newRawTrack.genre, bpm: newRawTrack.bpm, duration: newRawTrack.duration,
-      trackId: newRawTrack.trackId, id: `track-replaced-${Date.now()}`,
-      preview: newRawTrack.preview || null,
-      // Même bug corrigé qu'à la génération initiale : ces marqueurs n'étaient
-      // jamais copiés ici, donc le badge ne pouvait pas s'afficher après un
-      // remplacement même si la vérification de genre avait échoué.
-      _genreMismatch: newRawTrack._genreMismatch || false,
-      _isFallback: newRawTrack._isFallback || false,
-    };
-
-    let updatedPlaylist = { ...currentPlaylist, tracks: newTracks };
-    updatedPlaylist = recalculateTimeline(updatedPlaylist);
-
-    setCurrentPlaylist(updatedPlaylist);
-    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
-    showToast("🎵 Titre remplacé et durée ajustée !");
-  };
-
-  // handleReplaceTrackFromFavorites supprimée : redondante avec "Remplacer (recherche
-  // large)", qui vérifie déjà les favoris en tout premier via getSingleMatchingTrack.
-  // Ne gardait comme vraie différence que l'absence de repli automatique, ce qui
-  // n'était pas une distinction assez utile pour justifier un 3e bouton dans le menu.
-
-  /**
-   * Variante de handleReplaceTrack qui privilégie un autre titre du MÊME artiste
-   * (recherche Deezer combinée artist:/bpm_min/bpm_max), plutôt que la recherche
-   * large habituelle. Si aucun autre titre de cet artiste ne correspond au BPM
-   * demandé, on retombe sur la recherche large classique pour ne jamais bloquer.
-   */
-  const handleReplaceTrackSameArtist = async (indexToReplace) => {
-    if (!currentPlaylist) return;
-    const oldTrack = currentPlaylist.tracks[indexToReplace];
-    const usedIds = currentPlaylist.tracks.map(t => t.trackId);
-    const minBpm = oldTrack.targetSegmentBpm - (currentPlaylist.tolerance || 10);
-    const maxBpm = oldTrack.targetSegmentBpm + (currentPlaylist.tolerance || 10);
-    const requestedGenres = currentPlaylist.config?.selectedGenres || ['Métal'];
-    const allowLong = currentPlaylist.config?.allowLongTracks || false;
-
-    let newRawTrack = await findSameArtistReplacement(oldTrack.artist, minBpm, maxBpm, usedIds, requestedGenres, allowLong);
-
-    // Repli sur la recherche large habituelle si aucun autre titre de cet artiste n'a été trouvé.
-    if (!newRawTrack) {
-      newRawTrack = await getSingleMatchingTrack(oldTrack.targetSegmentBpm, currentPlaylist.tolerance || 10, requestedGenres, usedIds, favorites, spotifyTrackPool, null, [], allowLong);
-      showToast(`Aucun autre titre de ${oldTrack.artist} à ce BPM — recherche élargie utilisée.`);
-    } else {
-      let stats = { ...userStats, replacedTracks: userStats.replacedTracks + 1 };
-      checkTrophies(stats);
-      showToast(`🎵 Remplacé par un autre titre de ${newRawTrack.artist} !`);
-    }
-
-    const newTracks = [...currentPlaylist.tracks];
-    newTracks[indexToReplace] = {
-      ...newTracks[indexToReplace], title: newRawTrack.title, artist: newRawTrack.artist,
-      genre: newRawTrack.genre, bpm: newRawTrack.bpm, duration: newRawTrack.duration,
-      trackId: newRawTrack.trackId, id: `track-replaced-${Date.now()}`,
-      preview: newRawTrack.preview || null,
-      // Même bug corrigé qu'à la génération initiale : ces marqueurs n'étaient
-      // jamais copiés ici, donc le badge ne pouvait pas s'afficher après un
-      // remplacement même si la vérification de genre avait échoué.
-      _genreMismatch: newRawTrack._genreMismatch || false,
-      _isFallback: newRawTrack._isFallback || false,
-    };
-
-    let updatedPlaylist = { ...currentPlaylist, tracks: newTracks };
-    updatedPlaylist = recalculateTimeline(updatedPlaylist);
-
-    setCurrentPlaylist(updatedPlaylist);
-    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
-  };
-
-  // --- Glisser-déposer pour réordonner les titres — remplace les flèches ↑/↓,
-  // plus naturel et ça libère de la place sur une ligne déjà chargée d'actions.
-  const [draggedTrackIndex, setDraggedTrackIndex] = useState(null);
-  // Déplace le titre actuellement "saisi" (`draggedTrackIndex`) à la position
-  // `newIndex` — factorisé hors de `handleTrackDragEnter` (ci-dessous) pour
-  // être réutilisé tel quel par le glisser-déposer directement sur la courbe
-  // d'intensité (voir handleChartMouseMove, plus haut) : la liste et le
-  // graphique partagent maintenant EXACTEMENT le même mécanisme de
-  // réordonnancement, pas 2 implémentations parallèles à maintenir.
-  const moveTrackTo = (newIndex) => {
-    if (draggedTrackIndex === null || draggedTrackIndex === newIndex || !currentPlaylist) return;
-    const newTracks = [...currentPlaylist.tracks];
-    const [moved] = newTracks.splice(draggedTrackIndex, 1);
-    newTracks.splice(newIndex, 0, moved);
-    let updatedPlaylist = { ...currentPlaylist, tracks: newTracks };
-    updatedPlaylist = recalculateTimeline(updatedPlaylist);
-    setCurrentPlaylist(updatedPlaylist);
-    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
-    setDraggedTrackIndex(newIndex);
-  };
-  const handleTrackDragStart = (index) => (e) => {
-    setDraggedTrackIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-  const handleTrackDragEnter = (index) => (e) => {
-    e.preventDefault();
-    moveTrackTo(index);
-  };
-  const handleTrackDragEnd = () => setDraggedTrackIndex(null);
-
-  // Menu d'options par titre (Dupliquer / Remplacer large / Remplacer même artiste),
-  // regroupées derrière une seule icône "⋮" plutôt que plusieurs boutons permanents.
-  const [openTrackMenuIndex, setOpenTrackMenuIndex] = useState(null);
 
   // Ajoute manuellement un morceau choisi dans la modale de recherche (locale ou API mondiale).
   const handleAddManualTrack = (rawTrack) => {
@@ -1820,196 +1655,11 @@ function AppContent({
     e.target.value = '';
   };
 
-  // BUG CORRIGÉ : la valeur par défaut était 'musique', qui ne correspond à aucun
-  // des deux cas gérés par le graphique ('temps' ou 'distance') — la clé de l'axe X
-  // ('time' vs 'startDistVal') ne matchait donc jamais, et le graphique restait vide
-  // par défaut malgré le bouton "Temps (Min)" visuellement sélectionné.
-  const [chartAxisType, setChartAxisType] = useState('temps');
-  // Unité d'affichage du graphique en mode Distance — purement cosmétique, ne
-  // touche jamais à l'allure/l'unité réellement utilisées pour générer la
-  // playlist (currentPlaylist.distanceUnit). null = utilise l'unité d'origine.
-  const [chartDistanceUnitOverride, setChartDistanceUnitOverride] = useState(null);
-
-  /**
-   * Construit le jeu de données unifié pour le graphique BPM : fusionne la
-   * courbe "cible" (un point par début/fin de morceau, tracée en "escalier"
-   * avec type="stepAfter") et, si des données réelles ont été importées, la
-   * courbe "réel" (un point par tour Garmin, décalé de `dataOffset` secondes
-   * pour permettre à l'utilisateur de recaler manuellement les deux courbes
-   * si le chrono du device n'était pas parfaitement synchronisé au démarrage).
-   */
-  const unifiedChartData = useMemo(() => {
-    if (!currentPlaylist) return [];
-
-    let combined = [];
-    let accTime = 0;
-    // Vitesse moyenne (secondes par km/mile) utilisée pour convertir un temps
-    // écoulé en distance parcourue — même valeur que celle utilisée par
-    // recalculateTimeline pour calculer track.startDistVal.
-    const avgPaceSecs = currentPlaylist.avgPace || 330;
-
-    currentPlaylist.tracks.forEach((track, i) => {
-      // BUG CORRIGÉ : startDistVal n'était jamais calculé ici, alors que le mode
-      // "Distance" du graphique en dépend comme clé d'axe X. Résultat : en mode
-      // Distance, chaque point avait un X undefined → Recharts ne traçait rien
-      // du tout (un <path> sans attribut "d"), silencieusement.
-      // trackPreview/trackId ajoutés pour permettre l'écoute d'extrait
-      // directement au survol d'un point du graphique (dans le tooltip).
-      combined.push({ time: accTime, startDistVal: accTime / avgPaceSecs, bpmTarget: track.bpm, trackName: track.title, trackArtist: track.artist, trackPreview: track.preview || null, trackId: track.trackId, trackDuration: track.duration, isTrack: true });
-      accTime += track.duration - (currentPlaylist.crossfade || 0);
-    });
-    if(currentPlaylist.tracks.length > 0) {
-      combined.push({ time: accTime, startDistVal: accTime / avgPaceSecs, bpmTarget: currentPlaylist.tracks[currentPlaylist.tracks.length-1].bpm });
-    }
-
-    if (currentActualData) {
-      currentActualData.forEach(d => {
-        // Métrique effectivement affichée pour ce point : si la séance n'a pas
-        // cette valeur précise (ex. FC manquante sur certains tours), on saute
-        // le point plutôt que d'afficher un zéro trompeur.
-        const rawValue = selectedMetric === 'heartRate' ? d.heartRate : d.cadenceReelle;
-        if (rawValue === undefined) return;
-
-        let t = d.timeSec + dataOffset;
-        if(t >= 0 && t <= accTime + 300) {
-          let target = null;
-          let tempAcc = 0;
-          for (let tr of currentPlaylist.tracks) {
-            tempAcc += tr.duration - (currentPlaylist.crossfade || 0);
-            if (t <= tempAcc) { target = tr.bpm; break; }
-          }
-          if(!target && currentPlaylist.tracks.length > 0) target = currentPlaylist.tracks[currentPlaylist.tracks.length-1].bpm;
-
-          combined.push({ time: t, startDistVal: t / avgPaceSecs, realValue: rawValue, targetAtTime: target, title: `Tour Garmin ${d.circuit}` });
-        }
-      });
-    }
-
-    combined.sort((a,b) => a.time - b.time);
-    return combined;
-  }, [currentPlaylist, currentActualData, selectedMetric, dataOffset]);
-
-  /**
-   * Bornes [début, fin[ de chaque morceau, en temps ET en distance — calculées à
-   * part de `unifiedChartData` (qui mélange aussi les points de données réelles
-   * Garmin) pour avoir une source propre et fiable des segments musicaux. Sert à
-   * deux choses : mettre en surbrillance tout le segment sélectionné (pas juste son
-   * point de départ), et placer un repère vertical à chaque début de morceau.
-   */
-  const trackSegments = useMemo(() => {
-    if (!currentPlaylist) return [];
-    const avgPaceSecs = currentPlaylist.avgPace || 330;
-    let accTime = 0;
-    return currentPlaylist.tracks.map((track) => {
-      const startTime = accTime;
-      const startDist = accTime / avgPaceSecs;
-      accTime += track.duration - (currentPlaylist.crossfade || 0);
-      return { track, startTime, endTime: accTime, startDist, endDist: accTime / avgPaceSecs };
-    });
-  }, [currentPlaylist]);
-
-  // Répartition de la playlist par tranche de BPM, pondérée par la DURÉE de chaque
-  // titre (pas juste un compte de titres) — donne une vue "combien de temps de la
-  // séance à chaque niveau d'intensité", complémentaire à la courbe déjà affichée.
-  //
-  // RETOUR DIRECT (capture d'écran à l'appui, avec un Profil Athlétique déjà
-  // configuré) : "ni les mêmes valeurs ni les mêmes couleurs" que le Profil
-  // Athlétique (145/160/175/190 BPM, couleurs zone1-4) — ce camembert
-  // utilisait un découpage GÉNÉRIQUE en tranches de 20 BPM alignées sur des
-  // multiples de 20 (120-139, 140-159...), coloré par simple INDEX dans une
-  // palette arc-en-ciel fixe (`DISTRIBUTION_COLORS`, PlaylistDetailView.jsx),
-  // sans aucun lien avec `ATHLETIC_ZONES`/`getZoneForValue` — la même
-  // incohérence déjà corrigée ailleurs (SessionSummaryCard.jsx, le camembert
-  // "Tes zones" de StatsView, le visuel Crescendo) avait été oubliée sur CE
-  // graphique précis, propre à la fiche d'une séance.
-  //
-  // Corrigé en réutilisant `getZoneForValue` : classe chaque titre dans sa
-  // VRAIE zone si un profil est configuré pour cette activité — même
-  // logique/mêmes couleurs que partout ailleurs (`ATHLETIC_ZONES`, ordre
-  // Récupération → Vitesse). Repli sur l'ancien découpage générique
-  // UNIQUEMENT si aucun profil n'est configuré pour cette activité
-  // (`matchedAnyZone` reste `false`) — jamais un graphique vide juste parce
-  // que l'utilisateur n'a pas rempli son Profil Athlétique. Le `color` est
-  // maintenant porté par chaque entrée de donnée plutôt que recalculé par
-  // INDEX côté PlaylistDetailView (qui n'a aucun moyen de savoir si une
-  // entrée vient d'une zone ou d'une tranche générique).
-  // RETOUR DIRECT ("le jargon 'effort' (Récupération/Seuil) a-t-il un sens
-  // avec une estimation par défaut, ou vaut-il mieux montrer des tranches de
-  // BPM brutes dans ce cas ?") — revient à `getProfileForWorkout` (strict) :
-  // le mode Synchro (voir plus bas, `cadenceIntent`) applique déjà cette
-  // même règle (`getProfileForWorkoutOrDefault` ne bascule en 'sync' que si
-  // `isConfigured` est vrai, jamais avec l'estimation par défaut) — ce
-  // graphique suivait une règle différente, moins stricte, incohérente avec
-  // ça. Le jargon "effort" prétend connaître TA zone réelle ; sans profil
-  // réellement configuré, ce n'est qu'une formule générique habillée en
-  // fausse personnalisation. Repli sur les tranches brutes (code déjà en
-  // place plus bas, jamais retiré) — honnête sur ce que c'est vraiment.
-  const bpmDistributionData = useMemo(() => {
-    if (!currentPlaylist) return [];
-    const activityName = isNaughtyMode
-      ? (currentPlaylist.config?.workoutName || currentPlaylist.workoutType || 'Autre')
-      : (currentPlaylist.workoutType || 'Autre');
-
-    const zoneSeconds = {};
-    let matchedAnyZone = false;
-    currentPlaylist.tracks.forEach(t => {
-      if (!t.bpm) return;
-      const zone = getZoneForValue(t.bpm, activityName, getProfileForWorkout);
-      if (zone) {
-        matchedAnyZone = true;
-        zoneSeconds[zone.key] = (zoneSeconds[zone.key] || 0) + (t.duration || 0);
-      }
-    });
-    if (matchedAnyZone) {
-      return ATHLETIC_ZONES
-        .filter(z => zoneSeconds[z.key] > 0)
-        .map(z => ({ name: z.shortLabel, value: zoneSeconds[z.key], color: z.color }));
-    }
-
-    const buckets = {};
-    currentPlaylist.tracks.forEach(t => {
-      const bucketStart = Math.floor(t.bpm / 20) * 20;
-      const label = `${bucketStart}-${bucketStart + 19}`;
-      buckets[label] = (buckets[label] || 0) + t.duration;
-    });
-    return Object.entries(buckets)
-      .map(([name, value], i) => ({ name, value, sortKey: parseInt(name), color: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }))
-      .sort((a, b) => a.sortKey - b.sortKey);
-  }, [currentPlaylist, isNaughtyMode, getProfileForWorkout]);
-
-  // Répartition par style musical, pondérée par la durée elle aussi. Le champ
-  // `genre` de chaque titre est désormais résolu via la vraie chaîne Deezer
-  // titre → album → genre_id → nom (voir resolveDeezerGenre) plutôt qu'hérité du
-  // mot-clé de recherche — sans ça, ce graphique aurait surtout affiché le
-  // critère de recherche utilisé, pas le vrai style du morceau.
-  //
-  // normalizeGenreForDisplay : voir musicCatalog.js (importée en haut de ce
-  // fichier) — utilisée ici ET partout où un genre est affiché dans l'app, pour
-  // fusionner les variantes d'écriture du même genre (accents, casse, noms
-  // composés type "Rap/Hip Hop") en un seul et même libellé cohérent.
-  const genreDistributionData = useMemo(() => {
-    if (!currentPlaylist) return [];
-    const buckets = {};
-    currentPlaylist.tracks.forEach(t => {
-      // Regroupement sur le genre CANONIQUE (normalizeGenreForDisplay), le
-      // libellé "Divers" (genreDisplayLabel) n'est appliqué qu'à l'affichage
-      // final juste en dessous — cette fonction reste un simple regroupement,
-      // pas un renommage.
-      const g = normalizeGenreForDisplay(t.genre, t.artist, t.title);
-      buckets[g] = (buckets[g] || 0) + t.duration;
-    });
-    return Object.entries(buckets).map(([name, value]) => ({ name: genreDisplayLabel(name), value }));
-  }, [currentPlaylist]);
-
-  // Segment actuellement sélectionné (déterminé par la position X du curseur, pas par
-  // le point de données le plus proche) — permet de mettre en surbrillance TOUTE
-  // la largeur du segment plutôt qu'un simple sommet.
-  // BUG UX CORRIGÉ : le survol continu était trop fragile en pratique (un léger
-  // écart de trajectoire de la souris en remontant vers l'encart changeait de
-  // segment sans le vouloir ; il fallait aussi rester immobile une seconde ou
-  // deux avant que l'info n'apparaisse). Un CLIC fixe désormais l'affichage de
-  // façon déterministe et instantanée, et reste stable jusqu'au clic suivant.
-  const [selectedSegmentIdx, setSelectedSegmentIdx] = useState(null);
+  // MIGRÉ VERS PlaylistDetailContext : chartAxisType/chartDistanceUnitOverride,
+  // unifiedChartData, trackSegments, bpmDistributionData, genreDistributionData,
+  // selectedSegmentIdx — tous les calculs dérivés du graphique BPM et des
+  // distributions, exclusifs à cette vue (vérifié : aucun n'est lu ailleurs
+  // dans ce fichier avant de les déplacer).
 
   // Une seule date de complétion éditable à la fois, tous playlists confondus —
   // évite d'avoir à suivre un état d'édition séparé par playlist/par date.
@@ -2179,190 +1829,13 @@ function AppContent({
     );
   };
 
-  // Résout l'index du segment (voir trackSegments) sous le curseur à partir de
-  // l'objet `state` fourni par Recharts (onClick/onMouseDown/onMouseMove) —
-  // extrait de handleChartClick pour être réutilisé par le glisser-déposer de
-  // segments directement sur le graphique (voir plus bas, handleChartMouseDown/
-  // Move/Up) : Recharts résout déjà lui-même "quel point de données sous le
-  // curseur" en tenant compte des marges/largeur de l'axe Y, bien plus fiable
-  // qu'un calcul de position en pixels refait à la main ici.
-  const resolveSegmentIdxFromChartState = (state) => {
-    if (!state || state.activeLabel === undefined || state.activeLabel === null) return -1;
-    // En mode Distance, activeLabel est déjà dans l'unité d'AFFICHAGE convertie
-    // (voir dataKey du XAxis) — on le reconvertit dans l'unité brute d'origine
-    // avant de le comparer aux bornes de trackSegments, qui restent toujours
-    // exprimées dans l'unité d'origine de la playlist.
-    const rawCursorVal = chartAxisType === 'distance' ? parseFloat(state.activeLabel) / distanceDisplayFactor : parseFloat(state.activeLabel);
-    const key = chartAxisType === 'distance' ? 'Dist' : 'Time';
-    return trackSegments.findIndex(seg => rawCursorVal >= seg[`start${key}`] && rawCursorVal < seg[`end${key}`]);
-  };
+  // MIGRÉ VERS PlaylistDetailContext : resolveSegmentIdxFromChartState,
+  // handleChartClick, le drag-and-drop directement sur le graphique
+  // (isDraggingChartSegment/chartDragStartIndex/chartDragTrackTitle/
+  // handleChartMouseDown/Move/Up), les domaines d'axes (chartDistanceUnit/
+  // distanceDisplayFactor/chartXDomain/chartXTicks/chartYDomain) et
+  // analysisStats — tous exclusifs à cette vue (vérifié).
 
-  const handleChartClick = (state) => {
-    const idx = resolveSegmentIdxFromChartState(state);
-    if (idx >= 0) setSelectedSegmentIdx(idx);
-  };
-
-  // Glisser-déposer directement sur la courbe (retour direct : "je veux
-  // pouvoir prendre une partie du graphique et la déplacer ailleurs, ce qui
-  // revient à drag & drop une musique pour la mettre ailleurs dans la
-  // playlist") — réutilise EXACTEMENT la même logique de réordonnancement que
-  // la liste de titres (voir moveTrackTo, factorisée depuis
-  // handleTrackDragEnter juste après), pas une 2e implémentation séparée.
-  // Recharts n'a pas d'équivalent direct du drag-and-drop HTML5 natif utilisé
-  // par la liste (`draggable`) sur ses éléments SVG — implémenté ici via les
-  // événements souris bruts (mousedown/mousemove/mouseup) que Recharts expose
-  // sur <LineChart>, chacun donnant déjà accès au point de données sous le
-  // curseur (voir resolveSegmentIdxFromChartState) sans calcul de pixels à la
-  // main.
-  const [isDraggingChartSegment, setIsDraggingChartSegment] = useState(false);
-  // Retenus pour le toast de confirmation à la fin du geste (voir
-  // handleChartMouseUp) : `draggedTrackIndex` est écrasé en continu pendant le
-  // glissement (voir moveTrackTo), donc on ne peut plus, une fois arrivé à
-  // mouseUp, savoir si la position a réellement changé sans avoir gardé le
-  // point de départ à part.
-  const [chartDragStartIndex, setChartDragStartIndex] = useState(null);
-  const [chartDragTrackTitle, setChartDragTrackTitle] = useState(null);
-  const handleChartMouseDown = (state) => {
-    const idx = resolveSegmentIdxFromChartState(state);
-    if (idx >= 0) {
-      setDraggedTrackIndex(idx);
-      setSelectedSegmentIdx(idx); // surbrillance immédiate du segment saisi
-      setIsDraggingChartSegment(true);
-      setChartDragStartIndex(idx);
-      setChartDragTrackTitle(trackSegments[idx]?.track?.title || null);
-    }
-  };
-  const handleChartMouseMove = (state) => {
-    if (!isDraggingChartSegment) return;
-    const idx = resolveSegmentIdxFromChartState(state);
-    if (idx >= 0) {
-      moveTrackTo(idx);
-      setSelectedSegmentIdx(idx); // la surbrillance SUIT le segment pendant qu'on le déplace
-    }
-  };
-  const handleChartMouseUp = () => {
-    // Confirmation visible SEULEMENT si la position a vraiment changé (retour
-    // direct : "ça manque d'indication visuelle quand je déplace un morceau
-    // via le graphique") — un simple clic (mousedown puis mouseup sans
-    // bouger) ne doit pas déclencher de toast, seul un déplacement réel le
-    // mérite.
-    if (isDraggingChartSegment && chartDragStartIndex !== null && draggedTrackIndex !== null && draggedTrackIndex !== chartDragStartIndex) {
-      showToast(`🔀 "${chartDragTrackTitle}" déplacé dans la playlist.`);
-    }
-    setIsDraggingChartSegment(false);
-    setDraggedTrackIndex(null);
-    setChartDragStartIndex(null);
-    setChartDragTrackTitle(null);
-  };
-
-  // Domaines des axes calculés explicitement en JS, plutôt que de laisser Recharts
-  // les déduire lui-même via les expressions "dataMax"/"dataMin" (qui semblent être
-  // la cause du bug récurrent : graphique vide malgré des données valides). Ici, le
-  // calcul est fait à la main, avec parseFloat/coercion numérique défensive, donc
-  // le résultat est garanti correct quel que soit le type exact des valeurs sources.
-  // Facteur de conversion appliqué uniquement à l'affichage du graphique — les
-  // valeurs startDistVal sont toujours calculées dans l'unité d'origine de la
-  // playlist (currentPlaylist.distanceUnit), ce facteur les convertit à la volée
-  // si l'utilisateur a choisi de visualiser dans l'autre unité.
-  const chartDistanceUnit = chartDistanceUnitOverride || (currentPlaylist ? currentPlaylist.distanceUnit : 'km') || 'km';
-  const distanceDisplayFactor = useMemo(() => {
-    if (!currentPlaylist || chartDistanceUnit === currentPlaylist.distanceUnit) return 1;
-    // km -> mi : ×0.621371 ; mi -> km : ×1.60934
-    return currentPlaylist.distanceUnit === 'km' ? 0.621371 : 1.60934;
-  }, [currentPlaylist, chartDistanceUnit]);
-
-  const chartXDomain = useMemo(() => {
-    const key = chartAxisType === 'distance' ? 'startDistVal' : 'time';
-    const factor = chartAxisType === 'distance' ? distanceDisplayFactor : 1;
-    const values = unifiedChartData.map(d => parseFloat(d[key]) * factor).filter(v => !isNaN(v));
-    if (values.length === 0) return [0, 1];
-    return [0, Math.max(...values)];
-  }, [unifiedChartData, chartAxisType, distanceDisplayFactor]);
-
-  // Graduations explicites pour l'axe X, dans les deux modes — sans ça, Recharts
-  // choisit lui-même un nombre de graduations "arbitraire" selon l'espace
-  // disponible, ce qui pouvait sauter de "2" à "5.972727272727273" en Distance,
-  // ou finir sur un "29m 46s" isolé en Temps (aucun repère régulier avant).
-  //
-  // Mode Distance : un repère tous les 1 km/mile, arrondi, PLUS la distance finale
-  // exacte (précision 0.01 km/mile, soit la dizaine de mètres) ajoutée à part —
-  // sans elle, la distance réellement parcourue en fin de séance ne correspondait
-  // à aucune graduation ronde et n'était donc jamais lisible.
-  //
-  // Mode Temps : un repère par minute — mais SEULEMENT si la séance est assez
-  // courte pour rester lisible (jusqu'à 10 min). Au-delà, un repère toutes les
-  // minutes donnerait des dizaines d'étiquettes qui se chevauchent ; le pas
-  // s'élargit alors automatiquement (2, 5, ou 10 min) pour rester lisible tout en
-  // gardant des graduations bien régulières. Même logique de "durée finale ajoutée
-  // à part" qu'en mode Distance.
-  const chartXTicks = useMemo(() => {
-    const maxVal = chartXDomain[1];
-    const ticks = [];
-
-    if (chartAxisType === 'distance') {
-      const roundedMax = Math.round(maxVal * 100) / 100; // arrondi à 0.01 km/mile (dizaine de mètres)
-      for (let i = 0; i <= Math.floor(maxVal); i++) ticks.push(i);
-      // N'ajoute la distance finale que si elle n'est pas déjà quasiment un nombre rond
-      // (évite un doublon visuel du type "6" et "6.0" côte à côte).
-      if (Math.abs(roundedMax - Math.round(roundedMax)) > 0.02) ticks.push(roundedMax);
-    } else {
-      const totalMinutes = maxVal / 60;
-      let stepMinutes = 1;
-      if (totalMinutes > 40) stepMinutes = 10;
-      else if (totalMinutes > 20) stepMinutes = 5;
-      else if (totalMinutes > 10) stepMinutes = 2;
-      const stepSeconds = stepMinutes * 60;
-      for (let t = 0; t <= maxVal; t += stepSeconds) ticks.push(t);
-      const roundedMax = Math.round(maxVal / 10) * 10; // arrondi à la dizaine de secondes
-      if (ticks.length === 0 || Math.abs(roundedMax - ticks[ticks.length - 1]) > 5) ticks.push(roundedMax);
-    }
-    return ticks;
-  }, [chartAxisType, chartXDomain]);
-
-  const chartYDomain = useMemo(() => {
-    const values = unifiedChartData
-      .flatMap(d => [parseFloat(d.bpmTarget), parseFloat(d.realValue)])
-      .filter(v => !isNaN(v));
-    if (values.length === 0) return [60, 200];
-    return [Math.min(...values) - 10, Math.max(...values) + 10];
-  }, [unifiedChartData]);
-
-  // Calcule le % de temps passé "dans la cible" / "trop lent" / "trop rapide" en
-  // comparant chaque point de CADENCE réelle à la cible (BPM musical) au même
-  // instant. Volontairement limité à la cadence : la fréquence cardiaque n'a pas
-  // de cible équivalente dans TempoFit aujourd'hui, donc un "% de match" pour
-  // elle n'aurait pas de sens réel — voir aussi RealDataDot, même restriction.
-  const analysisStats = useMemo(() => {
-    if (!currentPlaylist || !currentActualData || selectedMetric !== 'cadence') return null;
-    let matchCount = 0, belowCount = 0, aboveCount = 0;
-    const tol = currentPlaylist.tolerance || 10;
-
-    currentActualData.forEach(d => {
-      if (d.cadenceReelle === undefined) return; // point sans cadence (FC seule) : hors calcul
-      const t = d.timeSec + dataOffset;
-      let target = null;
-      let acc = 0;
-      for (let track of currentPlaylist.tracks) {
-        acc += track.duration - (currentPlaylist.crossfade || 0);
-        if (t <= acc) { target = track.bpm; break; }
-      }
-      if(!target && currentPlaylist.tracks.length > 0) target = currentPlaylist.tracks[currentPlaylist.tracks.length-1].bpm;
-
-      if(target) {
-        if (d.cadenceReelle >= target - tol && d.cadenceReelle <= target + tol) matchCount++;
-        else if (d.cadenceReelle < target - tol) belowCount++;
-        else aboveCount++;
-      }
-    });
-
-    const total = matchCount + belowCount + aboveCount;
-    if(total === 0) return null;
-    return {
-      matchPct: Math.round((matchCount / total) * 100),
-      belowPct: Math.round((belowCount / total) * 100),
-      abovePct: Math.round((aboveCount / total) * 100),
-    };
-  }, [currentPlaylist, currentActualData, selectedMetric, dataOffset]);
 
   // --- Tokens de thème (couleurs Tailwind conditionnées par le mode Intime / clair-sombre) ---
   // Extrait dans src/hooks/useTheme.js (voir passation) — déstructuré ici avec
@@ -2633,44 +2106,25 @@ function AppContent({
 
             {view === 'playlist' && currentPlaylist && (
               <PlaylistDetailView
-                theme={themeTokens} colorMode={theme} isNaughtyMode={isNaughtyMode}
-                currentPlaylist={currentPlaylist} setCurrentPlaylist={setCurrentPlaylist} savedPlaylists={savedPlaylists} getProfileForWorkout={getProfileForWorkout}
-                getProfileForWorkoutOrDefault={getProfileForWorkoutOrDefault}
-                renderTopCompletionDate={renderTopCompletionDate}
-                isEditingPlaylistName={isEditingPlaylistName} setIsEditingPlaylistName={setIsEditingPlaylistName}
-                editedPlaylistName={editedPlaylistName} setEditedPlaylistName={setEditedPlaylistName}
-                handleRenamePlaylist={handleRenamePlaylist}
-                handleSavePlaylist={handleSavePlaylist} handleUnsavePlaylist={requestUnsavePlaylist} handleShare={handleShare}
-                showToast={showToast}
+                currentPlaylist={currentPlaylist} setCurrentPlaylist={setCurrentPlaylist}
+                savedPlaylists={savedPlaylists} setSavedPlaylists={setSavedPlaylists}
+                favorites={favorites} spotifyTrackPool={spotifyTrackPool}
+                userStats={userStats} checkTrophies={checkTrophies}
+                showToast={showToast} requestRemoveSavedPlaylist={requestRemoveSavedPlaylist} handleSavePlaylist={handleSavePlaylist}
+                currentActualData={currentActualData} selectedMetric={selectedMetric} setSelectedMetric={setSelectedMetric}
+                dataOffset={dataOffset} setDataOffset={setDataOffset}
+                selectedAnalysisDate={selectedAnalysisDate} setSelectedAnalysisDate={setSelectedAnalysisDate}
+                availableMetrics={availableMetrics}
+                theme={themeTokens} colorMode={theme} handleShare={handleShare}
                 summaryImageStatus={summaryImageStatus} setSummaryImageStatus={setSummaryImageStatus}
                 summaryImageFile={summaryImageFile} setSummaryImageFile={setSummaryImageFile}
                 summaryImagePreviewUrl={summaryImagePreviewUrl} setSummaryImagePreviewUrl={setSummaryImagePreviewUrl}
                 includeSummaryImage={includeSummaryImage} setIncludeSummaryImage={setIncludeSummaryImage}
-                currentActualData={currentActualData} selectedMetric={selectedMetric} setSelectedMetric={setSelectedMetric}
-                analysisStats={analysisStats}
-                selectedAnalysisDate={selectedAnalysisDate} setSelectedAnalysisDate={setSelectedAnalysisDate}
-                formatCompletionDate={formatCompletionDate} availableMetrics={availableMetrics}
-                dataOffset={dataOffset} setDataOffset={setDataOffset}
-                chartAxisType={chartAxisType} setChartAxisType={setChartAxisType}
-                chartDistanceUnit={chartDistanceUnit} setChartDistanceUnitOverride={setChartDistanceUnitOverride}
-                selectedSegmentIdx={selectedSegmentIdx} setSelectedSegmentIdx={setSelectedSegmentIdx} trackSegments={trackSegments}
-                togglePreview={togglePreview} playingPreviewId={playingPreviewId}
-                resolveAndPlay={resolveAndPlay} resolvingTrackId={resolvingTrackId}
-                unifiedChartData={unifiedChartData} handleChartClick={handleChartClick}
-                handleChartMouseDown={handleChartMouseDown} handleChartMouseMove={handleChartMouseMove} handleChartMouseUp={handleChartMouseUp}
-                isDraggingChartSegment={isDraggingChartSegment}
-                chartXDomain={chartXDomain} chartXTicks={chartXTicks} chartYDomain={chartYDomain}
-                distanceDisplayFactor={distanceDisplayFactor}
-                draggedTrackIndex={draggedTrackIndex} handleTrackDragStart={handleTrackDragStart}
-                handleTrackDragEnter={handleTrackDragEnter} handleTrackDragEnd={handleTrackDragEnd}
-                favorites={favorites} toggleTrackFavorite={toggleTrackFavorite} toggleArtistFavorite={toggleArtistFavorite}
-                openTrackMenuIndex={openTrackMenuIndex} setOpenTrackMenuIndex={setOpenTrackMenuIndex}
-                handleDuplicateTrack={handleDuplicateTrack} handleReplaceTrackSameArtist={handleReplaceTrackSameArtist}
-                handleReplaceTrack={handleReplaceTrack} handleRemoveTrack={handleRemoveTrack}
+                formatCompletionDate={formatCompletionDate}
+                toggleTrackFavorite={toggleTrackFavorite} toggleArtistFavorite={toggleArtistFavorite}
                 setIsBpmSearchMode={setIsBpmSearchMode} setIsSearchModalOpen={setIsSearchModalOpen}
-                bpmDistributionData={bpmDistributionData} genreDistributionData={genreDistributionData}
                 setPlaylistPlannedDate={setPlaylistPlannedDate}
-                renderCompletionsList={renderCompletionsList}
+                renderCompletionsList={renderCompletionsList} renderTopCompletionDate={renderTopCompletionDate}
                 getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload}
               />
             )}
