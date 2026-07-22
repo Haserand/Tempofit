@@ -146,7 +146,7 @@ export const resolveTracksBpm = async (rawTracks) => {
     const resolved = await resolveRealBPM(track.name, artistName);
 
     return {
-      youtubeId: track.id,
+      trackId: track.id,
       title: track.name,
       artist: artistName,
       album: track.album ? track.album.name : 'Album',
