@@ -422,11 +422,11 @@ function AppContent({
     config: { workoutName: 'Course à pied', targetMode: 'time', hours: 0, minutes: 18, bpm: 150, tolerance: 15, isIntervalMode: false, selectedGenres: ['Rock', 'Métal'] },
     totalDuration: 1138,
     tracks: [
-      { id: 'ex-track-1', segmentIndex: 1, targetSegmentBpm: 148, title: 'Mr. Brightside', artist: 'The Killers', genre: 'Rock', bpm: 148, duration: 222, youtubeId: 'gGdGFtwPNsQ', preview: null, startTimeStr: '0m 00s', startDistVal: 0 },
-      { id: 'ex-track-2', segmentIndex: 1, targetSegmentBpm: 145, title: 'Duality', artist: 'Slipknot', genre: 'Métal', bpm: 145, duration: 252, youtubeId: 'v2H4l9RpkwM', preview: null, startTimeStr: '3m 40s', startDistVal: 0.67 },
-      { id: 'ex-track-3', segmentIndex: 1, targetSegmentBpm: 180, title: 'Smash', artist: 'The Offspring', genre: 'Métal', bpm: 180, duration: 170, youtubeId: 'L_jWHffIx5E', preview: null, startTimeStr: '7m 50s', startDistVal: 1.42 },
-      { id: 'ex-track-4', segmentIndex: 1, targetSegmentBpm: 133, title: 'Thunderstruck', artist: 'AC/DC', genre: 'Rock', bpm: 133, duration: 292, youtubeId: 'v2AC41dglnM', preview: null, startTimeStr: '10m 38s', startDistVal: 1.93 },
-      { id: 'ex-track-5', segmentIndex: 1, targetSegmentBpm: 128, title: 'Chop Suey!', artist: 'System Of A Down', genre: 'Métal', bpm: 128, duration: 210, youtubeId: 'CSvFpBOe8eY', preview: null, startTimeStr: '15m 28s', startDistVal: 2.81 }
+      { id: 'ex-track-1', segmentIndex: 1, targetSegmentBpm: 148, title: 'Mr. Brightside', artist: 'The Killers', genre: 'Rock', bpm: 148, duration: 222, trackId: 'gGdGFtwPNsQ', preview: null, startTimeStr: '0m 00s', startDistVal: 0 },
+      { id: 'ex-track-2', segmentIndex: 1, targetSegmentBpm: 145, title: 'Duality', artist: 'Slipknot', genre: 'Métal', bpm: 145, duration: 252, trackId: 'v2H4l9RpkwM', preview: null, startTimeStr: '3m 40s', startDistVal: 0.67 },
+      { id: 'ex-track-3', segmentIndex: 1, targetSegmentBpm: 180, title: 'Smash', artist: 'The Offspring', genre: 'Métal', bpm: 180, duration: 170, trackId: 'L_jWHffIx5E', preview: null, startTimeStr: '7m 50s', startDistVal: 1.42 },
+      { id: 'ex-track-4', segmentIndex: 1, targetSegmentBpm: 133, title: 'Thunderstruck', artist: 'AC/DC', genre: 'Rock', bpm: 133, duration: 292, trackId: 'v2AC41dglnM', preview: null, startTimeStr: '10m 38s', startDistVal: 1.93 },
+      { id: 'ex-track-5', segmentIndex: 1, targetSegmentBpm: 128, title: 'Chop Suey!', artist: 'System Of A Down', genre: 'Métal', bpm: 128, duration: 210, trackId: 'CSvFpBOe8eY', preview: null, startTimeStr: '15m 28s', startDistVal: 2.81 }
     ]
   }]);
 
@@ -464,7 +464,7 @@ function AppContent({
         // marqueur de propriété, plusieurs playlists de comptes différents
         // peuvent légitimement pointer vers le même titre). Repli sur un
         // identifiant généré UNIQUEMENT si absent du payload.
-        youtubeId: t.id || `imported-${Math.random().toString(36).slice(2)}`,
+        trackId: t.id || `imported-${Math.random().toString(36).slice(2)}`,
         // BUG ÉVITÉ (trouvé en repassant sur tout le projet) : `t.pv` est
         // l'extrait audio encodé dans le LIEN au moment du partage — une URL
         // Deezer, donc soumise à la même expiration déjà documentée pour les
@@ -772,9 +772,9 @@ function AppContent({
       }
 
       const demoTrackIds = ['uRyAIyq53FY', 'CSvFpBOe8eY'];
-      if (favorites.tracks.some(t => demoTrackIds.includes(t.youtubeId) && !t.preview)) {
+      if (favorites.tracks.some(t => demoTrackIds.includes(t.trackId) && !t.preview)) {
         const resolvedFavs = await Promise.all(favorites.tracks.map(async (t) => {
-          if (!demoTrackIds.includes(t.youtubeId) || t.preview) return t;
+          if (!demoTrackIds.includes(t.trackId) || t.preview) return t;
           const preview = await resolveDemoPreview(t.title, t.artist);
           return preview ? { ...t, preview } : t;
         }));
@@ -866,7 +866,7 @@ function AppContent({
       tolerance: 10, crossfade: 2,
       // RETOUR DIRECT ("pas de bruit, ne pas appeler ça un id YouTube si ça
       // n'en est pas un") — curatedSessions.js n'a plus aucun id de service
-      // par titre (voir ce fichier). `youtubeId` (le nom générique déjà
+      // par titre (voir ce fichier). `trackId` (le nom générique déjà
       // utilisé PARTOUT ailleurs dans l'app pour identifier un titre, quelle
       // que soit sa source réelle — favoris, mini-lecteur, graphiques) est
       // posé ICI avec un préfixe `curated-` clairement interne, PAS un faux
@@ -875,14 +875,14 @@ function AppContent({
       // PlaylistDetailView.jsx). `preview: null` : jamais stocké en dur,
       // résolu à la demande au clic — voir la même fonction.
       // BUG ÉVITÉ (trouvé en revérifiant avant de valider) : `id` (par
-      // OCCURRENCE dans la liste, distinct de `youtubeId` qui identifie la
+      // OCCURRENCE dans la liste, distinct de `trackId` qui identifie la
       // CHANSON elle-même — voir musicEngine.js, createPlaylistData) sert de
       // clé React ET à l'enchaînement automatique des extraits
       // (getNextTrackForAutoAdvance, PlaylistDetailView.jsx) : sans lui ici,
       // ces deux mécanismes se seraient cassés silencieusement sur une
       // playlist ensemencée (clés React dupliquées, enchaînement qui
       // retombe toujours sur le même titre).
-      tracks: template.tracks.map((t, i) => ({ ...t, id: `curated-${template.id}-${i}`, youtubeId: `curated-${template.id}-${i}`, preview: null })),
+      tracks: template.tracks.map((t, i) => ({ ...t, id: `curated-${template.id}-${i}`, trackId: `curated-${template.id}-${i}`, preview: null })),
       isNaughty: false, fallbackTrackCount: 0,
       // RETOUR DIRECT ("la pochette générée disparaît sur la fiche détail")
       // — `coverUrl` n'est stocké NULLE PART dans data/curatedSessions.js
@@ -1266,7 +1266,7 @@ function AppContent({
       // les sessions SUIVANTES du même lot (ex. "générer 6 fois d'un coup") — sans
       // ça, un lot généré en une fois aurait le même problème de répétition que
       // deux générations séparées dans le temps.
-      rollingExcludeIds = [...rollingExcludeIds, ...pl.tracks.map(t => t.youtubeId)];
+      rollingExcludeIds = [...rollingExcludeIds, ...pl.tracks.map(t => t.trackId)];
 
       // Petite pause entre deux playlists d'un même lot (pas après la dernière) :
       // générer plusieurs playlists d'affilée déclenche une rafale d'appels Deezer
@@ -1413,7 +1413,7 @@ function AppContent({
     checkTrophies(stats);
 
     const oldTrack = currentPlaylist.tracks[indexToReplace];
-    const usedIds = currentPlaylist.tracks.map(t => t.youtubeId);
+    const usedIds = currentPlaylist.tracks.map(t => t.trackId);
     
     // Requête asynchrone modifiée pour taper dans l'API si nécessaire
     const newRawTrack = await getSingleMatchingTrack(oldTrack.targetSegmentBpm, currentPlaylist.tolerance || 10, currentPlaylist.config?.selectedGenres || ['Métal'], usedIds, favorites, spotifyTrackPool, null, [], currentPlaylist.config?.allowLongTracks || false);
@@ -1422,7 +1422,7 @@ function AppContent({
     newTracks[indexToReplace] = {
       ...newTracks[indexToReplace], title: newRawTrack.title, artist: newRawTrack.artist,
       genre: newRawTrack.genre, bpm: newRawTrack.bpm, duration: newRawTrack.duration,
-      youtubeId: newRawTrack.youtubeId, id: `track-replaced-${Date.now()}`,
+      trackId: newRawTrack.trackId, id: `track-replaced-${Date.now()}`,
       preview: newRawTrack.preview || null,
       // Même bug corrigé qu'à la génération initiale : ces marqueurs n'étaient
       // jamais copiés ici, donc le badge ne pouvait pas s'afficher après un
@@ -1453,7 +1453,7 @@ function AppContent({
   const handleReplaceTrackSameArtist = async (indexToReplace) => {
     if (!currentPlaylist) return;
     const oldTrack = currentPlaylist.tracks[indexToReplace];
-    const usedIds = currentPlaylist.tracks.map(t => t.youtubeId);
+    const usedIds = currentPlaylist.tracks.map(t => t.trackId);
     const minBpm = oldTrack.targetSegmentBpm - (currentPlaylist.tolerance || 10);
     const maxBpm = oldTrack.targetSegmentBpm + (currentPlaylist.tolerance || 10);
     const requestedGenres = currentPlaylist.config?.selectedGenres || ['Métal'];
@@ -1475,7 +1475,7 @@ function AppContent({
     newTracks[indexToReplace] = {
       ...newTracks[indexToReplace], title: newRawTrack.title, artist: newRawTrack.artist,
       genre: newRawTrack.genre, bpm: newRawTrack.bpm, duration: newRawTrack.duration,
-      youtubeId: newRawTrack.youtubeId, id: `track-replaced-${Date.now()}`,
+      trackId: newRawTrack.trackId, id: `track-replaced-${Date.now()}`,
       preview: newRawTrack.preview || null,
       // Même bug corrigé qu'à la génération initiale : ces marqueurs n'étaient
       // jamais copiés ici, donc le badge ne pouvait pas s'afficher après un
@@ -1853,9 +1853,9 @@ function AppContent({
       // "Distance" du graphique en dépend comme clé d'axe X. Résultat : en mode
       // Distance, chaque point avait un X undefined → Recharts ne traçait rien
       // du tout (un <path> sans attribut "d"), silencieusement.
-      // trackPreview/trackYoutubeId ajoutés pour permettre l'écoute d'extrait
+      // trackPreview/trackId ajoutés pour permettre l'écoute d'extrait
       // directement au survol d'un point du graphique (dans le tooltip).
-      combined.push({ time: accTime, startDistVal: accTime / avgPaceSecs, bpmTarget: track.bpm, trackName: track.title, trackArtist: track.artist, trackPreview: track.preview || null, trackYoutubeId: track.youtubeId, trackDuration: track.duration, isTrack: true });
+      combined.push({ time: accTime, startDistVal: accTime / avgPaceSecs, bpmTarget: track.bpm, trackName: track.title, trackArtist: track.artist, trackPreview: track.preview || null, trackId: track.trackId, trackDuration: track.duration, isTrack: true });
       accTime += track.duration - (currentPlaylist.crossfade || 0);
     });
     if(currentPlaylist.tracks.length > 0) {
