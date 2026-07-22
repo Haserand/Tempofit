@@ -48,7 +48,7 @@ function PlaylistDetailViewInner({
   // directement de usePlaylistDetail() dans PlaylistHeader/PlaylistCharts/
   // TrackList eux-mêmes, plutôt que d'être lu ici puis redescendu en props.
   const {
-    isNaughtyMode, getProfileForWorkout,
+    isNaughtyMode, getProfileForWorkout, getProfileForWorkoutOrDefault,
     currentActualData,
     togglePreview, resolveAndPlay,
     setSelectedSegmentIdx,
@@ -354,17 +354,23 @@ function PlaylistDetailViewInner({
   const trackGenreLabel = (t) => genreDisplayLabel(normalizeGenreForDisplay(t.genre, t.artist, t.title));
   // BUG CORRIGÉ (retour direct : "quand j'ai le graphique par type d'effort,
   // ça devrait aussi sélectionner les musiques ?" — ça AURAIT dû déjà le
-  // faire, ça ne le faisait pas) — ce camembert classe maintenant SOIT par
-  // zone d'effort (`bpmDistributionData` en mode zone, `isBpmChartUsingRealProfile`)
-  // SOIT par tranche brute de 20 BPM (repli), voir plus haut. Mais cette
-  // fonction calculait TOUJOURS la tranche brute, même en mode zone — un clic
-  // sur "Seuil" mettait `selectedDetailBpmBucket` à `{'Seuil'}`, alors que
-  // chaque titre était comparé à sa tranche "140-159" : aucune correspondance
-  // possible, la sélection dans le camembert n'avait donc jamais d'effet sur
-  // la liste des titres ni sur la courbe. Corrigé en calculant le MÊME type
-  // de label que celui affiché dans le camembert, selon le mode actif.
+  // faire, ça ne le faisait pas) — cette fonction doit calculer EXACTEMENT
+  // le même type de label que celui affiché dans le camembert
+  // (bpmDistributionData, PlaylistDetailContext.jsx), sinon un clic sur une
+  // part n'y trouve jamais de titre correspondant.
+  //
+  // CHANTIER SUIVANT (synchronisation camembert/TrackItem) : bpmDistributionData
+  // classe désormais TOUJOURS via `getProfileForWorkoutOrDefault` (même
+  // résolveur que la pastille de zone par titre, TrackItem.jsx) — plus
+  // seulement quand `isBpmChartUsingRealProfile` (strict) est vrai. Cette
+  // fonction suit donc le MÊME résolveur, pas `isBpmChartUsingRealProfile`
+  // (qui reste utile ailleurs — titre honnête du camembert — mais ne reflète
+  // plus le mode de classification réellement utilisé ici). Repli sur la
+  // tranche brute de 20 BPM SEULEMENT si getProfileForWorkoutOrDefault ne
+  // renvoie vraiment rien (cas limite, voir sa docstring dans appConfig.js).
   const trackBpmBucketLabel = (t) => {
-    if (isBpmChartUsingRealProfile) return getZoneForValue(t.bpm, bpmChartActivityName, getProfileForWorkout)?.shortLabel || null;
+    const zoneLabel = getZoneForValue(t.bpm, bpmChartActivityName, getProfileForWorkoutOrDefault)?.shortLabel;
+    if (zoneLabel) return zoneLabel;
     const b = Math.floor(t.bpm / 20) * 20;
     return `${b}-${b + 19}`;
   };
