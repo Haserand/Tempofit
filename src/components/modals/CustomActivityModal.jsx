@@ -1,4 +1,5 @@
 import { X } from 'lucide-react';
+import { useGeneratorContext } from '../../contexts/GeneratorContext';
 
 /**
  * CustomActivityModal — saisie du nom d'une activité personnalisée ("Autre"
@@ -7,21 +8,23 @@ import { X } from 'lucide-react';
  * moins 6 modales entières en JSX inline, jamais extraites contrairement aux
  * VUES (GeneratorView, StatsView...), qui elles suivent déjà ce pattern).
  *
- * Extraction pure : aucune logique déplacée, juste le JSX + les quelques
- * handlers qui n'appartiennent qu'à CETTE modale (le reste — état global,
- * fonctions partagées ailleurs — reste dans App.jsx et arrive ici en props,
- * même convention que les vues déjà extraites).
- *
- * `theme` = les tokens de useTheme.js, même convention que les vues
- * (GeneratorView, StatsView...) plutôt que de les passer un par un.
+ * Chantier God Component étape 2 (suite) : cette modale appartient au wizard
+ * de génération ("Autre" à l'étape 1) — tout son state (ouverture, valeur
+ * temporaire, confirmation) vit déjà dans GeneratorContext (voir
+ * contexts/GeneratorContext.jsx) puisque `useCustomActivity` y est appelé.
+ * Ne reste en props que ce qui est VRAIMENT hors de ce périmètre : `theme`
+ * (convention partagée avec toutes les vues extraites, vient de useTheme.js)
+ * et `userStats`/`checkTrophies` (système de trophées, sans rapport avec le
+ * générateur — seul l'easter egg Rick Astley les utilise ici).
  */
-export default function CustomActivityModal({
-  theme, isNaughtyMode,
-  isCustomActivityModalOpen, setIsCustomActivityModalOpen,
-  tempCustomActivity, setTempCustomActivity, setCustomActivity,
-  getProfileForWorkout, applyProfileBpmIfUntouched,
-  userStats, checkTrophies,
-}) {
+export default function CustomActivityModal({ theme, userStats, checkTrophies }) {
+  const {
+    isNaughtyMode,
+    isCustomActivityModalOpen, setIsCustomActivityModalOpen,
+    tempCustomActivity, setTempCustomActivity, setCustomActivity,
+    getProfileForWorkout, applyProfileBpmIfUntouched,
+  } = useGeneratorContext();
+
   const { cardBg, cardBorder, textHighlight, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
 
   if (!isCustomActivityModalOpen) return null;
