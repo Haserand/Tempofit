@@ -6,10 +6,13 @@ import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
 
 /**
  * TrackItem.jsx — une ligne de la tracklist, style "Coaching / Sport" :
- * BPM en badge coloré + repère de zone d'intensité (bordure gauche + pastille
- * texte), plutôt que le BPM neutre affiché avant. Extrait de
- * PlaylistDetailView.jsx (chantier découpage, suite de GeneratorContext/
- * AudioPlayerContext/PlaylistDetailContext).
+ * BPM en badge + repère de zone d'intensité (bordure gauche + pastille
+ * texte) SEULEMENT si un vrai Profil Athlétique est configuré pour cette
+ * activité (décision Produit : l'app reste neutre par défaut, badge BPM
+ * gris/bordure neutre tant que rien n'est réglé — jamais de vocabulaire
+ * "effort" non sollicité). Extrait de PlaylistDetailView.jsx (chantier
+ * découpage, suite de GeneratorContext/AudioPlayerContext/
+ * PlaylistDetailContext).
  *
  * Ne reçoit QUE ce qui est génuinement possédé par PlaylistDetailView (theme,
  * favoris, verrouillage, résolution de lecture — tous PARTAGÉS avec d'autres
@@ -37,27 +40,29 @@ export default function TrackItem({
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
   const {
-    currentPlaylist, isNaughtyMode, getProfileForWorkoutOrDefault,
+    currentPlaylist, isNaughtyMode, getProfileForWorkout,
     draggedTrackIndex, handleTrackDragStart, handleTrackDragEnter, handleTrackDragEnd,
     openTrackMenuIndex, setOpenTrackMenuIndex,
     handleDuplicateTrack, handleReplaceTrackSameArtist, handleReplaceTrack, handleRemoveTrack,
     playingPreviewId, resolvingTrackId,
   } = usePlaylistDetail();
 
-  // Zone d'intensité pour le BPM de ce titre — même résolution d'activité que
-  // bpmDistributionData (PlaylistDetailContext.jsx) et playlistCadenceUnit
-  // (PlaylistDetailView.jsx) : Mode Intime -> nom réel dans config.workoutName,
-  // sinon workoutType, "Autre" + activité personnalisée sinon. Volontairement
-  // `getProfileForWorkoutOrDefault` (pas la version stricte) : un badge de
-  // zone par titre est un repère visuel de coaching, pas une affirmation "issue
-  // de TON profil" — un repli par défaut crédible vaut mieux qu'aucune couleur
-  // pour qui n'a jamais configuré son profil athlétique (même choix déjà fait
-  // pour le camembert "Répartition par BPM" de cette page).
+  // Zone d'intensité pour le BPM de ce titre — SEULEMENT si un vrai profil
+  // athlétique est configuré pour cette activité (décision Produit : l'app
+  // reste neutre par défaut, jamais de vocabulaire "effort" tant que
+  // l'utilisateur n'a rien réglé lui-même). `getProfileForWorkout` STRICT
+  // (pas OrDefault, essayé puis abandonné entre-temps — voir
+  // PlaylistDetailContext.jsx, même revert sur bpmDistributionData) :
+  // renvoie `null` si l'activité n'a jamais été configurée, et `zone` vaut
+  // alors `null` — le reste du composant (zoneColor, le `{zone && ...}` du
+  // libellé plus bas) est DÉJÀ prévu pour ce cas depuis le début, rien
+  // d'autre à changer ici que le résolveur : badge BPM neutre (gris),
+  // bordure gauche neutre, pas de pastille de zone.
   const activityName = isNaughtyMode
     ? (currentPlaylist?.config?.workoutName || currentPlaylist?.workoutType || 'Autre')
     : (currentPlaylist?.workoutType || 'Autre');
   const customActivityName = currentPlaylist?.workoutType === 'Autre' ? (currentPlaylist?.config?.customActivity || '') : '';
-  const zone = track.bpm ? getZoneForValue(track.bpm, activityName, getProfileForWorkoutOrDefault, customActivityName) : null;
+  const zone = track.bpm ? getZoneForValue(track.bpm, activityName, getProfileForWorkout, customActivityName) : null;
   const zoneColor = zone?.color || '#9ca3af';
 
   const isFav = favorites.tracks.some(t => t.trackId === track.trackId);
