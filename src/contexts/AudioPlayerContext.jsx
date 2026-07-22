@@ -54,6 +54,7 @@ const FALLBACK = {
   pauseCurrentPreview: () => {}, resumeCurrentPreview: () => {}, stopCurrentPreview: () => {},
   resolveAndPlay: () => {}, resolvingTrackId: null,
   skipToNext: () => {}, skipToPrevious: () => {},
+  previewAudioRef: { current: null },
 };
 
 export function useAudioPlayer() {
