@@ -48,7 +48,7 @@ function PlaylistDetailViewInner({
   // directement de usePlaylistDetail() dans PlaylistHeader/PlaylistCharts/
   // TrackList eux-mêmes, plutôt que d'être lu ici puis redescendu en props.
   const {
-    isNaughtyMode, getProfileForWorkout, getProfileForWorkoutOrDefault,
+    isNaughtyMode, getProfileForWorkout,
     currentActualData,
     togglePreview, resolveAndPlay,
     setSelectedSegmentIdx,
@@ -359,18 +359,14 @@ function PlaylistDetailViewInner({
   // (bpmDistributionData, PlaylistDetailContext.jsx), sinon un clic sur une
   // part n'y trouve jamais de titre correspondant.
   //
-  // CHANTIER SUIVANT (synchronisation camembert/TrackItem) : bpmDistributionData
-  // classe désormais TOUJOURS via `getProfileForWorkoutOrDefault` (même
-  // résolveur que la pastille de zone par titre, TrackItem.jsx) — plus
-  // seulement quand `isBpmChartUsingRealProfile` (strict) est vrai. Cette
-  // fonction suit donc le MÊME résolveur, pas `isBpmChartUsingRealProfile`
-  // (qui reste utile ailleurs — titre honnête du camembert — mais ne reflète
-  // plus le mode de classification réellement utilisé ici). Repli sur la
-  // tranche brute de 20 BPM SEULEMENT si getProfileForWorkoutOrDefault ne
-  // renvoie vraiment rien (cas limite, voir sa docstring dans appConfig.js).
+  // REVERT (décision Produit : l'app reste neutre par défaut) —
+  // bpmDistributionData utilise à nouveau `getProfileForWorkout` STRICT (pas
+  // OrDefault, essayé puis abandonné entre-temps) : zones d'effort SEULEMENT
+  // si un vrai profil est configuré, tranches de BPM brutes sinon. Cette
+  // fonction suit le même résolveur — `isBpmChartUsingRealProfile` (déjà
+  // strict lui aussi) redevient donc la bonne condition ici.
   const trackBpmBucketLabel = (t) => {
-    const zoneLabel = getZoneForValue(t.bpm, bpmChartActivityName, getProfileForWorkoutOrDefault)?.shortLabel;
-    if (zoneLabel) return zoneLabel;
+    if (isBpmChartUsingRealProfile) return getZoneForValue(t.bpm, bpmChartActivityName, getProfileForWorkout)?.shortLabel || null;
     const b = Math.floor(t.bpm / 20) * 20;
     return `${b}-${b + 19}`;
   };
@@ -423,7 +419,7 @@ function PlaylistDetailViewInner({
         favorites={favorites} toggleArtistFavorite={toggleArtistFavorite}
         resolveAndTogglePreview={resolveAndTogglePreview} getNextTrackForAutoAdvance={getNextTrackForAutoAdvance}
         formatCompletionDate={formatCompletionDate}
-        playlistCadenceUnit={playlistCadenceUnit} bpmChartActivityName={bpmChartActivityName} isBpmChartUsingRealProfile={isBpmChartUsingRealProfile}
+        playlistCadenceUnit={playlistCadenceUnit} bpmChartActivityName={bpmChartActivityName}
         hasDetailFilter={hasDetailFilter} trackMatchesDetailFilter={trackMatchesDetailFilter}
         selectedDetailGenre={selectedDetailGenre} selectedDetailBpmBucket={selectedDetailBpmBucket}
         setSelectedDetailGenre={setSelectedDetailGenre} setSelectedDetailBpmBucket={setSelectedDetailBpmBucket}
