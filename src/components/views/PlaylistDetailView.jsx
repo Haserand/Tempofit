@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Pause, Play,
-  GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, Calendar, ChevronDown, ChevronUp,
+  Star, MoreVertical, Plus, User, RefreshCw, X, Calendar, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight, Lock, Upload, Trash2, Loader2, Music2,
 } from 'lucide-react';
 import {
@@ -14,6 +14,7 @@ import { formatDuration } from '../../utils/format';
 import { deezerFetch } from '../../musicEngine';
 import SessionSummaryCard from '../shared/SessionSummaryCard';
 import { PlaylistDetailProvider, usePlaylistDetail } from '../../contexts/PlaylistDetailContext';
+import TrackList from './PlaylistDetail/TrackList';
 
 // Couleur du donut "Répartition par style" (genre musical, pas de zone
 // d'intensité concernée) : `DISTRIBUTION_COLORS` (appConfig.js, partagée
@@ -129,7 +130,6 @@ function PlaylistDetailViewInner({
     resolveAndPlay, resolvingTrackId,
     unifiedChartData, handleChartClick, chartXDomain, chartXTicks, chartYDomain, distanceDisplayFactor,
     handleChartMouseDown, handleChartMouseMove, handleChartMouseUp, isDraggingChartSegment,
-    draggedTrackIndex, handleTrackDragStart, handleTrackDragEnter, handleTrackDragEnd,
     openTrackMenuIndex, setOpenTrackMenuIndex,
     handleDuplicateTrack, handleReplaceTrackSameArtist, handleReplaceTrack, handleRemoveTrack,
     bpmDistributionData, genreDistributionData,
@@ -1308,162 +1308,21 @@ function PlaylistDetailViewInner({
         </div>
       )}
 
-      {/* Liste des musiques AVEC BOUTON AJOUT MANUEL */}
-      <div className={"rounded-3xl border overflow-hidden shadow-md " + cardBg + " " + cardBorder}>
-        {/* Bandeau de filtre actif — apparaît uniquement après un clic sur une part
-            d'un des 2 camemberts plus bas (voir selectedDetailGenre/
-            selectedDetailBpmBucket) : indique clairement quel filtre est appliqué
-            à la liste ci-dessous, avec un moyen explicite de le lever plutôt que de
-            devoir re-cliquer la part exacte dans le graphique. */}
-        {hasDetailFilter && (
-          <div className={`flex items-center justify-between gap-3 px-4 py-2.5 text-xs font-bold border-b ${cardBorder} bg-black/5 dark:bg-white/5 ${textHighlight}`}>
-            <span>
-              Titres associés
-              {selectedDetailGenre.size > 0 && <> · <span className={textColorClass}>{[...selectedDetailGenre].join(', ')}</span></>}
-              {selectedDetailBpmBucket.size > 0 && <> · <span className={textColorClass}>{[...selectedDetailBpmBucket].join(', ')}{!isBpmChartUsingRealProfile ? ' BPM' : ''}</span></>}
-            </span>
-            <button onClick={() => { setSelectedDetailGenre(new Set()); setSelectedDetailBpmBucket(new Set()); }} className={`underline ${textMuted} hover:text-main`}>
-              Réinitialiser
-            </button>
-          </div>
-        )}
-        <div className="divide-y divide-gray-100 dark:divide-gray-800/50">
-          {currentPlaylist.tracks.map((track, index) => (
-            <div
-              key={track.id}
-              draggable={!isLocked}
-              onDragStart={isLocked ? undefined : handleTrackDragStart(index)}
-              onDragEnter={isLocked ? undefined : handleTrackDragEnter(index)}
-              onDragOver={isLocked ? undefined : (e) => e.preventDefault()}
-              onDragEnd={isLocked ? undefined : handleTrackDragEnd}
-              className={`flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-800/60 group transition-opacity ${draggedTrackIndex === index ? 'opacity-40' : ''} ${hasDetailFilter && !trackMatchesDetailFilter(track) ? 'opacity-30' : ''} ${hasDetailFilter && trackMatchesDetailFilter(track) ? `${isNaughtyMode ? 'bg-rose-50 dark:bg-rose-950/20' : 'bg-red-50 dark:bg-red-950/20'}` : ''}`}
-            >
-              {/* Poignée de glisser-déposer — remplace les flèches ↑/↓. Grisée et
-                  non interactive sur une séance déjà réalisée : on ne réordonne
-                  plus un historique (voir isLocked). */}
-              <div
-                className={`shrink-0 px-1 ${textMuted} ${isLocked ? 'opacity-20 cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}`}
-                title={isLocked ? "Verrouillé — impossible de réordonner une séance déjà réalisée" : "Glisser pour réordonner"}
-              >
-                <GripVertical size={16}/>
-              </div>
-              <div className={"w-6 text-center font-medium text-xs " + textMuted}>{index + 1}</div>
-              <button
-                onClick={() => resolveAndTogglePreview(track, getNextTrackForAutoAdvance)}
-                title="Écouter un extrait"
-                className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors mr-2 ${bgAccentClass} text-white hover:brightness-110`}
-              >
-                {resolvingTrackId === track.id
-                  ? <Loader2 size={14} className="animate-spin"/>
-                  : playingPreviewId === track.trackId ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5"/>}
-              </button>
-              <div className="flex-1 px-2 min-w-0">
-                <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
-                <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${getGenresForDisplay(track.genre, track.artist, track.title).join(', ')}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Genre Deezer différent — peut quand même correspondre.">⚠️ Genre non confirmé</span>}</div>
-              </div>
-              <div className="w-28 text-center shrink-0">
-                <div className={"font-mono font-bold text-sm " + textColorClass}>{track.bpm} <span className={`text-[10px] font-normal ${textMuted}`}>BPM</span></div>
-                <div className={`text-[11px] font-mono ${textMuted}`} title="Moment où ce titre démarre dans la séance">
-                  Début : {track.startTimeStr || '0m 00s'}
-                </div>
-                <div
-                  className={`text-[11px] font-mono ${textMuted}`}
-                  title="Durée réelle du morceau dans la séance — l'extrait écoutable reste toujours limité à 30 secondes, quelle que soit cette durée."
-                >
-                  Durée : {formatDuration(track.duration)}
-                </div>
-              </div>
-
-              {/* Bouton favori — n'affecte que la liste de favoris, jamais la
-                  playlist en cours (contrairement au X ci-dessous). */}
-              {(() => {
-                const isFav = favorites.tracks.some(t => t.trackId === track.trackId);
-                return (
-                  <button
-                    onClick={() => toggleTrackFavorite(track)}
-                    className={`p-2 rounded-lg transition-colors shrink-0 ${isFav ? 'text-amber-500' : textMuted + ' hover:text-amber-500'}`}
-                    title={isFav ? "Retirer des favoris" : "Ajouter aux favoris"}
-                  >
-                    <Star size={16} fill={isFav ? 'currentColor' : 'none'}/>
-                  </button>
-                );
-              })()}
-
-              {/* Menu d'options unique (Dupliquer / Remplacer large / Remplacer même artiste). */}
-              <div className="relative shrink-0">
-                <button onClick={() => setOpenTrackMenuIndex(openTrackMenuIndex === index ? null : index)} className={"p-2 rounded-lg transition-colors " + textMuted + " hover:" + textHighlight} title="Plus d'options">
-                  <MoreVertical size={16}/>
-                </button>
-                {openTrackMenuIndex === index && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setOpenTrackMenuIndex(null)}></div>
-                    {/* Menu ouvert vers le HAUT pour les derniers titres de la liste (sinon
-                        coupé par l'overflow-hidden du conteneur arrondi). */}
-                    <div className={`absolute right-0 z-20 w-64 rounded-xl border shadow-2xl ${cardBg} ${cardBorder} overflow-hidden ${
-                      index >= currentPlaylist.tracks.length - 2 ? 'bottom-full mb-1' : 'top-full mt-1'
-                    }`}>
-                      {/* Dupliquer/Remplacer changent le CONTENU de la playlist —
-                          masqués une fois la séance verrouillée (voir isLocked) :
-                          modifier des titres après coup fausserait un historique
-                          déjà réel. Favoriser un artiste n'affecte que les
-                          favoris globaux, jamais cette playlist : reste possible. */}
-                      {!isLocked && (
-                        <>
-                          <button onClick={() => { handleDuplicateTrack(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
-                            <Plus size={16} className="text-green-500"/> Dupliquer ce titre
-                          </button>
-                          <div className={`h-px my-1 ${cardBorder} border-t`}></div>
-                          <button onClick={() => { handleReplaceTrackSameArtist(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
-                            <User size={16} className="text-purple-500"/> Remplacer (même artiste)
-                          </button>
-                          <button onClick={() => { handleReplaceTrack(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
-                            <RefreshCw size={16} className="text-blue-500"/> Remplacer (recherche large)
-                          </button>
-                          <div className={`h-px my-1 ${cardBorder} border-t`}></div>
-                        </>
-                      )}
-                      {(() => {
-                        const artistIsFav = favorites.artists.includes(track.artist);
-                        return (
-                          <button onClick={() => { toggleArtistFavorite(track.artist); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
-                            <Star size={16} className="text-amber-500" fill={artistIsFav ? 'currentColor' : 'none'}/> {artistIsFav ? `Retirer ${track.artist} des favoris` : `Favoriser l'artiste (${track.artist})`}
-                          </button>
-                        );
-                      })()}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {isLocked ? (
-                <div className={"p-2 shrink-0 opacity-20 " + textMuted} title="Verrouillé — impossible de retirer un titre d'une séance déjà réalisée">
-                  <Lock size={16}/>
-                </div>
-              ) : (
-                <button onClick={() => handleRemoveTrack(index)} className={"p-2 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400 rounded-lg transition-colors shrink-0 " + textMuted} title="Retirer de la proposition">
-                  <X size={16}/>
-                </button>
-              )}
-            </div>
-          ))}
-
-          {/* BOUTON AJOUT MANUEL — remplacé par un message explicite une fois la
-              séance verrouillée (voir isLocked) : ajouter un titre à une
-              playlist déjà réalisée changerait rétroactivement ce qui a été
-              effectivement écouté. */}
-          {isLocked ? (
-            <div className={"p-3 bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center gap-2 text-xs font-bold " + textMuted}>
-              <Lock size={14}/> Séance déjà réalisée — plus aucun titre ne peut être ajouté, dupliqué, remplacé ou retiré
-            </div>
-          ) : (
-            <div className="p-2 bg-gray-50 dark:bg-gray-900/50">
-              <button onClick={() => { setIsBpmSearchMode(false); setIsSearchModalOpen(true); }} className={"w-full py-3 flex items-center justify-center gap-2 text-sm font-bold border-2 border-dashed rounded-xl transition-colors hover:border-gray-400 " + inputBorder + " " + textMuted + " hover:" + textHighlight}>
-                <Plus size={18} /> <span>Ajouter un titre</span>
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Liste des musiques — extraite dans TrackList.jsx (chantier
+          découpage + refonte design "Coaching"). Voir TrackList.jsx pour le
+          détail de ce qui reste passé en prop (partagé avec les camemberts
+          de répartition, l'en-tête, la recherche globale) vs ce qui vient
+          de usePlaylistDetail(). */}
+      <TrackList
+        theme={theme} isLocked={isLocked}
+        favorites={favorites} toggleTrackFavorite={toggleTrackFavorite} toggleArtistFavorite={toggleArtistFavorite}
+        resolveAndTogglePreview={resolveAndTogglePreview} getNextTrackForAutoAdvance={getNextTrackForAutoAdvance}
+        setIsBpmSearchMode={setIsBpmSearchMode} setIsSearchModalOpen={setIsSearchModalOpen}
+        hasDetailFilter={hasDetailFilter} trackMatchesDetailFilter={trackMatchesDetailFilter}
+        selectedDetailGenre={selectedDetailGenre} selectedDetailBpmBucket={selectedDetailBpmBucket}
+        setSelectedDetailGenre={setSelectedDetailGenre} setSelectedDetailBpmBucket={setSelectedDetailBpmBucket}
+        isBpmChartUsingRealProfile={isBpmChartUsingRealProfile}
+      />
 
       {/* Répartition BPM et style musical — pondérées par la durée de chaque
           titre, pas juste un compte de titres. */}
