@@ -210,8 +210,8 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
             <p className="text-gray-400 text-[11px] font-bold uppercase tracking-widest mb-1">Premiers titres</p>
             {topTracks.map((t, i) => (
               <div key={i} className="flex items-center gap-3 bg-white/5 rounded-xl p-2.5 border border-white/10">
-                {topTrackCovers[t.youtubeId] ? (
-                  <img src={topTrackCovers[t.youtubeId]} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" crossOrigin="anonymous" />
+                {topTrackCovers[t.trackId] ? (
+                  <img src={topTrackCovers[t.trackId]} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" crossOrigin="anonymous" />
                 ) : (
                   <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
                     <Music2 size={16} className="text-gray-500" />
