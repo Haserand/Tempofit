@@ -69,7 +69,7 @@ export function useAudioPreview(showToast) {
     audio.src = track.preview;
     audio.currentTime = 0;
     audio.play().catch(() => showToast("Impossible de lire cet extrait.", 'error'));
-    setPlayingPreviewId(track.youtubeId);
+    setPlayingPreviewId(track.trackId);
     setCurrentTrack(track);
     setIsPlaying(true);
   };
@@ -97,7 +97,7 @@ export function useAudioPreview(showToast) {
 
   const togglePreview = (track, getNextTrack) => {
     if (!track.preview) return;
-    if (playingPreviewId === track.youtubeId) {
+    if (playingPreviewId === track.trackId) {
       if (previewAudioRef.current) previewAudioRef.current.pause();
       setPlayingPreviewId(null);
       setCurrentTrack(null);
@@ -114,7 +114,7 @@ export function useAudioPreview(showToast) {
    * besoin, puis joue le titre — sinon appelle directement `playTrack`. Ne
    * met PAS en cache le résultat dans une playlist quelconque (ce hook ne
    * connaît aucune forme de "playlist") : renvoie le titre mis à jour
-   * (`youtubeId`/`preview` résolus) pour que l'appelant fasse ce qu'il veut
+   * (`trackId`/`preview` résolus) pour que l'appelant fasse ce qu'il veut
    * de cette mise en cache (voir PlaylistDetailView.jsx, qui l'écrit dans
    * `currentPlaylist.tracks`).
    */
@@ -129,7 +129,7 @@ export function useAudioPreview(showToast) {
         showToast("Extrait audio introuvable pour ce titre.", 'error');
         return null;
       }
-      const updatedTrack = { ...track, youtubeId: `deezer-${resolved.id}`, preview: resolved.preview };
+      const updatedTrack = { ...track, trackId: `deezer-${resolved.id}`, preview: resolved.preview };
       playTrack(updatedTrack, getNextTrack);
       return updatedTrack;
     } finally {
@@ -140,7 +140,7 @@ export function useAudioPreview(showToast) {
   // Précédent/suivant DANS L'ORDRE DE LA PLAYLIST fournie par l'appelant
   // (pas parmi les seuls titres déjà résolus, contrairement à l'enchaînement
   // automatique en fin d'extrait ci-dessus) — retrouve le titre en cours par
-  // `id` (stable, contrairement à `youtubeId` qui change lors d'une
+  // `id` (stable, contrairement à `trackId` qui change lors d'une
   // résolution), calcule l'index voisin en bouclant (dernier → 1er et
   // inversement), et réutilise le même résolveur d'enchaînement déjà actif
   // pour que la suite continue de fonctionner normalement après ce saut
