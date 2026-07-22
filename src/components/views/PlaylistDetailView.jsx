@@ -230,8 +230,8 @@ export default function PlaylistDetailView({
   // ce qui est la conséquence logique et attendue d'une "boucle sur tout"
   // avec un seul élément dans "tout" — pas un cas particulier à gérer à part.
   //
-  // Comparaison par `.id` plutôt que `.youtubeId` : un titre dupliqué (voir
-  // handleDuplicateTrack) partage le même youtubeId que l'original, mais a
+  // Comparaison par `.id` plutôt que `.trackId` : un titre dupliqué (voir
+  // handleDuplicateTrack) partage le même trackId que l'original, mais a
   // toujours un `.id` propre — indispensable ici pour retrouver la BONNE
   // occurrence dans la liste, pas systématiquement la première qui matche.
   //
@@ -288,9 +288,9 @@ export default function PlaylistDetailView({
    * elles-mêmes restent dans le hook, partagées.
    *
    * Comparaison par `id` (pas par référence d'objet `===`, ni par
-   * `youtubeId` qui change justement lors de cette résolution) pour
+   * `trackId` qui change justement lors de cette résolution) pour
    * retrouver ce titre précis dans `currentPlaylist.tracks` : `id` est LE
-   * champ stable par occurrence dans la liste (distinct de `youtubeId`, qui
+   * champ stable par occurrence dans la liste (distinct de `trackId`, qui
    * identifie la chanson — voir musicEngine.js, createPlaylistData), jamais
    * modifié ici.
    */
@@ -363,17 +363,17 @@ export default function PlaylistDetailView({
    */
   const generateSummaryImageFile = async () => {
     // 1. Pochettes des 3 premiers titres — uniquement pour ceux sourcés de
-    // Deezer (youtubeId de la forme "deezer-{id}") ; un titre favori/
+    // Deezer (trackId de la forme "deezer-{id}") ; un titre favori/
     // Spotify sans équivalent n'a pas d'ID Deezer exploitable, repli sur
     // l'icône générique dans SessionSummaryCard (composant volontairement
     // pur, aucun appel réseau dedans — voir sa docstring).
     const topTracks = currentPlaylist.tracks.slice(0, 3);
     const covers = {};
     await Promise.all(topTracks.map(async (t) => {
-      if (!t.youtubeId || !t.youtubeId.startsWith('deezer-')) return;
+      if (!t.trackId || !t.trackId.startsWith('deezer-')) return;
       try {
-        const { data } = await deezerFetch(`https://api.deezer.com/track/${t.youtubeId.replace('deezer-', '')}`);
-        if (data?.album?.cover_medium) covers[t.youtubeId] = data.album.cover_medium;
+        const { data } = await deezerFetch(`https://api.deezer.com/track/${t.trackId.replace('deezer-', '')}`);
+        if (data?.album?.cover_medium) covers[t.trackId] = data.album.cover_medium;
       } catch (e) { /* pas de pochette pour ce titre — repli déjà géré côté composant */ }
     }));
     setSummaryCovers(covers);
@@ -1031,7 +1031,7 @@ export default function PlaylistDetailView({
               >
                 {resolvingTrackId === trackSegments[selectedSegmentIdx].track.id
                   ? <Loader2 size={18} className="animate-spin"/>
-                  : playingPreviewId === trackSegments[selectedSegmentIdx].track.youtubeId ? <Pause size={18} fill="currentColor"/> : <Play size={18} fill="currentColor" className="ml-0.5"/>}
+                  : playingPreviewId === trackSegments[selectedSegmentIdx].track.trackId ? <Pause size={18} fill="currentColor"/> : <Play size={18} fill="currentColor" className="ml-0.5"/>}
               </button>
               {/* Retour direct : "la flèche pour passer au titre suivant est
                   trop à gauche [comprendre : trop loin du bouton play], je
@@ -1344,7 +1344,7 @@ export default function PlaylistDetailView({
               >
                 {resolvingTrackId === track.id
                   ? <Loader2 size={14} className="animate-spin"/>
-                  : playingPreviewId === track.youtubeId ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5"/>}
+                  : playingPreviewId === track.trackId ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5"/>}
               </button>
               <div className="flex-1 px-2 min-w-0">
                 <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
@@ -1366,7 +1366,7 @@ export default function PlaylistDetailView({
               {/* Bouton favori — n'affecte que la liste de favoris, jamais la
                   playlist en cours (contrairement au X ci-dessous). */}
               {(() => {
-                const isFav = favorites.tracks.some(t => t.youtubeId === track.youtubeId);
+                const isFav = favorites.tracks.some(t => t.trackId === track.trackId);
                 return (
                   <button
                     onClick={() => toggleTrackFavorite(track)}
