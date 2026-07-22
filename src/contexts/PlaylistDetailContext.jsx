@@ -372,7 +372,16 @@ export function PlaylistDetailProvider({
     setChartDragTrackTitle(null);
   };
 
-  // --- Distributions BPM (par zone si profil configuré, sinon tranches génériques) / genre ---
+  // --- Distributions BPM (par zone — même résolveur que la pastille de zone
+  // de TrackItem.jsx, getProfileForWorkoutOrDefault, PAS la version stricte
+  // — sinon la liste affiche des zones alors que le camembert retombe sur
+  // des tranches brutes de 20 BPM avec une palette générique, dissonance
+  // visuelle signalée : couleurs/libellés différents pour la même donnée.
+  // Tranches brutes en dernier repli SEULEMENT si getProfileForWorkoutOrDefault
+  // ne renvoie vraiment rien d'exploitable, cas limite qui ne devrait
+  // quasiment jamais se produire vu son contrat ("estimation par défaut
+  // crédible") — mais gardé, jamais un plantage silencieux à la place) /
+  // genre ---
   const bpmDistributionData = useMemo(() => {
     if (!currentPlaylist) return [];
     const activityName = isNaughtyMode
@@ -383,7 +392,7 @@ export function PlaylistDetailProvider({
     let matchedAnyZone = false;
     currentPlaylist.tracks.forEach(t => {
       if (!t.bpm) return;
-      const zone = getZoneForValue(t.bpm, activityName, getProfileForWorkout);
+      const zone = getZoneForValue(t.bpm, activityName, getProfileForWorkoutOrDefault);
       if (zone) {
         matchedAnyZone = true;
         zoneSeconds[zone.key] = (zoneSeconds[zone.key] || 0) + (t.duration || 0);
@@ -404,7 +413,22 @@ export function PlaylistDetailProvider({
     return Object.entries(buckets)
       .map(([name, value], i) => ({ name, value, sortKey: parseInt(name), color: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }))
       .sort((a, b) => a.sortKey - b.sortKey);
-  }, [currentPlaylist, isNaughtyMode, getProfileForWorkout]);
+  }, [currentPlaylist, isNaughtyMode, getProfileForWorkoutOrDefault]);
+
+  // true tant que bpmDistributionData ci-dessus a effectivement classé par
+  // zone (quasi toujours, vu getProfileForWorkoutOrDefault) — DISTINCT de
+  // `isBpmChartUsingRealProfile` (calculé dans PlaylistDetailView.jsx à
+  // partir de la version STRICTE) : celui-ci reste nécessaire pour le titre
+  // honnête du camembert ("Tes zones d'intensité" seulement si un vrai
+  // profil est configuré), alors que celui-ci ne sert qu'à savoir si les
+  // libellés affichés sont des noms de zone (pas la peine de suffixer
+  // "BPM") ou des tranches numériques brutes (suffixe "BPM" utile). Dérivé
+  // de bpmDistributionData lui-même (son 1er libellé suffit — jamais un
+  // mélange zone/tranche brute dans un même calcul) plutôt que de
+  // re-parcourir tous les titres une 2e fois pour la même réponse.
+  const bpmDistributionIsZoneBased = bpmDistributionData.length > 0
+    && ATHLETIC_ZONES.some(z => z.shortLabel === bpmDistributionData[0].name);
+
 
   const genreDistributionData = useMemo(() => {
     if (!currentPlaylist) return [];
@@ -459,7 +483,7 @@ export function PlaylistDetailProvider({
     chartXDomain, chartXTicks, chartYDomain,
     selectedSegmentIdx, setSelectedSegmentIdx, isDraggingChartSegment,
     handleChartClick, handleChartMouseDown, handleChartMouseMove, handleChartMouseUp,
-    bpmDistributionData, genreDistributionData, analysisStats,
+    bpmDistributionData, bpmDistributionIsZoneBased, genreDistributionData, analysisStats,
     // Re-exposé (chantier TrackList/TrackItem) : jusqu'ici currentPlaylist
     // n'était PAS dans cette valeur, uniquement reçu en prop par le Provider
     // pour son usage interne (handlers). PlaylistDetailViewInner le recevait
@@ -494,7 +518,7 @@ const FALLBACK = {
   chartXDomain: [0, 1], chartXTicks: [], chartYDomain: [60, 200],
   selectedSegmentIdx: null, setSelectedSegmentIdx: () => {}, isDraggingChartSegment: false,
   handleChartClick: () => {}, handleChartMouseDown: () => {}, handleChartMouseMove: () => {}, handleChartMouseUp: () => {},
-  bpmDistributionData: [], genreDistributionData: [], analysisStats: null,
+  bpmDistributionData: [], bpmDistributionIsZoneBased: false, genreDistributionData: [], analysisStats: null,
   currentPlaylist: null,
   togglePreview: () => {}, playingPreviewId: null, resolveAndPlay: () => {}, resolvingTrackId: null,
   getProfileForWorkout: () => ({ isConfigured: false }), isNaughtyMode: false, getProfileForWorkoutOrDefault: () => null,
