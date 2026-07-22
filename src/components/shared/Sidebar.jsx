@@ -20,18 +20,9 @@ export default function Sidebar({
   changeView, view,
   showAthleticProfile, setShowAthleticProfile,
   favorites,
-  hasActiveTrack,
 }) {
   return (
-    // `fixed inset-y-0` : cette aside est positionnée par rapport au VIEWPORT,
-    // pas par rapport à un ancêtre — un padding-bottom posé plus haut dans
-    // l'arbre (sur AppContent) n'aurait donc AUCUN effet ici. `hasActiveTrack`
-    // (App.jsx, useAudioPlayer()) pilote directement ce pb-32 : quand
-    // MiniPlayerBar (fixed bottom-0, voir MiniPlayerBar.jsx) est affichée,
-    // elle recouvrirait sinon le bloc crédits tout en bas (bug signalé :
-    // "Options & Comptes"/crédits caché par le lecteur). Même valeur (pb-32)
-    // que le <main> dans App.jsx, pour que les 2 s'arrêtent à la même hauteur.
-    <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r ${cardBorder} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${hasActiveTrack ? 'pb-32' : ''}`}>
+    <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r ${cardBorder} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className={`p-6 border-b ${cardBorder} flex items-center justify-between`}>
          <button
            onClick={() => changeView('generator')}
