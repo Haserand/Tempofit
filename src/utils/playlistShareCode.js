@@ -45,7 +45,7 @@ const encodePlaylistForSharing = (playlist) => {
       // le plus sur la longueur finale de l'URL.
       tracks: (playlist.tracks || []).map(t => ({
         ti: t.title, ar: t.artist, bp: t.bpm, du: t.duration,
-        ge: t.genre || null, id: t.youtubeId || null,
+        ge: t.genre || null, id: t.trackId || null,
       })),
     };
     const json = JSON.stringify(payload);
