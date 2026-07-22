@@ -2480,7 +2480,6 @@ export default function App() {
                 crescendoWarmupBpm={crescendoWarmupBpm} setCrescendoWarmupBpm={setCrescendoWarmupBpm}
                 crescendoCooldownBpm={crescendoCooldownBpm} setCrescendoCooldownBpm={setCrescendoCooldownBpm}
                 bpmSourceIsProfile={bpmSourceIsProfile}
-                applyProfileBpmIfUntouched={applyProfileBpmIfUntouched}
                 hours={hours} minutes={minutes} distanceVal={distanceVal} distanceUnit={distanceUnit}
                 paceMin={paceMin} setPaceMin={setPaceMin} paceSec={paceSec} setPaceSec={setPaceSec}
                 bpm={bpm}
