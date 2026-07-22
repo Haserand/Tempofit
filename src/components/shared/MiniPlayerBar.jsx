@@ -39,6 +39,13 @@ export default function MiniPlayerBar({ theme, currentPlaylist }) {
   const handleNext = () => skipToNext(currentPlaylist?.tracks);
 
   return (
+    // z-[65] volontairement conservé (pas baissé à z-40) : déjà cohérent avec
+    // la hiérarchie z-index existante de l'app — Sidebar (z-50) < badge
+    // trophée/connexion (z-[60]) < CETTE barre (z-[65]) < modales (z-[70]) <
+    // toasts (z-[80]). Le recouvrement du bas de la Sidebar par cette barre
+    // (bug signalé) ne se réglait de toute façon pas par le z-index : Sidebar
+    // est `fixed`, donc jamais affectée par un padding d'ancêtre — voir
+    // Sidebar.jsx (hasActiveTrack) pour le vrai correctif.
     <div className={`fixed bottom-0 left-0 right-0 z-[65] border-t shadow-2xl animate-in slide-in-from-bottom-4 fade-in duration-300 ${cardBg} ${cardBorder}`}>
       <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-2">
         <button
