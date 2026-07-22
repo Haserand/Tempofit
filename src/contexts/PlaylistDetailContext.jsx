@@ -81,13 +81,13 @@ const PlaylistDetailContext = createContext(null);
 export function PlaylistDetailProvider({
   currentPlaylist, setCurrentPlaylist, savedPlaylists, setSavedPlaylists,
   favorites, spotifyTrackPool, userStats, checkTrophies,
-  showToast, requestRemoveSavedPlaylist,
+  showToast, requestRemoveSavedPlaylist, handleSavePlaylist,
   currentActualData, selectedMetric, setSelectedMetric,
   dataOffset, setDataOffset,
   selectedAnalysisDate, setSelectedAnalysisDate, availableMetrics,
   children,
 }) {
-  const { isNaughtyMode, getProfileForWorkout } = useGeneratorContext();
+  const { isNaughtyMode, getProfileForWorkout, getProfileForWorkoutOrDefault } = useGeneratorContext();
   const { togglePreview, playingPreviewId, resolveAndPlay, resolvingTrackId } = useAudioPlayer();
 
   // Petit utilitaire interne : la quasi-totalité des mutations de titres
@@ -115,15 +115,12 @@ export function PlaylistDetailProvider({
     setIsEditingPlaylistName(false);
   };
 
-  // --- Sauvegarde / retrait de "Mes Séances" depuis la vue détail ---
-  const handleSavePlaylist = () => {
-    if (currentPlaylist && !savedPlaylists.find(p => p.id === currentPlaylist.id)) {
-      const saved = { ...currentPlaylist, status: 'pending' };
-      setSavedPlaylists([saved, ...savedPlaylists]);
-      setCurrentPlaylist(saved);
-      showToast('Playlist ajoutée à Mes Séances !');
-    }
-  };
+  // handleSavePlaylist reçue en prop (voir signature du Provider) : sa
+  // définition RESTE dans App.jsx, pas ici — contrairement à ce qui était
+  // supposé au départ, elle n'est PAS exclusive à cette vue.
+  // `resolvePendingNavigation` (le garde-fou "changements non sauvegardés" à
+  // la navigation, App.jsx) l'appelle aussi, hors de tout contexte lié à
+  // cette page — une 2e implémentation ici aurait désynchronisé les deux.
 
   // Fin wrapper autour de `requestRemoveSavedPlaylist` (reçue en prop, voir
   // docstring plus haut) : pas de logique de confirmation dupliquée ici, elle
@@ -467,7 +464,7 @@ export function PlaylistDetailProvider({
     // (usePlaylistDetail()) au lieu de devoir aussi lire useGeneratorContext()/
     // useAudioPlayer() séparément pour ces quelques valeurs.
     togglePreview, playingPreviewId, resolveAndPlay, resolvingTrackId,
-    getProfileForWorkout,
+    getProfileForWorkout, isNaughtyMode, getProfileForWorkoutOrDefault,
     // Reçues du Provider, simplement re-transmises (source de vérité externe) :
     currentActualData, selectedMetric, setSelectedMetric,
     dataOffset, setDataOffset, selectedAnalysisDate, setSelectedAnalysisDate, availableMetrics,
@@ -491,7 +488,7 @@ const FALLBACK = {
   handleChartClick: () => {}, handleChartMouseDown: () => {}, handleChartMouseMove: () => {}, handleChartMouseUp: () => {},
   bpmDistributionData: [], genreDistributionData: [], analysisStats: null,
   togglePreview: () => {}, playingPreviewId: null, resolveAndPlay: () => {}, resolvingTrackId: null,
-  getProfileForWorkout: () => ({ isConfigured: false }),
+  getProfileForWorkout: () => ({ isConfigured: false }), isNaughtyMode: false, getProfileForWorkoutOrDefault: () => null,
   currentActualData: null, selectedMetric: 'cadence', setSelectedMetric: () => {},
   dataOffset: 0, setDataOffset: () => {}, selectedAnalysisDate: null, setSelectedAnalysisDate: () => {}, availableMetrics: [],
 };
