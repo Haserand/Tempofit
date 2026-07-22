@@ -240,14 +240,27 @@ const AVAILABLE_ICONS = ["🏃‍♂️", "🚴‍♀️", "🏋️‍♂️", "
 const AUTO_GEN_OPTIONS = ["Manuel", "1 fois / jour", "2 fois / jour", "1 fois / semaine"];
 
 // Palette générique par INDEX (pas sémantique — pas de lien avec une zone
-// précise) pour des répartitions qui n'ont rien à voir avec l'intensité
-// d'effort : genre musical (PlaylistDetailView.jsx, "Répartition par style"),
-// et repli du camembert BPM d'une séance quand aucun Profil Athlétique n'est
-// configuré pour son activité (voir bpmDistributionData, App.jsx — celui-là
-// utilise `ATHLETIC_ZONES`/`getZoneForValue` en priorité, cette palette n'est
-// qu'un filet de sécurité). Partagée ici plutôt que dupliquée dans les 2
-// fichiers qui l'utilisaient chacun leur propre copie identique.
+// précise), utilisée UNIQUEMENT pour "Répartition par style" (genre musical,
+// PlaylistCharts.jsx) — ne sert plus de repli pour le camembert BPM depuis
+// l'introduction de BPM_BUCKET_COLORS ci-dessous (repli dédié, neutre,
+// volontairement distinct de celle-ci ET de ATHLETIC_ZONES, pour ne jamais
+// suggérer par coïncidence de couleur un sens "zone d'effort" à un simple
+// genre musical ou à une tranche de BPM brute).
 const DISTRIBUTION_COLORS = ['#f43f5e', '#3b82f6', '#f59e0b', '#22c55e', '#a855f7', '#06b6d4', '#ec4899', '#84cc16'];
+
+// Repli NEUTRE pour le camembert BPM (bpmDistributionData,
+// PlaylistDetailContext.jsx) quand AUCUN profil athlétique n'est configuré
+// pour l'activité de cette séance (décision Produit explicite : l'app reste
+// neutre par défaut, jamais de vocabulaire "effort" tant que l'utilisateur
+// n'a rien réglé lui-même — voir aussi TrackItem.jsx, même repli gris sur le
+// badge BPM par titre). Nuances de gris/ardoise SEULEMENT, volontairement
+// PAS de bleu/vert/ambre/rouge (couleurs déjà prises par ATHLETIC_ZONES) ni
+// de rose/violet/cyan (déjà pris par DISTRIBUTION_COLORS, genre musical) —
+// pour qu'une couleur de tranche BPM ne puisse jamais être confondue avec
+// une couleur de zone d'effort ou de genre par simple coïncidence visuelle.
+// Ordre clair → foncé : suit naturellement les tranches croissantes de BPM
+// sans leur donner de signification "zone", juste un repère de lecture.
+const BPM_BUCKET_COLORS = ['#cbd5e1', '#94a3b8', '#64748b', '#475569', '#334155', '#1e293b'];
 
 export {
   TROPHIES_DATA,
@@ -264,5 +277,6 @@ export {
   WORKOUT_DEFAULT_TARGET,
   AVAILABLE_ICONS,
   AUTO_GEN_OPTIONS,
-  DISTRIBUTION_COLORS
+  DISTRIBUTION_COLORS,
+  BPM_BUCKET_COLORS
 };
