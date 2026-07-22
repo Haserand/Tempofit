@@ -23,7 +23,7 @@
  * chiffre.
  *
  * Mêmes principes déjà établis : pas de `payload` (contenu figé, pas une
- * recette de génération), pas de `youtubeId`/`preview` stockés (résolus à la
+ * recette de génération), pas de `trackId`/`preview` stockés (résolus à la
  * demande au clic, voir resolveDeezerTrackByTitleArtist/
  * resolveAndTogglePreview), `upvotes: 0` partout, tag discret calculé
  * dynamiquement dans TemplateCard.jsx (pas stocké ici).
