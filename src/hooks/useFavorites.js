@@ -36,8 +36,8 @@ export function useFavorites(showToast) {
     useFavorites: true,
     artists: ['The Killers', 'AC/DC'],
     tracks: [
-      { youtubeId: 'gGdGFtwPNsQ', title: 'Mr. Brightside', artist: 'The Killers', bpm: 148, duration: 222, preview: null, genre: 'Rock' },
-      { youtubeId: 'v2AC41dglnM', title: 'Thunderstruck', artist: 'AC/DC', bpm: 133, duration: 292, preview: null, genre: 'Rock' }
+      { trackId: 'gGdGFtwPNsQ', title: 'Mr. Brightside', artist: 'The Killers', bpm: 148, duration: 222, preview: null, genre: 'Rock' },
+      { trackId: 'v2AC41dglnM', title: 'Thunderstruck', artist: 'AC/DC', bpm: 133, duration: 292, preview: null, genre: 'Rock' }
     ]
   }));
   // Réglages du sélecteur BPM/genre propre à la page Cœur & Favoris (indépendant
@@ -93,9 +93,9 @@ export function useFavorites(showToast) {
   // vouloir garder l'artiste en favori tout en retirant un titre précis qui ne
   // convient pas).
   const toggleTrackFavorite = (track) => {
-    const isFav = favorites.tracks.some(t => t.youtubeId === track.youtubeId);
+    const isFav = favorites.tracks.some(t => t.trackId === track.trackId);
     if (isFav) {
-      setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.youtubeId !== track.youtubeId) }));
+      setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.trackId !== track.trackId) }));
       showToast("Retiré de tes favoris.");
     } else {
       setFavorites(prev => ({
