@@ -81,13 +81,13 @@ export const isConfidentArtistMatch = (query, artistName) => {
 };
 
 // Fusionne un lot de résultats avec les précédents, dédoublonné par
-// youtubeId. Pure : reçoit `prev` en argument, ne lit/écrit aucun state.
+// trackId. Pure : reçoit `prev` en argument, ne lit/écrit aucun state.
 // `reset` détermine si `prev` doit être ignoré (nouvelle recherche) ou
 // complété (page suivante, "Voir plus").
 export const dedupeAppend = (prev, incoming, reset) => {
   const combined = reset ? incoming : [...prev, ...incoming];
   const seen = new Set();
-  return combined.filter(t => { if (seen.has(t.youtubeId)) return false; seen.add(t.youtubeId); return true; });
+  return combined.filter(t => { if (seen.has(t.trackId)) return false; seen.add(t.trackId); return true; });
 };
 
 /**
@@ -185,7 +185,7 @@ export const fetchWorldSearchResults = async (query, { reset, offset, activeArti
     resolvedCandidates.map(async (t) => {
       const realGenre = await resolveDeezerGenre(t.id);
       return {
-        youtubeId: `deezer-${t.id}`,
+        trackId: `deezer-${t.id}`,
         title: t.title,
         artist: t.artist ? t.artist.name : 'Inconnu',
         bpm: t._resolvedBpm,
@@ -350,7 +350,7 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
       const matchTier = isDirectMatch ? 0 : (genreMismatch ? 2 : 1);
       return {
         id: t.id,
-        youtubeId: `deezer-${t.id}`,
+        trackId: `deezer-${t.id}`,
         title: t.title,
         artist: t.artist ? t.artist.name : 'Inconnu',
         bpm: Math.round(parseFloat(t.bpm)),
