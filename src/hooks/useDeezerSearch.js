@@ -89,7 +89,7 @@ export function useDeezerSearch(search, showToast, isNaughtyMode) {
     setEditingBpmId(null);
     const parsed = parseInt(rawValue, 10);
     if (!parsed || parsed <= 0 || parsed === track.bpm) return; // valeur invalide ou inchangée : rien à faire
-    const updateList = (list) => list.map(t => t.youtubeId === track.youtubeId ? { ...t, bpm: parsed, _bpmSource: 'manual' } : t);
+    const updateList = (list) => list.map(t => t.trackId === track.trackId ? { ...t, bpm: parsed, _bpmSource: 'manual' } : t);
     setWorldSearchResults(prev => updateList(prev));
     setWorldSearchOtherResults(prev => updateList(prev));
     showToast(`BPM corrigé : ${parsed}`);
