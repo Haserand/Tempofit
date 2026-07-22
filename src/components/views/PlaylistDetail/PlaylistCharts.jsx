@@ -93,7 +93,12 @@ const RealDataDot = (props) => {
  *
  * Tout le reste (courbe, segments, distributions déjà résolues,
  * drag-and-drop sur le graphique, menu par titre) vient de
- * usePlaylistDetail().
+ * usePlaylistDetail() — dont `bpmDistributionIsZoneBased` (chantier
+ * synchronisation camembert/TrackItem.jsx) : distinct de
+ * `isBpmChartUsingRealProfile` (strict, reçu en prop, réservé au titre
+ * honnête "Tes zones d'intensité" vs "estimation" vs "Répartition par
+ * BPM") — celui-ci dit juste si les libellés affichés sont des noms de zone
+ * (pas de suffixe "BPM") ou des tranches numériques brutes (suffixe utile).
  */
 export default function PlaylistCharts({
   theme, colorMode, isLocked,
@@ -116,7 +121,7 @@ export default function PlaylistCharts({
     handleChartMouseDown, handleChartMouseMove, handleChartMouseUp, isDraggingChartSegment,
     openTrackMenuIndex, setOpenTrackMenuIndex,
     handleDuplicateTrack, handleReplaceTrackSameArtist, handleReplaceTrack, handleRemoveTrack,
-    bpmDistributionData, genreDistributionData,
+    bpmDistributionData, bpmDistributionIsZoneBased, genreDistributionData,
   } = usePlaylistDetail();
 
   // RETOUR DIRECT ("en course à pied, la cadence de pas varie peu selon la
@@ -139,7 +144,7 @@ export default function PlaylistCharts({
   // chaque camembert au-dessus de la mini-liste "Titres" correspondante.
   const activeDetailFilterLabel = [
     selectedDetailGenre.size > 0 ? [...selectedDetailGenre].join(', ') : null,
-    selectedDetailBpmBucket.size > 0 ? `${[...selectedDetailBpmBucket].join(', ')}${!isBpmChartUsingRealProfile ? ' BPM' : ''}` : null,
+    selectedDetailBpmBucket.size > 0 ? `${[...selectedDetailBpmBucket].join(', ')}${!bpmDistributionIsZoneBased ? ' BPM' : ''}` : null,
   ].filter(Boolean).join(' · ');
 
   // Clic sur une part de camembert = surbrillance croisée (liste + courbe),
@@ -527,21 +532,31 @@ export default function PlaylistCharts({
           )}
         </div>
         <div className={`${cardBg} rounded-3xl p-6 border ${cardBorder} shadow-xl`}>
-          {/* Titre CONDITIONNEL : "Tes zones d'intensité" seulement si un vrai
-              profil est configuré (isBpmChartUsingRealProfile, strict —
-              getProfileForWorkout, pas getProfileForWorkoutOrDefault), sinon
-              "Répartition par BPM" — le nom doit refléter CE QUI EST VRAIMENT
-              affiché (tranches de BPM génériques tant que rien n'est
-              configuré). Même règle que le mode Synchro. */}
+          {/* Titre à 3 états, pas 2 — conséquence directe de la synchronisation
+              avec TrackItem.jsx (bpmDistributionData classe maintenant
+              TOUJOURS par zone via getProfileForWorkoutOrDefault, quasi
+              jamais en tranches brutes) :
+              - profil RÉELLEMENT configuré (isBpmChartUsingRealProfile,
+                strict) : "Tes zones d'intensité" / "Basé sur ton Profil
+                Athlétique."
+              - profil PAR DÉFAUT utilisé (bpmDistributionIsZoneBased vrai,
+                mais pas isBpmChartUsingRealProfile) : zones affichées, mais
+                le dire "indépendant de ton profil" serait FAUX — ce sont
+                justement des zones estimées, pas des tranches brutes.
+              - ni l'un ni l'autre (cas limite, voir bpmDistributionData) :
+                seul cas où "Répartition par BPM"/"indépendante de ton
+                profil" reste vrai. */}
           <h3 className={`font-bold text-lg flex items-center gap-2 ${textHighlight}`}>
-            <Activity className={textColorClass} size={20}/> {isSyncMode ? 'Ta synchro cadence' : (isBpmChartUsingRealProfile ? 'Tes zones d\'intensité' : 'Répartition par BPM')}
+            <Activity className={textColorClass} size={20}/> {isSyncMode ? 'Ta synchro cadence' : (isBpmChartUsingRealProfile ? 'Tes zones d\'intensité' : (bpmDistributionIsZoneBased ? 'Zones d\'intensité (estimation)' : 'Répartition par BPM'))}
           </h3>
           <p className={`text-xs mb-4 ${textMuted}`}>
             {isSyncMode
               ? 'Mode Synchro — la musique doit suivre ta cadence, pas ton intensité.'
               : (isBpmChartUsingRealProfile
                   ? 'Basé sur ton Profil Athlétique.'
-                  : 'Répartition brute des titres écoutés — indépendante de ton profil.')}
+                  : (bpmDistributionIsZoneBased
+                      ? 'Basé sur un profil par défaut — configure le tien dans Mon Profil Athlétique pour des zones personnalisées.'
+                      : 'Répartition brute des titres écoutés — indépendante de ton profil.'))}
           </p>
           {isSyncMode ? (
             /* Pas de camembert ici : en Synchro, ce qui compte c'est "est-ce que
@@ -605,7 +620,7 @@ export default function PlaylistCharts({
                 <RechartsTooltip formatter={(value, name) => {
                   const total = bpmDistributionData.reduce((s, e) => s + e.value, 0);
                   const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-                  return [`${formatDuration(value)} (${pct}%)`, isBpmChartUsingRealProfile ? name : `${name} BPM`];
+                  return [`${formatDuration(value)} (${pct}%)`, bpmDistributionIsZoneBased ? name : `${name} BPM`];
                 }} />
               </PieChart>
             </ResponsiveContainer>
