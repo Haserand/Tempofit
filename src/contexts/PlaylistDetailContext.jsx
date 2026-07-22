@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useMemo } from 'react';
-import { getZoneForValue, ATHLETIC_ZONES, DISTRIBUTION_COLORS } from '../appConfig';
+import { getZoneForValue, ATHLETIC_ZONES, BPM_BUCKET_COLORS } from '../appConfig';
 import { normalizeGenreForDisplay, genreDisplayLabel } from '../musicCatalog';
 import { getSingleMatchingTrack, findSameArtistReplacement, recalculateTimeline } from '../musicEngine';
 import { useGeneratorContext } from './GeneratorContext';
@@ -87,7 +87,7 @@ export function PlaylistDetailProvider({
   selectedAnalysisDate, setSelectedAnalysisDate, availableMetrics,
   children,
 }) {
-  const { isNaughtyMode, getProfileForWorkout, getProfileForWorkoutOrDefault } = useGeneratorContext();
+  const { isNaughtyMode, getProfileForWorkout } = useGeneratorContext();
   const { togglePreview, playingPreviewId, resolveAndPlay, resolvingTrackId } = useAudioPlayer();
 
   // Petit utilitaire interne : la quasi-totalité des mutations de titres
@@ -372,16 +372,18 @@ export function PlaylistDetailProvider({
     setChartDragTrackTitle(null);
   };
 
-  // --- Distributions BPM (par zone — même résolveur que la pastille de zone
-  // de TrackItem.jsx, getProfileForWorkoutOrDefault, PAS la version stricte
-  // — sinon la liste affiche des zones alors que le camembert retombe sur
-  // des tranches brutes de 20 BPM avec une palette générique, dissonance
-  // visuelle signalée : couleurs/libellés différents pour la même donnée.
-  // Tranches brutes en dernier repli SEULEMENT si getProfileForWorkoutOrDefault
-  // ne renvoie vraiment rien d'exploitable, cas limite qui ne devrait
-  // quasiment jamais se produire vu son contrat ("estimation par défaut
-  // crédible") — mais gardé, jamais un plantage silencieux à la place) /
-  // genre ---
+  // --- Distribution BPM : par zone SEULEMENT si un vrai profil est
+  // configuré — décision Produit : l'app reste neutre par défaut, jamais de
+  // vocabulaire "effort" tant que l'utilisateur n'a rien réglé lui-même.
+  // `getProfileForWorkout` STRICT (pas OrDefault) : un chantier précédent
+  // avait basculé sur OrDefault pour synchroniser avec TrackItem.jsx, mais
+  // ça affichait des zones ("Récupération", "Seuil"...) en permanence, même
+  // pour un profil jamais configuré — revert explicite ici, TrackItem.jsx
+  // suit le même retour en arrière (voir ce fichier). Sinon, tranches brutes
+  // de 20 BPM (repli), avec une palette NEUTRE dédiée (BPM_BUCKET_COLORS,
+  // appConfig.js) — distincte à la fois de ATHLETIC_ZONES et de
+  // DISTRIBUTION_COLORS (genres), pour ne jamais suggérer par accident un
+  // sens "zone d'effort" à une simple tranche de BPM brute. / genre ---
   const bpmDistributionData = useMemo(() => {
     if (!currentPlaylist) return [];
     const activityName = isNaughtyMode
@@ -392,7 +394,7 @@ export function PlaylistDetailProvider({
     let matchedAnyZone = false;
     currentPlaylist.tracks.forEach(t => {
       if (!t.bpm) return;
-      const zone = getZoneForValue(t.bpm, activityName, getProfileForWorkoutOrDefault);
+      const zone = getZoneForValue(t.bpm, activityName, getProfileForWorkout);
       if (zone) {
         matchedAnyZone = true;
         zoneSeconds[zone.key] = (zoneSeconds[zone.key] || 0) + (t.duration || 0);
@@ -411,21 +413,19 @@ export function PlaylistDetailProvider({
       buckets[label] = (buckets[label] || 0) + t.duration;
     });
     return Object.entries(buckets)
-      .map(([name, value], i) => ({ name, value, sortKey: parseInt(name), color: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }))
+      .map(([name, value], i) => ({ name, value, sortKey: parseInt(name), color: BPM_BUCKET_COLORS[i % BPM_BUCKET_COLORS.length] }))
       .sort((a, b) => a.sortKey - b.sortKey);
-  }, [currentPlaylist, isNaughtyMode, getProfileForWorkoutOrDefault]);
+  }, [currentPlaylist, isNaughtyMode, getProfileForWorkout]);
 
-  // true tant que bpmDistributionData ci-dessus a effectivement classé par
-  // zone (quasi toujours, vu getProfileForWorkoutOrDefault) — DISTINCT de
-  // `isBpmChartUsingRealProfile` (calculé dans PlaylistDetailView.jsx à
-  // partir de la version STRICTE) : celui-ci reste nécessaire pour le titre
-  // honnête du camembert ("Tes zones d'intensité" seulement si un vrai
-  // profil est configuré), alors que celui-ci ne sert qu'à savoir si les
-  // libellés affichés sont des noms de zone (pas la peine de suffixer
-  // "BPM") ou des tranches numériques brutes (suffixe "BPM" utile). Dérivé
-  // de bpmDistributionData lui-même (son 1er libellé suffit — jamais un
-  // mélange zone/tranche brute dans un même calcul) plutôt que de
-  // re-parcourir tous les titres une 2e fois pour la même réponse.
+  // true seulement si bpmDistributionData ci-dessus a effectivement classé
+  // par zone (donc, maintenant, quasi équivalent à "un vrai profil est
+  // configuré" — gardé comme flag séparé plutôt que fusionné avec
+  // isBpmChartUsingRealProfile : ce dernier vérifie que LE PROFIL est
+  // marqué configuré, celui-ci vérifie qu'au moins un titre a VRAIMENT été
+  // classé — 2 questions différentes qui pourraient un jour diverger dans
+  // un cas limite, ex. un profil configuré mais dont les zones ne couvrent
+  // aucun des BPM de cette playlist précise). Dérivé de bpmDistributionData
+  // lui-même (son 1er libellé suffit) plutôt que de re-parcourir les titres.
   const bpmDistributionIsZoneBased = bpmDistributionData.length > 0
     && ATHLETIC_ZONES.some(z => z.shortLabel === bpmDistributionData[0].name);
 
@@ -496,7 +496,7 @@ export function PlaylistDetailProvider({
     // (usePlaylistDetail()) au lieu de devoir aussi lire useGeneratorContext()/
     // useAudioPlayer() séparément pour ces quelques valeurs.
     togglePreview, playingPreviewId, resolveAndPlay, resolvingTrackId,
-    getProfileForWorkout, isNaughtyMode, getProfileForWorkoutOrDefault,
+    getProfileForWorkout, isNaughtyMode,
     // Reçues du Provider, simplement re-transmises (source de vérité externe) :
     currentActualData, selectedMetric, setSelectedMetric,
     dataOffset, setDataOffset, selectedAnalysisDate, setSelectedAnalysisDate, availableMetrics,
@@ -521,7 +521,7 @@ const FALLBACK = {
   bpmDistributionData: [], bpmDistributionIsZoneBased: false, genreDistributionData: [], analysisStats: null,
   currentPlaylist: null,
   togglePreview: () => {}, playingPreviewId: null, resolveAndPlay: () => {}, resolvingTrackId: null,
-  getProfileForWorkout: () => ({ isConfigured: false }), isNaughtyMode: false, getProfileForWorkoutOrDefault: () => null,
+  getProfileForWorkout: () => ({ isConfigured: false }), isNaughtyMode: false,
   currentActualData: null, selectedMetric: 'cadence', setSelectedMetric: () => {},
   dataOffset: 0, setDataOffset: () => {}, selectedAnalysisDate: null, setSelectedAnalysisDate: () => {}, availableMetrics: [],
 };
