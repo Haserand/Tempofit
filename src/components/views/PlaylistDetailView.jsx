@@ -586,7 +586,8 @@ export default function PlaylistDetailView({
             </div>
           </button>
         </div>
-        <div className="flex-1 text-center md:text-left space-y-4 w-full">
+        <div className="flex-1 flex flex-col justify-between text-center md:text-left w-full">
+          <div className="space-y-4">
           {/* RETOUR DIRECT (maquette UI/UX complète) : "isole et remonte la
               date tout en haut de la carte, au-dessus du titre, avec un style
               discret" — sur-titre propre, avant même le nom de la playlist.
@@ -624,7 +625,17 @@ export default function PlaylistDetailView({
               même AVANT toute complétion (`!isLocked`, libellé "Planifier"
               tout court) — seule la partie date/verrouillé reste
               conditionnée à `isLocked`, la logique d'origine n'a pas changé,
-              seul l'EMPLACEMENT du bouton. */}
+              seul l'EMPLACEMENT du bouton.
+              RETOUR DIRECT SUIVANT ("le bouton Ajouter à Mes Séances pousse
+              le titre vers le bas, casse l'alignement avec la pochette") —
+              le bouton "Ajouter à Mes Séances"/la corbeille (qui vivait ICI,
+              avec `ml-auto`) est retiré de cette ligne : sur une playlist
+              fraîche, ni verrouillée ni planifiée, cette ligne ne contenait
+              QUE ce bouton — il se retrouvait seul, poussant tout le reste
+              vers le bas. Déplacé en bas de la carte, à côté de "Partager"
+              (voir plus loin) — cette ligne ne garde plus que ce qui parle
+              vraiment de DATES (verrou, planifier), pas d'action de
+              sauvegarde. */}
           <div className="space-y-1.5">
             <div className="flex items-center gap-3 flex-wrap">
               {isLocked && currentPlaylist.completions.length > 0 && (
@@ -723,51 +734,24 @@ export default function PlaylistDetailView({
               {/* RETOUR DIRECT ("prends du recul — si la séance est faite,
                   elle est de base sauvegardée, l'utilisateur le sait ; juste
                   besoin d'une option pour supprimer, une corbeille comme
-                  celle déjà utilisée sur les cartes de Mes Séances ; l'icône
-                  dans la bulle, tout à droite des options de date, pas sur
-                  la ligne du coin") — remplace l'ancien check/X du coin
-                  supérieur droit. Une séance verrouillée EST forcément déjà
-                  sauvegardée (les complétions vivent directement sur l'objet
-                  playlist dans `savedPlaylists`) — plus besoin de le
-                  CONFIRMER visuellement, juste de permettre de la retirer.
-                  `ml-auto` pousse la corbeille tout à droite de cette ligne
-                  (au lieu de rester collée aux autres badges) ; même icône
+                  celle déjà utilisée sur les cartes de Mes Séances") —
+                  remplace l'ancien check/X du coin supérieur droit. Une
+                  séance verrouillée EST forcément déjà sauvegardée (les
+                  complétions vivent directement sur l'objet playlist dans
+                  `savedPlaylists`) — plus besoin de le CONFIRMER
+                  visuellement, juste de permettre de la retirer. Même icône
                   (`Trash2`) et même teinte au survol (gris → rouge) que la
                   corbeille des cartes dans "Mes Séances" (PlaylistCard.jsx)
                   — un seul vocabulaire visuel pour "supprimer" dans toute
-                  l'app. `handleUnsavePlaylist` reste la même fonction
-                  qu'avant (confirmation déjà intégrée si historique à
-                  perdre). Repli "Ajouter à Mes Séances" si la playlist n'est
-                  pas encore sauvegardée (seul cas où cette ligne serait sinon
-                  vide, puisque date/verrouillé/planifier ne s'affichent que
-                  pour une playlist déjà sauvegardée).
-                  RETOUR DIRECT SUIVANT ("pas la peine de mettre un texte au
-                  survol quand il y a déjà un message d'avertissement qui
-                  arrive au clic") — le `title` du bouton corbeille répétait
-                  MOT POUR MOT l'avertissement de la modale de confirmation
-                  (`requestUnsavePlaylist`/`handleUnsavePlaylist`, voir
-                  App.jsx) : la même phrase lue 2 fois, une fois de trop.
-                  Retiré ici — l'icône poubelle seule suffit à communiquer
-                  l'intention (convention universelle), et la modale reste le
-                  SEUL endroit où le détail ("historique perdu") s'affiche,
-                  au moment où il compte vraiment (juste avant de confirmer),
-                  pas en survolant. */}
-              {savedPlaylists.find(p => p.id === currentPlaylist.id) ? (
-                <button
-                  onClick={handleUnsavePlaylist}
-                  className={`ml-auto p-1.5 rounded-lg transition-colors shrink-0 ${textMuted} hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20`}
-                >
-                  <Trash2 size={16} />
-                </button>
-              ) : (
-                <button
-                  onClick={handleSavePlaylist}
-                  title="Ajoute cette séance à 'Mes Séances', ton journal de séances (passées et à venir)."
-                  className={`ml-auto flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold text-xs transition-colors border bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shrink-0 ${cardBorder} ${textHighlight}`}
-                >
-                  <Save size={14} /> <span>Ajouter à Mes Séances</span>
-                </button>
-              )}
+                  l'app. Pas de `title` au survol (retour direct : la modale
+                  de confirmation qui s'ouvre au clic dit déjà tout, pas
+                  besoin de répéter la même phrase 2 fois).
+                  RETOUR DIRECT SUIVANT ("le bouton Ajouter à Mes Séances
+                  pousse le titre vers le bas") — ce bloc (trash OU "Ajouter
+                  à Mes Séances") a déménagé en bas de la carte, à côté de
+                  "Partager" (voir plus loin dans ce fichier) — la rangée
+                  date/verrou/planifier plus haut ne parle plus que de dates,
+                  plus d'action de sauvegarde. */}
             </div>
             {/* N'affiche cette liste que s'il reste au moins UNE date au-delà
                 de `completions[0]` (déjà montrée, éditable, juste au-dessus) :
@@ -844,16 +828,19 @@ export default function PlaylistDetailView({
               );
             })()}
           </div>
+          </div>
 
-          {/* Ligne 3 : badges secondaires (retour direct : "aère... entre le
-              bloc titre/métadonnées, les actions principales et les badges
-              secondaires") — mt-2 en plus du space-y-4 du parent pour bien
-              les détacher visuellement du bloc d'actions juste au-dessus.
-              Le bouton "Sauvegardée dans Mes Séances"/"Ajouter à Mes
-              Séances" qui vivait ici a été retiré (retour direct : "prend
-              trop de place") — remplacé par l'icône compacte en haut à
-              droite de la carte (voir plus haut). */}
-          <div className="flex items-center flex-wrap justify-center md:justify-start gap-3 mt-2">
+          {/* Ligne d'actions du BAS — RETOUR DIRECT ("le bouton Ajouter à Mes
+              Séances doit descendre ici, sur la même ligne que Partager,
+              pour ne plus pousser le titre vers le bas") : ce conteneur
+              n'est plus dans le groupe "haut" (titre/métadonnées/dates) —
+              `justify-between` sur le parent flex-col de la carte l'ancre
+              tout en bas, à hauteur du bas de la pochette. `justify-between`
+              ICI (gauche/droite) sépare les actions "à propos du contenu"
+              (import CSV, partager) des actions "à propos de la playlist
+              elle-même" (sauvegarder/retirer). */}
+          <div className="flex items-center flex-wrap justify-between gap-3 mt-4">
+            <div className="flex items-center flex-wrap justify-center md:justify-start gap-3">
             {/* RETOUR DIRECT ("j'imagine le bouton d'import de données et le
                 bouton de partage sur la même ligne : d'abord importer, puis
                 partager") — l'ancien bouton pleine largeur (voir plus bas
@@ -907,6 +894,28 @@ export default function PlaylistDetailView({
             >
               <Share2 size={16} /> <span>Partager</span>
             </button>
+            </div>
+
+            {/* Corbeille/"Ajouter à Mes Séances" — déplacé ici depuis la
+                rangée date/verrou/planifier (voir plus haut) : sur cette
+                ligne, à droite, aux côtés de "Partager" plutôt que flottant
+                seul au-dessus du titre. */}
+            {savedPlaylists.find(p => p.id === currentPlaylist.id) ? (
+              <button
+                onClick={handleUnsavePlaylist}
+                className={`p-1.5 rounded-lg transition-colors shrink-0 ${textMuted} hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20`}
+              >
+                <Trash2 size={16} />
+              </button>
+            ) : (
+              <button
+                onClick={handleSavePlaylist}
+                title="Ajoute cette séance à 'Mes Séances', ton journal de séances (passées et à venir)."
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold text-xs transition-colors border bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shrink-0 ${cardBorder} ${textHighlight}`}
+              >
+                <Save size={14} /> <span>Ajouter à Mes Séances</span>
+              </button>
+            )}
           </div>
 
           {/* L'ancien bandeau "Séance déjà réalisée" (gros encart vert avec
