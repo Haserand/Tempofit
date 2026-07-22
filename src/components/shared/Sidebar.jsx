@@ -20,9 +20,18 @@ export default function Sidebar({
   changeView, view,
   showAthleticProfile, setShowAthleticProfile,
   favorites,
+  hasActiveTrack,
 }) {
   return (
-    <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r ${cardBorder} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+    // `fixed inset-y-0` : cette aside est positionnée par rapport au VIEWPORT,
+    // pas par rapport à un ancêtre — un padding-bottom posé plus haut dans
+    // l'arbre (sur AppContent) n'aurait donc AUCUN effet ici. `hasActiveTrack`
+    // (App.jsx, useAudioPlayer()) pilote directement ce pb-32 : quand
+    // MiniPlayerBar (fixed bottom-0, voir MiniPlayerBar.jsx) est affichée,
+    // elle recouvrirait sinon le bloc crédits tout en bas (bug signalé :
+    // "Options & Comptes"/crédits caché par le lecteur). Même valeur (pb-32)
+    // que le <main> dans App.jsx, pour que les 2 s'arrêtent à la même hauteur.
+    <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r ${cardBorder} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${hasActiveTrack ? 'pb-32' : ''}`}>
       <div className={`p-6 border-b ${cardBorder} flex items-center justify-between`}>
          <button
            onClick={() => changeView('generator')}
@@ -109,8 +118,15 @@ export default function Sidebar({
       </nav>
 
       {/* Crédit du projet, en bas de la sidebar — discret, ouvre dans un nouvel onglet
-          pour ne pas faire quitter l'app en un clic accidentel. */}
-      <div className={`px-4 py-4 border-t ${cardBorder} text-center`}>
+          pour ne pas faire quitter l'app en un clic accidentel.
+          `mt-auto` : déjà poussé en bas aujourd'hui par le `flex-1` de <nav>
+          juste au-dessus (un seul enfant qui grandit dans ce flex-col suffit
+          à coller celui-ci en bas) — ajouté quand même explicitement ici,
+          pour que ce bloc reste ancré en bas MÊME si <nav> perd un jour son
+          flex-1 (ex. contenu qui dépasse et qu'on passe en scroll interne
+          sans flex-1), plutôt que de dépendre implicitement d'un réglage
+          fait sur un autre élément. */}
+      <div className={`mt-auto px-4 py-4 border-t ${cardBorder} text-center`}>
         <a
           href="https://www.linkedin.com/in/damiengrange/"
           target="_blank"
