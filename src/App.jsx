@@ -600,7 +600,15 @@ function AppContent({
   const {
     playingPreviewId, togglePreview,
     resolveAndPlay, resolvingTrackId,
+    currentTrack,
   } = useAudioPlayer();
+  // MiniPlayerBar est fixed (jamais affecté par un padding d'ancêtre) et
+  // couvre le bas de l'écran tant qu'un extrait est chargé — voir
+  // `!currentTrack` dans MiniPlayerBar.jsx pour la même condition de
+  // visibilité. Calculé UNE FOIS ici, transmis à Sidebar (fixed elle aussi,
+  // a donc besoin de le savoir indépendamment) et utilisé pour le padding du
+  // <main> plus bas — un seul booléen, pas 2 logiques de détection.
+  const hasActiveTrack = !!currentTrack;
 
   // --- MOTEUR DE RECHERCHE DEEZER (recherche manuelle titre/artiste avec BPM) ---
   // On utilise l'API publique Deezer (100M+ titres, champ "bpm" par titre, pas de
@@ -1970,6 +1978,7 @@ function AppContent({
           changeView={changeView} view={view}
           showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
           favorites={favorites}
+          hasActiveTrack={hasActiveTrack}
         />
 
         <div className="flex-1 flex flex-col relative w-full">
@@ -1992,7 +2001,10 @@ function AppContent({
             </div>
           </header>
 
-          <main id="main-scroll-area" className="flex-1 overflow-y-auto p-4 sm:p-8 no-scrollbar pb-32">
+          {/* pb-32 conditionné à hasActiveTrack (MiniPlayerBar, fixed en bas)
+              — avant, ce padding était TOUJOURS présent, même sans lecteur
+              actif (espace perdu en bas de chaque vue le reste du temps). */}
+          <main id="main-scroll-area" className={`flex-1 overflow-y-auto p-4 sm:p-8 no-scrollbar ${hasActiveTrack ? 'pb-32' : ''}`}>
 
             {/* ===================== VIEW: GENERATOR (ASSISTANT MULTI-ETAPES) ===================== */}
             {view === 'generator' && (
