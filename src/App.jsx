@@ -602,13 +602,11 @@ function AppContent({
     resolveAndPlay, resolvingTrackId,
     currentTrack,
   } = useAudioPlayer();
-  // MiniPlayerBar est fixed (jamais affecté par un padding d'ancêtre) et
-  // couvre le bas de l'écran tant qu'un extrait est chargé — voir
-  // `!currentTrack` dans MiniPlayerBar.jsx pour la même condition de
-  // visibilité. Calculé UNE FOIS ici, transmis à Sidebar (fixed elle aussi,
-  // a donc besoin de le savoir indépendamment) et utilisé pour le padding du
-  // <main> plus bas — un seul booléen, pas 2 logiques de détection.
-  const hasActiveTrack = !!currentTrack;
+  // hasActiveTrack (dérivé de currentTrack) a été retiré : ne servait qu'au
+  // padding conditionnel de Sidebar (abandonné, voir Sidebar.jsx) et à celui
+  // de <main> (remplacé par le div espaceur, voir plus bas — condition
+  // `currentTrack || playingPreviewId` directement à l'endroit où c'est
+  // utilisé, pas la peine d'un booléen intermédiaire pour un seul usage).
 
   // --- MOTEUR DE RECHERCHE DEEZER (recherche manuelle titre/artiste avec BPM) ---
   // On utilise l'API publique Deezer (100M+ titres, champ "bpm" par titre, pas de
@@ -1978,7 +1976,6 @@ function AppContent({
           changeView={changeView} view={view}
           showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
           favorites={favorites}
-          hasActiveTrack={hasActiveTrack}
         />
 
         <div className="flex-1 flex flex-col relative w-full">
@@ -2001,10 +1998,7 @@ function AppContent({
             </div>
           </header>
 
-          {/* pb-32 conditionné à hasActiveTrack (MiniPlayerBar, fixed en bas)
-              — avant, ce padding était TOUJOURS présent, même sans lecteur
-              actif (espace perdu en bas de chaque vue le reste du temps). */}
-          <main id="main-scroll-area" className={`flex-1 overflow-y-auto p-4 sm:p-8 no-scrollbar ${hasActiveTrack ? 'pb-32' : ''}`}>
+          <main id="main-scroll-area" className="flex-1 overflow-y-auto p-4 sm:p-8 no-scrollbar">
 
             {/* ===================== VIEW: GENERATOR (ASSISTANT MULTI-ETAPES) ===================== */}
             {view === 'generator' && (
@@ -2140,6 +2134,25 @@ function AppContent({
                 getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload}
               />
             )}
+
+            {/* Espaceur — réserve de la place en bas du contenu défilant pour
+                MiniPlayerBar (fixed bottom-0, hors du flux normal, ne pousse
+                donc rien tout seul). Remplace le pb-32 conditionnel posé
+                directement sur <main> : un enfant réel dans le flux (plutôt
+                qu'un padding sur le conteneur) s'adapte à la hauteur RÉELLE
+                du contenu qui le précède quel que soit son overflow, sans
+                dépendre d'une classe de padding qui pouvait laisser un vide
+                ou rester insuffisante (barre de progression ajoutée depuis,
+                lecteur plus haut qu'avant — pb-32 ne suffisait déjà plus).
+                `currentTrack || playingPreviewId` : couvre à la fois le
+                mini-lecteur persistant ET le cas où un extrait vient tout
+                juste d'être lancé depuis une liste avant que `currentTrack`
+                n'ait eu le temps de se propager (même garde que MiniPlayerBar
+                utilise indirectement via useAudioPlayer()). h-40 (160px) :
+                un peu plus que la hauteur réelle de la barre (pochette +
+                contrôles + progression), marge de sécurité incluse plutôt
+                qu'une valeur pile ajustée au pixel. */}
+            {(currentTrack || playingPreviewId) && <div className="h-40 shrink-0 w-full"></div>}
           </main>
         </div>
 
