@@ -254,6 +254,23 @@ export function useGeneratorForm(isNaughtyMode, athleticProfile) {
     }
     setStructureModeRaw(mode);
   };
+
+  // Ré-applique le BPM (et, en Fractionné, les segments) du Profil
+  // Athlétique fourni, SANS changer de mode — utile quand le profil change
+  // sous les pieds de l'utilisateur (ex. validation d'une nouvelle activité
+  // personnalisée dans CustomActivityModal) alors qu'il est déjà sur l'étape
+  // BPM. Volontairement un simple alias de `setStructureMode(mode, profile)`
+  // avec le mode ACTUEL plutôt qu'une logique dupliquée : tous les
+  // garde-fous "seulement si pas encore touché à la main" (bpmTouchedManually,
+  // isPristineSegments...) vivent déjà là-bas, donc rien à réécrire ici — et
+  // ça reste cohérent avec la seule autre voie d'entrée existante pour ce
+  // recalcul (le bouton bascule Fractionné/Constante-Crescendo,
+  // GeneratorView.jsx). BUG corrigé : cette fonction était déstructurée et
+  // appelée (CustomActivityModal.jsx) mais n'avait jamais été définie ici,
+  // ce qui plantait (`TypeError: ... is not a function`) à chaque
+  // sauvegarde d'activité personnalisée hors mode Intime.
+  const applyProfileBpmIfUntouched = (activityProfile) => setStructureMode(structureMode, activityProfile);
+
   // L'échauffement ne doit jamais dépasser le BPM cible (le curseur de
   // l'étape 3 le borne déjà côté UI), et le retour au calme ne doit jamais
   // dépasser l'échauffement — sinon la "forme" crescendo n'a plus de sens.
@@ -437,6 +454,7 @@ export function useGeneratorForm(isNaughtyMode, athleticProfile) {
     CRESCENDO_MIN_MAIN_PCT,
     crescendoWarmupBpm, setCrescendoWarmupBpm, crescendoCooldownBpm, setCrescendoCooldownBpm,
     bpmSourceIsProfile,
+    applyProfileBpmIfUntouched,
     allowLongTracks, setAllowLongTracks,
     targetMode, setTargetMode,
     hours, setHours,
