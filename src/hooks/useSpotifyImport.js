@@ -161,8 +161,8 @@ export function useSpotifyImport(setFavorites, showToast) {
         const artistsFromTracks = analyzedPool.map(t => t.artist);
         const mergedArtists = Array.from(new Set([...prev.artists, ...followedArtistNames, ...artistsFromTracks])).slice(0, 40);
 
-        const existingIds = new Set(prev.tracks.map(t => t.youtubeId));
-        const newTracks = analyzedPool.filter(t => !existingIds.has(t.youtubeId));
+        const existingIds = new Set(prev.tracks.map(t => t.trackId));
+        const newTracks = analyzedPool.filter(t => !existingIds.has(t.trackId));
         const mergedTracks = [...prev.tracks, ...newTracks];
 
         return { ...prev, useFavorites: true, artists: mergedArtists, tracks: mergedTracks };
