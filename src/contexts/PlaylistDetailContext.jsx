@@ -460,6 +460,14 @@ export function PlaylistDetailProvider({
     selectedSegmentIdx, setSelectedSegmentIdx, isDraggingChartSegment,
     handleChartClick, handleChartMouseDown, handleChartMouseMove, handleChartMouseUp,
     bpmDistributionData, genreDistributionData, analysisStats,
+    // Re-exposé (chantier TrackList/TrackItem) : jusqu'ici currentPlaylist
+    // n'était PAS dans cette valeur, uniquement reçu en prop par le Provider
+    // pour son usage interne (handlers). PlaylistDetailViewInner le recevait
+    // donc en double : une fois via ce contexte (absent avant), une fois en
+    // prop directe depuis le Wrapper — cette 2e voie reste inchangée et est
+    // la source de vérité ; on ne fait qu'ajouter un accès en lecture pour
+    // les sous-composants qui n'ont que usePlaylistDetail() sous la main.
+    currentPlaylist,
     // Re-exposées pour que le composant n'ait plus qu'UN SEUL point d'entrée
     // (usePlaylistDetail()) au lieu de devoir aussi lire useGeneratorContext()/
     // useAudioPlayer() séparément pour ces quelques valeurs.
@@ -487,6 +495,7 @@ const FALLBACK = {
   selectedSegmentIdx: null, setSelectedSegmentIdx: () => {}, isDraggingChartSegment: false,
   handleChartClick: () => {}, handleChartMouseDown: () => {}, handleChartMouseMove: () => {}, handleChartMouseUp: () => {},
   bpmDistributionData: [], genreDistributionData: [], analysisStats: null,
+  currentPlaylist: null,
   togglePreview: () => {}, playingPreviewId: null, resolveAndPlay: () => {}, resolvingTrackId: null,
   getProfileForWorkout: () => ({ isConfigured: false }), isNaughtyMode: false, getProfileForWorkoutOrDefault: () => null,
   currentActualData: null, selectedMetric: 'cadence', setSelectedMetric: () => {},
