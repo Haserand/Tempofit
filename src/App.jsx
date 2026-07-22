@@ -33,8 +33,8 @@ import { parseGarminCsv } from './workoutDataEngine';
 import { useTheme } from './hooks/useTheme';
 import { usePersistentState } from './hooks/usePersistentState';
 import { useToast } from './hooks/useToast';
-import { useCustomActivity } from './hooks/useCustomActivity';
-import { useGeneratorForm } from './hooks/useGeneratorForm';
+// useCustomActivity et useGeneratorForm ne sont plus importés ici : appelés
+// une seule fois à l'intérieur de <GeneratorProvider> (contexts/GeneratorContext.jsx).
 import { useTrackSearch } from './hooks/useTrackSearch';
 import { useDeezerSearch } from './hooks/useDeezerSearch';
 import { useFavorites } from './hooks/useFavorites';
@@ -63,6 +63,7 @@ import SavingRoutineModal from './components/modals/SavingRoutineModal';
 import ShareModal from './components/modals/ShareModal';
 import AuthModal from './components/modals/AuthModal';
 import { useAuthContext } from './contexts/AuthContext';
+import { GeneratorProvider, useGeneratorContext } from './contexts/GeneratorContext';
 import IconPickerModal from './components/modals/IconPickerModal';
 import PendingNavigationModal from './components/modals/PendingNavigationModal';
 import PendingUnsaveModal from './components/modals/PendingUnsaveModal';
@@ -91,7 +92,23 @@ import Sidebar from './components/shared/Sidebar';
 // COMPOSANT PRINCIPAL
 // =====================================================================================
 
-export default function App() {
+// AppContent — anciennement `App` (voir plus bas pour le nouveau composant
+// racine `App`, léger, qui ne fait qu'assembler les Providers). Renommage
+// pur : aucune logique changée dans ce qui suit, seuls les 3 blocs
+// explicitement commentés "MIGRÉ VERS GeneratorContext" ont bougé.
+//
+// `isNaughtyMode`, `showAthleticProfile` et `athleticProfileApi` (le retour
+// intact de useAthleticProfile()) sont maintenant reçus EN PROPS plutôt que
+// déclarés ici via useState/useAthleticProfile() directement — ils doivent
+// exister AVANT que <GeneratorProvider> ne se monte (le Provider en a besoin
+// pour sa propre valeur), donc ils ne peuvent plus vivre à l'intérieur du
+// composant que ce Provider enveloppe. Remontés d'un cran dans `App`, qui
+// les passe à la fois au Provider et ici, en props, à l'identique.
+function AppContent({
+  isNaughtyMode, setIsNaughtyMode,
+  showAthleticProfile, setShowAthleticProfile,
+  athleticProfileApi,
+}) {
   // --- Navigation & état d'affichage global ---
   const [view, setView] = useState('generator');
   // Bascule "vue détaillée" de la page Statistiques — voir plus bas. Volontairement
@@ -106,7 +123,8 @@ export default function App() {
   // la fois naviguer vers Générer ET déplier directement ce panneau en un
   // seul clic, plutôt que d'atterrir sur Générer avec le panneau encore
   // replié.
-  const [showAthleticProfile, setShowAthleticProfile] = useState(false);
+  // MIGRÉ VERS le composant racine `App` — même raison que isNaughtyMode
+  // ci-dessus (nécessaire à <GeneratorProvider> avant le montage de ce composant).
   // 'standard' | 'naughty' — quelles playlists nourrissent la page Statistiques.
   // Séparé plutôt que mélangé (voir la discussion) : le Mode Intime est déjà
   // traité avec discrétion ailleurs dans l'app (noms différents, pas de mélange
@@ -174,7 +192,9 @@ export default function App() {
   //     bas, APRÈS useFavorites (dont il a besoin : `setFavorites`). ---
 
 
-  const [isNaughtyMode, setIsNaughtyMode] = useState(false);
+  // MIGRÉ VERS le composant racine `App` (voir fin de fichier) : isNaughtyMode
+  // est maintenant reçu en prop, pas déclaré ici — <GeneratorProvider> en a
+  // besoin avant même que ce composant ne soit monté.
   const { toast, showToast } = useToast();
 
   // favorites.tracks contient des objets complets (bpm, extrait audio...), pas de
@@ -281,6 +301,10 @@ export default function App() {
   // plan : modèle de données + interface Réglages d'abord) ; `athleticProfile`
   // est déjà exposé aux autres vues dès maintenant pour que le branchement
   // des étapes suivantes n'ait qu'à consommer ce state, pas à le redéfinir.
+  // MIGRÉ : `useAthleticProfile()` n'est plus appelé ici mais dans le
+  // composant racine `App` (instance UNIQUE, partagée avec GeneratorContext
+  // ET avec StatsView/PlaylistDetailView/Sidebar plus bas) — reçue en prop et
+  // simplement déstructurée à l'identique, aucun autre changement.
   const {
     athleticProfile, setAthleticProfile,
     computeZonesFromBaseBpm, getDefaultBaseBpm, buildDefaultPreviewProfile, getZoneSpacingForActivity,
@@ -289,7 +313,7 @@ export default function App() {
     getProfileForWorkoutOrDefault,
     setCadenceIntentForActivity, setCadenceIntentForCustom, isCadenceIntentEligible,
     resetAthleticProfile,
-  } = useAthleticProfile();
+  } = athleticProfileApi;
 
   const {
     routines, setRoutines,
@@ -306,16 +330,21 @@ export default function App() {
 
   const { userStats, setUserStats, checkTrophies } = useUserStats(showToast);
 
-  const [workoutType, setWorkoutType] = useState('Course à pied');
+  // MIGRÉ VERS GeneratorContext (chantier God Component, étape 2) : tout ce
+  // qui suit vivait ici via `useState('Course à pied')` + `useCustomActivity`
+  // + `useGeneratorForm` directement. Ces 3 hooks sont maintenant appelés une
+  // seule fois à l'intérieur de <GeneratorProvider> (voir
+  // contexts/GeneratorContext.jsx) — AppContent les lit ici via
+  // useGeneratorContext() pour ses propres besoins (handleSaveRoutine, le
+  // toggle Mode Standard/Intime plus bas...), exactement comme GeneratorView
+  // le fait de son côté. Mêmes noms de variables qu'avant : rien d'autre
+  // dans ce fichier n'a besoin de changer.
   const {
+    workoutType, setWorkoutType,
     customActivity, setCustomActivity,
     tempCustomActivity, setTempCustomActivity,
     isCustomActivityModalOpen, setIsCustomActivityModalOpen,
     handleOpenCustomActivityModal,
-  } = useCustomActivity(setWorkoutType);
-
-  // --- Formulaire du wizard de génération (4 étapes) ---
-  const {
     wizardStep, setWizardStep,
     selectedGenres, setSelectedGenres,
     genreWeights, setGenreWeights,
@@ -343,7 +372,8 @@ export default function App() {
     availableGenres, displaySubtitleGen,
     equalSplitWeights, setGenreWeight, toggleGenre,
     toggleSegmentGenre, resetSegmentGenre, checkGenreWeightDeviation,
-  } = useGeneratorForm(isNaughtyMode, athleticProfile);
+    getActiveWorkoutName,
+  } = useGeneratorContext();
 
   const [currentPlaylist, setCurrentPlaylist] = useState(null);
   // Playlist d'exemple pré-remplie, même principe que la routine et les favoris de
@@ -875,7 +905,9 @@ export default function App() {
     setPendingNavigation(null);
   };
 
-  const getActiveWorkoutName = () => (workoutType === 'Autre' && customActivity.trim() !== '') ? customActivity : workoutType;
+  // MIGRÉ VERS GeneratorContext (déjà déstructurée plus haut depuis
+  // useGeneratorContext()) — sa définition ne changeait pas, juste son
+  // emplacement.
 
   /**
    * Ligne d'infos partagée par les cartes de Routine et de Playlist (vue "Mes
@@ -2465,48 +2497,21 @@ export default function App() {
 
             {/* ===================== VIEW: GENERATOR (ASSISTANT MULTI-ETAPES) ===================== */}
             {view === 'generator' && (
+              // Chantier God Component étape 2 : cet appel ne porte plus QUE
+              // les props qui ne viennent PAS de GeneratorContext (theme,
+              // orchestration App.jsx — recherche/génération/sauvegarde —,
+              // showToast). GeneratorView lit désormais tout le reste
+              // (workoutType, bpm, segments, genres, profil athlétique...)
+              // directement via useGeneratorContext(). Passé de 93 à 15 props.
               <GeneratorView
-                theme={themeTokens} isNaughtyMode={isNaughtyMode} displaySubtitleGen={displaySubtitleGen} showToast={showToast}
-                wizardStep={wizardStep} setWizardStep={setWizardStep}
-                workoutType={workoutType} setWorkoutType={setWorkoutType} customActivity={customActivity}
-                handleOpenCustomActivityModal={handleOpenCustomActivityModal} toggleNaughtyMode={toggleNaughtyMode}
-                setBpm={setBpm} setBpmManual={setBpmManual} setTargetMode={setTargetMode} setDistanceVal={setDistanceVal} setDistanceUnit={setDistanceUnit}
-                setHours={setHours} setMinutes={setMinutes}
-                targetMode={targetMode} isIntervalMode={isIntervalMode} isCrescendoMode={isCrescendoMode}
-                structureMode={structureMode} setStructureMode={setStructureMode}
-                crescendoWarmupPct={crescendoWarmupPct} setCrescendoWarmupPct={setCrescendoWarmupPct}
-                crescendoCooldownPct={crescendoCooldownPct} setCrescendoCooldownPct={setCrescendoCooldownPct}
-                CRESCENDO_MIN_MAIN_PCT={CRESCENDO_MIN_MAIN_PCT}
-                crescendoWarmupBpm={crescendoWarmupBpm} setCrescendoWarmupBpm={setCrescendoWarmupBpm}
-                crescendoCooldownBpm={crescendoCooldownBpm} setCrescendoCooldownBpm={setCrescendoCooldownBpm}
-                bpmSourceIsProfile={bpmSourceIsProfile}
-                hours={hours} minutes={minutes} distanceVal={distanceVal} distanceUnit={distanceUnit}
-                paceMin={paceMin} setPaceMin={setPaceMin} paceSec={paceSec} setPaceSec={setPaceSec}
-                bpm={bpm}
-                segments={segments} setSegments={setSegments}
-                expandedSegmentGenreId={expandedSegmentGenreId} setExpandedSegmentGenreId={setExpandedSegmentGenreId}
-                resetSegmentGenre={resetSegmentGenre} toggleSegmentGenre={toggleSegmentGenre}
-                showExtraGenres={showExtraGenres} setShowExtraGenres={setShowExtraGenres}
-                availableGenres={availableGenres} selectedGenres={selectedGenres} toggleGenre={toggleGenre}
-                genreWeights={genreWeights} setGenreWeights={setGenreWeights} setGenreWeight={setGenreWeight}
-                equalSplitWeights={equalSplitWeights} setLockedGenreWeights={setLockedGenreWeights}
-                bpmTolerance={bpmTolerance} setBpmTolerance={setBpmTolerance}
-                crossfade={crossfade} setCrossfade={setCrossfade}
-                allowLongTracks={allowLongTracks} setAllowLongTracks={setAllowLongTracks}
+                theme={themeTokens} showToast={showToast}
+                toggleNaughtyMode={toggleNaughtyMode}
                 setCurrentPlaylist={setCurrentPlaylist} setIsBpmSearchMode={setIsBpmSearchMode}
                 setSearchQuery={setSearchQuery} setWorldSearchResults={setWorldSearchResults}
                 setResultsContextLabel={setResultsContextLabel} setNoUsableResultsHint={setNoUsableResultsHint}
                 setIsSearchModalOpen={setIsSearchModalOpen} searchTracksByBpm={searchTracksByBpm}
                 executeGeneration={executeGeneration} isGenerating={isGenerating}
-                getActiveWorkoutName={getActiveWorkoutName} setIsSavingRoutineModalOpen={setIsSavingRoutineModalOpen}
-                athleticProfile={athleticProfile} setBaseBpmForActivity={setBaseBpmForActivity} setZoneForActivity={setZoneForActivity}
-                resetActivityProfile={resetActivityProfile} addCustomActivity={addCustomActivity} removeCustomActivity={removeCustomActivity}
-                setBaseBpmForCustom={setBaseBpmForCustom} setZoneForCustom={setZoneForCustom} getProfileForWorkout={getProfileForWorkout}
-                getDefaultBaseBpm={getDefaultBaseBpm} buildDefaultPreviewProfile={buildDefaultPreviewProfile}
-                getZoneSpacingForActivity={getZoneSpacingForActivity}
-                setCadenceIntentForActivity={setCadenceIntentForActivity} setCadenceIntentForCustom={setCadenceIntentForCustom}
-                isCadenceIntentEligible={isCadenceIntentEligible}
-                showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
+                setIsSavingRoutineModalOpen={setIsSavingRoutineModalOpen}
               />
             )}
 
@@ -2760,5 +2765,49 @@ export default function App() {
 
       </div>
     </div>
+  );
+}
+
+/**
+ * App — composant racine (chantier God Component, étape 2/2). Ne fait QUE
+ * posséder ce qui doit exister AVANT <GeneratorProvider> (le Provider en a
+ * besoin dans sa propre valeur, donc ça ne peut plus vivre dans AppContent,
+ * qu'il enveloppe) et assembler les Providers. Aucune autre logique ici.
+ *
+ * NOTE : `<AuthProvider>` n'est PAS répété ici — il enveloppe déjà `<App/>`
+ * dans main.jsx. Le dupliquer créerait 2 instances indépendantes du contexte
+ * d'auth (2e connexion Supabase, 2e écoute d'état) pour rien : la 2e
+ * envelopperait la 1ère sans jamais être lue par personne, puisque
+ * `useAuthContext()` (AppContent) remonte au Provider le plus proche, qui
+ * resterait celui de main.jsx de toute façon vu qu'aucun composant ici ne
+ * s'intercale entre les deux. Un seul <AuthProvider>, tout en haut, suffit.
+ *
+ * `isNaughtyMode`, `showAthleticProfile` et l'instance UNIQUE de
+ * useAthleticProfile() vivent ici et sont transmis 2 fois : une fois au
+ * Provider (pour que GeneratorView les récupère via useGeneratorContext()),
+ * une fois en props classiques à AppContent (qui en a toujours besoin
+ * directement — StatsView, PlaylistDetailView, Sidebar, et ses propres
+ * fonctions comme handleSaveRoutine/toggleNaughtyMode ne passent pas par ce
+ * contexte). Résultat : une seule source de vérité pour chacun des 3, jamais
+ * dupliquée, distribuée par 2 canaux différents selon qui la consomme.
+ */
+export default function App() {
+  const [isNaughtyMode, setIsNaughtyMode] = useState(false);
+  const [showAthleticProfile, setShowAthleticProfile] = useState(false);
+  const athleticProfileApi = useAthleticProfile();
+
+  return (
+    <GeneratorProvider
+      isNaughtyMode={isNaughtyMode}
+      athleticProfileApi={athleticProfileApi}
+      showAthleticProfile={showAthleticProfile}
+      setShowAthleticProfile={setShowAthleticProfile}
+    >
+      <AppContent
+        isNaughtyMode={isNaughtyMode} setIsNaughtyMode={setIsNaughtyMode}
+        showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
+        athleticProfileApi={athleticProfileApi}
+      />
+    </GeneratorProvider>
   );
 }
