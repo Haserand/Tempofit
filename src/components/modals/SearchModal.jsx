@@ -37,13 +37,13 @@ export default function SearchModal({
   // principale (worldSearchResults) et la réserve "autres résultats" révélée en
   // bas une fois la recherche épuisée (voir worldSearchOtherResults).
   const renderSearchResultRow = (track, key) => {
-    const isEditingThisBpm = editingBpmId === track.youtubeId;
-    const isAlreadyFavorited = !currentPlaylist && favorites.tracks.some(t => t.youtubeId === track.youtubeId);
+    const isEditingThisBpm = editingBpmId === track.trackId;
+    const isAlreadyFavorited = !currentPlaylist && favorites.tracks.some(t => t.trackId === track.trackId);
     const addOrToggleFavorite = () => {
       // Si on est dans la vue Playlist, on l'ajoute. Sinon, ça bascule dans les Favoris !
       if (currentPlaylist) handleAddManualTrack(track);
       else if (isAlreadyFavorited) {
-         setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.youtubeId !== track.youtubeId) }));
+         setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.trackId !== track.trackId) }));
          showToast("Retiré de tes favoris.");
       } else {
          setFavorites(prev => ({
@@ -63,7 +63,7 @@ export default function SearchModal({
         title={track.preview ? "Écouter un extrait" : "Extrait non disponible pour ce titre (source sans aperçu audio)"}
         className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
       >
-        {playingPreviewId === track.youtubeId ? <Pause size={16} fill="currentColor"/> : <Play size={16} fill="currentColor" className="ml-0.5"/>}
+        {playingPreviewId === track.trackId ? <Pause size={16} fill="currentColor"/> : <Play size={16} fill="currentColor" className="ml-0.5"/>}
       </button>
 
       <button onClick={addOrToggleFavorite} className="flex-1 min-w-0 text-left">
@@ -117,7 +117,7 @@ export default function SearchModal({
           // visuel permanent, ce bouton ne se distinguait pas de texte normal
           // sur mobile. Le `title` reste en plus, pour la souris/clavier.
           <button
-            onClick={() => setEditingBpmId(track.youtubeId)}
+            onClick={() => setEditingBpmId(track.trackId)}
             title={
               track._bpmSource === 'detected'
                 ? "BPM deviné, pas garanti — touche pour corriger."
@@ -219,7 +219,7 @@ export default function SearchModal({
                 // hors contexte playlist : dans une playlist, un titre déjà
                 // en favoris reste pertinent à ajouter, la notion de
                 // "favori" n'a rien à voir avec ce qu'on cherche à faire ici.
-                const isAlreadyFav = (t) => !currentPlaylist && favorites.tracks.some(f => f.youtubeId === t.youtubeId);
+                const isAlreadyFav = (t) => !currentPlaylist && favorites.tracks.some(f => f.trackId === t.trackId);
                 const visibleMainResults = worldSearchResults.filter(t => !isAlreadyFav(t));
                 return (
                   <>
@@ -247,7 +247,7 @@ export default function SearchModal({
               {!searchHasMoreResults && !isBpmSearchMode && worldSearchOtherResults.length > 0 && (
                 <>
                   <div className={`text-xs font-bold uppercase tracking-wider mt-4 mb-2 px-1 ${textMuted}`}>Autres résultats pour "{searchQuery}" (pas {searchActiveArtistName})</div>
-                  {worldSearchOtherResults.filter(t => !(!currentPlaylist && favorites.tracks.some(f => f.youtubeId === t.youtubeId))).map((track, i) => renderSearchResultRow(track, `other-${i}`))}
+                  {worldSearchOtherResults.filter(t => !(!currentPlaylist && favorites.tracks.some(f => f.trackId === t.trackId))).map((track, i) => renderSearchResultRow(track, `other-${i}`))}
                 </>
               )}
             </>
