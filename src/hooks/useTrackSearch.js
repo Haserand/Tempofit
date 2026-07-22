@@ -56,7 +56,7 @@ export function useTrackSearch() {
   // Non-null seulement si la recherche initiale a identifié avec confiance un
   // artiste correspondant au texte tapé.
   const [searchActiveArtistName, setSearchActiveArtistName] = useState(null);
-  // youtubeId du titre actuellement en cours de correction manuelle de BPM
+  // trackId du titre actuellement en cours de correction manuelle de BPM
   // dans la modale de recherche — null si aucune édition en cours.
   const [editingBpmId, setEditingBpmId] = useState(null);
   const [searchLoadingMessage, setSearchLoadingMessage] = useState(SEARCH_LOADING_MESSAGES[0]);
