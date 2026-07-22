@@ -190,5 +190,15 @@ export function useAudioPreview(showToast) {
     pauseCurrentPreview, resumeCurrentPreview, stopCurrentPreview,
     resolveAndPlay, resolvingTrackId,
     skipToNext, skipToPrevious,
+    // Exposée pour AudioProgressBar (MiniPlayerBar.jsx) : lui permet de lire
+    // `.currentTime`/`.duration` et de s'abonner à `timeupdate` DIRECTEMENT
+    // sur l'élément <audio>, sans passer par un state React ici — sinon
+    // chaque tick (plusieurs fois par seconde) re-renderait TOUT ce qui
+    // consomme useAudioPlayer() (MiniPlayerBar entière, mais aussi toutes les
+    // vues qui lisent playingPreviewId/togglePreview pour leurs propres
+    // listes). Le ref lui-même ne change jamais de valeur (même objet
+    // Audio() tant que l'app vit) : le passer en contexte ne déclenche donc
+    // aucun re-render supplémentaire.
+    previewAudioRef,
   };
 }
