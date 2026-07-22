@@ -11,6 +11,7 @@ import {
   WORKOUT_TYPES, NAUGHTY_WORKOUT_ORDER, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_LABELS,
   WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, ATHLETIC_ZONES, getZoneForValue,
 } from '../../appConfig';
+import { useGeneratorContext } from '../../contexts/GeneratorContext';
 
 /**
  * GeneratorView — vue "Sculpte ta séance" (wizard de génération en 4 étapes).
@@ -23,30 +24,40 @@ import {
  * le moteur de génération dans musicEngine.js).
  */
 export default function GeneratorView({
-  theme, isNaughtyMode, displaySubtitleGen,
-  wizardStep, setWizardStep,
-  workoutType, setWorkoutType, customActivity, handleOpenCustomActivityModal, toggleNaughtyMode,
-  setBpm, setBpmManual, setTargetMode, setDistanceVal, setDistanceUnit, setHours, setMinutes,
-  targetMode, isIntervalMode, isCrescendoMode, structureMode, setStructureMode,
-  crescendoWarmupPct, setCrescendoWarmupPct, crescendoCooldownPct, setCrescendoCooldownPct, CRESCENDO_MIN_MAIN_PCT,
-  crescendoWarmupBpm, setCrescendoWarmupBpm, crescendoCooldownBpm, setCrescendoCooldownBpm,
-  bpmSourceIsProfile,
-  hours, minutes, distanceVal, distanceUnit, paceMin, setPaceMin, paceSec, setPaceSec,
-  bpm,
-  segments, setSegments, expandedSegmentGenreId, setExpandedSegmentGenreId,
-  resetSegmentGenre, toggleSegmentGenre, showExtraGenres, setShowExtraGenres,
-  availableGenres, selectedGenres, toggleGenre,
-  genreWeights, setGenreWeights, setGenreWeight, equalSplitWeights, setLockedGenreWeights,
-  bpmTolerance, setBpmTolerance, crossfade, setCrossfade, allowLongTracks, setAllowLongTracks,
+  // Props restantes : tout ce qui N'EST PAS dans GeneratorContext (theme +
+  // orchestration App.jsx — recherche/génération/sauvegarde — + showToast,
+  // global à toute l'app). Chantier God Component étape 2 : le reste
+  // (workoutType, bpm, segments, genres, profil athlétique...) vient
+  // maintenant de useGeneratorContext() ci-dessous, plus de App.jsx.
+  theme,
   setCurrentPlaylist, setIsBpmSearchMode, setSearchQuery, setWorldSearchResults,
   setResultsContextLabel, setNoUsableResultsHint, setIsSearchModalOpen, searchTracksByBpm,
-  executeGeneration, isGenerating, getActiveWorkoutName, setIsSavingRoutineModalOpen,
-  athleticProfile, setBaseBpmForActivity, setZoneForActivity, resetActivityProfile,
-  addCustomActivity, removeCustomActivity, setBaseBpmForCustom, setZoneForCustom, getProfileForWorkout,
-  getDefaultBaseBpm, buildDefaultPreviewProfile, getZoneSpacingForActivity,
-  setCadenceIntentForActivity, setCadenceIntentForCustom, isCadenceIntentEligible,
-  showAthleticProfile, setShowAthleticProfile, showToast,
+  executeGeneration, isGenerating, setIsSavingRoutineModalOpen,
+  toggleNaughtyMode, showToast,
 }) {
+  const {
+    isNaughtyMode, displaySubtitleGen,
+    wizardStep, setWizardStep,
+    workoutType, setWorkoutType, customActivity, handleOpenCustomActivityModal,
+    setBpm, setBpmManual, setTargetMode, setDistanceVal, setDistanceUnit, setHours, setMinutes,
+    targetMode, isIntervalMode, isCrescendoMode, structureMode, setStructureMode,
+    crescendoWarmupPct, setCrescendoWarmupPct, crescendoCooldownPct, setCrescendoCooldownPct, CRESCENDO_MIN_MAIN_PCT,
+    crescendoWarmupBpm, setCrescendoWarmupBpm, crescendoCooldownBpm, setCrescendoCooldownBpm,
+    bpmSourceIsProfile,
+    hours, minutes, distanceVal, distanceUnit, paceMin, setPaceMin, paceSec, setPaceSec,
+    bpm,
+    segments, setSegments, expandedSegmentGenreId, setExpandedSegmentGenreId,
+    resetSegmentGenre, toggleSegmentGenre, showExtraGenres, setShowExtraGenres,
+    availableGenres, selectedGenres, toggleGenre,
+    genreWeights, setGenreWeights, setGenreWeight, equalSplitWeights, setLockedGenreWeights,
+    bpmTolerance, setBpmTolerance, crossfade, setCrossfade, allowLongTracks, setAllowLongTracks,
+    getActiveWorkoutName,
+    athleticProfile, setBaseBpmForActivity, setZoneForActivity, resetActivityProfile,
+    addCustomActivity, removeCustomActivity, setBaseBpmForCustom, setZoneForCustom, getProfileForWorkout,
+    getDefaultBaseBpm, buildDefaultPreviewProfile, getZoneSpacingForActivity,
+    setCadenceIntentForActivity, setCadenceIntentForCustom, isCadenceIntentEligible,
+    showAthleticProfile, setShowAthleticProfile,
+  } = useGeneratorContext();
   const {
     cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass,
     borderAccentClass, bgMainApp, inputBg, inputBorder,
