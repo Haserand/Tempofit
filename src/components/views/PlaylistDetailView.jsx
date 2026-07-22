@@ -13,6 +13,7 @@ import { getCadenceUnitLabel, DISTRIBUTION_COLORS, getZoneForValue } from '../..
 import { formatDuration } from '../../utils/format';
 import { deezerFetch } from '../../musicEngine';
 import SessionSummaryCard from '../shared/SessionSummaryCard';
+import { PlaylistDetailProvider, usePlaylistDetail } from '../../contexts/PlaylistDetailContext';
 
 // Couleur du donut "Répartition par style" (genre musical, pas de zone
 // d'intensité concernée) : `DISTRIBUTION_COLORS` (appConfig.js, partagée
@@ -97,32 +98,42 @@ const RealDataDot = (props) => {
  * calculés dans App.jsx via useMemo et arrivent ici déjà prêts, en props —
  * ce composant reste un composant d'affichage, pas de calcul.
  */
-export default function PlaylistDetailView({
-  theme, colorMode, isNaughtyMode,
-  currentPlaylist, setCurrentPlaylist, savedPlaylists, getProfileForWorkout, getProfileForWorkoutOrDefault,
-  isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
-  handleSavePlaylist, handleUnsavePlaylist, handleShare,
-  showToast,
+function PlaylistDetailViewInner({
+  // Chantier God Component (suite) : ne reçoit plus QUE ce qui est
+  // génuinement hors du périmètre de PlaylistDetailContext — soit partagé
+  // avec d'autres vues (PlaylistsView, ShareModal), soit infra globale
+  // (recherche, toast). Tout le reste (édition du nom, drag-and-drop,
+  // graphique, distributions, remplacement/duplication de titres...) vient
+  // de usePlaylistDetail() ci-dessous. Passé de 78 à 26 props.
+  theme, colorMode,
+  currentPlaylist, setCurrentPlaylist, savedPlaylists,
+  handleShare, showToast,
   summaryImageStatus, setSummaryImageStatus, summaryImageFile, setSummaryImageFile,
   summaryImagePreviewUrl, setSummaryImagePreviewUrl, includeSummaryImage, setIncludeSummaryImage,
-  currentActualData, selectedMetric, setSelectedMetric, analysisStats,
-  selectedAnalysisDate, setSelectedAnalysisDate, formatCompletionDate, availableMetrics,
-  dataOffset, setDataOffset,
-  chartAxisType, setChartAxisType, chartDistanceUnit, setChartDistanceUnitOverride,
-  selectedSegmentIdx, setSelectedSegmentIdx, trackSegments, togglePreview, playingPreviewId,
-  resolveAndPlay, resolvingTrackId,
-  unifiedChartData, handleChartClick, chartXDomain, chartXTicks, chartYDomain, distanceDisplayFactor,
-  handleChartMouseDown, handleChartMouseMove, handleChartMouseUp, isDraggingChartSegment,
-  draggedTrackIndex, handleTrackDragStart, handleTrackDragEnter, handleTrackDragEnd,
+  formatCompletionDate,
   favorites, toggleTrackFavorite, toggleArtistFavorite,
-  openTrackMenuIndex, setOpenTrackMenuIndex,
-  handleDuplicateTrack, handleReplaceTrackSameArtist, handleReplaceTrack, handleRemoveTrack,
   setIsBpmSearchMode, setIsSearchModalOpen,
-  bpmDistributionData, genreDistributionData,
   setPlaylistPlannedDate,
   renderCompletionsList, renderTopCompletionDate,
   getRankStyle, triggerCSVUpload,
 }) {
+  const {
+    isNaughtyMode, getProfileForWorkout, getProfileForWorkoutOrDefault,
+    isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
+    handleSavePlaylist, handleUnsavePlaylist,
+    currentActualData, selectedMetric, setSelectedMetric, analysisStats,
+    selectedAnalysisDate, setSelectedAnalysisDate, availableMetrics,
+    dataOffset, setDataOffset,
+    chartAxisType, setChartAxisType, chartDistanceUnit, setChartDistanceUnitOverride,
+    selectedSegmentIdx, setSelectedSegmentIdx, trackSegments, togglePreview, playingPreviewId,
+    resolveAndPlay, resolvingTrackId,
+    unifiedChartData, handleChartClick, chartXDomain, chartXTicks, chartYDomain, distanceDisplayFactor,
+    handleChartMouseDown, handleChartMouseMove, handleChartMouseUp, isDraggingChartSegment,
+    draggedTrackIndex, handleTrackDragStart, handleTrackDragEnter, handleTrackDragEnd,
+    openTrackMenuIndex, setOpenTrackMenuIndex,
+    handleDuplicateTrack, handleReplaceTrackSameArtist, handleReplaceTrack, handleRemoveTrack,
+    bpmDistributionData, genreDistributionData,
+  } = usePlaylistDetail();
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass, borderAccentClass, inputBg, inputBorder } = theme;
   // Replié par défaut : ce tableau ne sert qu'à vérifier ponctuellement une
   // correspondance de données (import CSV Garmin/Strava), pas à un usage courant.
@@ -1652,5 +1663,68 @@ export default function PlaylistDetailView({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * PlaylistDetailView — Wrapper, chantier God Component étape 2/2. Seul
+ * export par défaut de ce fichier (le tag JSX `<PlaylistDetailView/>` dans
+ * App.jsx n'a donc rien à changer) : pose `<PlaylistDetailProvider>` — qui
+ * n'enveloppe QUE le contenu de cette page, pas toute l'app, contrairement à
+ * GeneratorProvider/AudioPlayerProvider (voir contexts/PlaylistDetailContext.jsx,
+ * cette vue existe pour une "route" précise, pas de raison de la monter
+ * globalement) — puis rend le vrai composant d'affichage
+ * (`PlaylistDetailViewInner`, ci-dessus) à l'intérieur.
+ *
+ * Reçoit encore 39 props d'AppContent : 18 pour le Provider (dont 13 dont
+ * PlaylistDetailViewInner lui-même n'a plus besoin directement — ex.
+ * `setSavedPlaylists`/`spotifyTrackPool`/`userStats`/`checkTrophies`, utiles
+ * uniquement aux handlers internes au contexte), 26 pour la vue elle-même
+ * (5 en commun avec le Provider). Ce nombre ne baissera que si ces
+ * dépendances cessent elles-mêmes d'être partagées avec PlaylistsView/
+ * ShareModal ailleurs dans l'app — hors périmètre de ce chantier.
+ */
+export default function PlaylistDetailView({
+  currentPlaylist, setCurrentPlaylist, savedPlaylists, setSavedPlaylists,
+  favorites, spotifyTrackPool, userStats, checkTrophies,
+  showToast, requestRemoveSavedPlaylist, handleSavePlaylist,
+  currentActualData, selectedMetric, setSelectedMetric,
+  dataOffset, setDataOffset,
+  selectedAnalysisDate, setSelectedAnalysisDate, availableMetrics,
+  theme, colorMode, handleShare,
+  summaryImageStatus, setSummaryImageStatus, summaryImageFile, setSummaryImageFile,
+  summaryImagePreviewUrl, setSummaryImagePreviewUrl, includeSummaryImage, setIncludeSummaryImage,
+  formatCompletionDate, toggleTrackFavorite, toggleArtistFavorite,
+  setIsBpmSearchMode, setIsSearchModalOpen, setPlaylistPlannedDate,
+  renderCompletionsList, renderTopCompletionDate, getRankStyle, triggerCSVUpload,
+}) {
+  return (
+    <PlaylistDetailProvider
+      currentPlaylist={currentPlaylist} setCurrentPlaylist={setCurrentPlaylist}
+      savedPlaylists={savedPlaylists} setSavedPlaylists={setSavedPlaylists}
+      favorites={favorites} spotifyTrackPool={spotifyTrackPool}
+      userStats={userStats} checkTrophies={checkTrophies}
+      showToast={showToast} requestRemoveSavedPlaylist={requestRemoveSavedPlaylist} handleSavePlaylist={handleSavePlaylist}
+      currentActualData={currentActualData} selectedMetric={selectedMetric} setSelectedMetric={setSelectedMetric}
+      dataOffset={dataOffset} setDataOffset={setDataOffset}
+      selectedAnalysisDate={selectedAnalysisDate} setSelectedAnalysisDate={setSelectedAnalysisDate}
+      availableMetrics={availableMetrics}
+    >
+      <PlaylistDetailViewInner
+        theme={theme} colorMode={colorMode}
+        currentPlaylist={currentPlaylist} setCurrentPlaylist={setCurrentPlaylist} savedPlaylists={savedPlaylists}
+        handleShare={handleShare} showToast={showToast}
+        summaryImageStatus={summaryImageStatus} setSummaryImageStatus={setSummaryImageStatus}
+        summaryImageFile={summaryImageFile} setSummaryImageFile={setSummaryImageFile}
+        summaryImagePreviewUrl={summaryImagePreviewUrl} setSummaryImagePreviewUrl={setSummaryImagePreviewUrl}
+        includeSummaryImage={includeSummaryImage} setIncludeSummaryImage={setIncludeSummaryImage}
+        formatCompletionDate={formatCompletionDate}
+        favorites={favorites} toggleTrackFavorite={toggleTrackFavorite} toggleArtistFavorite={toggleArtistFavorite}
+        setIsBpmSearchMode={setIsBpmSearchMode} setIsSearchModalOpen={setIsSearchModalOpen}
+        setPlaylistPlannedDate={setPlaylistPlannedDate}
+        renderCompletionsList={renderCompletionsList} renderTopCompletionDate={renderTopCompletionDate}
+        getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload}
+      />
+    </PlaylistDetailProvider>
   );
 }
