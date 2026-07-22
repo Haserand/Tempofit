@@ -595,17 +595,15 @@ function AppContent({
   // MIGRÉ VERS AudioPlayerContext : useAudioPreview(showToast) n'est plus
   // appelé ici mais à l'intérieur de <AudioPlayerProvider> (instance
   // UNIQUE). AppContent le lit ici via useAudioPlayer() pour continuer à
-  // transmettre ces valeurs aux vues qui en ont besoin (FavoritesView,
-  // StatsView, SearchModal, MiniPlayerBar...) — mêmes noms qu'avant, y
-  // compris l'aliasing currentTrack/isPlaying (nécessaire : ce composant a
-  // par ailleurs son propre concept de "playlist en cours de lecture",
-  // sans rapport avec l'extrait audio en cours).
+  // transmettre `playingPreviewId`/`togglePreview`/`resolveAndPlay`/
+  // `resolvingTrackId` aux vues qui en ont besoin pour LEURS listes de
+  // titres (FavoritesView, StatsView, SearchModal — chacune n'utilise
+  // l'aperçu audio que pour une fonctionnalité parmi d'autres, contrairement
+  // à MiniPlayerBar qui lui est 100% dédié à l'audio et lit désormais
+  // useAudioPlayer() directement, voir MiniPlayerBar.jsx).
   const {
     playingPreviewId, togglePreview,
-    currentTrack: currentPreviewTrack, isPlaying: isPreviewPlaying,
-    pauseCurrentPreview, resumeCurrentPreview, stopCurrentPreview,
     resolveAndPlay, resolvingTrackId,
-    skipToNext, skipToPrevious,
   } = useAudioPlayer();
 
   // --- MOTEUR DE RECHERCHE DEEZER (recherche manuelle titre/artiste avec BPM) ---
@@ -2781,14 +2779,12 @@ function AppContent({
           preview={importedPlaylistPreview} onImport={importSharedPlaylist}
         />
 
-        <MiniPlayerBar
-          theme={themeTokens}
-          track={currentPreviewTrack} isPlaying={isPreviewPlaying}
-          onTogglePlayPause={() => isPreviewPlaying ? pauseCurrentPreview() : resumeCurrentPreview()}
-          onClose={stopCurrentPreview}
-          onNext={() => skipToNext(currentPlaylist?.tracks)}
-          onPrevious={() => skipToPrevious(currentPlaylist?.tracks)}
-        />
+        {/* Chantier God Component (suite) : ne reçoit plus que theme et
+            currentPlaylist (seule dépendance hors du périmètre
+            d'AudioPlayerContext) — lit tout le reste (currentTrack,
+            isPlaying, pause/reprise/fermeture, skip précédent/suivant)
+            directement via useAudioPlayer(). */}
+        <MiniPlayerBar theme={themeTokens} currentPlaylist={currentPlaylist} />
 
       </div>
     </div>
