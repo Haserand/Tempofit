@@ -89,7 +89,7 @@ export default function StatsView({
   const bpmTargetCounts = {}; // BPM cible exact -> nb de séances à ce BPM (voir plus bas, "Allure favorite")
   const sessionsByMonth = {};
   // Comptage par artiste et par titre — clé sur "titre|||artiste" plutôt que sur
-  // youtubeId : un même morceau peut être résolu vers un ID Deezer différent d'une
+  // trackId : un même morceau peut être résolu vers un ID Deezer différent d'une
   // génération à l'autre. Compte à chaque COMPLÉTION (pas juste à chaque apparition
   // dans une playlist sauvegardée) : rejouer 3x la même playlist compte ses titres 3x.
   const artistCounts = {};
