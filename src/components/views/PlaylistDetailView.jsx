@@ -1,90 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
-import {
-  Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Pause, Play,
-  Star, MoreVertical, Plus, User, RefreshCw, X, Calendar, ChevronDown, ChevronUp,
-  ChevronLeft, ChevronRight, Lock, Upload, Trash2, Loader2, Music2,
-} from 'lucide-react';
-import {
-  ResponsiveContainer, LineChart, CartesianGrid, ReferenceArea, ReferenceLine, XAxis, YAxis,
-  Tooltip as RechartsTooltip, Legend, Line, PieChart, Pie, Cell,
-} from 'recharts';
-import { getGenresForDisplay, genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog';
-import { getCadenceUnitLabel, DISTRIBUTION_COLORS, getZoneForValue } from '../../appConfig';
+import { Activity, ChevronDown, ChevronUp } from 'lucide-react';
+import { genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog';
+import { getCadenceUnitLabel, getZoneForValue } from '../../appConfig';
 import { formatDuration } from '../../utils/format';
 import { deezerFetch } from '../../musicEngine';
 import SessionSummaryCard from '../shared/SessionSummaryCard';
 import { PlaylistDetailProvider, usePlaylistDetail } from '../../contexts/PlaylistDetailContext';
 import TrackList from './PlaylistDetail/TrackList';
-
-// Couleur du donut "Répartition par style" (genre musical, pas de zone
-// d'intensité concernée) : `DISTRIBUTION_COLORS` (appConfig.js, partagée
-// avec App.jsx), assignée par INDEX comme avant.
-//
-// Le donut "Répartition par BPM" ne l'utilise plus directement — RETOUR
-// DIRECT (capture d'écran, couleurs/valeurs incohérentes avec le Profil
-// Athlétique) : chaque entrée de `bpmDistributionData` (App.jsx) porte
-// maintenant son propre `color`, déjà résolu depuis `ATHLETIC_ZONES` quand un
-// profil est configuré pour cette activité (mêmes couleurs que Stats/
-// Générer/le bilan de séance), avec un repli sur cette même palette générique
-// uniquement si aucun profil n'est configuré — voir bpmDistributionData dans
-// App.jsx pour le détail.
-
-// Tooltip personnalisé affiché au survol d'un point du graphique BPM. Affiche
-// le nom du morceau (si dispo), le temps écoulé, et selon les données
-// disponibles le BPM cible (musique) et/ou la cadence réelle en PPM (import Garmin/Strava).
-const CustomChartTooltip = ({ active, payload, isNaughtyMode, currentUnit, metric, cadenceUnit }) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    return (
-      <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl min-w-[200px]">
-        {data.trackName && <p className="font-black text-sm text-main mb-1 truncate">{data.trackName}</p>}
-        {/* "Début" = position de ce titre dans la séance ; "Durée" = longueur du
-            titre lui-même — deux informations distinctes, clairement étiquetées. */}
-        <p className="text-xs text-gray-500 font-medium mb-1 flex items-center space-x-1">
-          <Clock size={12}/> <span>{data.trackName ? 'Début' : 'Temps'} : {formatDuration(data.time)}</span>
-        </p>
-        {data.trackDuration !== undefined && (
-          <p className="text-xs text-gray-500 font-medium mb-3 flex items-center space-x-1">
-            <Clock size={12}/> <span>Durée : {formatDuration(data.trackDuration)}</span>
-          </p>
-        )}
-        <div className="flex flex-col gap-2">
-            {data.bpmTarget !== undefined && (
-               <div className={`px-2 py-1.5 rounded text-xs font-bold font-mono text-white ${isNaughtyMode ? 'bg-rose-500' : 'bg-gray-800 dark:bg-gray-700'}`}>
-                 🎯 Cible: {data.bpmTarget} BPM musical
-               </div>
-            )}
-            {data.realValue !== undefined && (
-               <div className="px-2 py-1.5 rounded text-xs font-bold font-mono bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
-                 {metric === 'heartRate' ? `❤️ Fréquence cardiaque: ${data.realValue} pulsations/min` : `🏃 Cadence réelle: ${data.realValue} ${cadenceUnit}`}
-               </div>
-            )}
-        </div>
-      </div>
-    );
-  }
-  return null;
-};
-
-// Point personnalisé de la courbe "réelle" (Cadence PPM OU Fréquence cardiaque,
-// selon `metric`). La coloration "feu tricolore" n'a de sens QUE pour la
-// cadence, comparable au BPM musical cible ("1 pas = 1 temps"). La fréquence
-// cardiaque n'a pas de cible équivalente dans TempoFit — point neutre unique.
-const RealDataDot = (props) => {
-  const { cx, cy, payload, tolerance, metric } = props;
-  if (payload.realValue === undefined) return null;
-  if (metric !== 'cadence' || payload.targetAtTime === undefined) {
-    return <circle cx={cx} cy={cy} r={4} fill="#ec4899" stroke="white" strokeWidth={1} />;
-  }
-  const target = payload.targetAtTime;
-  const real = payload.realValue;
-  const tol = tolerance || 10;
-  let fill = "#3b82f6";
-  if (real >= target - tol && real <= target + tol) fill = "#22c55e";
-  else if (real < target - tol) fill = "#f59e0b";
-  else fill = "#ef4444";
-  return <circle cx={cx} cy={cy} r={4} fill={fill} stroke="white" strokeWidth={1} />;
-};
+import PlaylistHeader from './PlaylistDetail/PlaylistHeader';
+import PlaylistCharts from './PlaylistDetail/PlaylistCharts';
 
 /**
  * PlaylistDetailView — détail d'UNE playlist générée (nom, graphique BPM
@@ -118,33 +42,21 @@ function PlaylistDetailViewInner({
   renderCompletionsList, renderTopCompletionDate,
   getRankStyle, triggerCSVUpload,
 }) {
+  // Chantier découpage (suite) : ce composant ne fait plus QUE l'orchestration
+  // (état de filtre partagé entre TrackList/PlaylistCharts, génération du
+  // bilan image, table de vérification CSV brute) — tout le reste vient
+  // directement de usePlaylistDetail() dans PlaylistHeader/PlaylistCharts/
+  // TrackList eux-mêmes, plutôt que d'être lu ici puis redescendu en props.
   const {
-    isNaughtyMode, getProfileForWorkout, getProfileForWorkoutOrDefault,
-    isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
-    handleSavePlaylist, handleUnsavePlaylist,
-    currentActualData, selectedMetric, setSelectedMetric, analysisStats,
-    selectedAnalysisDate, setSelectedAnalysisDate, availableMetrics,
-    dataOffset, setDataOffset,
-    chartAxisType, setChartAxisType, chartDistanceUnit, setChartDistanceUnitOverride,
-    selectedSegmentIdx, setSelectedSegmentIdx, trackSegments, togglePreview, playingPreviewId,
-    resolveAndPlay, resolvingTrackId,
-    unifiedChartData, handleChartClick, chartXDomain, chartXTicks, chartYDomain, distanceDisplayFactor,
-    handleChartMouseDown, handleChartMouseMove, handleChartMouseUp, isDraggingChartSegment,
-    openTrackMenuIndex, setOpenTrackMenuIndex,
-    handleDuplicateTrack, handleReplaceTrackSameArtist, handleReplaceTrack, handleRemoveTrack,
-    bpmDistributionData, genreDistributionData,
+    isNaughtyMode, getProfileForWorkout,
+    currentActualData,
+    togglePreview, resolveAndPlay,
+    setSelectedSegmentIdx,
   } = usePlaylistDetail();
-  const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass, borderAccentClass, inputBg, inputBorder } = theme;
+  const { cardBg, cardBorder, textHighlight, textMuted, textColorClass } = theme;
   // Replié par défaut : ce tableau ne sert qu'à vérifier ponctuellement une
   // correspondance de données (import CSV Garmin/Strava), pas à un usage courant.
   const [showRawImportTable, setShowRawImportTable] = useState(false);
-  // Filet de sécurité multi-navigateurs pour le bouton "Planifier" (voir plus
-  // bas) : un <input type="date"> rendu invisible et superposé à un <label>
-  // s'ouvre au clic dans la plupart des navigateurs, mais pas de façon fiable
-  // partout (Safari en particulier peut ignorer ce clic précis, sans aucune
-  // erreur visible) — d'où le retour "le bouton Planifier ne fonctionne pas".
-  const plannedDateInputRef = useRef(null);
-
   // --- Verrouillage d'une séance déjà réalisée (retour direct) ---
   // Une fois qu'AU MOINS une date de complétion existe, cette playlist devient
   // un historique réel, pas un brouillon : on ne doit plus pouvoir en modifier
@@ -155,15 +67,6 @@ function PlaylistDetailViewInner({
   // stats, importer des données réelles (Garmin/Strava) ou ajouter une
   // NOUVELLE date de complétion (rejouer la même séance plus tard).
   const isLocked = !!(currentPlaylist.completions && currentPlaylist.completions.length > 0);
-
-  // --- CTA "Importer mes données" (retour direct : maquette UI/UX complète) ---
-  // Cible la date de complétion la plus RÉCENTE (celle qu'on vient de
-  // marquer/refaire est la plus probable à vouloir enrichir) plutôt que
-  // d'exiger que la personne choisisse elle-même laquelle dans le cas
-  // fréquent d'une seule date. Les dates plus anciennes restent gérables
-  // individuellement via la liste détaillée (renderCompletionsList).
-  const mostRecentCompletionIso = isLocked ? currentPlaylist.completions[currentPlaylist.completions.length - 1] : null;
-  const hasImportedDataForMostRecent = !!(mostRecentCompletionIso && currentPlaylist.actualDataByDate && currentPlaylist.actualDataByDate[mostRecentCompletionIso]);
 
   // RETOUR DIRECT : "parler de PPM pour du cyclisme n'est pas adapté" — même
   // correction que sur la page Profil Athlétique (GeneratorView.jsx), reprise
@@ -197,16 +100,6 @@ function PlaylistDetailViewInner({
   // intérêt en sync — les 4 zones sont volontairement resserrées (voir
   // SYNC_ZONE_SPACING_BY_ACTIVITY, useAthleticProfile.js), donc la quasi-
   // totalité des titres tomberaient dans la même part.
-  const bpmChartProfile = getProfileForWorkoutOrDefault ? getProfileForWorkoutOrDefault(bpmChartActivityName) : null;
-  const isSyncMode = bpmChartProfile?.cadenceIntent === 'sync';
-  const syncTarget = bpmChartProfile?.targetBpm ?? null;
-  const syncTrackGaps = (isSyncMode && syncTarget)
-    ? currentPlaylist.tracks.filter(t => t.bpm).map(t => ({ title: t.title, artist: t.artist, bpm: t.bpm, gap: t.bpm - syncTarget }))
-    : [];
-  const syncAvgGap = syncTrackGaps.length > 0
-    ? Math.round(syncTrackGaps.reduce((s, t) => s + Math.abs(t.gap), 0) / syncTrackGaps.length)
-    : null;
-
   // Médaille "la plus/2e plus/3e plus utilisée" (retour direct : "quand je
   // suis dans la playlist d'une session que je fais le plus... faudrait
   // aussi le symbole") — déjà affichée sur la carte dans "Mes Séances"
@@ -218,12 +111,6 @@ function PlaylistDetailViewInner({
   // un seul helper de STYLE partagé (`getRankStyle`, App.jsx), mais le
   // classement lui-même recalculé localement par chaque vue à partir de ce
   // qu'elle a déjà sous la main (ici `savedPlaylists`, déjà reçu en prop).
-  const playlistRanks = [...savedPlaylists.filter(p => p.completions && p.completions.length > 0)]
-    .sort((a, b) => b.completions.length - a.completions.length)
-    .map(p => p.id);
-  const currentPlaylistRank = playlistRanks.indexOf(currentPlaylist.id);
-  const currentPlaylistRankStyle = getRankStyle ? getRankStyle(currentPlaylistRank) : null;
-
   // --- Enchaînement automatique au titre suivant (retour direct : "que ce
   // soit via le graph ou via la sélection musique playlist, quand je finis
   // un morceau ça doit passer au suivant" — confirmé ensuite : "ça doit
@@ -432,6 +319,15 @@ function PlaylistDetailViewInner({
     }
   };
 
+  // Callback passé à PlaylistHeader (`onShare`) : combine le déclenchement de
+  // la génération d'image en arrière-plan (ce composant possède
+  // `summaryCardRef`, pas déplaçable dans l'en-tête) et l'ouverture du menu
+  // de partage lui-même (`handleShare`, reçu en prop depuis App.jsx).
+  const handleShareClick = () => {
+    startBackgroundImageGeneration();
+    handleShare('playlist', currentPlaylist);
+  };
+
   // Même logique de clic-pour-filtrer que StatsView (voir selectedStatsGenre/
   // selectedStatsBpmBucket) : cliquer une part du donut "Répartition par
   // style"/"Répartition par BPM" met en évidence les titres correspondants
@@ -492,774 +388,40 @@ function PlaylistDetailViewInner({
   // affichent maintenant le même sous-ensemble croisé (Metal ET 140-159 BPM,
   // pas Metal seul d'un côté et 140-159 BPM seul de l'autre), avec un même
   // libellé combiné dans les 2 en-têtes.
-  const activeDetailFilterLabel = [
-    selectedDetailGenre.size > 0 ? [...selectedDetailGenre].join(', ') : null,
-    selectedDetailBpmBucket.size > 0 ? `${[...selectedDetailBpmBucket].join(', ')}${!isBpmChartUsingRealProfile ? ' BPM' : ''}` : null,
-  ].filter(Boolean).join(' · ');
-
-  // BUG CORRIGÉ (retour direct) : le clic direct sur la courbe (surbrillance
-  // ROUGE d'UN segment précis, `selectedSegmentIdx`, pré-existant) et le clic
-  // sur une part de camembert (surbrillance AMBRE de TOUS les segments
-  // correspondants, ajouté ensuite) sont 2 mécanismes indépendants qui
-  // pouvaient rester actifs EN MÊME TEMPS sans lien entre eux — un clic sur la
-  // courbe fait quelques temps plus tôt restait affiché (carte du haut +
-  // surbrillance rouge) pendant qu'un filtre camembert différent était
-  // sélectionné, donnant l'impression trompeuse qu'un titre hors de la
-  // tranche BPM demandée faisait pourtant partie du résultat. Rendus
-  // mutuellement exclusifs : sélectionner l'un efface l'autre, un seul
-  // "pourquoi c'est en surbrillance" possible à la fois.
-  const selectDetailGenre = (name) => {
-    setSelectedDetailGenre(prev => {
-      const next = new Set(prev);
-      next.has(name) ? next.delete(name) : next.add(name);
-      return next;
-    });
-    setSelectedSegmentIdx(null);
-  };
-  const selectDetailBpmBucket = (name) => {
-    setSelectedDetailBpmBucket(prev => {
-      const next = new Set(prev);
-      next.has(name) ? next.delete(name) : next.add(name);
-      return next;
-    });
-    setSelectedSegmentIdx(null);
-  };
-  const handleChartClickAndClearZoomFilter = (state) => {
-    setSelectedDetailGenre(new Set());
-    setSelectedDetailBpmBucket(new Set());
-    handleChartClick(state);
-  };
+  // activeDetailFilterLabel/selectDetailGenre/selectDetailBpmBucket/
+  // handleChartClickAndClearZoomFilter : déplacés dans PlaylistCharts.jsx
+  // (seuls consommateurs restants après le découpage) — setSelectedDetailGenre/
+  // setSelectedDetailBpmBucket restent ICI (source de vérité partagée avec
+  // TrackList), simplement transmis en props aux deux.
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
-      <div className={"relative rounded-3xl p-6 md:p-8 border shadow-xl flex flex-col md:flex-row items-center md:items-end space-y-6 md:space-y-0 md:space-x-8 bg-gradient-to-br " + (isNaughtyMode ? 'from-rose-50 to-rose-100 dark:from-gray-900 dark:to-rose-950/40' : 'from-gray-50 to-gray-200 dark:from-gray-900 dark:to-gray-800') + " " + (currentPlaylistRankStyle ? currentPlaylistRankStyle.border : (isNaughtyMode ? 'border-rose-200 dark:border-rose-900/50' : cardBorder))}>
-        {/* RETOUR DIRECT ("prends du recul — si la séance est faite, elle
-            est de base sauvegardée, l'utilisateur le sait déjà ; juste
-            besoin d'une option pour SUPPRIMER, une corbeille comme celle
-            déjà utilisée sur les cartes de Mes Séances ; et l'icône doit
-            être dans la ligne des infos de date, pas ici dans ce coin") —
-            l'icône check/X ajoutée au tour précédent ici, à côté du badge de
-            rang, est retirée : ce coin redevient réservé au SEUL badge de
-            rang (le check vert présumait qu'il fallait CONFIRMER que la
-            séance est sauvegardée, alors que pour une séance déjà réalisée
-            c'est un fait acquis, pas une info à afficher). Voir plus bas
-            (ligne date/statut) pour la corbeille, désormais au bon endroit
-            et avec la bonne icône. */}
-        {currentPlaylistRankStyle && (
-          <span
-            className="absolute -top-2 -right-2 text-xl z-10"
-            title={`${currentPlaylist.completions.length} fois — la ${currentPlaylistRank === 0 ? 'plus' : currentPlaylistRank === 1 ? '2e plus' : '3e plus'} utilisée`}
-          >
-            {currentPlaylistRankStyle.emoji}
-          </span>
-        )}
-        <div className="relative group/cover">
-          <button
-            onClick={() => currentPlaylist.tracks[0] && resolveAndTogglePreview(currentPlaylist.tracks[0], getNextTrackForAutoAdvance)}
-            title="Écouter cette playlist"
-            className={"relative w-32 h-32 md:w-48 md:h-48 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-inner text-5xl md:text-7xl cursor-pointer " + inputBg}
-          >
-            <div className={"absolute inset-0 opacity-10 dark:opacity-20 " + (isNaughtyMode ? 'bg-rose-500' : 'bg-red-500')}></div>
-            {/* RETOUR DIRECT ("la pochette générée disparaît sur cette
-                fiche") — les playlists ensemencées (voir
-                data/curatedSessions.js, App.jsx `openCuratedPlaylist`) ont
-                un `coverUrl` (image générée DiceBear), en plus de
-                `coverIcon` (l'émoji, gardé en repli). Une playlist générée
-                classiquement ou importée via lien n'a PAS de `coverUrl` —
-                retombe naturellement sur l'émoji comme avant, aucun
-                changement pour elles.
-                RETOUR DIRECT ("il manque la note de musique avec l'ombre")
-                — même repère "pochette d'album" que sur les cartes de
-                Découverte (TemplateCard.jsx), UNIQUEMENT quand une vraie
-                image est affichée (une note par-dessus l'émoji n'aurait pas
-                de sens). */}
-            {currentPlaylist.coverUrl ? (
-              <>
-                <img src={currentPlaylist.coverUrl} alt="" className="w-full h-full object-cover rounded-lg" />
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <Music2 size={56} className="text-white/80 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]" />
-                </div>
-              </>
-            ) : (
-              currentPlaylist.coverIcon
-            )}
-            {/* RETOUR DIRECT ("cliquer sur le logo doit lancer la playlist")
-                — l'app n'a pas de vraie lecture continue de playlist (juste
-                des extraits de 30s par titre, voir useAudioPreview.js) :
-                "lancer" veut donc dire démarrer le 1er titre, avec le même
-                enchaînement automatique déjà utilisé partout ailleurs sur
-                cette page (getNextTrackForAutoAdvance) — le plus proche de
-                ce que ferait un clic sur une pochette Spotify avec les
-                moyens réels de cette app. Survol : petit bouton play, même
-                logique que TemplateCard.jsx (Découverte). */}
-            <div className="absolute inset-0 bg-black/0 group-hover/cover:bg-black/20 transition-colors flex items-center justify-center">
-              <Play size={32} className="text-white opacity-0 group-hover/cover:opacity-100 transition-opacity fill-white drop-shadow-lg" />
-            </div>
-          </button>
-        </div>
-        <div className="flex-1 flex flex-col justify-between text-center md:text-left w-full">
-          <div className="space-y-4">
-          {/* RETOUR DIRECT (maquette UI/UX complète) : "isole et remonte la
-              date tout en haut de la carte, au-dessus du titre, avec un style
-              discret" — sur-titre propre, avant même le nom de la playlist.
-              Reprend la même donnée que l'ancien emplacement (juste retiré de
-              la ligne meta-infos plus bas, voir plus loin) — pas une 2e
-              source de vérité, juste déplacée. */}
-          {/* RETOUR DIRECT (capture d'écran à l'appui, 2 tours de suite) :
-              "la notion de séance déjà réalisée ne doit pas être un gros
-              bouton vert en fin d'encart — en haut, rouge, plus fin, sans
-              encart. Le vert renvoie du positif, pas le fait qu'on ne puisse
-              plus modifier." Distinction importante entre 2 messages
-              différents qui partageaient avant le même vert "succès" comme
-              s'ils disaient la même chose :
-              - "Sauvegardée dans Mes Séances" (icône verte en haut à droite
-                de la carte, retour direct suivant — voir plus haut) :
-                une vraie bonne nouvelle, reste vert.
-              - "Verrouillée" : une RESTRICTION (plus aucune modification
-                possible), pas un accomplissement — le vert lui prêtait à
-                tort le même ton positif. Remonté à côté de la date (même
-                niveau d'information : "quand" + "peut-on encore y toucher"),
-                dans `textColorClass` (le rouge/rose D'ACCENT déjà utilisé
-                partout ailleurs dans l'app pour ce qui mérite l'attention —
-                pas une couleur d'alarme inventée pour l'occasion), en texte
-                fin (text-xs) plutôt qu'un gros encart à fond coloré.
-              La liste des dates supplémentaires (séance rejouée) reste
-              affichée juste en dessous si besoin — plus de carte/bordure
-              autour, elle redevient un simple prolongement discret de cette
-              ligne de statut plutôt qu'un bloc à part avec son propre poids
-              visuel. */}
-          {/* RETOUR DIRECT ("le planifier à nouveau devrait être en haut,
-              avec les infos relatives aux dates") — "Planifier"/"Planifier à
-              nouveau" rejoint la ligne date + statut verrouillé : les 2
-              parlent de "quand" (déjà fait / prévu ensuite), ça n'avait pas
-              de sens de les séparer en 2 lignes distinctes. Reste visible
-              même AVANT toute complétion (`!isLocked`, libellé "Planifier"
-              tout court) — seule la partie date/verrouillé reste
-              conditionnée à `isLocked`, la logique d'origine n'a pas changé,
-              seul l'EMPLACEMENT du bouton.
-              RETOUR DIRECT SUIVANT ("le bouton Ajouter à Mes Séances pousse
-              le titre vers le bas, casse l'alignement avec la pochette") —
-              le bouton "Ajouter à Mes Séances"/la corbeille (qui vivait ICI,
-              avec `ml-auto`) est retiré de cette ligne : sur une playlist
-              fraîche, ni verrouillée ni planifiée, cette ligne ne contenait
-              QUE ce bouton — il se retrouvait seul, poussant tout le reste
-              vers le bas. Déplacé en bas de la carte, à côté de "Partager"
-              (voir plus loin) — cette ligne ne garde plus que ce qui parle
-              vraiment de DATES (verrou, planifier), pas d'action de
-              sauvegarde. */}
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-3 flex-wrap">
-              {isLocked && currentPlaylist.completions.length > 0 && (
-                <>
-                  {/* RETOUR DIRECT ("le cadenas me semble suffisant, et
-                      faudrait le mettre avant la date : on a fait (verrou),
-                      à une date donnée (la date)") — 2 changements : le mot
-                      "Verrouillée" retiré (l'icône + le tooltip "Séance déjà
-                      réalisée" suffisent déjà, même logique que la corbeille
-                      plus loin, déjà icône seule sans texte) ; et le cadenas
-                      passe AVANT la date pour suivre l'ordre de lecture
-                      naturel du fait ("c'est verrouillé") puis de son détail
-                      ("depuis quand"). */}
-                  {/* RETOUR DIRECT ("essaie de resserrer le lien visuel
-                      entre le cadenas et la date, plutôt que de les empiler")
-                      — groupés dans leur propre conteneur `gap-1.5` (plus
-                      serré que le `gap-3` du reste de la ligne, qui sépare
-                      des éléments plus indépendants comme le bouton
-                      "Planifier") : le cadenas qualifie directement la date
-                      ("cette date est verrouillée"), les rapprocher rend ce
-                      lien plus lisible sans empiler ni casser l'alignement
-                      horizontal du reste de la ligne (cadenas/calendrier/
-                      corbeille, tous côte à côte). */}
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className={`text-xs font-bold flex items-center ${textColorClass}`}
-                      title="Séance déjà réalisée"
-                    >
-                      <Lock size={12}/>
-                    </span>
-                    <p className={`text-xs font-semibold uppercase tracking-wide ${textMuted}`}>
-                      {renderTopCompletionDate ? renderTopCompletionDate(currentPlaylist) : new Date(currentPlaylist.completions[0].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </p>
-                  </div>
-                </>
-              )}
-              {/* "Planifier" déplacé ici (retour direct, 2 tours de suite :
-                  d'abord "au même niveau que les infos de la playlist", puis
-                  "avec les infos relatives aux dates") — reste identique en
-                  tout point (même handler, même filet de sécurité showPicker,
-                  même libellé conditionnel selon isLocked), seul
-                  l'EMPLACEMENT change à nouveau. N'apparaît que si la
-                  playlist est déjà sauvegardée (même condition qu'avant),
-                  puisque planifier une séance qui n'est pas encore dans "Mes
-                  Séances" n'a pas de sens. */}
-              {savedPlaylists.find(p => p.id === currentPlaylist.id) && (
-                <label
-                  onClick={(e) => {
-                    // showPicker() force l'ouverture explicitement là où l'API existe
-                    // (Chrome/Edge récents) — sans ce filet, le clic pouvait ne
-                    // simplement rien faire dans certains navigateurs. Sur les
-                    // navigateurs sans showPicker (Safari plus anciens, Firefox),
-                    // on laisse le comportement natif label→input inchangé.
-                    if (plannedDateInputRef.current?.showPicker) {
-                      e.preventDefault();
-                      plannedDateInputRef.current.showPicker();
-                    }
-                  }}
-                  className={`relative flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold text-xs transition-colors border cursor-pointer bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shrink-0 ${cardBorder} ${textHighlight}`}
-                  title={
-                    // Une fois la séance déjà réalisée, "planifier" ne peut plus
-                    // vouloir dire "prévoir sa première fois" — ça ne peut plus
-                    // être qu'une intention de la refaire plus tard.
-                    //
-                    // RETOUR DIRECT ("'Refaire cette séance' me semble
-                    // suffisant avec l'icône calendrier") — raccourci : le
-                    // bouton affiche déjà "Planifier"/"Planifier à nouveau"
-                    // (le QUOI est visible), le tooltip n'a plus qu'à ajouter
-                    // le POURQUOI, pas réexpliquer le mécanisme de tri déjà
-                    // sous-entendu par l'icône calendrier.
-                    isLocked ? "Refaire cette séance" : "Planifier cette séance"
-                  }
-                >
-                  {/* RETOUR DIRECT ("le calendrier pour 'planifier à
-                      nouveau' me semble suffisant") — nuance par rapport aux
-                      simplifications précédentes (Verrouillée, corbeille) :
-                      là où "Planifier"/"Planifier à nouveau" est un label
-                      GÉNÉRIQUE sans info propre (l'icône + le tooltip
-                      suffisent, retiré ci-dessous), la DATE effectivement
-                      planifiée (`plannedDate`) est une vraie donnée, pas un
-                      simple libellé — la garder affichée évite d'avoir à
-                      cliquer pour savoir QUAND c'est planifié. */}
-                  <Calendar size={14} />
-                  {currentPlaylist.plannedDate && (
-                    <span>{new Date(currentPlaylist.plannedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
-                  )}
-                  <input
-                    ref={plannedDateInputRef}
-                    type="date"
-                    value={currentPlaylist.plannedDate || ''}
-                    onChange={(e) => setPlaylistPlannedDate(currentPlaylist.id, e.target.value)}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                  />
-                </label>
-              )}
-              {/* RETOUR DIRECT ("prends du recul — si la séance est faite,
-                  elle est de base sauvegardée, l'utilisateur le sait ; juste
-                  besoin d'une option pour supprimer, une corbeille comme
-                  celle déjà utilisée sur les cartes de Mes Séances") —
-                  remplace l'ancien check/X du coin supérieur droit. Une
-                  séance verrouillée EST forcément déjà sauvegardée (les
-                  complétions vivent directement sur l'objet playlist dans
-                  `savedPlaylists`) — plus besoin de le CONFIRMER
-                  visuellement, juste de permettre de la retirer. Même icône
-                  (`Trash2`) et même teinte au survol (gris → rouge) que la
-                  corbeille des cartes dans "Mes Séances" (PlaylistCard.jsx)
-                  — un seul vocabulaire visuel pour "supprimer" dans toute
-                  l'app. Pas de `title` au survol (retour direct : la modale
-                  de confirmation qui s'ouvre au clic dit déjà tout, pas
-                  besoin de répéter la même phrase 2 fois).
-                  RETOUR DIRECT SUIVANT ("le bouton Ajouter à Mes Séances
-                  pousse le titre vers le bas") — ce bloc (trash OU "Ajouter
-                  à Mes Séances") a déménagé en bas de la carte, à côté de
-                  "Partager" (voir plus loin dans ce fichier) — la rangée
-                  date/verrou/planifier plus haut ne parle plus que de dates,
-                  plus d'action de sauvegarde. */}
-            </div>
-            {/* N'affiche cette liste que s'il reste au moins UNE date au-delà
-                de `completions[0]` (déjà montrée, éditable, juste au-dessus) :
-                sur une séance jamais rejouée (le cas le plus courant), il
-                n'y aurait plus rien à montrer ici. */}
-            {isLocked && renderCompletionsList && currentPlaylist.completions.length > 1 && (
-              <div className="pt-0.5">
-                {renderCompletionsList(currentPlaylist, mostRecentCompletionIso, [currentPlaylist.completions[0]])}
-              </div>
-            )}
-          </div>
+      {/* En-tête — extrait dans PlaylistHeader.jsx (chantier découpage,
+          suite de TrackList/TrackItem). */}
+      <PlaylistHeader
+        theme={theme} isLocked={isLocked} savedPlaylists={savedPlaylists}
+        resolveAndTogglePreview={resolveAndTogglePreview} getNextTrackForAutoAdvance={getNextTrackForAutoAdvance}
+        setPlaylistPlannedDate={setPlaylistPlannedDate}
+        renderCompletionsList={renderCompletionsList} renderTopCompletionDate={renderTopCompletionDate}
+        getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload}
+        onShare={handleShareClick}
+      />
 
-          {/* RETOUR DIRECT ("le titre doit être sur une seule ligne") — à
-              text-5xl, ce titre passait sur 2 lignes dès qu'il dépassait
-              ~20 caractères (ex. "Exemple : Session Rock/Métal"). Taille
-              réduite (text-2xl/text-4xl) pour que la plupart des titres
-              tiennent sur une ligne SANS jamais être coupés — et `truncate`
-              en filet de sécurité pour les noms vraiment longs (renommage
-              libre par l'utilisateur, aucune limite de longueur imposée à la
-              saisie) : mieux vaut "Un très long nom de séan…" que de
-              re-passer sur 2 lignes. Le texte doit être dans son PROPRE
-              `<span>` avec `min-w-0` pour que `truncate` fonctionne dans un
-              parent `flex` (sur l'élément flex lui-même, `truncate` seul ne
-              suffit pas — un flex-item ne rétrécit pas sous son contenu par
-              défaut). */}
-          {isEditingPlaylistName ? (
-            <div className="flex items-center gap-2 justify-center md:justify-start">
-              <input
-                type="text" autoFocus value={editedPlaylistName} onChange={e => setEditedPlaylistName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleRenamePlaylist(); if (e.key === 'Escape') setIsEditingPlaylistName(false); }}
-                className={`text-2xl md:text-4xl font-black bg-transparent outline-none border-b-2 ${borderAccentClass} ${textHighlight} w-full`}
-              />
-              <button onClick={handleRenamePlaylist} className={`p-2 rounded-lg text-white shrink-0 ${bgAccentClass}`}><Check size={20}/></button>
-            </div>
-          ) : (
-            <h2 className={"text-2xl md:text-4xl font-black flex items-center gap-3 justify-center md:justify-start " + textHighlight}>
-              <span className="truncate min-w-0" title={currentPlaylist.name}>{currentPlaylist.name}</span>
-              <button onClick={() => { setEditedPlaylistName(currentPlaylist.name); setIsEditingPlaylistName(true); }} className={`p-1.5 rounded-lg ${textMuted} hover:text-main transition-colors shrink-0`} title="Renommer la playlist">
-                <Edit3 size={20}/>
-              </button>
-            </h2>
-          )}
-          {/* Ligne 1 : infos de la playlist SEULES (retour direct : "aère le
-              contenu central" — plus mélangée avec la date/les actions, qui
-              ont chacune leur propre ligne ci-dessous). */}
-          <div className={"flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm font-medium " + textMuted}>
-            <div className="flex items-center space-x-1"><Activity size={16}/><span>{currentPlaylist.workoutType}</span></div><span>•</span>
-            <div className="flex items-center space-x-1"><Clock size={16}/><span>{formatDuration(currentPlaylist.totalDuration)}</span></div><span>•</span>
-            <div className="flex items-center space-x-1"><Music size={16}/><span>{currentPlaylist.tracks.length} titres</span></div>
-            {(() => {
-              const cfg = currentPlaylist.config || {};
-              // Les genres SÉLECTIONNÉS (cfg.selectedGenres) sont déjà des noms
-              // canoniques de l'app (ex. "K-pop") — ne JAMAIS les repasser dans
-              // normalizeGenreForDisplay (prévu pour nettoyer un genre BRUT venu
-              // de Deezer). Bug rencontré : "K-pop" contient le mot "pop", donc
-              // normalizeGenreForDisplay('K-pop') matchait "Pop" en premier et
-              // affichait le mauvais genre. Seul le repli (genres réels des
-              // titres, quand aucun genre n'a été explicitement sélectionné) a
-              // besoin de cette normalisation.
-              if (cfg.selectedGenres && cfg.selectedGenres.length > 0) {
-                return (
-                  <>
-                    <span>•</span>
-                    <div className="flex items-center space-x-1"><Music size={16}/><span>{cfg.selectedGenres.map(genreDisplayLabel).join(', ')}</span></div>
-                  </>
-                );
-              }
-              const genres = Array.from(new Set(currentPlaylist.tracks.map(t => t.genre).filter(g => g && g !== 'Genre inconnu')));
-              return genres.length > 0 && (
-                <>
-                  <span>•</span>
-                  <div className="flex items-center space-x-1"><Music size={16}/><span>{Array.from(new Set(genres.flatMap(getGenresForDisplay))).join(', ')}</span></div>
-                </>
-              );
-            })()}
-          </div>
-          </div>
-
-          {/* Ligne d'actions du BAS — RETOUR DIRECT ("le bouton Ajouter à Mes
-              Séances doit descendre ici, sur la même ligne que Partager,
-              pour ne plus pousser le titre vers le bas") : ce conteneur
-              n'est plus dans le groupe "haut" (titre/métadonnées/dates) —
-              `justify-between` sur le parent flex-col de la carte l'ancre
-              tout en bas, à hauteur du bas de la pochette. `justify-between`
-              ICI (gauche/droite) sépare les actions "à propos du contenu"
-              (import CSV, partager) des actions "à propos de la playlist
-              elle-même" (sauvegarder/retirer). */}
-          <div className="flex items-center flex-wrap justify-between gap-3 mt-4">
-            <div className="flex items-center flex-wrap justify-center md:justify-start gap-3">
-            {/* RETOUR DIRECT ("j'imagine le bouton d'import de données et le
-                bouton de partage sur la même ligne : d'abord importer, puis
-                partager") — l'ancien bouton pleine largeur (voir plus bas
-                dans ce fichier pour l'historique de ce bouton) rejoint cette
-                ligne, réduit d'un CTA "phare" (px-6 py-5, texte base) à la
-                taille d'un bouton inline (px-4 py-2, texte sm) pour tenir à
-                côté de "Partager" — garde son fond blanc/texte noir forcé et
-                son animation `animate-pulse` (seules dérogations à la règle
-                "ne toucher aucune couleur", toujours d'actualité : ce bouton
-                doit rester visuellement distinct/prioritaire même réduit).
-                Positionné AVANT "Partager" (ordre demandé : importer d'abord,
-                partager ensuite).
-                RETOUR DIRECT SUIVANT ("redonne-lui un peu plus de poids,
-                peut-être un peu plus large, mais surtout pas plus haut") —
-                `px-4` → `px-6` (plus large) et `font-black` (plus gras,
-                undistinguishable en HAUTEUR) — `py-2` INCHANGÉ exprès : ne
-                touche à rien qui joue sur la hauteur de la ligne, uniquement
-                la largeur/le poids visuel du texte. */}
-            {isLocked && triggerCSVUpload && (
-              <button
-                onClick={(e) => triggerCSVUpload(e, currentPlaylist, mostRecentCompletionIso)}
-                className={`flex items-center gap-2 px-6 py-2 rounded-lg font-black text-sm shrink-0 bg-white text-black shadow-lg transition-transform hover:scale-[1.02] ${hasImportedDataForMostRecent ? 'animate-in fade-in zoom-in duration-500' : 'animate-pulse'}`}
-              >
-                {hasImportedDataForMostRecent ? (
-                  <>
-                    <CheckCircle size={16} className="text-green-500 shrink-0" />
-                    <span>Données importées</span>
-                  </>
-                ) : (
-                  <>
-                    <Upload size={16} className="shrink-0" />
-                    <span>Importe tes données</span>
-                  </>
-                )}
-              </button>
-            )}
-            {/* RETOUR DIRECT ("plus besoin des 2 boutons si l'image est déjà
-                dans le 1er") — les 2 options de l'ancien menu déroulant
-                ("Partager le lien" vs "Bilan en image") ont fusionné en UN
-                SEUL bouton : depuis le chantier précédent, ShareModal génère
-                déjà l'image en arrière-plan et l'inclut directement dans
-                l'aperçu du partage (avec une croix pour la retirer si on ne
-                la veut pas) — les 2 chemins distincts n'avaient plus de
-                raison d'exister séparément. `startBackgroundImageGeneration`
-                lance la génération au clic (avant, au clic sur "Partager"
-                pour OUVRIR le menu — même déclencheur, juste plus besoin du
-                menu intermédiaire). */}
-            <button
-              onClick={() => { startBackgroundImageGeneration(); handleShare('playlist', currentPlaylist); }}
-              className="flex items-center space-x-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40"
-            >
-              <Share2 size={16} /> <span>Partager</span>
-            </button>
-            </div>
-
-            {/* Corbeille/"Ajouter à Mes Séances" — déplacé ici depuis la
-                rangée date/verrou/planifier (voir plus haut) : sur cette
-                ligne, à droite, aux côtés de "Partager" plutôt que flottant
-                seul au-dessus du titre. */}
-            {savedPlaylists.find(p => p.id === currentPlaylist.id) ? (
-              <button
-                onClick={handleUnsavePlaylist}
-                className={`p-1.5 rounded-lg transition-colors shrink-0 ${textMuted} hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20`}
-              >
-                <Trash2 size={16} />
-              </button>
-            ) : (
-              <button
-                onClick={handleSavePlaylist}
-                title="Ajoute cette séance à 'Mes Séances', ton journal de séances (passées et à venir)."
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold text-xs transition-colors border bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shrink-0 ${cardBorder} ${textHighlight}`}
-              >
-                <Save size={14} /> <span>Ajouter à Mes Séances</span>
-              </button>
-            )}
-          </div>
-
-          {/* L'ancien bandeau "Séance déjà réalisée" (gros encart vert avec
-              cadenas) a été retiré d'ici — retour direct : "ne doit pas être
-              un gros bouton vert en fin d'encart, il doit être en haut,
-              rouge et plus fin, sans encart, le vert renvoie du positif pas
-              le fait qu'on ne puisse plus modifier". Son contenu (statut
-              verrouillé + dates de complétion supplémentaires) vit
-              maintenant tout en haut de la carte, à côté de la date — voir
-              plus haut. */}
-
-          {/* Le bouton "Complète ta séance : importe tes données sportives !"
-              qui vivait ici en CTA pleine largeur a rejoint la ligne
-              Partager juste au-dessus (retour direct : "sur la même ligne,
-              importer d'abord, partager ensuite") — il n'est plus ici. */}
-        </div>
-      </div>
-
-      <div className={"mt-8 p-6 md:p-8 rounded-3xl border shadow-lg " + cardBg + " " + cardBorder}>
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
-          <div>
-            <h3 className={"font-bold text-xl flex items-center space-x-2 " + textHighlight}>
-              <Activity className={textColorClass}/>
-              <span>{currentActualData ? (selectedMetric === 'heartRate' ? "Fréquence cardiaque de la séance" : `Analyse Cadence (${playlistCadenceUnit}) vs BPM cible`) : "Courbe d'intensité (BPM)"}</span>
-            </h3>
-            {/* Les stats de "match %" ne s'affichent qu'en mode Cadence : la FC
-                n'a pas de cible équivalente dans TempoFit (voir analysisStats). */}
-            {currentActualData && selectedMetric === 'cadence' && analysisStats && (
-              <div className="flex items-center gap-3 mt-3 text-xs font-bold bg-gray-50 dark:bg-gray-800 p-2 rounded-lg border border-gray-100 dark:border-gray-700">
-                <span className="text-green-600 dark:text-green-400">🎯 Match: {analysisStats.matchPct}%</span>
-                <span className="text-red-500">⬆ Rapide: {analysisStats.abovePct}%</span>
-                <span className="text-yellow-600 dark:text-yellow-500">⬇ Lent: {analysisStats.belowPct}%</span>
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            {/* Sélecteur de séance à analyser — n'apparaît que si au moins 2 dates
-                de complétion ont des données réelles importées. */}
-            {currentPlaylist.actualDataByDate && Object.keys(currentPlaylist.actualDataByDate).length > 1 && (
-              <select
-                value={selectedAnalysisDate || ''}
-                onChange={(e) => setSelectedAnalysisDate(e.target.value)}
-                className={`px-3 py-2 rounded-lg text-xs font-bold ${inputBg} border ${inputBorder} ${textHighlight}`}
-              >
-                {Object.keys(currentPlaylist.actualDataByDate).sort().reverse().map(iso => (
-                  <option key={iso} value={iso}>Séance du {formatCompletionDate(iso)}</option>
-                ))}
-              </select>
-            )}
-            {/* Sélecteur cadence/FC — n'apparaît que si les DEUX métriques sont
-                présentes pour cette séance précise. */}
-            {availableMetrics.cadence && availableMetrics.heartRate && (
-              <div className="flex items-center bg-surface-hover rounded-lg p-1">
-                <button onClick={() => setSelectedMetric('cadence')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (selectedMetric === 'cadence' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted)}>Cadence ({playlistCadenceUnit})</button>
-                <button onClick={() => setSelectedMetric('heartRate')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (selectedMetric === 'heartRate' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted)}>Fréquence cardiaque</button>
-              </div>
-            )}
-            {currentActualData && (
-              <div className="flex items-center gap-2 bg-surface-hover p-1 rounded-lg">
-                <button onClick={() => setDataOffset(o => o - 10)} className="px-2 py-1 bg-white dark:bg-gray-700 rounded text-xs font-bold text-gray-700 dark:text-gray-200 shadow-sm">-10s</button>
-                <span className={"text-xs font-bold w-24 text-center " + textMuted}>Décalage: {dataOffset > 0 ? '+' : ''}{dataOffset}s</span>
-                <button onClick={() => setDataOffset(o => o + 10)} className="px-2 py-1 bg-white dark:bg-gray-700 rounded text-xs font-bold text-gray-700 dark:text-gray-200 shadow-sm">+10s</button>
-              </div>
-            )}
-            <div className="flex items-center bg-surface-hover rounded-lg p-1">
-              <button onClick={() => setChartAxisType('temps')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartAxisType === 'temps' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted)}>Temps (Min)</button>
-              {/* Toujours proposé, même pour une playlist générée en mode Temps (pas
-                  seulement `targetMode === 'distance'`, comme c'était le cas avant —
-                  régression signalée directement) : une distance est calculable pour
-                  N'IMPORTE QUELLE playlist via l'allure/BPM (`startDistVal`, voir
-                  App.jsx), pas seulement celles basées sur une distance cible. Pour
-                  une playlist Temps, c'est une distance ESTIMÉE (déduite du rythme),
-                  pas mesurée — mais l'estimation reste utile et cohérente avec le
-                  reste de l'app (même logique déjà utilisée pour le trophée "100
-                  Bornes au Compteur", qui cumule aussi cette distance estimée). */}
-              <button onClick={() => setChartAxisType('distance')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartAxisType === 'distance' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted)}>Distance</button>
-            </div>
-            {/* Sélecteur km/mi : purement cosmétique, ne change jamais l'unité
-                réellement utilisée pour générer la playlist. */}
-            {chartAxisType === 'distance' && (
-              <div className="flex items-center bg-surface-hover rounded-lg p-1">
-                <button onClick={() => setChartDistanceUnitOverride('km')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartDistanceUnit === 'km' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted)}>km</button>
-                <button onClick={() => setChartDistanceUnitOverride('mi')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartDistanceUnit === 'mi' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted)}>mi</button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Encart fixe pour le segment sélectionné — remplace la bulle flottante
-            de Recharts qui suivait la souris et se repositionnait de façon
-            instable. Ici, la position ne bouge jamais : seul le contenu change
-            selon le segment sélectionné (piloté par selectedSegmentIdx).
-            Retour direct : flèches précédent/suivant (changer de titre sans
-            viser un point précis sur la courbe) + les mêmes actions de base
-            que dans la liste plus bas (dupliquer/remplacer/supprimer/favori) —
-            réutilise EXACTEMENT les mêmes handlers, pas une 2e implémentation. */}
-        <div className={`mb-4 p-4 rounded-2xl border ${cardBorder} ${inputBg} flex items-center gap-3 min-h-[76px]`}>
-          {selectedSegmentIdx !== null && trackSegments[selectedSegmentIdx] ? (
-            <>
-              <button
-                onClick={() => setSelectedSegmentIdx(Math.max(0, selectedSegmentIdx - 1))}
-                disabled={selectedSegmentIdx === 0}
-                title="Titre précédent"
-                className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:text-main hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent`}
-              >
-                <ChevronLeft size={18}/>
-              </button>
-              <button
-                onClick={() => resolveAndTogglePreview(trackSegments[selectedSegmentIdx].track, getNextTrackForAutoAdvance)}
-                title="Écouter un extrait"
-                className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-colors ${bgAccentClass} text-white hover:brightness-110`}
-              >
-                {resolvingTrackId === trackSegments[selectedSegmentIdx].track.id
-                  ? <Loader2 size={18} className="animate-spin"/>
-                  : playingPreviewId === trackSegments[selectedSegmentIdx].track.trackId ? <Pause size={18} fill="currentColor"/> : <Play size={18} fill="currentColor" className="ml-0.5"/>}
-              </button>
-              {/* Retour direct : "la flèche pour passer au titre suivant est
-                  trop à gauche [comprendre : trop loin du bouton play], je
-                  l'imaginais plus à côté du bouton play/pause" — déplacée ici,
-                  juste après lecture/pause, pour former un vrai groupe de
-                  contrôles (précédent / lecture / suivant) au lieu d'être
-                  isolée à l'autre bout de l'encart, à côté du BPM et du menu. */}
-              <button
-                onClick={() => setSelectedSegmentIdx(Math.min(trackSegments.length - 1, selectedSegmentIdx + 1))}
-                disabled={selectedSegmentIdx === trackSegments.length - 1}
-                title="Titre suivant"
-                className={`shrink-0 p-2 rounded-lg transition-colors ${textMuted} hover:text-main hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent`}
-              >
-                <ChevronRight size={18}/>
-              </button>
-              <div className="flex-1 min-w-0">
-                <div className={`font-bold text-sm truncate ${textHighlight}`}>{trackSegments[selectedSegmentIdx].track.title}</div>
-                <div className={`text-xs truncate ${textMuted}`}>{trackSegments[selectedSegmentIdx].track.artist}{trackSegments[selectedSegmentIdx].track.genre ? ` · ${getGenresForDisplay(trackSegments[selectedSegmentIdx].track.genre, trackSegments[selectedSegmentIdx].track.artist, trackSegments[selectedSegmentIdx].track.title).join(', ')}` : ''}{trackSegments[selectedSegmentIdx].track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Genre Deezer différent — peut quand même correspondre.">⚠️ Genre non confirmé</span>}</div>
-              </div>
-              <div className={`text-xs font-mono ${textMuted} shrink-0 hidden md:block`}>
-                Début : {formatDuration(trackSegments[selectedSegmentIdx].startTime)}<br/>
-                Durée : {formatDuration(trackSegments[selectedSegmentIdx].track.duration)}
-              </div>
-              <div className={`px-3 py-2 rounded-lg text-sm font-bold font-mono text-white shrink-0 ${isNaughtyMode ? 'bg-rose-500' : 'bg-gray-800 dark:bg-gray-700'}`}>
-                🎯 {trackSegments[selectedSegmentIdx].track.bpm} BPM
-              </div>
-
-              {/* Actions de base — mêmes handlers que le menu "⋮" de la liste
-                  plus bas (voir openTrackMenuIndex, partagé avec la liste : ouvrir
-                  ce menu ici ouvre aussi le menu de la ligne correspondante dans
-                  la liste, cohérent puisque c'est le même titre). */}
-              <div className="relative shrink-0">
-                <button onClick={() => setOpenTrackMenuIndex(openTrackMenuIndex === selectedSegmentIdx ? null : selectedSegmentIdx)} className={`p-2 rounded-lg transition-colors ${textMuted} hover:text-main hover:bg-surface-hover`} title="Plus d'options">
-                  <MoreVertical size={16}/>
-                </button>
-                {openTrackMenuIndex === selectedSegmentIdx && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setOpenTrackMenuIndex(null)}></div>
-                    <div className={`absolute right-0 top-full mt-1 z-20 w-64 rounded-xl border shadow-2xl ${cardBg} ${cardBorder} overflow-hidden`}>
-                      {/* Même règle que le menu de la liste plus bas : contenu
-                          verrouillé une fois la séance déjà réalisée, seul
-                          "favoriser l'artiste" reste possible (voir isLocked). */}
-                      {!isLocked && (
-                        <>
-                          <button onClick={() => { handleDuplicateTrack(selectedSegmentIdx); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
-                            <Plus size={16} className="text-green-500"/> Dupliquer ce titre
-                          </button>
-                          <div className={`h-px my-1 ${cardBorder} border-t`}></div>
-                          <button onClick={() => { handleReplaceTrackSameArtist(selectedSegmentIdx); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
-                            <User size={16} className="text-purple-500"/> Remplacer (même artiste)
-                          </button>
-                          <button onClick={() => { handleReplaceTrack(selectedSegmentIdx); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
-                            <RefreshCw size={16} className="text-blue-500"/> Remplacer (recherche large)
-                          </button>
-                          <div className={`h-px my-1 ${cardBorder} border-t`}></div>
-                        </>
-                      )}
-                      {(() => {
-                        const seg = trackSegments[selectedSegmentIdx];
-                        const artistIsFav = favorites.artists.includes(seg.track.artist);
-                        return (
-                          <button onClick={() => { toggleArtistFavorite(seg.track.artist); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
-                            <Star size={16} className="text-amber-500" fill={artistIsFav ? 'currentColor' : 'none'}/> {artistIsFav ? `Retirer ${seg.track.artist} des favoris` : `Favoriser l'artiste (${seg.track.artist})`}
-                          </button>
-                        );
-                      })()}
-                      {!isLocked && (
-                        <>
-                          <div className={`h-px my-1 ${cardBorder} border-t`}></div>
-                          <button
-                            onClick={() => {
-                              const removedIdx = selectedSegmentIdx;
-                              handleRemoveTrack(removedIdx);
-                              setOpenTrackMenuIndex(null);
-                              // Reste sur un titre valide après suppression plutôt que
-                              // de laisser l'encart retomber sur "aucun segment
-                              // sélectionné" — le titre qui prenait la place occupe
-                              // maintenant cet index (ou le précédent si on supprimait
-                              // le dernier).
-                              setSelectedSegmentIdx(Math.min(removedIdx, trackSegments.length - 2 >= 0 ? trackSegments.length - 2 : 0));
-                            }}
-                            className="w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors"
-                          >
-                            <X size={16}/> Retirer de la playlist
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            </>
-          ) : (
-            <span className={`text-sm ${textMuted}`}>Clique sur un segment du graphique pour voir le détail du titre et l'écouter.</span>
-          )}
-        </div>
-
-        <div className="h-72 w-full relative">
-          {/* Repère flottant pendant un glissement actif — en plus de la
-              surbrillance ambre sur la courbe, un texte explicite qui ne
-              laisse aucun doute sur ce qui se passe. */}
-          {isDraggingChartSegment && (
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 px-3 py-1.5 rounded-full bg-amber-500 text-white text-xs font-bold shadow-lg pointer-events-none animate-in fade-in zoom-in duration-200">
-              ↔ Déplacement en cours...
-            </div>
-          )}
-          {currentPlaylist.tracks.length === 0 ? (
-            <div className={`h-full flex items-center justify-center text-center px-6 ${textMuted}`}>
-              Cette playlist ne contient aucun morceau (durée/distance probablement vide au moment de la génération) — regénère-la avec une distance ou une durée renseignée.
-            </div>
-          ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            {/* Interaction par CLIC plutôt que par survol continu : plus fiable,
-                plus rapide, et le résultat reste stable tant qu'on ne clique pas
-                ailleurs. */}
-            <LineChart
-              data={unifiedChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
-              onClick={handleChartClickAndClearZoomFilter}
-              // Glisser-déposer directement sur la courbe désactivé une fois la
-              // séance verrouillée (voir isLocked) — le simple clic (sélection/
-              // consultation d'un segment, géré par onClick ci-dessus) reste lui
-              // toujours possible, ce n'est pas une modification de contenu.
-              onMouseDown={isLocked ? undefined : handleChartMouseDown} onMouseMove={isLocked ? undefined : handleChartMouseMove}
-              onMouseUp={isLocked ? undefined : handleChartMouseUp} onMouseLeave={isLocked ? undefined : handleChartMouseUp}
-              style={{ cursor: isDraggingChartSegment ? 'grabbing' : 'pointer' }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke={colorMode === 'dark' ? '#374151' : '#e5e7eb'} vertical={false} />
-
-              {/* Surbrillance de TOUT le segment sélectionné, déterminée via handleChartMouseMove.
-                  Retour direct ("ça manque d'indication visuelle quand je déplace un
-                  morceau via le graphique") : style DISTINCT pendant un glissement actif
-                  (ambre, contour en pointillés, plus opaque) — sinon rien ne distingue
-                  visuellement "je fais glisser ce titre" d'un simple clic de sélection
-                  (les 2 utilisaient la même surbrillance rouge fine). */}
-              {selectedSegmentIdx !== null && trackSegments[selectedSegmentIdx] && (
-                <ReferenceArea
-                  x1={chartAxisType === 'distance' ? trackSegments[selectedSegmentIdx].startDist * distanceDisplayFactor : trackSegments[selectedSegmentIdx].startTime}
-                  x2={chartAxisType === 'distance' ? trackSegments[selectedSegmentIdx].endDist * distanceDisplayFactor : trackSegments[selectedSegmentIdx].endTime}
-                  fill={isDraggingChartSegment ? '#f59e0b' : (isNaughtyMode ? '#f43f5e' : '#ef4444')}
-                  fillOpacity={isDraggingChartSegment ? 0.28 : 0.12}
-                  stroke={isDraggingChartSegment ? '#f59e0b' : 'none'}
-                  strokeWidth={isDraggingChartSegment ? 2 : 0}
-                  strokeDasharray={isDraggingChartSegment ? '6 4' : undefined}
-                />
-              )}
-
-              {/* Surbrillance de TOUS les segments correspondant au filtre actif d'un
-                  des 2 camemberts plus bas (Répartition par style/BPM) — distincte de
-                  la surbrillance rouge ci-dessus (un clic direct sur la courbe), en
-                  ambre pour ne pas les confondre visuellement. */}
-              {hasDetailFilter && trackSegments.map((seg, i) => trackMatchesDetailFilter(seg.track) && (
-                <ReferenceArea
-                  key={`filter-${i}`}
-                  x1={chartAxisType === 'distance' ? seg.startDist * distanceDisplayFactor : seg.startTime}
-                  x2={chartAxisType === 'distance' ? seg.endDist * distanceDisplayFactor : seg.endTime}
-                  fill="#f59e0b"
-                  fillOpacity={0.18}
-                  stroke="none"
-                />
-              ))}
-
-              {/* Repère vertical fin à chaque début de morceau. */}
-              {trackSegments.map((seg, i) => (
-                <ReferenceLine
-                  key={i}
-                  x={chartAxisType === 'distance' ? seg.startDist * distanceDisplayFactor : seg.startTime}
-                  stroke="#3b82f6"
-                  strokeOpacity={0.5}
-                  strokeDasharray="2 2"
-                />
-              ))}
-
-              <XAxis
-                dataKey={chartAxisType === 'distance' ? (d) => parseFloat(d.startDistVal) * distanceDisplayFactor : 'time'}
-                type="number"
-                domain={chartXDomain}
-                ticks={chartXTicks}
-                stroke={colorMode === 'dark' ? '#9ca3af' : '#6b7280'}
-                tick={{fontSize: 12}}
-                tickFormatter={chartAxisType === 'distance' ? (val) => (Number.isInteger(val) ? `${val} ${chartDistanceUnit}` : `${val.toFixed(2)} ${chartDistanceUnit}`) : formatDuration}
-                allowDuplicatedCategory={false}
-              />
-              <YAxis domain={chartYDomain} stroke={colorMode === 'dark' ? '#9ca3af' : '#6b7280'} tick={{fontSize: 12}} width={40} />
-
-              <RechartsTooltip
-                content={(props) => <CustomChartTooltip {...props} isNaughtyMode={isNaughtyMode} currentUnit={currentPlaylist.distanceUnit} metric={selectedMetric} cadenceUnit={playlistCadenceUnit} />}
-                isAnimationActive={false}
-              />
-              <Legend wrapperStyle={{fontSize: '12px', paddingTop: '15px'}}/>
-
-              <Line
-                dataKey="bpmTarget"
-                name="Cible (BPM musical)"
-                type="stepAfter"
-                stroke={isNaughtyMode ? '#f43f5e' : '#ef4444'}
-                strokeWidth={3}
-                connectNulls
-                dot={{ r: 3, fill: isNaughtyMode ? '#f43f5e' : '#ef4444', strokeWidth: 0 }}
-              />
-
-              {currentActualData && (
-                <Line
-                  dataKey="realValue"
-                  name={selectedMetric === 'heartRate' ? "Fréquence cardiaque (pulsations/min)" : `Cadence réelle (${playlistCadenceUnit})`}
-                  type="monotone"
-                  stroke={selectedMetric === 'heartRate' ? '#ec4899' : '#3b82f6'}
-                  strokeWidth={2}
-                  strokeDasharray="4 4"
-                  connectNulls
-                  dot={<RealDataDot tolerance={currentPlaylist.tolerance} metric={selectedMetric} />}
-                />
-              )}
-            </LineChart>
-          </ResponsiveContainer>
-          )}
-        </div>
-      </div>
+      {/* Bloc d'analyse (courbe BPM + les 2 camemberts) — extrait dans
+          PlaylistCharts.jsx. Réorganisation assumée : les camemberts sont
+          désormais rendus juste après la courbe (voir la docstring de
+          PlaylistCharts.jsx), donc AVANT la table de vérification CSV et
+          TrackList — contrairement à l'ordre précédent. */}
+      <PlaylistCharts
+        theme={theme} colorMode={colorMode} isLocked={isLocked}
+        favorites={favorites} toggleArtistFavorite={toggleArtistFavorite}
+        resolveAndTogglePreview={resolveAndTogglePreview} getNextTrackForAutoAdvance={getNextTrackForAutoAdvance}
+        formatCompletionDate={formatCompletionDate}
+        playlistCadenceUnit={playlistCadenceUnit} bpmChartActivityName={bpmChartActivityName} isBpmChartUsingRealProfile={isBpmChartUsingRealProfile}
+        hasDetailFilter={hasDetailFilter} trackMatchesDetailFilter={trackMatchesDetailFilter}
+        selectedDetailGenre={selectedDetailGenre} selectedDetailBpmBucket={selectedDetailBpmBucket}
+        setSelectedDetailGenre={setSelectedDetailGenre} setSelectedDetailBpmBucket={setSelectedDetailBpmBucket}
+      />
 
       {/* Données brutes importées (CSV Garmin/Strava) — permet de vérifier
           ligne par ligne que ce que l'app a extrait correspond bien au
@@ -1324,194 +486,6 @@ function PlaylistDetailViewInner({
         isBpmChartUsingRealProfile={isBpmChartUsingRealProfile}
       />
 
-      {/* Répartition BPM et style musical — pondérées par la durée de chaque
-          titre, pas juste un compte de titres. */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className={`${cardBg} rounded-3xl p-6 border ${cardBorder} shadow-xl`}>
-          <h3 className={`font-bold text-lg mb-4 flex items-center gap-2 ${textHighlight}`}><Music className={textColorClass} size={20}/> Répartition par style</h3>
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={genreDistributionData} dataKey="value" nameKey="name"
-                  cx="50%" cy="50%" innerRadius={55} outerRadius={85}
-                  paddingAngle={3} cornerRadius={4} stroke="none"
-                  onClick={(entry) => selectDetailGenre(entry.name)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  {genreDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} opacity={selectedDetailGenre.size > 0 && !selectedDetailGenre.has(entry.name) ? 0.35 : 1} />)}
-                </Pie>
-                <RechartsTooltip formatter={(value, name) => {
-                  const total = genreDistributionData.reduce((s, e) => s + e.value, 0);
-                  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-                  return [`${formatDuration(value)} (${pct}%)`, name];
-                }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2">
-            {genreDistributionData.map((entry, i) => {
-              const total = genreDistributionData.reduce((s, e) => s + e.value, 0);
-              const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
-              return (
-                <button
-                  key={i}
-                  onClick={() => selectDetailGenre(entry.name)}
-                  className={`flex items-center gap-1.5 text-xs font-bold rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedDetailGenre.has(entry.name) ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
-                >
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }}></span>
-                  <span className={textHighlight}>{entry.name}</span>
-                  <span className={textMuted}>{pct}%</span>
-                </button>
-              );
-            })}
-          </div>
-          {/* Récap des titres associés à la part sélectionnée — retour direct :
-              la mise en évidence dans la liste plus haut (voir hasDetailFilter/
-              trackMatchesDetailFilter) ne suffisait pas, il fallait aussi voir
-              CES titres directement sous le camembert, sans remonter la page. */}
-          {hasDetailFilter && (
-            <div className={`mt-4 pt-4 border-t ${cardBorder} space-y-1`}>
-              <div className={`text-xs font-bold uppercase tracking-wide mb-2 ${textMuted}`}>Titres · {activeDetailFilterLabel}</div>
-              {currentPlaylist.tracks.filter(trackMatchesDetailFilter).map((t, i) => (
-                <div key={i} className="flex items-center justify-between gap-2 text-sm py-1">
-                  <div className="min-w-0">
-                    <div className={`font-semibold truncate ${textHighlight}`}>{t.title}</div>
-                    <div className={`text-xs truncate ${textMuted}`}>{t.artist}</div>
-                  </div>
-                  <span className={`shrink-0 text-xs font-bold ${textColorClass}`}>{t.bpm} BPM</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className={`${cardBg} rounded-3xl p-6 border ${cardBorder} shadow-xl`}>
-          {/* RETOUR DIRECT ("le jargon 'effort' a-t-il un sens avec une
-              estimation par défaut, ou tranches de BPM brutes dans ce cas ?")
-              — revient à un titre CONDITIONNEL (comme avant le pivot "profil
-              fictif") : "Tes zones d'intensité" seulement si un vrai profil
-              est configuré (`isBpmChartUsingRealProfile`, déjà strict —
-              `getProfileForWorkout`, pas `getProfileForWorkoutOrDefault`),
-              sinon "Répartition par BPM" — le nom doit refléter CE QUI EST
-              VRAIMENT affiché (des tranches de BPM génériques, jamais TES
-              zones tant que tu n'as rien configuré). Même règle que le mode
-              Synchro, qui ne s'active déjà que sur un vrai profil. */}
-          <h3 className={`font-bold text-lg flex items-center gap-2 ${textHighlight}`}>
-            <Activity className={textColorClass} size={20}/> {isSyncMode ? 'Ta synchro cadence' : (isBpmChartUsingRealProfile ? 'Tes zones d\'intensité' : 'Répartition par BPM')}
-          </h3>
-          <p className={`text-xs mb-4 ${textMuted}`}>
-            {isSyncMode
-              ? 'Mode Synchro — la musique doit suivre ta cadence, pas ton intensité.'
-              : (isBpmChartUsingRealProfile
-                  ? 'Basé sur ton Profil Athlétique.'
-                  : 'Répartition brute des titres écoutés — indépendante de ton profil.')}
-          </p>
-          {isSyncMode ? (
-            /* RETOUR DIRECT ("indicateur d'écart : un chiffre + les points
-                autour d'une ligne cible, ça te convient ?" → "oui") — pas de
-                camembert ici : en Synchro, ce qui compte c'est "est-ce que la
-                musique est restée proche de MA cadence", pas une répartition
-                par zone (les 4 zones sont volontairement resserrées, un
-                camembert y serait presque unicolore). `syncTarget` = le BPM
-                de base entré dans le Profil Athlétique (zone2/targetBpm) —
-                LA cible de synchro pour cette activité. */
-            syncTrackGaps.length > 0 ? (
-              <div>
-                <div className={`text-2xl font-black mb-1 ${textHighlight}`}>
-                  Écart moyen : <span className={textColorClass}>{syncAvgGap} BPM</span>
-                </div>
-                <p className={`text-xs mb-4 ${textMuted}`}>Cible : {syncTarget} BPM — chaque point est un titre, positionné selon son écart à la cible.</p>
-                {/* Axe horizontal simple (pas Recharts, ce n'est pas vraiment un
-                    "chart" au sens graphique de données — juste une frise) : la
-                    cible est TOUJOURS au centre (50%), l'écart max observé fixe
-                    l'échelle des bords, jamais une valeur arbitraire qui
-                    écraserait ou exagérerait les écarts réels. */}
-                {(() => {
-                  const maxAbsGap = Math.max(10, ...syncTrackGaps.map(t => Math.abs(t.gap)));
-                  return (
-                    <div className="relative h-16 mt-2">
-                      <div className={`absolute left-0 right-0 top-1/2 h-px ${cardBorder} border-t`}></div>
-                      <div className={`absolute left-1/2 top-0 bottom-0 w-px ${isNaughtyMode ? 'bg-rose-500' : 'bg-red-500'}`}></div>
-                      {syncTrackGaps.map((t, i) => {
-                        const pct = 50 + (t.gap / maxAbsGap) * 45; // 45% de marge de chaque côté, jamais collé au bord
-                        return (
-                          <div
-                            key={i}
-                            title={`${t.title} — ${t.bpm} BPM (${t.gap > 0 ? '+' : ''}${t.gap})`}
-                            className={`absolute w-2.5 h-2.5 rounded-full -translate-x-1/2 shadow ${isNaughtyMode ? 'bg-rose-400' : 'bg-red-400'}`}
-                            style={{ left: `${pct}%`, top: `${8 + (i % 3) * 14}px` }}
-                          ></div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-                <div className={`flex justify-between text-[10px] mt-1 ${textMuted}`}>
-                  <span>Plus lent</span>
-                  <span>Cible ({syncTarget})</span>
-                  <span>Plus rapide</span>
-                </div>
-              </div>
-            ) : (
-              <p className={`text-sm ${textMuted}`}>Aucun titre avec BPM exploitable pour cette séance.</p>
-            )
-          ) : (
-          <>
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={bpmDistributionData} dataKey="value" nameKey="name"
-                  cx="50%" cy="50%" innerRadius={55} outerRadius={85}
-                  paddingAngle={3} cornerRadius={4} stroke="none"
-                  onClick={(entry) => selectDetailBpmBucket(entry.name)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  {bpmDistributionData.map((entry, i) => <Cell key={i} fill={entry.color} opacity={selectedDetailBpmBucket.size > 0 && !selectedDetailBpmBucket.has(entry.name) ? 0.35 : 1} />)}
-                </Pie>
-                <RechartsTooltip formatter={(value, name) => {
-                  const total = bpmDistributionData.reduce((s, e) => s + e.value, 0);
-                  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-                  return [`${formatDuration(value)} (${pct}%)`, isBpmChartUsingRealProfile ? name : `${name} BPM`];
-                }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2">
-            {bpmDistributionData.map((entry, i) => {
-              const total = bpmDistributionData.reduce((s, e) => s + e.value, 0);
-              const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
-              return (
-                <button
-                  key={i}
-                  onClick={() => selectDetailBpmBucket(entry.name)}
-                  className={`flex items-center gap-1.5 text-xs font-bold rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedDetailBpmBucket.has(entry.name) ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
-                >
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }}></span>
-                  <span className={textHighlight}>{entry.name}</span>
-                  <span className={textMuted}>{pct}%</span>
-                </button>
-              );
-            })}
-          </div>
-          {hasDetailFilter && (
-            <div className={`mt-4 pt-4 border-t ${cardBorder} space-y-1`}>
-              <div className={`text-xs font-bold uppercase tracking-wide mb-2 ${textMuted}`}>Titres · {activeDetailFilterLabel}</div>
-              {currentPlaylist.tracks.filter(trackMatchesDetailFilter).map((t, i) => (
-                <div key={i} className="flex items-center justify-between gap-2 text-sm py-1">
-                  <div className="min-w-0">
-                    <div className={`font-semibold truncate ${textHighlight}`}>{t.title}</div>
-                    <div className={`text-xs truncate ${textMuted}`}>{t.artist}</div>
-                  </div>
-                  <span className={`shrink-0 text-xs font-bold ${textColorClass}`}>{t.bpm} BPM</span>
-                </div>
-              ))}
-            </div>
-          )}
-          </>
-          )}
-        </div>
-      </div>
 
       {/* Rendu hors écran, en permanence — voir generateSummaryImageFile plus
           haut pour pourquoi (pas monté/démonté à la demande). `pointer-events-
