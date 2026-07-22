@@ -2250,7 +2250,7 @@ function AppContent({
             d'AudioPlayerContext) — lit tout le reste (currentTrack,
             isPlaying, pause/reprise/fermeture, skip précédent/suivant)
             directement via useAudioPlayer(). */}
-        <MiniPlayerBar theme={themeTokens} currentPlaylist={currentPlaylist} />
+        <MiniPlayerBar theme={themeTokens} currentPlaylist={currentPlaylist} changeView={changeView} />
 
       </div>
     </div>
