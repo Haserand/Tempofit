@@ -71,7 +71,7 @@ import { formatDuration } from './utils/format';
  *      de ces artistes et on trie par proximité avec la cible. Un tout dernier
  *      repli minimal (sans extrait) protège contre un échec réseau total.
  *
- * `excludeYoutubeIds` sert à éviter de proposer deux fois le même morceau dans
+ * `excludeTrackIds` sert à éviter de proposer deux fois le même morceau dans
  * une même playlist (utilisé aussi bien à la génération initiale qu'au
  * remplacement manuel d'un titre) ; `historyExcludeIds` porte spécifiquement sur
  * l'historique inter-génération d'une routine (voir `executeGeneration`).
@@ -284,7 +284,7 @@ const pickByDurationProximity = (candidates, preferredDuration) => {
  * échantillon fixe (voir plus bas).
  *
  * Clé : `artistName|minBpm|maxBpm`. Valeur : les stubs BRUTS de Deezer, AVANT
- * filtrage par `excludeYoutubeIds` — cet exclude change à chaque appel (les
+ * filtrage par `excludeTrackIds` — cet exclude change à chaque appel (les
  * titres déjà utilisés dans la playlist en cours), donc le filtrer AVANT mise
  * en cache aurait invalidé le cache à chaque fois pour rien ; le filtrage
  * s'applique après lecture du cache, à chaque appel.
@@ -296,7 +296,7 @@ const pickByDurationProximity = (candidates, preferredDuration) => {
  */
 const _artistBpmSearchCache = new Map();
 
-const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeYoutubeIds, maxArtistsToTry = 4, candidatesPerArtist = 6, onBatch = null) => {
+const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeTrackIds, maxArtistsToTry = 4, candidatesPerArtist = 6, onBatch = null) => {
   if (!artistNames || artistNames.length === 0) return [];
   // Parcourt maintenant la LISTE ENTIÈRE du catalogue (mélangée pour varier
   // d'une génération à l'autre), en petits LOTS espacés d'une pause — même
@@ -350,7 +350,7 @@ const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeYoutubeId
         artistsWithAtLeastOneMatch++;
         console.log(`[BPM search]   ${artistName}: ${rawStubs.length} résultat(s) Deezer brut(s)`);
       }
-      return rawStubs.filter(s => !excludeYoutubeIds.includes(`deezer-${s.id}`));
+      return rawStubs.filter(s => !excludeTrackIds.includes(`deezer-${s.id}`));
     }));
     const newStubs = batchResults.flat();
     allStubs.push(...newStubs);
@@ -447,7 +447,7 @@ const resolveDeezerTrackByTitleArtist = async (title, artist) => {
   }
 };
 
-const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYoutubeIds, preferredDuration, candidateCap, allowLongTracks = false, allowGenreMismatch = true) => {
+const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeTrackIds, preferredDuration, candidateCap, allowLongTracks = false, allowGenreMismatch = true) => {
   const stubsByGenre = await Promise.all(genresForQuery.map(async (g) => {
     const keyword = DEEZER_GENRE_KEYWORDS[g] || '';
     const q = `bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
@@ -464,7 +464,7 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYout
     for (const arr of stubsByGenre) {
       if (i < arr.length) {
         const s = arr[i];
-        if (!seenStubIds.has(s.id) && !excludeYoutubeIds.includes(`deezer-${s.id}`)) { seenStubIds.add(s.id); allStubs.push(s); }
+        if (!seenStubIds.has(s.id) && !excludeTrackIds.includes(`deezer-${s.id}`)) { seenStubIds.add(s.id); allStubs.push(s); }
         addedThisRound = true;
       }
     }
@@ -540,7 +540,7 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYout
   }
 
   return {
-    youtubeId: `deezer-${full.id}`,
+    trackId: `deezer-${full.id}`,
     title: full.title,
     artist: full.artist ? full.artist.name : 'Inconnu',
     bpm: full._resolvedBpm,
@@ -552,7 +552,7 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeYout
   };
 };
 
-const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excludeYoutubeIds = [], favorites = null, spotifyTrackPool = [], preferredDuration = null, historyExcludeIds = [], allowLongTracks = false) => {
+const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excludeTrackIds = [], favorites = null, spotifyTrackPool = [], preferredDuration = null, historyExcludeIds = [], allowLongTracks = false) => {
   const minBpm = targetBpm - tolerance;
   const maxBpm = targetBpm + tolerance;
 
@@ -563,7 +563,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   if (favorites && Array.isArray(favorites.tracks) && favorites.tracks.length > 0) {
     const perfectFavoriteTracks = favorites.tracks.filter(t =>
       typeof t === 'object' && t.bpm >= minBpm && t.bpm <= maxBpm &&
-      !excludeYoutubeIds.includes(t.youtubeId)
+      !excludeTrackIds.includes(t.trackId)
     );
     if (perfectFavoriteTracks.length > 0) {
       // `_fromFavorites` : marqueur ajouté sur une COPIE (pas de mutation directe
@@ -588,7 +588,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   //      de l'utilisateur plutôt qu'une liste choisie par genre).
   if (favorites && Array.isArray(favorites.artists) && favorites.artists.length > 0) {
     try {
-      const candidateStubs = await searchArtistsForBpm(favorites.artists, minBpm, maxBpm, excludeYoutubeIds, 3, 5);
+      const candidateStubs = await searchArtistsForBpm(favorites.artists, minBpm, maxBpm, excludeTrackIds, 3, 5);
       // GARDE-FOU GENRE (trou trouvé après un test réel : "Stan" d'Eminem et
       // "Thinking Out Loud" d'Ed Sheeran s'invitaient dans des playlists
       // Métal/Rock via ce chemin précis) : contrairement à ARTIST_CATALOG (choisi
@@ -607,7 +607,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
           const realGenre = await resolveDeezerGenre(full.id);
           if (selectedGenres.some(g => genreRoughlyMatches(realGenre, g))) {
             return {
-              youtubeId: `deezer-${full.id}`,
+              trackId: `deezer-${full.id}`,
               title: full.title,
               artist: full.artist ? full.artist.name : 'Inconnu',
               bpm: Math.round(parseFloat(full.bpm)),
@@ -629,7 +629,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
     const perfectSpotifyTracks = spotifyTrackPool.filter(t => 
       t.bpm >= minBpm && 
       t.bpm <= maxBpm && 
-      !excludeYoutubeIds.includes(t.youtubeId)
+      !excludeTrackIds.includes(t.trackId)
     );
     if (perfectSpotifyTracks.length > 0) {
       return pickByDurationProximity(perfectSpotifyTracks, preferredDuration);
@@ -643,7 +643,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   // de la cascade) — voir WEAK_DEEZER_KEYWORD_GENRES dans musicCatalog.js.
   const allGenresHaveWeakKeyword = genresForQuery.length > 0 && genresForQuery.every(g => WEAK_DEEZER_KEYWORD_GENRES.includes(g));
   const validGenres = selectedGenres.length > 0 ? selectedGenres : ['Métal'];
-  const localExcludeIds = excludeYoutubeIds.filter(id => !historyExcludeIds.includes(id));
+  const localExcludeIds = excludeTrackIds.filter(id => !historyExcludeIds.includes(id));
   // Correspondance artiste → genre D'ORIGINE (pas juste une liste plate de noms) :
   // sans ça, un titre trouvé via un artiste de la 2e/3e liste de genres
   // sélectionnés (ex. "Rock" quand on a coché Métal+Rock) s'affichait quand même
@@ -663,14 +663,14 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   // ci-dessous, selon l'ordre décidé plus bas (voir WEAK_DEEZER_KEYWORD_GENRES).
   const tryDeezerKeywordSearch = async () => {
     try {
-      const exactMatch = await searchDeezerForGenres(genresForQuery, minBpm, maxBpm, excludeYoutubeIds, preferredDuration, candidateCap, allowLongTracks, !allGenresHaveWeakKeyword);
+      const exactMatch = await searchDeezerForGenres(genresForQuery, minBpm, maxBpm, excludeTrackIds, preferredDuration, candidateCap, allowLongTracks, !allGenresHaveWeakKeyword);
       if (exactMatch) return exactMatch;
     } catch (e) {
       // Échec silencieux (proxy indisponible, hors-ligne...) : on continue vers la tentative suivante.
     }
     try {
       const widenedTolerance = Math.min(tolerance * 2, 40);
-      const widenedMatch = await searchDeezerForGenres(genresForQuery, targetBpm - widenedTolerance, targetBpm + widenedTolerance, excludeYoutubeIds, preferredDuration, candidateCap, allowLongTracks, !allGenresHaveWeakKeyword);
+      const widenedMatch = await searchDeezerForGenres(genresForQuery, targetBpm - widenedTolerance, targetBpm + widenedTolerance, excludeTrackIds, preferredDuration, candidateCap, allowLongTracks, !allGenresHaveWeakKeyword);
       if (widenedMatch) return { ...widenedMatch, _isFallback: true };
     } catch (e) {
       // Échec silencieux : on continue vers le fallback local.
@@ -754,7 +754,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
           }
 
           return {
-            youtubeId: `deezer-${picked.id}`, title: picked.title,
+            trackId: `deezer-${picked.id}`, title: picked.title,
             artist: picked.artist ? picked.artist.name : 'Inconnu',
             bpm: Math.round(parseFloat(picked.bpm)), duration: picked.duration || 180,
             genre: pickedRealGenre || artistGenreMap.get(picked.artist ? picked.artist.name : '') || validGenres[0],
@@ -820,7 +820,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
         const sortedByProximity = [...finalDetails].sort((a, b) => Math.abs(parseFloat(a.bpm) - targetBpm) - Math.abs(parseFloat(b.bpm) - targetBpm));
         const picked = pickByDurationProximity(sortedByProximity.slice(0, 3), preferredDuration);
         return {
-          youtubeId: `deezer-${picked.id}`, title: picked.title,
+          trackId: `deezer-${picked.id}`, title: picked.title,
           artist: picked.artist ? picked.artist.name : 'Inconnu',
           bpm: Math.round(parseFloat(picked.bpm)), duration: picked.duration || 180,
           genre: artistGenreMap.get(picked.artist ? picked.artist.name : '') || artistGenreMap.get(pickedArtist) || validGenres[0], preview: picked.preview || null,
@@ -836,7 +836,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   // proxy indisponible...) : un objet minimal sans extrait, pour ne jamais planter
   // la génération même dans le pire des cas.
   return {
-    youtubeId: `fallback-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+    trackId: `fallback-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
     title: 'Titre indisponible', artist: catalogArtists[0] || 'Inconnu',
     bpm: targetBpm, duration: preferredDuration || 200,
     genre: artistGenreMap.get(catalogArtists[0]) || validGenres[0], preview: null, _isFallback: true
@@ -864,7 +864,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
  * durée cible, on retombe sur `getSingleMatchingTrack` (GetSongBPM + repli
  * extrême) pour terminer, qui garantit qu'on ne reste jamais bloqué.
  */
-const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites, spotifyTrackPool, historyExcludeIds = []) => {
+const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, spotifyTrackPool, historyExcludeIds = []) => {
   // Genre effectif pour CE segment : si la portion a un genre spécifique défini
   // (override manuel à l'étape 3 du wizard), il prime sur le genre global de la
   // séance (config.selectedGenres) — sinon comportement inchangé.
@@ -888,7 +888,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   const usingGlobalGenres = !segment.selectedGenres || segment.selectedGenres.length === 0;
   if (usingGlobalGenres && effectiveGenres.length > 1 && config.genreWeights && Object.keys(config.genreWeights).length > 1) {
     let allSelected = [];
-    let runningExcludeIds = [...excludeYoutubeIds];
+    let runningExcludeIds = [...excludeTrackIds];
     for (const genre of effectiveGenres) {
       const weight = config.genreWeights[genre];
       if (!weight || weight <= 0) continue; // un genre mis à 0% est simplement ignoré
@@ -897,7 +897,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
       const subSegment = { ...segment, durationSeconds: subDurationSeconds, selectedGenres: [genre] };
       const subTracks = await buildSegmentTracks(subSegment, config, runningExcludeIds, favorites, spotifyTrackPool, historyExcludeIds);
       allSelected = [...allSelected, ...subTracks];
-      runningExcludeIds = [...runningExcludeIds, ...subTracks.map(t => t.youtubeId)];
+      runningExcludeIds = [...runningExcludeIds, ...subTracks.map(t => t.trackId)];
     }
     return allSelected;
   }
@@ -905,7 +905,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   const minBpm = segment.bpm - config.bpmTolerance;
   const maxBpm = segment.bpm + config.bpmTolerance;
   const pool = [];
-  const seenIds = new Set(excludeYoutubeIds);
+  const seenIds = new Set(excludeTrackIds);
 
   // Filtre de durée : si l'utilisateur n'autorise pas les titres de plus de
   // 6 minutes (option par défaut), on les écarte ici — point de passage central
@@ -914,10 +914,10 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   // Purple, ~12 min) monopoliser une grosse partie de la séance juste parce
   // qu'il comble bien le temps restant.
   const addIfValid = (t) => {
-    if (t && typeof t.bpm === 'number' && t.bpm >= minBpm && t.bpm <= maxBpm && t.duration && t.youtubeId && !seenIds.has(t.youtubeId)) {
+    if (t && typeof t.bpm === 'number' && t.bpm >= minBpm && t.bpm <= maxBpm && t.duration && t.trackId && !seenIds.has(t.trackId)) {
       if (!config.allowLongTracks && t.duration > MAX_TRACK_DURATION) return;
       pool.push(t);
-      seenIds.add(t.youtubeId); // évite aussi les doublons À L'INTÉRIEUR du pool lui-même
+      seenIds.add(t.trackId); // évite aussi les doublons À L'INTÉRIEUR du pool lui-même
     }
   };
 
@@ -1046,7 +1046,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
 
     for (const full of allResolvedCandidates) {
       addIfValid({
-        youtubeId: `deezer-${full.id}`, title: full.title,
+        trackId: `deezer-${full.id}`, title: full.title,
         artist: full.artist ? full.artist.name : 'Inconnu',
         bpm: full._resolvedBpm, duration: full.duration || 180,
         genre: full._resolvedGenre, _deezerId: full.id, preview: full.preview || null,
@@ -1067,7 +1067,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   // génération précédente que de forcer un mauvais genre en élargissant trop.
   // Reste dédoublonné sur LA PLAYLIST EN COURS (pas de titre répété deux fois
   // dans la même séance).
-  const localExcludeIds = excludeYoutubeIds.filter(id => !historyExcludeIds.includes(id));
+  const localExcludeIds = excludeTrackIds.filter(id => !historyExcludeIds.includes(id));
   const validGenres = effectiveGenres && effectiveGenres.length > 0 ? effectiveGenres : ['Métal'];
   // Correspondance artiste → genre D'ORIGINE (voir getSingleMatchingTrack pour le
   // même correctif) : les genres sélectionnés ensemble doivent être traités à
@@ -1114,7 +1114,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
         // sont des choix explicites de l'utilisateur, pas un filet de secours —
         // et du reste de Deezer en recherche généraliste).
         addIfValid({
-          youtubeId: `deezer-${full.id}`, title: full.title,
+          trackId: `deezer-${full.id}`, title: full.title,
           artist: full.artist ? full.artist.name : 'Inconnu',
           bpm: Math.round(parseFloat(full.bpm)), duration: full.duration || 180,
           genre: realGenre || artistGenreMap.get(full.artist ? full.artist.name : '') || validGenres[0],
@@ -1252,7 +1252,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
   // "de qualité" n'a pas suffi, donc ce qui suit peut être moins bien ajusté —
   // information transmise à l'utilisateur après génération (voir createPlaylistData).
   while (remaining > 30) {
-    const usedSoFar = [...excludeYoutubeIds, ...selected.map(t => t.youtubeId)];
+    const usedSoFar = [...excludeTrackIds, ...selected.map(t => t.trackId)];
     const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, effectiveGenres, usedSoFar, favorites, spotifyTrackPool, remaining, historyExcludeIds, config.allowLongTracks);
     extra._isFallback = true;
     selected.push(extra);
@@ -1261,7 +1261,7 @@ const buildSegmentTracks = async (segment, config, excludeYoutubeIds, favorites,
 
   // Filet de sécurité ultime : un segment ne doit jamais rester totalement vide.
   if (selected.length === 0) {
-    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, effectiveGenres, excludeYoutubeIds, favorites, spotifyTrackPool, segment.durationSeconds, historyExcludeIds, config.allowLongTracks);
+    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, effectiveGenres, excludeTrackIds, favorites, spotifyTrackPool, segment.durationSeconds, historyExcludeIds, config.allowLongTracks);
     extra._isFallback = true;
     selected.push(extra);
   }
@@ -1327,11 +1327,11 @@ const recalculateTimeline = (playlistToUpdate) => {
  * musicEngine.js plutôt que searchEngine.js : ceci concerne le remplacement
  * d'un titre DANS une playlist déjà générée, pas la recherche manuelle libre.
  */
-const findSameArtistReplacement = async (artistName, minBpm, maxBpm, excludeYoutubeIds, requestedGenres, allowLongTracks = false) => {
+const findSameArtistReplacement = async (artistName, minBpm, maxBpm, excludeTrackIds, requestedGenres, allowLongTracks = false) => {
   try {
     const q = `artist:"${artistName}" bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"`;
     const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=8`);
-    const stubs = (data && Array.isArray(data.data) ? data.data : []).filter(s => !excludeYoutubeIds.includes(`deezer-${s.id}`));
+    const stubs = (data && Array.isArray(data.data) ? data.data : []).filter(s => !excludeTrackIds.includes(`deezer-${s.id}`));
     if (stubs.length === 0) return null;
 
     const details = await Promise.all(stubs.map(async (s) => {
@@ -1363,7 +1363,7 @@ const findSameArtistReplacement = async (artistName, minBpm, maxBpm, excludeYout
     return {
       title: pick.title, artist: pick.artist ? pick.artist.name : artistName,
       genre: pick._resolvedGenre || 'Genre inconnu', bpm: Math.round(parseFloat(pick.bpm)), duration: pick.duration || 180,
-      youtubeId: `deezer-${pick.id}`, preview: pick.preview || null,
+      trackId: `deezer-${pick.id}`, preview: pick.preview || null,
       ...(genreMismatch ? { _genreMismatch: true, _isFallback: true } : {})
     };
   } catch (e) {
@@ -1483,7 +1483,7 @@ const buildCrescendoSegments = (targetMode, bpm, hours, minutes, distanceVal, pa
  * 1. Découpe la séance en "segments" (1 seul segment en mode simple, un par
  *    portion en mode fractionné), chacun avec un BPM cible et une durée en secondes.
  * 2. Pour chaque segment, pioche des morceaux via buildSegmentTracks jusqu'à
- *    couvrir la durée du segment, en évitant les doublons (usedYoutubeIds) au
+ *    couvrir la durée du segment, en évitant les doublons (usedTrackIds) au
  *    sein de la playlist entière.
  * 3. Calcule un nom de playlist selon le mode (naughty / fractionné / routine...).
  * 4. Recalcule la timeline finale (horodatages, durée totale) avant de renvoyer l'objet.
@@ -1521,7 +1521,7 @@ const createPlaylistData = async (config, initialExcludeIds = [], favorites, spo
 
   const tracks = [];
   let idCounter = 1;
-  const usedYoutubeIds = [...initialExcludeIds];
+  const usedTrackIds = [...initialExcludeIds];
   let fallbackCount = 0; // titres pour lesquels le pool de candidats de qualité n'a pas suffi
 
   for (let segmentIndex = 0; segmentIndex < activeSegments.length; segmentIndex++) {
@@ -1530,14 +1530,14 @@ const createPlaylistData = async (config, initialExcludeIds = [], favorites, spo
       // durée cible comme un problème de "somme de sous-ensemble" (voir
       // buildSegmentTracks) — plutôt que d'ajouter des morceaux un par un sans
       // vue d'ensemble, ce qui pouvait faire largement dépasser la cible.
-      const segmentTracks = await buildSegmentTracks(segment, config, usedYoutubeIds, favorites, spotifyTrackPool, initialExcludeIds);
+      const segmentTracks = await buildSegmentTracks(segment, config, usedTrackIds, favorites, spotifyTrackPool, initialExcludeIds);
       segmentTracks.forEach((randomTrack) => {
           if (randomTrack._isFallback) fallbackCount++;
           tracks.push({
               id: `track-${idCounter++}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
               segmentIndex: segmentIndex + 1, targetSegmentBpm: segment.bpm,
               title: randomTrack.title, artist: randomTrack.artist, genre: randomTrack.genre,
-              bpm: randomTrack.bpm, duration: randomTrack.duration, youtubeId: randomTrack.youtubeId,
+              bpm: randomTrack.bpm, duration: randomTrack.duration, trackId: randomTrack.trackId,
               preview: randomTrack.preview || null, // extrait audio 30s si disponible (Favoris/Spotify/Deezer)
               // BUG CORRIGÉ : ces deux marqueurs n'étaient jamais copiés ici, alors
               // que c'est CET objet (pas `randomTrack`) qui finit dans la playlist
@@ -1547,7 +1547,7 @@ const createPlaylistData = async (config, initialExcludeIds = [], favorites, spo
               _genreMismatch: randomTrack._genreMismatch || false,
               _isFallback: randomTrack._isFallback || false,
           });
-          usedYoutubeIds.push(randomTrack.youtubeId);
+          usedTrackIds.push(randomTrack.trackId);
       });
   }
 
