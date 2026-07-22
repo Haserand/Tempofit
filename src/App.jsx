@@ -32,6 +32,9 @@ import { buildCoverUrl } from './utils/coverArt';
 import { parseGarminCsv } from './workoutDataEngine';
 import { useTheme } from './hooks/useTheme';
 import { usePersistentState } from './hooks/usePersistentState';
+// useToast est toujours importé ici, mais appelé UNE SEULE FOIS par le
+// composant racine `App` (chantier AudioPlayerContext — voir fin de fichier),
+// plus par AppContent : toast/showToast lui arrivent maintenant en props.
 import { useToast } from './hooks/useToast';
 // useCustomActivity et useGeneratorForm ne sont plus importés ici : appelés
 // une seule fois à l'intérieur de <GeneratorProvider> (contexts/GeneratorContext.jsx).
@@ -42,7 +45,9 @@ import { useSpotifyImport } from './hooks/useSpotifyImport';
 import { useAthleticProfile } from './hooks/useAthleticProfile';
 import { useRoutines } from './hooks/useRoutines';
 import { useUserStats } from './hooks/useUserStats';
-import { useAudioPreview } from './hooks/useAudioPreview';
+// useAudioPreview n'est plus importé ici : appelé une seule fois à
+// l'intérieur de <AudioPlayerProvider> (contexts/AudioPlayerContext.jsx).
+import { AudioPlayerProvider, useAudioPlayer } from './contexts/AudioPlayerContext';
 import { useShare } from './hooks/useShare';
 import { useElapsedTimer } from './hooks/useElapsedTimer';
 import { useSessionAnalysis } from './hooks/useSessionAnalysis';
@@ -104,10 +109,18 @@ import Sidebar from './components/shared/Sidebar';
 // pour sa propre valeur), donc ils ne peuvent plus vivre à l'intérieur du
 // composant que ce Provider enveloppe. Remontés d'un cran dans `App`, qui
 // les passe à la fois au Provider et ici, en props, à l'identique.
+//
+// `toast`/`showToast` (chantier AudioPlayerContext) suivent EXACTEMENT le
+// même schéma : <AudioPlayerProvider> a besoin de `showToast` (useAudioPreview
+// en dépend), qui doit rester une instance UNIQUE dans toute l'app — voir
+// useToast.js, qui documente lui-même que tous les hooks qui en ont besoin le
+// reçoivent en paramètre plutôt que de le dupliquer. Remonté ici pour la
+// même raison que athleticProfile, pas ré-instancié.
 function AppContent({
   isNaughtyMode, setIsNaughtyMode,
   showAthleticProfile, setShowAthleticProfile,
   athleticProfileApi,
+  toast, showToast,
 }) {
   // --- Navigation & état d'affichage global ---
   const [view, setView] = useState('generator');
@@ -195,7 +208,10 @@ function AppContent({
   // MIGRÉ VERS le composant racine `App` (voir fin de fichier) : isNaughtyMode
   // est maintenant reçu en prop, pas déclaré ici — <GeneratorProvider> en a
   // besoin avant même que ce composant ne soit monté.
-  const { toast, showToast } = useToast();
+  // MIGRÉ VERS le composant racine `App` (chantier AudioPlayerContext) :
+  // toast/showToast sont maintenant reçus en props, pour la même raison que
+  // isNaughtyMode ci-dessus — <AudioPlayerProvider> a besoin de showToast
+  // avant même que ce composant ne soit monté.
 
   // favorites.tracks contient des objets complets (bpm, extrait audio...), pas de
   // simples chaînes — nécessaire pour que getSingleMatchingTrack puisse s'en servir
@@ -576,14 +592,21 @@ function AppContent({
   const [isEditingPlaylistName, setIsEditingPlaylistName] = useState(false);
   const [editedPlaylistName, setEditedPlaylistName] = useState("");
 
-  // --- Lecture des extraits audio (30s, fournis par Deezer) ---
+  // MIGRÉ VERS AudioPlayerContext : useAudioPreview(showToast) n'est plus
+  // appelé ici mais à l'intérieur de <AudioPlayerProvider> (instance
+  // UNIQUE). AppContent le lit ici via useAudioPlayer() pour continuer à
+  // transmettre ces valeurs aux vues qui en ont besoin (FavoritesView,
+  // StatsView, SearchModal, MiniPlayerBar...) — mêmes noms qu'avant, y
+  // compris l'aliasing currentTrack/isPlaying (nécessaire : ce composant a
+  // par ailleurs son propre concept de "playlist en cours de lecture",
+  // sans rapport avec l'extrait audio en cours).
   const {
     playingPreviewId, togglePreview,
     currentTrack: currentPreviewTrack, isPlaying: isPreviewPlaying,
     pauseCurrentPreview, resumeCurrentPreview, stopCurrentPreview,
     resolveAndPlay, resolvingTrackId,
     skipToNext, skipToPrevious,
-  } = useAudioPreview(showToast);
+  } = useAudioPlayer();
 
   // --- MOTEUR DE RECHERCHE DEEZER (recherche manuelle titre/artiste avec BPM) ---
   // On utilise l'API publique Deezer (100M+ titres, champ "bpm" par titre, pas de
@@ -2794,11 +2817,21 @@ function AppContent({
  * fonctions comme handleSaveRoutine/toggleNaughtyMode ne passent pas par ce
  * contexte). Résultat : une seule source de vérité pour chacun des 3, jamais
  * dupliquée, distribuée par 2 canaux différents selon qui la consomme.
+ *
+ * `toast`/`showToast` (useToast()) suivent EXACTEMENT le même schéma, ajoutés
+ * ici pour <AudioPlayerProvider> (useAudioPreview en dépend) — remontés pour
+ * la même raison que athleticProfile, jamais dupliqués (voir useToast.js).
+ *
+ * Imbrication des Providers : GeneratorProvider et AudioPlayerProvider sont
+ * indépendants l'un de l'autre (aucun des deux ne lit l'état de l'autre) —
+ * leur ordre relatif n'a donc aucune importance fonctionnelle. AuthProvider
+ * reste dans main.jsx, au-dessus des deux (voir plus haut).
  */
 export default function App() {
   const [isNaughtyMode, setIsNaughtyMode] = useState(false);
   const [showAthleticProfile, setShowAthleticProfile] = useState(false);
   const athleticProfileApi = useAthleticProfile();
+  const { toast, showToast } = useToast();
 
   return (
     <GeneratorProvider
@@ -2807,11 +2840,14 @@ export default function App() {
       showAthleticProfile={showAthleticProfile}
       setShowAthleticProfile={setShowAthleticProfile}
     >
-      <AppContent
-        isNaughtyMode={isNaughtyMode} setIsNaughtyMode={setIsNaughtyMode}
-        showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
-        athleticProfileApi={athleticProfileApi}
-      />
+      <AudioPlayerProvider showToast={showToast}>
+        <AppContent
+          isNaughtyMode={isNaughtyMode} setIsNaughtyMode={setIsNaughtyMode}
+          showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
+          athleticProfileApi={athleticProfileApi}
+          toast={toast} showToast={showToast}
+        />
+      </AudioPlayerProvider>
     </GeneratorProvider>
   );
 }
