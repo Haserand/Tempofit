@@ -47,21 +47,21 @@ export default function FavoritesView({
             <h4 className={`text-sm font-bold uppercase tracking-wider ${textMuted} mb-4 flex items-center`}><Heart size={16} className="mr-2"/> Titres Favoris</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {favorites.tracks.map((track, idx) => (
-                <div key={track.youtubeId || idx} className={`flex items-center gap-2 p-2.5 rounded-xl border ${cardBorder} ${inputBg}`}>
+                <div key={track.trackId || idx} className={`flex items-center gap-2 p-2.5 rounded-xl border ${cardBorder} ${inputBg}`}>
                   <button
                     onClick={() => togglePreview(track)}
                     disabled={!track.preview}
                     title={track.preview ? "Écouter un extrait" : "Extrait non disponible pour ce titre (source sans aperçu audio)"}
                     className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
                   >
-                    {playingPreviewId === track.youtubeId ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5"/>}
+                    {playingPreviewId === track.trackId ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5"/>}
                   </button>
                   <div className="flex-1 min-w-0">
                     <div className={`font-bold text-sm truncate ${textHighlight}`}>{track.title}</div>
                     <div className={`text-xs truncate ${textMuted}`}>{track.artist}{track.genre ? ` · ${getGenresForDisplay(track.genre, track.artist, track.title).join(', ')}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Genre Deezer différent — peut quand même correspondre.">⚠️ Genre non confirmé</span>}</div>
                   </div>
                   {track.bpm ? <span className={`font-mono text-xs font-bold shrink-0 ${textColorClass}`}>{track.bpm} BPM</span> : null}
-                  <button onClick={() => setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.youtubeId !== track.youtubeId) }))} className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                  <button onClick={() => setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.trackId !== track.trackId) }))} className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                     <X size={14}/>
                   </button>
                 </div>
