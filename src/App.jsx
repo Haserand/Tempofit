@@ -341,9 +341,13 @@ function AppContent({
   // dans ce fichier n'a besoin de changer.
   const {
     workoutType, setWorkoutType,
-    customActivity, setCustomActivity,
-    tempCustomActivity, setTempCustomActivity,
-    isCustomActivityModalOpen, setIsCustomActivityModalOpen,
+    // `setCustomActivity`/`tempCustomActivity`/`setTempCustomActivity`/
+    // `isCustomActivityModalOpen`/`setIsCustomActivityModalOpen` ne sont PLUS
+    // déstructurées ici : elles ne servaient qu'à alimenter les props de
+    // CustomActivityModal, qui lit maintenant directement le contexte
+    // lui-même (voir CustomActivityModal.jsx). `customActivity` (sans
+    // "set") reste nécessaire ci-dessous (handleSaveRoutine).
+    customActivity,
     handleOpenCustomActivityModal,
     wizardStep, setWizardStep,
     selectedGenres, setSelectedGenres,
@@ -358,7 +362,8 @@ function AppContent({
     CRESCENDO_MIN_MAIN_PCT,
     crescendoWarmupBpm, setCrescendoWarmupBpm, crescendoCooldownBpm, setCrescendoCooldownBpm,
     bpmSourceIsProfile,
-    applyProfileBpmIfUntouched,
+    // `applyProfileBpmIfUntouched` idem : plus utilisée qu'à l'intérieur de
+    // CustomActivityModal.jsx désormais, retirée d'ici pour la même raison.
     allowLongTracks, setAllowLongTracks,
     targetMode, setTargetMode,
     hours, setHours,
@@ -2692,14 +2697,13 @@ function AppContent({
           removeSavedPlaylist={removeSavedPlaylist}
         />
 
-        {/* Extrait dans CustomActivityModal.jsx (retour direct : "comment tu
-            diviserais App.jsx ?" — modales déplacées une par une, en
-            commençant par les plus petites/autonomes). */}
+        {/* Extrait dans CustomActivityModal.jsx. Chantier God Component étape 2
+            (suite) : ne reçoit plus que ce qui est hors du périmètre de
+            GeneratorContext (theme + le système de trophées, sans rapport
+            avec le générateur) — tout le reste (ouverture, valeur saisie,
+            confirmation) vient directement de useGeneratorContext(). */}
         <CustomActivityModal
-          theme={themeTokens} isNaughtyMode={isNaughtyMode}
-          isCustomActivityModalOpen={isCustomActivityModalOpen} setIsCustomActivityModalOpen={setIsCustomActivityModalOpen}
-          tempCustomActivity={tempCustomActivity} setTempCustomActivity={setTempCustomActivity} setCustomActivity={setCustomActivity}
-          getProfileForWorkout={getProfileForWorkout} applyProfileBpmIfUntouched={applyProfileBpmIfUntouched}
+          theme={themeTokens}
           userStats={userStats} checkTrophies={checkTrophies}
         />
 
