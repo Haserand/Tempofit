@@ -173,7 +173,7 @@ export default function PlaylistsView({
             en thème CLAIR (bg-base pâle), ce titre redeviendrait illisible
             à son tour, symétriquement au bug corrigé ici. */}
         <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}><Library className={textColorClass} size={36} /> <span>Bibliothèque</span></h1>
-        <p className={`mt-2 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)] ${isNaughtyMode ? 'text-slate-700' : 'text-slate-300'}`}>Retrouve ici toutes tes playlists générées. Glisse-dépose pour organiser tes prochaines écoutes, ton historique complet est juste en dessous.</p>
+        <p className={`mt-2 ${isNaughtyMode ? 'text-slate-700' : 'text-slate-300'}`}>Retrouve ici toutes tes playlists générées. Glisse-dépose pour organiser tes prochaines écoutes, ton historique complet est juste en dessous.</p>
       </div>
 
       {isEmpty ? (
