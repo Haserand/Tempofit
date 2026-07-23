@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useMemo } from 'react';
-import { getZoneForValue, ATHLETIC_ZONES, BPM_BUCKET_COLORS } from '../appConfig';
+import { getZoneForValue, ATHLETIC_ZONES, getBpmBucketColor } from '../appConfig';
 import { normalizeGenreForDisplay, genreDisplayLabel } from '../musicCatalog';
 import { getSingleMatchingTrack, findSameArtistReplacement, recalculateTimeline } from '../musicEngine';
 import { useGeneratorContext } from './GeneratorContext';
@@ -373,17 +373,19 @@ export function PlaylistDetailProvider({
   };
 
   // --- Distribution BPM : par zone SEULEMENT si un vrai profil est
-  // configuré — décision Produit : l'app reste neutre par défaut, jamais de
-  // vocabulaire "effort" tant que l'utilisateur n'a rien réglé lui-même.
+  // configuré — décision Produit : l'app reste neutre par défaut sur le
+  // VOCABULAIRE d'effort tant que l'utilisateur n'a rien réglé lui-même.
   // `getProfileForWorkout` STRICT (pas OrDefault) : un chantier précédent
   // avait basculé sur OrDefault pour synchroniser avec TrackItem.jsx, mais
   // ça affichait des zones ("Récupération", "Seuil"...) en permanence, même
   // pour un profil jamais configuré — revert explicite ici, TrackItem.jsx
   // suit le même retour en arrière (voir ce fichier). Sinon, tranches brutes
-  // de 20 BPM (repli), avec une palette NEUTRE dédiée (BPM_BUCKET_COLORS,
-  // appConfig.js) — distincte à la fois de ATHLETIC_ZONES et de
-  // DISTRIBUTION_COLORS (genres), pour ne jamais suggérer par accident un
-  // sens "zone d'effort" à une simple tranche de BPM brute. / genre ---
+  // de 20 BPM (repli), colorées via `getBpmBucketColor` (appConfig.js) — une
+  // couleur FIXE par valeur de tranche (pas par position dans une liste
+  // triée, voir sa docstring), palette vibrante "Énergie Musicale"
+  // volontairement distincte de ATHLETIC_ZONES (zones d'effort), pour ne
+  // jamais suggérer par accident un sens "zone d'effort" à une simple
+  // tranche de BPM brute — juste de la couleur, pas du vocabulaire. / genre ---
   const bpmDistributionData = useMemo(() => {
     if (!currentPlaylist) return [];
     const activityName = isNaughtyMode
@@ -413,7 +415,7 @@ export function PlaylistDetailProvider({
       buckets[label] = (buckets[label] || 0) + t.duration;
     });
     return Object.entries(buckets)
-      .map(([name, value], i) => ({ name, value, sortKey: parseInt(name), color: BPM_BUCKET_COLORS[i % BPM_BUCKET_COLORS.length] }))
+      .map(([name, value]) => ({ name, value, sortKey: parseInt(name), color: getBpmBucketColor(parseInt(name)) }))
       .sort((a, b) => a.sortKey - b.sortKey);
   }, [currentPlaylist, isNaughtyMode, getProfileForWorkout]);
 
