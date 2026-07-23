@@ -38,7 +38,17 @@ import TrackItem from './TrackItem';
  * et le rendu de la liste, et directement dans TrackItem pour le reste
  * (voir TrackItem.jsx).
  */
-export default function TrackList({
+export default function TrackList(props) {
+  // DIAGNOSTIC TEMPORAIRE (bug "page blanche" en cours d'investigation) —
+  // même mécanisme que TrackItem.jsx, à retirer une fois corrigé.
+  try {
+    return TrackListInner(props);
+  } catch (e) {
+    throw new Error(`[TrackList] erreur d'origine: ${e.message}`);
+  }
+}
+
+function TrackListInner({
   theme, isLocked,
   favorites, toggleTrackFavorite, toggleArtistFavorite,
   resolveAndTogglePreview, getNextTrackForAutoAdvance,
