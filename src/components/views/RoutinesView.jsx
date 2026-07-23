@@ -28,7 +28,7 @@ export default function RoutinesView({
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
       <div className={`border-b ${cardBorder} pb-6`}>
         <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}><ListPlus className={textColorClass} size={36} /> <span>Mes Routines</span></h1>
-        <p className={`mt-2 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)] ${isNaughtyMode ? 'text-slate-700' : 'text-slate-300'}`}>Génère instantanément des playlists à partir de tes configurations.</p>
+        <p className={`mt-2 ${isNaughtyMode ? 'text-slate-700' : 'text-slate-300'}`}>Génère instantanément des playlists à partir de tes configurations.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
