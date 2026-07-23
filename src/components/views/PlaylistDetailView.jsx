@@ -23,17 +23,7 @@ import PlaylistCharts from './PlaylistDetail/PlaylistCharts';
  * calculés dans App.jsx via useMemo et arrivent ici déjà prêts, en props —
  * ce composant reste un composant d'affichage, pas de calcul.
  */
-function PlaylistDetailViewInner(props) {
-  // DIAGNOSTIC TEMPORAIRE (bug "page blanche" en cours d'investigation) —
-  // même mécanisme que TrackItem.jsx, à retirer une fois corrigé.
-  try {
-    return PlaylistDetailViewInnerImpl(props);
-  } catch (e) {
-    throw new Error(`[PlaylistDetailViewInner] erreur d'origine: ${e.message}`);
-  }
-}
-
-function PlaylistDetailViewInnerImpl({
+function PlaylistDetailViewInner({
   // Chantier God Component (suite) : ne reçoit plus QUE ce qui est
   // génuinement hors du périmètre de PlaylistDetailContext — soit partagé
   // avec d'autres vues (PlaylistsView, ShareModal), soit infra globale
@@ -96,17 +86,10 @@ function PlaylistDetailViewInnerImpl({
   // honnête que "Tes zones d'intensité" dans StatsView.jsx) — même
   // résolution d'activité qu'ailleurs (Mode Intime : le vrai nom est dans
   // `config.workoutName`, pas `workoutType`, qui vaut toujours "Ambiance").
-  let bpmChartActivityName, isBpmChartUsingRealProfile;
-  try {
-    bpmChartActivityName = isNaughtyMode
-      ? (currentPlaylist.config?.workoutName || currentPlaylist.workoutType || 'Autre')
-      : (currentPlaylist.workoutType || 'Autre');
-    isBpmChartUsingRealProfile = !!(getProfileForWorkout && getProfileForWorkout(bpmChartActivityName)?.isConfigured);
-  } catch (e) {
-    // DIAGNOSTIC TEMPORAIRE (bug "page blanche" en cours d'investigation) —
-    // à retirer une fois confirmé/corrigé, voir même mécanisme dans TrackItem.jsx.
-    throw new Error(`[PlaylistDetailView] currentPlaylist=${JSON.stringify(currentPlaylist)?.slice(0, 500)} | isNaughtyMode=${isNaughtyMode} | erreur d'origine: ${e.message}`);
-  }
+  const bpmChartActivityName = isNaughtyMode
+    ? (currentPlaylist.config?.workoutName || currentPlaylist.workoutType || 'Autre')
+    : (currentPlaylist.workoutType || 'Autre');
+  const isBpmChartUsingRealProfile = !!(getProfileForWorkout && getProfileForWorkout(bpmChartActivityName)?.isConfigured);
 
   // RETOUR DIRECT ("en course à pied, la cadence de pas varie peu selon la
   // zone — proposer une visualisation Synchro uniquement si l'utilisateur
