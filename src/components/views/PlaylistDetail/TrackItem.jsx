@@ -1,16 +1,17 @@
 import { GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, Lock, Play, Pause, Loader2 } from 'lucide-react';
 import { getGenresForDisplay } from '../../../musicCatalog';
-import { getZoneForValue } from '../../../appConfig';
+import { getZoneForValue, getBpmBucketColor } from '../../../appConfig';
 import { formatDuration } from '../../../utils/format';
 import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
 
 /**
  * TrackItem.jsx — une ligne de la tracklist, style "Coaching / Sport" :
- * BPM en badge + repère de zone d'intensité (bordure gauche + pastille
- * texte) SEULEMENT si un vrai Profil Athlétique est configuré pour cette
- * activité (décision Produit : l'app reste neutre par défaut, badge BPM
- * gris/bordure neutre tant que rien n'est réglé — jamais de vocabulaire
- * "effort" non sollicité). Extrait de PlaylistDetailView.jsx (chantier
+ * BPM en badge coloré (par ZONE d'effort si un vrai Profil Athlétique est
+ * configuré, sinon par TRANCHE de BPM brute — jamais gris/désactivé,
+ * palette "Énergie Musicale" vibrante dans les deux cas). Seul le
+ * VOCABULAIRE d'effort (pastille "Récupération"/"Seuil"...) reste réservé à
+ * un profil réellement configuré (décision Produit inchangée) — la couleur,
+ * elle, est toujours présente. Extrait de PlaylistDetailView.jsx (chantier
  * découpage, suite de GeneratorContext/AudioPlayerContext/
  * PlaylistDetailContext).
  *
@@ -80,7 +81,18 @@ function TrackItemInner({
     : (currentPlaylist?.workoutType || 'Autre');
   const customActivityName = currentPlaylist?.workoutType === 'Autre' ? (currentPlaylist?.config?.customActivity || '') : '';
   const zone = track.bpm ? getZoneForValue(track.bpm, activityName, getProfileForWorkout, customActivityName) : null;
-  const zoneColor = zone?.color || '#9ca3af';
+  // Sans zone (profil non configuré pour cette activité) : couleur de la
+  // TRANCHE de BPM brute (getBpmBucketColor, appConfig.js — palette
+  // "Énergie Musicale" vibrante, PAS grise) plutôt qu'une couleur neutre
+  // statique. Même fonction, même mapping fixe par valeur que
+  // bpmDistributionData (PlaylistDetailContext.jsx) : un titre à 145 BPM
+  // aura donc TOUJOURS la même couleur ici et dans la part du camembert
+  // "140-159" — pas une coïncidence d'ordre, une vraie source de vérité
+  // partagée. Le libellé de zone ({zone && ...} plus bas) reste lui masqué
+  // sans profil réel — seule la COULEUR change ici, jamais le vocabulaire
+  // "effort" (Récupération/Seuil...), qui reste soumis à la même règle
+  // Produit qu'avant.
+  const zoneColor = zone?.color || (track.bpm ? getBpmBucketColor(Math.floor(track.bpm / 20) * 20) : '#9ca3af');
 
   const isFav = favorites.tracks.some(t => t.trackId === track.trackId);
   const tracksCount = currentPlaylist?.tracks?.length || 0;
