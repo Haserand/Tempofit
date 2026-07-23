@@ -1,4 +1,4 @@
-import { Heart, Activity, Sun, Moon, X, Zap, Gauge, ListPlus, List, Star, Settings, Compass } from 'lucide-react';
+import { Heart, Activity, Sun, Moon, X, Zap, List, Star, Settings } from 'lucide-react';
 
 /**
  * Sidebar — navigation principale (logo, toggle thème clair/sombre, liens
@@ -53,39 +53,43 @@ export default function Sidebar({
           correctement partout. `cursor-pointer` ajouté en plus par sécurité (déjà
           le comportement par défaut d'un <button>, mais explicite plutôt qu'implicite).
 
-          Lifting visuel (retour direct : "la sidebar manque de séparation claire
-          entre les groupes d'actions") — 3 clusters logiques (Création, Bibliothèque,
-          Consultation), chacun dans son propre <div> avec `space-y-1` en interne
-          (items proches d'un même groupe) et `mt-8` entre clusters (respiration
-          nette entre groupes, plus large que l'espacement intra-groupe) — remplace
-          l'ancien `space-y-3` uniforme qui traitait "Générer" et "Statistiques"
-          (2 groupes différents) exactement comme "Générer" et son sous-menu Profil
-          (même groupe). "Options & Comptes" n'est plus un 4e cluster ici : il
-          descend en pied de nav (voir plus bas, séparé par une bordure). */}
+          Polish "Pixel Perfect" (retour direct, 2 corrections) :
+          1. État actif des boutons de premier niveau : la bordure gauche
+             (`border-l-2` + couleur conditionnelle) est retirée — elle créait un
+             artefact disgracieux sur les angles arrondis d'un bouton "pilule".
+             L'état actif ne repose plus QUE sur `bg-surface-hover` + `text-white
+             font-medium`, jamais de bordure sur une forme arrondie.
+          2. Rythme vertical : chaque cluster est un conteneur `flex flex-col
+             space-y-1` (espacement interne serré, loi de proximité) séparé du
+             suivant par `mt-8` (respiration nette, constante, entre groupes —
+             jamais la même valeur qu'à l'intérieur d'un groupe). */}
       <nav className="flex-1 flex flex-col px-4 py-6 overflow-y-auto no-scrollbar">
 
         {/* Cluster 1 — Création */}
-        <div className="space-y-1">
+        <div className="flex flex-col space-y-1">
           <button onClick={() => changeView('generator')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Zap size={18} className={view === 'generator' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Générer</span>
           </button>
 
-          {/* Sous-menu de "Générer" (retour direct : "personne ne le verra dans
-              Options & Comptes", puis "j'imaginais ça en sous-menu de Générer") —
-              indenté et en retrait visuel (pas de pastille pleine, icône/texte
-              plus petits, léger décalage à gauche) pour bien signaler que ce
-              n'est pas une section de même niveau que les autres, mais une
-              sous-partie de "Générer" spécifiquement. Ouvre directement le
-              panneau (voir showAthleticProfile, remonté dans App.jsx) plutôt que
-              d'atterrir sur Générer avec le panneau encore replié. */}
+          {/* Sous-menu de "Générer" — precision alignement (retour direct,
+              "la 1ère lettre du sous-menu doit tomber pile sous la 1ère lettre
+              du parent") : le parent a `px-3` (12px) + icône 18px + `space-x-3`
+              (12px) avant son texte = 42px de décalage total avant la 1ère
+              lettre. `pl-[42px]` reproduit EXACTEMENT cette valeur (une classe
+              standard comme `pl-10`/`pl-11` retomberait à 40px/44px, un décalage
+              visible au pixel près) — plus d'icône ici (voir plus bas), donc
+              rien d'autre ne doit compenser cet espace. `mt-0.5` : à peine plus
+              que le `space-y-1` (4px) du reste du cluster, pour coller le 1er
+              sous-menu à son parent un cran plus fort qu'un item de même
+              niveau. Style texte pur (`text-sm text-slate-400 hover:text-white`,
+              sans fond au survol) : hiérarchie secondaire clairement lisible,
+              plus un bouton "pilule" miniature. */}
           <button
             onClick={() => { changeView('generator'); setShowAthleticProfile(true); }}
-            className={`w-full flex items-center space-x-2.5 pl-8 pr-3 py-2 rounded-lg transition-colors select-none cursor-pointer ${view === 'generator' && showAthleticProfile ?
-              `${textColorClass} bg-surface-hover font-bold` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}
+            className={`w-full text-left pl-[42px] pr-3 py-1.5 mt-0.5 rounded-lg transition-colors select-none cursor-pointer text-sm ${view === 'generator' && showAthleticProfile ? 'text-white font-semibold' : 'text-slate-400 hover:text-white'}`}
           >
-            <Gauge size={15} className="shrink-0" />
-            <span className="text-xs font-semibold">Mon Profil Athlétique</span>
+            Mon Profil Athlétique
           </button>
         </div>
 
@@ -93,82 +97,63 @@ export default function Sidebar({
             imbrication finale : les 3 partagent la même racine "où sont mes
             musiques/séances", Découvrir pour en trouver de nouvelles, Routines
             pour en générer automatiquement, Bibliothèque pour les consulter). */}
-        <div className="space-y-1 mt-8">
+        <div className="flex flex-col space-y-1 mt-8">
           <button
             onClick={() => changeView('playlists')}
-            className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl border-l-2 transition-colors select-none cursor-pointer ${view === 'playlists'
-              ? `bg-surface-hover text-white font-medium ${isNaughtyMode ? 'border-rose-500' : 'border-red-500'}`
-              : `border-transparent ${textMuted} hover:bg-surface-hover hover:text-main`}`}
+            className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? 'bg-surface-hover text-white font-medium' : `${textMuted} hover:bg-surface-hover hover:text-main`}`}
           >
-            <List size={18} className={view === 'playlists' ? textColorClass : ''} />
+            <List size={18} className={view === 'playlists' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Bibliothèque</span>
           </button>
 
-          {/* Sous-menu de "Bibliothèque" (retour direct : "Découvrir devient
-              une sous-partie de Bibliothèque, un point d'entrée plus global") —
-              mêmes classes exactement que le sous-menu "Mon Profil Athlétique"
-              sous "Générer" ci-dessus (indentation, taille de police, icône
-              plus petite) pour bien signaler que ce n'est pas une section de
-              même niveau que les autres, mais une sous-partie de
-              "Bibliothèque" spécifiquement. */}
+          {/* Sous-menus de "Bibliothèque" — mêmes classes exactement que
+              "Mon Profil Athlétique" ci-dessus (alignement `pl-[42px]`, style
+              texte pur, `mt-0.5` sur le 1er) pour une hiérarchie visuelle
+              identique partout dans la sidebar. */}
           <button
             onClick={() => changeView('discover')}
-            className={`w-full flex items-center space-x-2.5 pl-8 pr-3 py-2 rounded-lg transition-colors select-none cursor-pointer ${view === 'discover' ?
-              `${textColorClass} bg-surface-hover font-bold` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}
+            className={`w-full text-left pl-[42px] pr-3 py-1.5 mt-0.5 rounded-lg transition-colors select-none cursor-pointer text-sm ${view === 'discover' ? 'text-white font-semibold' : 'text-slate-400 hover:text-white'}`}
           >
-            <Compass size={15} className="shrink-0" />
-            <span className="text-xs font-semibold">Découvrir</span>
+            Découvrir
           </button>
 
-          {/* Imbrication finale : "Mes Routines" descend ici, même niveau que
-              "Découvrir" — mêmes classes exactement, aucune raison qu'un
-              sous-menu de "Bibliothèque" se distingue visuellement d'un autre. */}
           <button
             onClick={() => changeView('routines')}
-            className={`w-full flex items-center space-x-2.5 pl-8 pr-3 py-2 rounded-lg transition-colors select-none cursor-pointer ${view === 'routines' ?
-              `${textColorClass} bg-surface-hover font-bold` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}
+            className={`w-full text-left pl-[42px] pr-3 py-1.5 rounded-lg transition-colors select-none cursor-pointer text-sm ${view === 'routines' ? 'text-white font-semibold' : 'text-slate-400 hover:text-white'}`}
           >
-            <ListPlus size={15} className="shrink-0" />
-            <span className="text-xs font-semibold">Mes Routines</span>
+            Mes Routines
           </button>
         </div>
 
         {/* Cluster 3 — Consultation */}
-        <div className="space-y-1 mt-8">
+        <div className="flex flex-col space-y-1 mt-8">
           <button
             onClick={() => changeView('stats')}
-            className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl border-l-2 transition-colors select-none cursor-pointer ${view === 'stats'
-              ? `bg-surface-hover text-white font-medium ${isNaughtyMode ? 'border-rose-500' : 'border-red-500'}`
-              : `border-transparent ${textMuted} hover:bg-surface-hover hover:text-main`}`}
+            className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? 'bg-surface-hover text-white font-medium' : `${textMuted} hover:bg-surface-hover hover:text-main`}`}
           >
-            <Activity size={18} className={view === 'stats' ? textColorClass : ''} />
+            <Activity size={18} className={view === 'stats' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Statistiques</span>
           </button>
 
           <button
             onClick={() => changeView('favorites')}
-            className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl border-l-2 transition-colors select-none cursor-pointer ${view === 'favorites'
-              ? `bg-surface-hover text-white font-medium ${isNaughtyMode ? 'border-rose-500' : 'border-red-500'}`
-              : `border-transparent ${textMuted} hover:bg-surface-hover hover:text-main`}`}
+            className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? 'bg-surface-hover text-white font-medium' : `${textMuted} hover:bg-surface-hover hover:text-main`}`}
           >
-            <Star size={18} className={favorites.useFavorites && favorites.artists.length > 0 ? "text-yellow-500 fill-yellow-500/20" : (view === 'favorites' ? textColorClass : '')} />
+            <Star size={18} className={favorites.useFavorites && favorites.artists.length > 0 ? "text-yellow-500 fill-yellow-500/20" : (view === 'favorites' ? 'text-white' : '')} />
             <span className="font-bold text-sm">Mes Favoris</span>
           </button>
         </div>
 
         {/* "Options & Comptes" séparé du reste de la navigation principale —
             `mt-auto` le pousse tout en bas du <nav> (qui est lui-même en
-            flex-col depuis ce chantier), une ligne fine au-dessus marque
-            clairement la bascule "navigation" -> "réglages", plutôt que de le
-            traiter comme un 4e cluster de même nature que les 3 au-dessus. */}
+            flex-col), une ligne fine au-dessus marque clairement la bascule
+            "navigation" -> "réglages". */}
         <div className={`mt-auto pt-4 border-t ${cardBorder}`}>
           <button
             onClick={() => changeView('settings')}
-            className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl border-l-2 transition-colors select-none cursor-pointer ${view === 'settings'
-              ? `bg-surface-hover text-white font-medium ${isNaughtyMode ? 'border-rose-500' : 'border-red-500'}`
-              : `border-transparent ${textMuted} hover:bg-surface-hover hover:text-main`}`}
+            className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'settings' ? 'bg-surface-hover text-white font-medium' : `${textMuted} hover:bg-surface-hover hover:text-main`}`}
           >
-            <Settings size={18} className={view === 'settings' ? textColorClass : ''} />
+            <Settings size={18} className={view === 'settings' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Options & Comptes</span>
           </button>
         </div>
