@@ -100,7 +100,17 @@ const RealDataDot = (props) => {
  * ici, ce composant se fie uniquement à ce que le contexte dit réellement
  * afficher).
  */
-export default function PlaylistCharts({
+export default function PlaylistCharts(props) {
+  // DIAGNOSTIC TEMPORAIRE (bug "page blanche" en cours d'investigation) —
+  // même mécanisme que TrackItem.jsx, à retirer une fois corrigé.
+  try {
+    return PlaylistChartsInner(props);
+  } catch (e) {
+    throw new Error(`[PlaylistCharts] erreur d'origine: ${e.message}`);
+  }
+}
+
+function PlaylistChartsInner({
   theme, colorMode, isLocked,
   favorites, toggleArtistFavorite,
   resolveAndTogglePreview, getNextTrackForAutoAdvance,
