@@ -85,12 +85,23 @@ export default function Sidebar({
               niveau. Style texte pur (`text-sm text-slate-400 hover:text-white`,
               sans fond au survol) : hiérarchie secondaire clairement lisible,
               plus un bouton "pilule" miniature. */}
-          <button
-            onClick={() => { changeView('generator'); setShowAthleticProfile(true); }}
-            className={`w-full text-left pl-[42px] pr-3 py-1.5 mt-0.5 rounded-lg transition-colors select-none cursor-pointer text-sm ${view === 'generator' && showAthleticProfile ? 'text-white font-semibold' : 'text-slate-400 hover:text-white'}`}
-          >
-            Mon Profil Athlétique
-          </button>
+          {/* Masqué en Mode Intime (retour direct : "n'a aucun sens
+              fonctionnel dans ce mode et affiche une page vide") — le
+              Profil Athlétique configure des zones de BPM par activité
+              SPORTIVE (Course à pied/Cyclisme/Musculation), un concept sans
+              équivalent en Mode Intime (workoutType y est toujours
+              "Ambiance", jamais une vraie activité — voir
+              PlaylistDetailContext.jsx/appConfig.js). Voir aussi App.jsx
+              pour le filet de sécurité qui referme ce panneau automatiquement
+              si l'utilisateur bascule en Mode Intime pendant qu'il y est. */}
+          {!isNaughtyMode && (
+            <button
+              onClick={() => { changeView('generator'); setShowAthleticProfile(true); }}
+              className={`w-full text-left pl-[42px] pr-3 py-1.5 mt-0.5 rounded-lg transition-colors select-none cursor-pointer text-sm ${view === 'generator' && showAthleticProfile ? 'text-white font-semibold' : 'text-slate-400 hover:text-white'}`}
+            >
+              Mon Profil Athlétique
+            </button>
+          )}
         </div>
 
         {/* Cluster 2 — Bibliothèque (Découvrir et Mes Routines en sous-menus,
