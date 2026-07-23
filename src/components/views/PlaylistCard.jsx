@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { Music2, Play, Trash2, CheckCircle, Circle, Activity, List, Calendar, GripVertical } from 'lucide-react';
 import { buildCoverUrl } from '../../utils/coverArt';
+import { getActivityEmoji } from '../../appConfig';
 
 /**
  * PlaylistCard — carte d'une playlist, utilisée par PlaylistsView ("Mes
@@ -124,7 +125,7 @@ export default function PlaylistCard({
             </div>
           </div>
           <h3 className={`font-bold text-lg flex items-center gap-2 min-w-0 ${textHighlight}`}>
-            <span className="truncate">{playlist.name}</span>
+            <span className="truncate">{getActivityEmoji(playlist.workoutType)} {playlist.name}</span>
             {playlist.config?.isIntervalMode && (
               <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full text-white shrink-0 ${bgAccentClass}`}>
                 {playlist.config?.isCrescendoMode ? 'Crescendo' : 'Fractionné'}
