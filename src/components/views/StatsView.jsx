@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Activity, Flame, Upload, ChevronUp, ChevronDown, ChevronRight, Gauge, Share2, Loader2 } from 'lucide-react';
-import { ATHLETIC_ZONES, getZoneForValue } from '../../appConfig';
+import { ATHLETIC_ZONES, getZoneForValue, DISTRIBUTION_COLORS, getBpmBucketColor } from '../../appConfig';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import { NAUGHTY_WORKOUT_LABELS } from '../../appConfig';
 import { genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog';
@@ -41,6 +41,14 @@ export default function StatsView({
   // aucune pochette, que du texte/dégradé), donc l'export est plus direct.
   const globalStatsCardRef = useRef(null);
   const [isExportingGlobalStats, setIsExportingGlobalStats] = useState(false);
+  // Bascule Zones d'effort / BPM Bruts pour le camembert de droite de la
+  // section Musique — état LOCAL (pas remonté dans App.jsx comme le reste
+  // du state de cette vue) : purement un choix d'affichage sans incidence
+  // ailleurs dans l'app, contrairement à selectedStatsGenre/
+  // selectedStatsBpmBucket (qui pilotent le panneau "Zoom", partagé). Repli
+  // sur 'bpm' par défaut : comportement inchangé pour qui ne touche jamais
+  // à cette bascule, y compris avec un profil configuré.
+  const [statsChartMode, setStatsChartMode] = useState('bpm');
 
   const exportGlobalStatsImage = async () => {
     if (isExportingGlobalStats) return;
@@ -59,11 +67,13 @@ export default function StatsView({
     }
   };
 
-  // Palette adaptée au mode consulté — rose pour Mode Intime (cohérent avec
-  // son habillage ailleurs dans l'app), rouge/orange sinon.
-  const COLORS = statsMode === 'naughty'
-    ? ['#f43f5e', '#fb7185', '#e11d48', '#fda4af', '#be123c', '#ec4899', '#f472b6', '#db2777', '#9f1239']
-    : ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b'];
+  // Palette générique par index retirée (COLORS, codée en dur ici) — utilise
+  // maintenant DISTRIBUTION_COLORS (appConfig.js), la MÊME palette que le
+  // camembert "Répartition par style" de PlaylistCharts.jsx : "Rock"/"Métal"
+  // ont donc la même couleur ici et dans la vue détail d'une playlist, plutôt
+  // que 2 palettes indépendantes qui ne coïncidaient que par hasard. Plus de
+  // variante spécifique au Mode Intime non plus, pour la même raison de
+  // cohérence (PlaylistCharts.jsx n'en a pas).
   // Seules les playlists du mode consulté nourrissent tout ce qui suit —
   // `!!p.isNaughty` normalise undefined/false en un booléen propre avant comparaison
   // (playlists anciennes sans champ).
@@ -112,8 +122,19 @@ export default function StatsView({
   // calculer la plus longue série de jours consécutifs avec au moins une séance.
   const weekdayCounts = {}; // 0 (dimanche) à 6 (samedi) -> count
   const uniqueDays = new Set();
-  const bpmBuckets = { '< 90': 0, '90-119': 0, '120-149': 0, '150-179': 0, '180+': 0 };
-  const bpmBucketLabel = (bpm) => bpm < 90 ? '< 90' : bpm < 120 ? '90-119' : bpm < 150 ? '120-149' : bpm < 180 ? '150-179' : '180+';
+  const bpmBuckets = {}; // rempli dynamiquement, tranches de 20 BPM (voir bpmBucketLabel)
+  // Tranches de 20 BPM (100, 120, 140...) — EXACTEMENT le même découpage que
+  // bpmDistributionData dans PlaylistDetailContext.jsx (Math.floor(bpm/20)*20),
+  // remplaçant l'ancien découpage propre à cette vue (irrégulier : <90, puis
+  // des tranches de 30). Plus de liste FIXE de tranches possibles (avant :
+  // '< 90'/'90-119'/etc.) : les tranches réellement présentes dans
+  // l'historique sont découvertes dynamiquement (voir bpmBucketOrder plus
+  // bas), un historique pouvant contenir n'importe quelle tranche de 60 à
+  // 220+ BPM selon les activités pratiquées.
+  const bpmBucketLabel = (bpm) => {
+    const start = Math.floor(bpm / 20) * 20;
+    return `${start}-${start + 19}`;
+  };
   // Données de "zoom" au clic sur une part de donut (genre ou tranche BPM).
   const genreArtistCounts = {}; // genre -> { artiste -> count }
   const genreTrackCounts = {}; // genre -> { clé titre|||artiste -> {title, artist, count} }
@@ -271,7 +292,7 @@ export default function StatsView({
 
         if (t.bpm) {
           const bucket = bpmBucketLabel(t.bpm);
-          bpmBuckets[bucket] += 1;
+          bpmBuckets[bucket] = (bpmBuckets[bucket] || 0) + 1;
           if (!bpmBucketArtistCounts[bucket]) bpmBucketArtistCounts[bucket] = {};
           bpmBucketArtistCounts[bucket][t.artist] = (bpmBucketArtistCounts[bucket][t.artist] || 0) + 1;
           if (!bpmBucketTrackCounts[bucket]) bpmBucketTrackCounts[bucket] = {};
@@ -426,8 +447,17 @@ export default function StatsView({
     else if (diffDays > 1) { currentStreak = 1; }
   }
 
-  const bpmBucketOrder = ['< 90', '90-119', '120-149', '150-179', '180+'];
-  const bpmDistribution = bpmBucketOrder.map(label => ({ label, count: bpmBuckets[label] })).filter(b => b.count > 0);
+  // Tranches réellement rencontrées, triées par BPM croissant (remplace
+  // l'ancienne liste FIXE de 5 tranches — voir bpmBucketLabel plus haut) —
+  // `parseInt(label)` fonctionne car le libellé commence toujours par le
+  // début de tranche (ex. "140-159" -> 140).
+  const bpmBucketOrder = Object.keys(bpmBuckets).sort((a, b) => parseInt(a) - parseInt(b));
+  // `getBpmBucketColor` (appConfig.js) : couleur FIXE par valeur de tranche,
+  // pas par position dans cette liste — la tranche "140-159" a donc
+  // TOUJOURS la même couleur ici, dans PlaylistDetailContext.jsx et dans
+  // TrackItem.jsx, quelles que soient les autres tranches présentes dans CET
+  // historique précis (voir la docstring de getBpmBucketColor).
+  const bpmDistribution = bpmBucketOrder.map(label => ({ label, count: bpmBuckets[label], color: getBpmBucketColor(parseInt(label)) }));
 
   // Aperçu au clic (voir selectedStatsGenre/selectedStatsBpmBucket) — top 3
   // seulement : un aperçu, pas un doublon de la vue détaillée existante.
@@ -766,7 +796,7 @@ export default function StatsView({
                       <span className={textMuted}>{a.sessions} séance{a.sessions > 1 ? 's' : ''} · {formatDuration(Math.round(a.seconds))}</span>
                     </div>
                     <div className="h-2 rounded-full bg-black/5 dark:bg-white/10 overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }}></div>
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }}></div>
                     </div>
                   </div>
                 );
@@ -975,7 +1005,7 @@ export default function StatsView({
                       style={{ cursor: 'pointer' }}
                     >
                       {genreBreakdown.map((entry, i) => (
-                        <Cell key={entry.genre} fill={COLORS[i % COLORS.length]} opacity={selectedStatsGenre.size > 0 && !selectedStatsGenre.has(entry.genre) ? 0.35 : 1} />
+                        <Cell key={entry.genre} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} opacity={selectedStatsGenre.size > 0 && !selectedStatsGenre.has(entry.genre) ? 0.35 : 1} />
                       ))}
                     </Pie>
                     <RechartsTooltip formatter={(value, name) => [formatDuration(Math.round(value)), name]} />
@@ -989,7 +1019,7 @@ export default function StatsView({
                       className={`w-full flex items-center justify-between text-sm rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedStatsGenre.has(g.genre) ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }}></span>
+                        <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }}></span>
                         <span className={`truncate font-semibold ${textHighlight}`}>{genreDisplayLabel(g.genre)}</span>
                       </div>
                       <span className={`shrink-0 ${textMuted}`}>{g.sessions} séance{g.sessions > 1 ? 's' : ''} · {formatDuration(Math.round(g.seconds))}</span>
@@ -1036,38 +1066,92 @@ export default function StatsView({
 
             {bpmDistribution.length > 0 && (
               <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
-                <h3 className={`font-bold ${textHighlight}`}>Tes BPM</h3>
-                <p className={`text-xs mb-4 ${textMuted}`}>Répartition brute des titres écoutés — indépendante de ton profil.</p>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <h3 className={`font-bold ${textHighlight}`}>{statsChartMode === 'zones' ? "Tes zones d'intensité" : 'Tes BPM'}</h3>
+                  {/* Bascule visible SEULEMENT si un vrai profil produit des
+                      données de zone (zoneBreakdown, déjà calculé plus haut
+                      pour la carte "Entraînement" — pas recalculé ici) :
+                      sans profil configuré, rien à basculer, "Tes BPM" reste
+                      le seul angle possible, comme avant ce chantier. */}
+                  {zoneBreakdown.length > 0 && (
+                    <div className="inline-flex rounded-lg bg-black/5 dark:bg-white/10 p-1 shrink-0">
+                      <button onClick={() => setStatsChartMode('zones')} className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${statsChartMode === 'zones' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted}`}>Zones d'effort</button>
+                      <button onClick={() => setStatsChartMode('bpm')} className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${statsChartMode === 'bpm' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted}`}>BPM Bruts</button>
+                    </div>
+                  )}
+                </div>
+                <p className={`text-xs mb-4 ${textMuted}`}>
+                  {statsChartMode === 'zones' ? 'Basé sur ton Profil Athlétique.' : 'Répartition brute des titres écoutés — indépendante de ton profil.'}
+                </p>
                 <div className="flex flex-col items-center gap-4">
-                  <ResponsiveContainer width="100%" height={180}>
-                    <PieChart>
-                      <Pie
-                        data={bpmDistribution} dataKey="count" nameKey="label" innerRadius={45} outerRadius={80} paddingAngle={2}
-                        onClick={(entry) => setSelectedStatsBpmBucket(prev => { const next = new Set(prev); next.has(entry.label) ? next.delete(entry.label) : next.add(entry.label); return next; })}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        {bpmDistribution.map((entry, i) => (
-                          <Cell key={entry.label} fill={COLORS[i % COLORS.length]} opacity={selectedStatsBpmBucket.size > 0 && !selectedStatsBpmBucket.has(entry.label) ? 0.35 : 1} />
+                  {statsChartMode === 'zones' ? (
+                    <>
+                      {/* Lecture seule (pas de clic pour filtrer, contrairement au
+                          mode BPM Bruts ci-dessous) : zoneBreakdown n'a pas la
+                          granularité par occurrence nécessaire au croisement
+                          style×zone (allTrackOccurrences ne porte que le genre
+                          et le BPM brut) — même limite, volontairement non
+                          comblée ici, que la carte "Tes zones d'intensité" de
+                          la section Entraînement plus haut. */}
+                      <ResponsiveContainer width="100%" height={180}>
+                        <PieChart>
+                          <Pie data={zoneBreakdown} dataKey="seconds" nameKey="shortLabel" innerRadius={45} outerRadius={80} paddingAngle={2}>
+                            {zoneBreakdown.map((z, i) => <Cell key={i} fill={z.color} />)}
+                          </Pie>
+                          <RechartsTooltip formatter={(value, name) => {
+                            const pct = zoneTotalSeconds > 0 ? Math.round((value / zoneTotalSeconds) * 100) : 0;
+                            return [`${formatDuration(value)} (${pct}%)`, name];
+                          }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="w-full space-y-2">
+                        {zoneBreakdown.map((z, i) => {
+                          const pct = zoneTotalSeconds > 0 ? Math.round((z.seconds / zoneTotalSeconds) * 100) : 0;
+                          return (
+                            <div key={i} className="w-full flex items-center justify-between text-sm px-1.5 py-1">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
+                                <span className={`truncate font-semibold ${textHighlight}`}>{z.shortLabel}</span>
+                              </div>
+                              <span className={`shrink-0 ${textMuted}`}>{pct}% · {formatDuration(z.seconds)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <ResponsiveContainer width="100%" height={180}>
+                        <PieChart>
+                          <Pie
+                            data={bpmDistribution} dataKey="count" nameKey="label" innerRadius={45} outerRadius={80} paddingAngle={2}
+                            onClick={(entry) => setSelectedStatsBpmBucket(prev => { const next = new Set(prev); next.has(entry.label) ? next.delete(entry.label) : next.add(entry.label); return next; })}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {bpmDistribution.map((entry) => (
+                              <Cell key={entry.label} fill={entry.color} opacity={selectedStatsBpmBucket.size > 0 && !selectedStatsBpmBucket.has(entry.label) ? 0.35 : 1} />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip formatter={(value, name) => [`${value} titre${value > 1 ? 's' : ''}`, `${name} BPM`]} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="w-full space-y-2">
+                        {bpmDistribution.map((b) => (
+                          <button
+                            key={b.label}
+                            onClick={() => setSelectedStatsBpmBucket(prev => { const next = new Set(prev); next.has(b.label) ? next.delete(b.label) : next.add(b.label); return next; })}
+                            className={`w-full flex items-center justify-between text-sm rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedStatsBpmBucket.has(b.label) ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: b.color }}></span>
+                              <span className={`truncate font-semibold ${textHighlight}`}>{b.label} BPM</span>
+                            </div>
+                            <span className={`shrink-0 ${textMuted}`}>{b.count} titre{b.count > 1 ? 's' : ''}</span>
+                          </button>
                         ))}
-                      </Pie>
-                      <RechartsTooltip formatter={(value, name) => [`${value} titre${value > 1 ? 's' : ''}`, `${name} BPM`]} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="w-full space-y-2">
-                    {bpmDistribution.map((b, i) => (
-                      <button
-                        key={b.label}
-                        onClick={() => setSelectedStatsBpmBucket(prev => { const next = new Set(prev); next.has(b.label) ? next.delete(b.label) : next.add(b.label); return next; })}
-                        className={`w-full flex items-center justify-between text-sm rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedStatsBpmBucket.has(b.label) ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }}></span>
-                          <span className={`truncate font-semibold ${textHighlight}`}>{b.label} BPM</span>
-                        </div>
-                        <span className={`shrink-0 ${textMuted}`}>{b.count} titre{b.count > 1 ? 's' : ''}</span>
-                      </button>
-                    ))}
-                  </div>
+                      </div>
+                    </>
+                  )}
                   {hasStatsFilter && (() => {
                     return (
                     <div className={`w-full text-sm space-y-1.5 pt-3 border-t ${cardBorder}`}>
