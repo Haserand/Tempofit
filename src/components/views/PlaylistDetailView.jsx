@@ -86,10 +86,17 @@ function PlaylistDetailViewInner({
   // honnête que "Tes zones d'intensité" dans StatsView.jsx) — même
   // résolution d'activité qu'ailleurs (Mode Intime : le vrai nom est dans
   // `config.workoutName`, pas `workoutType`, qui vaut toujours "Ambiance").
-  const bpmChartActivityName = isNaughtyMode
-    ? (currentPlaylist.config?.workoutName || currentPlaylist.workoutType || 'Autre')
-    : (currentPlaylist.workoutType || 'Autre');
-  const isBpmChartUsingRealProfile = !!(getProfileForWorkout && getProfileForWorkout(bpmChartActivityName)?.isConfigured);
+  let bpmChartActivityName, isBpmChartUsingRealProfile;
+  try {
+    bpmChartActivityName = isNaughtyMode
+      ? (currentPlaylist.config?.workoutName || currentPlaylist.workoutType || 'Autre')
+      : (currentPlaylist.workoutType || 'Autre');
+    isBpmChartUsingRealProfile = !!(getProfileForWorkout && getProfileForWorkout(bpmChartActivityName)?.isConfigured);
+  } catch (e) {
+    // DIAGNOSTIC TEMPORAIRE (bug "page blanche" en cours d'investigation) —
+    // à retirer une fois confirmé/corrigé, voir même mécanisme dans TrackItem.jsx.
+    throw new Error(`[PlaylistDetailView] currentPlaylist=${JSON.stringify(currentPlaylist)?.slice(0, 500)} | isNaughtyMode=${isNaughtyMode} | erreur d'origine: ${e.message}`);
+  }
 
   // RETOUR DIRECT ("en course à pied, la cadence de pas varie peu selon la
   // zone — proposer une visualisation Synchro uniquement si l'utilisateur
