@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { List, Plus, Calendar, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { List, Library, Plus, Calendar, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import PlaylistCard from './PlaylistCard';
 
 /**
- * PlaylistsView — vue "Mes Séances" (renommée depuis "Mes Playlists").
+ * PlaylistsView — vue "Bibliothèque" (renommée depuis "Mes Séances", elle-même
+ * renommée depuis "Mes Playlists").
  *
  * Fusionne ce qui était avant deux pages séparées ("Mes Playlists" et "Ma
  * File d'attente", voir passation) suite à un retour direct : une file
@@ -150,8 +151,8 @@ export default function PlaylistsView({
   return (
     <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
       <div className={`border-b ${cardBorder} pb-6`}>
-        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}><List className={textColorClass} size={36} /> <span>Mes Séances</span></h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Glisse-dépose pour choisir l'ordre de tes prochaines séances, planifie une date si tu en as une — les deux sont optionnels. Ton historique complet est juste en dessous.</p>
+        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}><Library className={textColorClass} size={36} /> <span>Bibliothèque</span></h1>
+        <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Retrouve ici toutes tes playlists générées. Glisse-dépose pour organiser tes prochaines écoutes, ton historique complet est juste en dessous.</p>
       </div>
 
       {isEmpty ? (
