@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { deezerFetch } from '../musicEngine';
 import { usePersistentState } from './usePersistentState';
 
@@ -8,8 +8,9 @@ import { usePersistentState } from './usePersistentState';
  *
  * Avant ce hook, ces ~10 `useState` et leurs 3 fonctions vivaient éparpillés
  * dans App.jsx, mélangés avec tout le reste. Regroupés ici : App.jsx n'a plus
- * qu'à appeler `useFavorites(showToast)` et redistribuer le résultat aux vues
- * qui en ont besoin (FavoritesView, PlaylistDetailView, GeneratorView...).
+ * qu'à appeler `useFavorites(showToast, isNaughtyMode)` et redistribuer le
+ * résultat aux vues qui en ont besoin (FavoritesView, PlaylistDetailView,
+ * GeneratorView...).
  *
  * `showToast` est une dépendance externe (définie dans App.jsx, utilisée par
  * beaucoup d'autres fonctions ailleurs dans l'app) — elle est passée en
@@ -19,8 +20,21 @@ import { usePersistentState } from './usePersistentState';
  * les réglages du sélecteur BPM/genre juste en dessous restent de simples
  * `useState` volontairement : ce sont des préférences d'affichage éphémères
  * de la page, pas des données à conserver d'une session à l'autre.
+ *
+ * CLOISONNEMENT MODE INTIME (retour direct : "les titres hard-rock comme
+ * AC/DC s'affichent même en Mode Intime, ça casse l'immersion") — même
+ * principe que le pare-feu déjà appliqué aux playlists/routines/Découvrir :
+ * DEUX listes séparées (`standard`/`naughty`), jamais une seule liste
+ * partagée filtrée après coup (une liste plate n'a ici aucun champ
+ * `isNaughty` par titre à filtrer, contrairement aux playlists — la
+ * distinction doit donc vivre au niveau du STOCKAGE, pas du rendu).
+ * `favorites` (retourné plus bas) reste un objet PLAT `{useFavorites,
+ * artists, tracks}` comme avant, dérivé du bucket actif : aucun des
+ * nombreux consommateurs existants (TrackItem.jsx, Sidebar.jsx,
+ * GeneratorView.jsx...) n'a besoin de changer, ils continuent de lire
+ * `favorites.tracks`/`favorites.artists` exactement comme avant.
  */
-export function useFavorites(showToast) {
+export function useFavorites(showToast, isNaughtyMode) {
   // RETOUR DIRECT ("par défaut, est-ce pertinent de pousser vers Métal, plutôt
   // dur à identifier ?") — 'Métal' est explicitement documenté dans
   // musicCatalog.js (`GENRES_NEEDING_DEEP_CATALOG_SEARCH`) comme un genre
@@ -32,14 +46,51 @@ export function useFavorites(showToast) {
   // Rock, qui n'a pas ce problème — mêmes titres déjà validés que la playlist
   // de démo (voir App.jsx, `ex-track-1`/`ex-track-4`), pas de nouvel ID
   // YouTube inventé ici.
-  const [favorites, setFavorites] = usePersistentState('favorites', () => ({
+  const [allFavorites, setAllFavorites] = usePersistentState('favorites', () => ({
     useFavorites: true,
-    artists: ['The Killers', 'AC/DC'],
-    tracks: [
-      { trackId: 'gGdGFtwPNsQ', title: 'Mr. Brightside', artist: 'The Killers', bpm: 148, duration: 222, preview: null, genre: 'Rock' },
-      { trackId: 'v2AC41dglnM', title: 'Thunderstruck', artist: 'AC/DC', bpm: 133, duration: 292, preview: null, genre: 'Rock' }
-    ]
+    standard: {
+      artists: ['The Killers', 'AC/DC'],
+      tracks: [
+        { trackId: 'gGdGFtwPNsQ', title: 'Mr. Brightside', artist: 'The Killers', bpm: 148, duration: 222, preview: null, genre: 'Rock' },
+        { trackId: 'v2AC41dglnM', title: 'Thunderstruck', artist: 'AC/DC', bpm: 133, duration: 292, preview: null, genre: 'Rock' }
+      ]
+    },
+    // Mêmes titres exactement que "Late Night R&B" (App.jsx, playlist
+    // d'exemple Mode Intime) — continuité du contenu factice plutôt que
+    // d'inventer un 3e jeu de titres pour la même ambiance. Genre canonique
+    // de NAUGHTY_GENRES (musicCatalog.js), pas inventé.
+    naughty: {
+      artists: ['Sade', 'Miguel'],
+      tracks: [
+        { trackId: 'nex1-2', title: 'No Ordinary Love', artist: 'Sade', bpm: 68, duration: 293, preview: null, genre: 'R&B Sensuel' },
+        { trackId: 'nex1-1', title: 'Adorn', artist: 'Miguel', bpm: 65, duration: 205, preview: null, genre: 'R&B Sensuel' }
+      ]
+    }
   }));
+
+  // Migration défensive : un favoris déjà enregistré AVANT ce chantier a
+  // l'ancienne forme PLATE ({useFavorites, artists, tracks}, sans
+  // distinction de mode) — traitée ici comme le bucket "standard" existant
+  // plutôt que de planter sur `.standard`/`.naughty` absents (`undefined`),
+  // avec un bucket "naughty" vide à côté. Jamais de perte des favoris déjà
+  // enregistrés par un utilisateur existant.
+  const normalize = (raw) => (!raw.standard && !raw.naughty)
+    ? { useFavorites: raw.useFavorites, standard: { artists: raw.artists || [], tracks: raw.tracks || [] }, naughty: { artists: [], tracks: [] } }
+    : raw;
+  const normalized = normalize(allFavorites);
+
+  const bucketKey = isNaughtyMode ? 'naughty' : 'standard';
+  const favorites = { useFavorites: normalized.useFavorites, ...normalized[bucketKey] };
+  const setFavorites = (updater) => {
+    setAllFavorites(prev => {
+      const prevNormalized = normalize(prev);
+      const currentBucket = { useFavorites: prevNormalized.useFavorites, ...prevNormalized[bucketKey] };
+      const updated = typeof updater === 'function' ? updater(currentBucket) : updater;
+      const { useFavorites: newUseFavorites, ...bucketFields } = updated;
+      return { ...prevNormalized, useFavorites: newUseFavorites, [bucketKey]: bucketFields };
+    });
+  };
+
   // Réglages du sélecteur BPM/genre propre à la page Cœur & Favoris (indépendant
   // de ceux du wizard de génération, qui a son propre contexte bpm/selectedGenres).
   const [favBpmTarget, setFavBpmTarget] = useState(140);
@@ -47,6 +98,17 @@ export function useFavorites(showToast) {
   const [favSelectedGenres, setFavSelectedGenres] = useState(['Rock']);
   const [newFavArtist, setNewFavArtist] = useState("");
   const [isAddingArtist, setIsAddingArtist] = useState(false);
+
+  // Le genre par défaut ('Rock') n'existe pas dans NAUGHTY_GENRES — sans ce
+  // filet, basculer en Mode Intime laissait un genre sélectionné invisible
+  // dans la liste de pilules proposée (ni vraiment sélectionné à l'écran, ni
+  // vraiment vide). Réaligné sur le mode actif à chaque bascule, même
+  // principe que la synchronisation `statsMode`/`isNaughtyMode` de
+  // StatsView.jsx.
+  useEffect(() => {
+    setFavSelectedGenres(isNaughtyMode ? ['R&B Sensuel'] : ['Rock']);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNaughtyMode]);
 
   /**
    * Ajoute un artiste aux favoris de façon OPTIMISTE : le nom tapé apparaît
