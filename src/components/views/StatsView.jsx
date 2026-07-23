@@ -41,6 +41,12 @@ export default function StatsView({
   // aucune pochette, que du texte/dégradé), donc l'export est plus direct.
   const globalStatsCardRef = useRef(null);
   const [isExportingGlobalStats, setIsExportingGlobalStats] = useState(false);
+  // Bascule Zones d'effort / BPM Bruts pour le camembert de droite de la
+  // section Musique — état LOCAL (pas remonté dans App.jsx comme le reste
+  // du state de cette vue) : purement un choix d'affichage sans incidence
+  // ailleurs dans l'app. Repli sur 'bpm' par défaut : comportement inchangé
+  // pour qui ne touche jamais à cette bascule.
+  const [statsChartMode, setStatsChartMode] = useState('bpm');
 
   const exportGlobalStatsImage = async () => {
     if (isExportingGlobalStats) return;
@@ -796,110 +802,16 @@ export default function StatsView({
             </div>
           </div>
 
-          {zoneBreakdown.length === 0 ? (
-            <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder} flex items-start gap-4`}>
-              <div className={`shrink-0 p-2.5 rounded-xl ${bgAccentClass} text-white`}><Gauge size={20}/></div>
-              <div>
-                <h3 className={`font-bold mb-1 ${textHighlight}`}>Vois comment tu t'entraînes par zone</h3>
-                <p className={`text-sm ${textMuted}`}>Configure ton Profil Athlétique (BPM cibles par zone) pour voir la répartition de tes séances entre Récupération, Endurance, Seuil et Vitesse.</p>
-                <button onClick={() => changeView('generator')} className={`mt-3 text-sm font-bold underline ${textColorClass}`}>
-                  Configurer mon Profil Athlétique →
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
-              <h3 className={`font-bold flex items-center gap-2 ${textHighlight}`}><Gauge size={18} className={textColorClass}/> Tes zones d'intensité</h3>
-              {/* RETOUR DIRECT ("le jargon 'effort' a-t-il un sens avec une
-                  estimation par défaut ?") — redevenu strict : ce camembert
-                  n'apparaît QUE s'il y a de vraies données classées (voir
-                  classifyIntoZone plus haut, `getProfileForWorkout`) — donc
-                  toujours "Basé sur ton Profil Athlétique" ici, plus de
-                  branche "estimation par défaut" (elle ne peut plus se
-                  produire : sans profil réel, `zoneBreakdown` reste vide,
-                  voir le CTA ci-dessus à la place). */}
-              <p className={`text-xs mb-1 ${textMuted}`}>Basé sur ton Profil Athlétique — pas le même découpage que "Tes BPM" plus bas.</p>
-              {/* RETOUR DIRECT ("est-ce que ça vaut le coup de montrer le
-                  temps passé dans chaque zone ?") — jusqu'ici seul le %
-                  était affiché (la donnée en secondes existait déjà dans
-                  `zoneBreakdown`/`zoneTotalSeconds`, juste jamais montrée).
-                  Le % seul répond à "comment mes séances SE RÉPARTISSENT",
-                  mais pas à "combien de temps j'ai VRAIMENT passé" — les deux
-                  se lisent différemment dans le temps : un % peut rester
-                  stable (85/15) alors que le volume réel augmente d'un mois
-                  sur l'autre, ce que le % seul ne montre jamais. Ajouté à 2
-                  endroits : le total en tête de carte, et la durée à côté du
-                  % de chaque zone dans la légende. */}
-              <p className={`text-sm font-bold mb-4 ${textHighlight}`}>{formatDuration(zoneTotalSeconds)} au total, toutes zones confondues.</p>
-              <div className="w-full h-56 md:h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={zoneBreakdown} dataKey="seconds" nameKey="shortLabel"
-                      cx="50%" cy="50%" innerRadius={55} outerRadius={85}
-                      paddingAngle={3} cornerRadius={4} stroke="none"
-                    >
-                      {zoneBreakdown.map((z, i) => <Cell key={i} fill={z.color} />)}
-                    </Pie>
-                    <RechartsTooltip formatter={(value, name) => {
-                      const pct = zoneTotalSeconds > 0 ? Math.round((value / zoneTotalSeconds) * 100) : 0;
-                      return [`${formatDuration(value)} (${pct}%)`, name];
-                    }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2">
-                {zoneBreakdown.map((z, i) => {
-                  const pct = zoneTotalSeconds > 0 ? Math.round((z.seconds / zoneTotalSeconds) * 100) : 0;
-                  return (
-                    <div key={i} className="flex items-center gap-1.5 text-xs font-bold">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
-                      <span className={textHighlight}>{z.shortLabel}</span>
-                      <span className={textMuted}>{pct}% · {formatDuration(z.seconds)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              {/* Légende motivante scopée au mois en cours — voir
-                  zoneMonthSummary. Absente s'il n'y a aucune séance ce
-                  mois-ci dans une zone connue, plutôt qu'une phrase à 0%
-                  partout. Durée totale du mois ajoutée en fin de phrase (même
-                  logique que ci-dessus : le % seul ne dit pas si le mois a été
-                  copieux ou maigre en entraînement). */}
-              {/* RETOUR DIRECT ("ajoute les 2" — répartition par activité) —
-                  seulement si au moins 2 activités ont des titres classés :
-                  pas la peine de répéter le camembert du dessus pour une
-                  seule activité, l'info serait identique. */}
-              {zoneBreakdownByActivity.length > 1 && (
-                <div className={`mt-4 pt-4 border-t ${cardBorder} space-y-3`}>
-                  <div className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>Détail par activité</div>
-                  {zoneBreakdownByActivity.map(a => (
-                    <div key={a.activity}>
-                      <div className="flex items-center justify-between text-sm mb-1">
-                        <span className={`font-semibold ${textHighlight}`}>{a.activity}</span>
-                        <span className={textMuted}>{formatDuration(a.total)}</span>
-                      </div>
-                      <div className="h-2 rounded-full overflow-hidden flex">
-                        {a.zones.map((z, i) => (
-                          <div key={i} style={{ width: `${z.pct}%`, backgroundColor: z.color }}></div>
-                        ))}
-                      </div>
-                      <div className="flex flex-wrap gap-x-3 mt-1 text-xs">
-                        {a.zones.map((z, i) => (
-                          <span key={i} className={textMuted}><span className={`font-semibold ${textHighlight}`}>{z.pct}%</span> {z.shortLabel}</span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {zoneMonthSummary && (
-                <p className={`text-sm text-center mt-4 pt-4 border-t ${cardBorder} ${textHighlight}`}>
-                  <span className="font-bold">Ce mois-ci</span> : {zoneMonthSummary} <span className={textMuted}>({formatDuration(zoneTotalSecondsThisMonth)} au total)</span>
-                </p>
-              )}
-            </div>
-          )}
+          {/* Carte "Tes zones d'intensité" retirée d'ici (redondance signalée :
+              affichée à la fois ici et via le toggle "Zones d'effort/BPM
+              Bruts" de la section Musique plus bas) — tout son contenu (CTA
+              de configuration, camembert, détail par activité, résumé du
+              mois) est désormais UNIQUEMENT dans la carte "Tes BPM"/toggle
+              de la section Musique, seule source pour cette donnée. "Ton
+              évolution par zone" (tendance dans le temps, juste en dessous)
+              reste ici : c'est une visualisation différente (une courbe
+              dans le temps, pas une répartition instantanée), pas concernée
+              par cette redondance. */}
 
           {/* RETOUR DIRECT ("ajoute les 2" — tendance dans le temps) — même
               garde-fou que "Ton évolution" plus bas (au moins 2 mois
@@ -1058,38 +970,147 @@ export default function StatsView({
 
             {bpmDistribution.length > 0 && (
               <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
-                <h3 className={`font-bold ${textHighlight}`}>Tes BPM</h3>
-                <p className={`text-xs mb-4 ${textMuted}`}>Répartition brute des titres écoutés — indépendante de ton profil.</p>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <h3 className={`font-bold ${textHighlight}`}>{statsChartMode === 'zones' ? "Tes zones d'intensité" : 'Tes BPM'}</h3>
+                  {/* Bascule visible SEULEMENT si un vrai profil produit des
+                      données de zone (zoneBreakdown, calculé plus haut) —
+                      sans profil configuré, rien à basculer, "Tes BPM" reste
+                      le seul angle possible (voir le CTA de configuration
+                      plus bas dans ce cas). SEULE source pour cette donnée
+                      dans toute la page — la carte "Tes zones d'intensité"
+                      qui vivait dans la section Entraînement a été retirée
+                      (redondance signalée), tout son contenu (détail par
+                      activité, résumé du mois, CTA) est relocalisé ici. */}
+                  {zoneBreakdown.length > 0 && (
+                    <div className="inline-flex rounded-lg bg-black/5 dark:bg-white/10 p-1 shrink-0">
+                      <button onClick={() => setStatsChartMode('zones')} className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${statsChartMode === 'zones' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted}`}>Zones d'effort</button>
+                      <button onClick={() => setStatsChartMode('bpm')} className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${statsChartMode === 'bpm' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted}`}>BPM Bruts</button>
+                    </div>
+                  )}
+                </div>
+                <p className={`text-xs mb-4 ${textMuted}`}>
+                  {statsChartMode === 'zones' ? 'Basé sur ton Profil Athlétique.' : 'Répartition brute des titres écoutés — indépendante de ton profil.'}
+                </p>
                 <div className="flex flex-col items-center gap-4">
-                  <ResponsiveContainer width="100%" height={180}>
-                    <PieChart>
-                      <Pie
-                        data={bpmDistribution} dataKey="count" nameKey="label" innerRadius={45} outerRadius={80} paddingAngle={2}
-                        onClick={(entry) => setSelectedStatsBpmBucket(prev => { const next = new Set(prev); next.has(entry.label) ? next.delete(entry.label) : next.add(entry.label); return next; })}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        {bpmDistribution.map((entry) => (
-                          <Cell key={entry.label} fill={entry.color} opacity={selectedStatsBpmBucket.size > 0 && !selectedStatsBpmBucket.has(entry.label) ? 0.35 : 1} />
-                        ))}
-                      </Pie>
-                      <RechartsTooltip formatter={(value, name) => [`${value} titre${value > 1 ? 's' : ''}`, `${name} BPM`]} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="w-full space-y-2">
-                    {bpmDistribution.map((b) => (
-                      <button
-                        key={b.label}
-                        onClick={() => setSelectedStatsBpmBucket(prev => { const next = new Set(prev); next.has(b.label) ? next.delete(b.label) : next.add(b.label); return next; })}
-                        className={`w-full flex items-center justify-between text-sm rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedStatsBpmBucket.has(b.label) ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: b.color }}></span>
-                          <span className={`truncate font-semibold ${textHighlight}`}>{b.label} BPM</span>
+                  {statsChartMode === 'zones' ? (
+                    <>
+                      {/* Lecture seule (pas de clic pour filtrer, contrairement au
+                          mode BPM Bruts ci-dessous) : zoneBreakdown n'a pas la
+                          granularité par occurrence nécessaire au croisement
+                          style×zone (allTrackOccurrences ne porte que le genre
+                          et le BPM brut). */}
+                      <p className={`text-sm font-bold self-start -mt-2 ${textHighlight}`}>{formatDuration(zoneTotalSeconds)} au total, toutes zones confondues.</p>
+                      <ResponsiveContainer width="100%" height={180}>
+                        <PieChart>
+                          <Pie data={zoneBreakdown} dataKey="seconds" nameKey="shortLabel" innerRadius={45} outerRadius={80} paddingAngle={2}>
+                            {zoneBreakdown.map((z, i) => <Cell key={i} fill={z.color} />)}
+                          </Pie>
+                          <RechartsTooltip formatter={(value, name) => {
+                            const pct = zoneTotalSeconds > 0 ? Math.round((value / zoneTotalSeconds) * 100) : 0;
+                            return [`${formatDuration(value)} (${pct}%)`, name];
+                          }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="w-full space-y-2">
+                        {zoneBreakdown.map((z, i) => {
+                          const pct = zoneTotalSeconds > 0 ? Math.round((z.seconds / zoneTotalSeconds) * 100) : 0;
+                          return (
+                            <div key={i} className="w-full flex items-center justify-between text-sm px-1.5 py-1">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
+                                <span className={`truncate font-semibold ${textHighlight}`}>{z.shortLabel}</span>
+                              </div>
+                              <span className={`shrink-0 ${textMuted}`}>{pct}% · {formatDuration(z.seconds)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {/* Détail par activité — relocalisé depuis l'ancienne
+                          carte Entraînement, même garde-fou (au moins 2
+                          activités classées, sinon ce serait identique au
+                          camembert du dessus). */}
+                      {zoneBreakdownByActivity.length > 1 && (
+                        <div className={`w-full pt-3 border-t ${cardBorder} space-y-3`}>
+                          <div className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>Détail par activité</div>
+                          {zoneBreakdownByActivity.map(a => (
+                            <div key={a.activity}>
+                              <div className="flex items-center justify-between text-sm mb-1">
+                                <span className={`font-semibold ${textHighlight}`}>{a.activity}</span>
+                                <span className={textMuted}>{formatDuration(a.total)}</span>
+                              </div>
+                              <div className="h-2 rounded-full overflow-hidden flex">
+                                {a.zones.map((z, i) => (
+                                  <div key={i} style={{ width: `${z.pct}%`, backgroundColor: z.color }}></div>
+                                ))}
+                              </div>
+                              <div className="flex flex-wrap gap-x-3 mt-1 text-xs">
+                                {a.zones.map((z, i) => (
+                                  <span key={i} className={textMuted}><span className={`font-semibold ${textHighlight}`}>{z.pct}%</span> {z.shortLabel}</span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        <span className={`shrink-0 ${textMuted}`}>{b.count} titre{b.count > 1 ? 's' : ''}</span>
-                      </button>
-                    ))}
-                  </div>
+                      )}
+                      {/* Résumé motivant du mois en cours — relocalisé, même
+                          garde-fou (absent s'il n'y a aucune séance ce
+                          mois-ci dans une zone connue). */}
+                      {zoneMonthSummary && (
+                        <p className={`w-full text-sm text-center pt-3 border-t ${cardBorder} ${textHighlight}`}>
+                          <span className="font-bold">Ce mois-ci</span> : {zoneMonthSummary} <span className={textMuted}>({formatDuration(zoneTotalSecondsThisMonth)} au total)</span>
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <ResponsiveContainer width="100%" height={180}>
+                        <PieChart>
+                          <Pie
+                            data={bpmDistribution} dataKey="count" nameKey="label" innerRadius={45} outerRadius={80} paddingAngle={2}
+                            onClick={(entry) => setSelectedStatsBpmBucket(prev => { const next = new Set(prev); next.has(entry.label) ? next.delete(entry.label) : next.add(entry.label); return next; })}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {bpmDistribution.map((entry) => (
+                              <Cell key={entry.label} fill={entry.color} opacity={selectedStatsBpmBucket.size > 0 && !selectedStatsBpmBucket.has(entry.label) ? 0.35 : 1} />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip formatter={(value, name) => [`${value} titre${value > 1 ? 's' : ''}`, `${name} BPM`]} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="w-full space-y-2">
+                        {bpmDistribution.map((b) => (
+                          <button
+                            key={b.label}
+                            onClick={() => setSelectedStatsBpmBucket(prev => { const next = new Set(prev); next.has(b.label) ? next.delete(b.label) : next.add(b.label); return next; })}
+                            className={`w-full flex items-center justify-between text-sm rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedStatsBpmBucket.has(b.label) ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: b.color }}></span>
+                              <span className={`truncate font-semibold ${textHighlight}`}>{b.label} BPM</span>
+                            </div>
+                            <span className={`shrink-0 ${textMuted}`}>{b.count} titre{b.count > 1 ? 's' : ''}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {/* CTA de configuration — relocalisé depuis l'ancienne carte
+                      Entraînement : n'apparaît que si AUCUN profil ne produit
+                      de données de zone (zoneBreakdown vide), donc jamais en
+                      même temps que la bascule ci-dessus (mutuellement
+                      exclusifs). */}
+                  {zoneBreakdown.length === 0 && (
+                    <div className={`w-full flex items-start gap-3 pt-3 border-t ${cardBorder}`}>
+                      <div className={`shrink-0 p-2 rounded-lg ${bgAccentClass} text-white`}><Gauge size={16}/></div>
+                      <div>
+                        <p className={`text-sm font-bold ${textHighlight}`}>Vois aussi tes séances par zone d'effort</p>
+                        <p className={`text-xs ${textMuted}`}>Configure ton Profil Athlétique (BPM cibles par zone) pour voir cette répartition entre Récupération, Endurance, Seuil et Vitesse.</p>
+                        <button onClick={() => changeView('generator')} className={`mt-1 text-xs font-bold underline ${textColorClass}`}>
+                          Configurer mon Profil Athlétique →
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {hasStatsFilter && (() => {
                     return (
                     <div className={`w-full text-sm space-y-1.5 pt-3 border-t ${cardBorder}`}>
