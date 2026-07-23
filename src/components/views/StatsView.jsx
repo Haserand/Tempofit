@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Activity, Flame, Upload, ChevronUp, ChevronDown, ChevronRight, Gauge, Share2, Loader2 } from 'lucide-react';
 import { ATHLETIC_ZONES, getZoneForValue, DISTRIBUTION_COLORS, getBpmBucketColor } from '../../appConfig';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
@@ -25,6 +25,7 @@ import GlobalStatsShareCard from '../shared/GlobalStatsShareCard';
 export default function StatsView({
   theme, savedPlaylists, userStats, changeView, setCurrentPlaylist, athleticProfile, getProfileForWorkout, getProfileForWorkoutOrDefault,
   shareImageFile, showToast,
+  isNaughtyMode,
   statsMode, setStatsMode,
   selectedStatsGenre, setSelectedStatsGenre,
   selectedStatsBpmBucket, setSelectedStatsBpmBucket,
@@ -47,6 +48,23 @@ export default function StatsView({
   // ailleurs dans l'app. Repli sur 'bpm' par défaut : comportement inchangé
   // pour qui ne touche jamais à cette bascule.
   const [statsChartMode, setStatsChartMode] = useState('bpm');
+
+  // Pare-feu Mode Intime (retour direct : "les sessions du Mode Intime
+  // risquent de polluer les graphiques de Statistiques") — `statsMode`
+  // filtrait DÉJÀ correctement `playlistsForStats` plus bas (aucune
+  // pollution possible techniquement), mais restait "collé" à sa dernière
+  // valeur (`useState('standard')` dans App.jsx, jamais réinitialisé) : en
+  // Mode Intime, arriver ici pouvait donc afficher des stats Standard
+  // vides/hors-sujet tant qu'on ne pensait pas à cliquer la bascule "Intime"
+  // manuellement ci-dessous. Cet effet aligne `statsMode` sur le mode
+  // GLOBAL actuellement actif à chaque fois qu'il change (montage inclus) —
+  // la bascule manuelle (voir plus bas, boutons "Standard"/"Intime") reste
+  // pleinement fonctionnelle ensuite pour qui veut ponctuellement jeter un
+  // œil à l'autre mode sans changer le mode global de toute l'app.
+  useEffect(() => {
+    setStatsMode(isNaughtyMode ? 'naughty' : 'standard');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNaughtyMode]);
 
   const exportGlobalStatsImage = async () => {
     if (isExportingGlobalStats) return;
