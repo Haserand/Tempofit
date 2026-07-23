@@ -187,6 +187,14 @@ const ACTIVITY_EMOJIS = {
   'Course à pied': '🏃',
   'Cyclisme': '🚴',
   'Musculation': '🏋️',
+  // Mode Intime : `workoutType` vaut TOUJOURS littéralement "Ambiance" pour
+  // une playlist Intime (voir musicEngine.js, `finalWorkoutName = isNaughtyMode
+  // ? 'Ambiance' : ...` — écrasé volontairement, l'activité réelle reste
+  // privée dans `config.workoutName`) : c'est la SEULE clé de ce mode
+  // effectivement atteignable via `workoutType`, pas la peine d'ajouter des
+  // entrées pour Douceur/Passion/Intensité (NAUGHTY_WORKOUT_LABELS
+  // ci-dessous) qui ne sont jamais stockées à cet endroit précis.
+  'Ambiance': '🌶️',
 };
 const getActivityEmoji = (workoutType) => ACTIVITY_EMOJIS[workoutType] || '🎧';
 
