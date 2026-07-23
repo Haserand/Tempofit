@@ -170,15 +170,15 @@ export default function PlaylistsView({
             aussi un fond pâle (bg-base = gray-50) — seul le Mode Intime a
             besoin d'un texte forcé sombre ici, jamais le mode Standard quel
             que soit son thème clair/sombre. */}
-        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-slate-900' : textHighlight}`}><Library className={textColorClass} size={36} /> <span>Bibliothèque</span></h1>
-        <p className={`mt-2 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)] ${isNaughtyMode ? 'text-slate-700' : 'text-gray-600 dark:text-gray-300'}`}>Retrouve ici toutes tes playlists générées. Glisse-dépose pour organiser tes prochaines écoutes, ton historique complet est juste en dessous.</p>
+        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-rose-950' : textHighlight}`}><Library className={textColorClass} size={36} /> <span>Bibliothèque</span></h1>
+        <p className={`mt-2 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)] ${isNaughtyMode ? 'text-rose-900' : 'text-gray-600 dark:text-gray-300'}`}>Retrouve ici toutes tes playlists générées. Glisse-dépose pour organiser tes prochaines écoutes, ton historique complet est juste en dessous.</p>
       </div>
 
       {isEmpty ? (
-        <div className={`py-16 text-center border-2 border-dashed rounded-2xl ${isNaughtyMode ? 'border-slate-400' : cardBorder}`}>
-          <List size={48} className={`mx-auto mb-4 ${isNaughtyMode ? 'text-slate-400' : 'text-gray-300 dark:text-gray-700'}`} />
-          <h3 className={`text-lg font-bold mb-2 ${isNaughtyMode ? 'text-slate-900' : textHighlight}`}>Aucune playlist sauvegardée</h3>
-          <p className={`text-sm mb-6 max-w-sm mx-auto ${isNaughtyMode ? 'text-slate-700' : textMuted}`}>Génère une playlist et sauvegarde-la pour la retrouver ici.</p>
+        <div className={`py-16 text-center border-2 border-dashed rounded-2xl ${isNaughtyMode ? 'border-rose-300' : cardBorder}`}>
+          <List size={48} className={`mx-auto mb-4 ${isNaughtyMode ? 'text-rose-800' : 'text-gray-300 dark:text-gray-700'}`} />
+          <h3 className={`text-lg font-bold mb-2 ${isNaughtyMode ? 'text-rose-950' : textHighlight}`}>Aucune playlist sauvegardée</h3>
+          <p className={`text-sm mb-6 max-w-sm mx-auto ${isNaughtyMode ? 'text-rose-900' : textMuted}`}>Génère une playlist et sauvegarde-la pour la retrouver ici.</p>
           <button onClick={() => changeView('generator')} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
             Générer ma première playlist
           </button>
@@ -187,13 +187,13 @@ export default function PlaylistsView({
         <>
           {/* --- À PLANIFIER (pas de date, ordre manuel par glisser-déposer, PAS paginée) --- */}
           <div className="space-y-4">
-            <h2 className={`text-sm font-bold uppercase tracking-wider ${isNaughtyMode ? 'text-slate-700' : textMuted}`}>À planifier</h2>
+            <h2 className={`text-sm font-bold uppercase tracking-wider ${isNaughtyMode ? 'text-rose-900' : textMuted}`}>À planifier</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Zone vide "Générer une nouvelle playlist" (retour direct :
                   "le texte gris clair et le + sont illisibles") — bordure
                   pointillée ET texte forcés sombres en Mode Intime, tout le
                   reste (hover compris) inchangé pour le mode Standard. */}
-              <button onClick={() => changeView('generator')} className={`rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 py-10 font-bold transition-colors hover:border-gray-400 ${isNaughtyMode ? 'border-slate-400 text-slate-700 hover:text-slate-900' : `${cardBorder} ${textMuted} hover:text-main`}`}>
+              <button onClick={() => changeView('generator')} className={`rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 py-10 font-bold transition-colors hover:border-gray-400 ${isNaughtyMode ? 'border-rose-300 text-rose-900 hover:text-rose-950' : `${cardBorder} ${textMuted} hover:text-main`}`}>
                 <Plus size={28} />
                 <span>Générer une nouvelle playlist</span>
               </button>
@@ -204,7 +204,7 @@ export default function PlaylistsView({
           {/* --- PLANIFIÉES (une date a été choisie, triées par date, paginée) --- */}
           {planned.length > 0 && (
             <div className="space-y-4">
-              <h2 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${isNaughtyMode ? 'text-slate-700' : textMuted}`}>
+              <h2 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${isNaughtyMode ? 'text-rose-900' : textMuted}`}>
                 <Calendar size={14} /> Planifiées
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -217,7 +217,7 @@ export default function PlaylistsView({
           {/* --- TERMINÉES (fusionne l'ancien "Historique", paginée) --- */}
           {completedPlaylists.length > 0 && (
             <div className="space-y-4">
-              <h2 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${isNaughtyMode ? 'text-slate-700' : textMuted}`}>
+              <h2 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${isNaughtyMode ? 'text-rose-900' : textMuted}`}>
                 <CheckCircle size={14} /> Terminées
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
