@@ -5,6 +5,8 @@ import {
 } from 'lucide-react';
 import { getGenresForDisplay, genreDisplayLabel } from '../../../musicCatalog';
 import { formatDuration } from '../../../utils/format';
+import { buildCoverUrl } from '../../../utils/coverArt';
+import { getActivityEmoji } from '../../../appConfig';
 import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
 
 /**
@@ -53,7 +55,7 @@ function PlaylistHeaderInner({
   renderCompletionsList, renderTopCompletionDate, getRankStyle, triggerCSVUpload,
   onShare,
 }) {
-  const { cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass, borderAccentClass, inputBg, inputBorder } = theme;
+  const { cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass, borderAccentClass } = theme;
   const {
     currentPlaylist, isNaughtyMode,
     isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
@@ -101,33 +103,27 @@ function PlaylistHeaderInner({
         <button
           onClick={() => currentPlaylist.tracks[0] && resolveAndTogglePreview(currentPlaylist.tracks[0], getNextTrackForAutoAdvance)}
           title="Écouter cette playlist"
-          className={"relative w-32 h-32 md:w-48 md:h-48 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-inner text-5xl md:text-7xl cursor-pointer " + inputBg}
+          className="relative w-32 h-32 md:w-48 md:h-48 rounded-2xl overflow-hidden shrink-0 shadow-inner cursor-pointer"
         >
-          <div className={"absolute inset-0 opacity-10 dark:opacity-20 " + (isNaughtyMode ? 'bg-rose-500' : 'bg-red-500')}></div>
-          {/* Playlists ensemencées (voir data/curatedSessions.js) : `coverUrl`
-              (image générée DiceBear), en plus de `coverIcon` (l'émoji, gardé
-              en repli). Une playlist générée classiquement ou importée via
-              lien n'a PAS de `coverUrl` — retombe naturellement sur l'émoji. */}
-          {currentPlaylist.coverUrl ? (
-            <>
-              <img src={currentPlaylist.coverUrl} alt="" className="w-full h-full object-cover rounded-lg" />
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <Music2 size={56} className="text-white/80 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)] transition-opacity duration-300 group-hover/cover:opacity-0" />
-              </div>
-            </>
-          ) : (
-            currentPlaylist.coverIcon
-          )}
+          {/* Continuité visuelle avec PlaylistCard.jsx (Bibliothèque) : même
+              logique de pochette exactement — `coverUrl` si déjà posé
+              (playlists ouvertes depuis Découvrir, voir App.jsx
+              `openCuratedPlaylist`), sinon `buildCoverUrl(currentPlaylist.name)`
+              (déterministe, utils/coverArt.js) — plus de repli sur un simple
+              carré teinté + `coverIcon` (l'ancien design, qui ne matchait plus
+              la vraie pochette déjà visible sur la carte au moment du clic). */}
+          <img src={currentPlaylist.coverUrl || buildCoverUrl(currentPlaylist.name)} alt="" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <Music2 size={56} className="text-white/80 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)] transition-opacity duration-300 group-hover/cover:opacity-0" />
+          </div>
           {/* Cliquer sur la pochette lance la playlist (1er titre + enchaînement
               automatique, getNextTrackForAutoAdvance — même mécanisme que
               partout ailleurs sur cette page). Même cercle rouge que
-              TemplateCard.jsx (DiscoverView.jsx) au survol — plus une icône
-              blanche nue superposée à la note centrale, qui se chevauchaient
-              de façon brouillonne. `<span>` (pas un 2e `<button>` : cette
-              pochette EST déjà un bouton, imbriquer un bouton dans un bouton
-              serait du HTML invalide) centré par le `flex items-center
-              justify-center` de cet overlay, pas par un positionnement
-              absolu propre. */}
+              TemplateCard.jsx (DiscoverView.jsx)/PlaylistCard.jsx au survol.
+              `<span>` (pas un 2e `<button>` : cette pochette EST déjà un
+              bouton, imbriquer un bouton dans un bouton serait du HTML
+              invalide) centré par le `flex items-center justify-center` de
+              cet overlay, pas par un positionnement absolu propre. */}
           <div className="absolute inset-0 bg-black/0 group-hover/cover:bg-black/20 transition-colors flex items-center justify-center">
             <span className={`w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center opacity-0 scale-95 group-hover/cover:opacity-100 group-hover/cover:scale-100 transition-all duration-300 ${bgAccentClass}`}>
               <Play size={22} className="fill-white ml-0.5"/>
@@ -217,7 +213,7 @@ function PlaylistHeaderInner({
           </div>
         ) : (
           <h2 className={"text-2xl md:text-4xl font-black flex items-center gap-3 justify-center md:justify-start " + textHighlight}>
-            <span className="truncate min-w-0" title={currentPlaylist.name}>{currentPlaylist.name}</span>
+            <span className="truncate min-w-0" title={currentPlaylist.name}>{getActivityEmoji(currentPlaylist.workoutType)} {currentPlaylist.name}</span>
             <button onClick={() => { setEditedPlaylistName(currentPlaylist.name); setIsEditingPlaylistName(true); }} className={`p-1.5 rounded-lg ${textMuted} hover:text-main transition-colors shrink-0`} title="Renommer la playlist">
               <Edit3 size={20}/>
             </button>
