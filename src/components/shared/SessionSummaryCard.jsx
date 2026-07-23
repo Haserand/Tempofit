@@ -36,17 +36,7 @@ import { getZoneForValue, ATHLETIC_ZONES } from '../../appConfig';
  *      tranche brute. Le libellé suit maintenant `matchedAnyZone`, comme le
  *      contenu du graphique lui-même.
  */
-export default function SessionSummaryCard(props) {
-  // DIAGNOSTIC TEMPORAIRE (bug "page blanche" en cours d'investigation) —
-  // même mécanisme que TrackItem.jsx, à retirer une fois corrigé.
-  try {
-    return SessionSummaryCardInner(props);
-  } catch (e) {
-    throw new Error(`[SessionSummaryCard] playlist.tracks=${JSON.stringify(props.playlist?.tracks)}?.slice(0,800) | erreur d'origine: ${e.message}`);
-  }
-}
-
-function SessionSummaryCardInner({ playlist, topTrackCovers = {}, isNaughtyMode = false, getProfileForWorkout = null }) {
+export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNaughtyMode = false, getProfileForWorkout = null }) {
   if (!playlist) return null;
 
   const tracks = playlist.tracks || [];
