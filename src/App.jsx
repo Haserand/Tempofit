@@ -918,7 +918,19 @@ function AppContent({
     const rawPlaylist = {
       id: `pl-curated-${template.id}-${Date.now()}`,
       name: template.title,
-      workoutType: template.workoutType,
+      // BUG ÉVITÉ (trouvé en vérifiant le pare-feu Mode Intime signalé sur
+      // Bibliothèque/Découvrir) : `workoutType` était TOUJOURS
+      // `template.workoutType` tel quel, `isNaughty` TOUJOURS `false` — une
+      // playlist ouverte depuis un template du catalogue Intime (voir
+      // NAUGHTY_DISCOVER_TEMPLATES, DiscoverView.jsx) se serait donc
+      // retrouvée classée comme standard dans la Bibliothèque (le filtre par
+      // mode, lui correct, l'aurait alors fait disparaître de la vue Intime
+      // qui vient de la générer — invisible immédiatement après son propre
+      // clic). `workoutType` suit maintenant EXACTEMENT la même règle que
+      // toute vraie génération (musicEngine.js, `finalWorkoutName`) : toujours
+      // "Ambiance" en Mode Intime, l'activité réelle du template restant
+      // disponible dans `config.workoutName` ci-dessous.
+      workoutType: isNaughtyMode ? 'Ambiance' : template.workoutType,
       avgPace: 330, targetMode: 'time', distanceUnit: 'km',
       tolerance: 10, crossfade: 2,
       // RETOUR DIRECT ("pas de bruit, ne pas appeler ça un id YouTube si ça
@@ -940,7 +952,7 @@ function AppContent({
       // playlist ensemencée (clés React dupliquées, enchaînement qui
       // retombe toujours sur le même titre).
       tracks: template.tracks.map((t, i) => ({ ...t, id: `curated-${template.id}-${i}`, trackId: `curated-${template.id}-${i}`, preview: null })),
-      isNaughty: false, fallbackTrackCount: 0,
+      isNaughty: isNaughtyMode, fallbackTrackCount: 0,
       // RETOUR DIRECT ("la pochette générée disparaît sur la fiche détail")
       // — `coverUrl` n'est stocké NULLE PART dans data/curatedSessions.js
       // (volontairement, voir ce fichier) : recalculé ici avec la MÊME
@@ -2076,7 +2088,7 @@ function AppContent({
             )}
 
             {view === 'discover' && (
-              <DiscoverView theme={themeTokens} onPlayTemplate={openCuratedPlaylist} />
+              <DiscoverView theme={themeTokens} onPlayTemplate={openCuratedPlaylist} isNaughtyMode={isNaughtyMode} />
             )}
 
             {view === 'routines' && (
@@ -2116,6 +2128,7 @@ function AppContent({
                 setCurrentPlaylist={setCurrentPlaylist} athleticProfile={athleticProfile} getProfileForWorkout={getProfileForWorkout}
                 getProfileForWorkoutOrDefault={getProfileForWorkoutOrDefault}
                 shareImageFile={shareImageFileWithTrophy} showToast={showToast}
+                isNaughtyMode={isNaughtyMode}
                 statsMode={statsMode} setStatsMode={setStatsMode}
                 selectedStatsGenre={selectedStatsGenre} setSelectedStatsGenre={setSelectedStatsGenre}
                 selectedStatsBpmBucket={selectedStatsBpmBucket} setSelectedStatsBpmBucket={setSelectedStatsBpmBucket}
