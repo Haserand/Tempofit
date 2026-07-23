@@ -76,11 +76,6 @@ export default function Sidebar({
           <span className="text-xs font-semibold">Mon Profil Athlétique</span>
         </button>
 
-        <button onClick={() => changeView('discover')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'discover' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
-          <Compass size={18} />
-          <span className="font-bold text-sm">Découvrir</span>
-        </button>
-
         <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
           <ListPlus size={18} />
           <span className="font-bold text-sm">Mes Routines</span>
@@ -88,7 +83,23 @@ export default function Sidebar({
 
         <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
           <List size={18} />
-          <span className="font-bold text-sm">Mes Séances</span>
+          <span className="font-bold text-sm">Bibliothèque</span>
+        </button>
+
+        {/* Sous-menu de "Bibliothèque" (retour direct : "Découvrir devient
+            une sous-partie de Bibliothèque, un point d'entrée plus global") —
+            mêmes classes exactement que le sous-menu "Mon Profil Athlétique"
+            sous "Générer" ci-dessus (indentation, taille de police, icône
+            plus petite) pour bien signaler que ce n'est pas une section de
+            même niveau que les autres, mais une sous-partie de
+            "Bibliothèque" spécifiquement. */}
+        <button
+          onClick={() => changeView('discover')}
+          className={`w-full flex items-center space-x-2.5 pl-8 pr-3 py-2 rounded-lg transition-colors select-none cursor-pointer ${view === 'discover' ?
+            `${textColorClass} bg-surface-hover font-bold` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}
+        >
+          <Compass size={15} className="shrink-0" />
+          <span className="text-xs font-semibold">Découvrir</span>
         </button>
 
         <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `bg-surface-hover ${textHighlight}` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
