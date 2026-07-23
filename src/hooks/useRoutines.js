@@ -46,7 +46,18 @@ export function useRoutines(isNaughtyMode, showToast) {
   const [newRoutineIcon, setNewRoutineIcon] = useState("⚡");
   const [newRoutineFreq, setNewRoutineFreq] = useState("Manuel");
 
-  const getDisplayRoutineName = (routine) => isNaughtyMode ? NAUGHTY_ROUTINE_NAMES[simpleHash(routine.id) % NAUGHTY_ROUTINE_NAMES.length] : routine.name;
+  // BUG CORRIGÉ ("l'emoji s'affiche en double sur la carte de routine") — en
+  // Mode Intime, le nom affiché est un nom "coquin" complet tiré de
+  // NAUGHTY_ROUTINE_NAMES (ex. "🍑 Cardio Horizontal"), et le carré d'icône
+  // à gauche (getDisplayRoutineIcon, juste en dessous) affiche déjà CE MÊME
+  // emoji, extrait de cette même chaîne — le titre le réaffichait donc une
+  // 2e fois. Ce nom n'est PAS `routine.name` (le vrai nom donné par
+  // l'utilisateur reste inchangé en base, jamais écrasé — voir la note plus
+  // haut, "purement cosmétique") : `.slice(1)` retire uniquement le 1er mot
+  // (l'emoji) du nom coquin, le carré restant la SEULE source de cet emoji.
+  const getDisplayRoutineName = (routine) => isNaughtyMode
+    ? NAUGHTY_ROUTINE_NAMES[simpleHash(routine.id) % NAUGHTY_ROUTINE_NAMES.length].split(' ').slice(1).join(' ')
+    : routine.name;
   const getDisplayRoutineIcon = (routine) => isNaughtyMode ? NAUGHTY_ROUTINE_NAMES[simpleHash(routine.id) % NAUGHTY_ROUTINE_NAMES.length].split(' ')[0] : routine.coverIcon;
 
   // Ajoute une routine déjà construite (App.jsx assemble l'objet à partir des
