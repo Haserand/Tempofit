@@ -430,17 +430,19 @@ function AppContent({
       { id: 'ex-track-5', segmentIndex: 1, targetSegmentBpm: 128, title: 'Chop Suey!', artist: 'System Of A Down', genre: 'Métal', bpm: 128, duration: 210, trackId: 'CSvFpBOe8eY', preview: null, startTimeStr: '15m 28s', startDistVal: 2.81 }
     ]
   }, {
-    // Mode Intime — 2 exemples dédiés (retour direct : "manque d'exemples
-    // concrets pour illustrer ce mode à un nouvel utilisateur"). `workoutType:
-    // 'Ambiance'` (jamais autre chose pour une playlist Intime, voir
-    // musicEngine.js) + `isNaughty: true` : mêmes champs EXACTEMENT qu'une
-    // vraie génération produirait, `config.workoutName` porte l'activité
-    // réelle sous-jacente (privée, jamais affichée telle quelle en Mode
-    // Intime — voir NAUGHTY_WORKOUT_LABELS, appConfig.js). Genre
-    // 'R&B Sensuel' : nom canonique de NAUGHTY_GENRES (musicCatalog.js), pas
-    // inventé. Pas de `completions` (contrairement à l'exemple Rock/Métal
-    // ci-dessus, déjà marqué "faite") : ressort dans "À planifier", pour
-    // montrer un état différent d'entrée de gamme.
+    // Mode Intime — 1 exemple dédié (retour direct : "manque d'exemples
+    // concrets pour illustrer ce mode à un nouvel utilisateur", puis "less is
+    // more" — un 2e exemple, "Sensual Groove", a été retiré : une seule
+    // suffit). `workoutType: 'Ambiance'` (jamais autre chose pour une
+    // playlist Intime, voir musicEngine.js) + `isNaughty: true` : mêmes
+    // champs EXACTEMENT qu'une vraie génération produirait,
+    // `config.workoutName` porte l'activité réelle sous-jacente (privée,
+    // jamais affichée telle quelle en Mode Intime — voir
+    // NAUGHTY_WORKOUT_LABELS, appConfig.js). Genre 'R&B Sensuel' : nom
+    // canonique de NAUGHTY_GENRES (musicCatalog.js), pas inventé. Pas de
+    // `completions` (contrairement à l'exemple Rock/Métal ci-dessus, déjà
+    // marqué "faite") : ressort dans "À planifier", pour montrer un état
+    // différent d'entrée de gamme.
     id: 'playlist-example-2',
     name: 'Late Night R&B',
     workoutType: 'Ambiance',
@@ -461,27 +463,6 @@ function AppContent({
       { id: 'naughty-ex1-track-2', segmentIndex: 1, targetSegmentBpm: 68, title: 'No Ordinary Love', artist: 'Sade', genre: 'R&B Sensuel', bpm: 68, duration: 293, trackId: 'nex1-2', preview: null, startTimeStr: '3m 23s', startDistVal: 0.68 },
       { id: 'naughty-ex1-track-3', segmentIndex: 1, targetSegmentBpm: 72, title: 'Untitled (How Does It Feel)', artist: "D'Angelo", genre: 'R&B Sensuel', bpm: 72, duration: 304, trackId: 'nex1-3', preview: null, startTimeStr: '8m 14s', startDistVal: 1.65 },
       { id: 'naughty-ex1-track-4', segmentIndex: 1, targetSegmentBpm: 70, title: 'Ordinary People', artist: 'John Legend', genre: 'R&B Sensuel', bpm: 70, duration: 248, trackId: 'nex1-4', preview: null, startTimeStr: '13m 16s', startDistVal: 2.65 }
-    ]
-  }, {
-    id: 'playlist-example-3',
-    name: 'Sensual Groove',
-    workoutType: 'Ambiance',
-    avgPace: 300,
-    targetMode: 'time',
-    distanceUnit: 'km',
-    tolerance: 8,
-    crossfade: 2,
-    isNaughty: true,
-    coverIcon: '🕺',
-    createdAt: new Date().toLocaleDateString(),
-    status: 'pending',
-    actualDataByDate: {},
-    config: { workoutName: 'Cyclisme', targetMode: 'time', hours: 0, minutes: 12, bpm: 72, tolerance: 8, isIntervalMode: false, selectedGenres: ['R&B Sensuel', 'Jazz'] },
-    totalDuration: 691,
-    tracks: [
-      { id: 'naughty-ex2-track-1', segmentIndex: 1, targetSegmentBpm: 68, title: 'Pony', artist: 'Ginuwine', genre: 'R&B Sensuel', bpm: 68, duration: 254, trackId: 'nex2-1', preview: null, startTimeStr: '0m 00s', startDistVal: 0 },
-      { id: 'naughty-ex2-track-2', segmentIndex: 1, targetSegmentBpm: 75, title: 'Nice & Slow', artist: 'Usher', genre: 'R&B Sensuel', bpm: 75, duration: 246, trackId: 'nex2-2', preview: null, startTimeStr: '4m 12s', startDistVal: 0.84 },
-      { id: 'naughty-ex2-track-3', segmentIndex: 1, targetSegmentBpm: 78, title: 'Sure Thing', artist: 'Miguel', genre: 'Jazz', bpm: 78, duration: 195, trackId: 'nex2-3', preview: null, startTimeStr: '8m 16s', startDistVal: 1.65 }
     ]
   }]);
 
