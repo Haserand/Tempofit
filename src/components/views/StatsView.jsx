@@ -629,11 +629,11 @@ export default function StatsView({
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
       <div className={`border-b ${cardBorder} pb-6 flex items-start justify-between gap-4`}>
         <div>
-          <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${statsMode === 'naughty' ? 'text-rose-500' : textHighlight}`}>
+          <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${statsMode === 'naughty' ? 'text-slate-950' : 'text-white'}`}>
             <Activity className={statsMode === 'naughty' ? 'text-rose-500' : textColorClass} size={36} />
             <span>{statsMode === 'naughty' ? 'Statistiques · Intime' : 'Statistiques'}</span>
           </h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+          <p className={`mt-2 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)] ${statsMode === 'naughty' ? 'text-slate-700' : 'text-slate-300'}`}>
             {statsMode === 'naughty' ? "Ce que tu as écouté en mode Intime, à part du reste." : "Ce que tu as écouté, séance après séance."}
           </p>
         </div>
@@ -676,10 +676,10 @@ export default function StatsView({
       </div>
 
       {totalSessions === 0 ? (
-        <div className={`py-16 text-center border-2 border-dashed ${cardBorder} rounded-2xl`}>
-          <Activity size={48} className="mx-auto mb-4 text-gray-300 dark:text-gray-700" />
-          <h3 className={`text-lg font-bold mb-2 ${textHighlight}`}>Rien à montrer pour l'instant</h3>
-          <p className={`text-sm mb-6 max-w-sm mx-auto ${textMuted}`}>
+        <div className={`py-16 text-center border-2 border-dashed rounded-2xl ${statsMode === 'naughty' ? 'border-slate-400' : 'border-slate-700'}`}>
+          <Activity size={48} className={`mx-auto mb-4 ${statsMode === 'naughty' ? 'text-slate-800' : 'text-slate-400'}`} />
+          <h3 className={`text-lg font-bold mb-2 ${statsMode === 'naughty' ? 'text-slate-950' : 'text-white'}`}>Rien à montrer pour l'instant</h3>
+          <p className={`text-sm mb-6 max-w-sm mx-auto ${statsMode === 'naughty' ? 'text-slate-800' : 'text-slate-400'}`}>
             {statsMode === 'naughty'
               ? "Aucune séance Mode Intime marquée comme faite pour l'instant."
               : 'Génère des playlists et marque-les comme faites (voir "Mes Séances") — les stats se rempliront au fur et à mesure.'}
@@ -797,7 +797,7 @@ export default function StatsView({
               séparer clairement en 2 groupes, chacun avec un sous-titre
               explicite, au lieu de les laisser visuellement adjacents comme
               avant, réduit le risque de les lire comme la même donnée. */}
-          <p className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>🏃 Entraînement</p>
+          <p className={`text-xs font-bold uppercase tracking-wide ${statsMode === 'naughty' ? 'text-slate-800' : 'text-slate-400'}`}>🏃 Entraînement</p>
 
           <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
             <h3 className={`font-bold mb-4 ${textHighlight}`}>Tes activités</h3>
@@ -913,7 +913,7 @@ export default function StatsView({
             );
           })}
 
-          <p className={`text-xs font-bold uppercase tracking-wide pt-2 ${textMuted}`}>🎵 Musique</p>
+          <p className={`text-xs font-bold uppercase tracking-wide pt-2 ${statsMode === 'naughty' ? 'text-slate-800' : 'text-slate-400'}`}>🎵 Musique</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
