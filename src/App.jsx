@@ -64,6 +64,7 @@ import CustomActivityModal from './components/modals/CustomActivityModal';
 import ImportSharedPlaylistModal from './components/modals/ImportSharedPlaylistModal';
 import DiscoverView from './components/views/DiscoverView';
 import MiniPlayerBar from './components/shared/MiniPlayerBar';
+import ErrorBoundary from './components/shared/ErrorBoundary';
 import SavingRoutineModal from './components/modals/SavingRoutineModal';
 import ShareModal from './components/modals/ShareModal';
 import AuthModal from './components/modals/AuthModal';
@@ -2316,12 +2317,14 @@ export default function App() {
       setShowAthleticProfile={setShowAthleticProfile}
     >
       <AudioPlayerProvider showToast={showToast}>
-        <AppContent
-          isNaughtyMode={isNaughtyMode} setIsNaughtyMode={setIsNaughtyMode}
-          showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
-          athleticProfileApi={athleticProfileApi}
-          toast={toast} showToast={showToast}
-        />
+        <ErrorBoundary>
+          <AppContent
+            isNaughtyMode={isNaughtyMode} setIsNaughtyMode={setIsNaughtyMode}
+            showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
+            athleticProfileApi={athleticProfileApi}
+            toast={toast} showToast={showToast}
+          />
+        </ErrorBoundary>
       </AudioPlayerProvider>
     </GeneratorProvider>
   );
