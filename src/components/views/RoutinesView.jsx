@@ -10,7 +10,7 @@ import { ListPlus, Plus, Edit3, Trash2, Layers, Info, Loader2, PlaySquare } from
  * qu'on lui passe.
  */
 export default function RoutinesView({
-  theme, routines, setRoutines, routineBatchCounts, setRoutineBatchCounts,
+  theme, isNaughtyMode, routines, setRoutines, routineBatchCounts, setRoutineBatchCounts,
   getDisplayRoutineIcon, getDisplayRoutineName, renderConfigInfoLine, getRankStyle,
   setEditingRoutine, setIsEditRoutineModalOpen, executeGeneration, isGenerating, changeView,
 }) {
@@ -27,22 +27,22 @@ export default function RoutinesView({
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
       <div className={`border-b ${cardBorder} pb-6`}>
-        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}><ListPlus className={textColorClass} size={36} /> <span>Mes Routines</span></h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Génère instantanément des playlists à partir de tes configurations.</p>
+        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}><ListPlus className={textColorClass} size={36} /> <span>Mes Routines</span></h1>
+        <p className={`mt-2 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)] ${isNaughtyMode ? 'text-slate-700' : 'text-slate-300'}`}>Génère instantanément des playlists à partir de tes configurations.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {routines.length === 0 ? (
-          <div className={`col-span-full py-16 text-center border-2 border-dashed ${cardBorder} rounded-2xl`}>
-            <ListPlus size={48} className={`mx-auto mb-4 text-gray-300 dark:text-gray-700`} />
-            <h3 className={`text-lg font-bold mb-2 ${textHighlight}`}>Aucune routine pour l'instant</h3>
-            <p className={`text-sm mb-6 max-w-sm mx-auto ${textMuted}`}>Génère une première playlist et sauvegarde-la comme routine pour la relancer en un clic la prochaine fois.</p>
+          <div className={`col-span-full py-16 text-center border-2 border-dashed rounded-2xl ${isNaughtyMode ? 'border-slate-400' : 'border-slate-700'}`}>
+            <ListPlus size={48} className={`mx-auto mb-4 ${isNaughtyMode ? 'text-slate-800' : 'text-slate-400'}`} />
+            <h3 className={`text-lg font-bold mb-2 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}>Aucune routine pour l'instant</h3>
+            <p className={`text-sm mb-6 max-w-sm mx-auto ${isNaughtyMode ? 'text-slate-800' : 'text-slate-400'}`}>Génère une première playlist et sauvegarde-la comme routine pour la relancer en un clic la prochaine fois.</p>
             <button onClick={() => changeView('generator')} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
               Créer ma première playlist
             </button>
           </div>
         ) : (
-          <button onClick={() => changeView('generator')} className={`rounded-2xl border-2 border-dashed ${cardBorder} flex flex-col items-center justify-center gap-2 py-10 font-bold transition-colors ${textMuted} hover:text-main hover:border-gray-400`}>
+          <button onClick={() => changeView('generator')} className={`rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 py-10 font-bold transition-colors ${isNaughtyMode ? 'border-slate-400 text-slate-800 hover:text-slate-950' : 'border-slate-700 text-slate-400 hover:text-white'}`}>
             <Plus size={28} />
             <span>Créer une nouvelle routine</span>
           </button>
