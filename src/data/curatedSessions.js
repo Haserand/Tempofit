@@ -595,20 +595,26 @@ export const curatedSessions = [
  * App.jsx), qui se charge LUI de basculer sur "Ambiance" au moment de créer
  * la vraie playlist si le Mode Intime est actif — exactement la même
  * mécanique que pour une génération manuelle, un template n'est jamais
- * qu'un point de départ, pas encore une playlist. Catégories pensées comme
- * un gradient douceur → intensité (mêmes 3 activités que
- * NAUGHTY_WORKOUT_LABELS, appConfig.js), pas des noms au hasard. Genres
- * limités aux valeurs canoniques de `NAUGHTY_GENRES` (musicCatalog.js).
+ * qu'un point de départ, pas encore une playlist. Genres limités aux
+ * valeurs canoniques de `NAUGHTY_GENRES` (musicCatalog.js).
+ *
+ * ÉPURATION ("less is more") — UNE SEULE catégorie ("Rythmes Sensuels"),
+ * volontairement pas de découpage par sous-thème (Chill & Détente/Montée en
+ * Température, essayées puis retirées) : exactement 5 templates pour
+ * remplir une seule ligne complète de la grille (5 colonnes en xl, voir
+ * DiscoverView.jsx) sans ligne partielle disgracieuse. `workoutType` garde
+ * sa diversité (Cyclisme/Course à pied/Musculation) d'un template à l'autre
+ * malgré la catégorie unique — ce champ reste utile à la génération, il
+ * n'a juste plus besoin de structurer l'affichage en plusieurs sections.
  */
 export const naughtyCuratedSessions = [
-  // ───────────────────────── CHILL & DÉTENTE (Cyclisme = Douceur) ─────────────────────────
   {
     id: 'ntpl-soft-sunset',
     title: 'Soft Sunset',
     author: 'TempoFit Officiel',
     isOfficial: true,
     upvotes: 0,
-    category: 'Chill & Détente',
+    category: 'Rythmes Sensuels',
     workoutType: 'Cyclisme',
     tracks: [
       { title: 'Smooth Operator', artist: 'Sade', genre: 'R&B Sensuel', bpm: 90, duration: 292 },
@@ -623,7 +629,7 @@ export const naughtyCuratedSessions = [
     author: 'TempoFit Officiel',
     isOfficial: true,
     upvotes: 0,
-    category: 'Chill & Détente',
+    category: 'Rythmes Sensuels',
     workoutType: 'Cyclisme',
     tracks: [
       { title: 'La Vie en Rose', artist: 'Édith Piaf', genre: 'Jazz', bpm: 88, duration: 200 },
@@ -631,7 +637,6 @@ export const naughtyCuratedSessions = [
       { title: 'Best Part', artist: 'Daniel Caesar ft. H.E.R.', genre: 'R&B Sensuel', bpm: 79, duration: 195 },
     ],
   },
-  // ───────────────────────── RYTHMES SENSUELS (Course à pied = Passion) ─────────────────────────
   {
     id: 'ntpl-slow-burn',
     title: 'Slow Burn',
@@ -661,14 +666,13 @@ export const naughtyCuratedSessions = [
       { title: 'Vivir Mi Vida', artist: 'Marc Anthony', genre: 'Latino', bpm: 98, duration: 240 },
     ],
   },
-  // ───────────────────────── MONTÉE EN TEMPÉRATURE (Musculation = Intensité) ─────────────────────────
   {
     id: 'ntpl-heat-rising',
     title: 'Heat Rising',
     author: 'TempoFit Officiel',
     isOfficial: true,
     upvotes: 0,
-    category: 'Montée en Température',
+    category: 'Rythmes Sensuels',
     workoutType: 'Musculation',
     tracks: [
       { title: 'Nice & Slow', artist: 'Usher', genre: 'R&B Sensuel', bpm: 75, duration: 246 },
