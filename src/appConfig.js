@@ -173,6 +173,23 @@ const WORKOUT_TYPES = [
   { id: 'Autre', icon: MoreHorizontal } 
 ];
 
+// N'existait pas avant ce chantier : `coverIcon` (voir AVAILABLE_ICONS plus
+// bas) est un choix LIBRE de l'utilisateur au moment de la génération,
+// jamais dérivé de l'activité — deux playlists "Course à pied" peuvent avoir
+// 2 emojis de pochette différents. Ce dictionnaire-ci est différent : un
+// emoji FIXE par activité CANONIQUE (mêmes clés que WORKOUT_TYPES), pour
+// préfixer le titre affiché ("🏃 Ma Session Rock") de façon prévisible,
+// indépendamment de ce que l'utilisateur a choisi comme pochette. `Autre`
+// (et toute activité personnalisée, qui ne matche aucune clé ici) retombe
+// sur 🎧 — même repli neutre déjà utilisé par défaut ailleurs (voir
+// musicEngine.js, `config.coverIcon || '🎧'`).
+const ACTIVITY_EMOJIS = {
+  'Course à pied': '🏃',
+  'Cyclisme': '🚴',
+  'Musculation': '🏋️',
+};
+const getActivityEmoji = (workoutType) => ACTIVITY_EMOJIS[workoutType] || '🎧';
+
 // Libellés affichés à la place des noms d'activité classiques quand le mode Intime
 // est actif — purement cosmétique : la valeur `id` ci-dessus (utilisée par toute la
 // logique de génération/sauvegarde) ne change jamais, seul le texte affiché à l'écran
@@ -297,5 +314,6 @@ export {
   AUTO_GEN_OPTIONS,
   DISTRIBUTION_COLORS,
   BPM_BUCKET_COLORS,
-  getBpmBucketColor
+  getBpmBucketColor,
+  getActivityEmoji
 };
