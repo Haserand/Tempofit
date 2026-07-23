@@ -2074,7 +2074,7 @@ function AppContent({
 
             {view === 'routines' && (
               <RoutinesView
-                theme={themeTokens} routines={routines} setRoutines={setRoutines}
+                theme={themeTokens} isNaughtyMode={isNaughtyMode} routines={routines} setRoutines={setRoutines}
                 routineBatchCounts={routineBatchCounts} setRoutineBatchCounts={setRoutineBatchCounts}
                 getDisplayRoutineIcon={getDisplayRoutineIcon} getDisplayRoutineName={getDisplayRoutineName}
                 renderConfigInfoLine={renderConfigInfoLine} getRankStyle={getRankStyle}
@@ -2356,6 +2356,18 @@ export default function App() {
   const [showAthleticProfile, setShowAthleticProfile] = useState(false);
   const athleticProfileApi = useAthleticProfile();
   const { toast, showToast } = useToast();
+
+  // Filet de sécurité navigation (retour direct : "Mon Profil Athlétique n'a
+  // aucun sens en Mode Intime et affiche une page vide") — si l'utilisateur
+  // est SUR ce panneau au moment de basculer en Mode Intime (l'entrée de
+  // sidebar qui y mène est désormais masquée dans ce mode, voir Sidebar.jsx,
+  // mais rien n'empêchait D'Y ÊTRE DÉJÀ juste avant de basculer), on le
+  // referme automatiquement — reste sur la vue "Générer" elle-même (déjà
+  // fonctionnelle en Mode Intime), pas de redirection vers une autre vue,
+  // ce panneau étant un sous-état de "Générer", pas une vue à part entière.
+  useEffect(() => {
+    if (isNaughtyMode) setShowAthleticProfile(false);
+  }, [isNaughtyMode]);
 
   return (
     <GeneratorProvider
