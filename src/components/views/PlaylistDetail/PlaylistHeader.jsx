@@ -112,7 +112,7 @@ function PlaylistHeaderInner({
             <>
               <img src={currentPlaylist.coverUrl} alt="" className="w-full h-full object-cover rounded-lg" />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <Music2 size={56} className="text-white/80 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]" />
+                <Music2 size={56} className="text-white/80 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)] transition-opacity duration-300 group-hover/cover:opacity-0" />
               </div>
             </>
           ) : (
@@ -120,9 +120,18 @@ function PlaylistHeaderInner({
           )}
           {/* Cliquer sur la pochette lance la playlist (1er titre + enchaînement
               automatique, getNextTrackForAutoAdvance — même mécanisme que
-              partout ailleurs sur cette page). */}
+              partout ailleurs sur cette page). Même cercle rouge que
+              TemplateCard.jsx (DiscoverView.jsx) au survol — plus une icône
+              blanche nue superposée à la note centrale, qui se chevauchaient
+              de façon brouillonne. `<span>` (pas un 2e `<button>` : cette
+              pochette EST déjà un bouton, imbriquer un bouton dans un bouton
+              serait du HTML invalide) centré par le `flex items-center
+              justify-center` de cet overlay, pas par un positionnement
+              absolu propre. */}
           <div className="absolute inset-0 bg-black/0 group-hover/cover:bg-black/20 transition-colors flex items-center justify-center">
-            <Play size={32} className="text-white opacity-0 group-hover/cover:opacity-100 transition-opacity fill-white drop-shadow-lg" />
+            <span className={`w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center opacity-0 scale-95 group-hover/cover:opacity-100 group-hover/cover:scale-100 transition-all duration-300 ${bgAccentClass}`}>
+              <Play size={22} className="fill-white ml-0.5"/>
+            </span>
           </div>
         </button>
       </div>
