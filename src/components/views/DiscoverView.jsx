@@ -69,10 +69,10 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode }) {
     <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
       <div className={`border-b ${cardBorder} pb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4`}>
         <div>
-          <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-rose-950' : textHighlight}`}>
+          <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}>
             <Compass className={theme.textColorClass} size={36} /> <span>Découvrir</span>
           </h1>
-          <p className={`mt-2 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)] ${isNaughtyMode ? 'text-rose-900' : 'text-gray-600 dark:text-gray-300'}`}>Des séances prêtes à l'emploi, sélectionnées par TempoFit — un clic pour les adapter à ton profil.</p>
+          <p className={`mt-2 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)] ${isNaughtyMode ? 'text-slate-700' : 'text-slate-300'}`}>Des séances prêtes à l'emploi, sélectionnées par TempoFit — un clic pour les adapter à ton profil.</p>
         </div>
         <button
           disabled
@@ -125,17 +125,17 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode }) {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center text-center py-16 gap-3">
-            <SearchX size={40} className={textMuted}/>
-            <p className={`font-bold ${textHighlight}`}>
+            <SearchX size={40} className={isNaughtyMode ? 'text-slate-800' : 'text-slate-400'}/>
+            <p className={`font-bold ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}>
               {normalizedQuery ? `Aucune séance trouvée pour "${searchQuery.trim()}".` : 'Aucune séance dans cette catégorie.'}
             </p>
-            <p className={`text-sm ${textMuted}`}>Essaie autre chose !</p>
+            <p className={`text-sm ${isNaughtyMode ? 'text-slate-800' : 'text-slate-400'}`}>Essaie autre chose !</p>
           </div>
         )
       ) : (
         categories.map(category => (
           <div key={category}>
-            <h2 className={`text-xl font-bold mb-4 sm:mb-6 ${textHighlight}`}>{category}</h2>
+            <h2 className={`text-xl font-bold mb-4 sm:mb-6 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}>{category}</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
               {activeSessions.filter(t => t.category === category).map(template => (
                 <TemplateCard key={template.id} theme={theme} template={template} onPlayTemplate={onPlayTemplate} />
