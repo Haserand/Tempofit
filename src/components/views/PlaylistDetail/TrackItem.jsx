@@ -32,24 +32,7 @@ import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
  * donc PAS déplaçable dans ce sous-composant sans dupliquer sa source de
  * vérité (même piège que documenté pour athleticProfile/showToast).
  */
-export default function TrackItem(props) {
-  // DIAGNOSTIC TEMPORAIRE (bug "page blanche" en cours d'investigation) :
-  // enveloppe TOUT le rendu de ce composant (pas seulement le calcul de
-  // zone comme la version précédente de ce diagnostic, qui n'a pas capté le
-  // crash) — si N'IMPORTE QUELLE ligne de TrackItemInner plante, relance une
-  // erreur enrichie avec les données exactes en cause. ErrorBoundary
-  // (App.jsx) affiche `error.message` telle quelle. À retirer une fois le
-  // bug confirmé et corrigé.
-  try {
-    return TrackItemInner(props);
-  } catch (e) {
-    throw new Error(
-      `[TrackItem] track=${JSON.stringify(props.track)} | favorites=${JSON.stringify(props.favorites)} | erreur d'origine: ${e.message}`
-    );
-  }
-}
-
-function TrackItemInner({
+export default function TrackItem({
   track, index,
   theme, isLocked,
   favorites, toggleTrackFavorite, toggleArtistFavorite,
