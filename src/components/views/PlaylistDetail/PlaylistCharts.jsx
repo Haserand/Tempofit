@@ -100,17 +100,7 @@ const RealDataDot = (props) => {
  * ici, ce composant se fie uniquement à ce que le contexte dit réellement
  * afficher).
  */
-export default function PlaylistCharts(props) {
-  // DIAGNOSTIC TEMPORAIRE (bug "page blanche" en cours d'investigation) —
-  // même mécanisme que TrackItem.jsx, à retirer une fois corrigé.
-  try {
-    return PlaylistChartsInner(props);
-  } catch (e) {
-    throw new Error(`[PlaylistCharts] erreur d'origine: ${e.message}`);
-  }
-}
-
-function PlaylistChartsInner({
+export default function PlaylistCharts({
   theme, colorMode, isLocked,
   favorites, toggleArtistFavorite,
   resolveAndTogglePreview, getNextTrackForAutoAdvance,
@@ -148,19 +138,12 @@ function PlaylistChartsInner({
   // configuré. Sans profil réel, `bpmChartProfile` vaut `null`, `isSyncMode`
   // reste `false`, et le camembert retombe normalement sur "Répartition par
   // BPM" (bpmDistributionIsZoneBased, lui aussi `false` dans ce cas).
-  let bpmChartProfile, isSyncMode, syncTarget, syncTrackGaps;
-  try {
-    bpmChartProfile = getProfileForWorkout ? getProfileForWorkout(bpmChartActivityName) : null;
-    isSyncMode = bpmChartProfile?.cadenceIntent === 'sync';
-    syncTarget = bpmChartProfile?.targetBpm ?? null;
-    syncTrackGaps = (isSyncMode && syncTarget)
-      ? currentPlaylist.tracks.filter(t => t.bpm).map(t => ({ title: t.title, artist: t.artist, bpm: t.bpm, gap: t.bpm - syncTarget }))
-      : [];
-  } catch (e) {
-    // DIAGNOSTIC TEMPORAIRE (bug "page blanche" en cours d'investigation) —
-    // à retirer une fois confirmé/corrigé, voir même mécanisme dans TrackItem.jsx.
-    throw new Error(`[PlaylistCharts] tracks=${JSON.stringify(currentPlaylist?.tracks)?.slice(0, 800)} | bpmChartActivityName=${bpmChartActivityName} | erreur d'origine: ${e.message}`);
-  }
+  const bpmChartProfile = getProfileForWorkout ? getProfileForWorkout(bpmChartActivityName) : null;
+  const isSyncMode = bpmChartProfile?.cadenceIntent === 'sync';
+  const syncTarget = bpmChartProfile?.targetBpm ?? null;
+  const syncTrackGaps = (isSyncMode && syncTarget)
+    ? currentPlaylist.tracks.filter(t => t.bpm).map(t => ({ title: t.title, artist: t.artist, bpm: t.bpm, gap: t.bpm - syncTarget }))
+    : [];
   const syncAvgGap = syncTrackGaps.length > 0
     ? Math.round(syncTrackGaps.reduce((s, t) => s + Math.abs(t.gap), 0) / syncTrackGaps.length)
     : null;
