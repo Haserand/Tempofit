@@ -62,10 +62,19 @@ export default function PlaylistsView({
 
   const isCompleted = (p) => p.completions && p.completions.length > 0;
 
-  const toPlan = savedPlaylists.filter(p => !isCompleted(p) && !p.plannedDate);
-  const planned = [...savedPlaylists.filter(p => !isCompleted(p) && p.plannedDate)]
+  // Pare-feu Mode Intime (retour direct : "les vues Bibliothèque et Découvrir
+  // mélangent les contenus des deux modes") — TOUT le reste de ce composant
+  // travaille sur `visiblePlaylists`, jamais directement sur `savedPlaylists`
+  // (qui contient les deux modes mélangés) : `!!p.isNaughty` normalise
+  // undefined/false en booléen propre avant comparaison (playlists
+  // anciennes sans ce champ), même garde-fou déjà en place dans
+  // StatsView.jsx pour le même filtre.
+  const visiblePlaylists = savedPlaylists.filter(p => !!p.isNaughty === !!isNaughtyMode);
+
+  const toPlan = visiblePlaylists.filter(p => !isCompleted(p) && !p.plannedDate);
+  const planned = [...visiblePlaylists.filter(p => !isCompleted(p) && p.plannedDate)]
     .sort((a, b) => a.plannedDate.localeCompare(b.plannedDate));
-  const completedPlaylists = [...savedPlaylists.filter(isCompleted)].sort((a, b) => {
+  const completedPlaylists = [...visiblePlaylists.filter(isCompleted)].sort((a, b) => {
     const lastA = a.completions[a.completions.length - 1];
     const lastB = b.completions[b.completions.length - 1];
     return lastB.localeCompare(lastA);
@@ -86,7 +95,8 @@ export default function PlaylistsView({
   // des titres dans une playlist (voir handleTrackDragEnter dans App.jsx).
   const reorderToPlan = (draggedPlaylistId, targetPlaylistId) => {
     setSavedPlaylists(prev => {
-      const ids = prev.filter(p => !isCompleted(p) && !p.plannedDate).map(p => p.id);
+      const inSection = (p) => !isCompleted(p) && !p.plannedDate && !!p.isNaughty === !!isNaughtyMode;
+      const ids = prev.filter(inSection).map(p => p.id);
       const fromIdx = ids.indexOf(draggedPlaylistId);
       const toIdx = ids.indexOf(targetPlaylistId);
       if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return prev;
@@ -95,7 +105,7 @@ export default function PlaylistsView({
       reordered.splice(toIdx, 0, moved);
       let cursor = 0;
       return prev.map(p => {
-        if (!isCompleted(p) && !p.plannedDate) return prev.find(pp => pp.id === reordered[cursor++]);
+        if (inSection(p)) return prev.find(pp => pp.id === reordered[cursor++]);
         return p;
       });
     });
@@ -146,7 +156,7 @@ export default function PlaylistsView({
     </div>
   );
 
-  const isEmpty = savedPlaylists.length === 0;
+  const isEmpty = visiblePlaylists.length === 0;
 
   return (
     <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
