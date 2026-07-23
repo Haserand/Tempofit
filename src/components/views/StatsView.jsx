@@ -633,7 +633,7 @@ export default function StatsView({
             <Activity className={statsMode === 'naughty' ? 'text-rose-500' : textColorClass} size={36} />
             <span>{statsMode === 'naughty' ? 'Statistiques · Intime' : 'Statistiques'}</span>
           </h1>
-          <p className={`mt-2 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)] ${statsMode === 'naughty' ? 'text-slate-700' : 'text-slate-300'}`}>
+          <p className={`mt-2 ${statsMode === 'naughty' ? 'text-slate-700' : 'text-slate-300'}`}>
             {statsMode === 'naughty' ? "Ce que tu as écouté en mode Intime, à part du reste." : "Ce que tu as écouté, séance après séance."}
           </p>
         </div>
