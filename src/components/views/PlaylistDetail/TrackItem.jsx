@@ -31,7 +31,24 @@ import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
  * donc PAS déplaçable dans ce sous-composant sans dupliquer sa source de
  * vérité (même piège que documenté pour athleticProfile/showToast).
  */
-export default function TrackItem({
+export default function TrackItem(props) {
+  // DIAGNOSTIC TEMPORAIRE (bug "page blanche" en cours d'investigation) :
+  // enveloppe TOUT le rendu de ce composant (pas seulement le calcul de
+  // zone comme la version précédente de ce diagnostic, qui n'a pas capté le
+  // crash) — si N'IMPORTE QUELLE ligne de TrackItemInner plante, relance une
+  // erreur enrichie avec les données exactes en cause. ErrorBoundary
+  // (App.jsx) affiche `error.message` telle quelle. À retirer une fois le
+  // bug confirmé et corrigé.
+  try {
+    return TrackItemInner(props);
+  } catch (e) {
+    throw new Error(
+      `[TrackItem] track=${JSON.stringify(props.track)} | favorites=${JSON.stringify(props.favorites)} | erreur d'origine: ${e.message}`
+    );
+  }
+}
+
+function TrackItemInner({
   track, index,
   theme, isLocked,
   favorites, toggleTrackFavorite, toggleArtistFavorite,
@@ -58,24 +75,11 @@ export default function TrackItem({
   // libellé plus bas) est DÉJÀ prévu pour ce cas depuis le début, rien
   // d'autre à changer ici que le résolveur : badge BPM neutre (gris),
   // bordure gauche neutre, pas de pastille de zone.
-  // DIAGNOSTIC TEMPORAIRE (bug "page blanche" en cours d'investigation) : si
-  // ce calcul plante, on relance une erreur enrichie avec les données EXACTES
-  // en cause plutôt que de laisser passer l'erreur d'origine — ErrorBoundary
-  // (App.jsx) affiche `error.message` telle quelle, donc ce qui suit
-  // apparaîtra directement à l'écran, sans repasser par la console/localStorage.
-  // À retirer une fois le bug confirmé et corrigé.
-  let activityName, customActivityName, zone;
-  try {
-    activityName = isNaughtyMode
-      ? (currentPlaylist?.config?.workoutName || currentPlaylist?.workoutType || 'Autre')
-      : (currentPlaylist?.workoutType || 'Autre');
-    customActivityName = currentPlaylist?.workoutType === 'Autre' ? (currentPlaylist?.config?.customActivity || '') : '';
-    zone = track.bpm ? getZoneForValue(track.bpm, activityName, getProfileForWorkout, customActivityName) : null;
-  } catch (e) {
-    throw new Error(
-      `[TrackItem] track=${JSON.stringify(track)} | currentPlaylist.workoutType=${JSON.stringify(currentPlaylist?.workoutType)} | currentPlaylist.config=${JSON.stringify(currentPlaylist?.config)} | isNaughtyMode=${isNaughtyMode} | erreur d'origine: ${e.message}`
-    );
-  }
+  const activityName = isNaughtyMode
+    ? (currentPlaylist?.config?.workoutName || currentPlaylist?.workoutType || 'Autre')
+    : (currentPlaylist?.workoutType || 'Autre');
+  const customActivityName = currentPlaylist?.workoutType === 'Autre' ? (currentPlaylist?.config?.customActivity || '') : '';
+  const zone = track.bpm ? getZoneForValue(track.bpm, activityName, getProfileForWorkout, customActivityName) : null;
   const zoneColor = zone?.color || '#9ca3af';
 
   const isFav = favorites.tracks.some(t => t.trackId === track.trackId);
