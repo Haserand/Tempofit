@@ -233,7 +233,7 @@ function AppContent({
     newFavArtist, setNewFavArtist,
     isAddingArtist, setIsAddingArtist,
     addFavoriteArtistValidated, toggleTrackFavorite, toggleArtistFavorite,
-  } = useFavorites(showToast);
+  } = useFavorites(showToast, isNaughtyMode);
 
   // MOTEUR SPOTIFY (voir hooks/useSpotifyImport.js) — appelé ICI, après
   // useFavorites, parce qu'il a besoin de `setFavorites` (la synchro fusionne
