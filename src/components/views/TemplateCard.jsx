@@ -76,7 +76,7 @@ export default function TemplateCard({ theme, template, onPlayTemplate }) {
             garantit un contraste qui ne dépend plus de la couleur de fond
             tirée au sort. */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <Music2 size={56} className="text-white/80 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]" />
+          <Music2 size={56} className="text-white/80 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)] transition-opacity duration-300 group-hover:opacity-0" />
         </div>
 
         {template.isOfficial && (
@@ -86,17 +86,24 @@ export default function TemplateCard({ theme, template, onPlayTemplate }) {
         )}
 
         {/* Overlay + bouton play — invisible tant qu'on ne survole pas la
-            pochette (opacity-0 → 100 sur .group:hover), translaté légèrement
-            vers le bas au repos pour un petit effet de "montée" au survol,
-            comme sur Spotify. */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-        <button
-          onClick={(e) => { e.stopPropagation(); onPlayTemplate(template); }}
-          title="Écouter cette playlist"
-          className={`absolute bottom-2 right-2 w-11 h-11 rounded-full text-white shadow-xl flex items-center justify-center opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all hover:scale-105 ${bgAccentClass}`}
-        >
-          <Play size={18} className="fill-white ml-0.5"/>
-        </button>
+            pochette (opacity-0 → 100 sur .group:hover). Le bouton n'est PLUS
+            positionné en absolute lui-même (ancien bottom-2 right-2, en
+            décalage avec la note centrale qu'il ne remplaçait pas) — il est
+            maintenant un enfant flex normal de CET overlay (déjà en
+            `absolute inset-0`), centré par le `flex items-center
+            justify-center` du conteneur plutôt que par son propre
+            positionnement : mêmes classes de centrage que le bouton play de
+            l'en-tête de playlist (PlaylistHeader.jsx), pour une expérience
+            de survol identique partout dans l'app. */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+          <button
+            onClick={(e) => { e.stopPropagation(); onPlayTemplate(template); }}
+            title="Écouter cette playlist"
+            className={`w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 hover:scale-105 ${bgAccentClass}`}
+          >
+            <Play size={20} className="fill-white ml-0.5"/>
+          </button>
+        </div>
       </div>
 
       <div className="mt-2 px-0.5">
