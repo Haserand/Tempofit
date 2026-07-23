@@ -36,7 +36,17 @@ import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
  * Tout le reste (nom éditable, sauvegarde/retrait, currentPlaylist lui-même)
  * vient de usePlaylistDetail().
  */
-export default function PlaylistHeader({
+export default function PlaylistHeader(props) {
+  // DIAGNOSTIC TEMPORAIRE (bug "page blanche" en cours d'investigation) —
+  // même mécanisme que TrackItem.jsx, à retirer une fois corrigé.
+  try {
+    return PlaylistHeaderInner(props);
+  } catch (e) {
+    throw new Error(`[PlaylistHeader] erreur d'origine: ${e.message}`);
+  }
+}
+
+function PlaylistHeaderInner({
   theme, isLocked, savedPlaylists,
   resolveAndTogglePreview, getNextTrackForAutoAdvance,
   setPlaylistPlannedDate,
