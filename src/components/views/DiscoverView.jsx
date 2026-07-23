@@ -72,7 +72,7 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode }) {
           <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}>
             <Compass className={theme.textColorClass} size={36} /> <span>Découvrir</span>
           </h1>
-          <p className={`mt-2 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)] ${isNaughtyMode ? 'text-slate-700' : 'text-slate-300'}`}>Des séances prêtes à l'emploi, sélectionnées par TempoFit — un clic pour les adapter à ton profil.</p>
+          <p className={`mt-2 ${isNaughtyMode ? 'text-slate-700' : 'text-slate-300'}`}>Des séances prêtes à l'emploi, sélectionnées par TempoFit — un clic pour les adapter à ton profil.</p>
         </div>
         <button
           disabled
