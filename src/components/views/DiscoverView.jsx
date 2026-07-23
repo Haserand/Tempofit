@@ -69,10 +69,10 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode }) {
     <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
       <div className={`border-b ${cardBorder} pb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4`}>
         <div>
-          <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-slate-900' : textHighlight}`}>
+          <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-rose-950' : textHighlight}`}>
             <Compass className={theme.textColorClass} size={36} /> <span>Découvrir</span>
           </h1>
-          <p className={`mt-2 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)] ${isNaughtyMode ? 'text-slate-700' : 'text-gray-600 dark:text-gray-300'}`}>Des séances prêtes à l'emploi, sélectionnées par TempoFit — un clic pour les adapter à ton profil.</p>
+          <p className={`mt-2 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)] ${isNaughtyMode ? 'text-rose-900' : 'text-gray-600 dark:text-gray-300'}`}>Des séances prêtes à l'emploi, sélectionnées par TempoFit — un clic pour les adapter à ton profil.</p>
         </div>
         <button
           disabled
