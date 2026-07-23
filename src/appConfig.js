@@ -248,19 +248,37 @@ const AUTO_GEN_OPTIONS = ["Manuel", "1 fois / jour", "2 fois / jour", "1 fois / 
 // genre musical ou à une tranche de BPM brute).
 const DISTRIBUTION_COLORS = ['#f43f5e', '#3b82f6', '#f59e0b', '#22c55e', '#a855f7', '#06b6d4', '#ec4899', '#84cc16'];
 
-// Repli NEUTRE pour le camembert BPM (bpmDistributionData,
+// Palette "Énergie Musicale" pour le camembert BPM (bpmDistributionData,
 // PlaylistDetailContext.jsx) quand AUCUN profil athlétique n'est configuré
-// pour l'activité de cette séance (décision Produit explicite : l'app reste
-// neutre par défaut, jamais de vocabulaire "effort" tant que l'utilisateur
-// n'a rien réglé lui-même — voir aussi TrackItem.jsx, même repli gris sur le
-// badge BPM par titre). Nuances de gris/ardoise SEULEMENT, volontairement
-// PAS de bleu/vert/ambre/rouge (couleurs déjà prises par ATHLETIC_ZONES) ni
-// de rose/violet/cyan (déjà pris par DISTRIBUTION_COLORS, genre musical) —
-// pour qu'une couleur de tranche BPM ne puisse jamais être confondue avec
-// une couleur de zone d'effort ou de genre par simple coïncidence visuelle.
-// Ordre clair → foncé : suit naturellement les tranches croissantes de BPM
-// sans leur donner de signification "zone", juste un repère de lecture.
-const BPM_BUCKET_COLORS = ['#cbd5e1', '#94a3b8', '#64748b', '#475569', '#334155', '#1e293b'];
+// pour l'activité de cette séance. Décision Produit : l'app reste neutre
+// par défaut sur le VOCABULAIRE d'effort (voir `{zone && ...}` dans
+// TrackItem.jsx, toujours masqué sans profil réel) — mais un camembert tout
+// gris "donne l'impression d'une fonctionnalité désactivée" (retour direct).
+// Couleurs vibrantes mais volontairement PAS bleu/vert/ambre/rouge
+// (ATHLETIC_ZONES) pour ne jamais suggérer par coïncidence de couleur un
+// sens "zone d'effort" à une simple tranche de BPM brute.
+const BPM_BUCKET_COLORS = ['#06b6d4', '#6366f1', '#8b5cf6', '#d946ef', '#f43f5e']; // Cyan, Indigo, Violet, Fuchsia, Rose vif
+
+// Assigne une couleur FIXE à une tranche de BPM (son point de départ, ex.
+// 100, 120, 140...) — PAR VALEUR, pas par position dans une liste triée.
+// Avant ce chantier, bpmDistributionData assignait `BPM_BUCKET_COLORS[i %
+// ...]` où `i` était l'INDEX de la tranche parmi celles qui apparaissent
+// dans CETTE playlist précise — deux playlists différentes (l'une avec les
+// tranches 100-119/140-159, l'autre avec 140-159/160-179) pouvaient donc
+// afficher la tranche "140-159" dans 2 couleurs différentes, et surtout
+// TrackItem.jsx (qui calcule la couleur d'un titre isolément, sans connaître
+// les autres tranches présentes) ne pouvait PAS reproduire cette même
+// couleur de façon fiable. Cette fonction résout ça : un bucketStart donné
+// renvoie TOUJOURS la même couleur, que ce soit appelé depuis le camembert
+// (PlaylistDetailContext.jsx) ou depuis un badge de titre isolé
+// (TrackItem.jsx) — vraie synchronisation, pas une coïncidence d'ordre.
+const getBpmBucketColor = (bucketStart) => {
+  if (bucketStart < 100) return BPM_BUCKET_COLORS[0];
+  if (bucketStart < 120) return BPM_BUCKET_COLORS[1];
+  if (bucketStart < 140) return BPM_BUCKET_COLORS[2];
+  if (bucketStart < 160) return BPM_BUCKET_COLORS[3];
+  return BPM_BUCKET_COLORS[4];
+};
 
 export {
   TROPHIES_DATA,
@@ -278,5 +296,6 @@ export {
   AVAILABLE_ICONS,
   AUTO_GEN_OPTIONS,
   DISTRIBUTION_COLORS,
-  BPM_BUCKET_COLORS
+  BPM_BUCKET_COLORS,
+  getBpmBucketColor
 };
