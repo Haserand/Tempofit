@@ -1,5 +1,6 @@
 import { useRef } from 'react';
-import { Music, Trash2, CheckCircle, Circle, Activity, List, Calendar, GripVertical } from 'lucide-react';
+import { Music2, Play, Trash2, CheckCircle, Circle, Activity, List, Calendar, GripVertical } from 'lucide-react';
+import { buildCoverUrl } from '../../utils/coverArt';
 
 /**
  * PlaylistCard — carte d'une playlist, utilisée par PlaylistsView ("Mes
@@ -11,9 +12,21 @@ import { Music, Trash2, CheckCircle, Circle, Activity, List, Calendar, GripVerti
  * la planification/dates y a été intégrée) — `showActions` était donc devenue
  * toujours `true` (plus qu'un seul appelant), retirée ici pour ne pas garder
  * une branche de code morte inatteignable.
+ *
+ * RETOUR DIRECT ("une playlist générée est un objet musical, pas un modèle
+ * d'entraînement — elle doit avoir une pochette d'album, pas l'emoji de
+ * l'activité") — la miniature carrée avec `playlist.coverIcon` (repli
+ * `Music`) est remplacée par la même logique de pochette que
+ * TemplateCard.jsx/PlaylistHeader.jsx : `playlist.coverUrl` si déjà posé
+ * (playlists ouvertes depuis Découvrir, voir App.jsx `openCuratedPlaylist`),
+ * sinon `buildCoverUrl(playlist.name)` (utils/coverArt.js, déterministe —
+ * même titre = même pochette générée à chaque affichage, pas besoin de la
+ * stocker). `playlist.coverIcon` reste UNIQUEMENT utilisé par
+ * RoutinesView.jsx (des modèles d'entraînement, pas des objets musicaux —
+ * l'emoji y reste pertinent), volontairement non touché ici.
  */
 export default function PlaylistCard({
-  theme, isNaughtyMode, playlist, rankStyle, rank,
+  theme, playlist, rankStyle, rank,
   onClick, onDelete,
   renderConfigInfoLine, renderCompletionsList, markPlaylistAsCompleted,
   onSetPlannedDate,
@@ -78,8 +91,37 @@ export default function PlaylistCard({
               <GripVertical size={16}/>
             </div>
           )}
-          <div className={`w-16 h-16 text-3xl rounded-xl flex items-center justify-center bg-gradient-to-br ${isNaughtyMode ? 'from-rose-400 to-rose-600' : 'from-gray-800 to-black dark:from-gray-200 dark:to-white'} shrink-0`}>
-            {playlist.coverIcon || <Music size={24} className={isNaughtyMode ? 'text-white' : 'text-white dark:text-black'} />}
+          <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0">
+            <img src={playlist.coverUrl || buildCoverUrl(playlist.name)} alt="" className="w-full h-full object-cover" loading="lazy" />
+            {/* Note centrale — mêmes classes exactement que TemplateCard.jsx/
+                PlaylistHeader.jsx (transition-opacity + group-hover:opacity-0),
+                réutilisant le `group` déjà posé sur la carte entière (ligne
+                ci-dessous, ${'} className du conteneur racine) plutôt qu'un
+                groupe imbriqué séparé : cette carte n'a qu'UNE seule zone de
+                survol pertinente (toute la carte navigue vers le détail au
+                clic), pas la peine d'isoler le survol à la seule vignette. */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <Music2 size={22} className="text-white/80 drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] transition-opacity duration-300 group-hover:opacity-0" />
+            </div>
+            {/* Bouton play au survol — même substitution note/bouton que
+                TemplateCard.jsx/PlaylistHeader.jsx. Pas de logique de lecture
+                indépendante branchée ici (PlaylistCard.jsx ne reçoit aucune
+                prop audio aujourd'hui, contrairement à PlaylistHeader.jsx) :
+                le clic déclenche `onClick`, EXACTEMENT la même action que
+                cliquer n'importe où ailleurs sur la carte (ouvrir le détail
+                de la playlist) — pas une vraie lecture rapide en place. Pour
+                un vrai aperçu audio direct depuis cette carte, il faudrait
+                faire remonter resolveAndTogglePreview/getNextTrackForAutoAdvance
+                jusqu'à PlaylistsView.jsx, non demandé pour ce chantier. */}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+              <button
+                onClick={(e) => { e.stopPropagation(); onClick(); }}
+                title="Ouvrir cette playlist"
+                className={`w-8 h-8 rounded-full text-white shadow-xl flex items-center justify-center opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 ${bgAccentClass}`}
+              >
+                <Play size={14} className="fill-white ml-0.5"/>
+              </button>
+            </div>
           </div>
           <h3 className={`font-bold text-lg flex items-center gap-2 min-w-0 ${textHighlight}`}>
             <span className="truncate">{playlist.name}</span>
