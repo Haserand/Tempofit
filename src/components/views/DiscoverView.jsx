@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Lock, Compass, Search, SearchX } from 'lucide-react';
-import { curatedSessions } from '../../data/curatedSessions';
+import { curatedSessions, naughtyCuratedSessions } from '../../data/curatedSessions';
 import TemplateCard from './TemplateCard';
 
 /**
@@ -36,13 +36,21 @@ import TemplateCard from './TemplateCard';
  * sections partiellement vides (si la recherche ne matche que certaines
  * catégories).
  */
-export default function DiscoverView({ theme, onPlayTemplate }) {
+export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode }) {
   const { textHighlight, textMuted, cardBg, cardBorder, inputBg, inputBorder, bgAccentClass } = theme;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('Toutes');
 
-  const categories = [...new Set(curatedSessions.map(t => t.category))];
+  // Pare-feu Mode Intime (retour direct : "Découvrir mélange les contenus
+  // des deux modes") — UN SEUL catalogue actif à la fois, choisi ici et
+  // utilisé PARTOUT ensuite dans ce composant (recherche, catégories,
+  // grille) : jamais de référence directe à `curatedSessions` plus bas,
+  // toujours à `activeSessions`, pour ne pas avoir 2 chemins de code à
+  // maintenir en parallèle pour une même logique d'affichage.
+  const activeSessions = isNaughtyMode ? naughtyCuratedSessions : curatedSessions;
+
+  const categories = [...new Set(activeSessions.map(t => t.category))];
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
@@ -55,7 +63,7 @@ export default function DiscoverView({ theme, onPlayTemplate }) {
   const matchesCategory = (template) => activeCategory === 'Toutes' || template.category === activeCategory;
 
   const isFiltering = normalizedQuery !== '' || activeCategory !== 'Toutes';
-  const filteredSessions = curatedSessions.filter(t => matchesCategory(t) && matchesSearch(t));
+  const filteredSessions = activeSessions.filter(t => matchesCategory(t) && matchesSearch(t));
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
@@ -129,7 +137,7 @@ export default function DiscoverView({ theme, onPlayTemplate }) {
           <div key={category}>
             <h2 className={`text-xl font-bold mb-4 sm:mb-6 ${textHighlight}`}>{category}</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
-              {curatedSessions.filter(t => t.category === category).map(template => (
+              {activeSessions.filter(t => t.category === category).map(template => (
                 <TemplateCard key={template.id} theme={theme} template={template} onPlayTemplate={onPlayTemplate} />
               ))}
             </div>
