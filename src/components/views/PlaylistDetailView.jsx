@@ -23,7 +23,17 @@ import PlaylistCharts from './PlaylistDetail/PlaylistCharts';
  * calculés dans App.jsx via useMemo et arrivent ici déjà prêts, en props —
  * ce composant reste un composant d'affichage, pas de calcul.
  */
-function PlaylistDetailViewInner({
+function PlaylistDetailViewInner(props) {
+  // DIAGNOSTIC TEMPORAIRE (bug "page blanche" en cours d'investigation) —
+  // même mécanisme que TrackItem.jsx, à retirer une fois corrigé.
+  try {
+    return PlaylistDetailViewInnerImpl(props);
+  } catch (e) {
+    throw new Error(`[PlaylistDetailViewInner] erreur d'origine: ${e.message}`);
+  }
+}
+
+function PlaylistDetailViewInnerImpl({
   // Chantier God Component (suite) : ne reçoit plus QUE ce qui est
   // génuinement hors du périmètre de PlaylistDetailContext — soit partagé
   // avec d'autres vues (PlaylistsView, ShareModal), soit infra globale
