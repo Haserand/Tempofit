@@ -580,3 +580,101 @@ export const curatedSessions = [
     ],
   },
 ];
+
+/**
+ * naughtyCuratedSessions — même principe EXACTEMENT que curatedSessions
+ * ci-dessus (Cold Start Problem), catalogue dédié au Mode Intime (pare-feu
+ * signalé : "Découvrir mélange les contenus des deux modes"). Même forme de
+ * données à l'identique (aucun champ en plus/en moins) : `DiscoverView.jsx`
+ * peut donc afficher l'un OU l'autre catalogue sans aucune logique de rendu
+ * différente entre les deux.
+ *
+ * `workoutType` reste une VRAIE activité canonique (Cyclisme/Course à pied/
+ * Musculation — jamais "Ambiance" ici) : ce champ sert à pré-remplir le
+ * générateur au moment d'ouvrir le template (voir `openCuratedPlaylist`,
+ * App.jsx), qui se charge LUI de basculer sur "Ambiance" au moment de créer
+ * la vraie playlist si le Mode Intime est actif — exactement la même
+ * mécanique que pour une génération manuelle, un template n'est jamais
+ * qu'un point de départ, pas encore une playlist. Catégories pensées comme
+ * un gradient douceur → intensité (mêmes 3 activités que
+ * NAUGHTY_WORKOUT_LABELS, appConfig.js), pas des noms au hasard. Genres
+ * limités aux valeurs canoniques de `NAUGHTY_GENRES` (musicCatalog.js).
+ */
+export const naughtyCuratedSessions = [
+  // ───────────────────────── CHILL & DÉTENTE (Cyclisme = Douceur) ─────────────────────────
+  {
+    id: 'ntpl-soft-sunset',
+    title: 'Soft Sunset',
+    author: 'TempoFit Officiel',
+    isOfficial: true,
+    upvotes: 0,
+    category: 'Chill & Détente',
+    workoutType: 'Cyclisme',
+    tracks: [
+      { title: 'Smooth Operator', artist: 'Sade', genre: 'R&B Sensuel', bpm: 90, duration: 292 },
+      { title: 'Put Your Records On', artist: 'Corinne Bailey Rae', genre: 'Jazz', bpm: 92, duration: 238 },
+      { title: 'All of Me', artist: 'John Legend', genre: 'R&B Sensuel', bpm: 63, duration: 269 },
+      { title: "Can't Help Falling in Love", artist: 'Elvis Presley', genre: 'Jazz', bpm: 82, duration: 181 },
+    ],
+  },
+  {
+    id: 'ntpl-slow-hours',
+    title: 'Slow Hours',
+    author: 'TempoFit Officiel',
+    isOfficial: true,
+    upvotes: 0,
+    category: 'Chill & Détente',
+    workoutType: 'Cyclisme',
+    tracks: [
+      { title: 'La Vie en Rose', artist: 'Édith Piaf', genre: 'Jazz', bpm: 88, duration: 200 },
+      { title: 'Feeling Good', artist: 'Nina Simone', genre: 'Jazz', bpm: 96, duration: 176 },
+      { title: 'Best Part', artist: 'Daniel Caesar ft. H.E.R.', genre: 'R&B Sensuel', bpm: 79, duration: 195 },
+    ],
+  },
+  // ───────────────────────── RYTHMES SENSUELS (Course à pied = Passion) ─────────────────────────
+  {
+    id: 'ntpl-slow-burn',
+    title: 'Slow Burn',
+    author: 'TempoFit Officiel',
+    isOfficial: true,
+    upvotes: 0,
+    category: 'Rythmes Sensuels',
+    workoutType: 'Course à pied',
+    tracks: [
+      { title: 'Adorn', artist: 'Miguel', genre: 'R&B Sensuel', bpm: 65, duration: 205 },
+      { title: 'Pink + White', artist: 'Frank Ocean', genre: 'R&B Sensuel', bpm: 85, duration: 184 },
+      { title: 'Often', artist: 'The Weeknd', genre: 'R&B Sensuel', bpm: 74, duration: 269 },
+      { title: 'No Ordinary Love', artist: 'Sade', genre: 'R&B Sensuel', bpm: 68, duration: 293 },
+    ],
+  },
+  {
+    id: 'ntpl-midnight-latino',
+    title: 'Midnight Latino',
+    author: 'TempoFit Officiel',
+    isOfficial: true,
+    upvotes: 0,
+    category: 'Rythmes Sensuels',
+    workoutType: 'Course à pied',
+    tracks: [
+      { title: 'Bailando', artist: 'Enrique Iglesias', genre: 'Latino', bpm: 100, duration: 243 },
+      { title: 'Danza Kuduro', artist: 'Don Omar ft. Lucenzo', genre: 'Latino', bpm: 130, duration: 199 },
+      { title: 'Vivir Mi Vida', artist: 'Marc Anthony', genre: 'Latino', bpm: 98, duration: 240 },
+    ],
+  },
+  // ───────────────────────── MONTÉE EN TEMPÉRATURE (Musculation = Intensité) ─────────────────────────
+  {
+    id: 'ntpl-heat-rising',
+    title: 'Heat Rising',
+    author: 'TempoFit Officiel',
+    isOfficial: true,
+    upvotes: 0,
+    category: 'Montée en Température',
+    workoutType: 'Musculation',
+    tracks: [
+      { title: 'Nice & Slow', artist: 'Usher', genre: 'R&B Sensuel', bpm: 75, duration: 246 },
+      { title: 'Pony', artist: 'Ginuwine', genre: 'R&B Sensuel', bpm: 68, duration: 254 },
+      { title: 'Neighbors Know My Name', artist: 'Trey Songz', genre: 'R&B Sensuel', bpm: 100, duration: 220 },
+      { title: 'Rock the Boat', artist: 'Aaliyah', genre: 'R&B Sensuel', bpm: 92, duration: 251 },
+    ],
+  },
+];
