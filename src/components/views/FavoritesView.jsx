@@ -28,15 +28,15 @@ export default function FavoritesView({
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
       <div className={`border-b ${cardBorder} pb-6`}>
-        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}>
+        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}>
           <Star className="text-yellow-500 fill-yellow-500/20" size={36} /> <span>Mes Favoris</span>
         </h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Priorité à la génération : tes titres favoris d'abord, puis tes artistes favoris, puis une recherche plus large si besoin pour compléter la playlist.</p>
+        <p className={`mt-2 ${isNaughtyMode ? 'text-slate-700' : 'text-slate-300'}`}>Priorité à la génération : tes titres favoris d'abord, puis tes artistes favoris, puis une recherche plus large si besoin pour compléter la playlist.</p>
       </div>
 
       <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-          <h3 className={`font-bold text-xl ${textHighlight}`}>Tes Préférences Musicales</h3>
+          <h3 className={`font-bold text-xl ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}>Tes Préférences Musicales</h3>
           <button onClick={() => changeView('settings')} className={`px-5 py-2.5 ${cardBg} border-2 ${borderAccentClass} rounded-xl text-sm font-bold ${textColorClass} transition-colors shadow-sm flex items-center gap-2 ${isNaughtyMode ? 'hover:bg-rose-500 dark:hover:bg-rose-600' : 'hover:bg-red-500 dark:hover:bg-red-600'} hover:text-white`}>
             <RefreshCw size={18} /> <span>Synchroniser mes comptes</span>
           </button>
@@ -44,7 +44,7 @@ export default function FavoritesView({
         <div className="space-y-8">
           {/* LIGNE 1 : Titres uniquement (priorité 1 de la cascade de génération) */}
           <div>
-            <h4 className={`text-sm font-bold uppercase tracking-wider ${textMuted} mb-4 flex items-center`}><Heart size={16} className="mr-2"/> Titres Favoris</h4>
+            <h4 className={`text-sm font-bold uppercase tracking-wider mb-4 flex items-center ${isNaughtyMode ? 'text-slate-800' : 'text-slate-400'}`}><Heart size={16} className="mr-2"/> Titres Favoris</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {favorites.tracks.map((track, idx) => (
                 <div key={track.trackId || idx} className={`flex items-center gap-2 p-2.5 rounded-xl border ${cardBorder} ${inputBg}`}>
@@ -74,7 +74,7 @@ export default function FavoritesView({
 
           {/* LIGNE 2 : Artistes uniquement (priorité 1.5, élargissement suivant) */}
           <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
-            <h4 className={`text-sm font-bold uppercase tracking-wider ${textMuted} mb-4 flex items-center`}><User size={16} className="mr-2"/> Top Artistes</h4>
+            <h4 className={`text-sm font-bold uppercase tracking-wider mb-4 flex items-center ${isNaughtyMode ? 'text-slate-800' : 'text-slate-400'}`}><User size={16} className="mr-2"/> Top Artistes</h4>
             <div className="flex flex-wrap gap-2.5 items-center">
               {favorites.artists.map((artist, idx) => (
                 <span key={idx} className={`px-4 py-2 bg-surface-hover border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold ${textHighlight} shadow-sm flex items-center gap-2`}>
