@@ -473,9 +473,17 @@ export function PlaylistDetailProvider({
     };
   }, [currentPlaylist, currentActualData, selectedMetric, dataOffset]);
 
+  // isSaved — la playlist courante est-elle déjà dans "Mes Séances" ?
+  // Calculé UNE SEULE FOIS ici (currentPlaylist/savedPlaylists déjà reçus en
+  // props du Provider) plutôt que recalculé indépendamment par chaque
+  // consommateur (PlaylistHeader en avait sa propre copie ; TrackItem/
+  // TrackList en ont besoin maintenant aussi, voir plus bas) — même
+  // formule partout, jamais 2 sources de vérité qui pourraient diverger.
+  const isSaved = !!(currentPlaylist && savedPlaylists.find(p => p.id === currentPlaylist.id));
+
   const value = {
     isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
-    handleSavePlaylist, handleUnsavePlaylist,
+    handleSavePlaylist, handleUnsavePlaylist, isSaved,
     handleRemoveTrack, handleDuplicateTrack, handleReplaceTrack, handleReplaceTrackSameArtist,
     openTrackMenuIndex, setOpenTrackMenuIndex,
     draggedTrackIndex, handleTrackDragStart, handleTrackDragEnter, handleTrackDragEnd,
@@ -510,7 +518,7 @@ export function PlaylistDetailProvider({
 const FALLBACK = {
   isEditingPlaylistName: false, setIsEditingPlaylistName: () => {},
   editedPlaylistName: '', setEditedPlaylistName: () => {}, handleRenamePlaylist: () => {},
-  handleSavePlaylist: () => {}, handleUnsavePlaylist: () => {},
+  handleSavePlaylist: () => {}, handleUnsavePlaylist: () => {}, isSaved: false,
   handleRemoveTrack: () => {}, handleDuplicateTrack: () => {}, handleReplaceTrack: async () => {}, handleReplaceTrackSameArtist: async () => {},
   openTrackMenuIndex: null, setOpenTrackMenuIndex: () => {},
   draggedTrackIndex: null, handleTrackDragStart: () => () => {}, handleTrackDragEnter: () => () => {}, handleTrackDragEnd: () => {},
