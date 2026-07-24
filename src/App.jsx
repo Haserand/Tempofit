@@ -29,6 +29,7 @@ import { NAUGHTY_ROUTINE_NAMES } from './appConfig';
 import { safeFetchJson, deezerFetch, getSingleMatchingTrack, buildSegmentTracks, deduceCrescendoBpm, buildCrescendoSegments, recalculateTimeline, createPlaylistData } from './musicEngine';
 import { decodePlaylistFromSharing } from './utils/playlistShareCode';
 import { buildCoverUrl } from './utils/coverArt';
+import { curatedSessions, naughtyCuratedSessions } from './data/curatedSessions';
 import { parseGarminCsv } from './workoutDataEngine';
 import { useTheme } from './hooks/useTheme';
 import { usePersistentState } from './hooks/usePersistentState';
@@ -947,6 +948,17 @@ function AppContent({
       coverIcon: '🎧', createdAt: new Date().toLocaleDateString(),
       status: 'pending', actualDataByDate: {},
       config: { workoutName: template.workoutType, targetMode: 'time', bpm: avgBpm, selectedGenres: genres.length ? genres : ['Autre'] },
+      // Trace de l'origine (retour direct : "je devrais revenir à la
+      // playlist telle que j'ai cliqué dessus au départ" après un
+      // renommage/édition suivi d'un retrait de "Mes Séances") — permet à
+      // `removeSavedPlaylist` (plus bas) de retrouver le template BRUT et
+      // pristine dans data/curatedSessions.js, plutôt que de laisser
+      // affiché un `currentPlaylist` qui garderait les modifications d'une
+      // sauvegarde abandonnée. Un id STABLE (`template.id`, jamais régénéré
+      // à chaque ouverture, contrairement à `id` ci-dessus qui embarque
+      // `Date.now()`) — indispensable pour retrouver le bon template après
+      // coup, pas juste au moment de l'ouverture.
+      sourceTemplateId: template.id,
     };
 
     const finalPlaylist = recalculateTimeline(rawPlaylist);
@@ -1167,6 +1179,30 @@ function AppContent({
    */
   const removeSavedPlaylist = (playlistId) => {
     setSavedPlaylists(savedPlaylists.filter(p => p.id !== playlistId));
+
+    // RETOUR DIRECT ("je devrais revenir à la playlist telle que j'ai
+    // cliqué dessus au départ, pas garder le même titre") : "Retirer de Mes
+    // Séances" ne supprime QUE l'entrée dans `savedPlaylists` — sans ça,
+    // `currentPlaylist` (toujours affiché à l'écran juste après) garde
+    // n'importe quelle modification faite pendant que la playlist était
+    // sauvegardée (renommage, titres retirés/remplacés...), alors que
+    // l'écran redevient une simple PRÉVISUALISATION en lecture seule d'un
+    // template du catalogue — qui, lui, n'a jamais changé dans
+    // data/curatedSessions.js. Uniquement si c'est la playlist AFFICHÉE
+    // (retirer une autre carte depuis PlaylistsView ne doit rien changer à
+    // l'écran courant) et qu'elle vient bien d'un template (`sourceTemplateId`
+    // — absent pour une playlist générée ou importée, qui n'a pas de
+    // "version canonique" séparée d'elle-même vers laquelle revenir).
+    if (currentPlaylist?.id === playlistId && currentPlaylist.sourceTemplateId) {
+      const catalog = currentPlaylist.isNaughty ? naughtyCuratedSessions : curatedSessions;
+      const originalTemplate = catalog.find(t => t.id === currentPlaylist.sourceTemplateId);
+      if (originalTemplate) {
+        openCuratedPlaylist(originalTemplate);
+        showToast("Playlist retirée de Mes Séances — le modèle original a été restauré.");
+        return;
+      }
+    }
+
     showToast("Playlist retirée de Mes Séances.");
   };
 
