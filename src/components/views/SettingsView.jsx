@@ -98,16 +98,14 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
             )}
           </>
         ) : (
-          // RETOUR DIRECT ("la zone prend trop de place, autant enlever le
-          // reste et juste garder le message") — après avoir retiré le
-          // bouton "Se connecter" (doublon avec celui du header), toute la
-          // carte icône/titre/sous-titre "Non connecté" ne servait plus
-          // qu'à annoncer un état déjà évident (on est sur cette page
-          // PARCE QU'on n'est pas connecté) — remplacée par une seule ligne
-          // de texte compacte, sans plus grande carte englobante.
-          <p className={`text-sm ${textMuted}`}>
-            Non connecté — données enregistrées uniquement sur cet appareil. Connexion via le bouton en haut à droite de l'application.
-          </p>
+          // RETOUR DIRECT ("la phrase du bas est de trop non ?") — retirée
+          // entièrement : elle ne faisait que répéter ce que le paragraphe
+          // d'intro de la vue dit déjà ("Connecte-toi pour retrouver tes
+          // favoris... Sans compte, tout reste enregistré uniquement sur
+          // celui-ci"), sans rien ajouter de neuf — le bouton de connexion
+          // global (header, en haut à droite) est de toute façon visible et
+          // évident sur toutes les pages, pas besoin de le rappeler ici.
+          null
         )}
       </div>
 
