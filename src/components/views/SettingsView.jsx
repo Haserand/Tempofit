@@ -98,26 +98,16 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
             )}
           </>
         ) : (
-          <div className={`flex items-center justify-between p-4 rounded-2xl border ${inputBorder} ${inputBg}`}>
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-500">
-                <UserIcon size={24} />
-              </div>
-              <div>
-                <h4 className={`font-bold text-lg ${textHighlight}`}>Non connecté</h4>
-                <p className={`text-sm ${textMuted}`}>Données enregistrées uniquement sur cet appareil</p>
-              </div>
-            </div>
-            {/* RETOUR DIRECT ("règle du Boy Scout" — le gros bouton "Se
-                connecter" ici faisait doublon avec celui du header, en haut
-                à droite, présent sur TOUTES les pages) — remplacé par une
-                simple mention textuelle discrète : cette carte reste
-                informative ("voici ton statut"), l'action elle-même n'a
-                plus qu'un seul point d'entrée dans toute l'app. */}
-            <p className="text-slate-400 text-xs sm:text-sm text-right shrink-0 max-w-[180px]">
-              Connexion via le bouton en haut à droite de l'application.
-            </p>
-          </div>
+          // RETOUR DIRECT ("la zone prend trop de place, autant enlever le
+          // reste et juste garder le message") — après avoir retiré le
+          // bouton "Se connecter" (doublon avec celui du header), toute la
+          // carte icône/titre/sous-titre "Non connecté" ne servait plus
+          // qu'à annoncer un état déjà évident (on est sur cette page
+          // PARCE QU'on n'est pas connecté) — remplacée par une seule ligne
+          // de texte compacte, sans plus grande carte englobante.
+          <p className={`text-sm ${textMuted}`}>
+            Non connecté — données enregistrées uniquement sur cet appareil. Connexion via le bouton en haut à droite de l'application.
+          </p>
         )}
       </div>
 
