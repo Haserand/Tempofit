@@ -2017,7 +2017,25 @@ function AppContent({
             toute ambiguïté et le rend véritablement indépendant du cycle de
             vie/défilement de n'importe quelle vue enfant, plutôt que de
             dépendre implicitement de la structure de positionnement
-            actuelle (qui pourrait changer un jour sans que ce bloc suive). */}
+            actuelle (qui pourrait changer un jour sans que ce bloc suive).
+            RETOUR RECUL (2e capture, "ça semble pas marcher") — le `fixed`
+            ci-dessus règle bien le 1er affichage (le padding de `<main>`
+            pousse le tout début du contenu sous ce bloc), mais PAS le
+            défilement plus profond : n'importe quelle rangée de cartes finit
+            par remonter dans cette même zone en scrollant, exactement comme
+            sur n'importe quel site avec un bouton flottant fixe (bulle de
+            chat, bannière cookie...) — le contenu défile SOUS l'élément fixe,
+            qui le masque partiellement puisqu'il est opaque et au-dessus en
+            z-index. C'est le comportement NORMAL/universel d'un overlay
+            fixe, pas un bug distinct du 1er — aucun padding ne peut
+            l'empêcher, seulement le rendre visuellement INTENTIONNEL plutôt
+            qu'un chevauchement brut : la vignette juste en dessous (dégradé
+            `from-base`, la couleur de fond réelle de l'app, quel que soit le
+            thème actif) fait disparaître progressivement ce qui défile
+            dessous, plutôt que de le trancher net à la limite du bouton.
+            `pointer-events-none` : purement visuel, ne doit jamais intercepter
+            un clic destiné au contenu qui affleure sous son dégradé. */}
+        <div className="fixed top-0 right-0 w-72 h-28 z-50 bg-gradient-to-bl from-base via-base/70 to-transparent pointer-events-none" />
         <div className="fixed top-4 right-4 md:top-6 md:right-6 z-[60] flex items-center gap-2">
           <button
             onClick={toggleTheme}
