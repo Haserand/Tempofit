@@ -257,7 +257,7 @@ function AppContent({
   // ce fichier) pour la synchro — ici, on n'a besoin que de `signUp`/
   // `signIn`/`signOut` pour les passer à AuthModal/SettingsView, et de
   // `isAuthModalOpen` (state propre à CETTE vue, pas au contexte global).
-  const { user, signUp, signIn, signOut, resetPassword, isSupabaseConfigured, userCount } = useAuthContext();
+  const { user, signUp, signIn, signOut, resetPassword, updateEmail, isSupabaseConfigured, userCount } = useAuthContext();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // RETOUR DIRECT ("pas de message d'erreur quand je clique sur un lien
@@ -2156,7 +2156,7 @@ function AppContent({
               <SettingsView
                 theme={themeTokens} spotifyToken={spotifyToken} loginSpotify={loginSpotify} setSpotifyToken={setSpotifyToken}
                 spotifyRedirectUri={REDIRECT_URI}
-                user={user} signOut={signOut} isSupabaseConfigured={isSupabaseConfigured}
+                user={user} signOut={signOut} updateEmail={updateEmail} isSupabaseConfigured={isSupabaseConfigured}
                 userCount={userCount}
               />
             )}
