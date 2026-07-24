@@ -11,9 +11,10 @@ import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
 
 /**
  * PlaylistHeader.jsx — en-tête de PlaylistDetailView : pochette, titre
- * (édition inline), badges d'infos, ligne dates/verrou/planification, et
- * rangée d'actions (import CSV, partager, sauvegarder/retirer). Extrait de
- * PlaylistDetailView.jsx (chantier découpage, suite de TrackList/TrackItem).
+ * (édition inline), badge de dernière complétion (si verrouillée), et
+ * rangée d'actions (import CSV, planifier, partager, sauvegarder/retirer).
+ * Extrait de PlaylistDetailView.jsx (chantier découpage, suite de
+ * TrackList/TrackItem).
  *
  * Contrairement à TrackList (state de filtre partagé avec les camemberts),
  * RIEN ici n'est partagé avec PlaylistCharts ou TrackList — tout ce qui
@@ -159,66 +160,36 @@ export default function PlaylistHeader({
           n'a donc plus besoin de centrer/pousser son contenu verticalement. */}
       <div className="flex-1 flex flex-col justify-start text-center md:text-left w-full min-w-0">
         <div className="space-y-4">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-3 flex-wrap justify-center md:justify-start">
-              {isLocked && currentPlaylist.completions.length > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold flex items-center text-rose-400" title="Séance déjà réalisée">
-                    <Lock size={12}/>
-                  </span>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    {renderTopCompletionDate ? renderTopCompletionDate(currentPlaylist) : new Date(currentPlaylist.completions[0].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </p>
+          {/* Badge "séance déjà réalisée" + dernière date — seul élément
+              qui peut légitimement précéder le titre (information sur la
+              séance elle-même, pas une action). Bloc entier conditionné à
+              `isLocked`, pas juste son contenu : sans ça, un conteneur vide
+              laissait un espace mort au-dessus du titre (space-y-4) une fois
+              le bouton "Planifier" déplacé dans la barre d'actions du bas —
+              désormais, quand la séance n'est pas encore verrouillée, le
+              titre est bien le tout premier élément visuel de ce bloc,
+              aligné avec le sommet de la pochette. */}
+          {isLocked && currentPlaylist.completions.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5 justify-center md:justify-start">
+                <span className="text-xs font-bold flex items-center text-rose-400" title="Séance déjà réalisée">
+                  <Lock size={12}/>
+                </span>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  {renderTopCompletionDate ? renderTopCompletionDate(currentPlaylist) : new Date(currentPlaylist.completions[0].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </p>
+              </div>
+              {/* N'affiche cette liste que s'il reste au moins UNE date au-delà
+                  de `completions[0]` (déjà montrée juste au-dessus) : sur une
+                  séance jamais rejouée (le cas le plus courant), il n'y aurait
+                  plus rien à montrer ici. */}
+              {renderCompletionsList && currentPlaylist.completions.length > 1 && (
+                <div className="pt-0.5">
+                  {renderCompletionsList(currentPlaylist, mostRecentCompletionIso, [currentPlaylist.completions[0]])}
                 </div>
               )}
-              {/* "Planifier" — n'apparaît que si la playlist est déjà sauvegardée
-                  (planifier une séance qui n'est pas encore dans "Mes Séances"
-                  n'a pas de sens). */}
-              {isSaved && (
-                <label
-                  onClick={(e) => {
-                    // showPicker() force l'ouverture explicitement là où l'API existe
-                    // (Chrome/Edge récents) — sans ce filet, le clic pouvait ne
-                    // simplement rien faire dans certains navigateurs. Sur les
-                    // navigateurs sans showPicker (Safari plus anciens, Firefox),
-                    // on laisse le comportement natif label→input inchangé.
-                    if (plannedDateInputRef.current?.showPicker) {
-                      e.preventDefault();
-                      plannedDateInputRef.current.showPicker();
-                    }
-                  }}
-                  className="relative flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold text-xs transition-colors border cursor-pointer bg-slate-800/80 border-slate-700 hover:bg-slate-700 text-slate-200 shrink-0"
-                  title={
-                    // Une fois la séance déjà réalisée, "planifier" ne peut plus
-                    // vouloir dire "prévoir sa première fois" — ça ne peut plus
-                    // être qu'une intention de la refaire plus tard.
-                    isLocked ? "Refaire cette séance" : "Planifier cette séance"
-                  }
-                >
-                  <Calendar size={14} />
-                  {currentPlaylist.plannedDate && (
-                    <span>{new Date(currentPlaylist.plannedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
-                  )}
-                  <input
-                    ref={plannedDateInputRef}
-                    type="date"
-                    value={currentPlaylist.plannedDate || ''}
-                    onChange={(e) => setPlaylistPlannedDate(currentPlaylist.id, e.target.value)}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                  />
-                </label>
-              )}
             </div>
-            {/* N'affiche cette liste que s'il reste au moins UNE date au-delà
-                de `completions[0]` (déjà montrée, éditable, juste au-dessus) :
-                sur une séance jamais rejouée (le cas le plus courant), il
-                n'y aurait plus rien à montrer ici. */}
-            {isLocked && renderCompletionsList && currentPlaylist.completions.length > 1 && (
-              <div className="pt-0.5">
-                {renderCompletionsList(currentPlaylist, mostRecentCompletionIso, [currentPlaylist.completions[0]])}
-              </div>
-            )}
-          </div>
+          )}
 
           {/* Titre éditable — text-2xl/text-4xl (plutôt que text-5xl) pour que
               la plupart des noms tiennent sur une ligne SANS être coupés, et
@@ -320,6 +291,45 @@ export default function PlaylistHeader({
             >
               <Save size={16} /> <span>Ajouter à Mes Séances</span>
             </button>
+          )}
+
+          {/* Action secondaire : Planifier — n'apparaît que si la playlist
+              est déjà sauvegardée (planifier une séance qui n'est pas encore
+              dans "Mes Séances" n'a pas de sens). Déplacée ici (retour direct :
+              flottait seule au-dessus du titre, cassait son alignement avec
+              le sommet de la pochette) — même style que Partager pour rester
+              clairement une action secondaire face à Ajouter/Retirer. */}
+          {isSaved && (
+            <label
+              onClick={(e) => {
+                // showPicker() force l'ouverture explicitement là où l'API existe
+                // (Chrome/Edge récents) — sans ce filet, le clic pouvait ne
+                // simplement rien faire dans certains navigateurs. Sur les
+                // navigateurs sans showPicker (Safari plus anciens, Firefox),
+                // on laisse le comportement natif label→input inchangé.
+                if (plannedDateInputRef.current?.showPicker) {
+                  e.preventDefault();
+                  plannedDateInputRef.current.showPicker();
+                }
+              }}
+              className="relative flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors border cursor-pointer bg-slate-800/80 border-slate-700 hover:bg-slate-700 text-slate-200 shrink-0"
+              title={
+                // Une fois la séance déjà réalisée, "planifier" ne peut plus
+                // vouloir dire "prévoir sa première fois" — ça ne peut plus
+                // être qu'une intention de la refaire plus tard.
+                isLocked ? "Refaire cette séance" : "Planifier cette séance"
+              }
+            >
+              <Calendar size={16} />
+              <span>{currentPlaylist.plannedDate ? new Date(currentPlaylist.plannedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : 'Planifier'}</span>
+              <input
+                ref={plannedDateInputRef}
+                type="date"
+                value={currentPlaylist.plannedDate || ''}
+                onChange={(e) => setPlaylistPlannedDate(currentPlaylist.id, e.target.value)}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+              />
+            </label>
           )}
 
           {/* Action secondaire (2e position) : Partager — ShareModal génère
