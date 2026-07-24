@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as UserIcon } from 'lucide-react';
+import { Settings, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as UserIcon, Edit3, X } from 'lucide-react';
 
 /**
  * SettingsView — vue "Options & Comptes" (connexion Spotify).
@@ -16,8 +16,49 @@ import { Settings, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as 
  * rarement). Voir GeneratorView.jsx pour l'UI, useAthleticProfile.js pour le
  * state — inchangés, seul l'EMPLACEMENT dans l'app a changé.
  */
-export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, signOut, isSupabaseConfigured, userCount }) {
+export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, signOut, updateEmail, isSupabaseConfigured, userCount }) {
   const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg } = theme;
+
+  // Édition de l'adresse e-mail (retour direct, "aucun moyen de modifier
+  // son e-mail") — `newEmail` pré-rempli avec `user.email` à l'ouverture du
+  // mode édition (voir startEditingEmail), pas à l'initialisation du state
+  // (user peut ne pas être connecté au tout 1er rendu).
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailSubmitting, setEmailSubmitting] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  // Distinct de l'affichage édition lui-même : reste vrai APRÈS être
+  // ressorti du mode édition (voir handleEmailSubmit), pour que la
+  // confirmation reste visible sous l'adresse (toujours l'ANCIENNE, voir
+  // AuthContext.jsx — `user.email` ne change qu'une fois le lien de
+  // confirmation suivi) plutôt que de disparaître dès la soumission.
+  const [emailUpdateSent, setEmailUpdateSent] = useState(false);
+
+  const startEditingEmail = () => {
+    setNewEmail(user.email);
+    setEmailError('');
+    setEmailUpdateSent(false);
+    setIsEditingEmail(true);
+  };
+
+  const cancelEditingEmail = () => {
+    setIsEditingEmail(false);
+    setEmailError('');
+  };
+
+  const handleEmailSubmit = async (e) => {
+    e.preventDefault();
+    setEmailError('');
+    if (!newEmail.trim()) { setEmailError('Renseigne une adresse e-mail.'); return; }
+    if (newEmail.trim() === user.email) { setEmailError('C\'est déjà ton adresse actuelle.'); return; }
+    setEmailSubmitting(true);
+    const { error } = await updateEmail(newEmail.trim());
+    setEmailSubmitting(false);
+
+    if (error) { setEmailError(error); return; }
+    setIsEditingEmail(false);
+    setEmailUpdateSent(true);
+  };
   // Retour direct : erreur Spotify "redirect_uri: Not matching configuration"
   // au clic sur "Lier mon compte" — ce n'est PAS un bug de ce code (voir
   // App.jsx, `loginSpotify`) : Spotify exige que l'URL de redirection envoyée
@@ -72,19 +113,70 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
         ) : user ? (
           <>
             <div className={`flex items-center justify-between p-4 rounded-2xl border border-green-500 bg-green-50 dark:bg-green-900/20`}>
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center bg-green-500 text-white">
+              <div className="flex items-center space-x-4 min-w-0 flex-1">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center bg-green-500 text-white shrink-0">
                   <UserIcon size={24} />
                 </div>
-                <div>
-                  <h4 className={`font-bold text-lg ${textHighlight}`}>{user.email}</h4>
-                  <p className={`text-sm ${textMuted}`}>Connecté — données synchronisées</p>
-                </div>
+                {/* Mode édition — remplace l'affichage e-mail/statut par un
+                    petit formulaire inline (retour direct : "ajoute un
+                    bouton Modifier à côté de l'adresse e-mail actuelle").
+                    `min-w-0` sur le conteneur parent + celui-ci : sans ça,
+                    l'input pourrait pousser "Déconnecter" hors de la carte
+                    sur un écran étroit. */}
+                {isEditingEmail ? (
+                  <form onSubmit={handleEmailSubmit} className="min-w-0 flex-1 space-y-1.5">
+                    <input
+                      type="email" autoFocus autoComplete="email"
+                      value={newEmail} onChange={e => { setNewEmail(e.target.value); setEmailError(''); }}
+                      className={`w-full px-3 py-1.5 rounded-lg border ${inputBorder} ${inputBg} font-bold text-lg ${textHighlight} outline-none`}
+                    />
+                    {emailError && <p className="text-xs font-semibold text-red-500">{emailError}</p>}
+                  </form>
+                ) : (
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h4 className={`font-bold text-lg truncate ${textHighlight}`}>{user.email}</h4>
+                      <button onClick={startEditingEmail} title="Modifier l'adresse e-mail" className={`shrink-0 p-1 rounded-lg ${textMuted} hover:text-main transition-colors`}>
+                        <Edit3 size={14}/>
+                      </button>
+                    </div>
+                    <p className={`text-sm ${textMuted}`}>Connecté — données synchronisées</p>
+                  </div>
+                )}
               </div>
-              <button onClick={signOut} className={`px-4 py-2 bg-gray-200 dark:bg-gray-800 font-bold rounded-lg hover:bg-red-100 hover:text-red-500 transition-all text-gray-500`}>
-                Déconnecter
-              </button>
+              {/* "Enregistrer"/"Annuler" remplacent "Déconnecter" pendant
+                  l'édition — un seul groupe d'actions visible à la fois,
+                  jamais les deux mélangés dans la même rangée. */}
+              {isEditingEmail ? (
+                <div className="flex items-center gap-2 shrink-0 ml-3">
+                  <button onClick={cancelEditingEmail} title="Annuler" className={`p-2.5 rounded-lg ${textMuted} hover:text-main hover:bg-surface-hover transition-colors`}>
+                    <X size={18}/>
+                  </button>
+                  <button
+                    onClick={handleEmailSubmit} disabled={emailSubmitting}
+                    className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  >
+                    <Check size={16}/> Enregistrer
+                  </button>
+                </div>
+              ) : (
+                <button onClick={signOut} className={`shrink-0 ml-3 px-4 py-2 bg-gray-200 dark:bg-gray-800 font-bold rounded-lg hover:bg-red-100 hover:text-red-500 transition-all text-gray-500`}>
+                  Déconnecter
+                </button>
+              )}
             </div>
+            {/* Confirmation de l'envoi — reste visible même après être
+                ressorti du mode édition (voir emailUpdateSent, distinct de
+                isEditingEmail) : l'action n'est réellement terminée que
+                lorsque le lien reçu par e-mail est confirmé, `user.email`
+                affiché au-dessus reste donc l'ANCIENNE adresse jusque-là,
+                ce message évite toute confusion sur ce qui vient de se
+                passer. */}
+            {emailUpdateSent && (
+              <p className="text-emerald-400 text-xs sm:text-sm mt-3">
+                Un e-mail de confirmation a été envoyé à la nouvelle adresse pour valider le changement.
+              </p>
+            )}
             {/* RETOUR DIRECT ("un petit compteur discret, visible seulement
                 une fois connecté") — délibérément discret (texte simple, pas
                 de carte/badge qui attirerait l'œil) : c'est une curiosité
