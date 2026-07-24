@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Check, X, Heart, Loader2, AlertCircle, Zap, Menu, Edit3, Trophy, Upload, User as UserIcon } from 'lucide-react';
+import { Activity, Clock, Music, Check, X, Heart, Loader2, AlertCircle, Zap, Menu, Edit3, Trophy, Upload, User as UserIcon, Sun, Moon } from 'lucide-react';
 import { ARTIST_CATALOG, EXTRA_GENRES, WEAK_DEEZER_KEYWORD_GENRES, genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES } from './appConfig';
 
@@ -1988,27 +1988,33 @@ function AppContent({
           </div>
         )}
 
-        {/* Bouton flottant "Trophées" avec badge du nombre débloqué — discret/gris
-            tant qu'aucun trophée n'est débloqué (pas de doré, pas de badge), pour
-            garder l'effet de surprise/récompense au 1er déblocage, SANS pour
-            autant le rendre invisible : un utilisateur qui n'a encore rien
-            débloqué doit quand même voir qu'un système de récompenses existe,
-            pour être incité à aller découvrir les fonctionnalités qui y mènent
-            (Favoris, Partager, Planifier...) — décision prise après discussion,
-            plutôt que de le masquer complètement avant le 1er trophée. */}
         {/* RETOUR DIRECT ("le bouton pour se connecter devrait être en haut à
             droite, pas caché dans un onglet") — jusqu'ici, la seule façon de
             se connecter était de naviguer jusqu'à Options & Comptes. Ajouté
-            ici, à côté du trophée (même coin, même style visuel — rounded-full,
-            ombre, bordure), visible sur TOUTES les pages plutôt que dans un
-            seul onglet peu fréquenté. Déconnecté → bouton "Se connecter" avec
-            libellé (c'est un appel à l'action, contrairement au trophée qui
-            n'est qu'un indicateur de statut passif — mérite d'être nommé,
-            pas juste une icône). Connecté → pastille avec l'initiale de
-            l'email, renvoie vers Options & Comptes pour se déconnecter ou
-            voir le détail (pas de nouveau menu déroulant à construire pour
-            un cas déjà bien couvert là-bas). */}
+            ici, visible sur TOUTES les pages plutôt que dans un seul onglet
+            peu fréquenté. Déconnecté → bouton "Se connecter" avec libellé
+            (c'est un appel à l'action — mérite d'être nommé, pas juste une
+            icône). Connecté → pastille avec l'initiale de l'email, renvoie
+            vers Options & Comptes pour se déconnecter ou voir le détail (pas
+            de nouveau menu déroulant à construire pour un cas déjà bien
+            couvert là-bas).
+            RETOUR DIRECT (inversion Thème/Trophées) : le bouton Trophées
+            (précédemment ici) vit maintenant dans Sidebar.jsx, à côté du
+            logo — visible UNIQUEMENT si connecté (`user`), un badge de
+            progression n'a de sens que pour quelqu'un qui a un compte pour
+            le conserver. Le basculeur de thème (Sun/Moon, précédemment dans
+            Sidebar.jsx) prend sa place ici, juste à côté de "Se
+            connecter"/l'avatar — un header épuré pour un visiteur non
+            connecté : logo à gauche, Thème + Se connecter à droite, plus
+            aucune mention de trophées avant d'avoir un compte. */}
         <div className="absolute top-4 right-4 md:top-6 md:right-6 z-[60] flex items-center gap-2">
+          <button
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
+            className={`w-11 h-11 rounded-full shadow-lg border hover:scale-110 transition-transform flex items-center justify-center ${cardBg} ${cardBorder} ${textMuted}`}
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
           {isSupabaseConfigured && (
             user ? (
               <button
@@ -2028,21 +2034,6 @@ function AppContent({
               </button>
             )
           )}
-          <button
-            onClick={() => changeView('trophies')}
-            className={`relative p-3 rounded-full shadow-lg border hover:scale-110 transition-transform flex items-center justify-center ${
-              userStats.unlockedTrophies.length > 0
-                ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-500 border-yellow-200 dark:border-yellow-700/50'
-                : 'bg-surface-hover text-gray-400 dark:text-gray-600 border-gray-200 dark:border-gray-700'
-            }`}
-          >
-            <Trophy size={22} className={userStats.unlockedTrophies.length > 0 ? "fill-yellow-500" : ""} />
-            {userStats.unlockedTrophies.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-sm">
-                {userStats.unlockedTrophies.length}
-              </span>
-            )}
-          </button>
         </div>
 
         {/* Input fichier caché, réutilisé pour tous les imports CSV (piloté via fileInputRef) */}
@@ -2055,11 +2046,11 @@ function AppContent({
         <Sidebar
           cardBorder={cardBorder} bgAccentClass={bgAccentClass} isNaughtyMode={isNaughtyMode}
           textHighlight={textHighlight} textColorClass={textColorClass} textMuted={textMuted}
-          theme={theme} toggleTheme={toggleTheme}
           isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen}
           changeView={changeView} view={view}
           showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
           favorites={favorites}
+          user={user} userStats={userStats}
         />
 
         <div className="flex-1 flex flex-col relative w-full">
