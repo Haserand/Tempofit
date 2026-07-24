@@ -2156,7 +2156,7 @@ function AppContent({
               <SettingsView
                 theme={themeTokens} spotifyToken={spotifyToken} loginSpotify={loginSpotify} setSpotifyToken={setSpotifyToken}
                 spotifyRedirectUri={REDIRECT_URI}
-                user={user} signOut={signOut} isSupabaseConfigured={isSupabaseConfigured} openAuthModal={() => setIsAuthModalOpen(true)}
+                user={user} signOut={signOut} isSupabaseConfigured={isSupabaseConfigured}
                 userCount={userCount}
               />
             )}
