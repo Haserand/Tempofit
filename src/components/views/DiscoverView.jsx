@@ -136,8 +136,20 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode }) {
         categories.map(category => (
           <div key={category}>
             <h2 className={`text-xl font-bold mb-4 sm:mb-6 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}>{category}</h2>
+            {/* .slice(0, 5) — retour direct ("la 6e carte retombe seule sur
+                une 2e ligne, grand vide inutile") : la grille passe à 6
+                colonnes seulement à partir de `xl:` (voir grid-cols
+                ci-dessous) — en dessous de ce point de rupture (desktop à
+                100%, la plupart des résolutions courantes), une catégorie de
+                6 playlists laisse déjà sa dernière carte seule sur une
+                nouvelle ligne quel que soit le nombre de colonnes réel à cet
+                instant. Uniquement ICI (vue par catégorie, catalogue
+                ensemencé) — jamais sur `filteredSessions` juste au-dessus :
+                des résultats de recherche/filtre doivent rester complets,
+                perdre silencieusement des correspondances au-delà de la 5e
+                serait un vrai bug, pas une amélioration visuelle. */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
-              {activeSessions.filter(t => t.category === category).map(template => (
+              {activeSessions.filter(t => t.category === category).slice(0, 5).map(template => (
                 <TemplateCard key={template.id} theme={theme} template={template} onPlayTemplate={onPlayTemplate} />
               ))}
             </div>
