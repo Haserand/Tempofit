@@ -51,9 +51,21 @@ export function useFavorites(showToast, isNaughtyMode) {
     useFavorites: true,
     standard: {
       artists: ['The Killers', 'AC/DC'],
+      // BUG RÉEL CORRIGÉ (trouvé en vérifiant FavoritesView.jsx, session du
+      // 24/07) : ces titres de démo n'avaient qu'un `trackId`, jamais de
+      // `id`. Or FavoritesView (comme TrackItem.jsx) affiche le spinner de
+      // résolution via `resolvingTrackId === track.id` — avec `id`
+      // `undefined` sur les 2 titres, cliquer play sur l'un faisait
+      // apparaître le spinner sur l'AUTRE aussi (`undefined === undefined`),
+      // et le garde-fou anti-double-clic de `resolveAndPlay`
+      // (`resolvingTrackId === track.id`) bloquait à tort une résolution
+      // simultanée d'un 2e titre différent. `id` posé ici égal à `trackId`
+      // (un favori n'a pas de multiplicité d'occurrence à distinguer,
+      // contrairement à une playlist — voir musicEngine.js) : suffisant
+      // pour rendre chaque titre identifiable individuellement.
       tracks: [
-        { trackId: 'gGdGFtwPNsQ', title: 'Mr. Brightside', artist: 'The Killers', bpm: 148, duration: 222, preview: null, genre: 'Rock' },
-        { trackId: 'v2AC41dglnM', title: 'Thunderstruck', artist: 'AC/DC', bpm: 133, duration: 292, preview: null, genre: 'Rock' }
+        { id: 'gGdGFtwPNsQ', trackId: 'gGdGFtwPNsQ', title: 'Mr. Brightside', artist: 'The Killers', bpm: 148, duration: 222, preview: null, genre: 'Rock' },
+        { id: 'v2AC41dglnM', trackId: 'v2AC41dglnM', title: 'Thunderstruck', artist: 'AC/DC', bpm: 133, duration: 292, preview: null, genre: 'Rock' }
       ]
     },
     // Mêmes titres exactement que "Late Night R&B" (App.jsx, playlist
@@ -63,8 +75,8 @@ export function useFavorites(showToast, isNaughtyMode) {
     naughty: {
       artists: ['Sade', 'Miguel'],
       tracks: [
-        { trackId: 'nex1-2', title: 'No Ordinary Love', artist: 'Sade', bpm: 68, duration: 293, preview: null, genre: 'R&B Sensuel' },
-        { trackId: 'nex1-1', title: 'Adorn', artist: 'Miguel', bpm: 65, duration: 205, preview: null, genre: 'R&B Sensuel' }
+        { id: 'nex1-2', trackId: 'nex1-2', title: 'No Ordinary Love', artist: 'Sade', bpm: 68, duration: 293, preview: null, genre: 'R&B Sensuel' },
+        { id: 'nex1-1', trackId: 'nex1-1', title: 'Adorn', artist: 'Miguel', bpm: 65, duration: 205, preview: null, genre: 'R&B Sensuel' }
       ]
     }
   }));
