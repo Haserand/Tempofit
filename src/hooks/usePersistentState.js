@@ -139,11 +139,26 @@ export function usePersistentState(key, initialValue) {
   useEffect(() => {
     if (isApplyingRemoteRef.current) { isApplyingRemoteRef.current = false; return; }
     if (!isSupabaseConfigured || !userRef.current) return;
-    supabase.from('user_data').upsert({
-      user_id: userRef.current.id, key, value: state, updated_at: new Date().toISOString(),
-    }).catch(() => {
-      // Échec silencieux volontaire — voir docstring.
-    });
+    // BUG RÉEL CORRIGÉ (crash fatal signalé : "upsert(...).catch is not a
+    // function") — `supabase.from(...).upsert(...)` renvoie un objet
+    // "thenable" (implémente `.then()`, pour fonctionner avec `await`),
+    // PAS une vraie Promise : `.catch()`/`.finally()` n'y sont pas
+    // forcément exposés selon la version du client. `.catch()` chaîné
+    // directement dessus plantait donc AVANT même le 1er rendu suivant un
+    // clic sur un lien e-mail (reset de mot de passe, confirmation
+    // d'inscription...), qui déclenche ce même effet dès la connexion.
+    // IIFE async + try/catch — même convention que l'autre appel upsert
+    // juste au-dessus dans ce fichier (`await`, jamais `.then`/`.catch`
+    // chaîné sur le retour direct d'une requête Supabase).
+    (async () => {
+      try {
+        await supabase.from('user_data').upsert({
+          user_id: userRef.current.id, key, value: state, updated_at: new Date().toISOString(),
+        });
+      } catch (e) {
+        // Échec silencieux volontaire — voir docstring.
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
