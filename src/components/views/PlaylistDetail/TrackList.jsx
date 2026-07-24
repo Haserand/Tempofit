@@ -48,7 +48,7 @@ export default function TrackList({
   isBpmChartUsingRealProfile,
 }) {
   const { cardBg, cardBorder, textMuted, textHighlight, textColorClass, inputBorder } = theme;
-  const { currentPlaylist } = usePlaylistDetail();
+  const { currentPlaylist, isSaved } = usePlaylistDetail();
 
   return (
     <div className={"rounded-3xl border overflow-hidden shadow-md " + cardBg + " " + cardBorder}>
@@ -83,13 +83,20 @@ export default function TrackList({
           />
         ))}
 
-        {/* BOUTON AJOUT MANUEL — remplacé par un message explicite une fois la
-            séance verrouillée (voir isLocked) : ajouter un titre à une
-            playlist déjà réalisée changerait rétroactivement ce qui a été
-            effectivement écouté. */}
+        {/* BOUTON AJOUT MANUEL — remplacé par un message explicite dans 2 cas
+            désormais : séance verrouillée (isLocked, ajouter un titre
+            changerait rétroactivement ce qui a été effectivement écouté) OU
+            pas encore sauvegardée (!isSaved, la mutation ne serait de toute
+            façon pas persistée — même raisonnement que `canEditTracks` dans
+            TrackItem.jsx, pas besoin d'un booléen combiné ici puisque les 2
+            cas ont chacun leur propre message). */}
         {isLocked ? (
           <div className={"p-3 bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center gap-2 text-xs font-bold " + textMuted}>
             <Lock size={14}/> Séance déjà réalisée — plus aucun titre ne peut être ajouté, dupliqué, remplacé ou retiré
+          </div>
+        ) : !isSaved ? (
+          <div className={"p-3 bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center gap-2 text-xs font-bold text-center " + textMuted}>
+            Ajoute cette séance à "Mes Séances" pour pouvoir ajouter, dupliquer, remplacer ou retirer des titres
           </div>
         ) : (
           <div className="p-2 bg-gray-50 dark:bg-gray-900/50">
