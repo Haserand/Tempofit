@@ -346,7 +346,7 @@ function AppContent({
     addRoutine, updateRoutine,
   } = useRoutines(isNaughtyMode, showToast);
 
-  const { userStats, setUserStats, checkTrophies } = useUserStats(showToast);
+  const { userStats, setUserStats, checkTrophies } = useUserStats(showToast, user);
 
   // MIGRÉ VERS GeneratorContext (chantier God Component, étape 2) : tout ce
   // qui suit vivait ici via `useState('Course à pied')` + `useCustomActivity`
