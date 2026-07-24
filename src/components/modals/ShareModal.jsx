@@ -92,9 +92,9 @@ export default function ShareModal({
             de plus, pas un gros bouton séparé qui dominait tout le reste. */}
         <div className={`grid gap-2 mb-4 ${typeof navigator !== 'undefined' && navigator.share ? 'grid-cols-4' : 'grid-cols-3'}`}>
           {typeof navigator !== 'undefined' && navigator.share && (
-            <button onClick={handleNativeShare} title="Autres options" className={`flex flex-col items-center gap-1.5 py-3.5 rounded-xl ${cardBg} border ${cardBorder} hover:bg-surface-hover transition-colors`}>
+            <button onClick={handleNativeShare} title={hasReadyImage ? "Partager le visuel (Story, Instagram, WhatsApp...)" : "Autres options"} className={`flex flex-col items-center gap-1.5 py-3.5 rounded-xl ${cardBg} border ${cardBorder} hover:bg-surface-hover transition-colors`}>
               <Share2 size={18} className={textColorClass}/>
-              <span className={`text-[11px] font-bold ${textMuted}`}>Plus</span>
+              <span className={`text-[11px] font-bold text-center leading-tight ${textMuted}`}>{hasReadyImage ? 'Story / IG' : 'Plus'}</span>
             </button>
           )}
           <button onClick={shareToWhatsApp} title="WhatsApp" className="flex flex-col items-center gap-1.5 py-3.5 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/30 transition-colors">
@@ -124,7 +124,7 @@ export default function ShareModal({
             href={summaryImagePreviewUrl} download="tempofit-bilan-de-seance.png"
             className={`w-full py-3 mt-2 rounded-xl text-sm font-bold ${textMuted} hover:text-main transition-colors flex items-center justify-center gap-2`}
           >
-            <Download size={16}/> Télécharger l'image (pour WhatsApp/X/Facebook)
+            <Download size={16}/> Télécharger le visuel (pour WhatsApp/X/Facebook, ou si le partage natif n'est pas disponible)
           </a>
         )}
 
