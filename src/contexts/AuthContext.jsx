@@ -103,8 +103,23 @@ export function AuthProvider({ children }) {
     return { error: error ? error.message : null };
   };
 
+  // Modifier l'adresse e-mail (retour direct, "aucun moyen de modifier son
+  // e-mail dans Options & Comptes") — même convention encore une fois :
+  // `supabase.auth.updateUser` envoie lui-même un e-mail de confirmation à
+  // la NOUVELLE adresse (comportement par défaut du projet Supabase,
+  // "Secure email change" — l'ancienne adresse reste active tant que ce
+  // lien n'a pas été suivi) ; `user` (le state de ce contexte) ne se met à
+  // jour QUE via `onAuthStateChange` une fois ce lien confirmé, jamais de
+  // façon optimiste ici — SettingsView.jsx affiche donc encore l'ancienne
+  // adresse jusque-là, ce qui est le comportement honnête à afficher.
+  const updateEmail = async (newEmail) => {
+    if (!isSupabaseConfigured) return { error: "Les comptes ne sont pas encore configurés côté serveur." };
+    const { error } = await supabase.auth.updateUser({ email: newEmail });
+    return { error: error ? error.message : null };
+  };
+
   return (
-    <AuthContext.Provider value={{ user, authLoading, signUp, signIn, signOut, resetPassword, isSupabaseConfigured, userCount }}>
+    <AuthContext.Provider value={{ user, authLoading, signUp, signIn, signOut, resetPassword, updateEmail, isSupabaseConfigured, userCount }}>
       {children}
     </AuthContext.Provider>
   );
@@ -119,6 +134,7 @@ const FALLBACK = {
   signIn: async () => ({ error: "AuthProvider manquant." }),
   signOut: async () => {},
   resetPassword: async () => ({ error: "AuthProvider manquant." }),
+  updateEmail: async () => ({ error: "AuthProvider manquant." }),
 };
 
 export function useAuthContext() {
