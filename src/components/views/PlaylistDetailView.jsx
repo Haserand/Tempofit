@@ -402,7 +402,7 @@ function PlaylistDetailViewInner({
       <PlaylistHeader
         theme={theme} isLocked={isLocked} savedPlaylists={savedPlaylists}
         resolveAndTogglePreview={resolveAndTogglePreview} getNextTrackForAutoAdvance={getNextTrackForAutoAdvance}
-        setPlaylistPlannedDate={setPlaylistPlannedDate}
+        setPlaylistPlannedDate={setPlaylistPlannedDate} bpmChartActivityName={bpmChartActivityName}
         renderCompletionsList={renderCompletionsList} renderTopCompletionDate={renderTopCompletionDate}
         getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload}
         onShare={handleShareClick}
