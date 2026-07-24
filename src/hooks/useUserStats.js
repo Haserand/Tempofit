@@ -8,13 +8,25 @@ import { usePersistentState } from './usePersistentState';
  * `showToast` est une dépendance externe (définie dans App.jsx) passée en
  * paramètre plutôt que dupliquée ici, pour garder un seul système de toast.
  *
+ * `user` (retour direct, bug signalé : "j'ai encore les notifications quand
+ * je débloque des trophées alors que je suis pas connecté") — le bouton
+ * Trophées lui-même est déjà masqué en entier pour un visiteur non connecté
+ * (voir Sidebar.jsx) ; sans ce garde-fou, `checkTrophies` continuait quand
+ * même d'afficher le toast "Trophée débloqué" à chaque déblocage, pointant
+ * vers une fonctionnalité invisible — incohérent. Le déblocage lui-même
+ * (`unlockedTrophies`, stocké localement via `usePersistentState`, PAS lié
+ * au compte) continue de progresser normalement même déconnecté : seul le
+ * TOAST est suspendu, pas le suivi — si l'utilisateur se connecte plus
+ * tard, ses trophées déjà débloqués restent acquis, juste jamais notifiés
+ * pendant qu'ils ne pouvaient de toute façon pas les consulter.
+ *
  * Beaucoup d'endroits différents dans App.jsx appellent `checkTrophies` après
  * un événement précis (séance terminée, import CSV, remplacement de titre,
  * easter egg Rickroll...) — c'est normal et attendu : ce hook centralise
  * uniquement la VÉRIFICATION et le DÉBLOCAGE, pas la détection de chaque
  * condition individuelle (qui reste au plus près du code métier concerné).
  */
-export function useUserStats(showToast) {
+export function useUserStats(showToast, user) {
   const [userStats, setUserStats] = usePersistentState('userStats', () => ({
     totalCompleted: 0, naughtyCompleted: 0, dataImports: 0,
     replacedTracks: 0, hasMarathon: false, hasBolt: false,
@@ -67,8 +79,21 @@ export function useUserStats(showToast) {
       // trophée dorée pour le variant 'special' (voir App.jsx) — un 2e trophée
       // écrit en dur dans le texte donnait 2 trophées visibles côte à côte
       // pour un seul déblocage (retour direct).
-      showToast(`Trophée débloqué : ${newlyUnlocked[0].name} !`, 'special');
-      return true;
+      //
+      // `if (user)` : le toast lui-même est suspendu si déconnecté (voir la
+      // docstring plus haut), mais la valeur de RETOUR doit refléter "un
+      // toast a-t-il été affiché par cet appel ?" (c'est tout son rôle,
+      // éviter qu'un appelant affiche un 2e toast par-dessus) — pas "un
+      // trophée a-t-il été débloqué ?". Sans cette distinction, un
+      // utilisateur déconnecté qui débloque un trophée en terminant une
+      // séance se serait retrouvé avec AUCUN toast du tout : ni celui du
+      // trophée (supprimé ici), ni le générique de l'appelant (qui aurait
+      // cru, à tort, qu'un toast venait déjà d'être affiché).
+      if (user) {
+        showToast(`Trophée débloqué : ${newlyUnlocked[0].name} !`, 'special');
+        return true;
+      }
+      return false;
     } else {
       setUserStats(newStats);
       return false;
