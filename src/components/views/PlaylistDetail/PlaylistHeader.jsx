@@ -76,7 +76,7 @@ export default function PlaylistHeader({
 }) {
   const { bgAccentClass } = theme;
   const {
-    currentPlaylist,
+    currentPlaylist, isSaved,
     isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
     handleSavePlaylist, handleUnsavePlaylist,
   } = usePlaylistDetail();
@@ -107,8 +107,6 @@ export default function PlaylistHeader({
     .map(p => p.id);
   const currentPlaylistRank = playlistRanks.indexOf(currentPlaylist.id);
   const currentPlaylistRankStyle = getRankStyle ? getRankStyle(currentPlaylistRank) : null;
-
-  const isSaved = !!savedPlaylists.find(p => p.id === currentPlaylist.id);
 
   return (
     <div
