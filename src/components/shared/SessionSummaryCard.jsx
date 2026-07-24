@@ -1,6 +1,7 @@
-import { Music2, Clock, Activity, Calendar, MapPin } from 'lucide-react';
+import { Music2, Clock, Activity, Calendar, MapPin, Gauge } from 'lucide-react';
 import { formatDuration } from '../../utils/format';
-import { getZoneForValue, ATHLETIC_ZONES } from '../../appConfig';
+import { buildCoverUrl } from '../../utils/coverArt';
+import { getZoneForValue, ATHLETIC_ZONES, getBpmBucketColor, getBpmBucketStart, getBpmBucketLabel } from '../../appConfig';
 
 /**
  * SessionSummaryCard — "Bilan Visuel de Séance", pensé pour être capturé en
@@ -35,6 +36,26 @@ import { getZoneForValue, ATHLETIC_ZONES } from '../../appConfig';
  *      c'est une simple répartition par BPM, sans plus de sens qu'une
  *      tranche brute. Le libellé suit maintenant `matchedAnyZone`, comme le
  *      contenu du graphique lui-même.
+ *
+ * RETOUR DIRECT (refonte "cohérence avec la vue playlist" + Story Instagram) —
+ * 4 évolutions :
+ *   1. Pochette de la séance (`playlist.coverUrl || buildCoverUrl(...)`,
+ *      MÊME fonction que PlaylistHeader.jsx/TemplateCard.jsx — jamais une 2e
+ *      logique de pochette) intégrée dans l'en-tête, à côté du titre.
+ *   2. Répartition par BPM (branche de repli, sans profil réel) : la palette
+ *      à 5 tranches locale (`bucketColors`/`bpmBucketLabel` définis ici,
+ *      DIFFÉRENTS de ceux d'appConfig.js — 5 bornes arbitraires contre des
+ *      tranches de 20 BPM) causait exactement l'incohérence de couleur
+ *      signalée (violet/rose du camembert de la vue playlist, orange/rouge
+ *      ici) — remplacée par `getBpmBucketColor`/`getBpmBucketStart` (mêmes
+ *      fonctions que PlaylistDetailContext.jsx/TrackItem.jsx/
+ *      PlaylistHeader.jsx), un seul système de couleur BPM dans toute l'app.
+ *   3. Badge BPM identique à PlaylistHeader.jsx (pastille colorée, icône
+ *      Gauge, libellé de zone si un vrai profil est configuré) — même
+ *      composant visuel, pas réimplémenté différemment ici.
+ *   4. Dimensions ajustées vers un format Story (`min-h`, 9:16 approximatif
+ *      à 400px de large) plutôt qu'une simple carte à hauteur libre — voir
+ *      plus bas pour le détail.
  */
 export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNaughtyMode = false, getProfileForWorkout = null }) {
   if (!playlist) return null;
@@ -75,11 +96,14 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
   // — même fonction que StatsView/GeneratorView), plutôt qu'une tranche de
   // BPM générique sans lien avec le profil de l'utilisateur.
   //
-  // Repli sur l'ancienne palette à 5 tranches BPM fixes UNIQUEMENT si aucun
-  // profil n'est configuré pour cette activité (`matchedAnyZone` reste
-  // `false` — `getZoneForValue` renvoie alors `null` pour chaque titre) :
-  // jamais un graphique vide juste parce que l'utilisateur n'a pas encore
-  // rempli son Profil Athlétique.
+  // Repli sur les tranches de 20 BPM PARTAGÉES (getBpmBucketLabel/Start/
+  // Color, appConfig.js — mêmes fonctions que PlaylistDetailContext.jsx/
+  // TrackItem.jsx/PlaylistHeader.jsx) UNIQUEMENT si aucun profil n'est
+  // configuré pour cette activité (`matchedAnyZone` reste `false`) : jamais
+  // une palette locale réinventée, sinon la couleur affichée ici divergerait
+  // de celle du camembert BPM/du badge dans la vraie vue playlist pour EXACTEMENT
+  // le même titre — c'est justement le bug signalé (violet/rose attendus,
+  // orange/rouge affichés).
   const zoneSeconds = {};
   let matchedAnyZone = false;
   tracks.forEach(t => {
@@ -91,10 +115,6 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
     }
   });
 
-  const bpmBucketLabel = (bpm) => bpm < 90 ? '< 90' : bpm < 120 ? '90-119' : bpm < 150 ? '120-149' : bpm < 180 ? '150-179' : '180+';
-  const bucketOrder = ['< 90', '90-119', '120-149', '150-179', '180+'];
-  const bucketColors = { '< 90': '#3b82f6', '90-119': '#22c55e', '120-149': '#f59e0b', '150-179': '#f97316', '180+': '#ef4444' };
-
   let bars;
   if (matchedAnyZone) {
     const totalZoneSeconds = Object.values(zoneSeconds).reduce((s, v) => s + v, 0);
@@ -102,19 +122,21 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
       .filter(z => zoneSeconds[z.key] > 0)
       .map(z => ({ label: z.shortLabel, pct: totalZoneSeconds > 0 ? Math.round((zoneSeconds[z.key] / totalZoneSeconds) * 100) : 0, color: z.color }));
   } else {
-    // Répartition par tranche de BPM générique — même découpage que
-    // StatsView/PlaylistDetailView (bpmBucketLabel), recalculé ici pour
-    // garder ce composant autonome (ne dépend que de `playlist`).
+    // Répartition par tranche de BPM générique — mêmes fonctions PARTAGÉES
+    // que StatsView/PlaylistDetailContext (getBpmBucketStart/Label/Color),
+    // recalculé ici pour garder ce composant autonome (ne dépend que de
+    // `playlist`), mais jamais une palette/un découpage réinventés.
     const bucketSeconds = {};
     tracks.forEach(t => {
       if (!t.bpm) return;
-      const b = bpmBucketLabel(t.bpm);
-      bucketSeconds[b] = (bucketSeconds[b] || 0) + (t.duration || 0);
+      const start = getBpmBucketStart(t.bpm);
+      bucketSeconds[start] = (bucketSeconds[start] || 0) + (t.duration || 0);
     });
     const totalBucketSeconds = Object.values(bucketSeconds).reduce((s, v) => s + v, 0);
-    bars = bucketOrder
-      .filter(b => bucketSeconds[b] > 0)
-      .map(b => ({ label: b, pct: totalBucketSeconds > 0 ? Math.round((bucketSeconds[b] / totalBucketSeconds) * 100) : 0, color: bucketColors[b] }));
+    bars = Object.keys(bucketSeconds)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .map(start => ({ label: getBpmBucketLabel(start), pct: totalBucketSeconds > 0 ? Math.round((bucketSeconds[start] / totalBucketSeconds) * 100) : 0, color: getBpmBucketColor(start) }));
   }
 
   // Top 3 titres — les 3 premiers de la playlist (ordre de lecture), pas un
@@ -123,9 +145,21 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
 
   const accent = isNaughtyMode ? '#f43f5e' : '#ef4444';
 
+  // Badge BPM — même logique EXACTE que PlaylistHeader.jsx (bpmBadgeColor) :
+  // libellé de zone seulement si un vrai profil est configuré pour cette
+  // activité, repli neutre sur la couleur "Énergie Musicale" sinon.
+  const avgBpmZone = avgBpm > 0 ? getZoneForValue(avgBpm, activityName, getProfileForWorkout) : null;
+  const bpmBadgeColor = avgBpmZone ? avgBpmZone.color : (avgBpm > 0 ? getBpmBucketColor(getBpmBucketStart(avgBpm)) : null);
+
+  // Pochette de la séance — MÊME fonction que PlaylistHeader.jsx/
+  // TemplateCard.jsx (utils/coverArt.js) : `coverUrl` si déjà posé (playlist
+  // ouverte depuis Découvrir), sinon calculée depuis le titre (déterministe,
+  // toujours la même pochette pour une même playlist).
+  const coverUrl = playlist.coverUrl || buildCoverUrl(playlist.name);
+
   return (
     <div
-      className="w-[400px] rounded-[32px] overflow-hidden shadow-2xl"
+      className="w-[400px] min-h-[711px] flex flex-col rounded-[32px] overflow-hidden shadow-2xl"
       style={{ background: isNaughtyMode ? 'linear-gradient(160deg, #1a0b12 0%, #0d0509 100%)' : 'linear-gradient(160deg, #111827 0%, #030712 100%)', fontFamily: 'system-ui, -apple-system, sans-serif' }}
     >
       <div className="p-8 pb-6">
@@ -136,13 +170,23 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
           <span className="text-white font-black text-lg tracking-tight">Tempo<span style={{ color: accent }}>Fit</span></span>
         </div>
 
-        <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Bilan de séance</p>
-        <h1 className="text-white text-3xl font-black leading-tight mb-2">{playlist.name}</h1>
+        {/* En-tête : pochette de la séance à côté du titre — retour direct
+            ("la pochette est absente"), même fonction que PlaylistHeader.jsx
+            (voir plus haut). `shrink-0` sur la pochette, `min-w-0` sur le
+            bloc titre (comme partout ailleurs dans l'app) pour que le titre
+            se tronque proprement plutôt que de repousser la pochette. */}
+        <div className="flex items-start gap-4 mb-2">
+          <img src={coverUrl} alt="" className="w-16 h-16 rounded-2xl object-cover shrink-0 shadow-lg" crossOrigin="anonymous" />
+          <div className="min-w-0 flex-1 pt-0.5">
+            <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Bilan de séance</p>
+            <h1 className="text-white text-2xl font-black leading-tight">{playlist.name}</h1>
+          </div>
+        </div>
 
         {/* Ligne de méta : date · activité · distance (si pertinente) — un
             simple texte gris séparé par des points, pas des badges séparés,
             pour rester compact sur une seule ligne. */}
-        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mb-6 text-gray-400 text-xs font-semibold">
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mb-6 mt-3 text-gray-400 text-xs font-semibold">
           {displayDate && (
             <span className="flex items-center gap-1"><Calendar size={12}/> {displayDate}</span>
           )}
@@ -157,9 +201,22 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
             <div className="flex items-center gap-1.5 text-gray-400 mb-1"><Clock size={14}/><span className="text-[11px] font-bold uppercase tracking-wide">Durée</span></div>
             <p className="text-white text-2xl font-black">{formatDuration(playlist.totalDuration || 0)}</p>
           </div>
-          <div className="flex-1 bg-white/5 rounded-2xl p-4 border border-white/10">
-            <div className="flex items-center gap-1.5 mb-1" style={{ color: accent }}><Activity size={14}/><span className="text-[11px] font-bold uppercase tracking-wide">BPM moyen</span></div>
-            <p className="text-white text-2xl font-black">{avgBpm}</p>
+          {/* Badge BPM — identique à PlaylistHeader.jsx (pastille colorée,
+              icône Gauge, libellé de zone si un vrai profil est configuré),
+              plutôt qu'un simple nombre blanc comme avant : cette carte suit
+              maintenant le même repère visuel BPM/Zone que la vue playlist. */}
+          <div className="flex-1 bg-white/5 rounded-2xl p-4 border border-white/10 flex flex-col justify-between">
+            <div className="flex items-center gap-1.5 text-gray-400 mb-1"><Gauge size={14}/><span className="text-[11px] font-bold uppercase tracking-wide">BPM moyen</span></div>
+            {bpmBadgeColor ? (
+              <div
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-black border w-fit"
+                style={{ backgroundColor: `${bpmBadgeColor}26`, borderColor: `${bpmBadgeColor}66`, color: bpmBadgeColor }}
+              >
+                <span>{avgBpm}{avgBpmZone ? ` • ${avgBpmZone.shortLabel}` : ''}</span>
+              </div>
+            ) : (
+              <p className="text-white text-2xl font-black">{avgBpm}</p>
+            )}
           </div>
         </div>
 
@@ -189,17 +246,16 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
 
         {/* Top titres, avec pochette si résolue par l'appelant (voir
             topTrackCovers) — repli sur une icône générique sinon.
-            RETOUR DIRECT ("le nom des titres est encore coupé dans l'image
-            téléchargée") — mon 1er correctif (min-h + leading-snug) ne
-            suffisait pas : le haut des lettres restait rogné sur l'image
-            RÉELLEMENT téléchargée (pas un souci d'aperçu cette fois). C'est
-            un souci connu de html2canvas : le rendu texte sur canvas ne
-            reproduit pas toujours fidèlement un interlignage serré,
-            rognant le haut des ascendantes/lettres majuscules. Remplacé par
-            un interlignage plus généreux (`leading-relaxed` au lieu de
-            `leading-snug`) + un peu de marge verticale sur le conteneur
-            (`py-0.5`) plutôt qu'une hauteur minimale fixe (`min-h`, retirée
-            — elle forçait une boîte trop juste, contre-productive ici).
+            RETOUR RECUL (rognage TOUJOURS visible sur l'image réellement
+            téléchargée, malgré 2 correctifs précédents — leading-relaxed en
+            classe Tailwind, puis py-0.5) : passage à un `lineHeight` en
+            STYLE INLINE explicite (1.8) plutôt qu'une classe Tailwind —
+            html2canvas lit le style calculé final, mais certaines classes
+            utilitaires peuvent ne pas se traduire fidèlement selon la
+            version/le contexte de rendu ; un style inline élimine cette
+            ambiguïté. `py-1.5` (au lieu de `py-0.5`) sur le conteneur, en
+            plus du line-height généreux — la marge de sécurité vient des
+            DEUX côtés cette fois, pas d'un seul réglage isolé.
             "Premiers titres" plutôt que "Titres marquants" : ce sont
             littéralement les 3 premiers de la playlist dans l'ordre de
             lecture (`tracks.slice(0, 3)`), pas une sélection par pertinence
@@ -217,9 +273,9 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
                     <Music2 size={16} className="text-gray-500" />
                   </div>
                 )}
-                <div className="min-w-0 flex-1 py-0.5">
-                  <p className="text-white text-sm font-bold truncate leading-relaxed">{t.title}</p>
-                  <p className="text-gray-400 text-xs truncate leading-relaxed">{t.artist}</p>
+                <div className="min-w-0 flex-1 py-1.5">
+                  <p className="text-white text-sm font-bold truncate" style={{ lineHeight: 1.8 }}>{t.title}</p>
+                  <p className="text-gray-400 text-xs truncate" style={{ lineHeight: 1.8 }}>{t.artist}</p>
                 </div>
               </div>
             ))}
@@ -227,7 +283,7 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
         )}
       </div>
 
-      <div className="px-8 py-4 border-t border-white/10 flex items-center justify-center">
+      <div className="mt-auto px-8 py-4 border-t border-white/10 flex items-center justify-center">
         <p className="text-gray-500 text-[11px] font-semibold">Généré avec TempoFit — l'app qui cale ta musique sur ton effort</p>
       </div>
     </div>
