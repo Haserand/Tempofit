@@ -1,6 +1,6 @@
 import { GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, Lock, Play, Pause, Loader2 } from 'lucide-react';
 import { getGenresForDisplay } from '../../../musicCatalog';
-import { getZoneForValue, getBpmBucketColor } from '../../../appConfig';
+import { getZoneForValue, getBpmBucketColor, getBpmBucketStart } from '../../../appConfig';
 import { formatDuration } from '../../../utils/format';
 import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
 
@@ -75,7 +75,7 @@ export default function TrackItem({
   // sans profil réel — seule la COULEUR change ici, jamais le vocabulaire
   // "effort" (Récupération/Seuil...), qui reste soumis à la même règle
   // Produit qu'avant.
-  const zoneColor = zone?.color || (track.bpm ? getBpmBucketColor(Math.floor(track.bpm / 20) * 20) : '#9ca3af');
+  const zoneColor = zone?.color || (track.bpm ? getBpmBucketColor(getBpmBucketStart(track.bpm)) : '#9ca3af');
 
   const isFav = favorites.tracks.some(t => t.trackId === track.trackId);
   const tracksCount = currentPlaylist?.tracks?.length || 0;
