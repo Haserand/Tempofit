@@ -125,6 +125,19 @@ export default function PlaylistHeader({
         </span>
       )}
 
+      {/* Badge "Lecture seule" — signale AVANT même de scroller jusqu'au
+          bandeau du bas (TrackList.jsx) qu'un modèle pas encore sauvegardé
+          ne peut pas être modifié (retirer/dupliquer/remplacer/réordonner
+          un titre) — voir `canEditTracks`, TrackItem.jsx/TrackList.jsx pour
+          l'application réelle de cette règle. Jamais affiché en même temps
+          que la médaille de rang ci-dessus : un rang suppose des
+          complétions, donc une playlist déjà sauvegardée. */}
+      {!isSaved && (
+        <span className="absolute top-4 right-4 bg-slate-800/80 border border-slate-700 text-slate-300 text-xs px-3 py-1 rounded-full flex items-center gap-1.5 z-10">
+          <Lock size={12} /> Lecture seule
+        </span>
+      )}
+
       {/* Pochette — ombre profonde/diffuse + léger zoom au survol, pour
           détacher visuellement la pochette du fond sombre plutôt qu'un
           simple `shadow-inner` qui se fondait dans la carte. */}
