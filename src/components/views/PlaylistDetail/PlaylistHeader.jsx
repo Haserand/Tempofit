@@ -1,12 +1,12 @@
 import { useRef } from 'react';
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Music2, Play,
-  Calendar, Lock, Upload, Trash2,
+  Calendar, Lock, Upload, Trash2, Gauge,
 } from 'lucide-react';
 import { getGenresForDisplay, genreDisplayLabel } from '../../../musicCatalog';
 import { formatDuration } from '../../../utils/format';
 import { buildCoverUrl } from '../../../utils/coverArt';
-import { getActivityEmoji } from '../../../appConfig';
+import { getActivityEmoji, getZoneForValue, getBpmBucketColor, getBpmBucketStart } from '../../../appConfig';
 import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
 
 /**
@@ -58,20 +58,60 @@ import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
  * n'a plus besoin de dégradé dédié pour se signaler : la pochette, l'emoji
  * d'activité ("Ambiance" 🌶️) et l'accent rose du bouton principal suffisent
  * déjà à le faire reconnaître, sans sacrifier la cohérence du nouveau design.
+ *
+ * --- Ancrage vertical + badge BPM/Zone (retour direct : "grand vide noir
+ * en bas et à droite sur grand écran") ---
+ * `items-stretch` (plutôt que `items-start`) sur la rangée pochette/bloc de
+ * droite : le bloc de droite prend ainsi TOUJOURS la même hauteur que la
+ * pochette (le plus grand des deux enfants), sans dupliquer ses classes de
+ * taille (`w-32 h-32 md:w-48 md:h-48`) en dur ici — une seule source de
+ * vérité pour cette hauteur, portée par la pochette elle-même. `justify-
+ * between` sur le bloc de droite pousse alors naturellement la rangée
+ * d'actions tout en bas, calée sur le bas de la pochette, pendant que titre/
+ * métadonnées restent en haut — sans rien casser à l'alignement déjà en
+ * place (le sommet des deux reste identique, seul l'étirement change).
+ *
+ * Le badge BPM/Zone (juste au-dessus des actions) comble l'espace
+ * intermédiaire avec une info utile plutôt qu'un simple espaceur : BPM
+ * moyen réel de la playlist (même calcul que SessionSummaryCard.jsx/
+ * StatsView.jsx/App.jsx — jamais une 4e formule) et, SEULEMENT si un profil
+ * athlétique réel est configuré pour cette activité, la zone d'effort
+ * correspondante (`getZoneForValue`, même résolveur STRICT que
+ * `trackBpmBucketLabel` dans PlaylistDetailView.jsx — jamais OrDefault ici :
+ * ce badge affirme "calculé depuis TON profil", il doit rester honnête sur
+ * ce qui a vraiment été configuré, même règle que `bpmSourceIsProfile`,
+ * useGeneratorForm.js). Sans profil configuré, repli sur la couleur neutre
+ * "Énergie Musicale" (`getBpmBucketColor`) déjà utilisée par le camembert
+ * BPM (PlaylistDetailContext.jsx) et TrackItem.jsx — jamais une 3e palette.
+ * `bpmChartActivityName` : reçue en prop plutôt que recalculée ici, pour
+ * rester l'unique source de vérité déjà partagée avec PlaylistCharts.jsx
+ * (résolution Mode Intime incluse — voir sa docstring, PlaylistDetailView.jsx).
  */
 export default function PlaylistHeader({
   theme, isLocked, savedPlaylists,
   resolveAndTogglePreview, getNextTrackForAutoAdvance,
-  setPlaylistPlannedDate,
+  setPlaylistPlannedDate, bpmChartActivityName,
   renderCompletionsList, renderTopCompletionDate, getRankStyle, triggerCSVUpload,
   onShare,
 }) {
   const { bgAccentClass } = theme;
   const {
-    currentPlaylist,
+    currentPlaylist, getProfileForWorkout,
     isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
     handleSavePlaylist, handleUnsavePlaylist,
   } = usePlaylistDetail();
+
+  // BPM moyen réel de la playlist — même formule que SessionSummaryCard.jsx/
+  // ImportSharedPlaylistModal.jsx/StatsView.jsx/App.jsx (`avgBpm`), jamais
+  // recalculée différemment ici. `getZoneForValue` STRICT (pas OrDefault) :
+  // `null` si l'activité n'a jamais été configurée dans le Profil Athlétique
+  // — repli sur la couleur neutre du camembert BPM plutôt qu'une zone
+  // inventée (voir la docstring ci-dessus).
+  const avgBpm = currentPlaylist.tracks.length > 0
+    ? Math.round(currentPlaylist.tracks.reduce((s, t) => s + (t.bpm || 0), 0) / currentPlaylist.tracks.length)
+    : null;
+  const bpmZone = avgBpm != null ? getZoneForValue(avgBpm, bpmChartActivityName, getProfileForWorkout) : null;
+  const bpmBadgeColor = bpmZone ? bpmZone.color : (avgBpm != null ? getBpmBucketColor(getBpmBucketStart(avgBpm)) : null);
 
   // Filet de sécurité multi-navigateurs pour le bouton "Planifier" (voir plus
   // bas) : un <input type="date"> rendu invisible et superposé à un <label>
@@ -107,7 +147,7 @@ export default function PlaylistHeader({
       className={
         "relative rounded-2xl p-6 md:p-8 border border-white/10 shadow-xl backdrop-blur-md " +
         "bg-gradient-to-br from-slate-900/90 via-slate-900/60 to-slate-800/40 " +
-        "flex flex-col md:flex-row items-start gap-6 md:gap-8"
+        "flex flex-col md:flex-row items-stretch gap-6 md:gap-8"
       }
     >
       {currentPlaylistRankStyle && (
@@ -158,7 +198,7 @@ export default function PlaylistHeader({
       {/* Bloc de droite — `items-start` sur le conteneur parent garantit déjà
           qu'il démarre pile à la hauteur du haut de la pochette ; ce bloc
           n'a donc plus besoin de centrer/pousser son contenu verticalement. */}
-      <div className="flex-1 flex flex-col justify-start text-center md:text-left w-full min-w-0">
+      <div className="flex-1 flex flex-col justify-between text-center md:text-left w-full min-w-0">
         <div className="space-y-4">
           {/* Badge "séance déjà réalisée" + dernière date — seul élément
               qui peut légitimement précéder le titre (information sur la
@@ -248,13 +288,40 @@ export default function PlaylistHeader({
           </div>
         </div>
 
-        {/* Ligne d'actions — hiérarchie explicite : action PRINCIPALE d'abord
-            (pleine, rose, mise en valeur), action secondaire (Partager)
-            juste après, discrète. Import CSV (quand applicable) vient
-            AVANT ce duo : c'est une action ponctuelle contextuelle liée à
-            une séance déjà verrouillée, pas une des 2 actions "de base"
-            toujours disponibles sur cette page. */}
-        <div className="flex items-center flex-wrap justify-center md:justify-start gap-3 mt-5">
+        {/* Regroupe le badge BPM/Zone et la rangée d'actions dans un même
+            conteneur : `justify-between` (ci-dessus) ne doit répartir
+            l'espace disponible qu'ENTRE ce groupe et le bloc titre/
+            métadonnées au-dessus, pas entre le badge et les actions
+            eux-mêmes (sinon `justify-between` les aurait écartés l'un de
+            l'autre à parts égales, au lieu de garder le badge collé
+            juste au-dessus des boutons). */}
+        <div className="space-y-4">
+          {/* Badge BPM/Zone — comble l'espace laissé par justify-between avec
+              une info utile plutôt qu'un simple espaceur. Toujours affiché
+              (BPM réel calculable dès qu'il y a au moins 1 titre) ; le libellé
+              de zone ne s'ajoute QUE si un profil réel est configuré pour
+              cette activité (voir la docstring). Couleur dynamique
+              (`bpmBadgeColor`) appliquée en `style` inline, pas en classe
+              Tailwind arbitraire — même convention que `zoneColor` dans
+              TrackItem.jsx (une couleur calculée à l'exécution ne peut pas
+              être une classe générée à la compilation). */}
+          {bpmBadgeColor && (
+            <div
+              className="inline-flex items-center gap-2 self-center md:self-start px-3 py-1.5 rounded-lg text-sm font-semibold border w-fit mx-auto md:mx-0"
+              style={{ backgroundColor: `${bpmBadgeColor}26`, borderColor: `${bpmBadgeColor}66`, color: bpmBadgeColor }}
+            >
+              <Gauge size={16} />
+              <span>{avgBpm} BPM{bpmZone ? ` • ${bpmZone.shortLabel}` : ''}</span>
+            </div>
+          )}
+
+          {/* Ligne d'actions — hiérarchie explicite : action PRINCIPALE d'abord
+              (pleine, rose, mise en valeur), action secondaire (Partager)
+              juste après, discrète. Import CSV (quand applicable) vient
+              AVANT ce duo : c'est une action ponctuelle contextuelle liée à
+              une séance déjà verrouillée, pas une des 2 actions "de base"
+              toujours disponibles sur cette page. */}
+          <div className="flex items-center flex-wrap justify-center md:justify-start gap-3">
           {isLocked && triggerCSVUpload && (
             <button
               onClick={(e) => triggerCSVUpload(e, currentPlaylist, mostRecentCompletionIso)}
@@ -343,6 +410,7 @@ export default function PlaylistHeader({
           >
             <Share2 size={16} /> <span>Partager</span>
           </button>
+          </div>
         </div>
       </div>
     </div>
