@@ -86,6 +86,18 @@ import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
  * `bpmChartActivityName` : reçue en prop plutôt que recalculée ici, pour
  * rester l'unique source de vérité déjà partagée avec PlaylistCharts.jsx
  * (résolution Mode Intime incluse — voir sa docstring, PlaylistDetailView.jsx).
+ *
+ * --- Passage à l'échelle "Hero Card" (retour direct : "désert noir sur
+ * toute la moitié droite sur grand écran") ---
+ * Pochette et titre agrandis avec un vrai palier intermédiaire (`sm:`), pas
+ * seulement le saut `base → md:` d'avant (trop brutal, et insuffisant sur
+ * les très grands écrans — d'où l'ajout d'un palier `lg:` supplémentaire,
+ * absent jusqu'ici). Le badge BPM/Zone est déplacé : il vivait juste
+ * au-dessus de la rangée d'actions (comblait le vide vertical) — il vit
+ * maintenant À CÔTÉ de la ligne de métadonnées sur grand écran (`md:` et
+ * plus), pour aussi combler le vide HORIZONTAL signalé cette fois. Sur
+ * mobile (`flex-col` en dessous de `md:`), il redescend sous les
+ * métadonnées, centré comme le reste du bloc.
  */
 export default function PlaylistHeader({
   theme, isLocked, savedPlaylists,
@@ -166,7 +178,7 @@ export default function PlaylistHeader({
         <button
           onClick={() => currentPlaylist.tracks[0] && resolveAndTogglePreview(currentPlaylist.tracks[0], getNextTrackForAutoAdvance)}
           title="Écouter cette playlist"
-          className="relative w-32 h-32 md:w-48 md:h-48 rounded-2xl overflow-hidden shadow-2xl shadow-black/70 cursor-pointer transition-transform duration-300 hover:scale-[1.02]"
+          className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 lg:w-56 lg:h-56 rounded-2xl overflow-hidden shadow-2xl shadow-black/70 cursor-pointer transition-transform duration-300 hover:scale-[1.02]"
         >
           {/* Continuité visuelle avec PlaylistCard.jsx (Bibliothèque) : même
               logique de pochette exactement — `coverUrl` si déjà posé
@@ -177,7 +189,7 @@ export default function PlaylistHeader({
               la vraie pochette déjà visible sur la carte au moment du clic). */}
           <img src={currentPlaylist.coverUrl || buildCoverUrl(currentPlaylist.name)} alt="" className="w-full h-full object-cover" />
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <Music2 size={56} className="text-white/80 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)] transition-opacity duration-300 group-hover/cover:opacity-0" />
+            <Music2 className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 text-white/80 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)] transition-opacity duration-300 group-hover/cover:opacity-0" />
           </div>
           {/* Cliquer sur la pochette lance la playlist (1er titre + enchaînement
               automatique, getNextTrackForAutoAdvance — même mécanisme que
@@ -188,8 +200,8 @@ export default function PlaylistHeader({
               invalide) centré par le `flex items-center justify-center` de
               cet overlay, pas par un positionnement absolu propre. */}
           <div className="absolute inset-0 bg-black/0 group-hover/cover:bg-black/30 transition-colors flex items-center justify-center">
-            <span className={`w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center opacity-0 scale-95 group-hover/cover:opacity-100 group-hover/cover:scale-100 transition-all duration-300 ${bgAccentClass}`}>
-              <Play size={22} className="fill-white ml-0.5"/>
+            <span className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full text-white shadow-xl flex items-center justify-center opacity-0 scale-95 group-hover/cover:opacity-100 group-hover/cover:scale-100 transition-all duration-300 ${bgAccentClass}`}>
+              <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-white ml-0.5"/>
             </span>
           </div>
         </button>
@@ -231,20 +243,22 @@ export default function PlaylistHeader({
             </div>
           )}
 
-          {/* Titre éditable — text-2xl/text-4xl (plutôt que text-5xl) pour que
-              la plupart des noms tiennent sur une ligne SANS être coupés, et
-              `truncate` en filet de sécurité pour les noms vraiment longs. */}
+          {/* Titre éditable — vraie échelle de titre principal (voir la
+              docstring "Hero Card"), avec un palier `sm:` intermédiaire en
+              plus de `md:` pour ne pas sauter brutalement de 2xl à 4xl.
+              `truncate` reste un filet de sécurité pour les noms vraiment
+              longs, pas une contrainte de largeur artificielle. */}
           {isEditingPlaylistName ? (
             <div className="flex items-center gap-2 justify-center md:justify-start">
               <input
                 type="text" autoFocus value={editedPlaylistName} onChange={e => setEditedPlaylistName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleRenamePlaylist(); if (e.key === 'Escape') setIsEditingPlaylistName(false); }}
-                className="text-2xl md:text-4xl font-black bg-transparent outline-none border-b-2 border-rose-500 text-white w-full"
+                className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight bg-transparent outline-none border-b-2 border-rose-500 text-white w-full"
               />
               <button onClick={handleRenamePlaylist} className="p-2 rounded-lg text-white shrink-0 bg-rose-600 hover:bg-rose-500"><Check size={20}/></button>
             </div>
           ) : (
-            <h2 className="text-2xl md:text-4xl font-black flex items-center gap-3 justify-center md:justify-start text-white">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight flex items-center gap-3 justify-center md:justify-start text-white">
               <span className="truncate min-w-0" title={currentPlaylist.name}>{getActivityEmoji(currentPlaylist.workoutType)} {currentPlaylist.name}</span>
               <button onClick={() => { setEditedPlaylistName(currentPlaylist.name); setIsEditingPlaylistName(true); }} className="p-1.5 rounded-lg text-slate-400 hover:text-white transition-colors shrink-0" title="Renommer la playlist">
                 <Edit3 size={20}/>
@@ -252,76 +266,72 @@ export default function PlaylistHeader({
             </h2>
           )}
 
-          {/* Ligne d'infos de la playlist SEULES — icônes + `text-slate-300`
-              (fixe, cohérent avec le fond toujours sombre de cette carte). */}
-          <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-4 gap-y-1.5 text-sm font-medium text-slate-300">
-            <div className="flex items-center gap-1.5"><Activity size={16} className="text-slate-400"/><span>{currentPlaylist.workoutType}</span></div>
-            <span className="text-slate-600">•</span>
-            <div className="flex items-center gap-1.5"><Clock size={16} className="text-slate-400"/><span>{formatDuration(currentPlaylist.totalDuration)}</span></div>
-            <span className="text-slate-600">•</span>
-            <div className="flex items-center gap-1.5"><Music size={16} className="text-slate-400"/><span>{currentPlaylist.tracks.length} titres</span></div>
-            {(() => {
-              const cfg = currentPlaylist.config || {};
-              // Les genres SÉLECTIONNÉS (cfg.selectedGenres) sont déjà des noms
-              // canoniques de l'app (ex. "K-pop") — ne JAMAIS les repasser dans
-              // normalizeGenreForDisplay (prévu pour nettoyer un genre BRUT venu
-              // de Deezer). Seul le repli (genres réels des titres, quand aucun
-              // genre n'a été explicitement sélectionné) a besoin de cette
-              // normalisation — non nécessaire ici, ce repli utilise directement
-              // getGenresForDisplay sur le genre déjà brut du titre.
-              if (cfg.selectedGenres && cfg.selectedGenres.length > 0) {
-                return (
+          {/* Ligne d'infos + badge BPM/Zone regroupés sur une même rangée dès
+              `md:` (retour direct : "désert noir sur toute la moitié droite
+              sur grand écran") — `md:justify-between` étale les 2 blocs sur
+              toute la largeur disponible au lieu de les laisser tassés à
+              gauche l'un sous l'autre. Sous `md:`, retour à un simple
+              empilement vertical centré (le badge redescend sous les
+              métadonnées). Icônes/texte légèrement agrandis
+              (`text-sm md:text-base`) pour suivre l'échelle "Hero Card" du
+              titre au-dessus. */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-4 gap-y-1.5 text-sm md:text-base font-medium text-slate-300">
+              <div className="flex items-center gap-1.5"><Activity size={18} className="text-slate-400"/><span>{currentPlaylist.workoutType}</span></div>
+              <span className="text-slate-600">•</span>
+              <div className="flex items-center gap-1.5"><Clock size={18} className="text-slate-400"/><span>{formatDuration(currentPlaylist.totalDuration)}</span></div>
+              <span className="text-slate-600">•</span>
+              <div className="flex items-center gap-1.5"><Music size={18} className="text-slate-400"/><span>{currentPlaylist.tracks.length} titres</span></div>
+              {(() => {
+                const cfg = currentPlaylist.config || {};
+                // Les genres SÉLECTIONNÉS (cfg.selectedGenres) sont déjà des noms
+                // canoniques de l'app (ex. "K-pop") — ne JAMAIS les repasser dans
+                // normalizeGenreForDisplay (prévu pour nettoyer un genre BRUT venu
+                // de Deezer). Seul le repli (genres réels des titres, quand aucun
+                // genre n'a été explicitement sélectionné) a besoin de cette
+                // normalisation — non nécessaire ici, ce repli utilise directement
+                // getGenresForDisplay sur le genre déjà brut du titre.
+                if (cfg.selectedGenres && cfg.selectedGenres.length > 0) {
+                  return (
+                    <>
+                      <span className="text-slate-600">•</span>
+                      <div className="flex items-center gap-1.5"><Music size={18} className="text-slate-400"/><span>{cfg.selectedGenres.map(genreDisplayLabel).join(', ')}</span></div>
+                    </>
+                  );
+                }
+                const genres = Array.from(new Set(currentPlaylist.tracks.map(t => t.genre).filter(g => g && g !== 'Genre inconnu')));
+                return genres.length > 0 && (
                   <>
                     <span className="text-slate-600">•</span>
-                    <div className="flex items-center gap-1.5"><Music size={16} className="text-slate-400"/><span>{cfg.selectedGenres.map(genreDisplayLabel).join(', ')}</span></div>
+                    <div className="flex items-center gap-1.5"><Music size={18} className="text-slate-400"/><span>{Array.from(new Set(genres.flatMap(getGenresForDisplay))).join(', ')}</span></div>
                   </>
                 );
-              }
-              const genres = Array.from(new Set(currentPlaylist.tracks.map(t => t.genre).filter(g => g && g !== 'Genre inconnu')));
-              return genres.length > 0 && (
-                <>
-                  <span className="text-slate-600">•</span>
-                  <div className="flex items-center gap-1.5"><Music size={16} className="text-slate-400"/><span>{Array.from(new Set(genres.flatMap(getGenresForDisplay))).join(', ')}</span></div>
-                </>
-              );
-            })()}
+              })()}
+            </div>
+
+            {/* Badge BPM/Zone — voir la docstring "Hero Card" : vit maintenant
+                à côté des métadonnées (poussé à droite via `md:justify-
+                between` du parent) plutôt qu'au-dessus des actions, pour
+                occuper la largeur disponible plutôt que la hauteur. */}
+            {bpmBadgeColor && (
+              <div
+                className="inline-flex items-center gap-2 self-center md:self-auto shrink-0 px-3 py-1.5 rounded-lg text-sm font-semibold border w-fit mx-auto md:mx-0"
+                style={{ backgroundColor: `${bpmBadgeColor}26`, borderColor: `${bpmBadgeColor}66`, color: bpmBadgeColor }}
+              >
+                <Gauge size={16} />
+                <span>{avgBpm} BPM{bpmZone ? ` • ${bpmZone.shortLabel}` : ''}</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Regroupe le badge BPM/Zone et la rangée d'actions dans un même
-            conteneur : `justify-between` (ci-dessus) ne doit répartir
-            l'espace disponible qu'ENTRE ce groupe et le bloc titre/
-            métadonnées au-dessus, pas entre le badge et les actions
-            eux-mêmes (sinon `justify-between` les aurait écartés l'un de
-            l'autre à parts égales, au lieu de garder le badge collé
-            juste au-dessus des boutons). */}
-        <div className="space-y-4">
-          {/* Badge BPM/Zone — comble l'espace laissé par justify-between avec
-              une info utile plutôt qu'un simple espaceur. Toujours affiché
-              (BPM réel calculable dès qu'il y a au moins 1 titre) ; le libellé
-              de zone ne s'ajoute QUE si un profil réel est configuré pour
-              cette activité (voir la docstring). Couleur dynamique
-              (`bpmBadgeColor`) appliquée en `style` inline, pas en classe
-              Tailwind arbitraire — même convention que `zoneColor` dans
-              TrackItem.jsx (une couleur calculée à l'exécution ne peut pas
-              être une classe générée à la compilation). */}
-          {bpmBadgeColor && (
-            <div
-              className="inline-flex items-center gap-2 self-center md:self-start px-3 py-1.5 rounded-lg text-sm font-semibold border w-fit mx-auto md:mx-0"
-              style={{ backgroundColor: `${bpmBadgeColor}26`, borderColor: `${bpmBadgeColor}66`, color: bpmBadgeColor }}
-            >
-              <Gauge size={16} />
-              <span>{avgBpm} BPM{bpmZone ? ` • ${bpmZone.shortLabel}` : ''}</span>
-            </div>
-          )}
-
-          {/* Ligne d'actions — hiérarchie explicite : action PRINCIPALE d'abord
-              (pleine, rose, mise en valeur), action secondaire (Partager)
-              juste après, discrète. Import CSV (quand applicable) vient
-              AVANT ce duo : c'est une action ponctuelle contextuelle liée à
-              une séance déjà verrouillée, pas une des 2 actions "de base"
-              toujours disponibles sur cette page. */}
-          <div className="flex items-center flex-wrap justify-center md:justify-start gap-3">
+        {/* Ligne d'actions — hiérarchie explicite : action PRINCIPALE d'abord
+            (pleine, rose, mise en valeur), action secondaire (Partager)
+            juste après, discrète. Import CSV (quand applicable) vient
+            AVANT ce duo : c'est une action ponctuelle contextuelle liée à
+            une séance déjà verrouillée, pas une des 2 actions "de base"
+            toujours disponibles sur cette page. */}
+        <div className="flex items-center flex-wrap justify-center md:justify-start gap-3">
           {isLocked && triggerCSVUpload && (
             <button
               onClick={(e) => triggerCSVUpload(e, currentPlaylist, mostRecentCompletionIso)}
@@ -410,7 +420,6 @@ export default function PlaylistHeader({
           >
             <Share2 size={16} /> <span>Partager</span>
           </button>
-          </div>
         </div>
       </div>
     </div>
