@@ -3,6 +3,7 @@ import { Activity, ChevronDown, ChevronUp } from 'lucide-react';
 import { genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog';
 import { getCadenceUnitLabel, getZoneForValue, getBpmBucketLabel } from '../../appConfig';
 import { formatDuration } from '../../utils/format';
+import { captureElementAsFile } from '../../utils/captureElementAsFile';
 import { deezerFetch } from '../../musicEngine';
 import SessionSummaryCard from '../shared/SessionSummaryCard';
 import { PlaylistDetailProvider, usePlaylistDetail } from '../../contexts/PlaylistDetailContext';
@@ -253,8 +254,8 @@ function PlaylistDetailViewInner({
   }, [currentPlaylist?.id]);
 
   /**
-   * Génération PURE de l'image (pochettes → attente du rendu → capture
-   * html2canvas → File) — ne partage ni ne télécharge rien elle-même.
+   * Génération PURE de l'image (pochettes → capture via captureElementAsFile,
+   * utils/, voir ce fichier) — ne partage ni ne télécharge rien elle-même.
    * Déclenchée en arrière-plan au clic sur "Partager" (voir
    * startBackgroundImageGeneration ci-dessous) ; ShareModal.jsx affiche
    * l'aperçu et gère elle-même le partage une fois l'image prête.
@@ -276,26 +277,12 @@ function PlaylistDetailViewInner({
     }));
     setSummaryCovers(covers);
 
-    // 2. Laisse le temps au DOM de re-render avec les pochettes, ET aux
-    // <img> de réellement finir de charger, AVANT de capturer — html2canvas
-    // capture l'état du DOM à l'instant T ; une image encore en cours de
-    // chargement à ce moment-là apparaîtrait vide sur la capture finale.
-    await new Promise(resolve => setTimeout(resolve, 50));
-    if (summaryCardRef.current) {
-      const imgs = Array.from(summaryCardRef.current.querySelectorAll('img'));
-      await Promise.all(imgs.map(img => img.complete ? Promise.resolve() : new Promise(res => { img.onload = res; img.onerror = res; })));
-    }
-
-    // 3. Capture — import dynamique : html2canvas est une librairie assez
-    // lourde pour une fonctionnalité optionnelle, pas la peine de l'inclure
-    // dans le bundle principal chargé par tout le monde dès le départ.
-    const { default: html2canvas } = await import('html2canvas');
-    const canvas = await html2canvas(summaryCardRef.current, { scale: 2, backgroundColor: null, useCORS: true });
-
-    // 4. Canvas -> Blob -> File.
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-    if (!blob) throw new Error('Conversion en image échouée');
-    return new File([blob], 'tempofit-bilan-de-seance.png', { type: 'image/png' });
+    // 2-3. Attente du re-render + capture — entièrement centralisées dans
+    // captureElementAsFile (utils/, règle du Boy Scout) plutôt qu'inlinées
+    // ici avec l'import html2canvas. `scale: 2.7` sur une carte de 400px de
+    // large vise exactement 1080px de sortie (format Story Instagram,
+    // 1080×1920 — voir la largeur/hauteur fixées dans SessionSummaryCard.jsx).
+    return captureElementAsFile(summaryCardRef.current, 'tempofit-bilan-de-seance.png', { scale: 2.7 });
   };
 
   // Lance la génération en arrière-plan — ne fait rien si déjà en cours ou
