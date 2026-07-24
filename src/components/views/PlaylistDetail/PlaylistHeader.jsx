@@ -1,12 +1,12 @@
 import { useRef } from 'react';
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Music2, Play,
-  Calendar, Lock, Upload, Trash2,
+  Calendar, Lock, Upload, Trash2, Gauge,
 } from 'lucide-react';
 import { getGenresForDisplay, genreDisplayLabel } from '../../../musicCatalog';
 import { formatDuration } from '../../../utils/format';
 import { buildCoverUrl } from '../../../utils/coverArt';
-import { getActivityEmoji } from '../../../appConfig';
+import { getActivityEmoji, getZoneForValue, getBpmBucketColor, getBpmBucketStart } from '../../../appConfig';
 import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
 
 /**
@@ -66,20 +66,50 @@ import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
  * `space-y-4` imbriqué + `mt-5` sur les actions) : titre/métadonnées/actions
  * restent groupés au plus près les uns des autres, sans grand vide ni
  * hauteur forcée à rattraper.
+ *
+ * --- Badge BPM/Zone (retour direct : "j'aimais bien le badge, juste tu
+ * l'avais mis n'importe où avant") ---
+ * Réintégré dans la rangée d'actions elle-même (`ml-auto`, aligné à droite
+ * de "Partager"), plutôt qu'à un endroit séparé du reste de la carte (coin
+ * de la carte, à côté des métadonnées...) essayé lors de passes
+ * précédentes — un badge d'INFO qui vit avec les boutons d'action plutôt
+ * que d'être un élément flottant à part entière. BPM moyen réel de la
+ * playlist (même formule que SessionSummaryCard.jsx/StatsView.jsx/App.jsx —
+ * jamais une 4e formule) ; libellé de zone ("• Seuil") SEULEMENT si un vrai
+ * profil athlétique est configuré pour cette activité (`getZoneForValue`
+ * STRICT, jamais OrDefault ici — ce badge affirme "calculé depuis TON
+ * profil", même règle que `bpmSourceIsProfile`, useGeneratorForm.js) ; repli
+ * sur la couleur neutre "Énergie Musicale" (`getBpmBucketColor`) sinon,
+ * déjà utilisée par le camembert BPM (PlaylistDetailContext.jsx) et
+ * TrackItem.jsx — jamais une 3e palette. `bpmChartActivityName` : reçue en
+ * prop plutôt que recalculée ici, pour rester l'unique source de vérité
+ * déjà partagée avec PlaylistCharts.jsx (résolution Mode Intime incluse).
  */
 export default function PlaylistHeader({
   theme, isLocked, savedPlaylists,
   resolveAndTogglePreview, getNextTrackForAutoAdvance,
-  setPlaylistPlannedDate,
+  setPlaylistPlannedDate, bpmChartActivityName,
   renderCompletionsList, renderTopCompletionDate, getRankStyle, triggerCSVUpload,
   onShare,
 }) {
   const { bgAccentClass } = theme;
   const {
-    currentPlaylist, isSaved,
+    currentPlaylist, isSaved, getProfileForWorkout,
     isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
     handleSavePlaylist, handleUnsavePlaylist,
   } = usePlaylistDetail();
+
+  // BPM moyen réel de la playlist — même formule que SessionSummaryCard.jsx/
+  // ImportSharedPlaylistModal.jsx/StatsView.jsx/App.jsx (`avgBpm`), jamais
+  // recalculée différemment ici. `getZoneForValue` STRICT (pas OrDefault) :
+  // `null` si l'activité n'a jamais été configurée dans le Profil Athlétique
+  // — repli sur la couleur neutre "Énergie Musicale" du camembert BPM
+  // (`getBpmBucketColor`) plutôt qu'une zone inventée.
+  const avgBpm = currentPlaylist.tracks.length > 0
+    ? Math.round(currentPlaylist.tracks.reduce((s, t) => s + (t.bpm || 0), 0) / currentPlaylist.tracks.length)
+    : null;
+  const bpmZone = avgBpm != null ? getZoneForValue(avgBpm, bpmChartActivityName, getProfileForWorkout) : null;
+  const bpmBadgeColor = bpmZone ? bpmZone.color : (avgBpm != null ? getBpmBucketColor(getBpmBucketStart(avgBpm)) : null);
 
   // Filet de sécurité multi-navigateurs pour le bouton "Planifier" (voir plus
   // bas) : un <input type="date"> rendu invisible et superposé à un <label>
@@ -373,6 +403,19 @@ export default function PlaylistHeader({
           >
             <Share2 size={16} /> <span>Partager</span>
           </button>
+
+          {/* Badge BPM/Zone — `ml-auto` le pousse à droite des boutons dans
+              CETTE MÊME rangée (retour direct : plus jamais un élément
+              flottant isolé ailleurs sur la carte, voir docstring). */}
+          {bpmBadgeColor && (
+            <div
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ml-auto"
+              style={{ backgroundColor: `${bpmBadgeColor}26`, borderColor: `${bpmBadgeColor}66`, color: bpmBadgeColor }}
+            >
+              <Gauge size={14} />
+              <span>{avgBpm} BPM{bpmZone ? ` • ${bpmZone.shortLabel}` : ''}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
