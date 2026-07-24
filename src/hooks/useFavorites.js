@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { deezerFetch } from '../musicEngine';
 import { usePersistentState } from './usePersistentState';
+import { normalizeFavorites } from '../utils/favoritesNormalize';
 
 /**
  * useFavorites — regroupe tout ce qui concerne les favoris (titres, artistes,
@@ -68,22 +69,17 @@ export function useFavorites(showToast, isNaughtyMode) {
     }
   }));
 
-  // Migration défensive : un favoris déjà enregistré AVANT ce chantier a
-  // l'ancienne forme PLATE ({useFavorites, artists, tracks}, sans
-  // distinction de mode) — traitée ici comme le bucket "standard" existant
-  // plutôt que de planter sur `.standard`/`.naughty` absents (`undefined`),
-  // avec un bucket "naughty" vide à côté. Jamais de perte des favoris déjà
-  // enregistrés par un utilisateur existant.
-  const normalize = (raw) => (!raw.standard && !raw.naughty)
-    ? { useFavorites: raw.useFavorites, standard: { artists: raw.artists || [], tracks: raw.tracks || [] }, naughty: { artists: [], tracks: [] } }
-    : raw;
-  const normalized = normalize(allFavorites);
+  // Migration défensive — voir la docstring de normalizeFavorites
+  // (utils/favoritesNormalize.js, extraite d'ici pour être testable
+  // isolément). Jamais de perte des favoris déjà enregistrés par un
+  // utilisateur existant.
+  const normalized = normalizeFavorites(allFavorites);
 
   const bucketKey = isNaughtyMode ? 'naughty' : 'standard';
   const favorites = { useFavorites: normalized.useFavorites, ...normalized[bucketKey] };
   const setFavorites = (updater) => {
     setAllFavorites(prev => {
-      const prevNormalized = normalize(prev);
+      const prevNormalized = normalizeFavorites(prev);
       const currentBucket = { useFavorites: prevNormalized.useFavorites, ...prevNormalized[bucketKey] };
       const updated = typeof updater === 'function' ? updater(currentBucket) : updater;
       const { useFavorites: newUseFavorites, ...bucketFields } = updated;
