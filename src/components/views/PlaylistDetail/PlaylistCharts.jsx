@@ -122,7 +122,19 @@ export default function PlaylistCharts({
     openTrackMenuIndex, setOpenTrackMenuIndex,
     handleDuplicateTrack, handleReplaceTrackSameArtist, handleReplaceTrack, handleRemoveTrack,
     bpmDistributionData, bpmDistributionIsZoneBased, genreDistributionData,
+    isSaved,
   } = usePlaylistDetail();
+
+  // Même raisonnement que TrackItem.jsx/TrackList.jsx (canEditTracks) :
+  // déplacer un titre par glisser-déposer DIRECTEMENT sur le graphique
+  // utilise le même `moveTrackTo` que le glisser-déposer de la liste (voir
+  // PlaylistDetailContext.jsx) — sans ce garde-fou, un modèle pas encore
+  // sauvegardé (!isSaved) pouvait être "réordonné" ici alors que la mutation
+  // ne serait de toute façon jamais persistée (retour direct : "je ne
+  // devrais pas pouvoir déplacer des morceaux dans une playlist
+  // cadenassée" — `isLocked` seul ne suffisait pas, cette page n'était pas
+  // couverte par le chantier précédent sur TrackItem/TrackList).
+  const canEditTracks = isSaved && !isLocked;
 
   // RETOUR DIRECT ("en course à pied, la cadence de pas varie peu selon la
   // zone — proposer une visualisation Synchro uniquement si l'utilisateur
@@ -306,7 +318,7 @@ export default function PlaylistCharts({
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setOpenTrackMenuIndex(null)}></div>
                     <div className={`absolute right-0 top-full mt-1 z-20 w-64 rounded-xl border shadow-2xl ${cardBg} ${cardBorder} overflow-hidden`}>
-                      {!isLocked && (
+                      {canEditTracks && (
                         <>
                           <button onClick={() => { handleDuplicateTrack(selectedSegmentIdx); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
                             <Plus size={16} className="text-green-500"/> Dupliquer ce titre
@@ -330,7 +342,7 @@ export default function PlaylistCharts({
                           </button>
                         );
                       })()}
-                      {!isLocked && (
+                      {canEditTracks && (
                         <>
                           <div className={`h-px my-1 ${cardBorder} border-t`}></div>
                           <button
@@ -386,8 +398,8 @@ export default function PlaylistCharts({
               // séance verrouillée (voir isLocked) — le simple clic (sélection/
               // consultation d'un segment, géré par onClick ci-dessus) reste lui
               // toujours possible, ce n'est pas une modification de contenu.
-              onMouseDown={isLocked ? undefined : handleChartMouseDown} onMouseMove={isLocked ? undefined : handleChartMouseMove}
-              onMouseUp={isLocked ? undefined : handleChartMouseUp} onMouseLeave={isLocked ? undefined : handleChartMouseUp}
+              onMouseDown={canEditTracks ? handleChartMouseDown : undefined} onMouseMove={canEditTracks ? handleChartMouseMove : undefined}
+              onMouseUp={canEditTracks ? handleChartMouseUp : undefined} onMouseLeave={canEditTracks ? handleChartMouseUp : undefined}
               style={{ cursor: isDraggingChartSegment ? 'grabbing' : 'pointer' }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke={colorMode === 'dark' ? '#374151' : '#e5e7eb'} vertical={false} />
