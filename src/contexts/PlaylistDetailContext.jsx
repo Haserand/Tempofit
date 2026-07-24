@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useMemo } from 'react';
-import { getZoneForValue, ATHLETIC_ZONES, getBpmBucketColor } from '../appConfig';
+import { getZoneForValue, ATHLETIC_ZONES, getBpmBucketColor, getBpmBucketLabel } from '../appConfig';
 import { normalizeGenreForDisplay, genreDisplayLabel } from '../musicCatalog';
 import { getSingleMatchingTrack, findSameArtistReplacement, recalculateTimeline } from '../musicEngine';
 import { useGeneratorContext } from './GeneratorContext';
@@ -410,8 +410,7 @@ export function PlaylistDetailProvider({
 
     const buckets = {};
     currentPlaylist.tracks.forEach(t => {
-      const bucketStart = Math.floor(t.bpm / 20) * 20;
-      const label = `${bucketStart}-${bucketStart + 19}`;
+      const label = getBpmBucketLabel(t.bpm);
       buckets[label] = (buckets[label] || 0) + t.duration;
     });
     return Object.entries(buckets)
