@@ -41,12 +41,24 @@ export default function TrackItem({
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
   const {
-    currentPlaylist, isNaughtyMode, getProfileForWorkout,
+    currentPlaylist, isNaughtyMode, getProfileForWorkout, isSaved,
     draggedTrackIndex, handleTrackDragStart, handleTrackDragEnter, handleTrackDragEnd,
     openTrackMenuIndex, setOpenTrackMenuIndex,
     handleDuplicateTrack, handleReplaceTrackSameArtist, handleReplaceTrack, handleRemoveTrack,
     playingPreviewId, resolvingTrackId,
   } = usePlaylistDetail();
+
+  // Mêmes mutations (retirer/dupliquer/remplacer/réordonner) passent TOUTES
+  // par `applyPlaylistUpdate` (PlaylistDetailContext.jsx), qui n'écrit dans
+  // `savedPlaylists` QUE si la playlist y figure déjà — sur un modèle pas
+  // encore sauvegardé (Découvrir, "Ajouter à Mes Séances" pas encore
+  // cliqué), ces mutations modifiaient `currentPlaylist` en mémoire sans
+  // jamais être persistées nulle part : une illusion d'édition qui
+  // disparaissait silencieusement à la navigation suivante (même bug que le
+  // crayon de renommage dans PlaylistHeader.jsx, retour direct). `isLocked`
+  // (séance déjà réalisée) reste une raison distincte de bloquer l'édition —
+  // les deux se cumulent ici plutôt que de se remplacer l'une l'autre.
+  const canEditTracks = isSaved && !isLocked;
 
   // Zone d'intensité pour le BPM de ce titre — SEULEMENT si un vrai profil
   // athlétique est configuré pour cette activité (décision Produit : l'app
@@ -82,19 +94,22 @@ export default function TrackItem({
 
   return (
     <div
-      draggable={!isLocked}
-      onDragStart={isLocked ? undefined : handleTrackDragStart(index)}
-      onDragEnter={isLocked ? undefined : handleTrackDragEnter(index)}
-      onDragOver={isLocked ? undefined : (e) => e.preventDefault()}
-      onDragEnd={isLocked ? undefined : handleTrackDragEnd}
+      draggable={canEditTracks}
+      onDragStart={canEditTracks ? handleTrackDragStart(index) : undefined}
+      onDragEnter={canEditTracks ? handleTrackDragEnter(index) : undefined}
+      onDragOver={canEditTracks ? (e) => e.preventDefault() : undefined}
+      onDragEnd={canEditTracks ? handleTrackDragEnd : undefined}
       style={{ borderLeftColor: zoneColor }}
       className={`flex items-center p-3 pl-3 border-l-4 hover:bg-gray-50 dark:hover:bg-gray-800/60 group transition-opacity ${draggedTrackIndex === index ? 'opacity-40' : ''} ${isDimmed ? 'opacity-30' : ''} ${isHighlighted ? (isNaughtyMode ? 'bg-rose-50 dark:bg-rose-950/20' : 'bg-red-50 dark:bg-red-950/20') : ''}`}
     >
       {/* Poignée de glisser-déposer — grisée et non interactive sur une
-          séance déjà réalisée : on ne réordonne plus un historique (isLocked). */}
+          séance déjà réalisée (isLocked) OU pas encore sauvegardée
+          (!isSaved, voir canEditTracks) : on ne réordonne ni un historique,
+          ni une simple proposition qui ne serait de toute façon pas
+          persistée. */}
       <div
-        className={`shrink-0 px-1 ${textMuted} ${isLocked ? 'opacity-20 cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}`}
-        title={isLocked ? "Verrouillé — impossible de réordonner une séance déjà réalisée" : "Glisser pour réordonner"}
+        className={`shrink-0 px-1 ${textMuted} ${canEditTracks ? 'cursor-grab active:cursor-grabbing' : 'opacity-20 cursor-not-allowed'}`}
+        title={isLocked ? "Verrouillé — impossible de réordonner une séance déjà réalisée" : !isSaved ? "Ajoute cette séance à \"Mes Séances\" pour pouvoir réordonner ses titres" : "Glisser pour réordonner"}
       >
         <GripVertical size={16}/>
       </div>
@@ -154,7 +169,7 @@ export default function TrackItem({
             <div className={`absolute right-0 z-20 w-64 rounded-xl border shadow-2xl ${cardBg} ${cardBorder} overflow-hidden ${
               index >= tracksCount - 2 ? 'bottom-full mb-1' : 'top-full mt-1'
             }`}>
-              {!isLocked && (
+              {canEditTracks && (
                 <>
                   <button onClick={() => { handleDuplicateTrack(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
                     <Plus size={16} className="text-green-500"/> Dupliquer ce titre
@@ -182,9 +197,12 @@ export default function TrackItem({
         )}
       </div>
 
-      {isLocked ? (
-        <div className={"p-2 shrink-0 opacity-20 " + textMuted} title="Verrouillé — impossible de retirer un titre d'une séance déjà réalisée">
-          <Lock size={16}/>
+      {!canEditTracks ? (
+        <div
+          className={"p-2 shrink-0 opacity-20 " + textMuted}
+          title={isLocked ? "Verrouillé — impossible de retirer un titre d'une séance déjà réalisée" : "Ajoute cette séance à \"Mes Séances\" pour pouvoir retirer un titre"}
+        >
+          {isLocked ? <Lock size={16}/> : <X size={16}/>}
         </div>
       ) : (
         <button onClick={() => handleRemoveTrack(index)} className={"p-2 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400 rounded-lg transition-colors shrink-0 " + textMuted} title="Retirer de la proposition">
