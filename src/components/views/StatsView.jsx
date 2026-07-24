@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Activity, Flame, Upload, ChevronUp, ChevronDown, ChevronRight, Gauge, Share2, Loader2 } from 'lucide-react';
-import { ATHLETIC_ZONES, getZoneForValue, DISTRIBUTION_COLORS, getBpmBucketColor } from '../../appConfig';
+import { ATHLETIC_ZONES, getZoneForValue, DISTRIBUTION_COLORS, getBpmBucketColor, getBpmBucketLabel } from '../../appConfig';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import { NAUGHTY_WORKOUT_LABELS } from '../../appConfig';
 import { genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog';
@@ -147,10 +147,11 @@ export default function StatsView({
   // l'historique sont découvertes dynamiquement (voir bpmBucketOrder plus
   // bas), un historique pouvant contenir n'importe quelle tranche de 60 à
   // 220+ BPM selon les activités pratiquées.
-  const bpmBucketLabel = (bpm) => {
-    const start = Math.floor(bpm / 20) * 20;
-    return `${start}-${start + 19}`;
-  };
+  // Extraite dans appConfig.js (retour recul session dette technique) : cette
+  // formule était dupliquée à l'identique ici, dans PlaylistDetailContext.jsx
+  // et dans PlaylistDetailView.jsx. Alias local conservé pour ne pas toucher
+  // aux nombreux appels `bpmBucketLabel(...)` plus bas dans ce fichier.
+  const bpmBucketLabel = getBpmBucketLabel;
   // Données de "zoom" au clic sur une part de donut (genre ou tranche BPM).
   const genreArtistCounts = {}; // genre -> { artiste -> count }
   const genreTrackCounts = {}; // genre -> { clé titre|||artiste -> {title, artist, count} }
