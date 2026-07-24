@@ -90,8 +90,21 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut();
   };
 
+  // "Mot de passe oublié" (retour direct) — même convention EXACTE que
+  // signUp/signIn ci-dessus : garde `isSupabaseConfigured`, renvoie
+  // `{ error }` (jamais lève une exception), jamais de logique Supabase en
+  // dehors de ce contexte (AuthModal.jsx reste "dumb", ne fait qu'appeler
+  // cette fonction reçue en prop). Supabase envoie lui-même l'e-mail
+  // contenant le lien de réinitialisation — rien à construire ici, juste
+  // déclencher l'envoi.
+  const resetPassword = async (email) => {
+    if (!isSupabaseConfigured) return { error: "Les comptes ne sont pas encore configurés côté serveur." };
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    return { error: error ? error.message : null };
+  };
+
   return (
-    <AuthContext.Provider value={{ user, authLoading, signUp, signIn, signOut, isSupabaseConfigured, userCount }}>
+    <AuthContext.Provider value={{ user, authLoading, signUp, signIn, signOut, resetPassword, isSupabaseConfigured, userCount }}>
       {children}
     </AuthContext.Provider>
   );
@@ -105,6 +118,7 @@ const FALLBACK = {
   signUp: async () => ({ error: "AuthProvider manquant." }),
   signIn: async () => ({ error: "AuthProvider manquant." }),
   signOut: async () => {},
+  resetPassword: async () => ({ error: "AuthProvider manquant." }),
 };
 
 export function useAuthContext() {
