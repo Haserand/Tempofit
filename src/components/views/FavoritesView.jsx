@@ -1,4 +1,4 @@
-import { Star, Heart, Play, Pause, X, Plus, User, RefreshCw, Target, Search, Info } from 'lucide-react';
+import { Star, Heart, Play, Pause, Loader2, X, Plus, User, RefreshCw, Target, Search, Info } from 'lucide-react';
 import { getGenreLocalDepthWarning, getGenresForDisplay, genreDisplayLabel, EXTRA_GENRES } from '../../musicCatalog';
 
 /**
@@ -9,11 +9,26 @@ import { getGenreLocalDepthWarning, getGenresForDisplay, genreDisplayLabel, EXTR
  * `setFavorites` restent gérés dans App.jsx (même logique que les favoris
  * ajoutés depuis la recherche manuelle — voir passation, section 5) : ce
  * composant ne fait qu'afficher et déclencher les mêmes setters.
+ *
+ * RETOUR DIRECT ("les favoris doivent avoir des morceaux écoutables") — le
+ * bouton play utilisait `togglePreview` seul, qui exige un `track.preview`
+ * DÉJÀ résolu (sinon bouton grisé, non cliquable). Un titre favori n'a
+ * quasiment jamais cet aperçu déjà en mémoire à la relecture (favorisé lors
+ * d'une session précédente, ou l'extrait Deezer d'origine a simplement
+ * expiré — même limitation documentée pour les playlists ensemencées,
+ * data/curatedSessions.js) : en pratique, TOUS les favoris se retrouvaient
+ * injouables. `resolveAndToggleFavoritePreview` (ci-dessous) reproduit
+ * EXACTEMENT le même mécanisme de résolution à la demande que
+ * `resolveAndTogglePreview` dans PlaylistDetailView.jsx (jamais une 2e
+ * implémentation) : résout l'extrait via Deezer au moment du clic si
+ * absent, puis met à jour `favorites.tracks` avec le titre résolu (pour que
+ * les clics suivants n'aient plus besoin de re-résoudre).
  */
 export default function FavoritesView({
   theme, isNaughtyMode,
   favorites, setFavorites,
   togglePreview, playingPreviewId,
+  resolveAndPlay, resolvingTrackId,
   setCurrentPlaylist, setIsBpmSearchMode, setIsSearchModalOpen, setWorldSearchResults, setNoUsableResultsHint,
   isAddingArtist, setIsAddingArtist, newFavArtist, setNewFavArtist, addFavoriteArtistValidated,
   availableGenres, favSelectedGenres, setFavSelectedGenres, showExtraGenres, setShowExtraGenres,
@@ -24,6 +39,25 @@ export default function FavoritesView({
     cardBg, cardBorder, textHighlight, textMuted, textColorClass,
     bgAccentClass, borderAccentClass, inputBg, inputBorder,
   } = theme;
+
+  // Comparaison par `trackId` (pas par référence d'objet) pour retrouver ce
+  // titre précis dans `favorites.tracks` — c'est justement le champ qui
+  // change lors de cette résolution (repli `curated-`/`imported-` remplacé
+  // par le vrai `deezer-{id}`), donc jamais ce sur quoi on compare pour le
+  // retrouver ensuite ; ici la clé de la liste (`track.trackId || idx`) et
+  // l'identité fonctionnelle du titre favori sont une seule et même chose,
+  // contrairement à `id` vs `trackId` dans une playlist (voir
+  // musicEngine.js) — un favori n'a pas de 2e identifiant d'occurrence.
+  const resolveAndToggleFavoritePreview = async (track) => {
+    if (track.preview) { togglePreview(track); return; }
+    const updatedTrack = await resolveAndPlay(track);
+    if (updatedTrack) {
+      setFavorites(prev => ({
+        ...prev,
+        tracks: prev.tracks.map(t => t.trackId === track.trackId ? updatedTrack : t),
+      }));
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
@@ -49,12 +83,13 @@ export default function FavoritesView({
               {favorites.tracks.map((track, idx) => (
                 <div key={track.trackId || idx} className={`flex items-center gap-2 p-2.5 rounded-xl border ${cardBorder} ${inputBg}`}>
                   <button
-                    onClick={() => togglePreview(track)}
-                    disabled={!track.preview}
-                    title={track.preview ? "Écouter un extrait" : "Extrait non disponible pour ce titre (source sans aperçu audio)"}
-                    className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
+                    onClick={() => resolveAndToggleFavoritePreview(track)}
+                    title="Écouter un extrait"
+                    className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors ${bgAccentClass} text-white hover:brightness-110`}
                   >
-                    {playingPreviewId === track.trackId ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5"/>}
+                    {resolvingTrackId === track.id
+                      ? <Loader2 size={14} className="animate-spin"/>
+                      : playingPreviewId === track.trackId ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5"/>}
                   </button>
                   <div className="flex-1 min-w-0">
                     <div className={`font-bold text-sm truncate ${textHighlight}`}>{track.title}</div>
