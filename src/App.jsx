@@ -2172,6 +2172,7 @@ function AppContent({
                 theme={themeTokens} isNaughtyMode={isNaughtyMode}
                 favorites={favorites} setFavorites={setFavorites}
                 togglePreview={togglePreview} playingPreviewId={playingPreviewId}
+                resolveAndPlay={resolveAndPlay} resolvingTrackId={resolvingTrackId}
                 setCurrentPlaylist={setCurrentPlaylist} setIsBpmSearchMode={setIsBpmSearchMode}
                 setIsSearchModalOpen={setIsSearchModalOpen} setWorldSearchResults={setWorldSearchResults}
                 setNoUsableResultsHint={setNoUsableResultsHint}
