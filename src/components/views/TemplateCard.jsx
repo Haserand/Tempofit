@@ -47,6 +47,14 @@ import { buildCoverUrl } from '../../utils/coverArt';
  * la palette (jaune, citron vert) où elle devenait presque invisible ;
  * `ring-2 ring-white` apparaît au survol sur la pochette elle-même, pas
  * seulement sur le bouton play.
+ *
+ * RETOUR DIRECT (6e passe, "ajouter le BPM à côté du nom de l'auteur") —
+ * BPM moyen calculé depuis `template.tracks` (même formule que
+ * PlaylistHeader.jsx/SessionSummaryCard.jsx/StatsView.jsx/App.jsx, jamais
+ * une 5e version de ce calcul), affiché sur la ligne auteur plutôt que
+ * celle activité/durée juste en dessous — repère utile pour distinguer des
+ * modèles au titre peu explicite (ex. "Turbo Cardio", contrairement à
+ * "Midnight Runner 160" qui l'indique déjà dans son nom).
  */
 
 export default function TemplateCard({ theme, template, onPlayTemplate }) {
@@ -57,6 +65,13 @@ export default function TemplateCard({ theme, template, onPlayTemplate }) {
   // Arrondie à la minute (pas de secondes) : cette ligne doit rester très
   // discrète, "45 min" se lit d'un coup d'œil, "44m 58s" alourdit pour rien.
   const totalMinutes = Math.round(template.tracks.reduce((s, t) => s + (t.duration || 0), 0) / 60);
+
+  // Même formule que PlaylistHeader.jsx/SessionSummaryCard.jsx/StatsView.jsx/
+  // App.jsx (`avgBpm`), jamais recalculée différemment ici — retour direct
+  // ("ajouter le BPM à côté du nom de l'auteur, dans Découvrir").
+  const avgBpm = template.tracks.length > 0
+    ? Math.round(template.tracks.reduce((s, t) => s + (t.bpm || 0), 0) / template.tracks.length)
+    : null;
 
   // Palette/format d'URL désormais dans utils/coverArt.js (réutilisée telle
   // quelle par App.jsx, `openCuratedPlaylist`, pour que la pochette
@@ -108,8 +123,14 @@ export default function TemplateCard({ theme, template, onPlayTemplate }) {
 
       <div className="mt-2 px-0.5">
         <h3 className={`font-bold text-sm truncate ${textHighlight}`}>{template.title}</h3>
-        <p className={`text-xs truncate ${textMuted}`}>{template.author}</p>
-        <p className={`text-xs truncate ${textMuted} opacity-70`}>{template.workoutType} • {totalMinutes} min</p>
+        <p className={`text-xs truncate ${textMuted}`}>{template.author}{avgBpm != null ? ` • ${avgBpm} BPM` : ''}</p>
+        {/* RETOUR RECUL (harmonisation contraste, juillet 2026) : `opacity-70`
+            retirée — elle atténuait un texte DÉJÀ atténué (`textMuted`),
+            contraste final ~1.8:1 sur fond clair (illisible, cause directe
+            du problème signalé en Mode Intime). `textMuted` seul (voir la
+            correction du token --color-muted dans index.css) suffit
+            largement à distinguer cette ligne du titre au-dessus. */}
+        <p className={`text-xs truncate ${textMuted}`}>{template.workoutType} • {totalMinutes} min</p>
       </div>
     </div>
   );
