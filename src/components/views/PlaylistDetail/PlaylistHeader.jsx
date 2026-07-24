@@ -58,6 +58,14 @@ import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
  * n'a plus besoin de dégradé dédié pour se signaler : la pochette, l'emoji
  * d'activité ("Ambiance" 🌶️) et l'accent rose du bouton principal suffisent
  * déjà à le faire reconnaître, sans sacrifier la cohérence du nouveau design.
+ *
+ * --- Compacité (retour direct : "hauteur cumulée du bloc de droite doit
+ * égaler celle de la pochette") ---
+ * Pochette ramenée à une taille fixe unique (`w-32 h-32`, pas de cascade
+ * responsive) et bloc de droite en `justify-center` + `gap-2` (au lieu d'un
+ * `space-y-4` imbriqué + `mt-5` sur les actions) : titre/métadonnées/actions
+ * restent groupés au plus près les uns des autres, sans grand vide ni
+ * hauteur forcée à rattraper.
  */
 export default function PlaylistHeader({
   theme, isLocked, savedPlaylists,
@@ -126,7 +134,7 @@ export default function PlaylistHeader({
         <button
           onClick={() => currentPlaylist.tracks[0] && resolveAndTogglePreview(currentPlaylist.tracks[0], getNextTrackForAutoAdvance)}
           title="Écouter cette playlist"
-          className="relative w-32 h-32 md:w-48 md:h-48 rounded-2xl overflow-hidden shadow-2xl shadow-black/70 cursor-pointer transition-transform duration-300 hover:scale-[1.02]"
+          className="relative w-32 h-32 rounded-xl overflow-hidden shadow-2xl shadow-black/70 cursor-pointer transition-transform duration-300 hover:scale-[1.02]"
         >
           {/* Continuité visuelle avec PlaylistCard.jsx (Bibliothèque) : même
               logique de pochette exactement — `coverUrl` si déjà posé
@@ -155,11 +163,11 @@ export default function PlaylistHeader({
         </button>
       </div>
 
-      {/* Bloc de droite — `items-start` sur le conteneur parent garantit déjà
-          qu'il démarre pile à la hauteur du haut de la pochette ; ce bloc
-          n'a donc plus besoin de centrer/pousser son contenu verticalement. */}
-      <div className="flex-1 flex flex-col justify-start text-center md:text-left w-full min-w-0">
-        <div className="space-y-4">
+      {/* Bloc de droite — compact : `justify-center` + `gap-2` (au lieu de
+          `space-y-4` imbriqué + `mt-5` sur les actions) pour que la hauteur
+          cumulée des 3 blocs (titre/métadonnées/actions) se rapproche de
+          celle de la pochette, sans grand vide ni hauteur forcée. */}
+      <div className="flex-1 flex flex-col justify-center gap-2 text-center md:text-left w-full min-w-0">
           {/* Badge "séance déjà réalisée" + dernière date — seul élément
               qui peut légitimement précéder le titre (information sur la
               séance elle-même, pas une action). Bloc entier conditionné à
@@ -199,12 +207,12 @@ export default function PlaylistHeader({
               <input
                 type="text" autoFocus value={editedPlaylistName} onChange={e => setEditedPlaylistName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleRenamePlaylist(); if (e.key === 'Escape') setIsEditingPlaylistName(false); }}
-                className="text-2xl md:text-4xl font-black bg-transparent outline-none border-b-2 border-rose-500 text-white w-full"
+                className="text-xl font-bold bg-transparent outline-none border-b-2 border-rose-500 text-white w-full"
               />
               <button onClick={handleRenamePlaylist} className="p-2 rounded-lg text-white shrink-0 bg-rose-600 hover:bg-rose-500"><Check size={20}/></button>
             </div>
           ) : (
-            <h2 className="text-2xl md:text-4xl font-black flex items-center gap-3 justify-center md:justify-start text-white">
+            <h2 className="text-xl font-bold flex items-center gap-3 justify-center md:justify-start text-white">
               <span className="truncate min-w-0" title={currentPlaylist.name}>{getActivityEmoji(currentPlaylist.workoutType)} {currentPlaylist.name}</span>
               <button onClick={() => { setEditedPlaylistName(currentPlaylist.name); setIsEditingPlaylistName(true); }} className="p-1.5 rounded-lg text-slate-400 hover:text-white transition-colors shrink-0" title="Renommer la playlist">
                 <Edit3 size={20}/>
@@ -246,18 +254,17 @@ export default function PlaylistHeader({
               );
             })()}
           </div>
-        </div>
 
-        {/* Ligne d'actions — hiérarchie explicite : action PRINCIPALE d'abord
-            (pleine, rose, mise en valeur), action secondaire (Partager)
-            juste après, discrète. Import CSV (quand applicable) vient
-            AVANT ce duo : c'est une action ponctuelle contextuelle liée à
-            une séance déjà verrouillée, pas une des 2 actions "de base"
-            toujours disponibles sur cette page. */}
-        <div className="flex items-center flex-wrap justify-center md:justify-start gap-3 mt-5">
-          {isLocked && triggerCSVUpload && (
-            <button
-              onClick={(e) => triggerCSVUpload(e, currentPlaylist, mostRecentCompletionIso)}
+          {/* Ligne d'actions — hiérarchie explicite : action PRINCIPALE d'abord
+              (pleine, rose, mise en valeur), action secondaire (Partager)
+              juste après, discrète. Import CSV (quand applicable) vient
+              AVANT ce duo : c'est une action ponctuelle contextuelle liée à
+              une séance déjà verrouillée, pas une des 2 actions "de base"
+              toujours disponibles sur cette page. */}
+          <div className="flex items-center flex-wrap justify-center md:justify-start gap-3">
+            {isLocked && triggerCSVUpload && (
+              <button
+                onClick={(e) => triggerCSVUpload(e, currentPlaylist, mostRecentCompletionIso)}
               className={`flex items-center gap-2 px-6 py-2 rounded-lg font-black text-sm shrink-0 bg-white text-black shadow-lg transition-transform hover:scale-[1.02] ${hasImportedDataForMostRecent ? 'animate-in fade-in zoom-in duration-500' : 'animate-pulse'}`}
             >
               {hasImportedDataForMostRecent ? (
