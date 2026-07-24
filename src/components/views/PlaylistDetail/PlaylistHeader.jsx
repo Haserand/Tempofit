@@ -218,9 +218,17 @@ export default function PlaylistHeader({
           ) : (
             <h2 className="text-xl font-bold flex items-center gap-3 justify-center md:justify-start text-white">
               <span className="truncate min-w-0" title={currentPlaylist.name}>{getActivityEmoji(currentPlaylist.workoutType)} {currentPlaylist.name}</span>
-              <button onClick={() => { setEditedPlaylistName(currentPlaylist.name); setIsEditingPlaylistName(true); }} className="p-1.5 rounded-lg text-slate-400 hover:text-white transition-colors shrink-0" title="Renommer la playlist">
-                <Edit3 size={20}/>
-              </button>
+              {/* Renommer n'a de sens que pour une playlist déjà dans la
+                  bibliothèque personnelle (`isSaved`) — sur un modèle pas
+                  encore sauvegardé (bouton principal "Ajouter à Mes
+                  Séances"), le nom affiché est celui du modèle d'origine,
+                  pas encore "à soi" ; le renommer ici donnerait l'illusion
+                  d'une sauvegarde qui n'a pas eu lieu. */}
+              {isSaved && (
+                <button onClick={() => { setEditedPlaylistName(currentPlaylist.name); setIsEditingPlaylistName(true); }} className="p-1.5 rounded-lg text-slate-400 hover:text-white transition-colors shrink-0" title="Renommer la playlist">
+                  <Edit3 size={20}/>
+                </button>
+              )}
             </h2>
           )}
 
