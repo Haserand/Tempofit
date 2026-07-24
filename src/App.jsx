@@ -2007,7 +2007,18 @@ function AppContent({
             connecter"/l'avatar — un header épuré pour un visiteur non
             connecté : logo à gauche, Thème + Se connecter à droite, plus
             aucune mention de trophées avant d'avoir un compte. */}
-        <div className="absolute top-4 right-4 md:top-6 md:right-6 z-[60] flex items-center gap-2">
+        {/* RETOUR DIRECT ("les boutons descendent lors du scroll et viennent
+            percuter l'en-tête des cartes") — `fixed` (au lieu de `absolute`)
+            : ce bloc s'ancre désormais au VIEWPORT lui-même, pas au
+            conteneur englobant le plus proche positionné — la distinction
+            compte ici parce que ce bloc siège hors de `<main
+            id="main-scroll-area">` (qui, lui, défile), mais reste quand même
+            un enfant du wrapper englobant l'app entière : `fixed` retire
+            toute ambiguïté et le rend véritablement indépendant du cycle de
+            vie/défilement de n'importe quelle vue enfant, plutôt que de
+            dépendre implicitement de la structure de positionnement
+            actuelle (qui pourrait changer un jour sans que ce bloc suive). */}
+        <div className="fixed top-4 right-4 md:top-6 md:right-6 z-[60] flex items-center gap-2">
           <button
             onClick={toggleTheme}
             title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
@@ -2073,7 +2084,14 @@ function AppContent({
             </div>
           </header>
 
-          <main id="main-scroll-area" className="flex-1 overflow-y-auto p-4 sm:p-8 no-scrollbar">
+          {/* Padding supérieur augmenté (`pt-20 sm:pt-24`, contre `p-4 sm:p-8`
+              partout ailleurs) — clairance nécessaire pour le bloc
+              thème/connexion, maintenant `fixed` (voir plus haut) et donc
+              plus jamais repoussé par le flux normal du contenu : sans cette
+              marge dédiée, l'en-tête de certaines vues (ex. le stepper
+              "ÉTAPE 1/4" de GeneratorView) pourrait passer juste sous ce
+              bloc plutôt qu'à côté. */}
+          <main id="main-scroll-area" className="flex-1 overflow-y-auto pt-20 sm:pt-24 px-4 sm:px-8 pb-4 sm:pb-8 no-scrollbar">
 
             {/* ===================== VIEW: GENERATOR (ASSISTANT MULTI-ETAPES) ===================== */}
             {view === 'generator' && (
