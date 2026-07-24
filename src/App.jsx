@@ -1988,84 +1988,15 @@ function AppContent({
           </div>
         )}
 
-        {/* RETOUR DIRECT ("le bouton pour se connecter devrait être en haut à
-            droite, pas caché dans un onglet") — jusqu'ici, la seule façon de
-            se connecter était de naviguer jusqu'à Options & Comptes. Ajouté
-            ici, visible sur TOUTES les pages plutôt que dans un seul onglet
-            peu fréquenté. Déconnecté → bouton "Se connecter" avec libellé
-            (c'est un appel à l'action — mérite d'être nommé, pas juste une
-            icône). Connecté → pastille avec l'initiale de l'email, renvoie
-            vers Options & Comptes pour se déconnecter ou voir le détail (pas
-            de nouveau menu déroulant à construire pour un cas déjà bien
-            couvert là-bas).
-            RETOUR DIRECT (inversion Thème/Trophées) : le bouton Trophées
-            (précédemment ici) vit maintenant dans Sidebar.jsx, à côté du
-            logo — visible UNIQUEMENT si connecté (`user`), un badge de
-            progression n'a de sens que pour quelqu'un qui a un compte pour
-            le conserver. Le basculeur de thème (Sun/Moon, précédemment dans
-            Sidebar.jsx) prend sa place ici, juste à côté de "Se
-            connecter"/l'avatar — un header épuré pour un visiteur non
-            connecté : logo à gauche, Thème + Se connecter à droite, plus
-            aucune mention de trophées avant d'avoir un compte. */}
-        {/* RETOUR DIRECT ("les boutons descendent lors du scroll et viennent
-            percuter l'en-tête des cartes") — `fixed` (au lieu de `absolute`)
-            : ce bloc s'ancre désormais au VIEWPORT lui-même, pas au
-            conteneur englobant le plus proche positionné — la distinction
-            compte ici parce que ce bloc siège hors de `<main
-            id="main-scroll-area">` (qui, lui, défile), mais reste quand même
-            un enfant du wrapper englobant l'app entière : `fixed` retire
-            toute ambiguïté et le rend véritablement indépendant du cycle de
-            vie/défilement de n'importe quelle vue enfant, plutôt que de
-            dépendre implicitement de la structure de positionnement
-            actuelle (qui pourrait changer un jour sans que ce bloc suive).
-            RETOUR RECUL (2e capture, "ça semble pas marcher") — le `fixed`
-            ci-dessus règle bien le 1er affichage (le padding de `<main>`
-            pousse le tout début du contenu sous ce bloc), mais PAS le
-            défilement plus profond : n'importe quelle rangée de cartes finit
-            par remonter dans cette même zone en scrollant, exactement comme
-            sur n'importe quel site avec un bouton flottant fixe (bulle de
-            chat, bannière cookie...) — le contenu défile SOUS l'élément fixe,
-            qui le masque partiellement puisqu'il est opaque et au-dessus en
-            z-index. C'est le comportement NORMAL/universel d'un overlay
-            fixe, pas un bug distinct du 1er — aucun padding ne peut
-            l'empêcher, seulement le rendre visuellement INTENTIONNEL plutôt
-            qu'un chevauchement brut : la vignette juste en dessous (dégradé
-            `from-base`, la couleur de fond réelle de l'app, quel que soit le
-            thème actif) fait disparaître progressivement ce qui défile
-            dessous, plutôt que de le trancher net à la limite du bouton.
-            `pointer-events-none` : purement visuel, ne doit jamais intercepter
-            un clic destiné au contenu qui affleure sous son dégradé. */}
-        <div className="fixed top-0 right-0 w-72 h-28 z-50 bg-gradient-to-bl from-base via-base/70 to-transparent pointer-events-none" />
-        <div className="fixed top-4 right-4 md:top-6 md:right-6 z-[60] flex items-center gap-2">
-          <button
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
-            className={`w-11 h-11 rounded-full shadow-lg border hover:scale-110 transition-transform flex items-center justify-center ${cardBg} ${cardBorder} ${textMuted}`}
-          >
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-          {isSupabaseConfigured && (
-            user ? (
-              <button
-                onClick={() => changeView('settings')}
-                title={user.email}
-                className="w-11 h-11 rounded-full shadow-lg border hover:scale-110 transition-transform flex items-center justify-center bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-500 border-green-200 dark:border-green-700/50 font-bold"
-              >
-                {user.email.charAt(0).toUpperCase()}
-              </button>
-            ) : (
-              <button
-                onClick={() => setIsAuthModalOpen(true)}
-                className={`px-4 py-2.5 rounded-full shadow-lg border hover:scale-105 transition-transform flex items-center gap-1.5 text-sm font-bold ${bgAccentClass} text-white border-transparent`}
-              >
-                <UserIcon size={16} />
-                <span>Se connecter</span>
-              </button>
-            )
-          )}
-        </div>
+        {/* Bloc thème + connexion — déplacé à l'intérieur de <main> (voir plus
+            bas, juste après son ouverture) : retour direct ("je veux juste
+            que les boutons restent en haut et que quand on scroll on les
+            voit plus") — après 2 tentatives pour le garder visible en
+            permanence (fixed + vignette), la demande réelle est plus simple :
+            qu'il défile normalement AVEC le contenu, comme n'importe quel
+            autre élément de la page, plutôt que de rester ancré au viewport. */}
 
-        {/* Input fichier caché, réutilisé pour tous les imports CSV (piloté via fileInputRef) */}
+
         <input type="file" accept=".csv" ref={fileInputRef} onChange={handleCSVUpload} className="hidden" />
 
         {/* ============================= SIDEBAR ============================= */}
@@ -2109,7 +2040,45 @@ function AppContent({
               marge dédiée, l'en-tête de certaines vues (ex. le stepper
               "ÉTAPE 1/4" de GeneratorView) pourrait passer juste sous ce
               bloc plutôt qu'à côté. */}
-          <main id="main-scroll-area" className="flex-1 overflow-y-auto pt-20 sm:pt-24 px-4 sm:px-8 pb-4 sm:pb-8 no-scrollbar">
+          <main id="main-scroll-area" className="relative flex-1 overflow-y-auto pt-20 sm:pt-24 px-4 sm:px-8 pb-4 sm:pb-8 no-scrollbar">
+
+            {/* Bloc thème + connexion — RETOUR DIRECT ("je veux juste que les
+                boutons restent en haut et que quand on scroll on les voit
+                plus") : `absolute` (pas `fixed`) et positionné ICI, comme
+                premier enfant de `<main>` (devenu `relative` juste au-dessus
+                pour lui servir de repère) — il défile donc NORMALEMENT avec
+                le reste du contenu de `<main>`, visible en haut de page au
+                chargement, puis disparaît en scrollant comme n'importe quel
+                autre élément, au lieu de rester ancré au viewport. */}
+            <div className="absolute top-4 right-4 md:top-6 md:right-6 z-[60] flex items-center gap-2">
+              <button
+                onClick={toggleTheme}
+                title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
+                className={`w-11 h-11 rounded-full shadow-lg border hover:scale-110 transition-transform flex items-center justify-center ${cardBg} ${cardBorder} ${textMuted}`}
+              >
+                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+              {isSupabaseConfigured && (
+                user ? (
+                  <button
+                    onClick={() => changeView('settings')}
+                    title={user.email}
+                    className="w-11 h-11 rounded-full shadow-lg border hover:scale-110 transition-transform flex items-center justify-center bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-500 border-green-200 dark:border-green-700/50 font-bold"
+                  >
+                    {user.email.charAt(0).toUpperCase()}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setIsAuthModalOpen(true)}
+                    className={`px-4 py-2.5 rounded-full shadow-lg border hover:scale-105 transition-transform flex items-center gap-1.5 text-sm font-bold ${bgAccentClass} text-white border-transparent`}
+                  >
+                    <UserIcon size={16} />
+                    <span>Se connecter</span>
+                  </button>
+                )
+              )}
+            </div>
+
 
             {/* ===================== VIEW: GENERATOR (ASSISTANT MULTI-ETAPES) ===================== */}
             {view === 'generator' && (
