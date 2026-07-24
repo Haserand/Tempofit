@@ -1,7 +1,7 @@
-import { Heart, Activity, Sun, Moon, X, Zap, List, Star, Settings } from 'lucide-react';
+import { Heart, Activity, X, Zap, List, Star, Settings, Trophy } from 'lucide-react';
 
 /**
- * Sidebar — navigation principale (logo, toggle thème clair/sombre, liens
+ * Sidebar — navigation principale (logo, bouton Trophées si connecté, liens
  * vers les vues, crédit en bas de page). Extrait de App.jsx (retour direct :
  * "prends du recul sur le code, comment tu diviserais App.jsx ?" — 3e et
  * dernier chantier de cette série, après les 8 modales et le moteur
@@ -12,14 +12,22 @@ import { Heart, Activity, Sun, Moon, X, Zap, List, Star, Settings } from 'lucide
  * contrairement aux modales (qui utilisaient `theme.x` en interne), la
  * sidebar les consommait déjà directement, un à un, dans App.jsx ; garder la
  * même forme évite de réécrire chaque usage pour un gain minime.
+ *
+ * RETOUR DIRECT (inversion Thème/Trophées, "un header épuré pour les
+ * visiteurs") — le basculeur de thème (Sun/Moon) qui vivait ici est parti
+ * dans App.jsx, à côté de "Se connecter"/l'avatar (coin haut-droit) ; le
+ * bouton Trophées (qui vivait là-bas) arrive ici, à côté du logo — mais
+ * SEULEMENT si `user` (connecté), contrairement à avant où il était visible
+ * inconditionnellement : un badge de progression n'a de sens que pour
+ * quelqu'un qui a un compte pour le conserver d'une session à l'autre.
  */
 export default function Sidebar({
   cardBorder, bgAccentClass, isNaughtyMode, textHighlight, textColorClass, textMuted,
-  theme, toggleTheme,
   isMobileMenuOpen, setIsMobileMenuOpen,
   changeView, view,
   showAthleticProfile, setShowAthleticProfile,
   favorites,
+  user, userStats,
 }) {
   return (
     <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r ${cardBorder} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
@@ -35,13 +43,30 @@ export default function Sidebar({
             <span className={`font-bold text-xl tracking-tight leading-none ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
          </button>
          <div className="flex items-center gap-1">
-           <button
-             onClick={toggleTheme}
-             title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
-             className={`p-2 rounded-lg transition-colors ${textMuted} hover:bg-surface-hover hover:text-main`}
-           >
-             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-           </button>
+           {/* Bouton Trophées — même comportement qu'avant son déménagement
+               (discret/gris tant qu'aucun trophée n'est débloqué, doré +
+               badge du nombre sinon, pour garder l'effet de surprise/
+               récompense au 1er déblocage sans le rendre invisible) — SEUL
+               changement réel : `user &&` en plus, un visiteur non connecté
+               ne voit plus ce bouton du tout. */}
+           {user && (
+             <button
+               onClick={() => changeView('trophies')}
+               title="Trophées"
+               className={`relative p-2 rounded-lg transition-colors ${
+                 userStats.unlockedTrophies.length > 0
+                   ? 'text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
+                   : `${textMuted} hover:bg-surface-hover hover:text-main`
+               }`}
+             >
+               <Trophy size={18} className={userStats.unlockedTrophies.length > 0 ? "fill-yellow-500" : ""} />
+               {userStats.unlockedTrophies.length > 0 && (
+                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
+                   {userStats.unlockedTrophies.length}
+                 </span>
+               )}
+             </button>
+           )}
            <button className="md:hidden text-gray-500 hover:text-gray-900 dark:hover:text-white" onClick={() => setIsMobileMenuOpen(false)}><X size={20} /></button>
          </div>
       </div>
