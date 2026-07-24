@@ -305,6 +305,24 @@ const getBpmBucketColor = (bucketStart) => {
   return BPM_BUCKET_COLORS[4];
 };
 
+// Extrait ici (retour recul session dette technique) : cette même formule
+// (tranche de 20 BPM) vivait DUPLIQUÉE À L'IDENTIQUE à 4 endroits —
+// PlaylistDetailContext.jsx (bpmDistributionData, camembert), StatsView.jsx
+// (bpmBucketLabel, historique global), PlaylistDetailView.jsx
+// (trackBpmBucketLabel, repli sans profil réel) ET TrackItem.jsx (badge de
+// couleur isolé) — avec le risque qu'une correction future (ex. tranches de
+// 15 au lieu de 20) n'en touche que 3 sur 4 par inattention. Séparée en 2 :
+// `getBpmBucketStart` (le point de départ brut, ex. 140) pour qui a juste
+// besoin d'alimenter `getBpmBucketColor` ci-dessus (TrackItem.jsx),
+// `getBpmBucketLabel` (le texte affiché, ex. "140-159") pour qui a besoin du
+// libellé complet (camemberts, historique) — un seul et même point de vérité
+// pour la largeur de tranche (20), quel que soit le besoin en sortie.
+const getBpmBucketStart = (bpm) => Math.floor(bpm / 20) * 20;
+const getBpmBucketLabel = (bpm) => {
+  const bucketStart = getBpmBucketStart(bpm);
+  return `${bucketStart}-${bucketStart + 19}`;
+};
+
 export {
   TROPHIES_DATA,
   TROPHY_CATEGORIES,
@@ -323,5 +341,7 @@ export {
   DISTRIBUTION_COLORS,
   BPM_BUCKET_COLORS,
   getBpmBucketColor,
+  getBpmBucketStart,
+  getBpmBucketLabel,
   getActivityEmoji
 };
