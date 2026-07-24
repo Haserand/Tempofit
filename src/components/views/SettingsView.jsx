@@ -16,8 +16,8 @@ import { Settings, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as 
  * rarement). Voir GeneratorView.jsx pour l'UI, useAthleticProfile.js pour le
  * state — inchangés, seul l'EMPLACEMENT dans l'app a changé.
  */
-export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, signOut, isSupabaseConfigured, openAuthModal, userCount }) {
-  const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg, bgAccentClass } = theme;
+export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, signOut, isSupabaseConfigured, userCount }) {
+  const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg } = theme;
   // Retour direct : erreur Spotify "redirect_uri: Not matching configuration"
   // au clic sur "Lier mon compte" — ce n'est PAS un bug de ce code (voir
   // App.jsx, `loginSpotify`) : Spotify exige que l'URL de redirection envoyée
@@ -108,9 +108,15 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                 <p className={`text-sm ${textMuted}`}>Données enregistrées uniquement sur cet appareil</p>
               </div>
             </div>
-            <button onClick={openAuthModal} className={`min-w-[168px] justify-center px-6 py-3 text-white font-black rounded-xl shadow-md transition-all hover:brightness-110 flex items-center ${bgAccentClass}`}>
-              Se connecter
-            </button>
+            {/* RETOUR DIRECT ("règle du Boy Scout" — le gros bouton "Se
+                connecter" ici faisait doublon avec celui du header, en haut
+                à droite, présent sur TOUTES les pages) — remplacé par une
+                simple mention textuelle discrète : cette carte reste
+                informative ("voici ton statut"), l'action elle-même n'a
+                plus qu'un seul point d'entrée dans toute l'app. */}
+            <p className="text-slate-400 text-xs sm:text-sm text-right shrink-0 max-w-[180px]">
+              Connexion via le bouton en haut à droite de l'application.
+            </p>
           </div>
         )}
       </div>
