@@ -163,11 +163,15 @@ export default function PlaylistHeader({
         </button>
       </div>
 
-      {/* Bloc de droite — compact : `justify-center` + `gap-2` (au lieu de
-          `space-y-4` imbriqué + `mt-5` sur les actions) pour que la hauteur
-          cumulée des 3 blocs (titre/métadonnées/actions) se rapproche de
-          celle de la pochette, sans grand vide ni hauteur forcée. */}
-      <div className="flex-1 flex flex-col justify-center gap-2 text-center md:text-left w-full min-w-0">
+      {/* Bloc de droite — `md:h-32` reprend EXACTEMENT la hauteur de la
+          pochette (`w-32 h-32` juste au-dessus, même valeur, une seule
+          source de vérité en tête plutôt que devinée) : titre/métadonnées
+          restent en haut dans leur flux naturel, et `mt-auto` sur la ligne
+          d'actions (plus bas) la pousse tout en bas de ce bloc — son bas
+          tombe donc exactement sur le bas de la pochette. Uniquement à
+          partir de `md:` : en dessous, la pochette est empilée AU-DESSUS de
+          ce bloc (pas à côté), donc rien à aligner sur sa hauteur ici. */}
+      <div className="flex-1 flex flex-col md:h-32 gap-2 text-center md:text-left w-full min-w-0">
           {/* Badge "séance déjà réalisée" + dernière date — seul élément
               qui peut légitimement précéder le titre (information sur la
               séance elle-même, pas une action). Bloc entier conditionné à
@@ -261,7 +265,7 @@ export default function PlaylistHeader({
               AVANT ce duo : c'est une action ponctuelle contextuelle liée à
               une séance déjà verrouillée, pas une des 2 actions "de base"
               toujours disponibles sur cette page. */}
-          <div className="flex items-center flex-wrap justify-center md:justify-start gap-3">
+          <div className="flex items-center flex-wrap justify-center md:justify-start gap-3 mt-auto">
             {isLocked && triggerCSVUpload && (
               <button
                 onClick={(e) => triggerCSVUpload(e, currentPlaylist, mostRecentCompletionIso)}
