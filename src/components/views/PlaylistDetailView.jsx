@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Activity, ChevronDown, ChevronUp } from 'lucide-react';
 import { genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog';
-import { getCadenceUnitLabel, getZoneForValue } from '../../appConfig';
+import { getCadenceUnitLabel, getZoneForValue, getBpmBucketLabel } from '../../appConfig';
 import { formatDuration } from '../../utils/format';
 import { deezerFetch } from '../../musicEngine';
 import SessionSummaryCard from '../shared/SessionSummaryCard';
@@ -367,8 +367,7 @@ function PlaylistDetailViewInner({
   // strict lui aussi) redevient donc la bonne condition ici.
   const trackBpmBucketLabel = (t) => {
     if (isBpmChartUsingRealProfile) return getZoneForValue(t.bpm, bpmChartActivityName, getProfileForWorkout)?.shortLabel || null;
-    const b = Math.floor(t.bpm / 20) * 20;
-    return `${b}-${b + 19}`;
+    return getBpmBucketLabel(t.bpm);
   };
   const hasDetailFilter = selectedDetailGenre.size > 0 || selectedDetailBpmBucket.size > 0;
   // OR à l'intérieur d'un même camembert (n'importe laquelle des parts
