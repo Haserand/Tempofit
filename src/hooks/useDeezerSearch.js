@@ -1,6 +1,7 @@
 import { WEAK_DEEZER_KEYWORD_GENRES } from '../musicCatalog';
 import { dedupeAppend, fetchWorldSearchResults, fetchBpmSearchResults } from '../searchEngine';
 import { SEARCH_LOADING_MESSAGES } from './useTrackSearch';
+import { useModalContext } from '../contexts/ModalContext';
 
 /**
  * useDeezerSearch — le "moteur de recherche Deezer" pour la modale de
@@ -24,14 +25,24 @@ import { SEARCH_LOADING_MESSAGES } from './useTrackSearch';
  * quel plutôt que déstructuré en 15 paramètres séparés — les deux hooks
  * restent étroitement liés (celui-ci n'a de sens qu'avec cet état-là), donc
  * autant le rendre explicite plutôt que de dupliquer la liste des champs.
+ *
+ * BUG RÉEL CORRIGÉ (25/07, chantier "centraliser les modales") :
+ * `closeSearchModal` déstructurait `setIsSearchModalOpen` DEPUIS `search` —
+ * mais ce champ n'a JAMAIS existé sur l'objet renvoyé par useTrackSearch()
+ * (`isSearchModalOpen` vivait en `useState` séparé, local à App.jsx). Chaque
+ * appel de `closeSearchModal()` (fond de la modale, bouton croix, après
+ * l'ajout d'un titre) plantait donc avec `TypeError: setIsSearchModalOpen is
+ * not a function`. `closeModal` (ModalContext) remplace maintenant ce champ
+ * fantôme — un vrai import de contexte, pas un champ qui n'a jamais existé.
  */
 export function useDeezerSearch(search, showToast, isNaughtyMode) {
+  const { closeModal } = useModalContext();
   const {
     searchQuery, searchResultsOffset, searchActiveArtistName,
     setSearchActiveArtistName, setWorldSearchResults, setWorldSearchOtherResults,
     setResultsContextLabel, setNoUsableResultsHint, setSearchResultsOffset,
     setSearchHasMoreResults, setIsWorldSearching, setIsLoadingMoreResults,
-    setSearchLoadingMessage, setIsSearchModalOpen, setSearchQuery, setIsBpmSearchMode,
+    setSearchLoadingMessage, setSearchQuery, setIsBpmSearchMode,
     setEditingBpmId, setBpmSearchParams,
   } = search;
 
@@ -100,7 +111,7 @@ export function useDeezerSearch(search, showToast, isNaughtyMode) {
   // l'ajout de nouvel état (searchResultsOffset, searchHasMoreResults,
   // searchActiveArtistName, worldSearchOtherResults) n'oublie aucun des 2 endroits.
   const closeSearchModal = () => {
-    setIsSearchModalOpen(false);
+    closeModal();
     setSearchQuery("");
     setIsBpmSearchMode(false);
     setWorldSearchResults([]);
