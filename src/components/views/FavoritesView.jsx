@@ -65,7 +65,7 @@ export default function FavoritesView({
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className={`border-b ${cardBorder} pb-6`}>
+      <div className={`border-b ${cardBorder} pb-6 pr-32 md:pr-40`}>
         <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}>
           <Star className="text-yellow-500 fill-yellow-500/20" size={36} /> <span>Mes Favoris</span>
         </h1>
