@@ -72,25 +72,33 @@ export default function ViewHeader({ theme, icon, title, subtitle, right = null 
 
   return (
     <div className={`border-b ${cardBorder} pb-6 pr-32 md:pr-40 flex flex-col sm:flex-row sm:items-start justify-between gap-4`}>
-      {/* `min-w-0` — sans lui, un enfant de flex refuse par défaut de rétrécir
-          sous la largeur de son propre contenu (`min-width: auto` implicite) :
-          `truncate` sur le sous-titre juste en dessous n'aurait alors jamais
-          d'effet visible sur un écran large, seulement si le texte débordait
-          déjà pour une autre raison — piège Flexbox classique, pas une
-          option cosmétique. */}
+      {/* `min-w-0` — permet à ce bloc de rétrécir sous la largeur de son
+          contenu si besoin (`min-width: auto` est la valeur par défaut d'un
+          enfant de flex, qui l'en empêcherait sinon) : garde une bonne
+          hygiène Flexbox même sans `truncate` (retiré, voir plus bas) — utile
+          si un titre+icône très long devait un jour cohabiter avec `right`. */}
       <div className="min-w-0">
         <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}>
           {icon} <span>{title}</span>
         </h1>
-        {/* Sous-titre verrouillé sur UNE seule ligne (`truncate`, 25/07) —
-            avant, un texte trop long passait sur 2 lignes selon la vue,
-            cassant l'esthétique "Dashboard" en changeant de page (un en-tête
-            plus haut qu'un autre). Toujours les MÊMES classes typographiques
-            ici, jamais redéfinies par vue — voir PlaylistsView.jsx/
-            GeneratorView.jsx (25/07) pour des textes raccourcis en amont,
-            plutôt que de compter sur la troncature seule pour masquer un
-            texte déjà trop long. */}
-        <p className={`mt-2 text-sm md:text-base truncate ${textMuted}`}>{subtitle}</p>
+        {/* BUG RÉEL CORRIGÉ (25/07, découvert et confirmé via inspection live
+            après un signalement "le sous-titre est invisible, mais visible
+            si j'ouvre les DevTools") — `truncate` posait `overflow: hidden`
+            sur ce `<p>`, DIRECTEMENT enfant (via le wrapper `min-w-0`) du
+            conteneur `animate-in slide-in-from-bottom-4` de CHAQUE vue (voir
+            GeneratorView.jsx/PlaylistsView.jsx/etc.) — un conteneur qui
+            ANIME un `transform` à l'entrée. Bug de rendu Chromium connu :
+            du contenu `overflow: hidden` à l'intérieur d'un ancêtre dont le
+            `transform` est en cours d'animation peut ne jamais se peindre
+            au premier rendu (DOM/classes/texte corrects, confirmé par
+            inspection — zéro pixel visible tant qu'aucun reflow forcé
+            n'est déclenché, ex. ouvrir les DevTools). `truncate` retiré :
+            le sous-titre peut à nouveau passer sur 2 lignes sur un écran
+            très étroit avec un texte très long, un compromis largement
+            préférable à un texte invisible pour tout le monde au premier
+            chargement. Les textes déjà raccourcis (même chantier) rendent
+            ce cas rare en pratique. */}
+        <p className={`mt-2 text-sm md:text-base ${textMuted}`}>{subtitle}</p>
       </div>
       {right && <div className="shrink-0 flex items-center gap-2">{right}</div>}
     </div>
