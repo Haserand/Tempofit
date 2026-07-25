@@ -53,7 +53,8 @@ const usePageSlice = (items, page) => {
 
 export default function PlaylistsView({
   theme, isNaughtyMode, savedPlaylists, setSavedPlaylists, requestRemoveSavedPlaylist, setPlaylistPlannedDate, getRankStyle,
-  setCurrentPlaylist, changeView, renderConfigInfoLine, renderCompletionsList, markPlaylistAsCompleted,
+  setCurrentPlaylist, changeView, renderConfigInfoLine, markPlaylistAsCompleted,
+  editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate, triggerCSVUpload,
 }) {
   const { cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
   const [draggedId, setDraggedId] = useState(null);
@@ -120,7 +121,10 @@ export default function PlaylistsView({
         theme={theme} isNaughtyMode={isNaughtyMode} playlist={playlist} rankStyle={rankStyle} rank={rank}
         onClick={() => { setCurrentPlaylist(playlist); changeView('playlist'); }}
         onDelete={requestRemoveSavedPlaylist}
-        renderConfigInfoLine={renderConfigInfoLine} renderCompletionsList={renderCompletionsList}
+        renderConfigInfoLine={renderConfigInfoLine}
+        editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
+        editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
+        triggerCSVUpload={triggerCSVUpload}
         markPlaylistAsCompleted={markPlaylistAsCompleted}
         onSetPlannedDate={setPlaylistPlannedDate}
         draggable={draggableSection}
