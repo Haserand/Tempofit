@@ -133,7 +133,7 @@ export default function Sidebar({
 
         {/* --- MON ESPACE --- */}
         <div className="flex flex-col space-y-1 mb-8">
-          <div className={`px-3 mb-2 text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Mon Espace</div>
+          <div className={`px-3 mb-2 text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Mon Espace{!user && ' • Invité'}</div>
 
           <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <List size={18} className={view === 'playlists' ? 'text-white' : textColorClass} />
