@@ -173,7 +173,7 @@ export default function PlaylistsView({
   const isEmpty = visiblePlaylists.length === 0;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-4xl mx-auto space-y-10">
       <ViewHeader
         theme={theme}
         icon={<Library className={textColorClass} size={36} />}
