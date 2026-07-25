@@ -72,29 +72,28 @@ export default function ViewHeader({ theme, icon, title, subtitle, right = null 
 
   return (
     <div className={`border-b ${cardBorder} pb-6 pr-32 md:pr-40 flex flex-col sm:flex-row sm:items-start justify-between gap-4`}>
-      {/* `min-w-0` — permet à ce bloc de rétrécir sous la largeur de son
-          contenu si besoin (`min-width: auto` est la valeur par défaut d'un
-          enfant de flex, qui l'en empêcherait sinon) : garde une bonne
-          hygiène Flexbox même sans `truncate` (retiré, voir plus bas) — utile
-          si un titre+icône très long devait un jour cohabiter avec `right`. */}
-      <div className="min-w-0">
+      <div>
         <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}>
           {icon} <span>{title}</span>
         </h1>
-        {/* BUG RÉEL CORRIGÉ (25/07) — voir index.css (`.force-repaint`) pour
-            le détail complet. Résumé : ce sous-titre restait invisible au
-            premier rendu sur certaines vues (confirmé par capture d'écran
-            ET inspection live — DOM/classes/texte corrects), réparé
-            uniquement par un évènement qui force un recalcul de mise en page
-            (redimensionner la fenêtre, ouvrir les DevTools). Bug de rendu
-            Chromium, pas une erreur dans ce composant — `.force-repaint`
-            déclenche ce même recalcul automatiquement au montage, sans
-            attendre une interaction. (Piste initiale, fausse, abandonnée :
-            `truncate` + `animate-in` — `animate-in`/`fade-in`/
-            `slide-in-from-*` ne produisent AUCUN CSS dans ce projet,
-            `tailwindcss-animate` n'étant pas installé — un bug séparé,
-            sans rapport, repéré au passage.) */}
-        <p className={`mt-2 text-sm md:text-base force-repaint ${textMuted}`}>{subtitle}</p>
+        {/* RETOUR EN ARRIÈRE ASSUMÉ (25/07) — après plusieurs correctifs qui
+            n'ont pas réglé un bug d'affichage réel (sous-titre invisible au
+            premier rendu sur certaines vues, confirmé par capture d'écran ET
+            inspection live), retour à la version d'origine de cette ligne,
+            strictement : pas de `text-sm md:text-base` (ajouté par le
+            chantier "polish UI", seul dénominateur commun à TOUTES les
+            tentatives ratées ensuite — jamais isolé/testé seul avant ce
+            retour), pas de `truncate`, pas de `min-w-0` sur le conteneur, pas
+            de `.force-repaint` (ajoutés/essayés ensuite pour tenter de
+            corriger le symptôme sans jamais y arriver). Cette version-ci a
+            fonctionné de façon démontrée sur de nombreuses captures avant
+            que "polish UI" n'y touche — mieux vaut repartir d'une base
+            confirmée que continuer à empiler des correctifs sur une base qui
+            ne marche plus. Le style verrouillé/une-seule-ligne du sous-titre
+            (`truncate`) est ABANDONNÉ pour l'instant : à retenter séparément,
+            un jour, en isolant CETTE classe précise pour vérifier si c'est
+            elle la vraie cause — pas en même temps qu'autre chose. */}
+        <p className={`mt-2 ${textMuted}`}>{subtitle}</p>
       </div>
       {right && <div className="shrink-0 flex items-center gap-2">{right}</div>}
     </div>
