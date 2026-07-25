@@ -105,7 +105,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           avant "à quoi es-tu relié". */}
       <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
         <h3 className={`font-bold text-xl mb-2 ${textHighlight}`}>Mon compte TempoFit</h3>
-        <p className={`text-sm mb-6 ${textMuted}`}>Connecte-toi pour retrouver tes favoris, routines et stats sur tous tes appareils. Sans compte, tout reste enregistré uniquement sur celui-ci.</p>
+        <p className={`text-sm mb-6 line-clamp-1 ${textMuted}`}>Connecte-toi pour synchroniser tes données sur tous tes appareils.</p>
 
         {!isSupabaseConfigured ? (
           <div className={`p-4 rounded-2xl border ${inputBorder} ${inputBg} text-sm ${textMuted}`}>
@@ -241,7 +241,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           <div className={`mt-4 p-4 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10`}>
             <div className="flex items-start gap-2 text-sm font-bold text-amber-700 dark:text-amber-400 mb-2">
               <AlertTriangle size={16} className="shrink-0 mt-0.5"/>
-              <span>Erreur "redirect_uri: Not matching configuration" ? Cette URL doit être enregistrée dans le Dashboard développeur Spotify de cette app (Settings → Redirect URIs), à l'identique.</span>
+              <span className="flex-1 min-w-0 line-clamp-1">Erreur "redirect_uri" ? Enregistre cette URL dans ton Dashboard développeur Spotify.</span>
             </div>
             <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${inputBorder} ${inputBg}`}>
               <code className={`flex-1 text-xs font-mono truncate ${textHighlight}`}>{spotifyRedirectUri}</code>
