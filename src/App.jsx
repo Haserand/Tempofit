@@ -1189,14 +1189,18 @@ function AppContent({
             </div>
           </header>
 
-          {/* Padding supérieur augmenté (`pt-20 sm:pt-24`, contre `p-4 sm:p-8`
-              partout ailleurs) — clairance nécessaire pour le bloc
-              thème/connexion, maintenant `fixed` (voir plus haut) et donc
-              plus jamais repoussé par le flux normal du contenu : sans cette
-              marge dédiée, l'en-tête de certaines vues (ex. le stepper
-              "ÉTAPE 1/4" de GeneratorView) pourrait passer juste sous ce
-              bloc plutôt qu'à côté. */}
-          <main id="main-scroll-area" className="relative flex-1 overflow-y-auto pt-20 sm:pt-24 px-4 sm:px-8 pb-4 sm:pb-8 no-scrollbar">
+          {/* Padding supérieur RÉDUIT (25/07, "uniformisation des largeurs de
+              vues et alignement vertical") — `pt-6 sm:pt-8` (aligné sur le
+              padding latéral `px-4 sm:px-8`), contre `pt-20 sm:pt-24` avant.
+              L'ancienne marge énorme poussait le titre de chaque vue très en
+              dessous des boutons flottants Thème/Connexion (voir juste plus
+              bas), créant un grand vide au-dessus du contenu. La protection
+              contre une collision horizontale avec ces boutons (toujours
+              `absolute`, toujours au-dessus du flux) est maintenant assurée
+              PAR CHAQUE VUE elle-même (`pr-32 md:pr-40` sur le bloc d'en-tête
+              — voir GeneratorView.jsx/PlaylistsView.jsx/etc.), pas par cette
+              marge globale. */}
+          <main id="main-scroll-area" className="relative flex-1 overflow-y-auto pt-6 sm:pt-8 px-4 sm:px-8 pb-4 sm:pb-8 no-scrollbar">
 
             {/* Bloc thème + connexion — RETOUR DIRECT ("je veux juste que les
                 boutons restent en haut et que quand on scroll on les voit
