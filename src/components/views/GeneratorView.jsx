@@ -325,12 +325,21 @@ export default function GeneratorView({
   }, [wizardStep, structureMode, targetMode]);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
-      <div className="text-center md:text-left space-y-2 mb-8">
-        <h1 className={`text-3xl md:text-5xl font-extrabold tracking-tight ${textHighlight}`}>
-          {showAthleticProfile ? 'Mon Profil Athlétique' : (isNaughtyMode ? "Prépare l'ambiance..." : "Sculpte ta séance")}
+    <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* En-tête standardisé (25/07) — suit EXACTEMENT le même modèle que
+          PlaylistsView.jsx/StatsView.jsx (icône à gauche, text-4xl, aligné à
+          gauche, bordure en bas) : avant, cette vue était la seule à avoir un
+          titre centré/massif (text-5xl) avec un text-shadow sur le sous-titre
+          — une incohérence visible en changeant de page, le titre "sautait"
+          de taille et de position. `<Gauge/>` remplace `<Zap/>` quand
+          `showAthleticProfile` est vrai, cohérent avec l'icône déjà utilisée
+          pour "Profil Athlétique" dans la Sidebar. */}
+      <div className={`border-b ${cardBorder} pb-6`}>
+        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}>
+          {showAthleticProfile ? <Gauge className={textColorClass} size={36} /> : <Zap className={textColorClass} size={36} />}
+          <span>{showAthleticProfile ? 'Mon Profil Athlétique' : (isNaughtyMode ? "Prépare l'ambiance..." : "Sculpte ta séance")}</span>
         </h1>
-        <p className="text-lg font-medium text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <p className={`mt-2 ${isNaughtyMode ? 'text-slate-700' : 'text-slate-300'}`}>
           {showAthleticProfile ? "Définis ton BPM musical cible par zone d'effort, pour chaque activité." : displaySubtitleGen}
         </p>
       </div>
