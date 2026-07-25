@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NAUGHTY_ROUTINE_NAMES } from '../appConfig';
 import { usePersistentState } from './usePersistentState';
+import { useModalContext } from '../contexts/ModalContext';
 
 // Hash simple et stable (même routine → toujours le même résultat, pas
 // aléatoire à chaque re-render) utilisé pour attribuer un nom/icône "Intime"
@@ -26,8 +27,25 @@ function simpleHash(str) {
  * partie de ce hook — App.jsx construit l'objet routine, puis appelle
  * `addRoutine(routine)` fourni ici. Même logique pour la mise à jour d'une
  * routine éditée (`updateRoutine`).
+ *
+ * `isSavingRoutineModalOpen`/`isEditRoutineModalOpen` (chantier "centraliser
+ * les modales", 25/07) sont maintenant DÉRIVÉES de `ModalContext` plutôt que
+ * de state local — mais toujours retournées sous le même nom, pour que rien
+ * d'autre n'ait besoin de changer côté lecture (App.jsx, SavingRoutineModal,
+ * EditRoutineModal). Les setters correspondants NE SONT PLUS retournés : les
+ * déclencheurs (GeneratorView.jsx, RoutinesView.jsx) appellent maintenant
+ * `openModal('SAVING_ROUTINE' | 'EDIT_ROUTINE')` directement via
+ * `useModalContext()`, comme CustomActivityModal.jsx le fait déjà pour sa
+ * propre modale. `editingRoutine`/`setEditingRoutine` restent en state LOCAL
+ * ici, volontairement PAS migrés dans `modalData` : c'est un vrai formulaire
+ * actif (18 points d'écriture dans EditRoutineModal.jsx, pas juste un payload
+ * lu une fois à l'ouverture) — migrer casserait plus qu'il ne simplifierait.
  */
 export function useRoutines(isNaughtyMode, showToast) {
+  const { activeModal, closeModal } = useModalContext();
+  const isSavingRoutineModalOpen = activeModal === 'SAVING_ROUTINE';
+  const isEditRoutineModalOpen = activeModal === 'EDIT_ROUTINE';
+
   const [routines, setRoutines] = usePersistentState('routines', () => [{
     id: 'routine-1', name: 'Mon 5km Quotidien', workoutType: 'Course à pied', customActivity: '',
     isIntervalMode: false, bpm: 160, selectedGenres: ['Métal', 'Rock'], bpmTolerance: 10, crossfade: 2,
@@ -36,12 +54,10 @@ export function useRoutines(isNaughtyMode, showToast) {
     createdAt: new Date().toLocaleDateString()
   }]);
   const [routineBatchCounts, setRoutineBatchCounts] = useState({});
-  const [isSavingRoutineModalOpen, setIsSavingRoutineModalOpen] = useState(false);
   // Routine en cours d'édition (copie modifiable, distincte de l'entrée dans
   // `routines` tant que l'utilisateur n'a pas choisi "cette séance seulement"
   // ou "toujours").
   const [editingRoutine, setEditingRoutine] = useState(null);
-  const [isEditRoutineModalOpen, setIsEditRoutineModalOpen] = useState(false);
   const [newRoutineName, setNewRoutineName] = useState("");
   const [newRoutineIcon, setNewRoutineIcon] = useState("⚡");
   const [newRoutineFreq, setNewRoutineFreq] = useState("Manuel");
@@ -65,7 +81,7 @@ export function useRoutines(isNaughtyMode, showToast) {
   const addRoutine = (newRoutine) => {
     setRoutines(prev => [newRoutine, ...prev]);
     setNewRoutineName(""); setNewRoutineIcon("⚡"); setNewRoutineFreq("Manuel");
-    setIsSavingRoutineModalOpen(false);
+    closeModal();
     showToast(`Routine sauvegardée avec succès !`);
   };
 
@@ -77,9 +93,9 @@ export function useRoutines(isNaughtyMode, showToast) {
   return {
     routines, setRoutines,
     routineBatchCounts, setRoutineBatchCounts,
-    isSavingRoutineModalOpen, setIsSavingRoutineModalOpen,
+    isSavingRoutineModalOpen,
     editingRoutine, setEditingRoutine,
-    isEditRoutineModalOpen, setIsEditRoutineModalOpen,
+    isEditRoutineModalOpen,
     newRoutineName, setNewRoutineName,
     newRoutineIcon, setNewRoutineIcon,
     newRoutineFreq, setNewRoutineFreq,
