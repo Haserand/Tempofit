@@ -81,24 +81,20 @@ export default function ViewHeader({ theme, icon, title, subtitle, right = null 
         <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}>
           {icon} <span>{title}</span>
         </h1>
-        {/* BUG RÉEL CORRIGÉ (25/07, découvert et confirmé via inspection live
-            après un signalement "le sous-titre est invisible, mais visible
-            si j'ouvre les DevTools") — `truncate` posait `overflow: hidden`
-            sur ce `<p>`, DIRECTEMENT enfant (via le wrapper `min-w-0`) du
-            conteneur `animate-in slide-in-from-bottom-4` de CHAQUE vue (voir
-            GeneratorView.jsx/PlaylistsView.jsx/etc.) — un conteneur qui
-            ANIME un `transform` à l'entrée. Bug de rendu Chromium connu :
-            du contenu `overflow: hidden` à l'intérieur d'un ancêtre dont le
-            `transform` est en cours d'animation peut ne jamais se peindre
-            au premier rendu (DOM/classes/texte corrects, confirmé par
-            inspection — zéro pixel visible tant qu'aucun reflow forcé
-            n'est déclenché, ex. ouvrir les DevTools). `truncate` retiré :
-            le sous-titre peut à nouveau passer sur 2 lignes sur un écran
-            très étroit avec un texte très long, un compromis largement
-            préférable à un texte invisible pour tout le monde au premier
-            chargement. Les textes déjà raccourcis (même chantier) rendent
-            ce cas rare en pratique. */}
-        <p className={`mt-2 text-sm md:text-base ${textMuted}`}>{subtitle}</p>
+        {/* BUG RÉEL CORRIGÉ (25/07) — voir index.css (`.force-repaint`) pour
+            le détail complet. Résumé : ce sous-titre restait invisible au
+            premier rendu sur certaines vues (confirmé par capture d'écran
+            ET inspection live — DOM/classes/texte corrects), réparé
+            uniquement par un évènement qui force un recalcul de mise en page
+            (redimensionner la fenêtre, ouvrir les DevTools). Bug de rendu
+            Chromium, pas une erreur dans ce composant — `.force-repaint`
+            déclenche ce même recalcul automatiquement au montage, sans
+            attendre une interaction. (Piste initiale, fausse, abandonnée :
+            `truncate` + `animate-in` — `animate-in`/`fade-in`/
+            `slide-in-from-*` ne produisent AUCUN CSS dans ce projet,
+            `tailwindcss-animate` n'étant pas installé — un bug séparé,
+            sans rapport, repéré au passage.) */}
+        <p className={`mt-2 text-sm md:text-base force-repaint ${textMuted}`}>{subtitle}</p>
       </div>
       {right && <div className="shrink-0 flex items-center gap-2">{right}</div>}
     </div>
