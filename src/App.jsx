@@ -66,18 +66,16 @@ import StatsView from './components/views/StatsView';
 import GeneratorView from './components/views/GeneratorView';
 import PlaylistDetailView from './components/views/PlaylistDetailView';
 import CustomActivityModal from './components/modals/CustomActivityModal';
-import ImportSharedPlaylistModal from './components/modals/ImportSharedPlaylistModal';
 import DiscoverView from './components/views/DiscoverView';
 import MiniPlayerBar from './components/shared/MiniPlayerBar';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 import SavingRoutineModal from './components/modals/SavingRoutineModal';
 import ShareModal from './components/modals/ShareModal';
-import AuthModal from './components/modals/AuthModal';
 import { useAuthContext } from './contexts/AuthContext';
+import { ModalProvider, useModalContext } from './contexts/ModalContext';
 import { GeneratorProvider, useGeneratorContext } from './contexts/GeneratorContext';
 import IconPickerModal from './components/modals/IconPickerModal';
-import PendingNavigationModal from './components/modals/PendingNavigationModal';
-import PendingUnsaveModal from './components/modals/PendingUnsaveModal';
+import ModalContainer from './components/shared/ModalContainer';
 import SearchModal from './components/modals/SearchModal';
 import EditRoutineModal from './components/modals/EditRoutineModal';
 import Sidebar from './components/shared/Sidebar';
@@ -259,10 +257,11 @@ function AppContent({
   // pour commencer (voir la discussion qui a mené à ce chantier). `user`/
   // `authLoading` sont déjà lus directement par usePersistentState.js (voir
   // ce fichier) pour la synchro — ici, on n'a besoin que de `signUp`/
-  // `signIn`/`signOut` pour les passer à AuthModal/SettingsView, et de
-  // `isAuthModalOpen` (state propre à CETTE vue, pas au contexte global).
+  // `signIn`/`signOut` pour les passer à AuthModal/SettingsView.
+  // `isAuthModalOpen` vivait ici (state local) avant le chantier "centraliser
+  // les modales" (25/07) — dérivée maintenant de ModalContext
+  // (`activeModal === 'AUTH'`), voir ModalContainer.jsx.
   const { user, signUp, signIn, signOut, resetPassword, updateEmail, isSupabaseConfigured, userCount } = useAuthContext();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // RETOUR DIRECT ("pas de message d'erreur quand je clique sur un lien
   // expiré ?") — Supabase redirige bien vers l'app avec le détail de
@@ -290,15 +289,13 @@ function AppContent({
 
   // RETOUR DIRECT ("rendre le lien de partage réellement importable, sans
   // feed communautaire complet") — détecte `?import=...` (voir useShare.js,
-  // playlistShareCode.js) au montage, une seule fois. `importedPlaylistPreview`
-  // reste le payload DÉCODÉ tel quel (clés courtes ti/ar/bp/du...), pas
-  // encore une vraie playlist — voir `importSharedPlaylist` plus bas, qui
-  // fait la conversion au moment du clic sur "Ajouter à Mes Séances", pas ici
-  // (pas besoin de la construire avant que l'utilisateur confirme vouloir
-  // l'ajouter).
-  const [importedPlaylistPreview, setImportedPlaylistPreview] = useState(null);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-
+  // playlistShareCode.js) au montage, une seule fois. Le payload DÉCODÉ (clés
+  // courtes ti/ar/bp/du...) devient `modalData` (ModalContext, chantier
+  // "centraliser les modales", 25/07) — pas encore une vraie playlist, voir
+  // `importSharedPlaylist` plus bas, qui fait la conversion au moment du clic
+  // sur "Ajouter à Mes Séances", pas ici (pas besoin de la construire avant
+  // que l'utilisateur confirme vouloir l'ajouter). `importedPlaylistPreview`/
+  // `isImportModalOpen` vivaient ici en state local avant ce chantier.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('import');
@@ -306,8 +303,7 @@ function AppContent({
 
     const decoded = decodePlaylistFromSharing(code);
     if (decoded) {
-      setImportedPlaylistPreview(decoded);
-      setIsImportModalOpen(true);
+      openModal('IMPORT_SHARED_PLAYLIST', decoded);
     } else {
       showToast("❌ Ce lien de playlist est invalide ou corrompu.", 'error');
     }
@@ -402,6 +398,12 @@ function AppContent({
     getActiveWorkoutName,
   } = useGeneratorContext();
 
+  // ModalContext (chantier "centraliser les modales", 25/07) — source de vérité
+  // unique pour "quelle modale est ouverte" (voir ModalContext.jsx). Appelé ici,
+  // tôt, pour que `openModal`/`closeModal`/`activeModal`/`modalData` soient
+  // disponibles à tout le corps de AppContent (import partagé, resolvePendingNavigation...).
+  const { activeModal, modalData, openModal, closeModal } = useModalContext();
+
   const [currentPlaylist, setCurrentPlaylist] = useState(null);
   // Playlist d'exemple pré-remplie, même principe que la routine et les favoris de
   // départ — clairement nommée "Exemple" pour ne pas laisser penser qu'elle a été
@@ -485,8 +487,8 @@ function AppContent({
    * d'utilisation, seulement sa structure (titres, BPM, activité).
    */
   const importSharedPlaylist = () => {
-    if (!importedPlaylistPreview) return;
-    const preview = importedPlaylistPreview;
+    if (activeModal !== 'IMPORT_SHARED_PLAYLIST' || !modalData) return;
+    const preview = modalData;
 
     const genres = Array.from(new Set(preview.tracks.map(t => t.ge).filter(Boolean)));
     const avgBpm = Math.round(preview.tracks.reduce((s, t) => s + (t.bp || 0), 0) / preview.tracks.length) || 120;
@@ -525,8 +527,7 @@ function AppContent({
 
     const finalPlaylist = recalculateTimeline(rawPlaylist);
     setSavedPlaylists(prev => [finalPlaylist, ...prev]);
-    setIsImportModalOpen(false);
-    setImportedPlaylistPreview(null);
+    closeModal();
     showToast("✅ Playlist ajoutée à Mes Séances !");
     setCurrentPlaylist(finalPlaylist);
     changeView('playlist');
@@ -831,20 +832,11 @@ function AppContent({
     return () => { cancelled = true; };
   }, []); // une seule fois au montage, voir le commentaire ci-dessus
 
-  // Vue demandée en attente de confirmation — non-null uniquement pendant que
-  // la modale d'avertissement (playlist générée non sauvegardée) est affichée.
-  const [pendingNavigation, setPendingNavigation] = useState(null);
-
-  // Confirmation avant de retirer une playlist qui a déjà de l'historique
-  // (complétions et/ou données Garmin/Strava importées) — contrairement à la
-  // suppression depuis "Mes Séances" (PlaylistCard), qui reste sans
-  // confirmation par cohérence avec l'existant, ce bouton-ci est un badge de
-  // statut devenu cliquable : le risque d'un clic accidentel (swipe mobile,
-  // simple survol qui devient un tap) y est plus élevé, et la perte port sur
-  // du VRAI historique (séances faites, données réelles), pas juste une
-  // playlist fraîchement générée. Reste `null` tant qu'aucune confirmation
-  // n'est nécessaire ; sinon contient la playlist concernée.
-  const [pendingUnsavePlaylist, setPendingUnsavePlaylist] = useState(null);
+  // pendingNavigation/pendingUnsavePlaylist vivaient ici en state local avant
+  // le chantier "centraliser les modales" (25/07) — désormais représentés par
+  // `activeModal === 'PENDING_NAVIGATION' | 'PENDING_UNSAVE'` + `modalData`
+  // (ModalContext), déclenchés respectivement par `changeView` (useNavigation.js)
+  // et `requestRemoveSavedPlaylist` (usePlaylistLibrary.js) via `openModal(...)`.
 
   // hasUnsavedPlaylist/changeView/openCuratedPlaylist + l'effet beforeunload
   // extraites dans useNavigation.js (25/07, chantier "réduire le God
@@ -853,21 +845,24 @@ function AppContent({
   const { hasUnsavedPlaylist, changeView, openCuratedPlaylist } = useNavigation(
     view, setView, setIsMobileMenuOpen,
     currentPlaylist, setCurrentPlaylist, savedPlaylists,
-    setPendingNavigation, setShowAthleticProfile, isNaughtyMode,
+    setShowAthleticProfile, isNaughtyMode,
   );
 
   // (L'effet `beforeunload` associé à hasUnsavedPlaylist vit maintenant DANS
   // useNavigation.js, avec le reste du cluster — pas dupliqué ici.)
 
-  // Résout la navigation mise en attente par la modale d'avertissement.
+  // Résout la navigation mise en attente par la modale d'avertissement. Lit la
+  // vue en attente dans `modalData` (posée par `changeView`, voir
+  // useNavigation.js) plutôt que dans un state `pendingNavigation` dédié.
   const resolvePendingNavigation = (shouldSave) => {
     if (shouldSave) handleSavePlaylist();
-    if (pendingNavigation) {
-      setView(pendingNavigation);
+    const pendingView = activeModal === 'PENDING_NAVIGATION' ? modalData : null;
+    if (pendingView) {
+      setView(pendingView);
       setIsMobileMenuOpen(false);
-      if (pendingNavigation === 'generator') setWizardStep(1);
+      if (pendingView === 'generator') setWizardStep(1);
     }
-    setPendingNavigation(null);
+    closeModal();
   };
 
   // MIGRÉ VERS GeneratorContext (déjà déstructurée plus haut depuis
@@ -972,13 +967,14 @@ function AppContent({
   // "réduire le God Component") : même schéma que usePlaylistCompletions.js —
   // currentPlaylist/savedPlaylists restent ici (lus/écrits par bien d'autres
   // fonctions) et transmis en paramètres, avec openCuratedPlaylist (pour la
-  // restauration du template pristine) et setPendingUnsavePlaylist (modale de
-  // confirmation), tous deux déjà définis plus haut dans ce fichier.
+  // restauration du template pristine), déjà défini plus haut dans ce fichier.
+  // La modale de confirmation (openModal('PENDING_UNSAVE', ...)) est gérée par
+  // usePlaylistLibrary.js lui-même via ModalContext, pas transmise en paramètre.
   const {
     handleSavePlaylist, removeSavedPlaylist, playlistHasHistory, requestRemoveSavedPlaylist, setPlaylistPlannedDate,
   } = usePlaylistLibrary(
     currentPlaylist, setCurrentPlaylist, savedPlaylists, setSavedPlaylists, showToast,
-    openCuratedPlaylist, setPendingUnsavePlaylist, userStats, checkTrophies,
+    openCuratedPlaylist, userStats, checkTrophies,
   );
 
   // MIGRÉ VERS PlaylistDetailContext (`handleUnsavePlaylist`, même wrapper
@@ -1227,7 +1223,7 @@ function AppContent({
                   </button>
                 ) : (
                   <button
-                    onClick={() => setIsAuthModalOpen(true)}
+                    onClick={() => openModal('AUTH')}
                     className={`px-4 py-2.5 rounded-full shadow-lg border hover:scale-105 transition-transform flex items-center gap-1.5 text-sm font-bold ${bgAccentClass} text-white border-transparent`}
                   >
                     <UserIcon size={16} />
@@ -1429,17 +1425,9 @@ function AppContent({
           showToast={showToast}
         />
 
-        <PendingNavigationModal
-          theme={themeTokens}
-          pendingNavigation={pendingNavigation} setPendingNavigation={setPendingNavigation}
-          resolvePendingNavigation={resolvePendingNavigation}
-        />
-
-        <PendingUnsaveModal
-          theme={themeTokens}
-          pendingUnsavePlaylist={pendingUnsavePlaylist} setPendingUnsavePlaylist={setPendingUnsavePlaylist}
-          removeSavedPlaylist={removeSavedPlaylist}
-        />
+        {/* PendingNavigationModal/PendingUnsaveModal migrées vers ModalContext
+            (25/07, chantier "centraliser les modales") — rendues par
+            <ModalContainer/>, voir plus bas. */}
 
         {/* Extrait dans CustomActivityModal.jsx. Chantier God Component étape 2
             (suite) : ne reçoit plus que ce qui est hors du périmètre de
@@ -1490,16 +1478,18 @@ function AppContent({
           includeSummaryImage={includeSummaryImage} setIncludeSummaryImage={setIncludeSummaryImage}
         />
 
-        <AuthModal
+        {/* AuthModal/ImportSharedPlaylistModal/PendingNavigationModal/PendingUnsaveModal
+            — les 4 premières modales migrées vers ModalContext (25/07, chantier
+            "centraliser les modales" — suggestion initiale de Gemini, vérifiée
+            et adaptée avant implémentation, voir ModalContext.jsx). Les 6
+            autres modales du projet restent rendues directement ici pour
+            l'instant (voir ModalContext.jsx pour le détail du périmètre). */}
+        <ModalContainer
           theme={themeTokens}
-          isAuthModalOpen={isAuthModalOpen} setIsAuthModalOpen={setIsAuthModalOpen}
           signUp={signUp} signIn={signIn} resetPassword={resetPassword} showToast={showToast}
-        />
-
-        <ImportSharedPlaylistModal
-          theme={themeTokens}
-          isOpen={isImportModalOpen} onClose={() => { setIsImportModalOpen(false); setImportedPlaylistPreview(null); }}
-          preview={importedPlaylistPreview} onImport={importSharedPlaylist}
+          onImportSharedPlaylist={importSharedPlaylist}
+          resolvePendingNavigation={resolvePendingNavigation}
+          removeSavedPlaylist={removeSavedPlaylist}
         />
 
         {/* Chantier God Component (suite) : ne reçoit plus que theme et
@@ -1545,6 +1535,12 @@ function AppContent({
  * indépendants l'un de l'autre (aucun des deux ne lit l'état de l'autre) —
  * leur ordre relatif n'a donc aucune importance fonctionnelle. AuthProvider
  * reste dans main.jsx, au-dessus des deux (voir plus haut).
+ *
+ * <ModalProvider> (chantier "centraliser les modales", 25/07) enveloppe
+ * SEULEMENT <AppContent>, à l'intérieur d'<ErrorBoundary> — contrairement à
+ * GeneratorProvider/AudioPlayerProvider, rien en dehors d'AppContent n'a
+ * besoin d'y accéder (pas de valeur à faire remonter ici comme
+ * athleticProfile/toast), donc pas de raison de l'ouvrir plus haut.
  */
 export default function App() {
   const [isNaughtyMode, setIsNaughtyMode] = useState(false);
@@ -1573,12 +1569,14 @@ export default function App() {
     >
       <AudioPlayerProvider showToast={showToast}>
         <ErrorBoundary>
-          <AppContent
-            isNaughtyMode={isNaughtyMode} setIsNaughtyMode={setIsNaughtyMode}
-            showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
-            athleticProfileApi={athleticProfileApi}
-            toast={toast} showToast={showToast}
-          />
+          <ModalProvider>
+            <AppContent
+              isNaughtyMode={isNaughtyMode} setIsNaughtyMode={setIsNaughtyMode}
+              showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
+              athleticProfileApi={athleticProfileApi}
+              toast={toast} showToast={showToast}
+            />
+          </ModalProvider>
         </ErrorBoundary>
       </AudioPlayerProvider>
     </GeneratorProvider>
