@@ -632,7 +632,7 @@ export default function StatsView({
     .sort((a, b) => b.seconds - a.seconds);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-4xl mx-auto space-y-8">
       <ViewHeader
         theme={theme}
         icon={<Activity className={statsMode === 'naughty' ? 'text-rose-500' : textColorClass} size={36} />}
