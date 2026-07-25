@@ -631,7 +631,7 @@ export default function StatsView({
     .sort((a, b) => b.seconds - a.seconds);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
+    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className={`border-b ${cardBorder} pb-6 flex items-start justify-between gap-4`}>
         <div>
           <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${statsMode === 'naughty' ? 'text-slate-950' : 'text-white'}`}>
