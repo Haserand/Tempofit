@@ -15,16 +15,20 @@ import { createContext, useContext, useState, useCallback } from 'react';
  *    obligé un composant central à connaître/rassembler les props de TOUTES les
  *    modales (10 signatures différentes, aucune ne se ressemble) — le problème
  *    aurait juste déménagé dans ce composant plutôt que d'être réduit.
- * 2. Cette 1ère passe ne couvre QUE les modales dont le déclenchement était déjà
- *    simple (état local à App.jsx, ou dérivé d'un flux "confirmation en
- *    attente" — voir PENDING_NAVIGATION/PENDING_UNSAVE ci-dessous) :
- *    AUTH, IMPORT_SHARED_PLAYLIST, PENDING_NAVIGATION, PENDING_UNSAVE.
- *    Volontairement PAS migrées ici : SavingRoutineModal/EditRoutineModal (état
- *    possédé par `useRoutines()`, migrer casserait la source de vérité unique
- *    de ce hook sans bénéfice clair) et ShareModal/SearchModal (déclenchées
- *    depuis plusieurs composants différents, mélangées à de l'état persistant
- *    de hooks singleton comme useTrackSearch — périmètre plus large, à traiter
- *    séparément).
+ * 2. Migration faite en plusieurs passes, au fil de la session du 25/07 —
+ *    toutes les modales sauf 2 sont maintenant sur ModalContext : AUTH,
+ *    IMPORT_SHARED_PLAYLIST, PENDING_NAVIGATION, PENDING_UNSAVE (rendues par
+ *    ModalContainer.jsx), SAVING_ROUTINE, EDIT_ROUTINE (état dérivé dans
+ *    useRoutines.js), SHARE (dérivé dans useShare.js), SEARCH (dérivé dans
+ *    App.jsx). Volontairement PAS migrées : CustomActivityModal (déjà
+ *    autonome via GeneratorContext, rien à gagner) et IconPickerModal
+ *    (supprimée — jamais déclenchée nulle part dans le projet, fonctionnalité
+ *    morte confirmée, sans rapport avec ce chantier).
+ *
+ * Chaque modale garde son booléen d'ouverture dérivé LÀ où son état vit déjà
+ * (App.jsx, useRoutines.js, useShare.js) plutôt que rendue systématiquement
+ * via ModalContainer.jsx — le faire transiter par un composant central sans
+ * bénéfice réel aurait juste déplacé la complexité, pas réduit.
  *
  * `closeModal` ne vide QUE si la modale fermée est bien celle actuellement
  * active — filet de sécurité contre une fermeture tardive (ex. un timeout) qui
