@@ -74,7 +74,6 @@ import ShareModal from './components/modals/ShareModal';
 import { useAuthContext } from './contexts/AuthContext';
 import { ModalProvider, useModalContext } from './contexts/ModalContext';
 import { GeneratorProvider, useGeneratorContext } from './contexts/GeneratorContext';
-import IconPickerModal from './components/modals/IconPickerModal';
 import ModalContainer from './components/shared/ModalContainer';
 import SearchModal from './components/modals/SearchModal';
 import EditRoutineModal from './components/modals/EditRoutineModal';
@@ -594,7 +593,6 @@ function AppContent({
     if (result !== 'cancelled' && !userStats.hasSharedSomething) checkTrophies({ ...userStats, hasSharedSomething: true });
     return result;
   };
-  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
 
   // isSearchModalOpen vivait ici en state local avant le chantier "centraliser
   // les modales" (25/07) — dérivée maintenant de ModalContext
@@ -1417,14 +1415,6 @@ function AppContent({
           currentPlaylist={currentPlaylist} favorites={favorites} setFavorites={setFavorites}
           editingBpmId={editingBpmId} setEditingBpmId={setEditingBpmId} commitBpmEdit={commitBpmEdit}
           handleAddManualTrack={handleAddManualTrack} togglePreview={togglePreview} playingPreviewId={playingPreviewId}
-          showToast={showToast}
-        />
-
-        <IconPickerModal
-          theme={themeTokens}
-          isIconPickerOpen={isIconPickerOpen} setIsIconPickerOpen={setIsIconPickerOpen}
-          currentPlaylist={currentPlaylist} setCurrentPlaylist={setCurrentPlaylist}
-          savedPlaylists={savedPlaylists} setSavedPlaylists={setSavedPlaylists}
           showToast={showToast}
         />
 
