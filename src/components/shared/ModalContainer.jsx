@@ -14,9 +14,16 @@ import PendingUnsaveModal from '../modals/PendingUnsaveModal';
  * `pendingUnsavePlaylist`...) — aucune modale n'a eu besoin de changer sa
  * propre logique interne au-delà de `setX(null)` → `onClose()`.
  *
- * Les 6 autres modales du projet (Share, Search, EditRoutine, SavingRoutine,
- * CustomActivity, IconPicker) restent rendues directement dans App.jsx pour
- * l'instant — pas encore migrées, voir ModalContext.jsx.
+ * `Share`, `Search`, `EditRoutine` et `SavingRoutine` sont ÉGALEMENT migrées
+ * vers ModalContext depuis (toujours 25/07), mais rendues ailleurs qu'ici :
+ * leur booléen d'ouverture est dérivé directement dans le hook qui possède
+ * déjà le reste de leur état (`useShare.js`, `useRoutines.js`), donc rendues
+ * dans App.jsx à l'endroit où cet état est naturellement disponible, plutôt
+ * que de le faire transiter par ce composant sans bénéfice réel.
+ * `CustomActivityModal` n'a pas besoin d'être migrée : déjà autonome via
+ * GeneratorContext. `IconPickerModal` a été supprimée (25/07) : jamais
+ * déclenchée nulle part dans le projet — fonctionnalité morte confirmée,
+ * sans rapport avec ce chantier.
  */
 export default function ModalContainer({
   theme, signUp, signIn, resetPassword, showToast,
