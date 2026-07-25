@@ -70,7 +70,7 @@ export default function FavoritesView({
         theme={theme}
         icon={<Star className="text-yellow-500 fill-yellow-500/20" size={36} />}
         title="Mes Favoris"
-        subtitle="Priorité à la génération : tes titres favoris d'abord, puis tes artistes favoris, puis une recherche plus large si besoin pour compléter la playlist."
+        subtitle="Priorité à la génération : favoris d'abord, puis artistes favoris, puis recherche élargie si besoin."
       />
 
       <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
