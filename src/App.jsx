@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, Sun, Moon } from 'lucide-react';
-import { ARTIST_CATALOG, genreDisplayLabel } from './musicCatalog';
+import { genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getRankStyle } from './appConfig';
 
 // =====================================================================================
@@ -26,7 +26,7 @@ import { NAUGHTY_ROUTINE_NAMES, getRankStyle } from './appConfig';
 // traduction jamais poursuivi. Retiré pour rester cohérent avec le reste : le
 // texte est maintenant écrit en dur à son unique point d'usage.
 
-import { safeFetchJson, deezerFetch, getSingleMatchingTrack, buildSegmentTracks, deduceCrescendoBpm, buildCrescendoSegments, recalculateTimeline } from './musicEngine';
+import { deezerFetch, deduceCrescendoBpm, buildCrescendoSegments, recalculateTimeline } from './musicEngine';
 import { decodePlaylistFromSharing } from './utils/playlistShareCode';
 import { curatedSessions, naughtyCuratedSessions } from './data/curatedSessions';
 import { useTheme } from './hooks/useTheme';
