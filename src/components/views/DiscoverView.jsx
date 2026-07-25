@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Lock, Compass, Search, SearchX } from 'lucide-react';
+import { Compass, Search, SearchX } from 'lucide-react';
 import { curatedSessions, naughtyCuratedSessions } from '../../data/curatedSessions';
 import TemplateCard from './TemplateCard';
 import ViewHeader from '../shared/ViewHeader';
@@ -17,9 +17,11 @@ import ViewHeader from '../shared/ViewHeader';
  * de catégories (voir plus bas), là où c'est déjà l'usage établi ailleurs
  * dans l'app (voir Genres, GeneratorView.jsx).
  *
- * "Publier ma propre séance" : bouton visuellement désactivé (cadenas,
- * opacité réduite, curseur "not-allowed") — pose les bases visuelles de la
- * V2 communautaire sans promettre une fonctionnalité qui n'existe pas encore.
+ * "Publier ma propre séance" (bouton visuellement désactivé, cadenas +
+ * opacité réduite) retiré entièrement le 25/07 (chantier "polish UI des
+ * en-têtes") : encombrait l'interface pour une fonctionnalité qui n'existe
+ * encore nulle part (pas de V2 communautaire en vue) — à réintroduire le
+ * jour où elle a une vraie destination, pas avant.
  *
  * RETOUR DIRECT ("recherche + filtres, maintenant que le catalogue est à 30
  * playlists") — recherche/filtre entièrement LOCAUX à ce composant (pas de
@@ -89,40 +91,22 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode }) {
           />
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          {/* Bloc de gauche : Pilules de catégories */}
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 flex-1">
-            <button
-              onClick={() => setActiveCategory('Toutes')}
-              className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-colors ${activeCategory === 'Toutes' ? `${bgAccentClass} text-white` : `${cardBg} border ${cardBorder} ${textMuted} hover:text-main`}`}
-            >
-              Toutes
-            </button>
-            {categories.map(category => (
-              <button
-                key={category}
-                onClick={() => setActiveCategory(category)}
-                className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-colors ${activeCategory === category ? `${bgAccentClass} text-white` : `${cardBg} border ${cardBorder} ${textMuted} hover:text-main`}`}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-
-          {/* Bloc de droite : Bouton Publier — redescendu ici (25/07) depuis
-              le ViewHeader : la marge de sécurité `pr-32 md:pr-40` du
-              ViewHeader (anti-collision avec les boutons flottants
-              Thème/Connexion) laissait trop peu de place à un bouton aussi
-              large que "Publier ma propre séance" à côté du titre — l'en-tête
-              doit rester pur (titre + sous-titre uniquement), ce bouton
-              d'action trouve sa place naturelle ici, face aux filtres. */}
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
           <button
-            disabled
-            title="Bientôt disponible"
-            className={`shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm cursor-not-allowed opacity-60 ${cardBg} border ${cardBorder} ${textMuted}`}
+            onClick={() => setActiveCategory('Toutes')}
+            className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-colors ${activeCategory === 'Toutes' ? `${bgAccentClass} text-white` : `${cardBg} border ${cardBorder} ${textMuted} hover:text-main`}`}
           >
-            <Lock size={16}/> <span>Publier ma propre séance</span>
+            Toutes
           </button>
+          {categories.map(category => (
+            <button
+              key={category}
+              onClick={() => setActiveCategory(category)}
+              className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-colors ${activeCategory === category ? `${bgAccentClass} text-white` : `${cardBg} border ${cardBorder} ${textMuted} hover:text-main`}`}
+            >
+              {category}
+            </button>
+          ))}
         </div>
       </div>
 
