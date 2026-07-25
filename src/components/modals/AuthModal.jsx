@@ -136,7 +136,7 @@ export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, sig
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={close}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={close}>
       <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6">
           <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
