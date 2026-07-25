@@ -13,6 +13,7 @@ import {
 } from '../../appConfig';
 import { useGeneratorContext } from '../../contexts/GeneratorContext';
 import { useModalContext } from '../../contexts/ModalContext';
+import ViewHeader from '../shared/ViewHeader';
 
 /**
  * GeneratorView — vue "Sculpte ta séance" (wizard de génération en 4 étapes).
@@ -326,23 +327,17 @@ export default function GeneratorView({
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* En-tête standardisé (25/07) — suit EXACTEMENT le même modèle que
-          PlaylistsView.jsx/StatsView.jsx (icône à gauche, text-4xl, aligné à
-          gauche, bordure en bas) : avant, cette vue était la seule à avoir un
-          titre centré/massif (text-5xl) avec un text-shadow sur le sous-titre
-          — une incohérence visible en changeant de page, le titre "sautait"
-          de taille et de position. `<Gauge/>` remplace `<Zap/>` quand
-          `showAthleticProfile` est vrai, cohérent avec l'icône déjà utilisée
-          pour "Profil Athlétique" dans la Sidebar. */}
-      <div className={`border-b ${cardBorder} pb-6 pr-32 md:pr-40`}>
-        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}>
-          {showAthleticProfile ? <Gauge className={textColorClass} size={36} /> : <Zap className={textColorClass} size={36} />}
-          <span>{showAthleticProfile ? 'Mon Profil Athlétique' : (isNaughtyMode ? "Prépare l'ambiance..." : "Sculpte ta séance")}</span>
-        </h1>
-        <p className={`mt-2 ${isNaughtyMode ? 'text-slate-700' : 'text-slate-300'}`}>
-          {showAthleticProfile ? "Définis ton BPM musical cible par zone d'effort, pour chaque activité." : displaySubtitleGen}
-        </p>
-      </div>
+      {/* En-tête standardisé (25/07) — désormais via <ViewHeader/>
+          (components/shared/ViewHeader.jsx), le modèle commun à toutes les
+          vues. `<Gauge/>` remplace `<Zap/>` quand `showAthleticProfile` est
+          vrai, cohérent avec l'icône déjà utilisée pour "Profil Athlétique"
+          dans la Sidebar. */}
+      <ViewHeader
+        theme={theme} isNaughtyMode={isNaughtyMode}
+        icon={showAthleticProfile ? <Gauge className={textColorClass} size={36} /> : <Zap className={textColorClass} size={36} />}
+        title={showAthleticProfile ? 'Mon Profil Athlétique' : (isNaughtyMode ? "Prépare l'ambiance..." : "Sculpte ta séance")}
+        subtitle={showAthleticProfile ? "Définis ton BPM musical cible par zone d'effort, pour chaque activité." : displaySubtitleGen}
+      />
 
       {/* Profil Athlétique et Générer sont maintenant 2 PAGES DISTINCTES et
           MUTUELLEMENT EXCLUSIVES (retour direct : "quand je clique sur profil
