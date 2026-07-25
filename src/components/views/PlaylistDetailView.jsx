@@ -384,16 +384,25 @@ function PlaylistDetailViewInner({
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* En-tête — extrait dans PlaylistHeader.jsx (chantier découpage,
-          suite de TrackList/TrackItem). */}
-      <PlaylistHeader
-        theme={theme} isLocked={isLocked} savedPlaylists={savedPlaylists}
-        resolveAndTogglePreview={resolveAndTogglePreview} getNextTrackForAutoAdvance={getNextTrackForAutoAdvance}
-        setPlaylistPlannedDate={setPlaylistPlannedDate} bpmChartActivityName={bpmChartActivityName}
-        editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
-        editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
-        getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload}
-        onShare={handleShareClick}
-      />
+          suite de TrackList/TrackItem). Pas de div "border-b pb-6" ici
+          (structure carte différente des autres vues, pas juste un titre
+          texte) — mais le même risque de collision avec les boutons
+          flottants Thème/Connexion s'applique à ses badges `absolute` en
+          haut à droite (médaille de rang, "Lecture seule") : `pr-32 md:pr-40`
+          appliqué ici, sur ce wrapper dédié, PAS sur le conteneur principal
+          juste au-dessus (qui, lui, doit garder sa pleine largeur pour le
+          reste de la page — la liste des titres, les graphiques...). */}
+      <div className="pr-32 md:pr-40">
+        <PlaylistHeader
+          theme={theme} isLocked={isLocked} savedPlaylists={savedPlaylists}
+          resolveAndTogglePreview={resolveAndTogglePreview} getNextTrackForAutoAdvance={getNextTrackForAutoAdvance}
+          setPlaylistPlannedDate={setPlaylistPlannedDate} bpmChartActivityName={bpmChartActivityName}
+          editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
+          editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
+          getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload}
+          onShare={handleShareClick}
+        />
+      </div>
 
       {/* Bloc d'analyse (courbe BPM + les 2 camemberts) — extrait dans
           PlaylistCharts.jsx. Réorganisation assumée : les camemberts sont
