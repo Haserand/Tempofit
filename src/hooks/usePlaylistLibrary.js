@@ -1,4 +1,5 @@
 import { curatedSessions, naughtyCuratedSessions } from '../data/curatedSessions';
+import { useModalContext } from '../contexts/ModalContext';
 
 /**
  * usePlaylistLibrary — regroupe les actions de gestion de "Mes Séances" :
@@ -9,16 +10,21 @@ import { curatedSessions, naughtyCuratedSessions } from '../data/curatedSessions
  * Extrait d'App.jsx (25/07, chantier "réduire le God Component") : même schéma que
  * usePlaylistCompletions.js — les dépendances externes (`currentPlaylist`/
  * `setCurrentPlaylist`, `savedPlaylists`/`setSavedPlaylists`, `showToast`,
- * `userStats`/`checkTrophies`) sont reçues en paramètres. `openCuratedPlaylist` et
- * `setPendingUnsavePlaylist` aussi : la restauration du template pristine
- * (`removeSavedPlaylist`) et la modale de confirmation (`requestRemoveSavedPlaylist`)
- * restent possédées par App.jsx, qui les transmet ici plutôt que de les
- * réimplémenter. Comportement strictement identique à l'original.
+ * `userStats`/`checkTrophies`) sont reçues en paramètres. `openCuratedPlaylist`
+ * aussi : la restauration du template pristine (`removeSavedPlaylist`) reste
+ * possédée par App.jsx, qui la transmet ici plutôt que de la réimplémenter.
+ * `openModal` (ModalContext, chantier "centraliser les modales", même jour) suit
+ * le même principe que dans useNavigation.js : `requestRemoveSavedPlaylist`
+ * déclenche la confirmation via `openModal('PENDING_UNSAVE', playlist)` plutôt
+ * qu'un setter dédié reçu en paramètre. Comportement strictement identique à
+ * l'original.
  */
 export function usePlaylistLibrary(
   currentPlaylist, setCurrentPlaylist, savedPlaylists, setSavedPlaylists, showToast,
-  openCuratedPlaylist, setPendingUnsavePlaylist, userStats, checkTrophies,
+  openCuratedPlaylist, userStats, checkTrophies,
 ) {
+  const { openModal } = useModalContext();
+
   // Ajoute la playlist en cours d'affichage à "Mes Séances" (si pas déjà sauvegardée).
   const handleSavePlaylist = () => {
     if (currentPlaylist && !savedPlaylists.find(p => p.id === currentPlaylist.id)) {
@@ -92,7 +98,7 @@ export function usePlaylistLibrary(
     const playlist = savedPlaylists.find(p => p.id === playlistId);
     if (!playlist) return;
     if (playlistHasHistory(playlist)) {
-      setPendingUnsavePlaylist(playlist);
+      openModal('PENDING_UNSAVE', playlist);
     } else {
       removeSavedPlaylist(playlistId);
     }
