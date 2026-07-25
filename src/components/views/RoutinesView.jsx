@@ -28,7 +28,7 @@ export default function RoutinesView({
     .map(r => r.id);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-4xl mx-auto space-y-8">
       <ViewHeader
         theme={theme}
         icon={<ListPlus className={textColorClass} size={36} />}
