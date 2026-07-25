@@ -323,6 +323,20 @@ const getBpmBucketLabel = (bpm) => {
   return `${bucketStart}-${bucketStart + 19}`;
 };
 
+// Bordure + badge pour les éléments les plus utilisés (routines, playlists,
+// séances de l'historique) — même logique partagée aux 3 endroits. `rank` va
+// de 0 (le plus utilisé) à 2 ; au-delà, pas de distinction visuelle.
+// Extrait d'App.jsx (25/07, chantier "réduire le God Component") : fonction
+// pure sans dépendance, comme getBpmBucketColor ci-dessus — sa place est ici
+// plutôt que dans usePlaylistCompletions.js, puisqu'elle sert aussi
+// RoutinesView.jsx, hors du périmètre "complétions de playlist" de ce hook.
+const RANK_STYLES = [
+  { emoji: '🥇', border: 'border-yellow-500 ring-2 ring-yellow-500/20' },
+  { emoji: '🥈', border: 'border-gray-400 ring-2 ring-gray-400/20' },
+  { emoji: '🥉', border: 'border-amber-700 ring-2 ring-amber-700/20' },
+];
+const getRankStyle = (rank) => (rank >= 0 && rank < 3) ? RANK_STYLES[rank] : null;
+
 export {
   TROPHIES_DATA,
   TROPHY_CATEGORIES,
@@ -343,5 +357,6 @@ export {
   getBpmBucketColor,
   getBpmBucketStart,
   getBpmBucketLabel,
-  getActivityEmoji
+  getActivityEmoji,
+  getRankStyle
 };
