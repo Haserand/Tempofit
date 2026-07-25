@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { List, Library, Plus, Calendar, CheckCircle, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react';
 import PlaylistCard from './PlaylistCard';
+import ViewHeader from '../shared/ViewHeader';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useModalContext } from '../../contexts/ModalContext';
 
@@ -173,21 +174,12 @@ export default function PlaylistsView({
 
   return (
     <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className={`border-b ${cardBorder} pb-6 pr-32 md:pr-40`}>
-        {/* Normalisation typographique Mode Intime (retour direct : "le
-            bordeaux/rose sur fond nacré est illisible, standardise sur
-            text-slate-900" — un 2e passage après une 1re tentative en tons
-            rose/bordeaux jugée encore incohérente). Couleurs en DUR
-            (text-white/text-slate-950/etc.) plutôt que les tokens
-            sémantiques `textHighlight`/`textMuted` : décision produit
-            explicite, cette fois appliquée aux 2 modes uniformément. Risque
-            à surveiller, signalé mais assumé : `text-white` en repli
-            Standard suppose un fond sombre — si ce mode est un jour utilisé
-            en thème CLAIR (bg-base pâle), ce titre redeviendrait illisible
-            à son tour, symétriquement au bug corrigé ici. */}
-        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}><Library className={textColorClass} size={36} /> <span>Mes Séances</span></h1>
-        <p className={`mt-2 ${isNaughtyMode ? 'text-slate-700' : 'text-slate-300'}`}>Retrouve ici toutes tes playlists générées. Glisse-dépose pour organiser tes prochaines écoutes, ton historique complet est juste en dessous.</p>
-      </div>
+      <ViewHeader
+        theme={theme} isNaughtyMode={isNaughtyMode}
+        icon={<Library className={textColorClass} size={36} />}
+        title="Mes Séances"
+        subtitle="Retrouve ici toutes tes playlists générées. Glisse-dépose pour organiser tes prochaines écoutes, ton historique complet est juste en dessous."
+      />
 
       {/* "Soft Gating" (25/07) — l'app est Local-First : un invité utilise 100%
           des fonctionnalités via localStorage (voir usePersistentState.js), ce
