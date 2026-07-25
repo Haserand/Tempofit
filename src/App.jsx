@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Check, X, Heart, Loader2, AlertCircle, Zap, Menu, Edit3, Trophy, Upload, User as UserIcon, Sun, Moon } from 'lucide-react';
+import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, Sun, Moon } from 'lucide-react';
 import { ARTIST_CATALOG, EXTRA_GENRES, WEAK_DEEZER_KEYWORD_GENRES, genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES } from './appConfig';
 
@@ -31,6 +31,7 @@ import { decodePlaylistFromSharing } from './utils/playlistShareCode';
 import { buildCoverUrl } from './utils/coverArt';
 import { curatedSessions, naughtyCuratedSessions } from './data/curatedSessions';
 import { parseGarminCsv } from './workoutDataEngine';
+import { formatCompletionDate } from './utils/format';
 import { useTheme } from './hooks/useTheme';
 import { usePersistentState } from './hooks/usePersistentState';
 // useToast est toujours importé ici, mais appelé UNE SEULE FOIS par le
@@ -1485,22 +1486,9 @@ function AppContent({
   // date lisible localement — les completions sont désormais stockées en ISO en
   // interne (nécessaire pour pouvoir les éditer via un vrai sélecteur de date),
   // et seulement formatées au moment de l'affichage.
-  const formatCompletionDate = (isoStr) => {
-    // Rétrocompatible avec le format "date seule" (YYYY-MM-DD, celui de "Ajouter
-    // une date" ci-dessous, où l'heure n'a pas de sens pour une saisie manuelle
-    // rétroactive) ET le nouvel horodatage complet utilisé par "Marquer comme
-    // faite" — nécessaire depuis qu'une playlist peut être complétée plusieurs
-    // fois le même jour (retour utilisateur : matin + soir, un cas réel et
-    // légitime, pas une erreur à empêcher). L'heure ne s'affiche que pour ce 2e
-    // format, seul cas où elle est réellement connue et utile pour distinguer
-    // 2 séances du même jour.
-    const hasTime = isoStr.length > 10;
-    const d = hasTime ? new Date(isoStr) : new Date(isoStr + 'T00:00:00');
-    if (isNaN(d.getTime())) return isoStr;
-    return hasTime
-      ? `${d.toLocaleDateString()} à ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-      : d.toLocaleDateString();
-  };
+  // formatCompletionDate déplacée dans utils/format.js (25/07, chantier
+  // "réduire le God Component") : fonction pure, importée en haut de ce
+  // fichier plutôt que définie ici.
 
   /**
    * Marque une playlist comme faite — soit "maintenant" (bouton "Marquer comme
@@ -1705,7 +1693,7 @@ function AppContent({
   const handleCSVUpload = (e) => {
     const file = e.target.files[0];
     // csvUploadTargetDate doit toujours être défini : le bouton d'import n'existe
-    // que sur une date de complétion précise (voir renderCompletionsList), donc si
+    // que sur une date de complétion précise (voir CompletionsList.jsx), donc si
     // jamais il manque (état incohérent), on préfère bloquer plutôt que de deviner
     // à quelle séance rattacher les données.
     if (!file || !currentPlaylist || !csvUploadTargetDate) return;
@@ -1755,14 +1743,6 @@ function AppContent({
   // évite d'avoir à suivre un état d'édition séparé par playlist/par date.
   const [editingCompletion, setEditingCompletion] = useState(null); // {playlistId, isoDate} | null
 
-  /**
-   * Liste interactive des dates de complétion d'une playlist — utilisée par
-   * PlaylistCard, partagée par les 3 sections de "Mes Séances" (à planifier /
-   * planifiées / terminées) pour rester cohérente. Chaque date : clic pour
-   * modifier (ouvre un vrai sélecteur de date), croix pour retirer. Une tuile
-   * en pointillés permet d'ajouter une date précise (pas seulement
-   * "aujourd'hui", pour les séances renseignées après coup).
-   */
   // Bordure + badge pour les éléments les plus utilisés (routines, playlists,
   // séances de l'historique) — même logique partagée aux 3 endroits. `rank` va
   // de 0 (le plus utilisé) à 2 ; au-delà, pas de distinction visuelle.
@@ -1773,151 +1753,12 @@ function AppContent({
   ];
   const getRankStyle = (rank) => (rank >= 0 && rank < 3) ? RANK_STYLES[rank] : null;
 
-  // RETOUR DIRECT (capture d'écran, 2 tours de suite) : "la date est écrite
-  // 2 fois (en-tête + pastille du bas), inutile de garder l'option du bas —
-  // je dois pouvoir modifier la date depuis celle du HAUT". L'en-tête
-  // n'affichait jusqu'ici QUE `completions[0]` en texte statique, jamais
-  // éditable — toute édition de date passait forcément par la pastille du
-  // bas (`renderCompletionsList`). Ce helper la rend éditable directement,
-  // en réutilisant le MÊME state `editingCompletion`/`editCompletionDate`
-  // que la pastille (une seule logique d'édition de date dans toute l'app,
-  // pas une 2e copiée pour l'en-tête) — seul le format d'affichage change
-  // (long : "18 juil. 2026", cohérent avec le style de sur-titre existant,
-  // vs court "18/07/2026" dans les pastilles).
-  //
-  // Ne gère QUE `completions[0]` (la première réalisation) — volontairement,
-  // pas toutes les dates : une playlist rejouée plusieurs fois a plusieurs
-  // dates, l'en-tête n'a la place/le sens d'en montrer qu'une. Les autres
-  // restent gérables individuellement dans la pastille du bas, qui exclut
-  // maintenant `completions[0]` pour ne plus la répéter (voir
-  // PlaylistDetailView.jsx, l'appel à `renderCompletionsList` passe
-  // `skipDates={[currentPlaylist.completions[0]]}`).
-  const renderTopCompletionDate = (playlist) => {
-    const iso = playlist.completions?.[0];
-    if (!iso) return null;
-    const isEditing = editingCompletion && editingCompletion.playlistId === playlist.id && editingCompletion.isoDate === iso;
-    if (isEditing) {
-      return (
-        <input
-          type="date" autoFocus defaultValue={iso}
-          onBlur={(e) => { editCompletionDate(playlist.id, iso, e.target.value); setEditingCompletion(null); }}
-          onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCompletion(null); }}
-          className={`px-2 py-1 rounded-lg text-xs font-bold normal-case tracking-normal ${inputBg} border ${borderAccentClass} ${textHighlight}`}
-        />
-      );
-    }
-    const longLabel = new Date(iso.slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
-    // RETOUR DIRECT ("pas complètement intuitif qu'on peut modifier la date —
-    // ajoute une indication visuelle, genre le crayon du titre") — avant,
-    // seul un `hover:underline` signalait que c'était cliquable : invisible
-    // tant qu'on n'a pas déjà survolé (donc inutile pour DÉCOUVRIR que c'est
-    // modifiable), et carrément absent au toucher (mobile/tablette, où
-    // "hover" n'existe pas). Corrigé avec 2 indices TOUJOURS visibles,
-    // jamais seulement au survol :
-    //   - un soulignement POINTILLÉ sur la date (convention "texte éditable
-    //     en ligne", déjà utilisée par des apps comme Notion/Linear) ;
-    //   - la MÊME icône crayon que celle du titre juste en dessous (Edit3),
-    //     pour que le geste "il y a un crayon à côté = je peux modifier ce
-    //     texte" soit reconnu une seule fois puis réutilisé partout dans la
-    //     page, plutôt qu'un nouveau signal à apprendre.
-    // Le survol reste utile en PLUS (couleur qui se renforce), pas comme
-    // seul indice.
-    // RETOUR DIRECT ("'Réalisée le' me semble de trop, autant juste laisser
-    // la date") — retiré : le contexte immédiat (juste à côté du badge
-    // "Verrouillée", lui-même juste avant "Planifier à nouveau") suffit à
-    // lire "date à laquelle c'est arrivé" sans le répéter en toutes lettres
-    // — même logique déjà appliquée à "Planifier à nouveau" juste à côté,
-    // qui affiche sa date SANS "Planifiée le" devant une fois choisie.
-    // RETOUR DIRECT ("les pointillés sous la date ne semblent pas utiles, il
-    // y a déjà l'infobulle et le crayon") — 3 indices, c'était un de trop :
-    // le crayon (Edit3, toujours visible) suffit déjà à signaler "modifiable"
-    // au même titre que celui du titre juste en dessous, et le `title`
-    // (tooltip "Modifier cette date") reste dispo au survol. Le soulignement
-    // pointillé retiré ici — la couleur qui se renforce au survol
-    // (group-hover/date:text-main) reste comme seul retour visuel du survol.
-    return (
-      <button
-        onClick={() => setEditingCompletion({ playlistId: playlist.id, isoDate: iso })}
-        className={`inline-flex items-center gap-1 group/date`}
-        title="Modifier cette date"
-      >
-        {/* `text-main` en dur (pas `${textHighlight}` interpolé dans le nom de
-            variant) : Tailwind scanne le code SOURCE pour repérer les noms de
-            classes à générer — une classe reconstruite au runtime via
-            template literal (`group-hover/date:${textHighlight}`) n'apparaît
-            jamais telle quelle dans le code, donc jamais générée. `textHighlight`
-            vaut toujours littéralement "text-main" depuis le Design System
-            sémantique (voir useTheme.js) — mais ça reste une variable, pas un
-            littéral, donc dangereux à interpoler dans un préfixe de variant. */}
-        <span className="group-hover/date:text-main">{longLabel}</span>
-        <Edit3 size={11} className="opacity-60 group-hover/date:opacity-100 transition-opacity shrink-0" />
-      </button>
-    );
-  };
-
-  // RETOUR DIRECT (capture d'écran à l'appui) : "pourquoi garder la petite
-  // icône d'import quand il y a déjà la grosse en bas ?" — sur
-  // PlaylistDetailView.jsx, le gros bouton "Complète ta séance" cible
-  // TOUJOURS `mostRecentCompletionIso` (voir plus bas dans ce fichier) ; pour
-  // CETTE date précise, la petite icône de la liste faisait doublon pur.
-  // Mais cette même liste sert AUSSI sur PlaylistCard.jsx (grille "Mes
-  // Séances"), où il n'y a PAS de gros bouton — impossible de juste
-  // supprimer l'icône partout, seulement là où elle est vraiment redondante.
-  // `hideUploadForDate` (optionnel, `null` par défaut = rien de caché) :
-  // l'appelant indique QUELLE date est déjà couverte par un CTA plus gros
-  // ailleurs sur l'écran ; seule cette icône-là disparaît (date + bouton
-  // "retirer" restent, pour garder la cohérence visuelle de la pastille).
-  // `skipDates` (optionnel, tableau vide par défaut) : dates à ne PAS
-  // afficher DU TOUT dans cette liste — sert à exclure `completions[0]`
-  // quand l'en-tête (`renderTopCompletionDate`) la montre déjà, pour ne plus
-  // la répéter une 2e fois (retour direct : "la date est écrite 2 fois").
-  const renderCompletionsList = (playlist, hideUploadForDate = null, skipDates = []) => {
-    const completions = (playlist.completions || []).filter(iso => !skipDates.includes(iso));
-    const dataByDate = playlist.actualDataByDate || {};
-    return (
-      <div onClick={(e) => e.stopPropagation()} className="flex flex-wrap items-center gap-1.5">
-        {completions.map((iso) => {
-          const isEditing = editingCompletion && editingCompletion.playlistId === playlist.id && editingCompletion.isoDate === iso;
-          const hasData = !!dataByDate[iso];
-          return isEditing ? (
-            <input
-              key={iso} type="date" autoFocus defaultValue={iso}
-              onBlur={(e) => { editCompletionDate(playlist.id, iso, e.target.value); setEditingCompletion(null); }}
-              onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingCompletion(null); }}
-              className={`px-2 py-1 rounded-lg text-xs font-bold ${inputBg} border ${borderAccentClass} ${textHighlight}`}
-            />
-          ) : (
-            <span key={iso} className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold ${inputBg} border ${inputBorder} ${textHighlight}`}>
-              <button onClick={() => setEditingCompletion({ playlistId: playlist.id, isoDate: iso })} className="hover:underline" title="Modifier cette date">
-                {formatCompletionDate(iso)}
-              </button>
-              {/* Import Garmin/Strava rattaché à CETTE séance précise (pas à toute la
-                  playlist) — une playlist refaite plusieurs fois peut donc avoir une
-                  analyse Cible vs Réalité différente pour chaque date. Absent si
-                  `hideUploadForDate` couvre déjà cette date (voir plus haut). */}
-              {iso !== hideUploadForDate && (
-                <button
-                  onClick={(e) => triggerCSVUpload(e, playlist, iso)}
-                  className={hasData ? "text-purple-500 hover:text-purple-600 transition-colors" : "text-gray-400 hover:text-blue-500 transition-colors"}
-                  title={hasData ? "Données déjà importées — cliquer pour remplacer" : "Importer Garmin/Strava (cadence/FC)"}
-                >
-                  <Upload size={12}/>
-                </button>
-              )}
-              <button onClick={() => removeCompletionDate(playlist.id, iso)} className="text-gray-400 hover:text-red-500 transition-colors" title="Retirer cette date">
-                <X size={12}/>
-              </button>
-            </span>
-          );
-        })}
-        {/* L'ancienne pastille "+ Ajouter une date" ici a été retirée (retour
-            direct) : elle faisait doublon avec le bouton "Marquer comme faite/
-            refaite" en bas de carte, qui permet désormais de choisir
-            n'importe quelle date (pas seulement "aujourd'hui") — voir
-            PlaylistCard.jsx et markPlaylistAsCompleted. */}
-      </div>
-    );
-  };
+  // renderTopCompletionDate/renderCompletionsList extraites en composants
+  // réels (25/07, chantier "réduire le God Component") : voir
+  // components/shared/TopCompletionDate.jsx et CompletionsList.jsx. `editingCompletion`/
+  // `setEditingCompletion` (juste au-dessus) restent ici et sont transmis en props aux
+  // deux composants, qui les partagent — une seule date éditable à la fois, tous
+  // playlists ET tous composants confondus, inchangé par rapport à avant.
 
   // MIGRÉ VERS PlaylistDetailContext : resolveSegmentIdxFromChartState,
   // handleChartClick, le drag-and-drop directement sur le graphique
@@ -2120,9 +1961,10 @@ function AppContent({
                 écran chronologique — voir PlaylistsView pour le détail des 3 sections.
                 L'ancien onglet séparé "Historique" (HistoryView.jsx) a été retiré : il
                 faisait doublon avec cette vue depuis que le système de planification/
-                dates y a été intégré. Le fichier HistoryView.jsx n'est plus importé
-                nulle part — à supprimer manuellement du disque au prochain audit (même
-                remarque que pour useQueue.js/QueueView.jsx lors d'un chantier précédent). */}
+                dates y a été intégré. Vérifié le 25/07 : HistoryView.jsx, useQueue.js
+                et QueueView.jsx n'existent déjà plus sur le disque — nettoyage déjà
+                fait lors d'une session antérieure, ce commentaire ne demandait plus
+                rien de réel. */}
             {view === 'playlists' && (
               <PlaylistsView
                 theme={themeTokens} isNaughtyMode={isNaughtyMode}
@@ -2130,7 +1972,10 @@ function AppContent({
                 requestRemoveSavedPlaylist={requestRemoveSavedPlaylist}
                 setPlaylistPlannedDate={setPlaylistPlannedDate}
                 getRankStyle={getRankStyle} setCurrentPlaylist={setCurrentPlaylist} changeView={changeView}
-                renderConfigInfoLine={renderConfigInfoLine} renderCompletionsList={renderCompletionsList}
+                renderConfigInfoLine={renderConfigInfoLine}
+                editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
+                editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
+                triggerCSVUpload={triggerCSVUpload}
                 markPlaylistAsCompleted={markPlaylistAsCompleted}
               />
             )}
@@ -2208,11 +2053,11 @@ function AppContent({
                 summaryImageFile={summaryImageFile} setSummaryImageFile={setSummaryImageFile}
                 summaryImagePreviewUrl={summaryImagePreviewUrl} setSummaryImagePreviewUrl={setSummaryImagePreviewUrl}
                 includeSummaryImage={includeSummaryImage} setIncludeSummaryImage={setIncludeSummaryImage}
-                formatCompletionDate={formatCompletionDate}
                 toggleTrackFavorite={toggleTrackFavorite} toggleArtistFavorite={toggleArtistFavorite}
                 setIsBpmSearchMode={setIsBpmSearchMode} setIsSearchModalOpen={setIsSearchModalOpen}
                 setPlaylistPlannedDate={setPlaylistPlannedDate}
-                renderCompletionsList={renderCompletionsList} renderTopCompletionDate={renderTopCompletionDate}
+                editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
+                editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
                 getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload}
               />
             )}
