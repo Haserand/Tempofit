@@ -1,4 +1,5 @@
 import { useGeneratorContext } from '../contexts/GeneratorContext';
+import { useModalContext } from '../contexts/ModalContext';
 
 /**
  * useRoutineActions — regroupe les 4 actions qui lisent/écrivent le state du wizard
@@ -16,15 +17,20 @@ import { useGeneratorContext } from '../contexts/GeneratorContext';
  * restantes (`routines`/`addRoutine`/`updateRoutine`/`editingRoutine`/... viennent
  * de l'UNIQUE appel à `useRoutines()` déjà fait dans App.jsx, `executeGeneration`
  * reste dans App.jsx vu sa taille) sont reçues en paramètres classiques.
+ * `closeModal` (ModalContext, chantier "centraliser les modales", même jour)
+ * suit le même principe que `useGeneratorContext()` ci-dessus : appelé ici
+ * directement plutôt que reçu en paramètre, pour fermer EditRoutineModal après
+ * application (`applyRoutineEditOnce`/`applyRoutineEditPermanently`).
  * Comportement strictement identique à l'original.
  */
 export function useRoutineActions(
   isNaughtyMode, setIsNaughtyMode, showToast,
   routines, addRoutine, updateRoutine,
-  editingRoutine, setEditingRoutine, setIsEditRoutineModalOpen,
+  editingRoutine, setEditingRoutine,
   newRoutineName, newRoutineIcon, newRoutineFreq,
   userStats, checkTrophies, executeGeneration,
 ) {
+  const { closeModal } = useModalContext();
   const {
     workoutType, customActivity, isIntervalMode, isCrescendoMode, bpm,
     crescendoWarmupPct, crescendoCooldownPct, crescendoWarmupBpm, crescendoCooldownBpm,
@@ -84,7 +90,7 @@ export function useRoutineActions(
   const applyRoutineEditOnce = () => {
     if (!editingRoutine) return;
     executeGeneration({ ...editingRoutine, workoutName: editingRoutine.customActivity || editingRoutine.workoutType, routineName: editingRoutine.name }, 1, editingRoutine.id);
-    setIsEditRoutineModalOpen(false);
+    closeModal();
     setEditingRoutine(null);
   };
 
@@ -98,7 +104,7 @@ export function useRoutineActions(
     updateRoutine(editingRoutine);
     executeGeneration({ ...editingRoutine, workoutName: editingRoutine.customActivity || editingRoutine.workoutType, routineName: editingRoutine.name }, 1, editingRoutine.id);
     showToast("Routine mise à jour pour toutes les prochaines séances.");
-    setIsEditRoutineModalOpen(false);
+    closeModal();
     setEditingRoutine(null);
   };
 
