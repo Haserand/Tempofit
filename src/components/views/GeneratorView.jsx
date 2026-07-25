@@ -32,7 +32,7 @@ export default function GeneratorView({
   // maintenant de useGeneratorContext() ci-dessous, plus de App.jsx.
   theme,
   setCurrentPlaylist, setIsBpmSearchMode, setSearchQuery, setWorldSearchResults,
-  setResultsContextLabel, setNoUsableResultsHint, setIsSearchModalOpen, searchTracksByBpm,
+  setResultsContextLabel, setNoUsableResultsHint, searchTracksByBpm,
   executeGeneration, isGenerating,
   toggleNaughtyMode, showToast,
 }) {
@@ -1485,7 +1485,7 @@ export default function GeneratorView({
                 setWorldSearchResults([]);
                 setResultsContextLabel(null);
                 setNoUsableResultsHint(false);
-                setIsSearchModalOpen(true);
+                openModal('SEARCH');
                 searchTracksByBpm(bpm, bpmTolerance, selectedGenres);
               }} className={`w-full py-4 rounded-2xl border-2 border-dashed ${inputBorder} flex items-center justify-center gap-2 font-bold transition-colors ${textMuted} hover:text-main hover:border-gray-400 bg-gray-50 dark:bg-gray-800/50`}>
                 <Target size={20} /><span>Explorer les titres à {bpm} BPM</span>
