@@ -37,7 +37,7 @@ function PlaylistDetailViewInner({
   summaryImageStatus, setSummaryImageStatus, summaryImageFile, setSummaryImageFile,
   summaryImagePreviewUrl, setSummaryImagePreviewUrl, includeSummaryImage, setIncludeSummaryImage,
   favorites, toggleTrackFavorite, toggleArtistFavorite,
-  setIsBpmSearchMode, setIsSearchModalOpen,
+  setIsBpmSearchMode,
   setPlaylistPlannedDate,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
   getRankStyle, triggerCSVUpload,
@@ -466,7 +466,7 @@ function PlaylistDetailViewInner({
         theme={theme} isLocked={isLocked}
         favorites={favorites} toggleTrackFavorite={toggleTrackFavorite} toggleArtistFavorite={toggleArtistFavorite}
         resolveAndTogglePreview={resolveAndTogglePreview} getNextTrackForAutoAdvance={getNextTrackForAutoAdvance}
-        setIsBpmSearchMode={setIsBpmSearchMode} setIsSearchModalOpen={setIsSearchModalOpen}
+        setIsBpmSearchMode={setIsBpmSearchMode}
         hasDetailFilter={hasDetailFilter} trackMatchesDetailFilter={trackMatchesDetailFilter}
         selectedDetailGenre={selectedDetailGenre} selectedDetailBpmBucket={selectedDetailBpmBucket}
         setSelectedDetailGenre={setSelectedDetailGenre} setSelectedDetailBpmBucket={setSelectedDetailBpmBucket}
@@ -515,7 +515,7 @@ export default function PlaylistDetailView({
   summaryImageStatus, setSummaryImageStatus, summaryImageFile, setSummaryImageFile,
   summaryImagePreviewUrl, setSummaryImagePreviewUrl, includeSummaryImage, setIncludeSummaryImage,
   toggleTrackFavorite, toggleArtistFavorite,
-  setIsBpmSearchMode, setIsSearchModalOpen, setPlaylistPlannedDate,
+  setIsBpmSearchMode, setPlaylistPlannedDate,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
   getRankStyle, triggerCSVUpload,
 }) {
@@ -540,7 +540,7 @@ export default function PlaylistDetailView({
         summaryImagePreviewUrl={summaryImagePreviewUrl} setSummaryImagePreviewUrl={setSummaryImagePreviewUrl}
         includeSummaryImage={includeSummaryImage} setIncludeSummaryImage={setIncludeSummaryImage}
         favorites={favorites} toggleTrackFavorite={toggleTrackFavorite} toggleArtistFavorite={toggleArtistFavorite}
-        setIsBpmSearchMode={setIsBpmSearchMode} setIsSearchModalOpen={setIsSearchModalOpen}
+        setIsBpmSearchMode={setIsBpmSearchMode}
         setPlaylistPlannedDate={setPlaylistPlannedDate}
         editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
         editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
