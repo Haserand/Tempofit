@@ -26,14 +26,6 @@
  *     icon={<Zap className={theme.textColorClass} size={36} />}
  *     title="Sculpte ta séance" subtitle="Laisse l'algorithme..." />
  *
- * `isNaughtyMode` — OMIS (pas juste `false`) pour les vues qui n'ont
- * structurellement aucune notion de mode (Trophées, Options & Comptes :
- * partagées entre les deux modes, jamais reçu `isNaughtyMode` en prop) :
- * bascule alors sur les tokens de thème adaptatifs `textHighlight`/
- * `textMuted` plutôt que la palette fixe slate-950/blanc + slate-700/300 —
- * PAS la même chose que passer `isNaughtyMode={false}` explicitement (qui,
- * lui, demande la palette fixe en mode Standard).
- *
  * `icon` — un ÉLÉMENT déjà construit (`<Zap className="..." size={36}/>`),
  * pas juste un composant : la couleur de l'icône suit parfois une règle
  * spéciale propre à une vue (ex. StatsView, rose en Mode Intime plutôt que
@@ -58,23 +50,25 @@
  * légitime de s'en passer, donc pas une prop, pour qu'il n'y ait justement
  * rien à oublier de préciser.
  *
- * Normalisation typographique Mode Intime (retour direct, hérité de
- * PlaylistsView.jsx avant cette extraction : "le bordeaux/rose sur fond
- * nacré est illisible, standardise sur text-slate-900" — un 2e passage
- * après une 1re tentative en tons rose/bordeaux jugée encore incohérente).
- * Couleurs en DUR (`text-white`/`text-slate-950`/etc.) plutôt que les
- * tokens sémantiques `textHighlight`/`textMuted`, quand `isNaughtyMode` est
- * fourni : décision produit explicite, appliquée aux 2 modes uniformément.
- * Risque à surveiller, signalé mais assumé : `text-white` en repli Standard
- * suppose un fond sombre — si ce mode est un jour utilisé en thème CLAIR
- * (bg-base pâle), ce titre redeviendrait illisible à son tour,
- * symétriquement au bug déjà corrigé une fois.
+ * BUG RÉEL CORRIGÉ (25/07, "fix UI — lisibilité du sous-titre") : titre ET
+ * sous-titre utilisaient une palette fixe codée en dur (`text-white`/
+ * `text-slate-950` pour le titre, `text-slate-300`/`text-slate-700` pour le
+ * sous-titre, choisie selon `isNaughtyMode`) — SANS variante `dark:`, alors
+ * que l'app a un vrai bouton clair/sombre indépendant du Mode Intime. En
+ * thème clair + mode Standard : `text-white` sur un fond clair, quasiment
+ * invisible (confirmé par capture d'écran). Cette palette fixe datait d'AVANT
+ * le chantier "Design System sémantique" (voir useTheme.js) qui a justement
+ * centralisé `text-main`/`text-muted` dans des variables CSS (`:root`/
+ * `.dark`/`.naughty`, voir index.css) gérant DÉJÀ clair/sombre ET Mode
+ * Intime ensemble — `useTheme.js` le dit explicitement dans son propre
+ * commentaire sur `textMuted` ("le ternaire n'est plus nécessaire"), jamais
+ * répercuté ici au moment de la création de ce composant. `theme.textHighlight`/
+ * `theme.textMuted` remplacent maintenant la palette fixe INCONDITIONNELLEMENT
+ * (`isNaughtyMode` n'a donc plus d'effet sur la couleur du texte — il reste
+ * accepté en prop pour compatibilité mais n'est plus lu ici).
  */
-export default function ViewHeader({ theme, isNaughtyMode = undefined, icon, title, subtitle, right = null }) {
+export default function ViewHeader({ theme, icon, title, subtitle, right = null }) {
   const { cardBorder, textHighlight, textMuted } = theme;
-  const usesFixedPalette = isNaughtyMode !== undefined;
-  const titleColorClass = usesFixedPalette ? (isNaughtyMode ? 'text-slate-950' : 'text-white') : textHighlight;
-  const subtitleColorClass = usesFixedPalette ? (isNaughtyMode ? 'text-slate-700' : 'text-slate-300') : textMuted;
 
   return (
     <div className={`border-b ${cardBorder} pb-6 pr-32 md:pr-40 flex flex-col sm:flex-row sm:items-start justify-between gap-4`}>
@@ -85,7 +79,7 @@ export default function ViewHeader({ theme, isNaughtyMode = undefined, icon, tit
           déjà pour une autre raison — piège Flexbox classique, pas une
           option cosmétique. */}
       <div className="min-w-0">
-        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${titleColorClass}`}>
+        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}>
           {icon} <span>{title}</span>
         </h1>
         {/* Sous-titre verrouillé sur UNE seule ligne (`truncate`, 25/07) —
@@ -96,7 +90,7 @@ export default function ViewHeader({ theme, isNaughtyMode = undefined, icon, tit
             GeneratorView.jsx (25/07) pour des textes raccourcis en amont,
             plutôt que de compter sur la troncature seule pour masquer un
             texte déjà trop long. */}
-        <p className={`mt-2 text-sm md:text-base truncate ${subtitleColorClass}`}>{subtitle}</p>
+        <p className={`mt-2 text-sm md:text-base truncate ${textMuted}`}>{subtitle}</p>
       </div>
       {right && <div className="shrink-0 flex items-center gap-2">{right}</div>}
     </div>
