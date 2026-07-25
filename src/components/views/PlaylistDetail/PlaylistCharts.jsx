@@ -8,7 +8,7 @@ import {
 } from 'recharts';
 import { getGenresForDisplay } from '../../../musicCatalog';
 import { DISTRIBUTION_COLORS } from '../../../appConfig';
-import { formatDuration } from '../../../utils/format';
+import { formatDuration, formatCompletionDate } from '../../../utils/format';
 import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
 
 // Tooltip personnalisé affiché au survol d'un point du graphique BPM. Affiche
@@ -104,7 +104,6 @@ export default function PlaylistCharts({
   theme, colorMode, isLocked,
   favorites, toggleArtistFavorite,
   resolveAndTogglePreview, getNextTrackForAutoAdvance,
-  formatCompletionDate,
   playlistCadenceUnit, bpmChartActivityName,
   hasDetailFilter, trackMatchesDetailFilter,
   selectedDetailGenre, selectedDetailBpmBucket, setSelectedDetailGenre, setSelectedDetailBpmBucket,
