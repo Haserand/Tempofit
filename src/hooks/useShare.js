@@ -1,6 +1,6 @@
-import { useState } from 'react';
 import { formatDuration } from '../utils/format';
 import { encodePlaylistForSharing } from '../utils/playlistShareCode';
+import { useModalContext } from '../contexts/ModalContext';
 
 /**
  * useShare — regroupe l'état et la logique de la modale de partage
@@ -10,13 +10,24 @@ import { encodePlaylistForSharing } from '../utils/playlistShareCode';
  *
  * `showToast` est une dépendance externe (définie dans App.jsx) passée en
  * paramètre, utilisée uniquement par `copyToClipboard` pour confirmer la copie.
+ *
+ * `shareData`/`isShareModalOpen` (chantier "centraliser les modales", 25/07)
+ * viennent maintenant de `ModalContext` (`modalData`/`activeModal === 'SHARE'`)
+ * plutôt que de state local — candidat naturel, contrairement à
+ * `editingRoutine` (useRoutines.js) : `shareData` n'est JAMAIS relu ni modifié
+ * une fois posé par `handleShare`, seulement lu par ShareModal.jsx jusqu'à sa
+ * fermeture — un vrai payload figé, pas un formulaire actif. Toujours
+ * retournés sous les mêmes noms qu'avant pour que App.jsx/ShareModal n'aient
+ * rien d'autre à changer côté lecture.
  */
 export function useShare(showToast) {
-  const [shareData, setShareData] = useState(null);
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const { activeModal, modalData, openModal, closeModal } = useModalContext();
+  const isShareModalOpen = activeModal === 'SHARE';
+  const shareData = isShareModalOpen ? modalData : null;
 
   // Prépare le contenu à partager (playlist ou trophée) et ouvre la modale de partage.
   const handleShare = (type, item) => {
+    let data;
     if (type === 'playlist') {
       // RETOUR DIRECT ("absurde de dire 'je viens de générer' pour une
       // séance déjà faite") — `handleShare('playlist', ...)` n'est appelé
@@ -43,15 +54,15 @@ export function useShare(showToast) {
       // simple si l'encodage échoue (jamais bloquant pour le partage).
       const code = encodePlaylistForSharing(item);
       const url = code ? `${window.location.origin}${window.location.pathname}?import=${code}` : window.location.href;
-      setShareData({ type: 'playlist', title: item.name, text, url });
+      data = { type: 'playlist', title: item.name, text, url };
     } else if (type === 'trophy') {
-      setShareData({
+      data = {
         type: 'trophy', title: item.name,
         text: `J'ai débloqué le trophée "${item.name}" ${item.icon} sur TempoFit ! 🔥 Rejoins-moi !`,
         url: window.location.href
-      });
+      };
     }
-    setIsShareModalOpen(true);
+    openModal('SHARE', data);
   };
 
   // Copie le texte de partage dans le presse-papier via l'ancienne API
@@ -67,7 +78,7 @@ export function useShare(showToast) {
     textArea.focus(); textArea.select();
     try { document.execCommand('copy'); showToast("Lien copié dans le presse-papier !"); } catch (err) {}
     document.body.removeChild(textArea);
-    setIsShareModalOpen(false);
+    closeModal();
   };
 
   // Partage natif du téléphone/OS (menu "Partager" habituel avec toutes les
@@ -78,7 +89,7 @@ export function useShare(showToast) {
     if (!shareData || !navigator.share) return;
     try {
       await navigator.share({ title: shareData.title, text: shareData.text, url: shareData.url });
-      setIsShareModalOpen(false);
+      closeModal();
     } catch (e) {
       // L'utilisateur a annulé le partage, ou l'API a échoué : on ne fait rien de spécial.
     }
@@ -141,8 +152,8 @@ export function useShare(showToast) {
   };
 
   return {
-    shareData, setShareData,
-    isShareModalOpen, setIsShareModalOpen,
+    shareData,
+    isShareModalOpen,
     handleShare, copyToClipboard, shareNative,
     shareToWhatsApp, shareToTwitter, shareToFacebook, shareViaEmail,
     shareImageFile,
