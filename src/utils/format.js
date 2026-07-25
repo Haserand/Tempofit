@@ -13,6 +13,29 @@ export const formatDuration = (totalSeconds) => {
   return `${m}m ${s.toString().padStart(2, '0')}s`;
 };
 
+// Formate une date de complétion de séance ("YYYY-MM-DD" ou horodatage ISO
+// complet) en chaîne lisible. Rétrocompatible avec le format "date seule"
+// (saisie manuelle rétroactive, l'heure n'a pas de sens) ET l'horodatage
+// complet (bouton "Marquer comme faite", nécessaire depuis qu'une playlist
+// peut être complétée plusieurs fois le même jour — retour utilisateur :
+// matin + soir, un cas réel et légitime). L'heure ne s'affiche que pour ce
+// 2e format, seul cas où elle est réellement connue et utile pour distinguer
+// 2 séances du même jour.
+// Extrait d'App.jsx (chantier "réduire le God Component", 25/07) : fonction
+// pure, aucune dépendance à React ni au state de l'app — comme
+// formatDuration/parseTimeToSeconds ci-dessus, sa place est ici plutôt que
+// prop-drillée depuis App.jsx jusqu'à PlaylistCharts.jsx via
+// PlaylistDetailView.jsx (3 fichiers à traverser pour une fonction sans
+// aucun état à transporter).
+export const formatCompletionDate = (isoStr) => {
+  const hasTime = isoStr.length > 10;
+  const d = hasTime ? new Date(isoStr) : new Date(isoStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return isoStr;
+  return hasTime
+    ? `${d.toLocaleDateString()} à ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+    : d.toLocaleDateString();
+};
+
 // Parse une valeur de temps issue d'un CSV Garmin/Strava (formats "HH:MM:SS",
 // "MM:SS" ou nombre brut de secondes) vers un nombre de secondes.
 export const parseTimeToSeconds = (timeStr) => {
