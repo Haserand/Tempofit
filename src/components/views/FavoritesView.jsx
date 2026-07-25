@@ -1,5 +1,6 @@
 import { Star, Heart, Play, Pause, Loader2, X, Plus, User, RefreshCw, Target, Search, Info } from 'lucide-react';
 import { getGenreLocalDepthWarning, getGenresForDisplay, genreDisplayLabel, EXTRA_GENRES } from '../../musicCatalog';
+import { useModalContext } from '../../contexts/ModalContext';
 
 /**
  * FavoritesView — vue "Mes Favoris" (titres/artistes favoris + exploration BPM/genre).
@@ -29,12 +30,13 @@ export default function FavoritesView({
   favorites, setFavorites,
   togglePreview, playingPreviewId,
   resolveAndPlay, resolvingTrackId,
-  setCurrentPlaylist, setIsBpmSearchMode, setIsSearchModalOpen, setWorldSearchResults, setNoUsableResultsHint,
+  setCurrentPlaylist, setIsBpmSearchMode, setWorldSearchResults, setNoUsableResultsHint,
   isAddingArtist, setIsAddingArtist, newFavArtist, setNewFavArtist, addFavoriteArtistValidated,
   availableGenres, favSelectedGenres, setFavSelectedGenres, showExtraGenres, setShowExtraGenres,
   favBpmTarget, setFavBpmTarget, favBpmTolerance, setFavBpmTolerance,
   searchTracksByBpm, changeView,
 }) {
+  const { openModal } = useModalContext();
   const {
     cardBg, cardBorder, textHighlight, textMuted, textColorClass,
     bgAccentClass, borderAccentClass, inputBg, inputBorder,
@@ -101,7 +103,7 @@ export default function FavoritesView({
                   </button>
                 </div>
               ))}
-              <button onClick={() => { setCurrentPlaylist(null); setIsBpmSearchMode(false); setIsSearchModalOpen(true); }} className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 border-dashed ${inputBorder} ${textMuted} hover:text-main hover:border-gray-400 transition-colors font-bold text-sm`}>
+              <button onClick={() => { setCurrentPlaylist(null); setIsBpmSearchMode(false); openModal('SEARCH'); }} className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 border-dashed ${inputBorder} ${textMuted} hover:text-main hover:border-gray-400 transition-colors font-bold text-sm`}>
                 <Plus size={16}/> Ajouter un titre
               </button>
             </div>
@@ -248,7 +250,7 @@ export default function FavoritesView({
               setIsBpmSearchMode(true);
               setWorldSearchResults([]);
               setNoUsableResultsHint(false);
-              setIsSearchModalOpen(true);
+              openModal('SEARCH');
               searchTracksByBpm(favBpmTarget, favBpmTolerance, favSelectedGenres);
             }} className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
               <Search size={20}/> <span>Chercher des titres à {favBpmTarget} BPM</span>
