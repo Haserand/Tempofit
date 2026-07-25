@@ -3,8 +3,13 @@ import { List, Library, Plus, Calendar, CheckCircle, ChevronLeft, ChevronRight }
 import PlaylistCard from './PlaylistCard';
 
 /**
- * PlaylistsView — vue "Bibliothèque" (renommée depuis "Mes Séances", elle-même
- * renommée depuis "Mes Playlists").
+ * PlaylistsView — vue "Mes Séances" (nom d'origine restauré le 25/07 : elle
+ * s'était appelée "Bibliothèque" un temps, mais c'est resté le seul endroit
+ * à le dire — le reste de l'app, lui, n'a jamais arrêté d'appeler cette
+ * fonctionnalité "Mes Séances" partout ailleurs : info-bulles,
+ * PlaylistHeader.jsx, StatsView.jsx, description de trophée dans
+ * appConfig.js... Rétabli ici pour que le titre de la page matche enfin la
+ * Sidebar et le reste de l'app, plutôt que l'inverse).
  *
  * Fusionne ce qui était avant deux pages séparées ("Mes Playlists" et "Ma
  * File d'attente", voir passation) suite à un retour direct : une file
@@ -63,7 +68,7 @@ export default function PlaylistsView({
 
   const isCompleted = (p) => p.completions && p.completions.length > 0;
 
-  // Pare-feu Mode Intime (retour direct : "les vues Bibliothèque et Découvrir
+  // Pare-feu Mode Intime (retour direct : "les vues Mes Séances et Découvrir
   // mélangent les contenus des deux modes") — TOUT le reste de ce composant
   // travaille sur `visiblePlaylists`, jamais directement sur `savedPlaylists`
   // (qui contient les deux modes mélangés) : `!!p.isNaughty` normalise
@@ -176,7 +181,7 @@ export default function PlaylistsView({
             Standard suppose un fond sombre — si ce mode est un jour utilisé
             en thème CLAIR (bg-base pâle), ce titre redeviendrait illisible
             à son tour, symétriquement au bug corrigé ici. */}
-        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}><Library className={textColorClass} size={36} /> <span>Bibliothèque</span></h1>
+        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}><Library className={textColorClass} size={36} /> <span>Mes Séances</span></h1>
         <p className={`mt-2 ${isNaughtyMode ? 'text-slate-700' : 'text-slate-300'}`}>Retrouve ici toutes tes playlists générées. Glisse-dépose pour organiser tes prochaines écoutes, ton historique complet est juste en dessous.</p>
       </div>
 
