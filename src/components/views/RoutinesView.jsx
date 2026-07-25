@@ -1,4 +1,5 @@
 import { ListPlus, Plus, Edit3, Trash2, Layers, Info, Loader2, PlaySquare } from 'lucide-react';
+import { useModalContext } from '../../contexts/ModalContext';
 
 /**
  * RoutinesView — vue "Mes Routines" (configurations sauvegardées, relançables en un clic).
@@ -12,8 +13,9 @@ import { ListPlus, Plus, Edit3, Trash2, Layers, Info, Loader2, PlaySquare } from
 export default function RoutinesView({
   theme, isNaughtyMode, routines, setRoutines, routineBatchCounts, setRoutineBatchCounts,
   getDisplayRoutineIcon, getDisplayRoutineName, renderConfigInfoLine, getRankStyle,
-  setEditingRoutine, setIsEditRoutineModalOpen, executeGeneration, isGenerating, changeView,
+  setEditingRoutine, executeGeneration, isGenerating, changeView,
 }) {
+  const { openModal } = useModalContext();
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass, inputBg, inputBorder } = theme;
 
   // Triées par nombre de générations manuelles décroissant — les plus utilisées
@@ -81,7 +83,7 @@ export default function RoutinesView({
                       </div>
                     )
                   })()}
-                  <button onClick={() => { setEditingRoutine({ ...routine }); setIsEditRoutineModalOpen(true); }} className={`p-2 rounded-lg text-gray-400 hover:text-blue-500 transition-colors`} title="Éditer cette routine">
+                  <button onClick={() => { setEditingRoutine({ ...routine }); openModal('EDIT_ROUTINE'); }} className={`p-2 rounded-lg text-gray-400 hover:text-blue-500 transition-colors`} title="Éditer cette routine">
                     <Edit3 size={16} />
                   </button>
                   <button onClick={() => setRoutines(routines.filter(r => r.id !== routine.id))} className={`p-2 rounded-lg text-gray-400 hover:text-red-500 transition-colors`} title="Supprimer cette routine">
