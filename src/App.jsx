@@ -49,6 +49,7 @@ import { useRoutines } from './hooks/useRoutines';
 import { useUserStats } from './hooks/useUserStats';
 import { usePlaylistCompletions } from './hooks/usePlaylistCompletions';
 import { usePlaylistLibrary } from './hooks/usePlaylistLibrary';
+import { useRoutineActions } from './hooks/useRoutineActions';
 // useAudioPreview n'est plus importé ici : appelé une seule fois à
 // l'intérieur de <AudioPlayerProvider> (contexts/AudioPlayerContext.jsx).
 import { AudioPlayerProvider, useAudioPlayer } from './contexts/AudioPlayerContext';
@@ -1025,73 +1026,10 @@ function AppContent({
     );
   };
 
-  // Bascule le "mode Intime" : change à la volée les réglages par défaut
-  // (BPM plus bas, genres différents, crossfade plus long...) pour coller à
-  // l'ambiance, et les restaure au retour au mode standard.
-  const toggleNaughtyMode = () => {
-    if (!isNaughtyMode) {
-      setIsNaughtyMode(true);
-      // isIntervalMode n'est plus forcé à false ici : le mode Fractionné reste
-      // proposé en mode Intime (voir étape 2 du wizard), donc son état ne doit
-      // plus être écrasé silencieusement à l'activation du mode.
-      setBpm(85); setBpmTolerance(15); setSelectedGenres(['R&B Sensuel']); setGenreWeights({ 'R&B Sensuel': 100 }); setLockedGenreWeights(new Set()); setTargetMode('time');
-      setCrossfade(5); 
-      showToast("Ambiance intime activée...", 'ambiance');
-    } else {
-      setIsNaughtyMode(false);
-      setBpm(160); setBpmTolerance(10); setSelectedGenres(['Métal']); setGenreWeights({ 'Métal': 100 }); setLockedGenreWeights(new Set()); setCrossfade(2);
-      showToast("Retour au mode Standard !");
-    }
-  };
-
-  // Sauvegarde la configuration actuelle du wizard comme routine réutilisable.
-  const handleSaveRoutine = () => {
-    const finalName = newRoutineName.trim() || `Routine ${workoutType === 'Autre' ? customActivity || 'Personnalisée' : workoutType}`;
-    const newRoutine = {
-      id: `routine-${Date.now()}`, name: finalName, workoutType,
-      customActivity: workoutType === 'Autre' ? customActivity : '', isIntervalMode, isCrescendoMode, bpm,
-      crescendoWarmupPct, crescendoCooldownPct, crescendoWarmupBpm, crescendoCooldownBpm,
-      targetMode, distanceVal, distanceUnit, paceMin, paceSec, hours, minutes, selectedGenres, bpmTolerance, crossfade, allowLongTracks, genreWeights,
-      segments: isIntervalMode ? [...segments] : [], coverIcon: newRoutineIcon, autoGenFreq: newRoutineFreq,
-      manualGenerations: 0, recentTrackIds: [], createdAt: new Date().toLocaleDateString()
-    };
-    addRoutine(newRoutine);
-
-    // "Créer une Routine" — sauvegarder sa toute première routine.
-    // "Génération automatique" — activer l'auto-génération dessus (pas juste
-    // "Manuel") dès la création. Les deux sont de la pure découverte de
-    // fonctionnalité, vérifiées indépendamment l'une de l'autre.
-    let newFlags = {};
-    if (routines.length === 0 && !userStats.hasFirstRoutine) newFlags.hasFirstRoutine = true;
-    if (newRoutineFreq !== 'Manuel' && !userStats.hasAutoGen) newFlags.hasAutoGen = true;
-    if (Object.keys(newFlags).length > 0) checkTrophies({ ...userStats, ...newFlags });
-  };
-
-  /**
-   * Lance une génération à partir de `editingRoutine` (la version modifiée dans la
-   * modale d'édition), sans jamais toucher à la routine sauvegardée dans `routines`.
-   * Utilisée par le bouton "Cette séance seulement".
-   */
-  const applyRoutineEditOnce = () => {
-    if (!editingRoutine) return;
-    executeGeneration({ ...editingRoutine, workoutName: editingRoutine.customActivity || editingRoutine.workoutType, routineName: editingRoutine.name }, 1, editingRoutine.id);
-    setIsEditRoutineModalOpen(false);
-    setEditingRoutine(null);
-  };
-
-  /**
-   * Écrase la routine sauvegardée avec les valeurs modifiées dans `editingRoutine`,
-   * PUIS lance une génération avec ces nouvelles valeurs. Utilisée par le bouton
-   * "Toujours pour cette routine".
-   */
-  const applyRoutineEditPermanently = () => {
-    if (!editingRoutine) return;
-    updateRoutine(editingRoutine);
-    executeGeneration({ ...editingRoutine, workoutName: editingRoutine.customActivity || editingRoutine.workoutType, routineName: editingRoutine.name }, 1, editingRoutine.id);
-    showToast("Routine mise à jour pour toutes les prochaines séances.");
-    setIsEditRoutineModalOpen(false);
-    setEditingRoutine(null);
-  };
+  // toggleNaughtyMode/handleSaveRoutine/applyRoutineEditOnce/applyRoutineEditPermanently
+  // extraites dans useRoutineActions.js (25/07, chantier "réduire le God
+  // Component") — appelée plus bas, une fois executeGeneration défini (dont
+  // applyRoutineEditOnce/Permanently dépendent).
 
   /**
    * Tant que la modale d'édition de routine est ouverte sur une routine en
@@ -1359,6 +1297,14 @@ function AppContent({
       }
     }
   };
+
+  const { toggleNaughtyMode, handleSaveRoutine, applyRoutineEditOnce, applyRoutineEditPermanently } = useRoutineActions(
+    isNaughtyMode, setIsNaughtyMode, showToast,
+    routines, addRoutine, updateRoutine,
+    editingRoutine, setEditingRoutine, setIsEditRoutineModalOpen,
+    newRoutineName, newRoutineIcon, newRoutineFreq,
+    userStats, checkTrophies, executeGeneration,
+  );
 
   // MIGRÉ VERS PlaylistDetailContext : handleRemoveTrack, handleDuplicateTrack,
   // handleRenamePlaylist, handleReplaceTrack, handleReplaceTrackSameArtist,
