@@ -28,7 +28,7 @@ import { X, User, Mail, Lock, Loader2, Eye, EyeOff, ArrowLeft, CheckCircle } fro
  * ce mode depuis le formulaire de connexion — réutiliser le même state fait
  * ça gratuitement, sans logique de pré-remplissage à écrire à part.
  */
-export default function AuthModal({ theme, isAuthModalOpen, setIsAuthModalOpen, signUp, signIn, resetPassword, showToast }) {
+export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, signIn, resetPassword, showToast }) {
   const { cardBg, cardBorder, textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
 
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'forgot'
@@ -55,7 +55,7 @@ export default function AuthModal({ theme, isAuthModalOpen, setIsAuthModalOpen, 
   };
 
   const close = () => {
-    setIsAuthModalOpen(false);
+    onClose();
     setMode('signin');
     resetFields();
   };
