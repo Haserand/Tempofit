@@ -180,7 +180,7 @@ export default function PlaylistHeader({
           title="Écouter cette playlist"
           className="relative w-32 h-32 rounded-xl overflow-hidden shadow-2xl shadow-black/70 cursor-pointer transition-transform duration-300 hover:scale-[1.02]"
         >
-          {/* Continuité visuelle avec PlaylistCard.jsx (Bibliothèque) : même
+          {/* Continuité visuelle avec PlaylistCard.jsx (Mes Séances) : même
               logique de pochette exactement — `coverUrl` si déjà posé
               (playlists ouvertes depuis Découvrir, voir App.jsx
               `openCuratedPlaylist`), sinon `buildCoverUrl(currentPlaylist.name)`
