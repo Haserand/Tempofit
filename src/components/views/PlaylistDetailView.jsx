@@ -36,11 +36,10 @@ function PlaylistDetailViewInner({
   handleShare, showToast,
   summaryImageStatus, setSummaryImageStatus, summaryImageFile, setSummaryImageFile,
   summaryImagePreviewUrl, setSummaryImagePreviewUrl, includeSummaryImage, setIncludeSummaryImage,
-  formatCompletionDate,
   favorites, toggleTrackFavorite, toggleArtistFavorite,
   setIsBpmSearchMode, setIsSearchModalOpen,
   setPlaylistPlannedDate,
-  renderCompletionsList, renderTopCompletionDate,
+  editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
   getRankStyle, triggerCSVUpload,
 }) {
   // Chantier découpage (suite) : ce composant ne fait plus QUE l'orchestration
@@ -390,7 +389,8 @@ function PlaylistDetailViewInner({
         theme={theme} isLocked={isLocked} savedPlaylists={savedPlaylists}
         resolveAndTogglePreview={resolveAndTogglePreview} getNextTrackForAutoAdvance={getNextTrackForAutoAdvance}
         setPlaylistPlannedDate={setPlaylistPlannedDate} bpmChartActivityName={bpmChartActivityName}
-        renderCompletionsList={renderCompletionsList} renderTopCompletionDate={renderTopCompletionDate}
+        editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
+        editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
         getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload}
         onShare={handleShareClick}
       />
@@ -404,7 +404,6 @@ function PlaylistDetailViewInner({
         theme={theme} colorMode={colorMode} isLocked={isLocked}
         favorites={favorites} toggleArtistFavorite={toggleArtistFavorite}
         resolveAndTogglePreview={resolveAndTogglePreview} getNextTrackForAutoAdvance={getNextTrackForAutoAdvance}
-        formatCompletionDate={formatCompletionDate}
         playlistCadenceUnit={playlistCadenceUnit} bpmChartActivityName={bpmChartActivityName}
         hasDetailFilter={hasDetailFilter} trackMatchesDetailFilter={trackMatchesDetailFilter}
         selectedDetailGenre={selectedDetailGenre} selectedDetailBpmBucket={selectedDetailBpmBucket}
@@ -515,9 +514,10 @@ export default function PlaylistDetailView({
   theme, colorMode, handleShare,
   summaryImageStatus, setSummaryImageStatus, summaryImageFile, setSummaryImageFile,
   summaryImagePreviewUrl, setSummaryImagePreviewUrl, includeSummaryImage, setIncludeSummaryImage,
-  formatCompletionDate, toggleTrackFavorite, toggleArtistFavorite,
+  toggleTrackFavorite, toggleArtistFavorite,
   setIsBpmSearchMode, setIsSearchModalOpen, setPlaylistPlannedDate,
-  renderCompletionsList, renderTopCompletionDate, getRankStyle, triggerCSVUpload,
+  editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
+  getRankStyle, triggerCSVUpload,
 }) {
   return (
     <PlaylistDetailProvider
@@ -539,11 +539,11 @@ export default function PlaylistDetailView({
         summaryImageFile={summaryImageFile} setSummaryImageFile={setSummaryImageFile}
         summaryImagePreviewUrl={summaryImagePreviewUrl} setSummaryImagePreviewUrl={setSummaryImagePreviewUrl}
         includeSummaryImage={includeSummaryImage} setIncludeSummaryImage={setIncludeSummaryImage}
-        formatCompletionDate={formatCompletionDate}
         favorites={favorites} toggleTrackFavorite={toggleTrackFavorite} toggleArtistFavorite={toggleArtistFavorite}
         setIsBpmSearchMode={setIsBpmSearchMode} setIsSearchModalOpen={setIsSearchModalOpen}
         setPlaylistPlannedDate={setPlaylistPlannedDate}
-        renderCompletionsList={renderCompletionsList} renderTopCompletionDate={renderTopCompletionDate}
+        editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
+        editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
         getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload}
       />
     </PlaylistDetailProvider>
