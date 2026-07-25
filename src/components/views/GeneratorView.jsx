@@ -325,7 +325,7 @@ export default function GeneratorView({
   }, [wizardStep, structureMode, targetMode]);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* En-tête standardisé (25/07) — suit EXACTEMENT le même modèle que
           PlaylistsView.jsx/StatsView.jsx (icône à gauche, text-4xl, aligné à
           gauche, bordure en bas) : avant, cette vue était la seule à avoir un
@@ -334,7 +334,7 @@ export default function GeneratorView({
           de taille et de position. `<Gauge/>` remplace `<Zap/>` quand
           `showAthleticProfile` est vrai, cohérent avec l'icône déjà utilisée
           pour "Profil Athlétique" dans la Sidebar. */}
-      <div className={`border-b ${cardBorder} pb-6`}>
+      <div className={`border-b ${cardBorder} pb-6 pr-32 md:pr-40`}>
         <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}>
           {showAthleticProfile ? <Gauge className={textColorClass} size={36} /> : <Zap className={textColorClass} size={36} />}
           <span>{showAthleticProfile ? 'Mon Profil Athlétique' : (isNaughtyMode ? "Prépare l'ambiance..." : "Sculpte ta séance")}</span>
