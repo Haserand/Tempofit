@@ -2,6 +2,7 @@ import { Star, Heart, Play, Pause, Loader2, X, Plus, User, RefreshCw, Target, Se
 import { getGenreLocalDepthWarning, getGenresForDisplay, genreDisplayLabel, EXTRA_GENRES } from '../../musicCatalog';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useModalContext } from '../../contexts/ModalContext';
+import ViewHeader from '../shared/ViewHeader';
 
 /**
  * FavoritesView — vue "Mes Favoris" (titres/artistes favoris + exploration BPM/genre).
@@ -65,12 +66,12 @@ export default function FavoritesView({
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className={`border-b ${cardBorder} pb-6 pr-32 md:pr-40`}>
-        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}>
-          <Star className="text-yellow-500 fill-yellow-500/20" size={36} /> <span>Mes Favoris</span>
-        </h1>
-        <p className={`mt-2 ${isNaughtyMode ? 'text-slate-700' : 'text-slate-300'}`}>Priorité à la génération : tes titres favoris d'abord, puis tes artistes favoris, puis une recherche plus large si besoin pour compléter la playlist.</p>
-      </div>
+      <ViewHeader
+        theme={theme} isNaughtyMode={isNaughtyMode}
+        icon={<Star className="text-yellow-500 fill-yellow-500/20" size={36} />}
+        title="Mes Favoris"
+        subtitle="Priorité à la génération : tes titres favoris d'abord, puis tes artistes favoris, puis une recherche plus large si besoin pour compléter la playlist."
+      />
 
       <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
