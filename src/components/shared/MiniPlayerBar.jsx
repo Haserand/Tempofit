@@ -65,7 +65,7 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
     // la hiérarchie z-index existante de l'app — Sidebar (z-50) < badge
     // trophée/connexion (z-[60]) < CETTE barre (z-[65]) < modales (z-[70]) <
     // toasts (z-[80]).
-    <div className={`fixed bottom-0 left-0 right-0 z-[65] border-t shadow-2xl animate-in slide-in-from-bottom-4 fade-in duration-300 ${cardBg} ${cardBorder}`}>
+    <div className={`fixed bottom-0 left-0 right-0 z-[65] border-t shadow-2xl ${cardBg} ${cardBorder}`}>
       <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center gap-3">
 
         {/* ── Zone gauche : infos titre (essentiel, jamais masqué) ── */}
