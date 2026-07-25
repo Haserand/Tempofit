@@ -18,7 +18,7 @@ import DualRangeSlider from '../shared/DualRangeSlider';
  */
 export default function EditRoutineModal({
   theme, isNaughtyMode,
-  isEditRoutineModalOpen, setIsEditRoutineModalOpen,
+  isEditRoutineModalOpen, onClose,
   editingRoutine, setEditingRoutine,
   showExtraGenres, setShowExtraGenres,
   getProfileForWorkout, CRESCENDO_MIN_MAIN_PCT,
@@ -28,7 +28,7 @@ export default function EditRoutineModal({
 
   if (!isEditRoutineModalOpen || !editingRoutine) return null;
 
-  const close = () => { setIsEditRoutineModalOpen(false); setEditingRoutine(null); };
+  const close = () => { onClose(); setEditingRoutine(null); };
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={close}>
