@@ -703,10 +703,10 @@ export default function StatsView({
         <div className={`py-16 text-center border-2 border-dashed rounded-2xl ${statsMode === 'naughty' ? 'border-slate-400' : 'border-slate-700'}`}>
           <Activity size={48} className={`mx-auto mb-4 ${statsMode === 'naughty' ? 'text-slate-800' : 'text-slate-400'}`} />
           <h3 className={`text-lg font-bold mb-2 ${statsMode === 'naughty' ? 'text-slate-950' : 'text-white'}`}>Rien à montrer pour l'instant</h3>
-          <p className={`text-sm mb-6 max-w-sm mx-auto ${statsMode === 'naughty' ? 'text-slate-800' : 'text-slate-400'}`}>
+          <p className={`text-sm mb-6 max-w-sm mx-auto line-clamp-1 ${statsMode === 'naughty' ? 'text-slate-800' : 'text-slate-400'}`}>
             {statsMode === 'naughty'
-              ? "Aucune séance Mode Intime marquée comme faite pour l'instant."
-              : 'Génère des playlists et marque-les comme faites (voir "Mes Séances") — les stats se rempliront au fur et à mesure.'}
+              ? "Aucune séance Mode Intime marquée pour l'instant."
+              : 'Termine une séance pour voir tes stats démarrer.'}
           </p>
           <button onClick={() => changeView('generator')} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
             Générer ma première playlist
