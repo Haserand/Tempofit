@@ -8,7 +8,7 @@ import { AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from '../../appConfig';
  */
 export default function SavingRoutineModal({
   theme, isNaughtyMode,
-  isSavingRoutineModalOpen, setIsSavingRoutineModalOpen,
+  isSavingRoutineModalOpen, onClose,
   newRoutineName, setNewRoutineName,
   newRoutineIcon, setNewRoutineIcon,
   newRoutineFreq, setNewRoutineFreq,
@@ -19,13 +19,13 @@ export default function SavingRoutineModal({
   if (!isSavingRoutineModalOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsSavingRoutineModalOpen(false)}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
       <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6">
           <h3 className={"text-2xl font-bold flex items-center space-x-2 " + textHighlight}>
             <BookmarkPlus className={isNaughtyMode ? "text-rose-500" : "text-yellow-500"}/> <span>Nouvelle Routine</span>
           </h3>
-          <button onClick={() => setIsSavingRoutineModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
+          <button onClick={onClose} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
         </div>
         <div className="space-y-4 mb-6">
           <input
