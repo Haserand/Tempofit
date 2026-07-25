@@ -73,15 +73,6 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode }) {
         icon={<Compass className={theme.textColorClass} size={36} />}
         title="Découvrir"
         subtitle="Des séances prêtes à l'emploi, sélectionnées par TempoFit — un clic pour les adapter à ton profil."
-        right={
-          <button
-            disabled
-            title="Bientôt disponible"
-            className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm cursor-not-allowed opacity-60 ${cardBg} border ${cardBorder} ${textMuted}`}
-          >
-            <Lock size={16}/> <span>Publier ma propre séance</span>
-          </button>
-        }
       />
 
       {/* Recherche + filtres — voir la docstring pour ce qui est réellement
@@ -98,22 +89,40 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode }) {
           />
         </div>
 
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-          <button
-            onClick={() => setActiveCategory('Toutes')}
-            className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-colors ${activeCategory === 'Toutes' ? `${bgAccentClass} text-white` : `${cardBg} border ${cardBorder} ${textMuted} hover:text-main`}`}
-          >
-            Toutes
-          </button>
-          {categories.map(category => (
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          {/* Bloc de gauche : Pilules de catégories */}
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 flex-1">
             <button
-              key={category}
-              onClick={() => setActiveCategory(category)}
-              className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-colors ${activeCategory === category ? `${bgAccentClass} text-white` : `${cardBg} border ${cardBorder} ${textMuted} hover:text-main`}`}
+              onClick={() => setActiveCategory('Toutes')}
+              className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-colors ${activeCategory === 'Toutes' ? `${bgAccentClass} text-white` : `${cardBg} border ${cardBorder} ${textMuted} hover:text-main`}`}
             >
-              {category}
+              Toutes
             </button>
-          ))}
+            {categories.map(category => (
+              <button
+                key={category}
+                onClick={() => setActiveCategory(category)}
+                className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-colors ${activeCategory === category ? `${bgAccentClass} text-white` : `${cardBg} border ${cardBorder} ${textMuted} hover:text-main`}`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+
+          {/* Bloc de droite : Bouton Publier — redescendu ici (25/07) depuis
+              le ViewHeader : la marge de sécurité `pr-32 md:pr-40` du
+              ViewHeader (anti-collision avec les boutons flottants
+              Thème/Connexion) laissait trop peu de place à un bouton aussi
+              large que "Publier ma propre séance" à côté du titre — l'en-tête
+              doit rester pur (titre + sous-titre uniquement), ce bouton
+              d'action trouve sa place naturelle ici, face aux filtres. */}
+          <button
+            disabled
+            title="Bientôt disponible"
+            className={`shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm cursor-not-allowed opacity-60 ${cardBg} border ${cardBorder} ${textMuted}`}
+          >
+            <Lock size={16}/> <span>Publier ma propre séance</span>
+          </button>
         </div>
       </div>
 
