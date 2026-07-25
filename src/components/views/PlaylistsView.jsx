@@ -178,7 +178,7 @@ export default function PlaylistsView({
         theme={theme} isNaughtyMode={isNaughtyMode}
         icon={<Library className={textColorClass} size={36} />}
         title="Mes Séances"
-        subtitle="Retrouve ici toutes tes playlists générées. Glisse-dépose pour organiser tes prochaines écoutes, ton historique complet est juste en dessous."
+        subtitle="Retrouve tes playlists générées, planifie tes écoutes et consulte ton historique."
       />
 
       {/* "Soft Gating" (25/07) — l'app est Local-First : un invité utilise 100%
