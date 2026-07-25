@@ -382,7 +382,7 @@ function PlaylistDetailViewInner({
   // TrackList), simplement transmis en props aux deux.
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-5xl mx-auto space-y-8">
       {/* En-tête — extrait dans PlaylistHeader.jsx (chantier découpage,
           suite de TrackList/TrackItem). Pas de div "border-b pb-6" ici
           (structure carte différente des autres vues, pas juste un titre
