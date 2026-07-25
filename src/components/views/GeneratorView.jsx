@@ -758,14 +758,14 @@ export default function GeneratorView({
               volontairement générique plutôt que de réintroduire un mot qui a
               déjà causé une confusion. */}
           {!isNaughtyMode && configuredProfilesCount === 0 && (
-            <div className={`${cardBg} rounded-2xl border ${cardBorder} p-4 flex items-center justify-between gap-3 flex-wrap`}>
-              <div className="flex items-center gap-3 min-w-0">
-                <div className={`shrink-0 p-2 rounded-xl ${bgAccentClass} text-white`}><Gauge size={18}/></div>
-                <p className={`text-sm ${textMuted}`}>Configure ton <span className={`font-semibold ${textHighlight}`}>Profil Athlétique</span> pour que le générateur te propose automatiquement un BPM ajusté à chaque zone d'effort.</p>
-              </div>
-              <button onClick={() => setShowAthleticProfile(true)} className={`shrink-0 text-sm font-bold underline ${textColorClass}`}>
-                Configurer →
-              </button>
+            <div className={`${cardBg} rounded-2xl border ${cardBorder} p-4 flex items-center gap-3`}>
+              <div className={`shrink-0 p-2 rounded-xl ${bgAccentClass} text-white`}><Gauge size={18}/></div>
+              <p className={`text-sm ${textMuted}`}>
+                Configure ton <span className={`font-semibold ${textHighlight}`}>Profil Athlétique</span> pour un BPM ajusté à chaque zone d'effort.{' '}
+                <button onClick={() => setShowAthleticProfile(true)} className={`font-bold underline whitespace-nowrap ${textColorClass}`}>
+                  Configurer →
+                </button>
+              </p>
             </div>
           )}
 
