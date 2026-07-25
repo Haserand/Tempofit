@@ -377,7 +377,7 @@ export default function PlaylistCharts({
               surbrillance ambre sur la courbe, un texte explicite qui ne
               laisse aucun doute sur ce qui se passe. */}
           {isDraggingChartSegment && (
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 px-3 py-1.5 rounded-full bg-amber-500 text-white text-xs font-bold shadow-lg pointer-events-none animate-in fade-in zoom-in duration-200">
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 px-3 py-1.5 rounded-full bg-amber-500 text-white text-xs font-bold shadow-lg pointer-events-none">
               ↔ Déplacement en cours...
             </div>
           )}
