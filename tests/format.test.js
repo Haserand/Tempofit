@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatDuration, parseTimeToSeconds } from '../src/utils/format.js';
+import { formatDuration, formatCompletionDate, parseTimeToSeconds } from '../src/utils/format.js';
 
 describe('formatDuration', () => {
   it('formate en dessous d\'une heure en "Xm YYs"', () => {
@@ -17,6 +17,23 @@ describe('formatDuration', () => {
   it('tronque (n\'arrondit pas) les secondes fractionnaires', () => {
     // 90.9s -> 1m 30s, pas 1m 31s : Math.floor partout dans l'implémentation
     expect(formatDuration(90.9)).toBe('1m 30s');
+  });
+});
+
+describe('formatCompletionDate', () => {
+  it('formate une date seule (YYYY-MM-DD) sans heure', () => {
+    // Pas d'assertion sur le format exact de toLocaleDateString() (dépend de
+    // la locale d'exécution) — seulement qu'aucune heure n'apparaît, ce qui
+    // est le comportement distinctif de la branche "date seule".
+    expect(formatCompletionDate('2026-07-18')).not.toContain(':');
+  });
+
+  it('formate un horodatage ISO complet avec une heure ("à HH:MM")', () => {
+    expect(formatCompletionDate('2026-07-18T14:30:00.000Z')).toContain(' à ');
+  });
+
+  it('renvoie la chaîne telle quelle si la date est invalide', () => {
+    expect(formatCompletionDate('pas-une-date')).toBe('pas-une-date');
   });
 });
 
