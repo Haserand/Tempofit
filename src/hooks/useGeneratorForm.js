@@ -329,7 +329,7 @@ export function useGeneratorForm(isNaughtyMode, athleticProfile) {
   const availableGenres = isNaughtyMode ? NAUGHTY_GENRES : STANDARD_GENRES;
   const displaySubtitleGen = isNaughtyMode
     ? "Laisse l'algorithme composer la bande-son idéale pour cette soirée."
-    : "Laisse l'algorithme générer la bande-son ultime pour pulvériser tes objectifs.";
+    : "Laisse l'algorithme générer la bande-son ultime pour tes objectifs.";
 
   // Répartit 100% à parts égales entre les genres donnés (reste éventuel
   // affecté au dernier, pour que la somme tombe toujours pile sur 100 malgré
