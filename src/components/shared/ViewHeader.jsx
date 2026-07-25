@@ -41,9 +41,16 @@
  * lui-même que d'essayer d'encoder toutes les règles possibles ici.
  *
  * `right` — contenu optionnel affiché à droite du titre (ex. le bouton
- * "Partager mon bilan" de StatsView, "Publier ma propre séance" de
- * DiscoverView) — empile en colonne sous le titre sur mobile, revient à
- * côté à partir de `sm:`.
+ * "Partager mon bilan" de StatsView) — empile en colonne sous le titre sur
+ * mobile, revient à côté à partir de `sm:`. À utiliser avec prudence : voir
+ * DiscoverView.jsx (25/07, chantier "polish UI des en-têtes") où un bouton
+ * ("Publier ma propre séance") est retiré d'ici — un bouton assez large
+ * combiné à `pr-32 md:pr-40` pouvait laisser trop peu de place au titre/
+ * sous-titre. Pas de solution générique imposée ici : selon le cas, la
+ * bonne réponse peut être de raccourcir le texte, de le déplacer ailleurs
+ * dans la vue (voir DiscoverView.jsx, redescendu face aux filtres avant
+ * d'être retiré), ou de le supprimer si la fonctionnalité qu'il annonce
+ * n'existe pas encore.
  *
  * `pr-32 md:pr-40` toujours appliqué, inconditionnellement : protège le
  * titre d'une collision avec les boutons Thème/Connexion, `absolute` et
@@ -71,11 +78,25 @@ export default function ViewHeader({ theme, isNaughtyMode = undefined, icon, tit
 
   return (
     <div className={`border-b ${cardBorder} pb-6 pr-32 md:pr-40 flex flex-col sm:flex-row sm:items-start justify-between gap-4`}>
-      <div>
+      {/* `min-w-0` — sans lui, un enfant de flex refuse par défaut de rétrécir
+          sous la largeur de son propre contenu (`min-width: auto` implicite) :
+          `truncate` sur le sous-titre juste en dessous n'aurait alors jamais
+          d'effet visible sur un écran large, seulement si le texte débordait
+          déjà pour une autre raison — piège Flexbox classique, pas une
+          option cosmétique. */}
+      <div className="min-w-0">
         <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${titleColorClass}`}>
           {icon} <span>{title}</span>
         </h1>
-        <p className={`mt-2 ${subtitleColorClass}`}>{subtitle}</p>
+        {/* Sous-titre verrouillé sur UNE seule ligne (`truncate`, 25/07) —
+            avant, un texte trop long passait sur 2 lignes selon la vue,
+            cassant l'esthétique "Dashboard" en changeant de page (un en-tête
+            plus haut qu'un autre). Toujours les MÊMES classes typographiques
+            ici, jamais redéfinies par vue — voir PlaylistsView.jsx/
+            GeneratorView.jsx (25/07) pour des textes raccourcis en amont,
+            plutôt que de compter sur la troncature seule pour masquer un
+            texte déjà trop long. */}
+        <p className={`mt-2 text-sm md:text-base truncate ${subtitleColorClass}`}>{subtitle}</p>
       </div>
       {right && <div className="shrink-0 flex items-center gap-2">{right}</div>}
     </div>
