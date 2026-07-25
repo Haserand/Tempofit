@@ -6,6 +6,7 @@ import { NAUGHTY_WORKOUT_LABELS } from '../../appConfig';
 import { genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog';
 import { formatDuration } from '../../utils/format';
 import GlobalStatsShareCard from '../shared/GlobalStatsShareCard';
+import ViewHeader from '../shared/ViewHeader';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useModalContext } from '../../contexts/ModalContext';
 
@@ -632,53 +633,50 @@ export default function StatsView({
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className={`border-b ${cardBorder} pb-6 pr-32 md:pr-40 flex items-start justify-between gap-4`}>
-        <div>
-          <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${statsMode === 'naughty' ? 'text-slate-950' : 'text-white'}`}>
-            <Activity className={statsMode === 'naughty' ? 'text-rose-500' : textColorClass} size={36} />
-            <span>{statsMode === 'naughty' ? 'Statistiques · Intime' : 'Statistiques'}</span>
-          </h1>
-          <p className={`mt-2 ${statsMode === 'naughty' ? 'text-slate-700' : 'text-slate-300'}`}>
-            {statsMode === 'naughty' ? "Ce que tu as écouté en mode Intime, à part du reste." : "Ce que tu as écouté, séance après séance."}
-          </p>
-        </div>
-        {/* Bascule discrète — jamais montrée en avant, jamais mélangée aux stats
-            par défaut (voir playlistsForStats plus haut). Icône flamme plutôt qu'un
-            texte "Stats Mode Intime" : c'est déjà l'icône utilisée ailleurs dans
-            l'app pour ce mode. Le chemin retour (une fois dedans) reste en texte.
-            "Partager mon bilan" (Bilan Global, voir GlobalStatsShareCard.jsx) à
-            côté — bouton BIEN VISIBLE (retour direct), contrairement à la bascule
-            Intime qui elle reste volontairement discrète. */}
-        <div className="flex items-center gap-2 shrink-0">
-          {totalSessions > 0 && (
-            <button
-              onClick={exportGlobalStatsImage}
-              disabled={isExportingGlobalStats}
-              title="Générer une image de ton bilan global à partager"
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors ${bgAccentClass} text-white hover:brightness-110 disabled:opacity-60 disabled:cursor-wait`}
-            >
-              {isExportingGlobalStats ? <Loader2 size={16} className="animate-spin" /> : <Share2 size={16} />}
-              <span>{isExportingGlobalStats ? 'Génération...' : 'Partager mon bilan'}</span>
-            </button>
-          )}
-          {statsMode === 'naughty' ? (
-            <button
-              onClick={() => { setStatsMode('standard'); setSelectedStatsGenre(new Set()); setSelectedStatsBpmBucket(new Set()); }}
-              className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${textMuted} hover:text-main hover:bg-surface-hover`}
-            >
-              ← Stats standards
-            </button>
-          ) : (
-            <button
-              onClick={() => { setStatsMode('naughty'); setSelectedStatsGenre(new Set()); setSelectedStatsBpmBucket(new Set()); }}
-              title="Stats Mode Intime"
-              className="p-2 rounded-lg text-gray-400 hover:text-rose-500 transition-colors cursor-pointer"
-            >
-              <Flame size={18} />
-            </button>
-          )}
-        </div>
-      </div>
+      <ViewHeader
+        theme={theme} isNaughtyMode={statsMode === 'naughty'}
+        icon={<Activity className={statsMode === 'naughty' ? 'text-rose-500' : textColorClass} size={36} />}
+        title={statsMode === 'naughty' ? 'Statistiques · Intime' : 'Statistiques'}
+        subtitle={statsMode === 'naughty' ? "Ce que tu as écouté en mode Intime, à part du reste." : "Ce que tu as écouté, séance après séance."}
+        right={
+          // Bascule discrète — jamais montrée en avant, jamais mélangée aux stats
+          // par défaut (voir playlistsForStats plus haut). Icône flamme plutôt qu'un
+          // texte "Stats Mode Intime" : c'est déjà l'icône utilisée ailleurs dans
+          // l'app pour ce mode. Le chemin retour (une fois dedans) reste en texte.
+          // "Partager mon bilan" (Bilan Global, voir GlobalStatsShareCard.jsx) à
+          // côté — bouton BIEN VISIBLE (retour direct), contrairement à la bascule
+          // Intime qui elle reste volontairement discrète.
+          <>
+            {totalSessions > 0 && (
+              <button
+                onClick={exportGlobalStatsImage}
+                disabled={isExportingGlobalStats}
+                title="Générer une image de ton bilan global à partager"
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors ${bgAccentClass} text-white hover:brightness-110 disabled:opacity-60 disabled:cursor-wait`}
+              >
+                {isExportingGlobalStats ? <Loader2 size={16} className="animate-spin" /> : <Share2 size={16} />}
+                <span>{isExportingGlobalStats ? 'Génération...' : 'Partager mon bilan'}</span>
+              </button>
+            )}
+            {statsMode === 'naughty' ? (
+              <button
+                onClick={() => { setStatsMode('standard'); setSelectedStatsGenre(new Set()); setSelectedStatsBpmBucket(new Set()); }}
+                className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${textMuted} hover:text-main hover:bg-surface-hover`}
+              >
+                ← Stats standards
+              </button>
+            ) : (
+              <button
+                onClick={() => { setStatsMode('naughty'); setSelectedStatsGenre(new Set()); setSelectedStatsBpmBucket(new Set()); }}
+                title="Stats Mode Intime"
+                className="p-2 rounded-lg text-gray-400 hover:text-rose-500 transition-colors cursor-pointer"
+              >
+                <Flame size={18} />
+              </button>
+            )}
+          </>
+        }
+      />
 
       {/* "Soft Gating" (25/07) — voir PlaylistsView.jsx pour le contexte
           complet (app Local-First, incitation jamais bloquante). Ici,
