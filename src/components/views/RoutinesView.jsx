@@ -1,5 +1,6 @@
 import { ListPlus, Plus, Edit3, Trash2, Layers, Info, Loader2, PlaySquare } from 'lucide-react';
 import { useModalContext } from '../../contexts/ModalContext';
+import ViewHeader from '../shared/ViewHeader';
 
 /**
  * RoutinesView — vue "Mes Routines" (configurations sauvegardées, relançables en un clic).
@@ -28,10 +29,12 @@ export default function RoutinesView({
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className={`border-b ${cardBorder} pb-6 pr-32 md:pr-40`}>
-        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}><ListPlus className={textColorClass} size={36} /> <span>Mes Routines</span></h1>
-        <p className={`mt-2 ${isNaughtyMode ? 'text-slate-700' : 'text-slate-300'}`}>Génère instantanément des playlists à partir de tes configurations.</p>
-      </div>
+      <ViewHeader
+        theme={theme} isNaughtyMode={isNaughtyMode}
+        icon={<ListPlus className={textColorClass} size={36} />}
+        title="Mes Routines"
+        subtitle="Génère instantanément des playlists à partir de tes configurations."
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {routines.length === 0 ? (
