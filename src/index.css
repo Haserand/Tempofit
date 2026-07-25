@@ -96,32 +96,3 @@ input, textarea, [contenteditable="true"] {
   user-select: text;
   cursor: text;
 }
-
-/* Correctif bug de rendu Chromium (25/07, confirmé via inspection live et un
-   test de redimensionnement de fenêtre) — certains textes fins/clairs sur
-   fond sombre (ex. le sous-titre de ViewHeader.jsx, `text-muted` + petite
-   taille de police) restent invisibles au tout premier rendu, alors que le
-   DOM/les classes/le texte sont corrects : n'importe quel évènement qui
-   force un recalcul de mise en page (redimensionner la fenêtre, ouvrir les
-   DevTools) les fait apparaître instantanément. Catégorie de bug connue,
-   probablement aggravée par `user-select: none` ci-dessus (désactiver la
-   sélection change le chemin de rendu du texte dans Chromium) combiné à une
-   couleur pilotée par variable CSS (`text-muted` → `--color-muted`) sur un
-   petit corps de texte. Plutôt que de chasser la cause exacte dans les
-   entrailles du moteur de rendu, on force le même recalcul automatiquement,
-   sans attendre une interaction : une micro-animation d'opacité
-   (0.99 → 1, invisible à l'œil, 10ms) qui pousse Chromium à repeindre
-   correctement l'élément dès le montage. `.force-repaint` à poser sur tout
-   élément qui présenterait ce même symptôme à l'avenir.
-   RÉFÉRENCE POUR REPRODUIRE/VÉRIFIER LE BUG (si un jour il faut le revalider
-   après un changement de dépendances) : retirer temporairement cette classe
-   du sous-titre de ViewHeader.jsx, recharger normalement (SANS DevTools
-   ouvert) une vue comme "Mes Routines" — texte absent ; redimensionner la
-   fenêtre ou ouvrir les DevTools — texte apparaît. */
-@keyframes force-repaint {
-  from { opacity: 0.99; }
-  to { opacity: 1; }
-}
-.force-repaint {
-  animation: force-repaint 10ms;
-}
