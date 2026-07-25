@@ -72,28 +72,37 @@ export default function ViewHeader({ theme, icon, title, subtitle, right = null 
 
   return (
     <div className={`border-b ${cardBorder} pb-6 pr-32 md:pr-40 flex flex-col sm:flex-row sm:items-start justify-between gap-4`}>
-      <div>
+      {/* `min-w-0` est nécessaire ici (pas juste sur le <p>) : dans un flex
+          item, la largeur par défaut ne descend jamais sous le contenu
+          (`min-width: auto`), donc sans ça le sous-titre ne serait JAMAIS
+          contraint, quel que soit le mécanisme utilisé pour la 1 ligne. */}
+      <div className="min-w-0">
         <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}>
           {icon} <span>{title}</span>
         </h1>
-        {/* RETOUR EN ARRIÈRE ASSUMÉ (25/07) — après plusieurs correctifs qui
-            n'ont pas réglé un bug d'affichage réel (sous-titre invisible au
-            premier rendu sur certaines vues, confirmé par capture d'écran ET
-            inspection live), retour à la version d'origine de cette ligne,
-            strictement : pas de `text-sm md:text-base` (ajouté par le
-            chantier "polish UI", seul dénominateur commun à TOUTES les
-            tentatives ratées ensuite — jamais isolé/testé seul avant ce
-            retour), pas de `truncate`, pas de `min-w-0` sur le conteneur, pas
-            de `.force-repaint` (ajoutés/essayés ensuite pour tenter de
-            corriger le symptôme sans jamais y arriver). Cette version-ci a
-            fonctionné de façon démontrée sur de nombreuses captures avant
-            que "polish UI" n'y touche — mieux vaut repartir d'une base
-            confirmée que continuer à empiler des correctifs sur une base qui
-            ne marche plus. Le style verrouillé/une-seule-ligne du sous-titre
-            (`truncate`) est ABANDONNÉ pour l'instant : à retenter séparément,
-            un jour, en isolant CETTE classe précise pour vérifier si c'est
-            elle la vraie cause — pas en même temps qu'autre chose. */}
-        <p className={`mt-2 ${textMuted}`}>{subtitle}</p>
+        {/* TENTATIVE 25/07 (nouvelle session) — `line-clamp-1` plutôt que
+            `truncate`. Les deux forcent une seule ligne, mais par des
+            mécanismes de rendu différents : `truncate` = `text-overflow:
+            ellipsis` + `white-space:nowrap`, un calcul connu pour mal se
+            comporter dans Chromium au tout premier paint quand le parent flex
+            change de direction selon un breakpoint (`flex-col sm:flex-row`,
+            exactement notre cas) — la troncature peut se calculer sur un état
+            de layout pas encore stabilisé, d'où un texte présent dans le DOM
+            mais visuellement absent jusqu'à un reflow forcé (resize, DevTools).
+            `line-clamp-1` (`display:-webkit-box`+`-webkit-line-clamp`, natif
+            Tailwind depuis 3.3, aucun plugin requis) n'avait jamais été
+            essayé lors des tentatives précédentes (toutes basées sur
+            `truncate`) — c'est une vraie piste neuve, pas une redite.
+            Volontairement PAS de `text-sm md:text-base` ici : c'était le
+            facteur commun à toutes les tentatives ratées précédentes, jamais
+            isolé — on ne réintroduit qu'UNE seule variable nouvelle à la
+            fois (`line-clamp-1` + `min-w-0`), comme recommandé dans la
+            passation du 25/07.
+            À VALIDER SUR UN VRAI DÉPLOIEMENT (aucun navigateur dans ce
+            sandbox de dev) : si le symptôme revient malgré tout, la piste
+            suivante serait d'isoler `text-sm md:text-base` seul, sans
+            toucher aucune autre classe sur cette ligne. */}
+        <p className={`mt-2 ${textMuted} line-clamp-1`}>{subtitle}</p>
       </div>
       {right && <div className="shrink-0 flex items-center gap-2">{right}</div>}
     </div>
