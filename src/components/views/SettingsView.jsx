@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Settings, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as UserIcon, Edit3, X } from 'lucide-react';
+import ViewHeader from '../shared/ViewHeader';
 
 /**
  * SettingsView — vue "Options & Comptes" (connexion Spotify).
@@ -88,12 +89,12 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className={`border-b ${cardBorder} pb-6 pr-32 md:pr-40`}>
-        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}>
-          <Settings className={theme.textColorClass} size={36} /> <span>Options & Comptes</span>
-        </h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-300 [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">Connecte tes plateformes pour utiliser de vraies musiques, et un compte pour retrouver tes données sur tous tes appareils.</p>
-      </div>
+      <ViewHeader
+        theme={theme}
+        icon={<Settings className={theme.textColorClass} size={36} />}
+        title="Options & Comptes"
+        subtitle="Connecte tes plateformes pour utiliser de vraies musiques, et un compte pour retrouver tes données sur tous tes appareils."
+      />
 
       {/* RETOUR DIRECT ("vraiment synchroniser toutes les données entre
           appareils, email/mot de passe pour commencer") — distincte de la
