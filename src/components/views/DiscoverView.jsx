@@ -74,7 +74,7 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode }) {
         theme={theme}
         icon={<Compass className={theme.textColorClass} size={36} />}
         title="Découvrir"
-        subtitle="Des séances prêtes à l'emploi, sélectionnées par TempoFit — un clic pour les adapter à ton profil."
+        subtitle="Des séances prêtes à l'emploi, adaptables à ton profil en un clic."
       />
 
       {/* Recherche + filtres — voir la docstring pour ce qui est réellement
