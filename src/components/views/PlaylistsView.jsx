@@ -172,7 +172,7 @@ export default function PlaylistsView({
   const isEmpty = visiblePlaylists.length === 0;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-8 md:pt-12">
+    <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className={`border-b ${cardBorder} pb-6`}>
         {/* Normalisation typographique Mode Intime (retour direct : "le
             bordeaux/rose sur fond nacré est illisible, standardise sur
