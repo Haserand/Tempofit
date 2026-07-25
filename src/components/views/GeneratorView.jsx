@@ -12,6 +12,7 @@ import {
   WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, ATHLETIC_ZONES, getZoneForValue,
 } from '../../appConfig';
 import { useGeneratorContext } from '../../contexts/GeneratorContext';
+import { useModalContext } from '../../contexts/ModalContext';
 
 /**
  * GeneratorView — vue "Sculpte ta séance" (wizard de génération en 4 étapes).
@@ -32,9 +33,10 @@ export default function GeneratorView({
   theme,
   setCurrentPlaylist, setIsBpmSearchMode, setSearchQuery, setWorldSearchResults,
   setResultsContextLabel, setNoUsableResultsHint, setIsSearchModalOpen, searchTracksByBpm,
-  executeGeneration, isGenerating, setIsSavingRoutineModalOpen,
+  executeGeneration, isGenerating,
   toggleNaughtyMode, showToast,
 }) {
+  const { openModal } = useModalContext();
   const {
     isNaughtyMode, displaySubtitleGen,
     wizardStep, setWizardStep,
@@ -1501,7 +1503,7 @@ export default function GeneratorView({
                 </button>
 
                 <div className="relative group/memorize sm:w-1/3">
-                  <button onClick={() => setIsSavingRoutineModalOpen(true)} className={`w-full h-full text-base font-bold py-5 rounded-2xl border-2 flex flex-col items-center justify-center leading-tight transition-colors bg-white dark:bg-gray-800 ${cardBorder} ${textHighlight} hover:bg-gray-50 dark:hover:bg-gray-700 relative`}>
+                  <button onClick={() => openModal('SAVING_ROUTINE')} className={`w-full h-full text-base font-bold py-5 rounded-2xl border-2 flex flex-col items-center justify-center leading-tight transition-colors bg-white dark:bg-gray-800 ${cardBorder} ${textHighlight} hover:bg-gray-50 dark:hover:bg-gray-700 relative`}>
                     <BookmarkPlus size={20} className="mb-1 text-yellow-500" />
                     <span>Créer routine</span>
                     <div className="absolute top-3 right-3 text-gray-400 hover:text-blue-500 transition-colors">
