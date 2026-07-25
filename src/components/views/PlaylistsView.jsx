@@ -173,7 +173,7 @@ export default function PlaylistsView({
 
   return (
     <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className={`border-b ${cardBorder} pb-6`}>
+      <div className={`border-b ${cardBorder} pb-6 pr-32 md:pr-40`}>
         {/* Normalisation typographique Mode Intime (retour direct : "le
             bordeaux/rose sur fond nacré est illisible, standardise sur
             text-slate-900" — un 2e passage après une 1re tentative en tons
