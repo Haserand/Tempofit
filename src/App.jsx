@@ -336,9 +336,9 @@ function AppContent({
   const {
     routines, setRoutines,
     routineBatchCounts, setRoutineBatchCounts,
-    isSavingRoutineModalOpen, setIsSavingRoutineModalOpen,
+    isSavingRoutineModalOpen,
     editingRoutine, setEditingRoutine,
-    isEditRoutineModalOpen, setIsEditRoutineModalOpen,
+    isEditRoutineModalOpen,
     newRoutineName, setNewRoutineName,
     newRoutineIcon, setNewRoutineIcon,
     newRoutineFreq, setNewRoutineFreq,
@@ -998,7 +998,7 @@ function AppContent({
   const { toggleNaughtyMode, handleSaveRoutine, applyRoutineEditOnce, applyRoutineEditPermanently } = useRoutineActions(
     isNaughtyMode, setIsNaughtyMode, showToast,
     routines, addRoutine, updateRoutine,
-    editingRoutine, setEditingRoutine, setIsEditRoutineModalOpen,
+    editingRoutine, setEditingRoutine,
     newRoutineName, newRoutineIcon, newRoutineFreq,
     userStats, checkTrophies, executeGeneration,
   );
@@ -1250,7 +1250,6 @@ function AppContent({
                 setResultsContextLabel={setResultsContextLabel} setNoUsableResultsHint={setNoUsableResultsHint}
                 setIsSearchModalOpen={setIsSearchModalOpen} searchTracksByBpm={searchTracksByBpm}
                 executeGeneration={executeGeneration} isGenerating={isGenerating}
-                setIsSavingRoutineModalOpen={setIsSavingRoutineModalOpen}
               />
             )}
 
@@ -1264,7 +1263,7 @@ function AppContent({
                 routineBatchCounts={routineBatchCounts} setRoutineBatchCounts={setRoutineBatchCounts}
                 getDisplayRoutineIcon={getDisplayRoutineIcon} getDisplayRoutineName={getDisplayRoutineName}
                 renderConfigInfoLine={renderConfigInfoLine} getRankStyle={getRankStyle}
-                setEditingRoutine={setEditingRoutine} setIsEditRoutineModalOpen={setIsEditRoutineModalOpen}
+                setEditingRoutine={setEditingRoutine}
                 executeGeneration={executeGeneration} isGenerating={isGenerating} changeView={changeView}
               />
             )}
@@ -1441,7 +1440,7 @@ function AppContent({
 
         <SavingRoutineModal
           theme={themeTokens} isNaughtyMode={isNaughtyMode}
-          isSavingRoutineModalOpen={isSavingRoutineModalOpen} setIsSavingRoutineModalOpen={setIsSavingRoutineModalOpen}
+          isSavingRoutineModalOpen={isSavingRoutineModalOpen} onClose={closeModal}
           newRoutineName={newRoutineName} setNewRoutineName={setNewRoutineName}
           newRoutineIcon={newRoutineIcon} setNewRoutineIcon={setNewRoutineIcon}
           newRoutineFreq={newRoutineFreq} setNewRoutineFreq={setNewRoutineFreq}
@@ -1454,7 +1453,7 @@ function AppContent({
             "toujours pour cette routine". */}
         <EditRoutineModal
           theme={themeTokens} isNaughtyMode={isNaughtyMode}
-          isEditRoutineModalOpen={isEditRoutineModalOpen} setIsEditRoutineModalOpen={setIsEditRoutineModalOpen}
+          isEditRoutineModalOpen={isEditRoutineModalOpen} onClose={closeModal}
           editingRoutine={editingRoutine} setEditingRoutine={setEditingRoutine}
           showExtraGenres={showExtraGenres} setShowExtraGenres={setShowExtraGenres}
           getProfileForWorkout={getProfileForWorkout} CRESCENDO_MIN_MAIN_PCT={CRESCENDO_MIN_MAIN_PCT}
