@@ -331,7 +331,7 @@ export default function PlaylistHeader({
             {isLocked && triggerCSVUpload && (
               <button
                 onClick={(e) => triggerCSVUpload(e, currentPlaylist, mostRecentCompletionIso)}
-              className={`flex items-center gap-2 px-6 py-2 rounded-lg font-black text-sm shrink-0 bg-white text-black shadow-lg transition-transform hover:scale-[1.02] ${hasImportedDataForMostRecent ? 'animate-in fade-in zoom-in duration-500' : 'animate-pulse'}`}
+              className={`flex items-center gap-2 px-6 py-2 rounded-lg font-black text-sm shrink-0 bg-white text-black shadow-lg transition-transform hover:scale-[1.02] ${hasImportedDataForMostRecent ? '' : 'animate-pulse'}`}
             >
               {hasImportedDataForMostRecent ? (
                 <>
