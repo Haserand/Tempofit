@@ -555,8 +555,8 @@ function AppContent({
   const elapsedSeconds = useElapsedTimer(isGenerating);
 
   const {
-    shareData, setShareData,
-    isShareModalOpen, setIsShareModalOpen,
+    shareData,
+    isShareModalOpen,
     handleShare: handleShareBase, copyToClipboard, shareNative,
     shareToWhatsApp, shareToTwitter, shareToFacebook, shareViaEmail,
     shareImageFile,
@@ -596,7 +596,11 @@ function AppContent({
   };
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
 
-  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  // isSearchModalOpen vivait ici en state local avant le chantier "centraliser
+  // les modales" (25/07) — dérivée maintenant de ModalContext
+  // (`activeModal === 'SEARCH'`). En corrigeant au passage un vrai bug : voir
+  // useDeezerSearch.js pour le détail (`closeSearchModal` plantait).
+  const isSearchModalOpen = activeModal === 'SEARCH';
 
   // --- Recherche manuelle de titre via une base musicale externe (ajout précis à une playlist ou aux favoris) ---
   // `useTrackSearch()` regroupe l'ÉTAT (texte tapé, résultats, pagination...),
@@ -1248,7 +1252,7 @@ function AppContent({
                 setCurrentPlaylist={setCurrentPlaylist} setIsBpmSearchMode={setIsBpmSearchMode}
                 setSearchQuery={setSearchQuery} setWorldSearchResults={setWorldSearchResults}
                 setResultsContextLabel={setResultsContextLabel} setNoUsableResultsHint={setNoUsableResultsHint}
-                setIsSearchModalOpen={setIsSearchModalOpen} searchTracksByBpm={searchTracksByBpm}
+                searchTracksByBpm={searchTracksByBpm}
                 executeGeneration={executeGeneration} isGenerating={isGenerating}
               />
             )}
@@ -1331,7 +1335,7 @@ function AppContent({
                 togglePreview={togglePreview} playingPreviewId={playingPreviewId}
                 resolveAndPlay={resolveAndPlay} resolvingTrackId={resolvingTrackId}
                 setCurrentPlaylist={setCurrentPlaylist} setIsBpmSearchMode={setIsBpmSearchMode}
-                setIsSearchModalOpen={setIsSearchModalOpen} setWorldSearchResults={setWorldSearchResults}
+                setWorldSearchResults={setWorldSearchResults}
                 setNoUsableResultsHint={setNoUsableResultsHint}
                 isAddingArtist={isAddingArtist} setIsAddingArtist={setIsAddingArtist}
                 newFavArtist={newFavArtist} setNewFavArtist={setNewFavArtist}
@@ -1366,7 +1370,7 @@ function AppContent({
                 summaryImagePreviewUrl={summaryImagePreviewUrl} setSummaryImagePreviewUrl={setSummaryImagePreviewUrl}
                 includeSummaryImage={includeSummaryImage} setIncludeSummaryImage={setIncludeSummaryImage}
                 toggleTrackFavorite={toggleTrackFavorite} toggleArtistFavorite={toggleArtistFavorite}
-                setIsBpmSearchMode={setIsBpmSearchMode} setIsSearchModalOpen={setIsSearchModalOpen}
+                setIsBpmSearchMode={setIsBpmSearchMode}
                 setPlaylistPlannedDate={setPlaylistPlannedDate}
                 editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
                 editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
@@ -1465,10 +1469,12 @@ function AppContent({
             mémoire) : handleShare() préparait shareData et ouvrait
             isShareModalOpen, mais aucune fenêtre ne s'affichait nulle part
             avant ça (le bouton "Partager" ne faisait donc rien de visible).
-            copyToClipboard existait déjà et n'attendait que son interface. */}
+            copyToClipboard existait déjà et n'attendait que son interface.
+            `isShareModalOpen`/`shareData` viennent maintenant de ModalContext
+            via useShare.js (chantier "centraliser les modales", 25/07). */}
         <ShareModal
           theme={themeTokens}
-          isShareModalOpen={isShareModalOpen} setIsShareModalOpen={setIsShareModalOpen} shareData={shareData}
+          isShareModalOpen={isShareModalOpen} onClose={closeModal} shareData={shareData}
           shareNative={shareNative} shareToWhatsApp={shareToWhatsApp} shareToTwitter={shareToTwitter} shareToFacebook={shareToFacebook}
           copyToClipboard={copyToClipboard} shareViaEmail={shareViaEmail}
           shareImageFile={shareImageFileWithTrophy}
