@@ -8,6 +8,8 @@ import { formatDuration } from '../../../utils/format';
 import { buildCoverUrl } from '../../../utils/coverArt';
 import { getActivityEmoji, getZoneForValue, getBpmBucketColor, getBpmBucketStart } from '../../../appConfig';
 import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
+import TopCompletionDate from '../../shared/TopCompletionDate';
+import CompletionsList from '../../shared/CompletionsList';
 
 /**
  * PlaylistHeader.jsx — en-tête de PlaylistDetailView : pochette, titre
@@ -89,7 +91,8 @@ export default function PlaylistHeader({
   theme, isLocked, savedPlaylists,
   resolveAndTogglePreview, getNextTrackForAutoAdvance,
   setPlaylistPlannedDate, bpmChartActivityName,
-  renderCompletionsList, renderTopCompletionDate, getRankStyle, triggerCSVUpload,
+  editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
+  getRankStyle, triggerCSVUpload,
   onShare,
 }) {
   const { bgAccentClass } = theme;
@@ -123,7 +126,7 @@ export default function PlaylistHeader({
   // marquer/refaire est la plus probable à vouloir enrichir) plutôt que
   // d'exiger que la personne choisisse elle-même laquelle dans le cas
   // fréquent d'une seule date. Les dates plus anciennes restent gérables
-  // individuellement via la liste détaillée (renderCompletionsList).
+  // individuellement via <CompletionsList/> ci-dessous.
   const mostRecentCompletionIso = isLocked ? currentPlaylist.completions[currentPlaylist.completions.length - 1] : null;
   const hasImportedDataForMostRecent = !!(mostRecentCompletionIso && currentPlaylist.actualDataByDate && currentPlaylist.actualDataByDate[mostRecentCompletionIso]);
 
@@ -229,16 +232,26 @@ export default function PlaylistHeader({
                   <Lock size={12}/>
                 </span>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  {renderTopCompletionDate ? renderTopCompletionDate(currentPlaylist) : new Date(currentPlaylist.completions[0].slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  <TopCompletionDate
+                    playlist={currentPlaylist} theme={theme}
+                    editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
+                    editCompletionDate={editCompletionDate}
+                  />
                 </p>
               </div>
               {/* N'affiche cette liste que s'il reste au moins UNE date au-delà
                   de `completions[0]` (déjà montrée juste au-dessus) : sur une
                   séance jamais rejouée (le cas le plus courant), il n'y aurait
                   plus rien à montrer ici. */}
-              {renderCompletionsList && currentPlaylist.completions.length > 1 && (
+              {currentPlaylist.completions.length > 1 && (
                 <div className="pt-0.5">
-                  {renderCompletionsList(currentPlaylist, mostRecentCompletionIso, [currentPlaylist.completions[0]])}
+                  <CompletionsList
+                    playlist={currentPlaylist} theme={theme}
+                    hideUploadForDate={mostRecentCompletionIso} skipDates={[currentPlaylist.completions[0]]}
+                    editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
+                    editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
+                    triggerCSVUpload={triggerCSVUpload}
+                  />
                 </div>
               )}
             </div>
