@@ -634,7 +634,7 @@ export default function StatsView({
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <ViewHeader
-        theme={theme} isNaughtyMode={statsMode === 'naughty'}
+        theme={theme}
         icon={<Activity className={statsMode === 'naughty' ? 'text-rose-500' : textColorClass} size={36} />}
         title={statsMode === 'naughty' ? 'Statistiques · Intime' : 'Statistiques'}
         subtitle={statsMode === 'naughty' ? "Ce que tu as écouté en mode Intime, à part du reste." : "Ce que tu as écouté, séance après séance."}
