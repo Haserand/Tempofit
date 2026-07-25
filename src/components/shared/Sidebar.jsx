@@ -1,11 +1,29 @@
-import { Heart, Activity, X, Zap, List, Star, Settings, Trophy } from 'lucide-react';
+import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, ListPlus, Compass, Gauge } from 'lucide-react';
 
 /**
  * Sidebar — navigation principale (logo, bouton Trophées si connecté, liens
  * vers les vues, crédit en bas de page). Extrait de App.jsx (retour direct :
- * "prends du recul sur le code, comment tu diviserais App.jsx ?" — 3e et
- * dernier chantier de cette série, après les 8 modales et le moteur
- * Spotify).
+ * "prends du recul sur le code, comment tu diviserais App.jsx ?").
+ *
+ * REFONTE UX/UI (25/07, suggestion Gemini, vérifiée puis appliquée) —
+ * aplatissement de l'architecture : "Mes Routines"/"Découvrir"/"Mon Profil
+ * Athlétique" vivaient avant en sous-menus décalés (`pl-[42px]`, style texte
+ * pur sans icône) sous "Générer"/"Bibliothèque" — invisibles au premier coup
+ * d'œil et pénibles sur mobile/tablette (pas de survol pour les révéler).
+ * Tous les liens sont maintenant au même niveau, regroupés par INTENTION
+ * sous 3 en-têtes discrets plutôt que par imbrication visuelle :
+ * CRÉATION (démarrer quelque chose de nouveau), MON ESPACE (consulter ce qui
+ * existe déjà), RÉGLAGES (configuration, séparé par une bordure + `mt-auto`
+ * comme avant). Tous les boutons partagent maintenant le même style actif
+ * (`bgAccentClass text-white shadow-lg`) — avant, seul "Générer" l'avait,
+ * les autres utilisaient un simple `bg-surface-hover` plus discret, une
+ * incohérence sans raison fonctionnelle.
+ *
+ * Renommages associés : "Générer" → "Nouvelle séance" (plus explicite sur ce
+ * que fait ce bouton) ; "Bibliothèque" → "Mes Séances" (revient au nom déjà
+ * utilisé PARTOUT ailleurs dans l'app — info-bulles, description de trophée,
+ * aide contextuelle dans StatsView — seul le titre de page disait encore
+ * "Bibliothèque", une incohérence interne pas voulue ; voir PlaylistsView.jsx).
  *
  * Extraction pure : les tokens de couleur (`cardBorder`, `bgAccentClass`...)
  * arrivent en props individuelles plutôt que via `theme={themeTokens}` —
@@ -32,8 +50,13 @@ export default function Sidebar({
   return (
     <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r ${cardBorder} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className={`p-6 border-b ${cardBorder} flex items-center justify-between`}>
+         {/* Logo cliquable = retour à l'accueil ("Nouvelle séance") — referme
+             aussi le Profil Athlétique s'il était ouvert (comportement
+             identique au bouton "Nouvelle séance" ci-dessous, pour que le
+             logo ne soit pas un raccourci à moitié fonctionnel qui laisserait
+             le Profil Athlétique affiché malgré `view === 'generator'`). */}
          <button
-           onClick={() => changeView('generator')}
+           onClick={() => { changeView('generator'); setShowAthleticProfile(false); }}
            title="Retour à l'accueil"
            className="flex items-center space-x-3 cursor-pointer"
          >
@@ -71,124 +94,84 @@ export default function Sidebar({
          </div>
       </div>
 
-      {/* `select-none` sur chaque bouton ci-dessous (retour utilisateur) : sans ça,
-          le texte des libellés (ex. "Bibliothèque") reste sélectionnable comme du
-          texte normal, donc le curseur affiche un I-beam (texte éditable) au survol
-          du label — trompeur pour un bouton, même si le clic fonctionnait déjà
-          correctement partout. `cursor-pointer` ajouté en plus par sécurité (déjà
-          le comportement par défaut d'un <button>, mais explicite plutôt qu'implicite).
+      {/* `select-none` sur chaque bouton (retour utilisateur, hérité de
+          l'ancienne version) : sans ça, le texte des libellés reste
+          sélectionnable comme du texte normal, donc le curseur affiche un
+          I-beam (texte éditable) au survol du label — trompeur pour un
+          bouton, même si le clic fonctionnait déjà correctement partout.
+          `cursor-pointer` ajouté en plus par sécurité (déjà le comportement
+          par défaut d'un <button>, mais explicite plutôt qu'implicite).
 
-          Polish "Pixel Perfect" (retour direct, 2 corrections) :
-          1. État actif des boutons de premier niveau : la bordure gauche
-             (`border-l-2` + couleur conditionnelle) est retirée — elle créait un
-             artefact disgracieux sur les angles arrondis d'un bouton "pilule".
-             L'état actif ne repose plus QUE sur `bg-surface-hover` + `text-white
-             font-medium`, jamais de bordure sur une forme arrondie.
-          2. Rythme vertical : chaque cluster est un conteneur `flex flex-col
-             space-y-1` (espacement interne serré, loi de proximité) séparé du
-             suivant par `mt-8` (respiration nette, constante, entre groupes —
-             jamais la même valeur qu'à l'intérieur d'un groupe). */}
+          3 clusters par INTENTION (voir docstring en haut de fichier), chacun
+          un conteneur `flex flex-col space-y-1` (espacement interne serré)
+          séparé du suivant par `mb-8`/`mt-8` (respiration nette, constante,
+          entre groupes — jamais la même valeur qu'à l'intérieur d'un groupe).
+          Tous les boutons — plus de distinction "top-level" vs "sous-menu",
+          plus d'icône manquante ou de décalage `pl-[42px]` à maintenir en
+          synchronisation avec la largeur du parent. */}
       <nav className="flex-1 flex flex-col px-4 py-6 overflow-y-auto no-scrollbar">
 
-        {/* Cluster 1 — Création */}
-        <div className="flex flex-col space-y-1">
-          <button onClick={() => changeView('generator')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
-            <Zap size={18} className={view === 'generator' ? 'text-white' : textColorClass} />
-            <span className="font-bold text-sm">Générer</span>
+        {/* --- CRÉATION --- */}
+        <div className="flex flex-col space-y-1 mb-8">
+          <div className={`px-3 mb-2 text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Création</div>
+
+          <button onClick={() => { changeView('generator'); setShowAthleticProfile(false); }} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' && !showAthleticProfile ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+            <Zap size={18} className={view === 'generator' && !showAthleticProfile ? 'text-white' : textColorClass} />
+            <span className="font-bold text-sm">Nouvelle séance</span>
           </button>
 
-          {/* Sous-menu de "Générer" — precision alignement (retour direct,
-              "la 1ère lettre du sous-menu doit tomber pile sous la 1ère lettre
-              du parent") : le parent a `px-3` (12px) + icône 18px + `space-x-3`
-              (12px) avant son texte = 42px de décalage total avant la 1ère
-              lettre. `pl-[42px]` reproduit EXACTEMENT cette valeur (une classe
-              standard comme `pl-10`/`pl-11` retomberait à 40px/44px, un décalage
-              visible au pixel près) — plus d'icône ici (voir plus bas), donc
-              rien d'autre ne doit compenser cet espace. `mt-0.5` : à peine plus
-              que le `space-y-1` (4px) du reste du cluster, pour coller le 1er
-              sous-menu à son parent un cran plus fort qu'un item de même
-              niveau. Style texte pur (`text-sm text-slate-400 hover:text-white`,
-              sans fond au survol) : hiérarchie secondaire clairement lisible,
-              plus un bouton "pilule" miniature. */}
-          {/* Masqué en Mode Intime (retour direct : "n'a aucun sens
-              fonctionnel dans ce mode et affiche une page vide") — le
-              Profil Athlétique configure des zones de BPM par activité
-              SPORTIVE (Course à pied/Cyclisme/Musculation), un concept sans
-              équivalent en Mode Intime (workoutType y est toujours
-              "Ambiance", jamais une vraie activité — voir
-              PlaylistDetailContext.jsx/appConfig.js). Voir aussi App.jsx
-              pour le filet de sécurité qui referme ce panneau automatiquement
-              si l'utilisateur bascule en Mode Intime pendant qu'il y est. */}
-          {!isNaughtyMode && (
-            <button
-              onClick={() => { changeView('generator'); setShowAthleticProfile(true); }}
-              className={`w-full text-left pl-[42px] pr-3 py-1.5 mt-0.5 rounded-lg transition-colors select-none cursor-pointer text-sm ${view === 'generator' && showAthleticProfile ? 'text-white font-semibold' : 'text-slate-400 hover:text-white'}`}
-            >
-              Mon Profil Athlétique
-            </button>
-          )}
+          <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+            <ListPlus size={18} className={view === 'routines' ? 'text-white' : textColorClass} />
+            <span className="font-bold text-sm">Mes Routines</span>
+          </button>
+
+          <button onClick={() => changeView('discover')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'discover' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+            <Compass size={18} className={view === 'discover' ? 'text-white' : textColorClass} />
+            <span className="font-bold text-sm">Découvrir</span>
+          </button>
         </div>
 
-        {/* Cluster 2 — Bibliothèque (Découvrir et Mes Routines en sous-menus,
-            imbrication finale : les 3 partagent la même racine "où sont mes
-            musiques/séances", Découvrir pour en trouver de nouvelles, Routines
-            pour en générer automatiquement, Bibliothèque pour les consulter). */}
-        <div className="flex flex-col space-y-1 mt-8">
-          <button
-            onClick={() => changeView('playlists')}
-            className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? 'bg-surface-hover text-white font-medium' : `${textMuted} hover:bg-surface-hover hover:text-main`}`}
-          >
+        {/* --- MON ESPACE --- */}
+        <div className="flex flex-col space-y-1 mb-8">
+          <div className={`px-3 mb-2 text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Mon Espace</div>
+
+          <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <List size={18} className={view === 'playlists' ? 'text-white' : textColorClass} />
-            <span className="font-bold text-sm">Bibliothèque</span>
+            <span className="font-bold text-sm">Mes Séances</span>
           </button>
 
-          {/* Sous-menus de "Bibliothèque" — mêmes classes exactement que
-              "Mon Profil Athlétique" ci-dessus (alignement `pl-[42px]`, style
-              texte pur, `mt-0.5` sur le 1er) pour une hiérarchie visuelle
-              identique partout dans la sidebar. */}
-          <button
-            onClick={() => changeView('discover')}
-            className={`w-full text-left pl-[42px] pr-3 py-1.5 mt-0.5 rounded-lg transition-colors select-none cursor-pointer text-sm ${view === 'discover' ? 'text-white font-semibold' : 'text-slate-400 hover:text-white'}`}
-          >
-            Découvrir
-          </button>
-
-          <button
-            onClick={() => changeView('routines')}
-            className={`w-full text-left pl-[42px] pr-3 py-1.5 rounded-lg transition-colors select-none cursor-pointer text-sm ${view === 'routines' ? 'text-white font-semibold' : 'text-slate-400 hover:text-white'}`}
-          >
-            Mes Routines
-          </button>
-        </div>
-
-        {/* Cluster 3 — Consultation */}
-        <div className="flex flex-col space-y-1 mt-8">
-          <button
-            onClick={() => changeView('stats')}
-            className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? 'bg-surface-hover text-white font-medium' : `${textMuted} hover:bg-surface-hover hover:text-main`}`}
-          >
-            <Activity size={18} className={view === 'stats' ? 'text-white' : textColorClass} />
-            <span className="font-bold text-sm">Statistiques</span>
-          </button>
-
-          <button
-            onClick={() => changeView('favorites')}
-            className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? 'bg-surface-hover text-white font-medium' : `${textMuted} hover:bg-surface-hover hover:text-main`}`}
-          >
+          <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Star size={18} className={favorites.useFavorites && favorites.artists.length > 0 ? "text-yellow-500 fill-yellow-500/20" : (view === 'favorites' ? 'text-white' : '')} />
             <span className="font-bold text-sm">Mes Favoris</span>
           </button>
+
+          <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+            <Activity size={18} className={view === 'stats' ? 'text-white' : textColorClass} />
+            <span className="font-bold text-sm">Statistiques</span>
+          </button>
         </div>
 
-        {/* "Options & Comptes" séparé du reste de la navigation principale —
-            `mt-auto` le pousse tout en bas du <nav> (qui est lui-même en
-            flex-col), une ligne fine au-dessus marque clairement la bascule
-            "navigation" -> "réglages". */}
-        <div className={`mt-auto pt-4 border-t ${cardBorder}`}>
-          <button
-            onClick={() => changeView('settings')}
-            className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'settings' ? 'bg-surface-hover text-white font-medium' : `${textMuted} hover:bg-surface-hover hover:text-main`}`}
-          >
+        {/* --- RÉGLAGES --- */}
+        <div className={`mt-auto flex flex-col space-y-1 pt-4 border-t ${cardBorder}`}>
+          <div className={`px-3 mb-2 text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Réglages</div>
+
+          {/* Masqué en Mode Intime (retour direct : "n'a aucun sens
+              fonctionnel dans ce mode et affiche une page vide") — le Profil
+              Athlétique configure des zones de BPM par activité SPORTIVE
+              (Course à pied/Cyclisme/Musculation), un concept sans équivalent
+              en Mode Intime (workoutType y est toujours "Ambiance", jamais
+              une vraie activité — voir PlaylistDetailContext.jsx/appConfig.js).
+              Voir aussi useNavigation.js pour le filet de sécurité qui
+              referme ce panneau automatiquement si l'utilisateur bascule en
+              Mode Intime pendant qu'il y est. */}
+          {!isNaughtyMode && (
+            <button onClick={() => { changeView('generator'); setShowAthleticProfile(true); }} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' && showAthleticProfile ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+              <Gauge size={18} className={view === 'generator' && showAthleticProfile ? 'text-white' : textColorClass} />
+              <span className="font-bold text-sm">Profil Athlétique</span>
+            </button>
+          )}
+
+          <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'settings' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Settings size={18} className={view === 'settings' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Options & Comptes</span>
           </button>
