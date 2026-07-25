@@ -65,7 +65,7 @@ export default function FavoritesView({
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-4xl mx-auto space-y-8">
       <ViewHeader
         theme={theme}
         icon={<Star className="text-yellow-500 fill-yellow-500/20" size={36} />}
