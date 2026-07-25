@@ -20,7 +20,7 @@ import { X, Share2, MessageCircle, ExternalLink, Copy, Loader2, Download } from 
  */
 export default function ShareModal({
   theme,
-  isShareModalOpen, setIsShareModalOpen, shareData,
+  isShareModalOpen, onClose, shareData,
   shareNative, shareToWhatsApp, shareToTwitter, shareToFacebook,
   copyToClipboard, shareViaEmail,
   shareImageFile,
@@ -42,21 +42,21 @@ export default function ShareModal({
   const handleNativeShare = async () => {
     if (hasReadyImage) {
       await shareImageFile(summaryImageFile, shareData.title, shareData.text);
-      setIsShareModalOpen(false);
+      onClose();
     } else {
       shareNative();
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsShareModalOpen(false)}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => onClose()}>
       <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6">
           <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
             <Share2 className={textColorClass}/>
             <span>Partager</span>
           </h3>
-          <button onClick={() => setIsShareModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
+          <button onClick={() => onClose()} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
         </div>
         <div className={`p-4 rounded-xl mb-4 text-sm ${inputBg} border ${inputBorder} ${textHighlight}`}>
           {shareData.text}
