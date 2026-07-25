@@ -1111,7 +1111,7 @@ function AppContent({
             toast.variant === 'ambiance' ? 'border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.35)]' :
             toast.variant === 'error' ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.35)]' :
             'border-gray-200 dark:border-gray-700 shadow-2xl'
-          } px-6 py-3 rounded-full flex items-center space-x-3 animate-in slide-in-from-top-4 fade-in duration-300`}>
+          } px-6 py-3 rounded-full flex items-center space-x-3`}>
             {toast.variant === 'special' ? <Trophy size={18} className="text-yellow-500 fill-yellow-500" /> :
              toast.variant === 'ambiance' ? <Heart size={18} className="text-rose-500 fill-rose-500" /> :
              toast.variant === 'error' ? <AlertCircle size={18} className="text-red-500" /> :
@@ -1129,7 +1129,7 @@ function AppContent({
             message, ce délai pouvait donner l'impression que l'app est bloquée.
             Fixé en bas (pas en haut, pour ne pas se superposer au toast). */}
         {isGenerating && (
-          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-[80] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl px-6 py-3 rounded-full flex items-center space-x-3 animate-in slide-in-from-bottom-4 fade-in duration-300 max-w-[90vw]">
+          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-[80] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl px-6 py-3 rounded-full flex items-center space-x-3 max-w-[90vw]">
             <Loader2 size={18} className={`animate-spin ${textColorClass} shrink-0`} />
             <span className={`font-medium text-sm ${textHighlight}`}>
               {generatingTotal > 1
