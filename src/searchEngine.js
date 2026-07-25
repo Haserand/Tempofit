@@ -43,6 +43,7 @@
 
 import { DEEZER_GENRE_KEYWORDS, genreRoughlyMatches, isDirectGenreMatch, ARTIST_CATALOG, GENRES_NEEDING_DEEP_CATALOG_SEARCH } from './musicCatalog';
 import { deezerFetch, resolveDeezerGenre, resolveBpmForCandidates, searchArtistsForBpm, fetchInBatches } from './musicEngine';
+import { debugLog } from './utils/debugLog';
 
 export const SEARCH_PAGE_SIZE = 10;
 
@@ -313,7 +314,7 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
     // de donnée BPM Deezer exploitable — même hypothèse à tester qu'avant
     // (BPM Deezer pas systématiquement calculé pour tout le catalogue), juste
     // mesurée lot par lot maintenant plutôt qu'en un seul bloc final.
-    console.log(`[BPM search] Lot : ${toProcess.length} candidat(s) brut(s) → ${detailedTracks.filter(Boolean).length} détail(s) → ${validDetailedTracks.length} avec un BPM Deezer réellement dans ${minBpm}-${maxBpm}.`);
+    debugLog(`[BPM search] Lot : ${toProcess.length} candidat(s) brut(s) → ${detailedTracks.filter(Boolean).length} détail(s) → ${validDetailedTracks.length} avec un BPM Deezer réellement dans ${minBpm}-${maxBpm}.`);
 
     const resolved = await fetchInBatches(validDetailedTracks, 15, async (t) => {
       const realGenre = await resolveDeezerGenre(t.id);
@@ -408,7 +409,7 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
   // bien celui qui pose question, ou si c'est le tri/l'équilibre entre paliers
   // qui surprend.
   const tierCounts = results.reduce((acc, r) => { acc[r._matchTier] = (acc[r._matchTier] || 0) + 1; return acc; }, {});
-  console.log(`[BPM search] Résultat final : ${results.length} titre(s) — tier 0 (genre direct) : ${tierCounts[0] || 0}, tier 1 (équivalence/catalogue) : ${tierCounts[1] || 0}, tier 2 (mismatch) : ${tierCounts[2] || 0}.`);
+  debugLog(`[BPM search] Résultat final : ${results.length} titre(s) — tier 0 (genre direct) : ${tierCounts[0] || 0}, tier 1 (équivalence/catalogue) : ${tierCounts[1] || 0}, tier 2 (mismatch) : ${tierCounts[2] || 0}.`);
 
   return { results };
 };
