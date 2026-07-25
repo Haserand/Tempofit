@@ -1,5 +1,6 @@
 import { Plus, Lock } from 'lucide-react';
 import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
+import { useModalContext } from '../../../contexts/ModalContext';
 import TrackItem from './TrackItem';
 
 /**
@@ -30,8 +31,11 @@ import TrackItem from './TrackItem';
  *   bouton "Écouter toute la séance" de l'en-tête ET la popup du graphique.
  * - `isLocked` : réutilisé à plusieurs endroits de PlaylistDetailView (verrou
  *   du graphique, CTA planification...), pas exclusif à la liste.
- * - `setIsBpmSearchMode`/`setIsSearchModalOpen` : infra de recherche globale
- *   (App.jsx), jamais possédée par une vue en particulier.
+ * - `setIsBpmSearchMode` : infra de recherche globale (App.jsx/useTrackSearch.js),
+ *   jamais possédée par une vue en particulier. `setIsSearchModalOpen`
+ *   (pareil, avant le chantier "centraliser les modales", 25/07) est
+ *   remplacée par `openModal('SEARCH')`, lu directement via `useModalContext()`
+ *   plutôt que prop-drillé sur 3 niveaux (App → PlaylistDetailView → TrackList).
  *
  * Tout le reste (tracks, drag-and-drop, menu par titre, mutations,
  * lecture) vient de usePlaylistDetail() — ici pour `currentPlaylist.tracks`
@@ -42,11 +46,12 @@ export default function TrackList({
   theme, isLocked,
   favorites, toggleTrackFavorite, toggleArtistFavorite,
   resolveAndTogglePreview, getNextTrackForAutoAdvance,
-  setIsBpmSearchMode, setIsSearchModalOpen,
+  setIsBpmSearchMode,
   hasDetailFilter, trackMatchesDetailFilter,
   selectedDetailGenre, selectedDetailBpmBucket, setSelectedDetailGenre, setSelectedDetailBpmBucket,
   isBpmChartUsingRealProfile,
 }) {
+  const { openModal } = useModalContext();
   const { cardBg, cardBorder, textMuted, textHighlight, textColorClass, inputBorder } = theme;
   const { currentPlaylist, isSaved } = usePlaylistDetail();
 
@@ -100,7 +105,7 @@ export default function TrackList({
           </div>
         ) : (
           <div className="p-2 bg-gray-50 dark:bg-gray-900/50">
-            <button onClick={() => { setIsBpmSearchMode(false); setIsSearchModalOpen(true); }} className={"w-full py-3 flex items-center justify-center gap-2 text-sm font-bold border-2 border-dashed rounded-xl transition-colors hover:border-gray-400 " + inputBorder + " " + textMuted + " hover:" + textHighlight}>
+            <button onClick={() => { setIsBpmSearchMode(false); openModal('SEARCH'); }} className={"w-full py-3 flex items-center justify-center gap-2 text-sm font-bold border-2 border-dashed rounded-xl transition-colors hover:border-gray-400 " + inputBorder + " " + textMuted + " hover:" + textHighlight}>
               <Plus size={18} /> <span>Ajouter un titre</span>
             </button>
           </div>
