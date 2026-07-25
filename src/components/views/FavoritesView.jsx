@@ -1,5 +1,6 @@
-import { Star, Heart, Play, Pause, Loader2, X, Plus, User, RefreshCw, Target, Search, Info } from 'lucide-react';
+import { Star, Heart, Play, Pause, Loader2, X, Plus, User, RefreshCw, Target, Search, Info, UserPlus } from 'lucide-react';
 import { getGenreLocalDepthWarning, getGenresForDisplay, genreDisplayLabel, EXTRA_GENRES } from '../../musicCatalog';
+import { useAuthContext } from '../../contexts/AuthContext';
 import { useModalContext } from '../../contexts/ModalContext';
 
 /**
@@ -36,6 +37,7 @@ export default function FavoritesView({
   favBpmTarget, setFavBpmTarget, favBpmTolerance, setFavBpmTolerance,
   searchTracksByBpm, changeView,
 }) {
+  const { user } = useAuthContext();
   const { openModal } = useModalContext();
   const {
     cardBg, cardBorder, textHighlight, textMuted, textColorClass,
@@ -77,6 +79,26 @@ export default function FavoritesView({
             <RefreshCw size={18} /> <span>Synchroniser mes comptes</span>
           </button>
         </div>
+
+        {/* "Soft Gating" (25/07) — voir PlaylistsView.jsx pour le contexte
+            complet. Précision spécifique à cette vue (pas juste un copier-
+            coller de la bannière des 2 autres) : "Synchroniser mes comptes"
+            ne fait que lier Spotify (voir onClick ci-dessus, `changeView('settings')`)
+            — aucun rapport avec un compte TempoFit. Un invité pourrait
+            légitimement croire que ce bouton sauvegarde déjà ses favoris
+            quelque part, alors que ce n'est toujours que du localStorage tant
+            qu'il n'a pas de compte. Texte d'aide plutôt qu'un encart complet
+            comme les 2 autres vues : ce risque de confusion est local à CE
+            bouton précis, pas à toute la page. */}
+        {!user && (
+          <p className={`text-xs -mt-4 mb-8 ${textMuted}`}>
+            Connecte-toi à TempoFit pour sauvegarder tes favoris sur tous tes appareils.{' '}
+            <button onClick={() => openModal('AUTH')} className={`inline-flex items-center gap-1 font-bold underline ${textColorClass}`}>
+              <UserPlus size={12} /> Créer un compte
+            </button>
+          </p>
+        )}
+
         <div className="space-y-8">
           {/* LIGNE 1 : Titres uniquement (priorité 1 de la cascade de génération) */}
           <div>
