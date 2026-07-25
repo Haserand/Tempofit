@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { Music2, Play, Trash2, CheckCircle, Circle, Activity, List, Calendar, GripVertical } from 'lucide-react';
 import { buildCoverUrl } from '../../utils/coverArt';
 import { getActivityEmoji } from '../../appConfig';
+import CompletionsList from '../shared/CompletionsList';
 
 /**
  * PlaylistCard — carte d'une playlist, utilisée par PlaylistsView ("Mes
@@ -29,7 +30,8 @@ import { getActivityEmoji } from '../../appConfig';
 export default function PlaylistCard({
   theme, playlist, rankStyle, rank,
   onClick, onDelete,
-  renderConfigInfoLine, renderCompletionsList, markPlaylistAsCompleted,
+  renderConfigInfoLine, markPlaylistAsCompleted,
+  editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate, triggerCSVUpload,
   onSetPlannedDate,
   draggable, onDragStart, onDragEnter, onDragEnd, isDragging,
 }) {
@@ -202,7 +204,12 @@ export default function PlaylistCard({
                 </div>
               );
             })()}
-            {renderCompletionsList(playlist)}
+            <CompletionsList
+              playlist={playlist} theme={theme}
+              editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
+              editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
+              triggerCSVUpload={triggerCSVUpload}
+            />
             {/* Fusionné avec l'ancienne pastille "+ Ajouter une date" (retour direct :
                 elles faisaient doublon) — ce bouton permet maintenant de choisir
                 n'importe quelle date, pas seulement "aujourd'hui". Le clic sur le
