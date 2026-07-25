@@ -31,6 +31,7 @@
 
 import { ARTIST_CATALOG, DEEZER_GENRE_KEYWORDS, WEAK_DEEZER_KEYWORD_GENRES, GENRES_NEEDING_DEEP_CATALOG_SEARCH, isDirectGenreMatch, genreRoughlyMatches, detectTitleStyleConflict, detectLanguageVersionConflict, isLiveOrPerformanceVersion } from './musicCatalog';
 import { formatDuration } from './utils/format';
+import { debugLog } from './utils/debugLog';
 
 
 // =====================================================================================
@@ -327,7 +328,7 @@ const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeTrackIds,
   // traitements encore en vol au moment où elle se résout, puisque
   // `pending.push(...)` (côté appelant) se ferait APRÈS que `Promise.all`
   // ait déjà figé son instantané des promesses à attendre.
-  console.log(`[BPM search] "${artistNames.length} artistes au catalogue, fenêtre ${minBpm}-${maxBpm} BPM"`);
+  debugLog(`[BPM search] "${artistNames.length} artistes au catalogue, fenêtre ${minBpm}-${maxBpm} BPM"`);
   const shuffled = [...artistNames].sort(() => Math.random() - 0.5);
   const BATCH_SIZE = 8;
   const enoughStubs = Math.max(candidatesPerArtist * 2, maxArtistsToTry * candidatesPerArtist);
@@ -348,7 +349,7 @@ const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeTrackIds,
       artistsTried++;
       if (rawStubs.length > 0) {
         artistsWithAtLeastOneMatch++;
-        console.log(`[BPM search]   ${artistName}: ${rawStubs.length} résultat(s) Deezer brut(s)`);
+        debugLog(`[BPM search]   ${artistName}: ${rawStubs.length} résultat(s) Deezer brut(s)`);
       }
       return rawStubs.filter(s => !excludeTrackIds.includes(`deezer-${s.id}`));
     }));
@@ -360,7 +361,7 @@ const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeTrackIds,
       await new Promise(resolve => setTimeout(resolve, 250));
     }
   }
-  console.log(`[BPM search] Bilan : ${artistsTried} artiste(s) testé(s), ${artistsWithAtLeastOneMatch} avec au moins 1 résultat, ${allStubs.length} titre(s) brut(s) au total (avant résolution du genre réel).`);
+  debugLog(`[BPM search] Bilan : ${artistsTried} artiste(s) testé(s), ${artistsWithAtLeastOneMatch} avec au moins 1 résultat, ${allStubs.length} titre(s) brut(s) au total (avant résolution du genre réel).`);
   return allStubs.sort(() => Math.random() - 0.5);
 };
 
