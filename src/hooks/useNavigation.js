@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { buildCoverUrl } from '../utils/coverArt';
 import { recalculateTimeline } from '../musicEngine';
 import { useGeneratorContext } from '../contexts/GeneratorContext';
+import { useModalContext } from '../contexts/ModalContext';
 
 /**
  * useNavigation — regroupe le changement de vue global (`changeView`), la
@@ -13,6 +14,11 @@ import { useGeneratorContext } from '../contexts/GeneratorContext';
  * Extrait d'App.jsx (25/07, chantier "réduire le God Component") : `setWizardStep`
  * vient de `useGeneratorContext()` (appelé ici comme dans useRoutineActions.js —
  * légitime pour un Contexte, plusieurs points de lecture du même Provider).
+ * `openModal` (ModalContext, chantier "centraliser les modales", même jour) suit
+ * le même principe : `changeView` déclenche la modale "playlist non sauvegardée"
+ * via `openModal('PENDING_NAVIGATION', newView)` plutôt que via un setter dédié
+ * reçu en paramètre — un seul appel `useModalContext()` ici, pas de state
+ * dupliqué.
  *
  * VOLONTAIREMENT PAS déplacée ici : `resolvePendingNavigation`, qui reste dans
  * App.jsx. Elle a besoin de `handleSavePlaylist` (produit par
@@ -29,9 +35,10 @@ import { useGeneratorContext } from '../contexts/GeneratorContext';
 export function useNavigation(
   view, setView, setIsMobileMenuOpen,
   currentPlaylist, setCurrentPlaylist, savedPlaylists,
-  setPendingNavigation, setShowAthleticProfile, isNaughtyMode,
+  setShowAthleticProfile, isNaughtyMode,
 ) {
   const { setWizardStep } = useGeneratorContext();
+  const { openModal } = useModalContext();
 
   // Playlist tout juste générée mais jamais sauvegardée : la quitter (navigation
   // interne OU fermeture d'onglet/F5) la perdrait définitivement (pas de brouillon
@@ -47,7 +54,7 @@ export function useNavigation(
   const changeView = (newView) => {
     // Ne se déclenche que si on QUITTE réellement la vue détail (newView !== 'playlist').
     if (hasUnsavedPlaylist && newView !== 'playlist') {
-      setPendingNavigation(newView);
+      openModal('PENDING_NAVIGATION', newView);
       return;
     }
     setView(newView);
