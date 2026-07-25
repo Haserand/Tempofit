@@ -326,7 +326,7 @@ export default function GeneratorView({
   }, [wizardStep, structureMode, targetMode]);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-4xl mx-auto space-y-8">
       {/* En-tête standardisé (25/07) — désormais via <ViewHeader/>
           (components/shared/ViewHeader.jsx), le modèle commun à toutes les
           vues. `<Gauge/>` remplace `<Zap/>` quand `showAthleticProfile` est
@@ -785,7 +785,7 @@ export default function GeneratorView({
 
               {/* ETAPE 1 : L'ACTIVITE (choix du type d'entraînement + accès caché au mode Intime via l'icône flamme) */}
               {wizardStep === 1 && (
-                <div className="space-y-6 animate-in slide-in-from-right-8 duration-300">
+                <div className="space-y-6">
               <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
                 {isNaughtyMode ? <Heart className={textColorClass} size={24} /> : <Activity className={textColorClass} size={24} />}
                 <span>{isNaughtyMode ? "De quoi as-tu envie aujourd'hui ?" : "Qu'est-ce qu'on fait aujourd'hui ?"}</span>
@@ -838,7 +838,7 @@ export default function GeneratorView({
                           "calculé depuis ton profil" plus loin) — évite que ce
                           pré-remplissage plus tard semble sorti de nulle part. */}
                       {!isNaughtyMode && athleticProfile?.activities?.[type.id]?.isConfigured && (
-                        <span className={`absolute top-2 left-2 flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${bgAccentClass} text-white animate-in fade-in zoom-in duration-300`}>
+                        <span className={`absolute top-2 left-2 flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${bgAccentClass} text-white`}>
                           <Gauge size={10}/> Profil configuré
                         </span>
                       )}
@@ -851,7 +851,7 @@ export default function GeneratorView({
 
           {/* ETAPE 2 : OBJECTIF (temps vs distance, option HIIT) */}
           {wizardStep === 2 && (
-            <div className="space-y-8 animate-in slide-in-from-right-8 duration-300">
+            <div className="space-y-8">
               {/* Le choix Temps/Distance n'a pas de sens en mode Intime (le mode reste
                   forcé sur "temps", voir toggleNaughtyMode) NI pour la Musculation
                   (retour direct : "absurde d'avoir un bouton distance" — on ne
@@ -1014,7 +1014,7 @@ export default function GeneratorView({
 
           {/* ETAPE 3 : REGLAGES DU RYTHME (BPM simple/distance/temps, ou découpage HIIT) */}
           {wizardStep === 3 && (
-            <div ref={step3ScrollRef} className="space-y-8 animate-in slide-in-from-right-8 duration-300 h-[300px] overflow-y-auto no-scrollbar pb-10">
+            <div ref={step3ScrollRef} className="space-y-8 h-[300px] overflow-y-auto no-scrollbar pb-10">
 
               {(!isIntervalMode || isCrescendoMode) ? (
                 <>
@@ -1044,7 +1044,7 @@ export default function GeneratorView({
                         ponctuelle (pas un pulse en boucle) : un "aha" au moment où ça
                         apparaît, pas une sollicitation permanente. */}
                     {bpmSourceIsProfile && (
-                      <div className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full ${bgAccentClass} text-white animate-in fade-in zoom-in slide-in-from-bottom-2 duration-500`}>
+                      <div className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full ${bgAccentClass} text-white`}>
                         <Gauge size={12}/> Calculé depuis ton Profil Athlétique
                       </div>
                     )}
@@ -1132,7 +1132,7 @@ export default function GeneratorView({
                         <div className="flex items-center justify-between gap-2">
                           <p className={`text-xs ${textMuted}`}>BPM personnalisé pour ces 2 phases :</p>
                           {bpmSourceIsProfile && (
-                            <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${bgAccentClass} text-white animate-in fade-in zoom-in duration-500`}>
+                            <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${bgAccentClass} text-white`}>
                               <Gauge size={10}/> Profil Athlétique
                             </span>
                           )}
@@ -1345,7 +1345,7 @@ export default function GeneratorView({
 
           {/* ETAPE 4 : MUSIQUE & GENERATION (genres, tolérance BPM, crossfade, boutons finaux) */}
           {wizardStep === 4 && (
-            <div className="space-y-8 animate-in slide-in-from-right-8 duration-300">
+            <div className="space-y-8">
               <div className="space-y-4">
                 <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
                   <Music className={textColorClass} size={24} /> <span>Quelle vibe musicale ?</span>
