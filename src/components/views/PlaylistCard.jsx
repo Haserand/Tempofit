@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Music2, Play, Trash2, CheckCircle, Circle, Activity, List, Calendar, GripVertical } from 'lucide-react';
+import { Music2, ArrowUpRight, Trash2, CheckCircle, Circle, Activity, List, Calendar, GripVertical } from 'lucide-react';
 import { buildCoverUrl } from '../../utils/coverArt';
 import { getActivityEmoji } from '../../appConfig';
 import CompletionsList from '../shared/CompletionsList';
@@ -106,23 +106,31 @@ export default function PlaylistCard({
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <Music2 size={22} className="text-white/80 drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] transition-opacity duration-300 group-hover:opacity-0" />
             </div>
-            {/* Bouton play au survol — même substitution note/bouton que
-                TemplateCard.jsx/PlaylistHeader.jsx. Pas de logique de lecture
-                indépendante branchée ici (PlaylistCard.jsx ne reçoit aucune
-                prop audio aujourd'hui, contrairement à PlaylistHeader.jsx) :
-                le clic déclenche `onClick`, EXACTEMENT la même action que
-                cliquer n'importe où ailleurs sur la carte (ouvrir le détail
-                de la playlist) — pas une vraie lecture rapide en place. Pour
-                un vrai aperçu audio direct depuis cette carte, il faudrait
-                faire remonter resolveAndTogglePreview/getNextTrackForAutoAdvance
-                jusqu'à PlaylistsView.jsx, non demandé pour ce chantier. */}
+            {/* Bouton "ouvrir" au survol — même substitution note/bouton que
+                TemplateCard.jsx/PlaylistHeader.jsx, mais PAS la même icône
+                qu'eux volontairement : ceux-là utilisent Play parce qu'ils
+                déclenchent VRAIMENT un extrait audio au clic. Ici, ce n'est
+                pas le cas — pas de logique de lecture indépendante branchée
+                (PlaylistCard.jsx ne reçoit aucune prop audio aujourd'hui,
+                contrairement à PlaylistHeader.jsx) : le clic déclenche
+                `onClick`, EXACTEMENT la même action que cliquer n'importe où
+                ailleurs sur la carte (ouvrir le détail de la playlist).
+                Un triangle Play ici aurait donc PROMIS une lecture rapide
+                que le clic ne tient pas (retour direct, capture à l'appui :
+                "je suis pas fan que le lecteur rouge arrive au survol...
+                factuellement ça ne lance pas le lecteur audio") — ArrowUpRight
+                ("ouvrir") est honnête sur ce que fait réellement le bouton.
+                Pour un vrai aperçu audio direct depuis cette carte, il
+                faudrait faire remonter resolveAndTogglePreview/
+                getNextTrackForAutoAdvance jusqu'à PlaylistsView.jsx, non
+                demandé pour ce chantier. */}
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
               <button
                 onClick={(e) => { e.stopPropagation(); onClick(); }}
                 title="Ouvrir cette playlist"
                 className={`w-8 h-8 rounded-full text-white shadow-xl flex items-center justify-center opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 ${bgAccentClass}`}
               >
-                <Play size={14} className="fill-white ml-0.5"/>
+                <ArrowUpRight size={16}/>
               </button>
             </div>
           </div>
