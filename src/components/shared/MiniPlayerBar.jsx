@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Play, Pause, X, Music2, SkipBack, SkipForward, Volume2, Volume1, VolumeX } from 'lucide-react';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 import AudioProgressBar from './AudioProgressBar';
@@ -27,23 +27,25 @@ import AudioProgressBar from './AudioProgressBar';
  * Droite : contexte playlist (nom cliquable + position "Titre X/Y") —
  *          masqué sur mobile (`hidden md:flex`, non essentiel, cf. plan).
  *
- * ── Volume : curseur en popup, pas un glisser à l'aveugle ───────────────
+ * ── Volume : clic = mute, survol = curseur en popup ─────────────────────
  * Toujours PAS un vrai lecteur principal (ces extraits de 30s servent à
- * choisir un titre, l'écoute réelle se fait sur Deezer/Spotify) — mais 2e
- * itération après un essai en "cliquer-glisser directement sur l'icône" :
- * retour direct que ce geste est invisible tant qu'on ne l'a pas déjà
- * essayé (aucune piste visible, rien ne suggère qu'on peut glisser). Un
- * vrai curseur (`<input type="range">`), qui n'apparaît qu'en popup au
- * clic/survol, respecte le "sans empiéter l'espace visuel" (rien en
- * permanence dans la barre) tout en restant DÉCOUVRABLE dès l'interaction
- * (survol ou clic) — même idiome que Spotify desktop/YouTube.
- *   - Clic sur l'icône : ouvre/ferme le popup — fonctionne aussi bien sur
- *     tactile (pas de hover) qu'à la souris.
- *   - Survol (souris uniquement) : ouvre le popup sans avoir à cliquer,
- *     en bonus pour desktop.
- *   - Fermeture : clic ailleurs sur la page (`useEffect` + listener
- *     `mousedown` document, nettoyé quand le popup se ferme/le composant
- *     démonte), ou la souris qui quitte toute la zone (desktop).
+ * choisir un titre, l'écoute réelle se fait sur Deezer/Spotify) — 3e
+ * itération après deux essais précédents (glisser direct sur l'icône, puis
+ * clic pour ouvrir/fermer le popup). Retour direct : garder le survol pour
+ * le popup (pratique, découvrable, gratuit en espace — rien en permanence
+ * dans la barre), mais remettre le CLIC en raccourci mute/démute rapide
+ * plutôt qu'en ouverture/fermeture de popup.
+ *   - Clic sur l'icône : bascule mute — en mémorisant/restaurant le niveau
+ *     précédent (`previousVolumeRef`) plutôt que de toujours repartir à
+ *     100%. Seul et unique déclencheur sur tactile (pas de hover) : sur
+ *     mobile, le popup n'est donc JAMAIS accessible — choix assumé, un
+ *     mute rapide reste le seul vrai besoin identifié là où le volume
+ *     système fait déjà le reste (voir plus bas).
+ *   - Survol (souris uniquement, desktop) : ouvre le popup avec le curseur
+ *     fin, pour le réglage précis — même idiome que Spotify desktop/
+ *     YouTube. Se ferme tout seul dès que la souris quitte la zone
+ *     (`onMouseLeave`) : plus besoin d'un listener clic-extérieur comme
+ *     dans l'itération précédente, le survol suffit à tout gérer.
  * Popup positionné SANS marge mais avec un `pb-2` (padding, pas margin) au-
  * dessus du bouton : le padding fait partie du rectangle survolé du popup
  * lui-même, donc traverser cet espace en allant du bouton vers le curseur
@@ -102,25 +104,12 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
   } = useAudioPlayer();
 
   // Volume 0..1 — synchronisé sur previewAudioRef.current à chaque
-  // changement (curseur du popup), voir applyVolume.
+  // changement (curseur du popup ou mute-par-clic), voir applyVolume.
   const [volume, setVolume] = useState(1);
   const [isVolumePopupOpen, setIsVolumePopupOpen] = useState(false);
-  const volumeWrapperRef = useRef(null);
-
-  // Ferme le popup sur un clic n'importe où EN DEHORS de la zone
-  // bouton+popup (`volumeWrapperRef` englobe les deux, voir JSX plus bas).
-  // N'écoute que pendant que le popup est réellement ouvert — jamais de
-  // listener document qui traîne pour rien le reste du temps.
-  useEffect(() => {
-    if (!isVolumePopupOpen) return;
-    const handleClickOutside = (e) => {
-      if (volumeWrapperRef.current && !volumeWrapperRef.current.contains(e.target)) {
-        setIsVolumePopupOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isVolumePopupOpen]);
+  // Mémorise le niveau d'avant un mute-par-clic, pour que redémuter par
+  // clic restaure le MÊME niveau plutôt que de repartir à 100% à chaque fois.
+  const previousVolumeRef = useRef(1);
 
   if (!currentTrack) return null;
 
@@ -132,6 +121,11 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
     const clamped = Math.min(1, Math.max(0, v));
     if (previewAudioRef.current) previewAudioRef.current.volume = clamped;
     setVolume(clamped);
+  };
+
+  const handleToggleMute = () => {
+    if (volume > 0) { previousVolumeRef.current = volume; applyVolume(0); }
+    else applyVolume(previousVolumeRef.current || 1);
   };
 
   const VolumeIcon = volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
@@ -218,14 +212,13 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
         </div>
 
         <div
-          ref={volumeWrapperRef}
           className="relative"
           onMouseEnter={() => setIsVolumePopupOpen(true)}
           onMouseLeave={() => setIsVolumePopupOpen(false)}
         >
           <button
-            onClick={() => setIsVolumePopupOpen(v => !v)}
-            title={`Volume : ${Math.round(volume * 100)}%`}
+            onClick={handleToggleMute}
+            title={volume === 0 ? 'Réactiver le son' : 'Couper le son'}
             className={`p-2 rounded-full shrink-0 transition-colors ${textMuted} hover:text-main hover:bg-surface-hover`}
           >
             <VolumeIcon size={18}/>
