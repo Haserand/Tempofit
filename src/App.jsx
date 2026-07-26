@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, Sun, Moon, X, UserPlus } from 'lucide-react';
+import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, Sun, Moon, X } from 'lucide-react';
 import { genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getRankStyle } from './appConfig';
 
@@ -68,6 +68,7 @@ import PlaylistDetailView from './components/views/PlaylistDetailView';
 import CustomActivityModal from './components/modals/CustomActivityModal';
 import DiscoverView from './components/views/DiscoverView';
 import MiniPlayerBar from './components/shared/MiniPlayerBar';
+import GuestModeBar from './components/shared/GuestModeBar';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 import SavingRoutineModal from './components/modals/SavingRoutineModal';
 import ShareModal from './components/modals/ShareModal';
@@ -1537,22 +1538,12 @@ function AppContent({
               isPlaying, pause/reprise/fermeture, skip précédent/suivant)
               directement via useAudioPlayer(). */}
           <MiniPlayerBar theme={themeTokens} currentPlaylist={currentPlaylist} changeView={changeView} />
-          {/* Ordre inversé (25/07, retour direct) : la barre "mode invité"
-              est maintenant la DERNIÈRE du flex — donc collée au vrai bas
-              d'écran — et MiniPlayerBar passe au-dessus quand les deux sont
-              visibles en même temps. Comme les deux spacers plus haut dans
-              <main> restent indépendants l'un de l'autre, cet échange
-              d'ordre n'a besoin d'aucun autre ajustement. */}
-          {!user && (savedPlaylists.length > 0 || routines.length > 0) && (
-            <div className={`border-t ${cardBorder} ${cardBg} px-4 py-2 text-center`}>
-              <p className={`text-xs ${textMuted}`}>
-                Mode invité — données sauvegardées uniquement sur cet appareil.{' '}
-                <button onClick={() => openModal('AUTH')} className={`inline-flex items-center gap-1 font-bold underline ${textColorClass}`}>
-                  <UserPlus size={11} /> Créer un compte
-                </button>
-              </p>
-            </div>
-          )}
+          {/* Extraite dans son propre fichier (25/07, même principe que
+              MiniPlayerBar juste au-dessus) — voir GuestModeBar.jsx pour
+              tout le raisonnement (pourquoi cet ordre, pourquoi la réplique
+              du crédit sidebar, pourquoi ce déclencheur). Décide elle-même
+              de s'afficher ou non (`isVisible` interne). */}
+          <GuestModeBar theme={themeTokens} user={user} savedPlaylists={savedPlaylists} routines={routines} openModal={openModal} />
         </div>
 
       </div>
