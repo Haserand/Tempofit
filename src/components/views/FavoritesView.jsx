@@ -1,4 +1,4 @@
-import { Star, Heart, Play, Pause, Loader2, X, Plus, User, RefreshCw, Target, Search, Info } from 'lucide-react';
+import { Star, Heart, Play, Pause, Loader2, X, Plus, User, Target, Search, Info } from 'lucide-react';
 import { getGenreLocalDepthWarning, getGenresForDisplay, genreDisplayLabel, EXTRA_GENRES } from '../../musicCatalog';
 import { useModalContext } from '../../contexts/ModalContext';
 import ViewHeader from '../shared/ViewHeader';
@@ -74,24 +74,25 @@ export default function FavoritesView({
       <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-2">
           <h3 className={`font-bold text-xl ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}>Tes Préférences Musicales</h3>
-          {/* Bouton → lien texte (25/07, retour direct : "le texte n'était
-              pas clair, et le bouton lui-même n'est pas beau — un simple
-              lien avec infobulle suffirait"). Le paragraphe d'aide qui
-              vivait juste en dessous (désambiguïser "Spotify" vs "compte
-              TempoFit") est entièrement retiré : ce n'était pas clair posé
-              comme ça, et le bon endroit pour être précis, c'est la page
-              "Options & Comptes" elle-même, vers laquelle ce lien mène —
-              "Spotify" y est déjà nommé explicitement, dans sa propre carte
-              "Comptes connectés", séparée de tout ce qui concerne le compte
-              TempoFit. L'infobulle (`title`) porte maintenant cette
-              précision directement, au survol, plutôt qu'en texte fixe
-              toujours affiché. */}
+          {/* Icône RefreshCw retirée (25/07, retour direct : "ce bouton
+              laisse imaginer qu'une action va se faire immédiatement si je
+              clique dessus") — un rond avec deux flèches évoque une action
+              exécutée sur place (rafraîchir, synchroniser maintenant), alors
+              que ce lien ne fait QUE naviguer vers "Options & Comptes" ;
+              rien ne se passe ici tant qu'on n'a pas cliqué "Lier mon
+              compte" sur cette page-là. Remplacée par une flèche `→` en fin
+              de texte, même code visuel que "Configure →" dans
+              GeneratorView.jsx (bannière Profil Athlétique) — cohérence
+              d'un même signal "ce lien t'emmène ailleurs" à travers l'app.
+              Infobulle reformulée dans le même esprit : "Ouvre" plutôt
+              qu'une formulation qui pourrait laisser croire à une action
+              déjà en cours. */}
           <button
             onClick={() => changeView('settings')}
-            title="Lie ton compte Spotify pour élargir le catalogue de titres disponibles."
-            className={`inline-flex items-center gap-1.5 text-sm font-bold underline ${textColorClass}`}
+            title="Ouvre la page Comptes pour lier Spotify et élargir le catalogue de titres disponibles."
+            className={`text-sm font-bold underline ${textColorClass}`}
           >
-            <RefreshCw size={14} /> Synchroniser mes comptes
+            Synchroniser mes comptes →
           </button>
         </div>
 
