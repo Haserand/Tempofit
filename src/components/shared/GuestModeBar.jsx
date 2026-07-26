@@ -67,31 +67,3 @@ export default function GuestModeBar({ theme, isVisible, openModal }) {
     </div>
   );
 }
-
-  return (
-    <div className={`border-t ${cardBorder} ${cardBg} flex items-center`}>
-      {/* Réplique du crédit de Sidebar.jsx — voir docstring ci-dessus.
-          Texte/lien/style IDENTIQUES à Sidebar.jsx à dessein (illusion de
-          continuité) : si ce texte change un jour dans Sidebar.jsx, penser à
-          le reporter ici aussi. */}
-      <div className={`hidden md:block w-64 shrink-0 px-4 py-2 text-center border-r ${cardBorder}`}>
-        <a
-          href="https://www.linkedin.com/in/damiengrange/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`text-xs font-medium ${textMuted} hover:text-main transition-colors`}
-        >
-          Un projet créé par <span className="font-bold underline">Damien Grangé</span>
-        </a>
-      </div>
-      <div className="flex-1 px-4 py-2 text-center">
-        <p className={`text-xs ${textMuted}`}>
-          Mode invité — données sauvegardées uniquement sur cet appareil.{' '}
-          <button onClick={() => openModal('AUTH')} className={`inline-flex items-center gap-1 font-bold underline ${textColorClass}`}>
-            <UserPlus size={11} /> Créer un compte
-          </button>
-        </p>
-      </div>
-    </div>
-  );
-}
