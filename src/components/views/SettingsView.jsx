@@ -93,7 +93,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
         theme={theme}
         icon={<Settings className={theme.textColorClass} size={36} />}
         title="Options & Comptes"
-        subtitle="Connecte tes plateformes pour utiliser de vraies musiques, et un compte pour retrouver tes données sur tous tes appareils."
+        subtitle="Connecte tes plateformes et ton compte pour tout synchroniser."
       />
 
       {/* RETOUR DIRECT ("vraiment synchroniser toutes les données entre
