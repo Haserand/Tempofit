@@ -1,7 +1,7 @@
 import { Edit3, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { NAUGHTY_GENRES, STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, genreDisplayLabel } from '../../musicCatalog';
 import { getZoneForValue } from '../../appConfig';
-import { clampNumericInput } from '../../utils/numberInput';
+import { syncClampedInput } from '../../utils/numberInput';
 import DualRangeSlider from '../shared/DualRangeSlider';
 
 /**
@@ -69,11 +69,11 @@ export default function EditRoutineModal({
           ) : (
             <div className="flex gap-3">
               <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-3 justify-between`}>
-                <input type="number" min="0" max="12" value={editingRoutine.hours} onChange={e => setEditingRoutine({...editingRoutine, hours: clampNumericInput(e.target.value, { min: 0, max: 12 })})} className={`bg-transparent w-full font-bold outline-none ${textHighlight}`} />
+                <input type="number" min="0" max="12" value={editingRoutine.hours} onChange={e => setEditingRoutine({...editingRoutine, hours: syncClampedInput(e, { min: 0, max: 12 })})} className={`bg-transparent w-full font-bold outline-none ${textHighlight}`} />
                 <span className={`text-sm font-bold ${textMuted}`}>Heures</span>
               </div>
               <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-3 justify-between`}>
-                <input type="number" min="0" max="59" value={editingRoutine.minutes} onChange={e => setEditingRoutine({...editingRoutine, minutes: clampNumericInput(e.target.value, { min: 0, max: 59 })})} className={`bg-transparent w-full font-bold outline-none ${textHighlight} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
+                <input type="number" min="0" max="59" value={editingRoutine.minutes} onChange={e => setEditingRoutine({...editingRoutine, minutes: syncClampedInput(e, { min: 0, max: 59 })})} className={`bg-transparent w-full font-bold outline-none ${textHighlight} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
                 <span className={`text-sm font-bold ${textMuted} mr-1`}>Min</span>
                 <div className="flex flex-col">
                   <button type="button" onClick={() => setEditingRoutine(r => ({...r, minutes: (parseInt(r.minutes) || 0) + 1 > 59 ? 0 : (parseInt(r.minutes) || 0) + 1}))} className={`${textMuted} hover:text-main`}>
