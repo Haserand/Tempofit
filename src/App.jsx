@@ -1571,8 +1571,22 @@ function AppContent({
             connexion z-[60] < CE conteneur z-[65] < modales z-[70] < toasts
             z-[80]) : posé maintenant sur le conteneur plutôt que sur
             MiniPlayerBar individuellement, puisque c'est lui qui gère le
-            positionnement fixe désormais. */}
-        <div className="fixed bottom-0 left-0 right-0 z-[65] flex flex-col">
+            positionnement fixe désormais.
+            `left-0 md:left-64 w-full md:w-[calc(100%-16rem)]` (layout
+            Dashboard, retour direct : "la Sidebar doit être une colonne
+            ininterrompue de haut en bas, sa bordure droite doit descendre
+            jusqu'en bas") — remplace `left-0 right-0` : sur mobile la
+            Sidebar est hors-écran par défaut (`-translate-x-full`, sauf menu
+            ouvert), donc ces barres restent pleine largeur ; à partir de
+            `md`, la Sidebar redevient une vraie colonne (`md:relative`,
+            toujours visible) et ces barres se calent maintenant À CÔTÉ
+            d'elle plutôt que de passer PAR-DESSUS — l'ancien chevauchement
+            forçait à dupliquer le crédit "Un projet créé par..." dans
+            GuestModeBar.jsx (voir son ancienne docstring) pour ne pas le
+            recouvrir ; ce hack n'a plus lieu d'être une fois que la Sidebar
+            n'est plus jamais recouverte sur desktop (retiré de
+            GuestModeBar.jsx/Sidebar.jsx, voir ces fichiers). */}
+        <div className="fixed bottom-0 left-0 md:left-64 w-full md:w-[calc(100%-16rem)] z-[65] flex flex-col">
           {/* Chantier God Component (suite) : ne reçoit plus que theme et
               currentPlaylist (seule dépendance hors du périmètre
               d'AudioPlayerContext) — lit tout le reste (currentTrack,
