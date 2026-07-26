@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { EXTRA_GENRES, WEAK_DEEZER_KEYWORD_GENRES } from '../musicCatalog';
 import { createPlaylistData } from '../musicEngine';
 import { useGeneratorContext } from '../contexts/GeneratorContext';
@@ -34,6 +35,41 @@ export function usePlaylistGeneration(
 ) {
   const { checkGenreWeightDeviation } = useGeneratorContext();
 
+  // Jeton d'annulation "par exécution" — voir cancelGeneration ci-dessous pour
+  // le raisonnement complet. Un objet mutable frais { cancelled: false } est
+  // créé à CHAQUE appel de executeGeneration et capturé dans sa closure ; ça
+  // évite qu'une annulation tardive (ou une 2e génération démarrée entre-temps)
+  // ne vienne perturber une exécution différente de celle visée.
+  const activeCancelTokenRef = useRef(null);
+
+  /**
+   * cancelGeneration — annule la génération EN COURS.
+   *
+   * Choix assumé : ceci n'interrompt PAS les requêtes réseau Deezer déjà
+   * lancées (ça demanderait de faire transiter un signal d'annulation à
+   * travers toute la chaîne d'appels de musicEngine.js — buildSegmentTracks,
+   * fetchInBatches, searchArtistsForBpm, resolveDeezerGenre, etc., une bonne
+   * dizaine de fonctions imbriquées — un chantier trop invasif pour être fait
+   * sans pouvoir le tester en conditions réelles, ce sandbox n'ayant ni
+   * navigateur ni accès réseau). À la place : le résultat de CETTE exécution
+   * est marqué comme à jeter. Concrètement, `executeGeneration` continue de
+   * tourner en tâche de fond (elle se termine typiquement en quelques
+   * secondes) mais son résultat n'est jamais appliqué (pas de playlist
+   * affichée, pas de sauvegarde, pas de trophée, pas de navigation) — voir la
+   * vérification juste après la boucle de génération plus bas.
+   * Ce qui compte du point de vue utilisateur EST bien résolu : l'interface se
+   * débloque immédiatement (`setIsGenerating(false)` ici), donc il/elle peut
+   * aussitôt corriger ses critères et relancer une nouvelle génération sans
+   * attendre — but réel de la demande ("je devrais pouvoir l'arrêter si j'ai
+   * mis de mauvais critères").
+   */
+  const cancelGeneration = () => {
+    if (activeCancelTokenRef.current) activeCancelTokenRef.current.cancelled = true;
+    setIsGenerating(false);
+    setIsGeneratingSlowGenre(false);
+    showToast('Génération annulée.');
+  };
+
   /**
    * Point d'entrée principal de la génération, appelé depuis le wizard (count=1)
    * ou depuis une routine (count=1..10, génération en lot / "batch").
@@ -68,6 +104,14 @@ export function usePlaylistGeneration(
     setIsGenerating(true);
     setGeneratingTotal(count);
     setGeneratingDone(0);
+    // Nouveau jeton pour CETTE exécution — voir cancelGeneration plus haut.
+    // Capturé dans la closure ci-dessous (variable locale `cancelToken`, pas
+    // une relecture de la ref au moment de vérifier) : si une 2e génération
+    // démarre avant que celle-ci ne se termine, elle posera SON PROPRE jeton
+    // dans la ref, sans affecter le jeton de celle-ci, qui reste valide pour
+    // savoir si ELLE, spécifiquement, a été annulée.
+    const cancelToken = { cancelled: false };
+    activeCancelTokenRef.current = cancelToken;
     // Couvre le genre global de la séance ET un éventuel override de genre
     // propre à une portion (mode Fractionné/Crescendo, voir toggleSegmentGenre
     // dans useGeneratorForm.js) — un genre lent choisi seulement sur UNE
@@ -150,6 +194,13 @@ export function usePlaylistGeneration(
       // deux générations séparées dans le temps.
       rollingExcludeIds = [...rollingExcludeIds, ...pl.tracks.map(t => t.trackId)];
 
+      // Annulation en cours de lot (count > 1, ex. routine "générer plusieurs
+      // séances d'un coup") : contrairement à une génération réseau isolée,
+      // cette boucle EST dans ce fichier, donc on peut réellement s'arrêter
+      // ENTRE deux playlists sans attendre les suivantes — pas besoin de
+      // toucher musicEngine.js pour ça.
+      if (cancelToken.cancelled) break;
+
       // Petite pause entre deux playlists d'un même lot (pas après la dernière) :
       // générer plusieurs playlists d'affilée déclenche une rafale d'appels Deezer
       // très rapprochés (jusqu'à ~60 par playlist rien que pour le pool principal),
@@ -164,6 +215,13 @@ export function usePlaylistGeneration(
     }
     setIsGenerating(false);
     setIsGeneratingSlowGenre(false);
+
+    // Génération annulée entre-temps (voir cancelGeneration) : on jette le
+    // résultat sans y toucher — pas de trophée, pas de sauvegarde, pas de
+    // navigation, pas de toast. `setIsGenerating(false)` a déjà été fait par
+    // cancelGeneration lui-même ; l'appel juste au-dessus est donc sans effet
+    // ici (idempotent), gardé pour ne pas complexifier le flux normal.
+    if (cancelToken.cancelled) return;
 
     // "Mes Favoris" (hasUsedFavorites) : voir le commentaire plus haut pour le
     // bug corrigé — vérifié ici sur la playlist RÉELLEMENT générée par ce lot,
@@ -220,5 +278,5 @@ export function usePlaylistGeneration(
     }
   };
 
-  return { executeGeneration };
+  return { executeGeneration, cancelGeneration };
 }
