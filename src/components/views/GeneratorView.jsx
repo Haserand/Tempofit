@@ -597,7 +597,7 @@ export default function GeneratorView({
                 Ne pas confondre avec PlaylistDetailView.jsx ("Cadence (PPM)"
                 vs "BPM cible"), qui lui affiche une vraie cadence physique
                 importée d'un Garmin/Strava — cas différent, inchangé. */}
-            <div className={`p-4 rounded-2xl ${inputBg} border ${inputBorder}`}>
+            <div className={`mt-2 p-4 rounded-2xl ${inputBg} border ${inputBorder}`}>
               <label className={`text-sm font-bold block mb-2 ${textHighlight}`}>{baseBpmQuestion}</label>
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className={`flex-1 flex items-center px-4 py-3 rounded-xl border ${bpmInputError ? 'border-red-500' : inputBorder} ${cardBg}`}>
