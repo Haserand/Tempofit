@@ -1,18 +1,34 @@
 import { normalizeGenreForDisplay, genreDisplayLabel } from './musicCatalog';
 
 /**
- * genreWeightDeviation.js — logique de calcul PURE derrière l'avertissement
- * de répartition par genre du wizard (useGeneratorForm.js, étape résultat).
+ * genreWeightDeviation.js — logique de calcul PURE autour de la pondération
+ * par genre du wizard (useGeneratorForm.js) : répartition initiale à parts
+ * égales (`equalSplitWeights`) et détection d'écart entre répartition visée
+ * et obtenue (`checkGenreWeightDeviation`).
  *
  * Extrait de useGeneratorForm.js (qui importe React pour useState/useEffect)
- * afin que cette fonction — déjà 100% pure, ne dépendant que de ses
- * arguments (`tracks`, `weights`) et de musicCatalog.js (sans React) — soit
- * testable directement avec le test runner natif de Node, sans dépendance à
- * installer (même principe que src/utils/numberInput.test.js et
- * src/athleticZones.js). Aucun changement de comportement : déplacement à
- * l'identique, useGeneratorForm.js importe maintenant cette fonction au lieu
- * de la définir localement.
- *
+ * afin que cette logique — déjà 100% pure, ne dépendant que de ses arguments
+ * et de musicCatalog.js (sans React) — soit testable directement avec le
+ * test runner natif de Node, sans dépendance à installer (même principe que
+ * src/utils/numberInput.test.js et src/athleticZones.js). Aucun changement
+ * de comportement : déplacement à l'identique, useGeneratorForm.js importe
+ * maintenant ces fonctions au lieu de les définir localement.
+ */
+
+// Répartit 100% à parts égales entre les genres donnés (reste éventuel
+// affecté au dernier, pour que la somme tombe toujours pile sur 100 malgré
+// les arrondis — ex. 3 genres → 33/33/34, pas 33/33/33 qui ne totaliserait
+// que 99).
+export const equalSplitWeights = (genres) => {
+  if (genres.length === 0) return {};
+  const base = Math.floor(100 / genres.length);
+  const result = {};
+  genres.forEach(g => { result[g] = base; });
+  result[genres[genres.length - 1]] += 100 - base * genres.length;
+  return result;
+};
+
+/**
  * Compare la répartition RÉELLEMENT obtenue (durée par genre dans la
  * playlist) à la répartition en % DEMANDÉE (config.genreWeights) —
  * approximatif par nature, donc on ne signale que les écarts vraiment
