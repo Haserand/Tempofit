@@ -46,19 +46,31 @@ export default function Sidebar({
   showAthleticProfile, setShowAthleticProfile,
   favorites,
   user, userStats,
-  guestBarVisible,
+  guestBarVisible, playerBarVisible,
 }) {
+  // BUG CORRIGÉ (25/07, retour direct : "je ne peux pas cliquer sur Options
+  // & Comptes quand le lecteur audio est actif") — le padding précédent
+  // (`pb-10` conditionnel) ne réservait de la place QUE pour GuestModeBar.jsx
+  // seule (h-10, 40px) ; il ne tenait pas compte de MiniPlayerBar.jsx (h-40,
+  // 160px, voir le spacer équivalent dans App.jsx), qui vient s'empiler
+  // AU-DESSUS de GuestModeBar dans le même conteneur `fixed` (voir App.jsx).
+  // Quand les deux sont visibles en même temps, la pile du bas est plus
+  // haute que ce que la sidebar réservait, et vient recouvrir "Options &
+  // Comptes". Ces 4 cas reprennent EXACTEMENT les mêmes hauteurs de
+  // référence que les 2 spacers d'App.jsx (`h-40`/`h-10`) plutôt que
+  // deviner un nombre : additionnées (200px, `pb-[200px]`) quand les deux
+  // barres sont visibles ensemble, comme le sont leurs 2 spacers respectifs
+  // dans le flux normal du contenu principal.
+  const bottomBarPadding = playerBarVisible && guestBarVisible
+    ? 'pb-[200px]'
+    : playerBarVisible
+      ? 'pb-40'
+      : guestBarVisible
+        ? 'pb-10'
+        : '';
+
   return (
-    // `pb-10` conditionnel (25/07) — réserve la même hauteur que le spacer
-    // utilisé côté <main> pour GuestModeBar.jsx (`h-10`, voir App.jsx) :
-    // sans ça, une fois le crédit masqué (voir plus bas), le menu s'étend
-    // jusqu'au vrai bas d'écran et se fait couper par la barre "mode
-    // invité" par-dessus (bug remonté par capture, "Options & Comptes"
-    // à moitié caché). `guestBarVisible` = même condition que la barre
-    // elle-même (calculée une seule fois dans App.jsx, voir son
-    // commentaire) : ce padding n'existe que quand il y a réellement
-    // quelque chose en bas dont il faut se protéger.
-    <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r ${cardBorder} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${guestBarVisible ? 'pb-10' : ''}`}>
+    <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r ${cardBorder} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${bottomBarPadding}`}>
       <div className={`p-6 border-b ${cardBorder} flex items-center justify-between`}>
          {/* Logo cliquable = retour à l'accueil ("Nouvelle séance") — referme
              aussi le Profil Athlétique s'il était ouvert (comportement
