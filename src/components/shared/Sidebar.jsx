@@ -46,6 +46,7 @@ export default function Sidebar({
   showAthleticProfile, setShowAthleticProfile,
   favorites,
   user, userStats,
+  hideCredit,
 }) {
   return (
     <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r ${cardBorder} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
@@ -187,17 +188,27 @@ export default function Sidebar({
           pour que ce bloc reste ancré en bas MÊME si <nav> perd un jour son
           flex-1 (ex. contenu qui dépasse et qu'on passe en scroll interne
           sans flex-1), plutôt que de dépendre implicitement d'un réglage
-          fait sur un autre élément. */}
-      <div className={`mt-auto px-4 py-4 border-t ${cardBorder} text-center`}>
-        <a
-          href="https://www.linkedin.com/in/damiengrange/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`text-xs font-medium ${textMuted} hover:text-main transition-colors`}
-        >
-          Un projet créé par <span className="font-bold underline">Damien Grangé</span>
-        </a>
-      </div>
+          fait sur un autre élément.
+          `hideCredit` (25/07) : caché quand GuestModeBar.jsx affiche sa
+          réplique de CE MÊME crédit dans la barre du bas — sinon les deux
+          s'affichent en double sur les pages où le menu est court (bug
+          remonté par capture, voir GuestModeBar.jsx pour l'historique
+          complet). Rien ne remplace ce bloc quand il est caché : pas de
+          "partie" en dessous des Réglages dans ce cas, ce qui correspond à
+          la réalité — cette info vit ailleurs à l'écran à ce moment-là, pas
+          nulle part. */}
+      {!hideCredit && (
+        <div className={`mt-auto px-4 py-4 border-t ${cardBorder} text-center`}>
+          <a
+            href="https://www.linkedin.com/in/damiengrange/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`text-xs font-medium ${textMuted} hover:text-main transition-colors`}
+          >
+            Un projet créé par <span className="font-bold underline">Damien Grangé</span>
+          </a>
+        </div>
+      )}
     </aside>
   );
 }
