@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, genreDisplayLabel } from '../../musicCatalog';
 import { formatDuration } from '../../utils/format';
+import { clampNumericInput } from '../../utils/numberInput';
 import DualRangeSlider from '../shared/DualRangeSlider';
 import {
   WORKOUT_TYPES, NAUGHTY_WORKOUT_ORDER, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_LABELS,
@@ -603,7 +604,7 @@ export default function GeneratorView({
                   <input
                     type="number" min="40" max="220" placeholder="ex : 160"
                     value={baseBpmDraft}
-                    onChange={(e) => { setBaseBpmDraft(e.target.value); if (bpmInputError) setBpmInputError(false); }}
+                    onChange={(e) => { setBaseBpmDraft(clampNumericInput(e.target.value, { min: 40, max: 220 })); if (bpmInputError) setBpmInputError(false); }}
                     onKeyDown={(e) => e.key === 'Enter' && computeAndApplyZones()}
                     className={`bg-transparent w-full text-lg font-bold outline-none ${textHighlight}`}
                   />
@@ -892,9 +893,9 @@ export default function GeneratorView({
                         <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-4 justify-between`}>
                           <span className={`text-sm font-bold ${textMuted} mr-2`}>Allure:</span>
                           <div className="flex items-center">
-                            <input type="number" min="1" max="15" value={paceMin} onChange={(e) => setPaceMin(e.target.value)} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-none text-right`} />
+                            <input type="number" min="1" max="15" value={paceMin} onChange={(e) => setPaceMin(clampNumericInput(e.target.value, { min: 1, max: 15 }))} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-none text-right`} />
                             <span className={`${textHighlight} mx-1 font-bold text-xl`}>:</span>
-                            <input type="number" min="0" max="59" value={paceSec} onChange={(e) => setPaceSec(e.target.value)} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
+                            <input type="number" min="0" max="59" value={paceSec} onChange={(e) => setPaceSec(clampNumericInput(e.target.value, { min: 0, max: 59 }))} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
                             <div className="flex flex-col mr-1">
                               <button type="button" onClick={() => setPaceSec(s => { const v = (parseInt(s) || 0) + 1; return v > 59 ? 0 : v; })} className={`${textMuted} hover:text-main`}>
                                 <ChevronUp size={12} />
@@ -915,13 +916,13 @@ export default function GeneratorView({
                       </label>
                       <div className="flex space-x-4">
                         <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-6 py-4`}>
-                          <input type="number" min="0" max="12" value={hours} onChange={(e) => setHours(e.target.value)} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-none`} />
+                          <input type="number" min="0" max="12" value={hours} onChange={(e) => setHours(clampNumericInput(e.target.value, { min: 0, max: 12 }))} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-none`} />
                           <span className={`font-bold text-lg ${textMuted}`}>Heures</span>
                         </div>
                         <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-6 py-4`}>
                           {/* Flèches personnalisées plutôt que le spinner natif : un input
                               number natif s'arrête à 59 (ou 0) au lieu de boucler. */}
-                          <input type="number" min="0" max="59" value={minutes} onChange={(e) => setMinutes(e.target.value)} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
+                          <input type="number" min="0" max="59" value={minutes} onChange={(e) => setMinutes(clampNumericInput(e.target.value, { min: 0, max: 59 }))} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
                           <span className={`font-bold text-lg ${textMuted} mr-2`}>Min</span>
                           <div className="flex flex-col">
                             <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) + 1; return v > 59 ? 0 : v; })} className={`p-0.5 rounded ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}>
@@ -1066,9 +1067,9 @@ export default function GeneratorView({
                         <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-4 justify-between`}>
                           <span className={`text-sm font-bold ${textMuted} mr-2`}>Allure:</span>
                           <div className="flex items-center">
-                            <input type="number" min="1" max="15" value={paceMin} onChange={(e) => setPaceMin(e.target.value)} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-none text-right`} />
+                            <input type="number" min="1" max="15" value={paceMin} onChange={(e) => setPaceMin(clampNumericInput(e.target.value, { min: 1, max: 15 }))} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-none text-right`} />
                             <span className={`${textHighlight} mx-1 font-bold text-xl`}>:</span>
-                            <input type="number" min="0" max="59" value={paceSec} onChange={(e) => setPaceSec(e.target.value)} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
+                            <input type="number" min="0" max="59" value={paceSec} onChange={(e) => setPaceSec(clampNumericInput(e.target.value, { min: 0, max: 59 }))} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
                             <div className="flex flex-col mr-1">
                               <button type="button" onClick={() => setPaceSec(s => { const v = (parseInt(s) || 0) + 1; return v > 59 ? 0 : v; })} className={`${textMuted} hover:text-main`}>
                                 <ChevronUp size={12} />
@@ -1089,11 +1090,11 @@ export default function GeneratorView({
                       </label>
                       <div className="flex space-x-4">
                         <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-6 py-4`}>
-                          <input type="number" min="0" max="12" value={hours} onChange={(e) => setHours(e.target.value)} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-none`} />
+                          <input type="number" min="0" max="12" value={hours} onChange={(e) => setHours(clampNumericInput(e.target.value, { min: 0, max: 12 }))} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-none`} />
                           <span className={`font-bold text-lg ${textMuted}`}>Heures</span>
                         </div>
                         <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-6 py-4`}>
-                          <input type="number" min="0" max="59" value={minutes} onChange={(e) => setMinutes(e.target.value)} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
+                          <input type="number" min="0" max="59" value={minutes} onChange={(e) => setMinutes(clampNumericInput(e.target.value, { min: 0, max: 59 }))} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
                           <span className={`font-bold text-lg ${textMuted} mr-2`}>Min</span>
                           <div className="flex flex-col">
                             <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) + 1; return v > 59 ? 0 : v; })} className={`p-0.5 rounded ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}>
@@ -1210,8 +1211,8 @@ export default function GeneratorView({
                     {targetMode === 'distance' && (
                       <div className={`text-sm font-bold ${textMuted} flex items-center bg-surface-hover px-3 py-1.5 rounded-lg`}>
                         Allure moy:
-                        <input type="number" value={paceMin} onChange={e=>setPaceMin(e.target.value)} className={`w-8 bg-transparent ml-2 text-center outline-none ${textHighlight}`}/>:
-                        <input type="number" value={paceSec} onChange={e=>setPaceSec(e.target.value)} className={`w-8 bg-transparent text-center outline-none ${textHighlight}`}/>
+                        <input type="number" value={paceMin} onChange={e=>setPaceMin(clampNumericInput(e.target.value, { min: 1, max: 15 }))} className={`w-8 bg-transparent ml-2 text-center outline-none ${textHighlight}`}/>:
+                        <input type="number" value={paceSec} onChange={e=>setPaceSec(clampNumericInput(e.target.value, { min: 0, max: 59 }))} className={`w-8 bg-transparent text-center outline-none ${textHighlight}`}/>
                         <select value={distanceUnit} onChange={e=>setDistanceUnit(e.target.value)} className="bg-transparent outline-none ml-1 cursor-pointer">
                           <option value="km">/km</option><option value="mi">/mi</option>
                         </select>
