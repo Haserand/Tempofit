@@ -188,9 +188,9 @@ export default function PlaylistsView({
 
       {isEmpty ? (
         <div className={`py-16 text-center border-2 border-dashed rounded-2xl ${isNaughtyMode ? 'border-slate-400' : 'border-slate-700'}`}>
-          <List size={48} className={`mx-auto mb-4 ${isNaughtyMode ? 'text-slate-800 dark:text-white' : 'text-slate-400'}`} />
-          <h3 className={`text-lg font-bold mb-2 ${isNaughtyMode ? 'text-slate-950 dark:text-white' : 'text-white'}`}>Aucune playlist sauvegardée</h3>
-          <p className={`text-sm mb-6 max-w-sm mx-auto ${isNaughtyMode ? 'text-slate-800 dark:text-white' : 'text-slate-400'}`}>Génère une playlist et sauvegarde-la pour la retrouver ici.</p>
+          <List size={48} className={`mx-auto mb-4 ${textMuted}`} />
+          <h3 className={`text-lg font-bold mb-2 ${textHighlight}`}>Aucune playlist sauvegardée</h3>
+          <p className={`text-sm mb-6 max-w-sm mx-auto ${textMuted}`}>Génère une playlist et sauvegarde-la pour la retrouver ici.</p>
           <button onClick={() => changeView('generator')} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
             Générer ma première playlist
           </button>
@@ -199,7 +199,7 @@ export default function PlaylistsView({
         <>
           {/* --- À PLANIFIER (pas de date, ordre manuel par glisser-déposer, PAS paginée) --- */}
           <div className="space-y-4">
-            <h2 className={`text-sm font-bold uppercase tracking-wider ${isNaughtyMode ? 'text-slate-800 dark:text-white' : 'text-slate-400'}`}>À planifier</h2>
+            <h2 className={`text-sm font-bold uppercase tracking-wider ${textMuted}`}>À planifier</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Zone vide "Générer une nouvelle playlist" (retour direct :
                   "le texte gris clair et le + sont illisibles") — même
@@ -215,7 +215,7 @@ export default function PlaylistsView({
           {/* --- PLANIFIÉES (une date a été choisie, triées par date, paginée) --- */}
           {planned.length > 0 && (
             <div className="space-y-4">
-              <h2 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${isNaughtyMode ? 'text-slate-800 dark:text-white' : 'text-slate-400'}`}>
+              <h2 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${textMuted}`}>
                 <Calendar size={14} /> Planifiées
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -228,7 +228,7 @@ export default function PlaylistsView({
           {/* --- TERMINÉES (fusionne l'ancien "Historique", paginée) --- */}
           {completedPlaylists.length > 0 && (
             <div className="space-y-4">
-              <h2 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${isNaughtyMode ? 'text-slate-800 dark:text-white' : 'text-slate-400'}`}>
+              <h2 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${textMuted}`}>
                 <CheckCircle size={14} /> Terminées
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
