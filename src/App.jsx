@@ -1178,6 +1178,7 @@ function AppContent({
           showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
           favorites={favorites}
           user={user} userStats={userStats}
+          hideCredit={isGuestBarVisible}
         />
 
         <div className="flex-1 flex flex-col relative w-full">
@@ -1541,9 +1542,9 @@ function AppContent({
           {/* Extraite dans son propre fichier (25/07, même principe que
               MiniPlayerBar juste au-dessus) — voir GuestModeBar.jsx pour
               tout le raisonnement (pourquoi cet ordre, pourquoi la réplique
-              du crédit sidebar, pourquoi ce déclencheur). Décide elle-même
-              de s'afficher ou non (`isVisible` interne). */}
-          <GuestModeBar theme={themeTokens} user={user} savedPlaylists={savedPlaylists} routines={routines} openModal={openModal} />
+              du crédit sidebar). `isVisible` reçue toute faite (pas
+              recalculée ici) — voir isGuestBarVisible ci-dessus. */}
+          <GuestModeBar theme={themeTokens} isVisible={isGuestBarVisible} openModal={openModal} />
         </div>
 
       </div>
@@ -1606,6 +1607,18 @@ export default function App() {
   useEffect(() => {
     if (isNaughtyMode) setShowAthleticProfile(false);
   }, [isNaughtyMode]);
+
+  // Source unique de vérité, calculée UNE SEULE FOIS ici et partagée entre
+  // GuestModeBar (l'affiche) et Sidebar (cache son propre crédit dans ce
+  // cas précis) — voir GuestModeBar.jsx pour tout l'historique du bug que
+  // ça corrige (les deux crédits pouvaient s'afficher en double sur les
+  // pages où la sidebar est plus courte). Reprend l'esprit "Soft Gating"
+  // d'origine (voir PlaylistsView.jsx/StatsView.jsx) : rien à perdre encore,
+  // pas la peine d'alerter dès la toute première visite. Volontairement PAS
+  // basé sur `favorites` : 2 artistes de démo y sont pré-remplis dès
+  // l'installation (voir useFavorites.js), ce qui rendrait la condition
+  // vraie en permanence.
+  const isGuestBarVisible = !user && (savedPlaylists.length > 0 || routines.length > 0);
 
   return (
     <GeneratorProvider
