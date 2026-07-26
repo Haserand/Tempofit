@@ -42,12 +42,19 @@ export default function GuestModeBar({ theme, isVisible, openModal }) {
   if (!isVisible) return null;
 
   return (
-    <div className={`border-t-2 border-slate-200 dark:border-white/20 ${cardBg} flex items-center`}>
+    <div className={`border-t ${cardBorder} ${cardBg} flex items-center`}>
       {/* Réplique du crédit de Sidebar.jsx — voir docstring ci-dessus.
           Texte/lien/style IDENTIQUES à Sidebar.jsx à dessein (illusion de
           continuité) : si ce texte change un jour dans Sidebar.jsx, penser à
-          le reporter ici aussi. */}
-      <div className={`hidden md:block w-64 shrink-0 px-4 py-2 text-center border-r ${cardBorder}`}>
+          le reporter ici aussi.
+          Bordure haute épaisse posée ICI (sur cette colonne w-64
+          uniquement), pas sur le conteneur global — retour direct : seul ce
+          segment, aligné avec la sidebar au-dessus, doit ressortir comme les
+          autres bordures "macro" de structure ; le reste de la barre (côté
+          "Mode invité") garde un tracé neutre. Couleur pleine (pas de
+          transparence, contrairement à un essai précédent en `white/20` —
+          trop translucide pour se distinguer d'un simple 1px à l'œil). */}
+      <div className={`hidden md:block w-64 shrink-0 px-4 py-2 text-center border-r ${cardBorder} border-t-2 border-slate-300 dark:border-white/70`}>
         <a
           href="https://www.linkedin.com/in/damiengrange/"
           target="_blank"
