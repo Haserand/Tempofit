@@ -1373,6 +1373,7 @@ function AppContent({
                 spotifyRedirectUri={REDIRECT_URI}
                 user={user} signOut={signOut} updateEmail={updateEmail} isSupabaseConfigured={isSupabaseConfigured}
                 userCount={userCount}
+                isNaughtyMode={isNaughtyMode}
               />
             )}
 
@@ -1404,7 +1405,7 @@ function AppContent({
             )}
 
             {view === 'trophies' && (
-              <TrophiesView theme={themeTokens} userStats={userStats} handleShare={handleShare} />
+              <TrophiesView theme={themeTokens} userStats={userStats} handleShare={handleShare} isNaughtyMode={isNaughtyMode} />
             )}
 
             {view === 'playlist' && currentPlaylist && (
