@@ -1,0 +1,63 @@
+import { describe, it, expect } from 'vitest';
+import { checkGenreWeightDeviation } from '../src/genreWeightDeviation.js';
+
+/**
+ * genreWeightDeviation.test.js — sécurise checkGenreWeightDeviation
+ * (src/genreWeightDeviation.js), extraite de useGeneratorForm.js.
+ *
+ * Converti depuis une version node:test (session du 26/07/2026) — même
+ * noms de tests, mêmes valeurs attendues, déjà vérifiées par exécution
+ * réelle de la fonction avant d'écrire les assertions. Cette conversion
+ * elle-même n'a PAS pu être exécutée dans le sandbox où elle a été écrite
+ * (pas d'accès npm) — à faire tourner ici via `npm run test:run` avant de
+ * s'y fier.
+ *
+ * Genres volontairement non-ambigus (Rock/Pop) dans ces tests : la
+ * désambiguïsation K-pop/J-pop-C-pop de normalizeGenreForDisplay est déjà
+ * couverte séparément (voir tests/musicCatalog.test.js).
+ */
+
+describe('checkGenreWeightDeviation', () => {
+  it('ne signale rien avec un seul genre pondéré (rien à comparer)', () => {
+    const tracks = [{ duration: 100, genre: 'Rock', artist: 'AC/DC', title: 'Thunderstruck' }];
+    expect(checkGenreWeightDeviation(tracks, { Rock: 100 })).toBeNull();
+  });
+
+  it('ne signale rien sans aucun poids configuré', () => {
+    const tracks = [{ duration: 100, genre: 'Rock', artist: 'AC/DC', title: 'Thunderstruck' }];
+    expect(checkGenreWeightDeviation(tracks, null)).toBeNull();
+  });
+
+  it('ne signale rien avec une playlist vide (division par zéro évitée)', () => {
+    expect(checkGenreWeightDeviation([], { Rock: 50, Pop: 50 })).toBeNull();
+  });
+
+  it('signale les genres avec un écart significatif (≥ 15 points), triés genre par genre', () => {
+    const tracks = [
+      { duration: 600, genre: 'Rock', artist: 'AC/DC', title: 'Thunderstruck' },
+      { duration: 200, genre: 'Pop', artist: 'Dua Lipa', title: 'Levitating' },
+    ];
+    expect(checkGenreWeightDeviation(tracks, { Rock: 50, Pop: 50 })).toEqual([
+      'Rock : 75% obtenu (visé 50%)',
+      'Pop : 25% obtenu (visé 50%)',
+    ]);
+  });
+
+  it('ne signale rien si l\'écart reste sous le seuil de 15 points', () => {
+    const tracks = [
+      { duration: 520, genre: 'Rock', artist: 'AC/DC', title: 'Thunderstruck' },
+      { duration: 480, genre: 'Pop', artist: 'Dua Lipa', title: 'Levitating' },
+    ];
+    expect(checkGenreWeightDeviation(tracks, { Rock: 50, Pop: 50 })).toBeNull();
+  });
+
+  it('ignore un genre dont le poids demandé est 0 (pas de cible à comparer)', () => {
+    const tracks = [
+      { duration: 600, genre: 'Rock', artist: 'AC/DC', title: 'Thunderstruck' },
+      { duration: 200, genre: 'Pop', artist: 'Dua Lipa', title: 'Levitating' },
+    ];
+    expect(checkGenreWeightDeviation(tracks, { Rock: 50, Pop: 0 })).toEqual([
+      'Rock : 75% obtenu (visé 50%)',
+    ]);
+  });
+});
