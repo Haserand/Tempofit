@@ -1,4 +1,5 @@
 import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, ListPlus, Compass, Gauge } from 'lucide-react';
+import { MINI_PLAYER_BAR_HEIGHT_PX, GUEST_MODE_BAR_HEIGHT_PX } from '../../bottomBarLayout';
 
 /**
  * Sidebar — navigation principale (logo, bouton Trophées si connecté, liens
@@ -40,7 +41,7 @@ import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, ListPlus, Compas
  * quelqu'un qui a un compte pour le conserver d'une session à l'autre.
  */
 export default function Sidebar({
-  cardBorder, bgAccentClass, isNaughtyMode, textHighlight, textColorClass, textMuted,
+  cardBorder, cardBorderStrong, bgAccentClass, isNaughtyMode, textHighlight, textColorClass, textMuted,
   isMobileMenuOpen, setIsMobileMenuOpen,
   changeView, view,
   showAthleticProfile, setShowAthleticProfile,
@@ -85,23 +86,25 @@ export default function Sidebar({
   // Hauteur RÉELLE (en px) des barres du bas actuellement visibles — miroir
   // de bottomBarPadding ci-dessus, mais en pixels exacts plutôt qu'en classe
   // Tailwind arrondie : sert à synchroniser la hauteur de la case crédit
-  // juste plus bas, pas à réserver un espace vide. Doit rester cohérent
-  // avec `h-[90px]` (MiniPlayerBar.jsx) et `h-[40px]` (GuestModeBar.jsx) —
-  // si ces valeurs changent là-bas, les reporter ici aussi (pas de calcul
-  // partagé entre les 3 fichiers pour l'instant, une seule paire de
-  // constantes à garder synchronisée). `null` = aucune barre visible, la
-  // case crédit garde sa hauteur naturelle (basée sur son padding).
+  // juste plus bas, pas à réserver un espace vide.
+  // MINI_PLAYER_BAR_HEIGHT_PX/GUEST_MODE_BAR_HEIGHT_PX importées depuis
+  // bottomBarLayout.js (27/07) — seule source de vérité pour ces 2 nombres,
+  // partagée avec les classes Tailwind `h-[90px]`/`h-[40px]` de
+  // MiniPlayerBar.jsx/GuestModeBar.jsx (qui, elles, DOIVENT rester écrites
+  // en dur — voir bottomBarLayout.js pour la contrainte Tailwind derrière ce
+  // choix). `null` = aucune barre visible, la case crédit garde sa hauteur
+  // naturelle (basée sur son padding).
   const creditRowHeight = playerBarVisible && guestBarVisible
-    ? 90 + 40
+    ? MINI_PLAYER_BAR_HEIGHT_PX + GUEST_MODE_BAR_HEIGHT_PX
     : playerBarVisible
-      ? 90
+      ? MINI_PLAYER_BAR_HEIGHT_PX
       : guestBarVisible
-        ? 40
+        ? GUEST_MODE_BAR_HEIGHT_PX
         : null;
 
   return (
-    <aside className={`fixed inset-y-0 left-0 z-50 w-64 h-full bg-surface border-r-2 border-slate-200 dark:border-white/20 flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${bottomBarPadding} md:pb-0`}>
-      <div className="p-6 mb-2 border-b-2 border-slate-200 dark:border-white/20 flex items-center justify-between shrink-0">
+    <aside className={`fixed inset-y-0 left-0 z-50 w-64 h-full bg-surface border-r-2 ${cardBorderStrong} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${bottomBarPadding} md:pb-0`}>
+      <div className={`p-6 mb-2 border-b-2 ${cardBorderStrong} flex items-center justify-between shrink-0`}>
          {/* Logo cliquable = retour à l'accueil ("Nouvelle séance") — referme
              aussi le Profil Athlétique s'il était ouvert (comportement
              identique au bouton "Nouvelle séance" ci-dessous, pour que le
@@ -294,7 +297,7 @@ export default function Sidebar({
             App.jsx) et n'affiche donc plus de réplique de ce crédit à
             synchroniser — ce bloc-ci est maintenant la SEULE source. */}
         <div
-          className="px-4 py-4 border-t-2 border-slate-200 dark:border-white/20 text-center flex items-center justify-center"
+          className={`px-4 py-4 border-t-2 ${cardBorderStrong} text-center flex items-center justify-center`}
           style={creditRowHeight ? { height: `${creditRowHeight}px` } : undefined}
         >
           <a
