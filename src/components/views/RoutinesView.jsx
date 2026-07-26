@@ -40,9 +40,9 @@ export default function RoutinesView({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {routines.length === 0 ? (
           <div className={`col-span-full py-16 text-center border-2 border-dashed rounded-2xl ${isNaughtyMode ? 'border-slate-400' : 'border-slate-700'}`}>
-            <ListPlus size={48} className={`mx-auto mb-4 ${isNaughtyMode ? 'text-slate-800' : 'text-slate-400'}`} />
-            <h3 className={`text-lg font-bold mb-2 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}>Aucune routine pour l'instant</h3>
-            <p className={`text-sm mb-6 max-w-sm mx-auto ${isNaughtyMode ? 'text-slate-800' : 'text-slate-400'}`}>Génère une première playlist et sauvegarde-la comme routine pour la relancer en un clic la prochaine fois.</p>
+            <ListPlus size={48} className={`mx-auto mb-4 ${isNaughtyMode ? 'text-slate-800 dark:text-white' : 'text-slate-400'}`} />
+            <h3 className={`text-lg font-bold mb-2 ${isNaughtyMode ? 'text-slate-950 dark:text-white' : 'text-white'}`}>Aucune routine pour l'instant</h3>
+            <p className={`text-sm mb-6 max-w-sm mx-auto ${isNaughtyMode ? 'text-slate-800 dark:text-white' : 'text-slate-400'}`}>Génère une première playlist et sauvegarde-la comme routine pour la relancer en un clic la prochaine fois.</p>
             <button onClick={() => changeView('generator')} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
               Créer ma première playlist
             </button>
