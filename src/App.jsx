@@ -1531,6 +1531,18 @@ function AppContent({
             MiniPlayerBar individuellement, puisque c'est lui qui gère le
             positionnement fixe désormais. */}
         <div className="fixed bottom-0 left-0 right-0 z-[65] flex flex-col">
+          {/* Chantier God Component (suite) : ne reçoit plus que theme et
+              currentPlaylist (seule dépendance hors du périmètre
+              d'AudioPlayerContext) — lit tout le reste (currentTrack,
+              isPlaying, pause/reprise/fermeture, skip précédent/suivant)
+              directement via useAudioPlayer(). */}
+          <MiniPlayerBar theme={themeTokens} currentPlaylist={currentPlaylist} changeView={changeView} />
+          {/* Ordre inversé (25/07, retour direct) : la barre "mode invité"
+              est maintenant la DERNIÈRE du flex — donc collée au vrai bas
+              d'écran — et MiniPlayerBar passe au-dessus quand les deux sont
+              visibles en même temps. Comme les deux spacers plus haut dans
+              <main> restent indépendants l'un de l'autre, cet échange
+              d'ordre n'a besoin d'aucun autre ajustement. */}
           {!user && (savedPlaylists.length > 0 || routines.length > 0) && (
             <div className={`border-t ${cardBorder} ${cardBg} px-4 py-2 text-center`}>
               <p className={`text-xs ${textMuted}`}>
@@ -1541,12 +1553,6 @@ function AppContent({
               </p>
             </div>
           )}
-          {/* Chantier God Component (suite) : ne reçoit plus que theme et
-              currentPlaylist (seule dépendance hors du périmètre
-              d'AudioPlayerContext) — lit tout le reste (currentTrack,
-              isPlaying, pause/reprise/fermeture, skip précédent/suivant)
-              directement via useAudioPlayer(). */}
-          <MiniPlayerBar theme={themeTokens} currentPlaylist={currentPlaylist} changeView={changeView} />
         </div>
 
       </div>
