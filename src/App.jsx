@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, Sun, Moon } from 'lucide-react';
+import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, Sun, Moon, X } from 'lucide-react';
 import { genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getRankStyle } from './appConfig';
 
@@ -988,7 +988,7 @@ function AppContent({
   // useGeneratorContext() (appelé à l'intérieur du hook). Appelée ici, AVANT
   // useRoutineActions() juste en dessous, qui a besoin d'executeGeneration en
   // paramètre (applyRoutineEditOnce/Permanently).
-  const { executeGeneration } = usePlaylistGeneration(
+  const { executeGeneration, cancelGeneration } = usePlaylistGeneration(
     showToast, userStats, checkTrophies,
     routines, setRoutines,
     favorites, spotifyTrackPool, isNaughtyMode,
@@ -1141,6 +1141,16 @@ function AppContent({
             <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${textMuted} bg-black/5 dark:bg-white/10`}>
               {Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, '0')}
             </span>
+            {/* Bouton Annuler — voir cancelGeneration (usePlaylistGeneration.js)
+                pour ce qu'il fait réellement (ne coupe pas la requête réseau en
+                cours, jette juste son résultat) et pourquoi. */}
+            <button
+              onClick={cancelGeneration}
+              title="Annuler la génération"
+              className={`shrink-0 p-1 rounded-full ${textMuted} hover:text-red-500 hover:bg-red-500/10 transition-colors`}
+            >
+              <X size={16} />
+            </button>
           </div>
         )}
 
