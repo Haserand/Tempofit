@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Activity, Flame, Upload, ChevronUp, ChevronDown, ChevronRight, Gauge, Share2, Loader2 } from 'lucide-react';
+import { Activity, Upload, ChevronUp, ChevronDown, ChevronRight, Gauge, Share2, Loader2 } from 'lucide-react';
 import { ATHLETIC_ZONES, getZoneForValue, DISTRIBUTION_COLORS, getBpmBucketColor, getBpmBucketLabel } from '../../appConfig';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import { NAUGHTY_WORKOUT_LABELS } from '../../appConfig';
@@ -635,42 +635,33 @@ export default function StatsView({
         title={statsMode === 'naughty' ? 'Statistiques · Intime' : 'Statistiques'}
         subtitle={statsMode === 'naughty' ? "Ce que tu as écouté en mode Intime, à part du reste." : "Ce que tu as écouté, séance après séance."}
         right={
-          // Bascule discrète — jamais montrée en avant, jamais mélangée aux stats
-          // par défaut (voir playlistsForStats plus haut). Icône flamme plutôt qu'un
-          // texte "Stats Mode Intime" : c'est déjà l'icône utilisée ailleurs dans
-          // l'app pour ce mode. Le chemin retour (une fois dedans) reste en texte.
-          // "Partager mon bilan" (Bilan Global, voir GlobalStatsShareCard.jsx) à
-          // côté — bouton BIEN VISIBLE (retour direct), contrairement à la bascule
-          // Intime qui elle reste volontairement discrète.
-          <>
-            {totalSessions > 0 && (
-              <button
-                onClick={exportGlobalStatsImage}
-                disabled={isExportingGlobalStats}
-                title="Générer une image de ton bilan global à partager"
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors ${bgAccentClass} text-white hover:brightness-110 disabled:opacity-60 disabled:cursor-wait`}
-              >
-                {isExportingGlobalStats ? <Loader2 size={16} className="animate-spin" /> : <Share2 size={16} />}
-                <span>{isExportingGlobalStats ? 'Génération...' : 'Partager mon bilan'}</span>
-              </button>
-            )}
-            {statsMode === 'naughty' ? (
-              <button
-                onClick={() => { setStatsMode('standard'); setSelectedStatsGenre(new Set()); setSelectedStatsBpmBucket(new Set()); }}
-                className={`text-xs font-bold px-3 py-2 rounded-lg transition-colors ${textMuted} hover:text-main hover:bg-surface-hover`}
-              >
-                ← Stats standards
-              </button>
-            ) : (
-              <button
-                onClick={() => { setStatsMode('naughty'); setSelectedStatsGenre(new Set()); setSelectedStatsBpmBucket(new Set()); }}
-                title="Stats Mode Intime"
-                className="p-2 rounded-lg text-gray-400 hover:text-rose-500 transition-colors cursor-pointer"
-              >
-                <Flame size={18} />
-              </button>
-            )}
-          </>
+          // "Partager mon bilan" (Bilan Global, voir GlobalStatsShareCard.jsx) —
+          // bouton BIEN VISIBLE (retour direct), reste ici.
+          //
+          // Bascule "Stats Mode Intime" RETIRÉE D'ICI (25/07, retour direct :
+          // "je ne veux pas qu'on puisse accéder au mode intime depuis le
+          // menu statistique") — précision utile pour la suite : ce bouton
+          // ne faisait en réalité JAMAIS basculer le Mode Intime global de
+          // l'app (`toggleNaughtyMode` n'était même pas appelé ici) — c'était
+          // un simple FILTRE local (`statsMode`) pour consulter les stats des
+          // séances faites en Mode Intime sans y être soi-même. Le risque
+          // réel n'était donc pas "activer le mode", mais "révéler/exposer"
+          // l'existence de données Mode Intime à qui regarderait l'écran —
+          // retiré pour cette raison. `statsMode` continue de suivre
+          // `isNaughtyMode` automatiquement (voir le useEffect plus haut) :
+          // si le Mode Intime global est actif, les stats de CETTE session-
+          // là s'affichent normalement, sans bascule manuelle nécessaire.
+          totalSessions > 0 && (
+            <button
+              onClick={exportGlobalStatsImage}
+              disabled={isExportingGlobalStats}
+              title="Générer une image de ton bilan global à partager"
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors ${bgAccentClass} text-white hover:brightness-110 disabled:opacity-60 disabled:cursor-wait`}
+            >
+              {isExportingGlobalStats ? <Loader2 size={16} className="animate-spin" /> : <Share2 size={16} />}
+              <span>{isExportingGlobalStats ? 'Génération...' : 'Partager mon bilan'}</span>
+            </button>
+          )
         }
       />
 
