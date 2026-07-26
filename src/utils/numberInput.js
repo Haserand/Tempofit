@@ -37,3 +37,37 @@ export function clampNumericInput(rawValue, { min = -Infinity, max = Infinity } 
   const clamped = Math.min(max, Math.max(min, parsed));
   return String(clamped);
 }
+
+/**
+ * syncClampedInput — à utiliser DIRECTEMENT dans le `onChange` d'un
+ * `<input type="number">`, à la place de `clampNumericInput` seule.
+ *
+ * BUG CORRIGÉ (25/07, retour direct : "je tape 0 devant 145, ça reste
+ * affiché 0145 même après avoir cliqué ailleurs") : piège classique des
+ * champs contrôlés React. Scénario exact : le champ affiche déjà "145"
+ * (state React = "145"). L'utilisateur tape "0" tout au début → le DOM du
+ * champ affiche "0145" → `onChange` se déclenche → `clampNumericInput`
+ * calcule bien la valeur correcte, "145" → mais c'est EXACTEMENT la même
+ * chaîne que le state actuel. React compare l'ancienne et la nouvelle
+ * valeur de la prop `value` du champ : comme rien n'a changé de son point
+ * de vue, il ne réapplique jamais `value="145"` sur le DOM réel — qui reste
+ * donc affiché "0145", alors que l'état interne est bien correct (145).
+ * Le bug est donc purement visuel (l'app génère quand même avec 145), mais
+ * trompeur et source de perte de confiance.
+ *
+ * Parade standard pour ce piège React : forcer la synchronisation du DOM
+ * en écrivant directement sur `e.target.value`, EN PLUS de faire remonter
+ * la valeur calculée au state — un accès impératif au vrai nœud DOM
+ * (`e.target` reste valide de façon synchrone dans un gestionnaire
+ * d'évènement React), qui court-circuite le mécanisme de diff de React
+ * plutôt que de dépendre de lui pour corriger l'affichage.
+ *
+ * Usage : `onChange={(e) => setHours(syncClampedInput(e, { min: 0, max: 12 }))}`
+ * — remplace un `clampNumericInput(e.target.value, {...})` existant par
+ * `syncClampedInput(e, {...})`, le reste de l'appel ne change pas.
+ */
+export function syncClampedInput(e, options) {
+  const clamped = clampNumericInput(e.target.value, options);
+  e.target.value = clamped;
+  return clamped;
+}
