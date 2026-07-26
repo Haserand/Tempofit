@@ -1,4 +1,5 @@
-import { Play, Pause, X, Music2, SkipBack, SkipForward } from 'lucide-react';
+import { useState } from 'react';
+import { Play, Pause, X, Music2, SkipBack, SkipForward, Volume2, VolumeX } from 'lucide-react';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 import AudioProgressBar from './AudioProgressBar';
 
@@ -26,6 +27,19 @@ import AudioProgressBar from './AudioProgressBar';
  * Droite : contexte playlist (nom cliquable + position "Titre X/Y") —
  *          masqué sur mobile (`hidden md:flex`, non essentiel, cf. plan).
  *
+ * ── Mute (pas un vrai réglage de volume) ────────────────────────────────
+ * Volontairement PAS un slider de volume : ces extraits servent à choisir
+ * un titre (30s), pas à l'écoute principale (celle-ci se fait sur
+ * Deezer/Spotify une fois la playlist générée) — le volume système fait
+ * déjà ce travail sans rien coder. Un simple mute couvre le seul vrai
+ * besoin identifié : couper vite un extrait trop fort, notamment parce que
+ * `skipToNext`/`skipToPrevious` peuvent enchaîner plusieurs extraits sans
+ * reclic à chaque fois. `isMuted` reste un state LOCAL à ce composant (pas
+ * remonté dans useAudioPreview.js/le Contexte) : bascule directement
+ * `previewAudioRef.current.muted`, sur le MÊME objet <audio> réutilisé pour
+ * tous les titres (voir useAudioPreview.js) — le mute persiste donc déjà
+ * tout seul d'un extrait au suivant, aucune synchronisation à faire.
+ *
  * ── Contexte playlist : affiché seulement si VRAI ──────────────────────
  * `currentPlaylist` (prop) est la DERNIÈRE playlist ouverte dans l'app, pas
  * forcément celle du titre en cours (ex. on ouvre la playlist A, puis on
@@ -51,11 +65,21 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
     previewAudioRef,
   } = useAudioPlayer();
 
+  const [isMuted, setIsMuted] = useState(false);
+
   if (!currentTrack) return null;
 
   const handleTogglePlayPause = () => isPlaying ? pauseCurrentPreview() : resumeCurrentPreview();
   const handlePrevious = () => skipToPrevious(currentPlaylist?.tracks);
   const handleNext = () => skipToNext(currentPlaylist?.tracks);
+  // Bascule directement `audio.muted` sur l'élément <audio> partagé plutôt
+  // que de couper le volume à 0 : `muted` est un flag séparé du volume
+  // lui-même, donc rien à mémoriser/restaurer côté volume — démuter rend
+  // exactement le niveau sonore d'avant.
+  const handleToggleMute = () => {
+    if (previewAudioRef.current) previewAudioRef.current.muted = !isMuted;
+    setIsMuted(m => !m);
+  };
 
   const trackIndex = currentPlaylist?.tracks ? currentPlaylist.tracks.findIndex(t => t.id === currentTrack.id) : -1;
   const belongsToCurrentPlaylist = trackIndex !== -1;
@@ -137,6 +161,14 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
             </>
           )}
         </div>
+
+        <button
+          onClick={handleToggleMute}
+          title={isMuted ? 'Réactiver le son' : 'Couper le son'}
+          className={`p-2 rounded-full shrink-0 transition-colors ${textMuted} hover:text-main hover:bg-surface-hover`}
+        >
+          {isMuted ? <VolumeX size={18}/> : <Volume2 size={18}/>}
+        </button>
 
         <button
           onClick={stopCurrentPreview}
