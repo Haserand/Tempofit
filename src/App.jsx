@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, Sun, Moon, X } from 'lucide-react';
+import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, Sun, Moon, X, UserPlus } from 'lucide-react';
 import { genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getRankStyle } from './appConfig';
 
@@ -1177,7 +1177,6 @@ function AppContent({
           showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
           favorites={favorites}
           user={user} userStats={userStats}
-          savedPlaylists={savedPlaylists} routines={routines} openModal={openModal}
         />
 
         <div className="flex-1 flex flex-col relative w-full">
@@ -1409,6 +1408,16 @@ function AppContent({
                 contrôles + progression), marge de sécurité incluse plutôt
                 qu'une valeur pile ajustée au pixel. */}
             {(currentTrack || playingPreviewId) && <div className="h-40 shrink-0 w-full"></div>}
+            {/* Spacer JUMEAU de celui juste au-dessus, pour la nouvelle barre
+                "mode invité" (voir plus bas, conteneur commun avec
+                MiniPlayerBar) — même principe (enfant réel dans le flux,
+                pas un padding fixe), une hauteur de sécurité modeste (la
+                barre est un simple texte sur une ligne, ~40px). Les deux
+                spacers s'additionnent naturellement dans le flux normal du
+                document quand les deux barres sont visibles en même temps —
+                pas besoin d'une condition combinée qui recalcule une
+                hauteur totale à la main. */}
+            {!user && (savedPlaylists.length > 0 || routines.length > 0) && <div className="h-10 shrink-0 w-full"></div>}
           </main>
         </div>
 
@@ -1502,12 +1511,43 @@ function AppContent({
           removeSavedPlaylist={removeSavedPlaylist}
         />
 
-        {/* Chantier God Component (suite) : ne reçoit plus que theme et
-            currentPlaylist (seule dépendance hors du périmètre
-            d'AudioPlayerContext) — lit tout le reste (currentTrack,
-            isPlaying, pause/reprise/fermeture, skip précédent/suivant)
-            directement via useAudioPlayer(). */}
-        <MiniPlayerBar theme={themeTokens} currentPlaylist={currentPlaylist} changeView={changeView} />
+        {/* Conteneur commun (25/07) — empile la notice "mode invité" avec
+            MiniPlayerBar SANS deviner la hauteur de l'une pour positionner
+            l'autre au-dessus : un simple `flex-col` ancré au bas du viewport,
+            chaque enfant réel dans le flux détermine sa propre hauteur, et
+            l'ORDRE du JSX fixe qui est au-dessus de qui — MiniPlayerBar en
+            dernier = toujours collée au vrai bas d'écran (comportement
+            inchangé pour le lecteur, prioritaire au pouce sur mobile).
+            Choix assumé suite à un retour direct de l'utilisateur : "pas
+            dans la sidebar, ça surcharge le menu — plutôt une barre
+            horizontale pleine largeur, pour tous les comptes invités".
+            Remplace une tentative précédente dans la même session (bloc
+            ajouté à Sidebar.jsx) qui vivait dans la mauvaise zone d'affichage
+            au regard de cette demande — entièrement retirée de là-bas.
+            z-[65] repris tel quel de l'ancien MiniPlayerBar (cohérent avec la
+            hiérarchie z-index existante — Sidebar z-50 < badge trophée/
+            connexion z-[60] < CE conteneur z-[65] < modales z-[70] < toasts
+            z-[80]) : posé maintenant sur le conteneur plutôt que sur
+            MiniPlayerBar individuellement, puisque c'est lui qui gère le
+            positionnement fixe désormais. */}
+        <div className="fixed bottom-0 left-0 right-0 z-[65] flex flex-col">
+          {!user && (savedPlaylists.length > 0 || routines.length > 0) && (
+            <div className={`border-t ${cardBorder} ${cardBg} px-4 py-2 text-center`}>
+              <p className={`text-xs ${textMuted}`}>
+                Mode invité — données sauvegardées uniquement sur cet appareil.{' '}
+                <button onClick={() => openModal('AUTH')} className={`inline-flex items-center gap-1 font-bold underline ${textColorClass}`}>
+                  <UserPlus size={11} /> Créer un compte
+                </button>
+              </p>
+            </div>
+          )}
+          {/* Chantier God Component (suite) : ne reçoit plus que theme et
+              currentPlaylist (seule dépendance hors du périmètre
+              d'AudioPlayerContext) — lit tout le reste (currentTrack,
+              isPlaying, pause/reprise/fermeture, skip précédent/suivant)
+              directement via useAudioPlayer(). */}
+          <MiniPlayerBar theme={themeTokens} currentPlaylist={currentPlaylist} changeView={changeView} />
+        </div>
 
       </div>
     </div>
