@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { checkGenreWeightDeviation } from '../src/genreWeightDeviation.js';
+import { checkGenreWeightDeviation, equalSplitWeights } from '../src/genreWeightDeviation.js';
 
 /**
  * genreWeightDeviation.test.js — sécurise checkGenreWeightDeviation
@@ -59,5 +59,29 @@ describe('checkGenreWeightDeviation', () => {
     expect(checkGenreWeightDeviation(tracks, { Rock: 50, Pop: 0 })).toEqual([
       'Rock : 75% obtenu (visé 50%)',
     ]);
+  });
+});
+
+describe('equalSplitWeights', () => {
+  it('répartit 100% également entre 2 genres', () => {
+    expect(equalSplitWeights(['Rock', 'Pop'])).toEqual({ Rock: 50, Pop: 50 });
+  });
+
+  it('affecte le reste de l\'arrondi au DERNIER genre (3 genres -> 33/33/34, pas 33/33/33)', () => {
+    expect(equalSplitWeights(['Rock', 'Pop', 'Jazz'])).toEqual({ Rock: 33, Pop: 33, Jazz: 34 });
+  });
+
+  it('un seul genre reçoit 100%', () => {
+    expect(equalSplitWeights(['Rock'])).toEqual({ Rock: 100 });
+  });
+
+  it('renvoie un objet vide sans aucun genre', () => {
+    expect(equalSplitWeights([])).toEqual({});
+  });
+
+  it('la somme des poids fait toujours exactement 100, quel que soit le nombre de genres', () => {
+    const weights = equalSplitWeights(['A', 'B', 'C', 'D', 'E', 'F', 'G']);
+    const sum = Object.values(weights).reduce((s, v) => s + v, 0);
+    expect(sum).toBe(100);
   });
 });
