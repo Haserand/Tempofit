@@ -23,6 +23,7 @@
   --color-main: 17 24 39;             /* gray-900 */
   --color-muted: 156 163 175;         /* gray-400 */
   --color-divider: 229 231 235;       /* gray-200 */
+  --color-divider-strong: 226 232 240; /* slate-200, identique à l'actuel border-slate-200 */
 }
 
 .dark {
@@ -33,6 +34,7 @@
   --color-main: 255 255 255;
   --color-muted: 107 114 128;         /* gray-500 (identique clair/sombre en Mode Intime, voir useTheme.js) */
   --color-divider: 31 41 55;          /* gray-800 */
+  --color-divider-strong: 64 70 82;   /* équivalent opaque de l'actuel dark:border-white/20 sur fond gray-900 (mélange calculé) */
 }
 
 /* Mode Intime (isNaughtyMode) : seul l'accent change, jamais les fonds/
