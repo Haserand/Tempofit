@@ -57,7 +57,7 @@ import { buildCoverUrl } from '../../utils/coverArt';
  * "Midnight Runner 160" qui l'indique déjà dans son nom).
  */
 
-export default function TemplateCard({ theme, template, onPlayTemplate }) {
+export default function TemplateCard({ theme, template, onPlayTemplate, isNaughtyMode }) {
   const { textHighlight, textMuted, bgAccentClass } = theme;
 
   // Calculée depuis les vrais titres plutôt que stockée en dur dans
@@ -123,14 +123,14 @@ export default function TemplateCard({ theme, template, onPlayTemplate }) {
 
       <div className="mt-2 px-0.5">
         <h3 className={`font-bold text-sm truncate ${textHighlight}`}>{template.title}</h3>
-        <p className={`text-xs truncate ${textMuted}`}>{template.author}{avgBpm != null ? ` • ${avgBpm} BPM` : ''}</p>
+        <p className={`text-xs truncate ${textMuted} ${isNaughtyMode ? 'dark:text-white' : ''}`}>{template.author}{avgBpm != null ? ` • ${avgBpm} BPM` : ''}</p>
         {/* RETOUR RECUL (harmonisation contraste, juillet 2026) : `opacity-70`
             retirée — elle atténuait un texte DÉJÀ atténué (`textMuted`),
             contraste final ~1.8:1 sur fond clair (illisible, cause directe
             du problème signalé en Mode Intime). `textMuted` seul (voir la
             correction du token --color-muted dans index.css) suffit
             largement à distinguer cette ligne du titre au-dessus. */}
-        <p className={`text-xs truncate ${textMuted}`}>{template.workoutType} • {totalMinutes} min</p>
+        <p className={`text-xs truncate ${textMuted} ${isNaughtyMode ? 'dark:text-white' : ''}`}>{template.workoutType} • {totalMinutes} min</p>
       </div>
     </div>
   );
