@@ -1,4 +1,4 @@
-import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, ListPlus, Compass, Gauge } from 'lucide-react';
+import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, ListPlus, Compass, Gauge, UserPlus } from 'lucide-react';
 
 /**
  * Sidebar — navigation principale (logo, bouton Trophées si connecté, liens
@@ -46,6 +46,7 @@ export default function Sidebar({
   showAthleticProfile, setShowAthleticProfile,
   favorites,
   user, userStats,
+  savedPlaylists, routines, openModal,
 }) {
   return (
     <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r ${cardBorder} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
@@ -179,6 +180,44 @@ export default function Sidebar({
 
       </nav>
 
+      {/* Notice "mode invité", DÉPLACÉE ICI (25/07) — vivait avant en double
+          (texte + bouton identiques copiés-collés) dans PlaylistsView.jsx ET
+          StatsView.jsx, chacune avec sa PROPRE condition de déclenchement
+          légèrement différente (`savedPlaylists.length > 0` / `totalSessions
+          > 0`) — d'où le vrai bug remonté par capture : visible sur "Mes
+          Séances"/"Statistiques", absent de "Mes Routines" bien que la même
+          logique s'y applique tout autant (des routines sauvegardées en
+          invité sont, elles aussi, perdues si le cache est vidé).
+          Choix assumé suite à la question directe de l'utilisateur ("est-ce
+          que cette mention ne pourrait pas juste être tout le temps
+          présente ?") : UN SEUL bloc, ici, dans la sidebar (déjà persistante
+          sur toutes les vues) plutôt qu'un bandeau `fixed` en bas de
+          viewport — la sidebar est une zone d'affichage totalement séparée
+          de celle qu'utilisent déjà le toast (`fixed top-4`), le bandeau de
+          génération (`fixed bottom-4`) et le lecteur audio (`fixed
+          bottom-0`), donc aucun risque de superposition avec ces éléments
+          existants. Design compact ("adapté", comme demandé) plutôt que le
+          gros encart bleu d'avant : une ligne de texte + un lien, au même
+          gabarit que le crédit juste en dessous.
+          Condition conservée (pas juste `!user`) : `savedPlaylists.length >
+          0 || routines.length > 0` — reprend l'esprit d'origine ("rien à
+          perdre, pas la peine d'alerter dès la première visite"), mais sur
+          UN SEUL signal combiné couvrant playlists ET routines, plutôt que
+          deux conditions différentes vivant chacune dans leur propre vue.
+          Volontairement PAS basé sur `favorites` : 2 artistes de démo y sont
+          pré-remplis dès l'installation (voir useFavorites.js), ce qui rendrait
+          la condition vraie en permanence dès la première visite. */}
+      {!user && (savedPlaylists.length > 0 || routines.length > 0) && (
+        <div className={`px-4 py-3 border-t ${cardBorder} text-center`}>
+          <p className={`text-xs ${textMuted}`}>
+            Mode invité — données sauvegardées uniquement sur cet appareil.{' '}
+            <button onClick={() => openModal('AUTH')} className={`inline-flex items-center gap-1 font-bold underline ${textColorClass}`}>
+              <UserPlus size={11} /> Créer un compte
+            </button>
+          </p>
+        </div>
+      )}
+
       {/* Crédit du projet, en bas de la sidebar — discret, ouvre dans un nouvel onglet
           pour ne pas faire quitter l'app en un clic accidentel.
           `mt-auto` : déjà poussé en bas aujourd'hui par le `flex-1` de <nav>
@@ -188,7 +227,7 @@ export default function Sidebar({
           flex-1 (ex. contenu qui dépasse et qu'on passe en scroll interne
           sans flex-1), plutôt que de dépendre implicitement d'un réglage
           fait sur un autre élément. */}
-      <div className={`mt-auto px-4 py-4 border-t ${cardBorder} text-center`}>
+      <div className={`${!user && (savedPlaylists.length > 0 || routines.length > 0) ? '' : 'mt-auto'} px-4 py-4 border-t ${cardBorder} text-center`}>
         <a
           href="https://www.linkedin.com/in/damiengrange/"
           target="_blank"
