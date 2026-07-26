@@ -115,22 +115,22 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode }) {
         filteredSessions.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
             {filteredSessions.map(template => (
-              <TemplateCard key={template.id} theme={theme} template={template} onPlayTemplate={onPlayTemplate} />
+              <TemplateCard key={template.id} theme={theme} template={template} onPlayTemplate={onPlayTemplate} isNaughtyMode={isNaughtyMode} />
             ))}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center text-center py-16 gap-3">
-            <SearchX size={40} className={isNaughtyMode ? 'text-slate-800' : 'text-slate-400'}/>
-            <p className={`font-bold ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}>
+            <SearchX size={40} className={isNaughtyMode ? 'text-slate-800 dark:text-white' : 'text-slate-400'}/>
+            <p className={`font-bold ${isNaughtyMode ? 'text-slate-950 dark:text-white' : 'text-white'}`}>
               {normalizedQuery ? `Aucune séance trouvée pour "${searchQuery.trim()}".` : 'Aucune séance dans cette catégorie.'}
             </p>
-            <p className={`text-sm ${isNaughtyMode ? 'text-slate-800' : 'text-slate-400'}`}>Essaie autre chose !</p>
+            <p className={`text-sm ${isNaughtyMode ? 'text-slate-800 dark:text-white' : 'text-slate-400'}`}>Essaie autre chose !</p>
           </div>
         )
       ) : (
         categories.map(category => (
           <div key={category}>
-            <h2 className={`text-xl font-bold mb-4 sm:mb-6 ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}>{category}</h2>
+            <h2 className={`text-xl font-bold mb-4 sm:mb-6 ${isNaughtyMode ? 'text-slate-950 dark:text-white' : 'text-white'}`}>{category}</h2>
             {/* .slice(0, 5) — retour direct ("la 6e carte retombe seule sur
                 une 2e ligne, grand vide inutile") : la grille passe à 6
                 colonnes seulement à partir de `xl:` (voir grid-cols
@@ -145,7 +145,7 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode }) {
                 serait un vrai bug, pas une amélioration visuelle. */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
               {activeSessions.filter(t => t.category === category).slice(0, 5).map(template => (
-                <TemplateCard key={template.id} theme={theme} template={template} onPlayTemplate={onPlayTemplate} />
+                <TemplateCard key={template.id} theme={theme} template={template} onPlayTemplate={onPlayTemplate} isNaughtyMode={isNaughtyMode} />
               ))}
             </div>
           </div>
