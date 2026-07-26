@@ -51,20 +51,27 @@ export default function Sidebar({
   // BUG CORRIGÉ (25/07, retour direct : "je ne peux pas cliquer sur Options
   // & Comptes quand le lecteur audio est actif") — le padding précédent
   // (`pb-10` conditionnel) ne réservait de la place QUE pour GuestModeBar.jsx
-  // seule (h-10, 40px) ; il ne tenait pas compte de MiniPlayerBar.jsx (h-40,
-  // 160px, voir le spacer équivalent dans App.jsx), qui vient s'empiler
-  // AU-DESSUS de GuestModeBar dans le même conteneur `fixed` (voir App.jsx).
-  // Quand les deux sont visibles en même temps, la pile du bas est plus
-  // haute que ce que la sidebar réservait, et vient recouvrir "Options &
-  // Comptes". Ces 4 cas reprennent EXACTEMENT les mêmes hauteurs de
-  // référence que les 2 spacers d'App.jsx (`h-40`/`h-10`) plutôt que
-  // deviner un nombre : additionnées (200px, `pb-[200px]`) quand les deux
-  // barres sont visibles ensemble, comme le sont leurs 2 spacers respectifs
-  // dans le flux normal du contenu principal.
+  // seule ; il ne tenait pas compte de MiniPlayerBar.jsx, qui vient
+  // s'empiler AU-DESSUS de GuestModeBar dans le même conteneur `fixed` (voir
+  // App.jsx). Quand les deux sont visibles en même temps, la pile du bas
+  // est plus haute que ce que la sidebar réservait, et vient recouvrir
+  // "Options & Comptes".
+  // Valeurs resserrées (25/07, retour direct suivant : "dommage d'avoir
+  // tout cet espace inutilisé") — un premier essai reprenait telles quelles
+  // les hauteurs `h-40`/`h-10` du spacer utilisé pour le CONTENU PRINCIPAL
+  // (`<main>`, App.jsx), qui inclut volontairement une marge de sécurité
+  // généreuse (contenu qui défile, hauteur moins prévisible — voir son
+  // commentaire). La sidebar n'a pas ce problème : ses éléments ont une
+  // hauteur fixe et connue, pas besoin d'autant de coussin — additionner
+  // les 2 marges de sécurité (160+40=200px) donnait un espace vide bien
+  // plus grand que nécessaire. Resserré à des valeurs plus fidèles à la
+  // hauteur réelle des 2 barres (MiniPlayerBar ~70px, GuestModeBar ~40px),
+  // tout en gardant un peu de marge plutôt qu'une valeur pile ajustée au
+  // pixel.
   const bottomBarPadding = playerBarVisible && guestBarVisible
-    ? 'pb-[200px]'
+    ? 'pb-28'
     : playerBarVisible
-      ? 'pb-40'
+      ? 'pb-20'
       : guestBarVisible
         ? 'pb-10'
         : '';
