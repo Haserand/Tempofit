@@ -1197,6 +1197,7 @@ function AppContent({
           user={user} userStats={userStats}
           guestBarVisible={isGuestBarVisible}
           playerBarVisible={!!(currentTrack || playingPreviewId)}
+          toggleNaughtyMode={toggleNaughtyMode}
         />
 
         <div className="flex-1 flex flex-col relative w-full">
