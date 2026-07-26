@@ -21,6 +21,7 @@ export default {
         main: 'rgb(var(--color-main) / <alpha-value>)',
         muted: 'rgb(var(--color-muted) / <alpha-value>)',
         divider: 'rgb(var(--color-divider) / <alpha-value>)',
+        'divider-strong': 'rgb(var(--color-divider-strong) / <alpha-value>)',
       },
     },
   },
