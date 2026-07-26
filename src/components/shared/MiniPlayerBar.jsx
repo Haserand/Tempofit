@@ -43,7 +43,7 @@ import AudioProgressBar from './AudioProgressBar';
  * re-poser avant de changer de vue.
  */
 export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
-  const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
+  const { cardBg, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
   const {
     currentTrack, isPlaying,
     pauseCurrentPreview, resumeCurrentPreview, stopCurrentPreview,
@@ -68,7 +68,7 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
     // l'autre au-dessus. Cette barre-ci reste toujours la DERNIÈRE du flex
     // (donc collée au vrai bas d'écran, comportement inchangé) — seul le
     // conteneur qui l'enveloppe a changé, pas elle.
-    <div className={`border-t shadow-2xl ${cardBg} ${cardBorder}`}>
+    <div className={`border-t-2 border-slate-200 dark:border-white/20 shadow-2xl ${cardBg}`}>
       <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center gap-3">
 
         {/* ── Zone gauche : infos titre (essentiel, jamais masqué) ── */}
