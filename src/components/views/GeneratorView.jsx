@@ -770,7 +770,16 @@ export default function GeneratorView({
             </div>
           )}
 
-          <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl relative overflow-hidden flex flex-col min-h-[450px]`}>
+          {/* `pointer-events-none` + `opacity-60` pendant une génération : gèle
+              TOUTE la carte du wizard (sliders, toggles, champs, boutons) d'un
+              coup plutôt que d'ajouter `disabled` un par un sur chaque contrôle
+              — un seul point de vérification, donc rien ne peut être oublié.
+              Le bouton "Générer" restait déjà cliquable visuellement sans ça
+              (juste `disabled` en HTML, pas toujours perceptible) ; ceci le
+              rend aussi visuellement évident. Annulation possible via le
+              bouton dans le bandeau "Génération en cours" (App.jsx), qui est
+              EN DEHORS de cette carte donc jamais gelé par ce changement. */}
+          <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl relative overflow-hidden flex flex-col min-h-[450px] ${isGenerating ? 'opacity-60 pointer-events-none select-none' : ''}`}>
 
             {/* Barre de progression du wizard (4 pastilles) */}
             <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-100 dark:border-gray-800">
@@ -1541,7 +1550,7 @@ export default function GeneratorView({
         )}
         {wizardStep === 4 && (
           <div className="mt-4 flex justify-start">
-            <button onClick={() => setWizardStep(3)} className={`px-6 py-2 rounded-xl font-bold flex items-center space-x-2 ${textMuted} hover:text-main transition-colors`}>
+            <button onClick={() => setWizardStep(3)} disabled={isGenerating} className={`px-6 py-2 rounded-xl font-bold flex items-center space-x-2 ${textMuted} hover:text-main transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}>
               <ChevronLeft size={18}/> <span>Retour aux réglages</span>
             </button>
           </div>
