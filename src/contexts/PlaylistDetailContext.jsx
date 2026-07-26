@@ -210,6 +210,17 @@ export function PlaylistDetailProvider({
   // glisser-déposer directement sur le graphique (voir handleChartMouseMove
   // plus bas) — un seul mécanisme de réordonnancement, jamais 2 implémentations. ---
   const [draggedTrackIndex, setDraggedTrackIndex] = useState(null);
+  // Capturés à `handleTrackDragStart`, PAS réutilisables depuis
+  // `draggedTrackIndex` seul : ce dernier évolue en direct pendant le
+  // glisser (voir `moveTrackTo`, `setDraggedTrackIndex(newIndex)` à la fin) —
+  // il faut donc un point de départ FIGÉ à part pour savoir, une fois relâché,
+  // si le titre a RÉELLEMENT changé de position (et lequel). Même principe
+  // que `chartDragStartIndex`/`chartDragTrackTitle` plus bas pour le
+  // graphique — jusqu'ici cette info existait côté graphique mais pas côté
+  // liste, d'où un toast de succès affiché seulement depuis le graphique et
+  // jamais depuis la liste (retour direct, capture à l'appui).
+  const [listDragStartIndex, setListDragStartIndex] = useState(null);
+  const [listDragTrackTitle, setListDragTrackTitle] = useState(null);
 
   const moveTrackTo = (newIndex) => {
     if (draggedTrackIndex === null || draggedTrackIndex === newIndex || !currentPlaylist) return;
@@ -222,13 +233,22 @@ export function PlaylistDetailProvider({
 
   const handleTrackDragStart = (index) => (e) => {
     setDraggedTrackIndex(index);
+    setListDragStartIndex(index);
+    setListDragTrackTitle(currentPlaylist?.tracks[index]?.title || null);
     e.dataTransfer.effectAllowed = 'move';
   };
   const handleTrackDragEnter = (index) => (e) => {
     e.preventDefault();
     moveTrackTo(index);
   };
-  const handleTrackDragEnd = () => setDraggedTrackIndex(null);
+  const handleTrackDragEnd = () => {
+    if (listDragStartIndex !== null && draggedTrackIndex !== null && draggedTrackIndex !== listDragStartIndex) {
+      showToast(`🔀 "${listDragTrackTitle}" déplacé dans la playlist.`);
+    }
+    setDraggedTrackIndex(null);
+    setListDragStartIndex(null);
+    setListDragTrackTitle(null);
+  };
 
   // --- Graphique BPM : axes, données unifiées, segments ---
   const [chartAxisType, setChartAxisType] = useState('temps');
