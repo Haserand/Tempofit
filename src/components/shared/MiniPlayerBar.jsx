@@ -58,11 +58,23 @@ import AudioProgressBar from './AudioProgressBar';
  * Icône reflétant le niveau (`Volume2`/`Volume1`/`VolumeX` selon 3 paliers)
  * plutôt qu'un simple binaire muet/pas-muet : 3 icônes lucide déjà dans la
  * lib du projet, pas de nouvelle dépendance.
- * `accent-primary` sur le curseur : token sémantique déjà exposé par
- * Tailwind (`useTheme.js`/`index.css`, comme `bg-primary`) — s'adapte donc
- * automatiquement au Mode Intime sans avoir à threader `isNaughtyMode`
- * jusqu'ici juste pour ça (contrairement au ternaire `accent-red-500`/
- * `accent-rose-500` codé en dur ailleurs dans l'app sur les curseurs BPM).
+ * Curseur stylé ENTIÈREMENT via les pseudo-éléments natifs
+ * (`[&::-webkit-slider-thumb]`/`[&::-moz-range-thumb]`) plutôt que la seule
+ * classe `accent-primary` — même technique déjà utilisée ailleurs dans le
+ * projet pour dompter un contrôle natif (les flèches ↑↓ des champs
+ * numériques, `[&::-webkit-outer-spin-button]`, voir GeneratorWizard.jsx/
+ * EditRoutineModal.jsx). Nécessaire ici : `accent-primary` seul laissait un
+ * TRAIT BLANC natif traverser le curseur pendant le glisser (retour direct,
+ * captures à l'appui) — le rendu par défaut du navigateur pour le pouce
+ * (`::-webkit-slider-thumb`) reste partiellement visible sous
+ * `accent-color`, qui ne le remplace pas totalement pendant l'interaction
+ * active. Le styler en dur (couleur, taille, forme) plutôt que de compter
+ * sur `accent-color` élimine ce résidu à la source, sans avoir à deviner la
+ * propriété CSS exacte que le navigateur utilise pour ce rendu.
+ * `bg-primary` sur le pouce (au lieu de `accent-primary`) : reste le MÊME
+ * token sémantique (`useTheme.js`/`index.css`) — s'adapte donc toujours
+ * automatiquement au Mode Intime sans threader `isNaughtyMode` jusqu'ici
+ * juste pour ça, seule la classe Tailwind utilisée pour l'appliquer change.
  *
  * ── Contexte playlist : affiché seulement si VRAI ──────────────────────
  * `currentPlaylist` (prop) est la DERNIÈRE playlist ouverte dans l'app, pas
@@ -229,9 +241,9 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
                 <input
                   type="range" min="0" max="100" value={Math.round(volume * 100)}
                   onChange={(e) => applyVolume(Number(e.target.value) / 100)}
-                  onMouseUp={(e) => e.target.blur()}
-                  onTouchEnd={(e) => e.target.blur()}
-                  className="w-24 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary outline-none"
+                  className="w-24 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer outline-none
+                    [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-none [&::-webkit-slider-thumb]:border-0 [&::-webkit-slider-thumb]:cursor-pointer
+                    [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:shadow-none [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
                 />
               </div>
             </div>
