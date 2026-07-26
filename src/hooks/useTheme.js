@@ -49,6 +49,13 @@ export function useTheme(isNaughtyMode) {
 
   const cardBg = "bg-surface";
   const cardBorder = "border-divider";
+  // cardBorderStrong — bordures de structure "macro" (2px : bord de la
+  // Sidebar, barres inférieures, sous le logo — voir "Refonte Layout" du
+  // 26-27/07), par opposition à cardBorder (1px, contenu interne). Remplace
+  // 5 occurrences codées en dur de `border-slate-200 dark:border-white/20`
+  // (chantier noté dans la passation du 27/07 : "si ce cadrage à 2px devient
+  // une vraie convention durable, vaut le coup de la remonter en token").
+  const cardBorderStrong = "border-divider-strong";
   const inputBg = "bg-base"; // valeur identique à `base` (gray-50/gray-950) — fusion actée cette session
   const inputBorder = "border-gray-300 dark:border-gray-700";
 
@@ -61,6 +68,6 @@ export function useTheme(isNaughtyMode) {
 
   return {
     themeColor, bgMainApp, textMain, textColorClass, bgAccentClass, borderAccentClass,
-    cardBg, cardBorder, inputBg, inputBorder, textMuted, textHighlight,
+    cardBg, cardBorder, cardBorderStrong, inputBg, inputBorder, textMuted, textHighlight,
   };
 }
