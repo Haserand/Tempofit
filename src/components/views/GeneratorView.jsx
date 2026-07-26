@@ -771,10 +771,10 @@ export default function GeneratorView({
             <div className={`${cardBg} rounded-2xl border ${cardBorder} p-4 flex items-center gap-3 ${isGenerating ? 'opacity-60 pointer-events-none select-none' : ''}`}>
               <div className={`shrink-0 p-2 rounded-xl ${bgAccentClass} text-white`}><Gauge size={18}/></div>
               <p className={`text-sm ${textMuted}`}>
-                Configure ton <span className={`font-semibold ${textHighlight}`}>Profil Athlétique</span> pour un BPM ajusté à chaque zone d'effort.{' '}
                 <button onClick={() => setShowAthleticProfile(true)} disabled={isGenerating} className={`font-bold underline whitespace-nowrap ${textColorClass}`}>
-                  Configurer →
-                </button>
+                  Configure →
+                </button>{' '}
+                ton <span className={`font-semibold ${textHighlight}`}>Profil Athlétique</span> pour un BPM ajusté à chaque zone d'effort.
               </p>
             </div>
           )}
