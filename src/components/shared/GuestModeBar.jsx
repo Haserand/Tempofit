@@ -42,7 +42,7 @@ export default function GuestModeBar({ theme, isVisible, openModal }) {
   if (!isVisible) return null;
 
   return (
-    <div className={`border-t ${cardBorder} ${cardBg} flex items-center`}>
+    <div className={`border-t-2 border-slate-200 dark:border-white/20 ${cardBg} flex items-center`}>
       {/* Réplique du crédit de Sidebar.jsx — voir docstring ci-dessus.
           Texte/lien/style IDENTIQUES à Sidebar.jsx à dessein (illusion de
           continuité) : si ce texte change un jour dans Sidebar.jsx, penser à
