@@ -34,8 +34,8 @@ export default function GuestModeBar({ theme, isVisible, openModal }) {
   if (!isVisible) return null;
 
   return (
-    <div className={`border-t-2 border-slate-200 dark:border-white/20 ${cardBg} flex items-center`}>
-      <div className="flex-1 px-4 py-2 text-center">
+    <div className={`h-[40px] border-t-2 border-slate-200 dark:border-white/20 ${cardBg} flex items-center`}>
+      <div className="flex-1 px-4 text-center">
         <p className={`text-xs ${textMuted}`}>
           Mode invité — données sauvegardées uniquement sur cet appareil.{' '}
           <button onClick={() => openModal('AUTH')} className={`inline-flex items-center gap-1 font-bold underline ${textColorClass}`}>
