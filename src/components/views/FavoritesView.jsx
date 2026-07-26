@@ -1,4 +1,4 @@
-import { Star, Heart, Play, Pause, Loader2, X, Plus, User, RefreshCw, Target, Search, Info, UserPlus } from 'lucide-react';
+import { Star, Heart, Play, Pause, Loader2, X, Plus, User, RefreshCw, Target, Search, Info } from 'lucide-react';
 import { getGenreLocalDepthWarning, getGenresForDisplay, genreDisplayLabel, EXTRA_GENRES } from '../../musicCatalog';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useModalContext } from '../../contexts/ModalContext';
@@ -82,21 +82,24 @@ export default function FavoritesView({
         </div>
 
         {/* "Soft Gating" (25/07) — voir PlaylistsView.jsx pour le contexte
-            complet. Précision spécifique à cette vue (pas juste un copier-
-            coller de la bannière des 2 autres) : "Synchroniser mes comptes"
-            ne fait que lier Spotify (voir onClick ci-dessus, `changeView('settings')`)
-            — aucun rapport avec un compte TempoFit. Un invité pourrait
-            légitimement croire que ce bouton sauvegarde déjà ses favoris
-            quelque part, alors que ce n'est toujours que du localStorage tant
-            qu'il n'a pas de compte. Texte d'aide plutôt qu'un encart complet
-            comme les 2 autres vues : ce risque de confusion est local à CE
-            bouton précis, pas à toute la page. */}
+            d'origine. Reformulé (retour direct : "utilité de garder cette
+            mention maintenant qu'il y a la barre horizontale ?") — le
+            rappel générique "connecte-toi pour synchroniser tes données"
+            est désormais couvert par GuestModeBar.jsx (bandeau persistant
+            en bas d'écran), donc retiré d'ici pour ne pas le répéter une
+            3e fois sur cette page. Ce qui RESTE ici est la seule chose que
+            GuestModeBar.jsx ne dit pas : "Synchroniser mes comptes"
+            (bouton juste au-dessus, `changeView('settings')`) ne fait que
+            lier Spotify — aucun rapport avec un compte TempoFit. Un invité
+            pourrait légitimement croire que ce bouton sauvegarde déjà ses
+            favoris quelque part, alors que ce n'est toujours que du
+            localStorage tant qu'il n'a pas de compte. Cette clarification
+            est locale à CE bouton précis, pas un rappel générique — donc
+            pas redondante avec la barre du bas, contrairement au reste du
+            texte d'avant. */}
         {!user && (
           <p className={`text-xs -mt-4 mb-8 ${textMuted}`}>
-            <button onClick={() => openModal('AUTH')} className={`inline-flex items-center gap-1 font-bold underline ${textColorClass}`}>
-              <UserPlus size={12} /> Connecte-toi
-            </button>{' '}
-            à TempoFit pour sauvegarder tes favoris sur tous tes appareils.
+            "Synchroniser mes comptes" ne lie que Spotify, pas ton compte TempoFit.
           </p>
         )}
 
