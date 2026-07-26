@@ -1196,6 +1196,7 @@ function AppContent({
           favorites={favorites}
           user={user} userStats={userStats}
           guestBarVisible={isGuestBarVisible}
+          playerBarVisible={!!(currentTrack || playingPreviewId)}
         />
 
         <div className="flex-1 flex flex-col relative w-full">
