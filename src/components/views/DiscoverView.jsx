@@ -120,17 +120,17 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode }) {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center text-center py-16 gap-3">
-            <SearchX size={40} className={isNaughtyMode ? 'text-slate-800 dark:text-white' : 'text-slate-400'}/>
-            <p className={`font-bold ${isNaughtyMode ? 'text-slate-950 dark:text-white' : 'text-white'}`}>
+            <SearchX size={40} className={textMuted}/>
+            <p className={`font-bold ${textHighlight}`}>
               {normalizedQuery ? `Aucune séance trouvée pour "${searchQuery.trim()}".` : 'Aucune séance dans cette catégorie.'}
             </p>
-            <p className={`text-sm ${isNaughtyMode ? 'text-slate-800 dark:text-white' : 'text-slate-400'}`}>Essaie autre chose !</p>
+            <p className={`text-sm ${textMuted}`}>Essaie autre chose !</p>
           </div>
         )
       ) : (
         categories.map(category => (
           <div key={category}>
-            <h2 className={`text-xl font-bold mb-4 sm:mb-6 ${isNaughtyMode ? 'text-slate-950 dark:text-white' : 'text-white'}`}>{category}</h2>
+            <h2 className={`text-xl font-bold mb-4 sm:mb-6 ${textHighlight}`}>{category}</h2>
             {/* .slice(0, 5) — retour direct ("la 6e carte retombe seule sur
                 une 2e ligne, grand vide inutile") : la grille passe à 6
                 colonnes seulement à partir de `xl:` (voir grid-cols
