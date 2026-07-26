@@ -95,7 +95,7 @@ import AudioProgressBar from './AudioProgressBar';
  * re-poser avant de changer de vue.
  */
 export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
-  const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
+  const { cardBg, cardBorder, cardBorderStrong, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
   const {
     currentTrack, isPlaying,
     pauseCurrentPreview, resumeCurrentPreview, stopCurrentPreview,
@@ -141,7 +141,10 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
     // l'autre au-dessus. Cette barre-ci reste toujours la DERNIÈRE du flex
     // (donc collée au vrai bas d'écran, comportement inchangé) — seul le
     // conteneur qui l'enveloppe a changé, pas elle.
-    <div className={`h-[90px] border-t-2 border-slate-200 dark:border-white/20 shadow-2xl ${cardBg} flex items-center`}>
+    // h-[90px] : DOIT rester une classe Tailwind écrite en toutes lettres
+    // (voir bottomBarLayout.js pour pourquoi) — si cette hauteur change,
+    // reporter la même valeur dans MINI_PLAYER_BAR_HEIGHT_PX (bottomBarLayout.js).
+    <div className={`h-[90px] border-t-2 ${cardBorderStrong} shadow-2xl ${cardBg} flex items-center`}>
       <div className="max-w-5xl mx-auto px-4 flex items-center gap-3 w-full">
 
         {/* ── Zone gauche : infos titre (essentiel, jamais masqué) ── */}
