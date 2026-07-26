@@ -66,6 +66,7 @@ export default function FavoritesView({
     <div className="max-w-4xl mx-auto space-y-8">
       <ViewHeader
         theme={theme}
+        isNaughtyMode={isNaughtyMode}
         icon={<Star className="text-yellow-500 fill-yellow-500/20" size={36} />}
         title="Mes Favoris"
         subtitle="Priorité à la génération : favoris d'abord, puis artistes favoris, puis recherche élargie si besoin."
