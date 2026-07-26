@@ -172,8 +172,6 @@ export default function AthleticProfilePanel({ theme, showToast }) {
     : selectedProfileActivity === 'Cyclisme'
       ? "Quel tempo de musique veux-tu lors d'une sortie tranquille ?"
       : `Quel tempo de musique veux-tu pour ${activeProfile ? `"${activeProfile.name}"` : 'cette activité'}, à une intensité tranquille ?`;
-  const configuredProfilesCount = Object.values(athleticProfile.activities).filter(p => p.isConfigured).length
-    + athleticProfile.custom.filter(c => c.isConfigured).length;
 
   return !isNaughtyMode && (
           <div className={`${cardBg} rounded-3xl border ${cardBorder} shadow-xl p-5 md:p-6`}>
