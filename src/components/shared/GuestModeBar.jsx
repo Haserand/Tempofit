@@ -31,7 +31,8 @@ import { UserPlus } from 'lucide-react';
  *    son côté pour rester synchronisé — exactement le genre de duplication
  *    qui a fini par diverger et causer ce bug) mais reçu tout fait en prop,
  *    calculé UNE SEULE FOIS dans App.jsx et partagé avec Sidebar.jsx (voir
- *    son commentaire `hideCredit`). Une seule source de vérité pour "faut-il
+ *    son commentaire `guestBarVisible`, aussi utilisée pour réserver de la
+ *    place en bas du menu — voir Sidebar.jsx). Une seule source de vérité pour "faut-il
  *    afficher la réplique / cacher l'original ?", plutôt que deux formules
  *    séparées censées toujours rester identiques.
  */
