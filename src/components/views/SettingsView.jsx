@@ -103,6 +103,22 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           athlétique — voir usePersistentState.js), pas une plateforme de
           musique externe. Volontairement en premier : savoir "qui es-tu"
           avant "à quoi es-tu relié". */}
+      {/* Carte masquée pour un invité QUAND les comptes sont configurés
+          côté serveur (25/07, retour direct : "utilité de garder cette
+          partie en vue invité maintenant qu'il y a toujours la barre
+          horizontale ?"). Dans ce cas précis, elle n'affichait déjà RIEN
+          d'autre qu'un titre + une phrase (voir plus bas, branche `user ?
+          ... : null` — le bouton avait déjà été retiré lors d'un retour
+          précédent, jugé redondant avec "Se connecter" dans le header).
+          Avec en plus GuestModeBar.jsx (bandeau persistant en bas d'écran)
+          ET le sous-titre de CETTE MÊME page ("Connecte tes plateformes et
+          ton compte pour tout synchroniser") qui disent déjà la même chose,
+          ça faisait 3 répétitions du même message sur un seul écran.
+          Reste visible dans les 2 seuls cas où elle a un vrai contenu à
+          montrer : connecté (gestion du compte), ou comptes non configurés
+          côté serveur (message d'erreur indépendant de l'état de connexion,
+          pertinent dans les deux cas). */}
+      {(user || !isSupabaseConfigured) && (
       <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
         <h3 className={`font-bold text-xl mb-2 ${textHighlight}`}>Mon compte TempoFit</h3>
         <p className={`text-sm mb-6 line-clamp-1 ${textMuted}`}>Connecte-toi pour synchroniser tes données sur tous tes appareils.</p>
@@ -201,6 +217,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           null
         )}
       </div>
+      )}
 
       <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
         <h3 className={`font-bold text-xl mb-6 ${textHighlight}`}>Comptes connectés</h3>
