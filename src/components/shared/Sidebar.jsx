@@ -276,7 +276,7 @@ export default function Sidebar({
             la réalité — cette info vit ailleurs à l'écran à ce moment-là, pas
             nulle part. */}
         {!guestBarVisible && (
-          <div className={`px-4 py-4 border-t ${cardBorder} text-center`}>
+          <div className="px-4 py-4 border-t-2 border-slate-200 dark:border-white/20 text-center">
             <a
               href="https://www.linkedin.com/in/damiengrange/"
               target="_blank"
