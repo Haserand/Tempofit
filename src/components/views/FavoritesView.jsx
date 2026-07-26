@@ -1,6 +1,5 @@
 import { Star, Heart, Play, Pause, Loader2, X, Plus, User, RefreshCw, Target, Search, Info } from 'lucide-react';
 import { getGenreLocalDepthWarning, getGenresForDisplay, genreDisplayLabel, EXTRA_GENRES } from '../../musicCatalog';
-import { useAuthContext } from '../../contexts/AuthContext';
 import { useModalContext } from '../../contexts/ModalContext';
 import ViewHeader from '../shared/ViewHeader';
 
@@ -38,7 +37,6 @@ export default function FavoritesView({
   favBpmTarget, setFavBpmTarget, favBpmTolerance, setFavBpmTolerance,
   searchTracksByBpm, changeView,
 }) {
-  const { user } = useAuthContext();
   const { openModal } = useModalContext();
   const {
     cardBg, cardBorder, textHighlight, textMuted, textColorClass,
@@ -74,34 +72,28 @@ export default function FavoritesView({
       />
 
       <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-2">
           <h3 className={`font-bold text-xl ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}>Tes Préférences Musicales</h3>
-          <button onClick={() => changeView('settings')} className={`px-5 py-2.5 ${cardBg} border-2 ${borderAccentClass} rounded-xl text-sm font-bold ${textColorClass} transition-colors shadow-sm flex items-center gap-2 ${isNaughtyMode ? 'hover:bg-rose-500 dark:hover:bg-rose-600' : 'hover:bg-red-500 dark:hover:bg-red-600'} hover:text-white`}>
-            <RefreshCw size={18} /> <span>Synchroniser mes comptes</span>
+          {/* Bouton → lien texte (25/07, retour direct : "le texte n'était
+              pas clair, et le bouton lui-même n'est pas beau — un simple
+              lien avec infobulle suffirait"). Le paragraphe d'aide qui
+              vivait juste en dessous (désambiguïser "Spotify" vs "compte
+              TempoFit") est entièrement retiré : ce n'était pas clair posé
+              comme ça, et le bon endroit pour être précis, c'est la page
+              "Options & Comptes" elle-même, vers laquelle ce lien mène —
+              "Spotify" y est déjà nommé explicitement, dans sa propre carte
+              "Comptes connectés", séparée de tout ce qui concerne le compte
+              TempoFit. L'infobulle (`title`) porte maintenant cette
+              précision directement, au survol, plutôt qu'en texte fixe
+              toujours affiché. */}
+          <button
+            onClick={() => changeView('settings')}
+            title="Lie ton compte Spotify pour élargir le catalogue de titres disponibles."
+            className={`inline-flex items-center gap-1.5 text-sm font-bold underline ${textColorClass}`}
+          >
+            <RefreshCw size={14} /> Synchroniser mes comptes
           </button>
         </div>
-
-        {/* "Soft Gating" (25/07) — voir PlaylistsView.jsx pour le contexte
-            d'origine. Reformulé (retour direct : "utilité de garder cette
-            mention maintenant qu'il y a la barre horizontale ?") — le
-            rappel générique "connecte-toi pour synchroniser tes données"
-            est désormais couvert par GuestModeBar.jsx (bandeau persistant
-            en bas d'écran), donc retiré d'ici pour ne pas le répéter une
-            3e fois sur cette page. Ce qui RESTE ici est la seule chose que
-            GuestModeBar.jsx ne dit pas : "Synchroniser mes comptes"
-            (bouton juste au-dessus, `changeView('settings')`) ne fait que
-            lier Spotify — aucun rapport avec un compte TempoFit. Un invité
-            pourrait légitimement croire que ce bouton sauvegarde déjà ses
-            favoris quelque part, alors que ce n'est toujours que du
-            localStorage tant qu'il n'a pas de compte. Cette clarification
-            est locale à CE bouton précis, pas un rappel générique — donc
-            pas redondante avec la barre du bas, contrairement au reste du
-            texte d'avant. */}
-        {!user && (
-          <p className={`text-xs -mt-4 mb-8 ${textMuted}`}>
-            "Synchroniser mes comptes" ne lie que Spotify, pas ton compte TempoFit.
-          </p>
-        )}
 
         <div className="space-y-8">
           {/* LIGNE 1 : Titres uniquement (priorité 1 de la cascade de génération) */}
