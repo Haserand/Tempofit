@@ -1094,6 +1094,23 @@ function AppContent({
     cardBg, cardBorder, inputBg, inputBorder, textMuted, textHighlight,
   } = themeTokens;
 
+  // Source unique de vérité, calculée UNE SEULE FOIS ici et partagée entre
+  // GuestModeBar (l'affiche) et Sidebar (cache son propre crédit dans ce
+  // cas précis) — voir GuestModeBar.jsx pour tout l'historique du bug que
+  // ça corrige (les deux crédits pouvaient s'afficher en double sur les
+  // pages où la sidebar est plus courte). Reprend l'esprit "Soft Gating"
+  // d'origine (voir PlaylistsView.jsx/StatsView.jsx) : rien à perdre encore,
+  // pas la peine d'alerter dès la toute première visite. Volontairement PAS
+  // basé sur `favorites` : 2 artistes de démo y sont pré-remplis dès
+  // l'installation (voir useFavorites.js), ce qui rendrait la condition
+  // vraie en permanence.
+  // BUG CORRIGÉ (25/07) : cette ligne vivait par erreur dans le mauvais
+  // composant — `App()`, le simple assembleur de Providers tout en bas de ce
+  // fichier, qui n'a jamais eu `user`/`savedPlaylists`/`routines` en portée
+  // (ceux-ci n'existent que dans CE composant-ci, `AppContent`) — d'où un
+  // `ReferenceError: user is not defined` en production, page blanche.
+  const isGuestBarVisible = !user && (savedPlaylists.length > 0 || routines.length > 0);
+
   return (
     <div className={`${theme === 'dark' ? 'dark' : ''} ${isNaughtyMode ? 'naughty' : ''}`}>
       <div className={`flex h-screen overflow-hidden ${bgMainApp} ${textMain} font-sans selection:bg-${themeColor}-500 selection:text-white transition-colors duration-500 relative`}>
@@ -1607,18 +1624,6 @@ export default function App() {
   useEffect(() => {
     if (isNaughtyMode) setShowAthleticProfile(false);
   }, [isNaughtyMode]);
-
-  // Source unique de vérité, calculée UNE SEULE FOIS ici et partagée entre
-  // GuestModeBar (l'affiche) et Sidebar (cache son propre crédit dans ce
-  // cas précis) — voir GuestModeBar.jsx pour tout l'historique du bug que
-  // ça corrige (les deux crédits pouvaient s'afficher en double sur les
-  // pages où la sidebar est plus courte). Reprend l'esprit "Soft Gating"
-  // d'origine (voir PlaylistsView.jsx/StatsView.jsx) : rien à perdre encore,
-  // pas la peine d'alerter dès la toute première visite. Volontairement PAS
-  // basé sur `favorites` : 2 artistes de démo y sont pré-remplis dès
-  // l'installation (voir useFavorites.js), ce qui rendrait la condition
-  // vraie en permanence.
-  const isGuestBarVisible = !user && (savedPlaylists.length > 0 || routines.length > 0);
 
   return (
     <GeneratorProvider
