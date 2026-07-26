@@ -759,11 +759,20 @@ export default function GeneratorView({
               volontairement générique plutôt que de réintroduire un mot qui a
               déjà causé une confusion. */}
           {!isNaughtyMode && configuredProfilesCount === 0 && (
-            <div className={`${cardBg} rounded-2xl border ${cardBorder} p-4 flex items-center gap-3`}>
+            // `pointer-events-none`/`opacity-60` pendant une génération, comme la
+            // grande carte du wizard juste en dessous — CHOIX ASSUMÉ (25/07) :
+            // rien n'empêchait techniquement de garder ce bouton actif (le profil
+            // édité ici ne s'appliquerait qu'à la PROCHAINE génération, jamais à
+            // celle en cours, dont la config est déjà figée), mais laisser CE
+            // SEUL bouton cliquable au milieu d'une UI par ailleurs entièrement
+            // gelée aurait cassé la cohérence visuelle du principe "rien ne bouge
+            // tant que ça génère" — mieux vaut un principe simple et prévisible
+            // qu'une exception techniquement correcte mais déroutante.
+            <div className={`${cardBg} rounded-2xl border ${cardBorder} p-4 flex items-center gap-3 ${isGenerating ? 'opacity-60 pointer-events-none select-none' : ''}`}>
               <div className={`shrink-0 p-2 rounded-xl ${bgAccentClass} text-white`}><Gauge size={18}/></div>
               <p className={`text-sm ${textMuted}`}>
                 Configure ton <span className={`font-semibold ${textHighlight}`}>Profil Athlétique</span> pour un BPM ajusté à chaque zone d'effort.{' '}
-                <button onClick={() => setShowAthleticProfile(true)} className={`font-bold underline whitespace-nowrap ${textColorClass}`}>
+                <button onClick={() => setShowAthleticProfile(true)} disabled={isGenerating} className={`font-bold underline whitespace-nowrap ${textColorClass}`}>
                   Configurer →
                 </button>
               </p>
