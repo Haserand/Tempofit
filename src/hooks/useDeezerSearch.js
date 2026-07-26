@@ -38,7 +38,7 @@ import { useModalContext } from '../contexts/ModalContext';
 export function useDeezerSearch(search, showToast, isNaughtyMode) {
   const { closeModal } = useModalContext();
   const {
-    searchQuery, searchResultsOffset, searchActiveArtistName,
+    searchQuery, searchResultsOffset, searchActiveArtistName, isWorldSearching,
     setSearchActiveArtistName, setWorldSearchResults, setWorldSearchOtherResults,
     setResultsContextLabel, setNoUsableResultsHint, setSearchResultsOffset,
     setSearchHasMoreResults, setIsWorldSearching, setIsLoadingMoreResults,
@@ -48,6 +48,14 @@ export function useDeezerSearch(search, showToast, isNaughtyMode) {
 
   const searchWorldMusicApi = async (reset = true) => {
     if (!searchQuery.trim()) return;
+    // BUG CORRIGÉ (25/07) : rien n'empêchait de relancer une recherche
+    // ("reset" = nouvelle requête, pas "voir plus") pendant qu'une autre
+    // tournait déjà — atteignable via la touche Entrée dans le champ texte
+    // pendant que isWorldSearching est déjà true (le bouton, lui, était bien
+    // désactivé, mais pas ce raccourci clavier). Les deux recherches
+    // écrivaient dans les mêmes états (setWorldSearchResults, etc.), pouvant
+    // mélanger ou perdre des résultats selon l'ordre d'arrivée des réponses.
+    if (reset && isWorldSearching) return;
     if (reset) {
       setIsWorldSearching(true);
       setSearchLoadingMessage(SEARCH_LOADING_MESSAGES[Math.floor(Math.random() * SEARCH_LOADING_MESSAGES.length)]);
@@ -141,6 +149,11 @@ export function useDeezerSearch(search, showToast, isNaughtyMode) {
    * inchangé par rapport à l'original.
    */
   const searchTracksByBpm = async (targetBpm, tolerance, genres) => {
+    // Même garde-fou que searchWorldMusicApi ci-dessus (défense en profondeur —
+    // le bouton "rafraîchir" est déjà `disabled={isWorldSearching}` côté
+    // SearchModal.jsx, mais mieux vaut que la fonction elle-même refuse aussi
+    // un second appel concurrent plutôt que de dépendre uniquement de l'UI).
+    if (isWorldSearching) return;
     setBpmSearchParams({ bpm: targetBpm, tolerance, genres: genres || [] });
     setIsWorldSearching(true);
     // Même logique que le bandeau "Génération en cours" (voir isGeneratingSlowGenre,
