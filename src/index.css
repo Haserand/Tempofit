@@ -91,7 +91,21 @@ body {
   -webkit-user-select: none;
   user-select: none;
 }
-input, textarea, [contenteditable="true"] {
+/* :not([type="range"]):not([type="checkbox"]):not([type="file"]) — ces 3
+   types ne sont JAMAIS du texte à sélectionner/saisir au clavier (un
+   slider, une case à cocher, un sélecteur de fichier), contrairement à
+   text/email/number/date. Sans cette exclusion, ils héritaient quand même
+   de `cursor: text` + `user-select: text` via le sélecteur générique
+   `input` ci-dessous — et AUCUNE classe Tailwind locale (`cursor-pointer`,
+   même posée directement sur l'élément) ne peut jamais l'emporter dessus :
+   cette règle vit hors de tout `@layer` Tailwind, donc elle bat TOUJOURS
+   les classes Tailwind par les règles des Cascade Layers CSS, quelle que
+   soit leur spécificité technique. Retour direct, avec capture à l'appui,
+   sur le curseur de volume de MiniPlayerBar.jsx (`<input type="range">`) —
+   même famille de bug que le correctif plus large juste au-dessus
+   (I-beam visible "à plein d'endroits"), donc corrigé ici à la racine
+   plutôt que contourné composant par composant. */
+input:not([type="range"]):not([type="checkbox"]):not([type="file"]), textarea, [contenteditable="true"] {
   -webkit-user-select: text;
   user-select: text;
   cursor: text;
