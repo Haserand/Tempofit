@@ -69,6 +69,19 @@ export default function GeneratorWizard({
     borderAccentClass, bgMainApp, inputBg, inputBorder,
   } = theme;
 
+  // BUG CORRIGÉ (25/07) : cette déclaration avait été oubliée lors du
+  // découpage de GeneratorView.jsx en 3 fichiers (voir GeneratorView.jsx,
+  // "séparer le générateur en 2 composants") — la ligne d'origine se
+  // trouvait dans une plage de lignes que le script d'extraction avait
+  // classée "Profil Athlétique" (elle vivait juste à côté d'autres
+  // déclarations propres à cette page-là), mais SON USAGE réel (la
+  // bannière "Configure ton Profil Athlétique" ci-dessous) est bien côté
+  // wizard — d'où un `configuredProfilesCount is not defined` en
+  // production. Retirée d'AthleticProfilePanel.jsx (où elle ne servait à
+  // rien) et déplacée ici.
+  const configuredProfilesCount = Object.values(athleticProfile.activities).filter(p => p.isConfigured).length
+    + athleticProfile.custom.filter(c => c.isConfigured).length;
+
   // Plancher BPM pour l'échauffement/retour au calme du mode Crescendo —
   // mêmes bornes que le curseur BPM principal de l'étape 3 (40 en mode
   // Intime, 80 en mode standard), pour ne jamais proposer une valeur
