@@ -35,7 +35,7 @@ import ViewHeader from '../shared/ViewHeader';
  *   donnerait des indices sur leur thème avant même de les avoir débloqués,
  *   ce qui irait à l'encontre de la surprise qui fait leur intérêt.
  */
-export default function TrophiesView({ theme, userStats, handleShare }) {
+export default function TrophiesView({ theme, userStats, handleShare, isNaughtyMode }) {
   const { cardBg, cardBorder, textHighlight, textMuted, bgAccentClass } = theme;
   const [activeTab, setActiveTab] = useState('visible');
 
@@ -74,6 +74,7 @@ export default function TrophiesView({ theme, userStats, handleShare }) {
     <div className="max-w-4xl mx-auto space-y-8">
       <ViewHeader
         theme={theme}
+        isNaughtyMode={isNaughtyMode}
         icon={<Award className="text-yellow-500" size={36} />}
         title="Mes Trophées"
         subtitle="Le mur des légendes. Accomplis tes sessions pour débloquer ces succès."
