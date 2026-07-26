@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Trash2, Plus, Info, ChevronUp, ChevronDown, RotateCcw } from 'lucide-react';
 import { ATHLETIC_ZONES, getZoneForValue } from '../../appConfig';
-import { clampNumericInput } from '../../utils/numberInput';
+import { syncClampedInput } from '../../utils/numberInput';
 import { useGeneratorContext } from '../../contexts/GeneratorContext';
 
 /**
@@ -437,7 +437,7 @@ export default function AthleticProfilePanel({ theme, showToast }) {
                   <input
                     type="number" min={isNaughtyMode ? 40 : 80} max="220" placeholder="ex : 160"
                     value={baseBpmDraft}
-                    onChange={(e) => { setBaseBpmDraft(clampNumericInput(e.target.value, { min: isNaughtyMode ? 40 : 80, max: 220 })); if (bpmInputError) setBpmInputError(false); }}
+                    onChange={(e) => { setBaseBpmDraft(syncClampedInput(e, { min: isNaughtyMode ? 40 : 80, max: 220 })); if (bpmInputError) setBpmInputError(false); }}
                     onKeyDown={(e) => e.key === 'Enter' && computeAndApplyZones()}
                     className={`bg-transparent w-full text-lg font-bold outline-none ${textHighlight}`}
                   />
@@ -518,7 +518,7 @@ export default function AthleticProfilePanel({ theme, showToast }) {
                       <input
                         type="number" min={isNaughtyMode ? 40 : 80} max="220"
                         value={activeProfile?.[z.key] ?? defaultPreviewProfile[z.key]}
-                        onChange={(e) => handleSetZone(z.key, clampNumericInput(e.target.value, { min: isNaughtyMode ? 40 : 80, max: 220 }))}
+                        onChange={(e) => handleSetZone(z.key, syncClampedInput(e, { min: isNaughtyMode ? 40 : 80, max: 220 }))}
                         onBlur={notifyPastGraphsWillUpdate}
                         className={`w-14 bg-transparent text-right font-mono font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${textHighlight}`}
                       />
