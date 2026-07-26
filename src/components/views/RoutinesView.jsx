@@ -101,7 +101,8 @@ export default function RoutinesView({
                     <Layers size={16} className={`${textMuted} mr-1`} />
                     <select
                       value={batchCount} onChange={(e) => setRoutineBatchCounts({...routineBatchCounts, [routine.id]: parseInt(e.target.value)})}
-                      className={`bg-transparent text-sm font-bold outline-none text-blue-600 dark:text-blue-400 cursor-pointer py-3 appearance-none pl-1 pr-2`}
+                      disabled={isGenerating}
+                      className={`bg-transparent text-sm font-bold outline-none text-blue-600 dark:text-blue-400 cursor-pointer py-3 appearance-none pl-1 pr-2 disabled:opacity-40 disabled:cursor-not-allowed`}
                     >
                       <option value={1} className="bg-surface text-main">x1</option>
                       <option value={3} className="bg-surface text-main">x3</option>
@@ -110,8 +111,12 @@ export default function RoutinesView({
                     </select>
                     <Info size={13} className={`${textMuted} ml-0.5 mr-1 shrink-0`} />
                   </div>
+                  {/* BUG CORRIGÉ (25/07) : contrairement au bouton "Générer ma
+                      Playlist" du wizard (GeneratorView.jsx), ce bouton n'avait
+                      aucun `disabled` — on pouvait lancer une 2e génération
+                      (même routine ou une autre) par-dessus une déjà en cours. */}
                   <button onClick={() => { executeGeneration({ ...routine, workoutName: routine.customActivity || routine.workoutType, routineName: routine.name }, batchCount, routine.id);
-                  }} className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${bgAccentClass} text-white hover:brightness-110 active:scale-95`}>
+                  }} disabled={isGenerating} className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${bgAccentClass} text-white hover:brightness-110 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100`}>
                     {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <PlaySquare size={18} fill="currentColor"/>}
                     <span>Générer</span>
                   </button>
