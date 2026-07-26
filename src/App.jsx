@@ -1195,7 +1195,7 @@ function AppContent({
           showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
           favorites={favorites}
           user={user} userStats={userStats}
-          hideCredit={isGuestBarVisible}
+          guestBarVisible={isGuestBarVisible}
         />
 
         <div className="flex-1 flex flex-col relative w-full">
