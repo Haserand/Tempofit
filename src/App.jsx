@@ -28,7 +28,6 @@ import { NAUGHTY_ROUTINE_NAMES, getRankStyle } from './appConfig';
 
 import { deezerFetch, deduceCrescendoBpm, buildCrescendoSegments, recalculateTimeline } from './musicEngine';
 import { decodePlaylistFromSharing } from './utils/playlistShareCode';
-import { curatedSessions, naughtyCuratedSessions } from './data/curatedSessions';
 import { useTheme } from './hooks/useTheme';
 import { usePersistentState } from './hooks/usePersistentState';
 // useToast est toujours importé ici, mais appelé UNE SEULE FOIS par le
