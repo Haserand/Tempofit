@@ -31,6 +31,7 @@ export default function RoutinesView({
     <div className="max-w-4xl mx-auto space-y-8">
       <ViewHeader
         theme={theme}
+        isNaughtyMode={isNaughtyMode}
         icon={<ListPlus className={textColorClass} size={36} />}
         title="Mes Routines"
         subtitle="Génère instantanément des playlists à partir de tes configurations."
