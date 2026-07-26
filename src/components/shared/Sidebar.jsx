@@ -69,6 +69,11 @@ export default function Sidebar({
   // hauteur réelle des 2 barres (MiniPlayerBar ~70px, GuestModeBar ~40px),
   // tout en gardant un peu de marge plutôt qu'une valeur pile ajustée au
   // pixel.
+  // Layout Dashboard (27/07) : ne sert plus QU'EN MOBILE — sur desktop, ces
+  // barres ne recouvrent plus la Sidebar (calées à sa droite, voir App.jsx),
+  // donc plus besoin de lui réserver de la place ; neutralisé à partir de
+  // `md` via `md:pb-0` posé directement sur le <aside> plus bas, plutôt que
+  // de complexifier cette formule elle-même avec une notion de breakpoint.
   const bottomBarPadding = playerBarVisible && guestBarVisible
     ? 'pb-28'
     : playerBarVisible
@@ -78,7 +83,7 @@ export default function Sidebar({
         : '';
 
   return (
-    <aside className={`fixed inset-y-0 left-0 z-50 w-64 h-full bg-surface border-r-2 border-slate-200 dark:border-white/20 flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${bottomBarPadding}`}>
+    <aside className={`fixed inset-y-0 left-0 z-50 w-64 h-full bg-surface border-r-2 border-slate-200 dark:border-white/20 flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${bottomBarPadding} md:pb-0`}>
       <div className="p-6 mb-2 border-b-2 border-slate-200 dark:border-white/20 flex items-center justify-between shrink-0">
          {/* Logo cliquable = retour à l'accueil ("Nouvelle séance") — referme
              aussi le Profil Athlétique s'il était ouvert (comportement
@@ -258,35 +263,29 @@ export default function Sidebar({
 
         {/* Crédit du projet, en bas de la sidebar — discret, ouvre dans un nouvel onglet
             pour ne pas faire quitter l'app en un clic accidentel.
-            Vit maintenant dans le même pied de page FIGÉ (shrink-0) que
-            Réglages, juste au-dessus — plus besoin de `mt-auto` pour le
-            pousser en bas : ce n'est plus un enfant d'un conteneur flex-1 à
-            remplir, juste le 2e élément empilé d'un pied de page de hauteur
-            naturelle, déjà ancré en bas de la sidebar par la structure
-            flex-col en 3 blocs (header shrink-0 / zone scrollable flex-1 /
-            ce pied de page shrink-0).
-            `guestBarVisible` (25/07, renommée depuis `hideCredit` — sert
-            maintenant aussi au padding du <aside>, voir plus haut) : caché
-            quand GuestModeBar.jsx affiche sa
-            réplique de CE MÊME crédit dans la barre du bas — sinon les deux
-            s'affichent en double sur les pages où le menu est court (bug
-            remonté par capture, voir GuestModeBar.jsx pour l'historique
-            complet). Rien ne remplace ce bloc quand il est caché : pas de
-            "partie" en dessous des Réglages dans ce cas, ce qui correspond à
-            la réalité — cette info vit ailleurs à l'écran à ce moment-là, pas
-            nulle part. */}
-        {!guestBarVisible && (
-          <div className="px-4 py-4 border-t-2 border-slate-200 dark:border-white/20 text-center">
-            <a
-              href="https://www.linkedin.com/in/damiengrange/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`text-xs font-medium ${textMuted} hover:text-main transition-colors`}
-            >
-              Un projet créé par <span className="font-bold underline">Damien Grangé</span>
-            </a>
-          </div>
-        )}
+            Vit dans le même pied de page FIGÉ (shrink-0) que Réglages, juste
+            au-dessus — plus besoin de `mt-auto` pour le pousser en bas : ce
+            n'est plus un enfant d'un conteneur flex-1 à remplir, juste le 2e
+            élément empilé d'un pied de page de hauteur naturelle, déjà
+            ancré en bas de la sidebar par la structure flex-col en 3 blocs
+            (header shrink-0 / zone scrollable flex-1 / ce pied de page
+            shrink-0).
+            TOUJOURS affiché désormais (27/07, layout Dashboard) — plus de
+            condition `!guestBarVisible` : GuestModeBar.jsx ne recouvre plus
+            jamais la Sidebar sur desktop (calée à sa droite,
+            `md:left-64 md:w-[calc(100%-16rem)]` sur le conteneur commun,
+            App.jsx) et n'affiche donc plus de réplique de ce crédit à
+            synchroniser — ce bloc-ci est maintenant la SEULE source. */}
+        <div className="px-4 py-4 border-t-2 border-slate-200 dark:border-white/20 text-center">
+          <a
+            href="https://www.linkedin.com/in/damiengrange/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`text-xs font-medium ${textMuted} hover:text-main transition-colors`}
+          >
+            Un projet créé par <span className="font-bold underline">Damien Grangé</span>
+          </a>
+        </div>
       </div>
     </aside>
   );
