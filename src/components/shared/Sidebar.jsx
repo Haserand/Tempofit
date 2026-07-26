@@ -46,10 +46,19 @@ export default function Sidebar({
   showAthleticProfile, setShowAthleticProfile,
   favorites,
   user, userStats,
-  hideCredit,
+  guestBarVisible,
 }) {
   return (
-    <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r ${cardBorder} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+    // `pb-10` conditionnel (25/07) — réserve la même hauteur que le spacer
+    // utilisé côté <main> pour GuestModeBar.jsx (`h-10`, voir App.jsx) :
+    // sans ça, une fois le crédit masqué (voir plus bas), le menu s'étend
+    // jusqu'au vrai bas d'écran et se fait couper par la barre "mode
+    // invité" par-dessus (bug remonté par capture, "Options & Comptes"
+    // à moitié caché). `guestBarVisible` = même condition que la barre
+    // elle-même (calculée une seule fois dans App.jsx, voir son
+    // commentaire) : ce padding n'existe que quand il y a réellement
+    // quelque chose en bas dont il faut se protéger.
+    <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r ${cardBorder} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${guestBarVisible ? 'pb-10' : ''}`}>
       <div className={`p-6 border-b ${cardBorder} flex items-center justify-between`}>
          {/* Logo cliquable = retour à l'accueil ("Nouvelle séance") — referme
              aussi le Profil Athlétique s'il était ouvert (comportement
@@ -189,7 +198,9 @@ export default function Sidebar({
           flex-1 (ex. contenu qui dépasse et qu'on passe en scroll interne
           sans flex-1), plutôt que de dépendre implicitement d'un réglage
           fait sur un autre élément.
-          `hideCredit` (25/07) : caché quand GuestModeBar.jsx affiche sa
+          `guestBarVisible` (25/07, renommée depuis `hideCredit` — sert
+          maintenant aussi au padding du <aside>, voir plus haut) : caché
+          quand GuestModeBar.jsx affiche sa
           réplique de CE MÊME crédit dans la barre du bas — sinon les deux
           s'affichent en double sur les pages où le menu est court (bug
           remonté par capture, voir GuestModeBar.jsx pour l'historique
@@ -197,7 +208,7 @@ export default function Sidebar({
           "partie" en dessous des Réglages dans ce cas, ce qui correspond à
           la réalité — cette info vit ailleurs à l'écran à ce moment-là, pas
           nulle part. */}
-      {!hideCredit && (
+      {!guestBarVisible && (
         <div className={`mt-auto px-4 py-4 border-t ${cardBorder} text-center`}>
           <a
             href="https://www.linkedin.com/in/damiengrange/"
