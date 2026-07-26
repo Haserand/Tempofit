@@ -93,10 +93,10 @@ export default function FavoritesView({
             bouton précis, pas à toute la page. */}
         {!user && (
           <p className={`text-xs -mt-4 mb-8 ${textMuted}`}>
-            Connecte-toi à TempoFit pour sauvegarder tes favoris sur tous tes appareils.{' '}
             <button onClick={() => openModal('AUTH')} className={`inline-flex items-center gap-1 font-bold underline ${textColorClass}`}>
-              <UserPlus size={12} /> Créer un compte
-            </button>
+              <UserPlus size={12} /> Connecte-toi
+            </button>{' '}
+            à TempoFit pour sauvegarder tes favoris sur tous tes appareils.
           </p>
         )}
 
