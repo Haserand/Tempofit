@@ -50,6 +50,7 @@ export default function GeneratorView({
           pour "Profil Athlétique" dans la Sidebar. */}
       <ViewHeader
         theme={theme}
+        isNaughtyMode={isNaughtyMode}
         icon={showAthleticProfile ? <Gauge className={textColorClass} size={36} /> : <Zap className={textColorClass} size={36} />}
         title={showAthleticProfile ? 'Mon Profil Athlétique' : (isNaughtyMode ? "Prépare l'ambiance..." : "Sculpte ta séance")}
         subtitle={showAthleticProfile ? "Définis ton BPM musical cible par zone d'effort, pour chaque activité." : displaySubtitleGen}
