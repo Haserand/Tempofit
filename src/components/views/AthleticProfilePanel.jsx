@@ -515,6 +515,18 @@ export default function AthleticProfilePanel({ theme, showToast }) {
                           pour ce même problème, jamais appliqué ici). Plancher
                           aligné sur `isNaughtyMode ? 40 : 80`, comme le champ
                           juste au-dessus — même raisonnement. */}
+                      {/* Flèches personnalisées (25/07, retour direct :
+                          "comme pour la case du haut ?") — même style visuel
+                          que les flèches du champ "Minutes" (durée de
+                          session, voir GeneratorWizard.jsx), mais PAS le
+                          même comportement aux bornes : celles de "Minutes"
+                          BOUCLENT (59→0), logique pour une durée qui reprend
+                          au tour suivant. Ici, boucler de 220 à 40 (ou
+                          l'inverse) n'aurait aucun sens pour un BPM — donc
+                          ces flèches-ci BLOQUENT à la borne au lieu de
+                          boucler, contrairement au modèle repris. Plancher
+                          mode-aware (`isNaughtyMode ? 40 : 80`), identique
+                          au champ texte juste à côté. */}
                       <input
                         type="number" min={isNaughtyMode ? 40 : 80} max="220"
                         value={activeProfile?.[z.key] ?? defaultPreviewProfile[z.key]}
@@ -523,6 +535,32 @@ export default function AthleticProfilePanel({ theme, showToast }) {
                         className={`w-14 bg-transparent text-right font-mono font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${textHighlight}`}
                       />
                       <span className={`text-xs font-bold ${textMuted}`}>{zoneBpmUnit}</span>
+                      <div className="flex flex-col">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const floor = isNaughtyMode ? 40 : 80;
+                            const current = parseInt(activeProfile?.[z.key] ?? defaultPreviewProfile[z.key]) || floor;
+                            handleSetZone(z.key, Math.min(220, current + 1));
+                            notifyPastGraphsWillUpdate();
+                          }}
+                          className={`p-0.5 rounded ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}
+                        >
+                          <ChevronUp size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const floor = isNaughtyMode ? 40 : 80;
+                            const current = parseInt(activeProfile?.[z.key] ?? defaultPreviewProfile[z.key]) || floor;
+                            handleSetZone(z.key, Math.max(floor, current - 1));
+                            notifyPastGraphsWillUpdate();
+                          }}
+                          className={`p-0.5 rounded ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}
+                        >
+                          <ChevronDown size={14} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
