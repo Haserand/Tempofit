@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Activity, Flame, Upload, ChevronUp, ChevronDown, ChevronRight, Gauge, Share2, Loader2, UserPlus } from 'lucide-react';
+import { Activity, Flame, Upload, ChevronUp, ChevronDown, ChevronRight, Gauge, Share2, Loader2 } from 'lucide-react';
 import { ATHLETIC_ZONES, getZoneForValue, DISTRIBUTION_COLORS, getBpmBucketColor, getBpmBucketLabel } from '../../appConfig';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import { NAUGHTY_WORKOUT_LABELS } from '../../appConfig';
@@ -7,8 +7,6 @@ import { genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog'
 import { formatDuration } from '../../utils/format';
 import GlobalStatsShareCard from '../shared/GlobalStatsShareCard';
 import ViewHeader from '../shared/ViewHeader';
-import { useAuthContext } from '../../contexts/AuthContext';
-import { useModalContext } from '../../contexts/ModalContext';
 
 /**
  * StatsView — vue "Statistiques" ("Wrapped" personnel).
@@ -37,8 +35,6 @@ export default function StatsView({
   expandedDetailArtist, setExpandedDetailArtist,
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
-  const { user } = useAuthContext();
-  const { openModal } = useModalContext();
 
   // --- Bilan Global (export image, "Spotify Wrapped") ---
   // Carte rendue hors écran en permanence (même principe que
@@ -678,26 +674,11 @@ export default function StatsView({
         }
       />
 
-      {/* "Soft Gating" (25/07) — voir PlaylistsView.jsx pour le contexte
-          complet (app Local-First, incitation jamais bloquante). Ici,
-          `totalSessions > 0` plutôt que `savedPlaylists.length > 0` : cette
-          vue lit ses propres agrégats déjà calculés plus haut, pas la peine
-          de relire `savedPlaylists` brut pour la même information — les deux
-          mesurent la même chose ("y a-t-il déjà quelque chose à perdre ?"),
-          juste via la variable la plus proche dans CE composant. */}
-      {!user && totalSessions > 0 && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-blue-200 dark:border-blue-800/60 bg-blue-50 dark:bg-blue-900/20">
-          <p className={`text-sm ${textMuted}`}>
-            Tu utilises TempoFit en mode invité. Tes données sont sauvegardées uniquement sur cet appareil.
-          </p>
-          <button
-            onClick={() => openModal('AUTH')}
-            className={`shrink-0 flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-bold text-sm text-white transition-colors ${bgAccentClass} hover:brightness-110`}
-          >
-            <UserPlus size={16} /> Créer un compte gratuit
-          </button>
-        </div>
-      )}
+      {/* Notice "mode invité" RETIRÉE D'ICI (25/07) — voir Sidebar.jsx pour le
+          raisonnement complet (bug remonté par capture : ce bandeau
+          n'apparaissait que sur certaines vues, jamais sur "Mes Routines"
+          par exemple, alors que la même logique s'y applique tout autant).
+          Un seul bloc centralisé désormais, persistant sur toutes les vues. */}
 
       {totalSessions === 0 ? (
         <div className={`py-16 text-center border-2 border-dashed rounded-2xl ${statsMode === 'naughty' ? 'border-slate-400' : 'border-slate-700'}`}>
