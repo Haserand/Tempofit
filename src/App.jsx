@@ -1241,10 +1241,31 @@ function AppContent({
                 chargement, puis disparaît en scrollant comme n'importe quel
                 autre élément, au lieu de rester ancré au viewport. */}
             <div className="absolute top-4 right-4 md:top-6 md:right-6 z-[60] flex items-center gap-2">
+              {/* Fond du cercle retiré (25/07, retour direct : "je suis pas
+                  fan que le soleil soit dans une sphère") — visible
+                  seulement au survol/tap maintenant (`hover:` au lieu d'un
+                  fond permanent), pas en repos. Zone cliquable INCHANGÉE
+                  (`w-11 h-11`, 44px) : c'est la taille minimale recommandée
+                  pour une cible tactile confortable, et elle aligne ce
+                  bouton sur la même hauteur que "Se connecter" juste à côté
+                  — seul le fond visuel change, pas l'ergonomie.
+                  BUG CORRIGÉ ("ça a rien changé") : premier essai en
+                  `hover:${'${cardBg}'}` — Tailwind scanne le CODE SOURCE de
+                  façon purement textuelle pour savoir quelles classes
+                  générer ; une classe construite par interpolation de
+                  template littéral n'apparaît JAMAIS en toutes lettres dans
+                  le fichier, donc Tailwind ne génère aucune règle CSS pour
+                  elle. La classe était bien posée sur l'élément, mais sans
+                  aucun style associé — invisible, comme si rien n'avait
+                  changé. `cardBg`/`cardBorder` sont des constantes FIXES
+                  (jamais conditionnelles au mode, voir useTheme.js) : écrites
+                  ici en toutes lettres (`hover:bg-surface`/`hover:border-divider`)
+                  plutôt qu'interpolées, pour que Tailwind les voie et les
+                  génère réellement. */}
               <button
                 onClick={toggleTheme}
                 title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
-                className={`w-11 h-11 rounded-full shadow-lg border hover:scale-110 transition-transform flex items-center justify-center ${cardBg} ${cardBorder} ${textMuted}`}
+                className={`w-11 h-11 rounded-full hover:scale-110 transition-transform flex items-center justify-center ${textMuted} hover:bg-surface hover:border hover:border-divider hover:shadow-lg`}
               >
                 {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
               </button>
