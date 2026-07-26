@@ -78,8 +78,8 @@ export default function Sidebar({
         : '';
 
   return (
-    <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r ${cardBorder} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${bottomBarPadding}`}>
-      <div className={`p-6 border-b ${cardBorder} flex items-center justify-between`}>
+    <aside className={`fixed inset-y-0 left-0 z-50 w-64 h-full bg-surface border-r-2 border-slate-200 dark:border-white/20 flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${bottomBarPadding}`}>
+      <div className="p-6 mb-2 border-b-2 border-slate-200 dark:border-white/20 flex items-center justify-between shrink-0">
          {/* Logo cliquable = retour à l'accueil ("Nouvelle séance") — referme
              aussi le Profil Athlétique s'il était ouvert (comportement
              identique au bouton "Nouvelle séance" ci-dessous, pour que le
@@ -135,8 +135,19 @@ export default function Sidebar({
           juste une gêne. Placé ici, dans la Sidebar (présente sur toutes
           les pages), donc toujours atteignable quel que soit l'endroit où
           le Mode Intime a été activé. */}
+      {/* Zone scrollable centrale (défile indépendamment du logo et des
+          Réglages, qui restent fixes) — corrige le bug d'ergonomie sur petit
+          écran où "Options & Comptes" pouvait se retrouver poussé hors de
+          la zone visible : avant cette refonte, TOUT (Création, Mon Espace,
+          Réglages) vivait dans le même conteneur `flex-1 overflow-y-auto`,
+          et Réglages n'était "collé en bas" que par un `mt-auto` interne à
+          ce même conteneur — donc lui aussi poussé hors champ si le contenu
+          au-dessus dépassait la hauteur disponible. `px-4` (absent de la
+          demande initiale mais nécessaire) : remplace le padding horizontal
+          qu'apportait jusqu'ici le conteneur unique qu'on scinde ici. */}
+      <div className="flex-1 overflow-y-auto no-scrollbar py-2 px-4">
       {isNaughtyMode && (
-        <div className={`px-4 py-2 border-b ${cardBorder}`}>
+        <div className={`py-2 border-b ${cardBorder}`}>
           {/* Mêmes classes que les boutons du menu juste en dessous
               (`px-3 py-3`, icône 18px, `text-sm font-bold`) — retour direct :
               "démarrer au même point horizontal, même taille de police" —
@@ -166,7 +177,7 @@ export default function Sidebar({
           Tous les boutons — plus de distinction "top-level" vs "sous-menu",
           plus d'icône manquante ou de décalage `pl-[42px]` à maintenir en
           synchronisation avec la largeur du parent. */}
-      <nav className="flex-1 flex flex-col px-4 py-6 overflow-y-auto no-scrollbar">
+      <nav className="flex flex-col">
 
         {/* --- CRÉATION --- */}
         <div className="flex flex-col space-y-1 mb-8">
@@ -208,8 +219,19 @@ export default function Sidebar({
           </button>
         </div>
 
+      </nav>
+      </div>
+
+      {/* Pied de page FIGÉ (shrink-0) — Réglages + crédit, toujours visibles
+          sans avoir à faire défiler la zone centrale au-dessus. Avant cette
+          refonte, les deux vivaient dans le même conteneur `flex-1
+          overflow-y-auto` que Création/Mon Espace (voir le commentaire sur
+          le wrapper scrollable plus haut) — c'est justement ce qui les
+          rendait poussés hors champ sur petit écran. */}
+      <div className="shrink-0">
+
         {/* --- RÉGLAGES --- */}
-        <div className={`mt-auto flex flex-col space-y-1 pt-4 border-t ${cardBorder}`}>
+        <div className={`flex flex-col space-y-1 pt-4 px-4 border-t ${cardBorder}`}>
           <div className={`px-3 mb-2 text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Réglages</div>
 
           {/* Masqué en Mode Intime (retour direct : "n'a aucun sens
@@ -234,39 +256,38 @@ export default function Sidebar({
           </button>
         </div>
 
-      </nav>
-
-      {/* Crédit du projet, en bas de la sidebar — discret, ouvre dans un nouvel onglet
-          pour ne pas faire quitter l'app en un clic accidentel.
-          `mt-auto` : déjà poussé en bas aujourd'hui par le `flex-1` de <nav>
-          juste au-dessus (un seul enfant qui grandit dans ce flex-col suffit
-          à coller celui-ci en bas) — ajouté quand même explicitement ici,
-          pour que ce bloc reste ancré en bas MÊME si <nav> perd un jour son
-          flex-1 (ex. contenu qui dépasse et qu'on passe en scroll interne
-          sans flex-1), plutôt que de dépendre implicitement d'un réglage
-          fait sur un autre élément.
-          `guestBarVisible` (25/07, renommée depuis `hideCredit` — sert
-          maintenant aussi au padding du <aside>, voir plus haut) : caché
-          quand GuestModeBar.jsx affiche sa
-          réplique de CE MÊME crédit dans la barre du bas — sinon les deux
-          s'affichent en double sur les pages où le menu est court (bug
-          remonté par capture, voir GuestModeBar.jsx pour l'historique
-          complet). Rien ne remplace ce bloc quand il est caché : pas de
-          "partie" en dessous des Réglages dans ce cas, ce qui correspond à
-          la réalité — cette info vit ailleurs à l'écran à ce moment-là, pas
-          nulle part. */}
-      {!guestBarVisible && (
-        <div className={`mt-auto px-4 py-4 border-t ${cardBorder} text-center`}>
-          <a
-            href="https://www.linkedin.com/in/damiengrange/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`text-xs font-medium ${textMuted} hover:text-main transition-colors`}
-          >
-            Un projet créé par <span className="font-bold underline">Damien Grangé</span>
-          </a>
-        </div>
-      )}
+        {/* Crédit du projet, en bas de la sidebar — discret, ouvre dans un nouvel onglet
+            pour ne pas faire quitter l'app en un clic accidentel.
+            Vit maintenant dans le même pied de page FIGÉ (shrink-0) que
+            Réglages, juste au-dessus — plus besoin de `mt-auto` pour le
+            pousser en bas : ce n'est plus un enfant d'un conteneur flex-1 à
+            remplir, juste le 2e élément empilé d'un pied de page de hauteur
+            naturelle, déjà ancré en bas de la sidebar par la structure
+            flex-col en 3 blocs (header shrink-0 / zone scrollable flex-1 /
+            ce pied de page shrink-0).
+            `guestBarVisible` (25/07, renommée depuis `hideCredit` — sert
+            maintenant aussi au padding du <aside>, voir plus haut) : caché
+            quand GuestModeBar.jsx affiche sa
+            réplique de CE MÊME crédit dans la barre du bas — sinon les deux
+            s'affichent en double sur les pages où le menu est court (bug
+            remonté par capture, voir GuestModeBar.jsx pour l'historique
+            complet). Rien ne remplace ce bloc quand il est caché : pas de
+            "partie" en dessous des Réglages dans ce cas, ce qui correspond à
+            la réalité — cette info vit ailleurs à l'écran à ce moment-là, pas
+            nulle part. */}
+        {!guestBarVisible && (
+          <div className={`px-4 py-4 border-t ${cardBorder} text-center`}>
+            <a
+              href="https://www.linkedin.com/in/damiengrange/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`text-xs font-medium ${textMuted} hover:text-main transition-colors`}
+            >
+              Un projet créé par <span className="font-bold underline">Damien Grangé</span>
+            </a>
+          </div>
+        )}
+      </div>
     </aside>
   );
 }
