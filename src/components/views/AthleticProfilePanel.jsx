@@ -424,10 +424,20 @@ export default function AthleticProfilePanel({ theme, showToast }) {
               <label className={`text-sm font-bold block mb-2 ${textHighlight}`}>{baseBpmQuestion}</label>
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className={`flex-1 flex items-center px-4 py-3 rounded-xl border ${bpmInputError ? 'border-red-500' : inputBorder} ${cardBg}`}>
+                  {/* BUG CORRIGÉ (25/07, retour direct : "je ne devrais pas
+                      pouvoir sélectionner 40 BPM même au repos") : `min`
+                      était figé à 40 quel que soit le mode — partout ailleurs
+                      dans l'appli où un plancher BPM musical existe (curseurs
+                      Crescendo, voir crescendoBpmFloor/GeneratorWizard.jsx,
+                      EditRoutineModal.jsx, useGeneratorForm.js, App.jsx),
+                      c'est `isNaughtyMode ? 40 : 80` — 40 réservé au Mode
+                      Intime (musique volontairement plus lente), 80 en
+                      standard. Aligné ici sur cette même convention déjà
+                      établie plutôt que d'introduire un nouveau chiffre. */}
                   <input
-                    type="number" min="40" max="220" placeholder="ex : 160"
+                    type="number" min={isNaughtyMode ? 40 : 80} max="220" placeholder="ex : 160"
                     value={baseBpmDraft}
-                    onChange={(e) => { setBaseBpmDraft(clampNumericInput(e.target.value, { min: 40, max: 220 })); if (bpmInputError) setBpmInputError(false); }}
+                    onChange={(e) => { setBaseBpmDraft(clampNumericInput(e.target.value, { min: isNaughtyMode ? 40 : 80, max: 220 })); if (bpmInputError) setBpmInputError(false); }}
                     onKeyDown={(e) => e.key === 'Enter' && computeAndApplyZones()}
                     className={`bg-transparent w-full text-lg font-bold outline-none ${textHighlight}`}
                   />
@@ -497,10 +507,18 @@ export default function AthleticProfilePanel({ theme, showToast }) {
                       <span className={`text-sm font-bold truncate ${textHighlight}`}>{z.label}</span>
                     </div>
                     <div className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-lg border ${inputBorder} ${cardBg}`}>
+                      {/* BUG CORRIGÉ (25/07) : `min`/`max` HTML ne bloquent
+                          pas la frappe clavier (seulement le spinner natif,
+                          jamais utilisé ici) — rien n'empêchait de taper
+                          "0145" ou n'importe quelle valeur hors bornes (voir
+                          numberInput.js, déjà utilisé ailleurs dans l'app
+                          pour ce même problème, jamais appliqué ici). Plancher
+                          aligné sur `isNaughtyMode ? 40 : 80`, comme le champ
+                          juste au-dessus — même raisonnement. */}
                       <input
-                        type="number" min="40" max="220"
+                        type="number" min={isNaughtyMode ? 40 : 80} max="220"
                         value={activeProfile?.[z.key] ?? defaultPreviewProfile[z.key]}
-                        onChange={(e) => handleSetZone(z.key, e.target.value)}
+                        onChange={(e) => handleSetZone(z.key, clampNumericInput(e.target.value, { min: isNaughtyMode ? 40 : 80, max: 220 }))}
                         onBlur={notifyPastGraphsWillUpdate}
                         className={`w-14 bg-transparent text-right font-mono font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${textHighlight}`}
                       />
