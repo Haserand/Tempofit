@@ -169,9 +169,9 @@ export default function SearchModal({
           </div>
         ) : (
           <div className="mb-4 flex gap-2">
-            <div className={"flex-1 flex items-center px-4 py-3 rounded-xl border " + inputBg + " " + inputBorder}>
+            <div className={"flex-1 flex items-center px-4 py-3 rounded-xl border " + inputBg + " " + inputBorder + (isWorldSearching ? ' opacity-60' : '')}>
               <Search size={18} className={"mr-3 " + textMuted} />
-              <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchWorldMusicApi(true)} placeholder="Titre ou artiste (ex: One More Time, Daft Punk)..." className={"bg-transparent w-full font-bold outline-none " + textHighlight} autoFocus />
+              <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !isWorldSearching && searchWorldMusicApi(true)} disabled={isWorldSearching} placeholder="Titre ou artiste (ex: One More Time, Daft Punk)..." className={"bg-transparent w-full font-bold outline-none disabled:cursor-not-allowed " + textHighlight} autoFocus />
             </div>
             <button onClick={() => searchWorldMusicApi(true)} disabled={isWorldSearching} className={"px-4 rounded-xl text-white font-bold transition-transform active:scale-95 flex items-center justify-center " + bgAccentClass}>
               {isWorldSearching ? <Loader2 className="animate-spin" size={20}/> : <Search size={20}/>}
