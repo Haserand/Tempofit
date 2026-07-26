@@ -229,18 +229,19 @@ const GENRE_EQUIVALENCE_GROUPS = {
  * (voir la sélection dans buildSegmentTracks, App.jsx).
  */
 const isDirectGenreMatch = (realGenre, requestedGenre) => {
-  if (!realGenre) return false;
   // "Autre" représente l'ABSENCE de restriction de genre (mot-clé Deezer vide,
   // voir DEEZER_GENRE_KEYWORDS) — utilisé aussi bien comme vrai choix explicite
   // ("Autre" est un genre sélectionnable à l'écran) que comme repli automatique
   // quand l'utilisateur désélectionne TOUS les genres (voir toggleGenre dans
   // useGeneratorForm.js). Dans les deux cas, l'intention est "n'importe quel
-  // genre convient" — sans ce court-circuit, la comparaison ci-dessous ne
-  // matchait quasiment jamais rien pour "Autre" (aucun vrai genre Deezer ne
-  // contient littéralement le mot "autre"), et TOUT titre trouvé se serait vu
-  // marqué à tort "⚠️ Genre non confirmé", alors qu'aucun genre précis n'avait
-  // jamais été demandé.
+  // genre convient" — CE CHECK DOIT DONC VENIR AVANT le court-circuit sur
+  // `realGenre` absent ci-dessous : un titre au genre inconnu/non résolu (ex.
+  // `t.genre` null) doit quand même matcher "Autre", sinon il se retrouve
+  // exclu à tort d'une génération qui n'avait justement demandé AUCUNE
+  // restriction de genre (bug réel détecté par tests/musicCatalog.test.js,
+  // via le garde-fou `npm run test:run` posé dans le script `build`).
   if (requestedGenre === 'Autre') return true;
+  if (!realGenre) return false;
   const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const real = normalize(realGenre);
   // Un genre peut avoir PLUSIEURS mots-clés Deezer possibles (voir DEEZER_GENRE_
