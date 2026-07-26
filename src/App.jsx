@@ -1090,7 +1090,7 @@ function AppContent({
   const themeTokens = useTheme(isNaughtyMode);
   const {
     themeColor, bgMainApp, textMain, textColorClass, bgAccentClass, borderAccentClass,
-    cardBg, cardBorder, inputBg, inputBorder, textMuted, textHighlight,
+    cardBg, cardBorder, cardBorderStrong, inputBg, inputBorder, textMuted, textHighlight,
   } = themeTokens;
 
   // Source unique de vérité, calculée UNE SEULE FOIS ici et partagée entre
@@ -1187,7 +1187,7 @@ function AppContent({
             tu diviserais App.jsx ?" — 3e et dernier chantier de cette série,
             après les 8 modales et le moteur Spotify). */}
         <Sidebar
-          cardBorder={cardBorder} bgAccentClass={bgAccentClass} isNaughtyMode={isNaughtyMode}
+          cardBorder={cardBorder} cardBorderStrong={cardBorderStrong} bgAccentClass={bgAccentClass} isNaughtyMode={isNaughtyMode}
           textHighlight={textHighlight} textColorClass={textColorClass} textMuted={textMuted}
           isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen}
           changeView={changeView} view={view}
