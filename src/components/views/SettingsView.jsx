@@ -17,7 +17,7 @@ import ViewHeader from '../shared/ViewHeader';
  * rarement). Voir GeneratorView.jsx pour l'UI, useAthleticProfile.js pour le
  * state — inchangés, seul l'EMPLACEMENT dans l'app a changé.
  */
-export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, signOut, updateEmail, isSupabaseConfigured, userCount }) {
+export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, signOut, updateEmail, isSupabaseConfigured, userCount, isNaughtyMode }) {
   const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg } = theme;
 
   // Édition de l'adresse e-mail (retour direct, "aucun moyen de modifier
@@ -91,6 +91,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
     <div className="max-w-4xl mx-auto space-y-8">
       <ViewHeader
         theme={theme}
+        isNaughtyMode={isNaughtyMode}
         icon={<Settings className={theme.textColorClass} size={36} />}
         title="Options & Comptes"
         subtitle="Connecte tes plateformes et ton compte pour tout synchroniser."
