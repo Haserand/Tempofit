@@ -67,7 +67,7 @@
  * (`isNaughtyMode` n'a donc plus d'effet sur la couleur du texte — il reste
  * accepté en prop pour compatibilité mais n'est plus lu ici).
  */
-export default function ViewHeader({ theme, icon, title, subtitle, right = null }) {
+export default function ViewHeader({ theme, icon, title, subtitle, right = null, isNaughtyMode = false }) {
   const { cardBorder, textHighlight, textMuted } = theme;
 
   return (
@@ -101,8 +101,26 @@ export default function ViewHeader({ theme, icon, title, subtitle, right = null 
             À VALIDER SUR UN VRAI DÉPLOIEMENT (aucun navigateur dans ce
             sandbox de dev) : si le symptôme revient malgré tout, la piste
             suivante serait d'isoler `text-sm md:text-base` seul, sans
-            toucher aucune autre classe sur cette ligne. */}
-        <p className={`mt-2 ${textMuted} line-clamp-1`}>{subtitle}</p>
+            toucher aucune autre classe sur cette ligne.
+
+            COULEUR CONDITIONNELLE (25/07, retour direct : "uniquement pour
+            le mode intime, uniquement pour le mode dark, changer la couleur
+            des sous-titres par du blanc") — `isNaughtyMode` était accepté en
+            prop par CE composant depuis sa création (voir docstring
+            "Usage minimal" en haut de fichier) mais n'était en réalité
+            JAMAIS lu ici, ET aucun appelant ne le passait vraiment (juste
+            l'exemple en commentaire) — donc sans effet, nulle part. Corrigé
+            ici ET dans les 9 vues qui utilisent ce composant. `dark:text-white`
+            posé UNIQUEMENT quand `isNaughtyMode` est vrai (condition JS) :
+            la variante `dark:` de Tailwind, elle, ne s'active QUE dans un
+            contexte `.dark` (voir tailwind.config.js, `darkMode: 'class'`) —
+            la combinaison des deux donne exactement "blanc seulement si
+            Mode Intime ET thème sombre en même temps", sans plugin ni
+            variante Tailwind personnalisée à ajouter. Hors de ce cas précis
+            (donc en mode standard, ou en Mode Intime + thème clair), le
+            sous-titre garde `textMuted` comme avant — comportement
+            inchangé partout ailleurs. */}
+        <p className={`mt-2 ${textMuted} line-clamp-1 ${isNaughtyMode ? 'dark:text-white' : ''}`}>{subtitle}</p>
       </div>
       {right && <div className="shrink-0 flex items-center gap-2">{right}</div>}
     </div>
