@@ -29,12 +29,15 @@ import { UserPlus } from 'lucide-react';
  * ouvert), donc rien à respecter à cette largeur.
  */
 export default function GuestModeBar({ theme, isVisible, openModal }) {
-  const { cardBg, textMuted, textColorClass } = theme;
+  const { cardBg, cardBorderStrong, textMuted, textColorClass } = theme;
 
   if (!isVisible) return null;
 
   return (
-    <div className={`h-[40px] border-t-2 border-slate-200 dark:border-white/20 ${cardBg} flex items-center`}>
+    // h-[40px] : DOIT rester une classe Tailwind écrite en toutes lettres
+    // (voir bottomBarLayout.js pour pourquoi) — si cette hauteur change,
+    // reporter la même valeur dans GUEST_MODE_BAR_HEIGHT_PX (bottomBarLayout.js).
+    <div className={`h-[40px] border-t-2 ${cardBorderStrong} ${cardBg} flex items-center`}>
       <div className="flex-1 px-4 text-center">
         <p className={`text-xs ${textMuted}`}>
           Mode invité — données sauvegardées uniquement sur cet appareil.{' '}
