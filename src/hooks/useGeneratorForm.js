@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { STANDARD_GENRES, NAUGHTY_GENRES } from '../musicCatalog';
 import { buildCrescendoSegments, deduceCrescendoBpm } from '../musicEngine';
-import { checkGenreWeightDeviation } from '../genreWeightDeviation';
+import { checkGenreWeightDeviation, equalSplitWeights } from '../genreWeightDeviation';
 
 /**
  * useGeneratorForm — regroupe tout l'état du formulaire du wizard de
@@ -332,17 +332,8 @@ export function useGeneratorForm(isNaughtyMode, athleticProfile) {
     ? "Laisse l'algorithme composer la bande-son idéale pour cette soirée."
     : "Laisse l'algorithme générer la bande-son ultime pour tes objectifs.";
 
-  // Répartit 100% à parts égales entre les genres donnés (reste éventuel
-  // affecté au dernier, pour que la somme tombe toujours pile sur 100 malgré
-  // les arrondis — ex. 3 genres → 33/33/34, pas 33/33/33 qui ne totaliserait que 99).
-  const equalSplitWeights = (genres) => {
-    if (genres.length === 0) return {};
-    const base = Math.floor(100 / genres.length);
-    const result = {};
-    genres.forEach(g => { result[g] = base; });
-    result[genres[genres.length - 1]] += 100 - base * genres.length;
-    return result;
-  };
+  // equalSplitWeights : extraite dans src/genreWeightDeviation.js (importée
+  // plus haut) pour être testable sans React.
 
   /**
    * Modifie le % d'UN genre, verrouille sa valeur, et redistribue ce qu'il
