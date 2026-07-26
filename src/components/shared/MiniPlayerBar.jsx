@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Play, Pause, X, Music2, SkipBack, SkipForward, Volume2, Volume1, VolumeX } from 'lucide-react';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 import AudioProgressBar from './AudioProgressBar';
@@ -27,36 +27,42 @@ import AudioProgressBar from './AudioProgressBar';
  * Droite : contexte playlist (nom cliquable + position "Titre X/Y") —
  *          masqué sur mobile (`hidden md:flex`, non essentiel, cf. plan).
  *
- * ── Volume par glisser (pas un slider séparé) ───────────────────────────
+ * ── Volume : curseur en popup, pas un glisser à l'aveugle ───────────────
  * Toujours PAS un vrai lecteur principal (ces extraits de 30s servent à
- * choisir un titre, l'écoute réelle se fait sur Deezer/Spotify) — mais
- * retour direct après un premier jet en simple mute : couvrir aussi le
- * réglage fin, SANS ajouter de piste/slider visible qui prendrait de la
- * place dans une barre déjà serrée sur 3 zones. Le réglage se fait
- * directement sur l'icône volume elle-même :
- *   - Cliquer (sans bouger la souris) : bascule mute, comme avant.
- *   - Cliquer-glisser horizontalement : ajuste le volume en continu
- *     (droite = plus fort, gauche = plus faible), sur toute la largeur du
- *     bouton ET au-delà (`setPointerCapture` — le drag continue de
- *     fonctionner même si le curseur sort du bouton pendant le geste).
- * Distinction clic/glisser : `dragMovedRef` (ref, pas state — pas besoin de
- * re-render pour ce simple flag interne au geste) passe à `true` dès que le
- * déplacement dépasse `CLICK_THRESHOLD_PX` ; au relâchement, seul un
- * mouvement resté SOUS ce seuil déclenche le toggle mute. Sans ce filet, le
- * moindre tremblement de souris pendant un "simple clic" serait interprété
- * comme un réglage de volume à 0 changement près.
- * Icône reflétant le niveau (`Volume2`/`Volume1`/`VolumeX` selon 3 paliers)
- * plutôt qu'un simple binaire muet/pas-muet — donne le retour visuel
- * "les vaguelettes se remplissent" demandé, sans SVG custom : ce sont 3
- * icônes lucide déjà dans la lib du projet, pas une nouvelle dépendance.
+ * choisir un titre, l'écoute réelle se fait sur Deezer/Spotify) — mais 2e
+ * itération après un essai en "cliquer-glisser directement sur l'icône" :
+ * retour direct que ce geste est invisible tant qu'on ne l'a pas déjà
+ * essayé (aucune piste visible, rien ne suggère qu'on peut glisser). Un
+ * vrai curseur (`<input type="range">`), qui n'apparaît qu'en popup au
+ * clic/survol, respecte le "sans empiéter l'espace visuel" (rien en
+ * permanence dans la barre) tout en restant DÉCOUVRABLE dès l'interaction
+ * (survol ou clic) — même idiome que Spotify desktop/YouTube.
+ *   - Clic sur l'icône : ouvre/ferme le popup — fonctionne aussi bien sur
+ *     tactile (pas de hover) qu'à la souris.
+ *   - Survol (souris uniquement) : ouvre le popup sans avoir à cliquer,
+ *     en bonus pour desktop.
+ *   - Fermeture : clic ailleurs sur la page (`useEffect` + listener
+ *     `mousedown` document, nettoyé quand le popup se ferme/le composant
+ *     démonte), ou la souris qui quitte toute la zone (desktop).
+ * Popup positionné SANS marge mais avec un `pb-2` (padding, pas margin) au-
+ * dessus du bouton : le padding fait partie du rectangle survolé du popup
+ * lui-même, donc traverser cet espace en allant du bouton vers le curseur
+ * ne quitte jamais la zone survolée — avec une vraie marge (`mb-2`), ce
+ * trajet traverserait une zone MORTE entre bouton et popup, qui aurait
+ * déclenché une fermeture prématurée avant même d'atteindre le curseur.
  * `volume` reste un state LOCAL à ce composant (pas remonté dans
  * useAudioPreview.js/le Contexte), synchronisé sur `previewAudioRef.current`
  * (MÊME objet <audio> réutilisé pour tous les titres, voir
  * useAudioPreview.js) — persiste donc déjà tout seul d'un extrait au
  * suivant, aucune synchronisation supplémentaire à faire ailleurs.
- * `previousVolumeRef` : mémorise le niveau d'avant un mute-par-clic, pour
- * que redémuter par clic restaure le MÊME niveau plutôt que de repartir à
- * fond (100%) à chaque fois.
+ * Icône reflétant le niveau (`Volume2`/`Volume1`/`VolumeX` selon 3 paliers)
+ * plutôt qu'un simple binaire muet/pas-muet : 3 icônes lucide déjà dans la
+ * lib du projet, pas de nouvelle dépendance.
+ * `accent-primary` sur le curseur : token sémantique déjà exposé par
+ * Tailwind (`useTheme.js`/`index.css`, comme `bg-primary`) — s'adapte donc
+ * automatiquement au Mode Intime sans avoir à threader `isNaughtyMode`
+ * jusqu'ici juste pour ça (contrairement au ternaire `accent-red-500`/
+ * `accent-rose-500` codé en dur ailleurs dans l'app sur les curseurs BPM).
  *
  * ── Contexte playlist : affiché seulement si VRAI ──────────────────────
  * `currentPlaylist` (prop) est la DERNIÈRE playlist ouverte dans l'app, pas
@@ -75,7 +81,7 @@ import AudioProgressBar from './AudioProgressBar';
  * re-poser avant de changer de vue.
  */
 export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
-  const { cardBg, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
+  const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
   const {
     currentTrack, isPlaying,
     pauseCurrentPreview, resumeCurrentPreview, stopCurrentPreview,
@@ -84,12 +90,25 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
   } = useAudioPlayer();
 
   // Volume 0..1 — synchronisé sur previewAudioRef.current à chaque
-  // changement (drag ou clic-mute), voir handleVolumePointerUp/Move.
+  // changement (curseur du popup), voir applyVolume.
   const [volume, setVolume] = useState(1);
-  const dragStartXRef = useRef(0);
-  const dragStartVolumeRef = useRef(1);
-  const dragMovedRef = useRef(false);
-  const previousVolumeRef = useRef(1);
+  const [isVolumePopupOpen, setIsVolumePopupOpen] = useState(false);
+  const volumeWrapperRef = useRef(null);
+
+  // Ferme le popup sur un clic n'importe où EN DEHORS de la zone
+  // bouton+popup (`volumeWrapperRef` englobe les deux, voir JSX plus bas).
+  // N'écoute que pendant que le popup est réellement ouvert — jamais de
+  // listener document qui traîne pour rien le reste du temps.
+  useEffect(() => {
+    if (!isVolumePopupOpen) return;
+    const handleClickOutside = (e) => {
+      if (volumeWrapperRef.current && !volumeWrapperRef.current.contains(e.target)) {
+        setIsVolumePopupOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isVolumePopupOpen]);
 
   if (!currentTrack) return null;
 
@@ -101,38 +120,6 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
     const clamped = Math.min(1, Math.max(0, v));
     if (previewAudioRef.current) previewAudioRef.current.volume = clamped;
     setVolume(clamped);
-  };
-
-  // Largeur de glisser (px) pour parcourir 0% → 100% — assez court pour
-  // rester réactif sur un bouton compact, assez long pour ne pas être
-  // hyper-sensible au moindre tremblement.
-  const VOLUME_DRAG_RANGE_PX = 80;
-  const CLICK_THRESHOLD_PX = 4;
-
-  const handleVolumePointerDown = (e) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    dragStartXRef.current = e.clientX;
-    dragStartVolumeRef.current = volume;
-    dragMovedRef.current = false;
-  };
-
-  const handleVolumePointerMove = (e) => {
-    if (e.buttons === 0) return; // pointer capturé mais bouton relâché (sécurité)
-    const deltaX = e.clientX - dragStartXRef.current;
-    if (Math.abs(deltaX) > CLICK_THRESHOLD_PX) dragMovedRef.current = true;
-    if (dragMovedRef.current) {
-      applyVolume(dragStartVolumeRef.current + deltaX / VOLUME_DRAG_RANGE_PX);
-    }
-  };
-
-  const handleVolumePointerUp = (e) => {
-    e.currentTarget.releasePointerCapture(e.pointerId);
-    if (!dragMovedRef.current) {
-      // Simple clic (pas de glisser réel) : bascule mute, en mémorisant/
-      // restaurant le niveau précédent plutôt que de toujours repartir à 100%.
-      if (volume > 0) { previousVolumeRef.current = volume; applyVolume(0); }
-      else applyVolume(previousVolumeRef.current || 1);
-    }
   };
 
   const VolumeIcon = volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
@@ -218,15 +205,36 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
           )}
         </div>
 
-        <button
-          onPointerDown={handleVolumePointerDown}
-          onPointerMove={handleVolumePointerMove}
-          onPointerUp={handleVolumePointerUp}
-          title={`Volume : ${Math.round(volume * 100)}% — glisser pour ajuster, cliquer pour couper le son`}
-          className={`p-2 rounded-full shrink-0 transition-colors cursor-ew-resize touch-none select-none ${textMuted} hover:text-main hover:bg-surface-hover`}
+        <div
+          ref={volumeWrapperRef}
+          className="relative"
+          onMouseEnter={() => setIsVolumePopupOpen(true)}
+          onMouseLeave={() => setIsVolumePopupOpen(false)}
         >
-          <VolumeIcon size={18}/>
-        </button>
+          <button
+            onClick={() => setIsVolumePopupOpen(v => !v)}
+            title={`Volume : ${Math.round(volume * 100)}%`}
+            className={`p-2 rounded-full shrink-0 transition-colors ${textMuted} hover:text-main hover:bg-surface-hover`}
+          >
+            <VolumeIcon size={18}/>
+          </button>
+
+          {isVolumePopupOpen && (
+            // `pb-2` (padding, pas margin) : voir docstring en tête de
+            // fichier — garde la zone survolée continue entre le bouton et
+            // le popup, pour ne pas se fermer en traversant l'espace entre
+            // les deux.
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 z-10">
+              <div className={`${cardBg} border ${cardBorder} rounded-xl shadow-xl px-3 py-2.5`}>
+                <input
+                  type="range" min="0" max="100" value={Math.round(volume * 100)}
+                  onChange={(e) => applyVolume(Number(e.target.value) / 100)}
+                  className="w-24 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                />
+              </div>
+            </div>
+          )}
+        </div>
 
         <button
           onClick={stopCurrentPreview}
