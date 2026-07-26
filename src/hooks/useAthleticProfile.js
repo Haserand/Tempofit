@@ -1,6 +1,14 @@
 import { useEffect } from 'react';
 import { usePersistentState } from './usePersistentState';
-import { WORKOUT_DEFAULT_BPM } from '../appConfig';
+import {
+  isCadenceIntentEligible,
+  emptyProfile,
+  computeZonesFromBaseBpm,
+  getDefaultBaseBpm,
+  buildDefaultPreviewProfile,
+  getZoneSpacingForActivity,
+  ATHLETIC_BPM_FLOOR,
+} from '../athleticZones';
 
 /**
  * useAthleticProfile — regroupe le "Profil Athlétique" de l'utilisateur : le
@@ -92,120 +100,10 @@ import { WORKOUT_DEFAULT_BPM } from '../appConfig';
  * voir plus haut).
  */
 
-// Plancher bas volontairement généreux (40 PPM) : même valeur numérique que
-// Plancher bas volontairement généreux (40 BPM) : même valeur numérique que
-// le plancher BPM du mode Intime ailleurs dans l'app (voir GeneratorView,
-// bpmFloor) — sert seulement à éviter une Zone 1 absurde si quelqu'un saisit
-// un BPM cible très bas, jamais un vrai jugement sur ce qui est "trop lent".
-// Sport-agnostique volontairement : c'est une borne de sécurité sur un BPM
-// MUSICAL cible (voir le pivot de modèle dans la docstring en tête de
-// fichier), donc pas de raison d'en faire une borne différente par sport.
-const ATHLETIC_BPM_FLOOR = 40;
-
-// Espacement (en BPM) entre 2 zones consécutives, selon l'activité — reste un
-// point de départ RAISONNABLE inspiré de l'écart de cadence réel observé entre
-// un footing facile et un effort proche de la VMA (20 à 45 pas/min selon
-// McMillan Running/RunBikeCalc/TrainingPeaks) : ces zones décrivent maintenant
-// un BPM MUSICAL cible, pas une cadence physique mesurée (voir le pivot de
-// modèle en tête de fichier) — mais l'écart type entre zones reste un repère
-// crédible pour espacer 4 tempos progressifs, même si rien n'oblige à le
-// suivre à la lettre (ajustable au BPM près via "Ajuster manuellement").
-// 5 BPM/palier pour Cyclisme (progression plus resserrée en pratique) contre
-// 15 pour Course à pied.
-//
-// Honnêteté : pour une activité personnalisée (patin, elliptique...),
-// impossible de deviner un espacement spécifique sans plus d'info sur le
-// sport — la valeur par défaut (10) s'y applique, ajustable de toute façon au
-// BPM près via "Ajuster manuellement".
-const ZONE_SPACING_BY_ACTIVITY = {
-  'Course à pied': 15,
-  'Cyclisme': 5,
-};
-const DEFAULT_ZONE_SPACING = 10;
-
-// RETOUR DIRECT ("en course à pied, on vise plutôt une cadence de pas fixe
-// (~180 PPM) qui varie peu selon la zone d'effort — est-ce que personnaliser
-// le BPM par zone a un sens dans ce cas ?") — challengé puis creusé ensemble :
-// la cadence réelle varie un peu selon l'intensité (données coureurs elite :
-// ~165-175 PPM en footing facile, ~185-195+ en seuil/VMA), mais BEAUCOUP
-// moins que ce que notre espacement par défaut (15 BPM/palier, 45 BPM
-// d'écart total Récupération→Vitesse) laisse penser. Deux INTENTIONS
-// différentes coexistent en réalité, avec des besoins d'espacement opposés :
-//   - "Énergie par zone" (le modèle par défaut, INCHANGÉ) : la musique doit
-//     correspondre à l'AMBIANCE de l'effort (calme en récup, énergique en
-//     VMA) — écart large entre zones, voulu.
-//   - "Synchro cadence" (nouveau, opt-in) : la musique doit suivre le RYTHME
-//     RÉEL des pas/pédalage — écart faible entre zones, puisque la cadence
-//     elle-même varie peu.
-// Espacement resserré utilisé UNIQUEMENT si `cadenceIntent === 'sync'` pour
-// cette activité (voir plus bas) — sinon `ZONE_SPACING_BY_ACTIVITY` ci-dessus
-// reste la référence, comportement 100% inchangé par défaut.
-const SYNC_ZONE_SPACING_BY_ACTIVITY = {
-  'Course à pied': 6,
-  'Cyclisme': 3,
-};
-const DEFAULT_SYNC_ZONE_SPACING = 4;
-
-// Activités où la notion même de "cadence" (un rythme de mouvement répété,
-// pas/pédalage) n'a pas de sens — Musculation n'a pas de rythme cyclique
-// comparable (déjà établi : ni distance, ni "allure", voir GeneratorView.jsx),
-// donc pas de mode Synchro proposé pour elle. Toute activité personnalisée
-// reste éligible par défaut : impossible de savoir à l'avance si "Elliptique"
-// ou "Corde à sauter" en ont une, mais BEAUCOUP en ont — mieux vaut proposer
-// l'option et laisser la personne juger, que la cacher par excès de prudence.
-const CADENCE_INTENT_INELIGIBLE_ACTIVITIES = ['Musculation'];
-const isCadenceIntentEligible = (activityKey) => !CADENCE_INTENT_INELIGIBLE_ACTIVITIES.includes(activityKey);
-
-const emptyProfile = () => ({ isConfigured: false, targetBpm: null, zone1: null, zone2: null, zone3: null, zone4: null, cadenceIntent: 'energy' });
-
-const computeZonesFromBaseBpm = (base, spacing = DEFAULT_ZONE_SPACING) => ({
-  zone1: Math.max(ATHLETIC_BPM_FLOOR, base - spacing),
-  zone2: Math.max(ATHLETIC_BPM_FLOOR, base),
-  zone3: Math.max(ATHLETIC_BPM_FLOOR, base + spacing),
-  zone4: Math.max(ATHLETIC_BPM_FLOOR, base + spacing * 2),
-});
-
-// BPM cible CRÉDIBLE par activité, utilisée uniquement pour PRÉ-REMPLIR
-// l'Assistant Rapide et les champs "Ajuster manuellement" avant toute vraie
-// saisie (retour direct : "il devrait toujours y avoir un nombre par
-// défaut... pour inciter l'utilisateur à manipuler... des valeurs crédibles
-// par discipline") — jamais pour décider `isConfigured`, qui reste
-// strictement réservé à "la personne a réellement validé/ajusté quelque
-// chose ici" (voir plus bas). Réutilise volontairement `WORKOUT_DEFAULT_BPM`
-// (appConfig.js) plutôt que d'inventer de nouveaux chiffres : ce sont déjà
-// les BPM par défaut du wizard pour ces mêmes activités (160 Course à pied,
-// 140 Cyclisme), donc déjà des valeurs crédibles et cohérentes avec le reste
-// de l'app. "Autre"/repli pour toute activité personnalisée, faute d'un
-// chiffre spécifique par discipline pour une activité inconnue à l'avance
-// (patin, elliptique...).
-const getDefaultBaseBpm = (activityKey) => WORKOUT_DEFAULT_BPM.standard[activityKey] ?? WORKOUT_DEFAULT_BPM.standard['Autre'];
-
-// Profil "aperçu" complet (BPM de base + 4 zones déjà calculées) pour une
-// activité qui n'a JAMAIS été configurée — `isConfigured` reste `false` :
-// ceci sert de valeur d'AFFICHAGE par défaut (voir GeneratorView.jsx), pas
-// une vraie configuration silencieuse. Sert aussi de bloc de départ dans
-// `setZoneForActivity`/`setZoneForCustom` ci-dessous : si la personne ajuste
-// UNE SEULE zone à la main sans être jamais passée par l'Assistant Rapide,
-// les 3 AUTRES zones doivent se retrouver enregistrées avec ces mêmes valeurs
-// par défaut déjà affichées à l'écran — jamais `null` en douce alors que
-// l'écran, lui, montrait déjà un chiffre.
-const buildDefaultPreviewProfile = (activityKey, cadenceIntent = 'energy') => {
-  const base = getDefaultBaseBpm(activityKey);
-  const spacing = cadenceIntent === 'sync'
-    ? (SYNC_ZONE_SPACING_BY_ACTIVITY[activityKey] ?? DEFAULT_SYNC_ZONE_SPACING)
-    : (ZONE_SPACING_BY_ACTIVITY[activityKey] ?? DEFAULT_ZONE_SPACING);
-  return { isConfigured: false, targetBpm: base, cadenceIntent, ...computeZonesFromBaseBpm(base, spacing) };
-};
-
-// Espacement RÉEL utilisé pour une activité donnée — exposé pour que l'UI
-// (infobulle "méthode de calcul", GeneratorView.jsx) puisse afficher le vrai
-// chiffre plutôt que de deviner/dupliquer les tables d'espacement.
-// `cadenceIntent` optionnel (repli 'energy', comportement historique
-// inchangé si l'appelant ne sait rien du mode Synchro).
-const getZoneSpacingForActivity = (activityKey, cadenceIntent = 'energy') =>
-  cadenceIntent === 'sync'
-    ? (SYNC_ZONE_SPACING_BY_ACTIVITY[activityKey] ?? DEFAULT_SYNC_ZONE_SPACING)
-    : (ZONE_SPACING_BY_ACTIVITY[activityKey] ?? DEFAULT_ZONE_SPACING);
+// Constantes/fonctions pures de calcul des zones BPM : extraites dans
+// src/athleticZones.js (importé plus haut) pour être testables sans React —
+// voir ce fichier pour le détail des choix (plancher, espacement par
+// activité, mode Synchro cadence, etc.).
 
 export function useAthleticProfile() {
   const [athleticProfile, setAthleticProfile] = usePersistentState('athleticProfile', () => ({
