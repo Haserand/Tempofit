@@ -61,11 +61,14 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
   const belongsToCurrentPlaylist = trackIndex !== -1;
 
   return (
-    // z-[65] volontairement conservé (pas baissé à z-40) : déjà cohérent avec
-    // la hiérarchie z-index existante de l'app — Sidebar (z-50) < badge
-    // trophée/connexion (z-[60]) < CETTE barre (z-[65]) < modales (z-[70]) <
-    // toasts (z-[80]).
-    <div className={`fixed bottom-0 left-0 right-0 z-[65] border-t shadow-2xl ${cardBg} ${cardBorder}`}>
+    // Plus de `fixed bottom-0 left-0 right-0 z-[65]` ICI (25/07) — déplacé sur
+    // le conteneur PARTAGÉ dans App.jsx, qui empile cette barre avec la
+    // nouvelle notice "mode invité" (voir App.jsx) via un simple flex-col,
+    // sans avoir à deviner/coder en dur la hauteur de l'une pour positionner
+    // l'autre au-dessus. Cette barre-ci reste toujours la DERNIÈRE du flex
+    // (donc collée au vrai bas d'écran, comportement inchangé) — seul le
+    // conteneur qui l'enveloppe a changé, pas elle.
+    <div className={`border-t shadow-2xl ${cardBg} ${cardBorder}`}>
       <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center gap-3">
 
         {/* ── Zone gauche : infos titre (essentiel, jamais masqué) ── */}
