@@ -82,6 +82,23 @@ export default function Sidebar({
         ? 'pb-10'
         : '';
 
+  // Hauteur RÉELLE (en px) des barres du bas actuellement visibles — miroir
+  // de bottomBarPadding ci-dessus, mais en pixels exacts plutôt qu'en classe
+  // Tailwind arrondie : sert à synchroniser la hauteur de la case crédit
+  // juste plus bas, pas à réserver un espace vide. Doit rester cohérent
+  // avec `h-[90px]` (MiniPlayerBar.jsx) et `h-[40px]` (GuestModeBar.jsx) —
+  // si ces valeurs changent là-bas, les reporter ici aussi (pas de calcul
+  // partagé entre les 3 fichiers pour l'instant, une seule paire de
+  // constantes à garder synchronisée). `null` = aucune barre visible, la
+  // case crédit garde sa hauteur naturelle (basée sur son padding).
+  const creditRowHeight = playerBarVisible && guestBarVisible
+    ? 90 + 40
+    : playerBarVisible
+      ? 90
+      : guestBarVisible
+        ? 40
+        : null;
+
   return (
     <aside className={`fixed inset-y-0 left-0 z-50 w-64 h-full bg-surface border-r-2 border-slate-200 dark:border-white/20 flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${bottomBarPadding} md:pb-0`}>
       <div className="p-6 mb-2 border-b-2 border-slate-200 dark:border-white/20 flex items-center justify-between shrink-0">
@@ -276,12 +293,15 @@ export default function Sidebar({
             `md:left-64 md:w-[calc(100%-16rem)]` sur le conteneur commun,
             App.jsx) et n'affiche donc plus de réplique de ce crédit à
             synchroniser — ce bloc-ci est maintenant la SEULE source. */}
-        <div className="px-4 py-4 border-t-2 border-slate-200 dark:border-white/20 text-center">
+        <div
+          className="px-4 py-4 border-t-2 border-slate-200 dark:border-white/20 text-center flex items-center justify-center"
+          style={creditRowHeight ? { height: `${creditRowHeight}px` } : undefined}
+        >
           <a
             href="https://www.linkedin.com/in/damiengrange/"
             target="_blank"
             rel="noopener noreferrer"
-            className={`text-xs font-medium ${textMuted} hover:text-main transition-colors`}
+            className={`text-xs font-medium truncate ${textMuted} hover:text-main transition-colors`}
           >
             Un projet créé par <span className="font-bold underline">Damien Grangé</span>
           </a>
