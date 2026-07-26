@@ -74,7 +74,7 @@ export default function FavoritesView({
 
       <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-2">
-          <h3 className={`font-bold text-xl ${isNaughtyMode ? 'text-slate-950' : 'text-white'}`}>Tes Préférences Musicales</h3>
+          <h3 className={`font-bold text-xl ${textHighlight} ${isNaughtyMode ? 'dark:text-white' : ''}`}>Tes Préférences Musicales</h3>
           {/* Icône RefreshCw retirée (25/07, retour direct : "ce bouton
               laisse imaginer qu'une action va se faire immédiatement si je
               clique dessus") — un rond avec deux flèches évoque une action
@@ -100,7 +100,7 @@ export default function FavoritesView({
         <div className="space-y-8">
           {/* LIGNE 1 : Titres uniquement (priorité 1 de la cascade de génération) */}
           <div>
-            <h4 className={`text-sm font-bold uppercase tracking-wider mb-4 flex items-center ${isNaughtyMode ? 'text-slate-800' : 'text-slate-400'}`}><Heart size={16} className="mr-2"/> Titres Favoris</h4>
+            <h4 className={`text-sm font-bold uppercase tracking-wider mb-4 flex items-center ${textMuted} ${isNaughtyMode ? 'dark:text-white' : ''}`}><Heart size={16} className="mr-2"/> Titres Favoris</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {favorites.tracks.map((track, idx) => (
                 <div key={track.trackId || idx} className={`flex items-center gap-2 p-2.5 rounded-xl border ${cardBorder} ${inputBg}`}>
@@ -131,7 +131,7 @@ export default function FavoritesView({
 
           {/* LIGNE 2 : Artistes uniquement (priorité 1.5, élargissement suivant) */}
           <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
-            <h4 className={`text-sm font-bold uppercase tracking-wider mb-4 flex items-center ${isNaughtyMode ? 'text-slate-800' : 'text-slate-400'}`}><User size={16} className="mr-2"/> Top Artistes</h4>
+            <h4 className={`text-sm font-bold uppercase tracking-wider mb-4 flex items-center ${textMuted} ${isNaughtyMode ? 'dark:text-white' : ''}`}><User size={16} className="mr-2"/> Top Artistes</h4>
             <div className="flex flex-wrap gap-2.5 items-center">
               {favorites.artists.map((artist, idx) => (
                 <span key={idx} className={`px-4 py-2 bg-surface-hover border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold ${textHighlight} shadow-sm flex items-center gap-2`}>
