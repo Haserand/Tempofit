@@ -1177,6 +1177,7 @@ function AppContent({
           showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
           favorites={favorites}
           user={user} userStats={userStats}
+          savedPlaylists={savedPlaylists} routines={routines} openModal={openModal}
         />
 
         <div className="flex-1 flex flex-col relative w-full">
