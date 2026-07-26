@@ -47,6 +47,7 @@ export default function Sidebar({
   favorites,
   user, userStats,
   guestBarVisible, playerBarVisible,
+  toggleNaughtyMode,
 }) {
   // BUG CORRIGÉ (25/07, retour direct : "je ne peux pas cliquer sur Options
   // & Comptes quand le lecteur audio est actif") — le padding précédent
@@ -122,6 +123,28 @@ export default function Sidebar({
            <button className="md:hidden text-gray-500 hover:text-gray-900 dark:hover:text-white" onClick={() => setIsMobileMenuOpen(false)}><X size={20} /></button>
          </div>
       </div>
+
+      {/* Sortie du Mode Intime, TOUJOURS accessible (25/07, retour direct :
+          "une fois en mode intime il faudrait toujours avoir une option
+          pour revenir à la normale") — avant ça, `toggleNaughtyMode` n'était
+          câblé qu'à UN SEUL endroit dans toute l'app (une petite icône dans
+          un coin de carte, à l'étape 1 du wizard de génération) : en
+          Mode Intime sur n'importe quelle autre page (Statistiques, Mes
+          Séances, Profil Athlétique...), aucun moyen d'en sortir sans
+          retourner spécifiquement à cet endroit précis — un vrai trou, pas
+          juste une gêne. Placé ici, dans la Sidebar (présente sur toutes
+          les pages), donc toujours atteignable quel que soit l'endroit où
+          le Mode Intime a été activé. */}
+      {isNaughtyMode && (
+        <div className={`px-4 py-2.5 border-b ${cardBorder} bg-rose-500/10`}>
+          <button
+            onClick={toggleNaughtyMode}
+            className="text-xs font-bold text-rose-500 hover:text-rose-400 transition-colors flex items-center gap-1.5"
+          >
+            <Heart size={12} className="fill-rose-500" /> Quitter le Mode Intime
+          </button>
+        </div>
+      )}
 
       {/* `select-none` sur chaque bouton (retour utilisateur, hérité de
           l'ancienne version) : sans ça, le texte des libellés reste
