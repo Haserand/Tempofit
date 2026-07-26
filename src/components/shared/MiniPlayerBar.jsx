@@ -229,7 +229,9 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
                 <input
                   type="range" min="0" max="100" value={Math.round(volume * 100)}
                   onChange={(e) => applyVolume(Number(e.target.value) / 100)}
-                  className="w-24 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  onMouseUp={(e) => e.target.blur()}
+                  onTouchEnd={(e) => e.target.blur()}
+                  className="w-24 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary outline-none"
                 />
               </div>
             </div>
