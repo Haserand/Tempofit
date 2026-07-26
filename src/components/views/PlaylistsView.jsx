@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import { List, Library, Plus, Calendar, CheckCircle, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react';
+import { List, Library, Plus, Calendar, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import PlaylistCard from './PlaylistCard';
 import ViewHeader from '../shared/ViewHeader';
-import { useAuthContext } from '../../contexts/AuthContext';
-import { useModalContext } from '../../contexts/ModalContext';
 
 /**
  * PlaylistsView — vue "Mes Séances" (nom d'origine restauré le 25/07 : elle
@@ -64,8 +62,6 @@ export default function PlaylistsView({
   setCurrentPlaylist, changeView, renderConfigInfoLine, markPlaylistAsCompleted,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate, triggerCSVUpload,
 }) {
-  const { user } = useAuthContext();
-  const { openModal } = useModalContext();
   const { cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
   const [draggedId, setDraggedId] = useState(null);
   const [plannedPage, setPlannedPage] = useState(0);
@@ -181,28 +177,13 @@ export default function PlaylistsView({
         subtitle="Retrouve tes playlists générées, planifie tes écoutes et consulte ton historique."
       />
 
-      {/* "Soft Gating" (25/07) — l'app est Local-First : un invité utilise 100%
-          des fonctionnalités via localStorage (voir usePersistentState.js), ce
-          qui est excellent pour l'acquisition mais l'expose à perdre ses
-          données en changeant d'appareil ou en vidant son cache. Cet encart
-          ne bloque JAMAIS rien (pas de gate dur) — juste une incitation
-          informative, affichée UNIQUEMENT une fois qu'il y a déjà quelque
-          chose à perdre (`savedPlaylists.length > 0`) : alerter un invité qui
-          n'a encore rien fait n'aurait aucun sens (rien à perdre) et
-          alourdirait sa toute première visite pour rien. */}
-      {!user && savedPlaylists.length > 0 && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-blue-200 dark:border-blue-800/60 bg-blue-50 dark:bg-blue-900/20">
-          <p className={`text-sm ${textMuted}`}>
-            Tu utilises TempoFit en mode invité. Tes données sont sauvegardées uniquement sur cet appareil.
-          </p>
-          <button
-            onClick={() => openModal('AUTH')}
-            className={`shrink-0 flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-bold text-sm text-white transition-colors ${bgAccentClass} hover:brightness-110`}
-          >
-            <UserPlus size={16} /> Créer un compte gratuit
-          </button>
-        </div>
-      )}
+      {/* Notice "mode invité" RETIRÉE D'ICI (25/07) — vivait en double ici et
+          dans StatsView.jsx, avec deux conditions de déclenchement légèrement
+          différentes, et absente de RoutinesView.jsx alors que la même
+          logique s'y appliquait tout autant (bug remonté par capture :
+          "pourquoi ce message n'apparaît QUE sur certaines pages ?"). Un seul
+          bloc centralisé désormais, dans Sidebar.jsx (persistante sur toutes
+          les vues) — voir son commentaire pour le raisonnement complet. */}
 
       {isEmpty ? (
         <div className={`py-16 text-center border-2 border-dashed rounded-2xl ${isNaughtyMode ? 'border-slate-400' : 'border-slate-700'}`}>
