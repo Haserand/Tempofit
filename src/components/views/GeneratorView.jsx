@@ -442,7 +442,7 @@ export default function GeneratorView({
                 d'ancrage sur cette ligne), mais ne répète plus le nom déjà
                 visible sur l'onglet actif. */}
             <div className="relative flex items-center gap-1.5 mb-2">
-                <span className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>
+                <span className={`text-xs font-bold tracking-wide ${textMuted}`}>
                   BPM cibles par zone
                 </span>
                 {/* RETOUR DIRECT : "je ne vois pas infobulle expliquant le
