@@ -5,6 +5,8 @@ import {
   getBpmBucketLabel,
   getBpmBucketColor,
   getActivityEmoji,
+  getCadenceUnitLabel,
+  getRankStyle,
 } from '../src/appConfig.js';
 
 describe('getZoneForValue', () => {
@@ -91,5 +93,37 @@ describe('getActivityEmoji', () => {
     expect(getActivityEmoji('Autre')).toBe('🎧');
     expect(getActivityEmoji('Escalade')).toBe('🎧');
     expect(getActivityEmoji(undefined)).toBe('🎧');
+  });
+});
+
+describe('getCadenceUnitLabel', () => {
+  it('PPM pour Course à pied', () => {
+    expect(getCadenceUnitLabel('Course à pied')).toBe('PPM');
+  });
+
+  it('RPM pour Cyclisme', () => {
+    expect(getCadenceUnitLabel('Cyclisme')).toBe('RPM');
+  });
+
+  it('replie sur "cad/min" pour une activité inconnue', () => {
+    expect(getCadenceUnitLabel('Kayak')).toBe('cad/min');
+  });
+});
+
+describe('getRankStyle', () => {
+  it('renvoie le style Or pour le rang 0', () => {
+    expect(getRankStyle(0)).toEqual({ emoji: '🥇', border: 'border-yellow-500 ring-2 ring-yellow-500/20' });
+  });
+
+  it('renvoie le style Bronze pour le rang 2', () => {
+    expect(getRankStyle(2)).toEqual({ emoji: '🥉', border: 'border-amber-700 ring-2 ring-amber-700/20' });
+  });
+
+  it('renvoie null au-delà du podium (rang 3+)', () => {
+    expect(getRankStyle(3)).toBeNull();
+  });
+
+  it('renvoie null pour un rang négatif', () => {
+    expect(getRankStyle(-1)).toBeNull();
   });
 });
