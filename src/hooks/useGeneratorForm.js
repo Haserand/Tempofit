@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { STANDARD_GENRES, NAUGHTY_GENRES, normalizeGenreForDisplay, genreDisplayLabel } from '../musicCatalog';
+import { STANDARD_GENRES, NAUGHTY_GENRES } from '../musicCatalog';
 import { buildCrescendoSegments, deduceCrescendoBpm } from '../musicEngine';
+import { checkGenreWeightDeviation } from '../genreWeightDeviation';
 
 /**
  * useGeneratorForm — regroupe tout l'état du formulaire du wizard de
@@ -412,33 +413,9 @@ export function useGeneratorForm(isNaughtyMode, athleticProfile) {
     setSegments(segments.map(s => s.id === segmentId ? { ...s, selectedGenres: undefined } : s));
   };
 
-  /**
-   * Compare la répartition RÉELLEMENT obtenue (durée par genre dans la
-   * playlist) à la répartition en % DEMANDÉE (config.genreWeights) —
-   * approximatif par nature, donc on ne signale que les écarts vraiment
-   * significatifs (≥ 15 points de %), pas la moindre fluctuation. Retourne la
-   * liste des genres trop éloignés de leur cible, ou `null` si rien à
-   * signaler (pas de poids configurés, ou tout est proche).
-   */
-  const checkGenreWeightDeviation = (tracks, weights) => {
-    if (!weights || Object.keys(weights).length <= 1) return null;
-    const totalDuration = tracks.reduce((s, t) => s + t.duration, 0);
-    if (totalDuration === 0) return null;
-    const actualByGenre = {};
-    tracks.forEach(t => {
-      const g = normalizeGenreForDisplay(t.genre, t.artist, t.title);
-      actualByGenre[g] = (actualByGenre[g] || 0) + t.duration;
-    });
-    const deviations = [];
-    Object.entries(weights).forEach(([genre, targetPct]) => {
-      if (!targetPct) return;
-      const actualPct = Math.round(((actualByGenre[genre] || 0) / totalDuration) * 100);
-      if (Math.abs(actualPct - targetPct) >= 15) {
-        deviations.push(`${genreDisplayLabel(genre)} : ${actualPct}% obtenu (visé ${targetPct}%)`);
-      }
-    });
-    return deviations.length > 0 ? deviations : null;
-  };
+  // checkGenreWeightDeviation : extraite dans src/genreWeightDeviation.js
+  // (importée plus haut) pour être testable sans React — voir ce fichier
+  // pour le détail (seuil de signalement à 15 points d'écart, etc.).
 
   return {
     wizardStep, setWizardStep,
