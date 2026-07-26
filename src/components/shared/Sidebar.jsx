@@ -136,12 +136,17 @@ export default function Sidebar({
           les pages), donc toujours atteignable quel que soit l'endroit où
           le Mode Intime a été activé. */}
       {isNaughtyMode && (
-        <div className={`px-4 py-2.5 border-b ${cardBorder} bg-rose-500/10`}>
+        <div className={`px-4 py-2 border-b ${cardBorder}`}>
+          {/* Mêmes classes que les boutons du menu juste en dessous
+              (`px-3 py-3`, icône 18px, `text-sm font-bold`) — retour direct :
+              "démarrer au même point horizontal, même taille de police" —
+              plutôt qu'un style à part. */}
           <button
             onClick={toggleNaughtyMode}
-            className="text-xs font-bold text-rose-500 hover:text-rose-400 transition-colors flex items-center gap-1.5"
+            className="w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer text-rose-500 hover:bg-rose-500/10"
           >
-            <Heart size={12} className="fill-rose-500" /> Quitter le Mode Intime
+            <Heart size={18} className="fill-rose-500" />
+            <span className="font-bold text-sm">Quitter le Mode Intime</span>
           </button>
         </div>
       )}
