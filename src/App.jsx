@@ -302,7 +302,7 @@ function AppContent({
   // `isAuthModalOpen` vivait ici (state local) avant le chantier "centraliser
   // les modales" (25/07) — dérivée maintenant de ModalContext
   // (`activeModal === 'AUTH'`), voir ModalContainer.jsx.
-  const { user, signUp, signIn, signOut, resetPassword, updateEmail, isSupabaseConfigured, userCount } = useAuthContext();
+  const { user, signUp, signIn, signOut, resetPassword, updateEmail, updatePassword, exportUserData, eraseUserData, isSupabaseConfigured, userCount } = useAuthContext();
 
   // RETOUR DIRECT ("pas de message d'erreur quand je clique sur un lien
   // expiré ?") — Supabase redirige bien vers l'app avec le détail de
@@ -1434,6 +1434,7 @@ function AppContent({
                 theme={themeTokens} spotifyToken={spotifyToken} loginSpotify={loginSpotify} setSpotifyToken={setSpotifyToken}
                 spotifyRedirectUri={REDIRECT_URI}
                 user={user} signOut={signOut} updateEmail={updateEmail} isSupabaseConfigured={isSupabaseConfigured}
+                updatePassword={updatePassword} exportUserData={exportUserData} eraseUserData={eraseUserData}
                 userCount={userCount}
                 isNaughtyMode={isNaughtyMode} showToast={showToast} changeView={changeView}
               />
