@@ -1,24 +1,54 @@
-import { useState } from 'react';
-import { Settings, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as UserIcon, Edit3, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Settings, Gauge, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as UserIcon, Edit3, X } from 'lucide-react';
 import ViewHeader from '../shared/ViewHeader';
+import AthleticProfilePanel from './AthleticProfilePanel';
 
 /**
- * SettingsView — vue "Options & Comptes" (connexion Spotify).
+ * SettingsView — vue unifiée "Réglages" (Refactor UX/UI, 28/07, "Sidebar
+ * simplifiée + Réglages à onglets"). Fusionne 2 anciennes entrées distinctes
+ * de la Sidebar ("Profil Athlétique" et "Options & Comptes") en une seule
+ * page à onglets horizontaux — la Sidebar n'a plus qu'un seul bouton
+ * "Réglages" (voir Sidebar.jsx), ce qui libère de la hauteur dans sa zone
+ * scrollable.
  *
- * Extrait de App.jsx (bloc `view === 'settings'`), premier essai du découpage
- * en composants de vue. Volontairement "dumb" : ne lit/écrit aucun state
- * global directement, tout passe par des props explicites depuis App.jsx.
- * Ça garde App.jsx propriétaire de la vérité (spotifyToken, localStorage...)
- * et rend ce composant facile à relire ou tester isolément.
+ * Historique du Profil Athlétique (pour ne pas refaire le même aller-retour
+ * sans le savoir) : il vivait à l'origine ICI, dans "Options & Comptes" ;
+ * déplacé une 1re fois vers GeneratorView.jsx (retour direct : "personne ne
+ * le verra dans Options & Comptes — ça sert au générateur, ça doit vivre là
+ * où on génère"). Ce chantier-ci l'inverse une 2e fois, pour une raison
+ * différente : ce n'est plus "Options & Comptes" qui absorbe tout
+ * silencieusement, c'est une vraie page "Réglages" dédiée, avec 2 onglets
+ * clairement nommés et à parts égales — le risque qui avait motivé le 1er
+ * déménagement (le noyer dans un menu qu'on ouvre rarement, sans étiquette)
+ * ne s'applique plus de la même façon ici.
  *
- * Le Profil Athlétique (BPM cibles par zone d'effort) a été DÉPLACÉ vers GeneratorView.jsx
- * (retour direct : "personne ne le verra dans Options & Comptes" — ça sert au
- * générateur, ça doit vivre là où on génère, pas dans un menu qu'on ouvre
- * rarement). Voir GeneratorView.jsx pour l'UI, useAthleticProfile.js pour le
- * state — inchangés, seul l'EMPLACEMENT dans l'app a changé.
+ * `AthleticProfilePanel` lit lui-même `useGeneratorContext()` pour tout ce
+ * dont il a besoin (voir sa propre docstring) — ce composant-ci ne fait que
+ * le monter/démonter selon l'onglet actif, sans dupliquer son state.
+ *
+ * Garde-fou Mode Intime (reproduit ici, retiré de App.jsx où il vivait
+ * avant sous forme de useEffect global sur `showAthleticProfile`) : le
+ * Profil Athlétique configure des zones de BPM par activité SPORTIVE
+ * (Course à pied/Cyclisme/Musculation), un concept sans équivalent en Mode
+ * Intime (workoutType y est toujours "Ambiance") — l'onglet est masqué
+ * dans ce mode, et un effet de sécurité rebascule automatiquement vers
+ * "Comptes & Synchronisation" si le Mode Intime s'active PENDANT que
+ * l'onglet Profil est déjà ouvert (même filet que l'ancien, juste relocalisé
+ * au bon endroit maintenant que Profil Athlétique n'est plus un sous-état
+ * de 'generator').
  */
-export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, signOut, updateEmail, isSupabaseConfigured, userCount, isNaughtyMode }) {
-  const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg } = theme;
+export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, signOut, updateEmail, isSupabaseConfigured, userCount, isNaughtyMode, showToast, changeView }) {
+  const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg, textColorClass, borderAccentClass } = theme;
+
+  // Onglet actif — jamais 'profile' par défaut en Mode Intime (voir garde-
+  // fou dans la docstring) : l'initialisation lazy (fonction passée à
+  // useState) évite un flash "Profil Athlétique" visible une frame avant
+  // que l'effet de sécurité ci-dessous ne le referme.
+  const [activeTab, setActiveTab] = useState(() => (isNaughtyMode ? 'accounts' : 'profile'));
+
+  useEffect(() => {
+    if (isNaughtyMode && activeTab === 'profile') setActiveTab('accounts');
+  }, [isNaughtyMode, activeTab]);
 
   // Édition de l'adresse e-mail (retour direct, "aucun moyen de modifier
   // son e-mail") — `newEmail` pré-rempli avec `user.email` à l'ouverture du
@@ -92,11 +122,42 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
-        icon={<Settings className={theme.textColorClass} size={36} />}
-        title="Options & Comptes"
-        subtitle="Connecte tes plateformes et ton compte pour tout synchroniser."
+        icon={activeTab === 'profile' ? <Gauge className={textColorClass} size={36} /> : <Settings className={textColorClass} size={36} />}
+        title={activeTab === 'profile' ? 'Mon Profil Athlétique' : 'Comptes & Synchronisation'}
+        subtitle={activeTab === 'profile'
+          ? "Définis ton BPM musical cible par zone d'effort, pour chaque activité."
+          : "Connecte tes plateformes et ton compte pour tout synchroniser."}
       />
 
+      {/* Onglets horizontaux — Profil Athlétique masqué en Mode Intime (voir
+          garde-fou dans la docstring de ce fichier) : seul "Comptes &
+          Synchronisation" reste affiché dans ce cas, sans ligne d'onglets à
+          proprement parler (un seul choix ne justifie pas un sélecteur). */}
+      {!isNaughtyMode && (
+        <div className={`flex space-x-6 border-b ${cardBorder}`}>
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`pb-3 -mb-px text-sm font-bold border-b-2 transition-colors ${
+              activeTab === 'profile' ? `${textHighlight} ${borderAccentClass}` : `${textMuted} border-transparent hover:text-main`
+            }`}
+          >
+            Profil Athlétique
+          </button>
+          <button
+            onClick={() => setActiveTab('accounts')}
+            className={`pb-3 -mb-px text-sm font-bold border-b-2 transition-colors ${
+              activeTab === 'accounts' ? `${textHighlight} ${borderAccentClass}` : `${textMuted} border-transparent hover:text-main`
+            }`}
+          >
+            Comptes & Synchronisation
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'profile' ? (
+        <AthleticProfilePanel theme={theme} showToast={showToast} changeView={changeView} />
+      ) : (
+      <>
       {/* RETOUR DIRECT ("vraiment synchroniser toutes les données entre
           appareils, email/mot de passe pour commencer") — distincte de la
           carte "Comptes connectés" juste en dessous : ceci, c'est L'IDENTITÉ
@@ -279,6 +340,8 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           <Globe size={18}/> <span>Base musicale mondiale : connectée</span>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }
