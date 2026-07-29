@@ -1264,28 +1264,24 @@ function AppContent({
               marge globale. */}
           <main id="main-scroll-area" className="relative flex-1 overflow-y-auto pt-6 sm:pt-8 px-4 sm:px-8 pb-4 sm:pb-8 no-scrollbar">
 
-            {/* Bloc connexion — Fix UI (27/07, "nettoyage global"), résolu
-                suite à l'échange avec l'utilisateur sur le risque de
-                "dead end" : le bouton "Se connecter" est maintenant
-                conditionné à `!isGuestBarVisible`, pas juste supprimé.
-                GuestModeBar.jsx ne s'affiche QUE si
-                `!user && (savedPlaylists.length > 0 || routines.length > 0)`
-                — donc, une fois qu'il existe au moins une séance ou une
-                routine, elle prend le relais comme SEUL point d'entrée vers
-                la connexion, et ce bouton ICI disparaît pour ne pas faire
-                doublon (c'est justement le cas sur PlaylistDetailView : une
-                playlist affichée implique forcément au moins une donnée,
-                donc GuestModeBar est déjà visible — la carte PlaylistHeader
-                respire sans collision, sans qu'aucun `pr-*` n'ait été remis).
-                À l'inverse, un tout nouveau visiteur SANS aucune séance ni
-                routine (GuestModeBar invisible) voit encore ce bouton — le
-                seul point d'entrée vers la connexion qui lui reste, cf.
-                SettingsView.jsx qui a délibérément retiré le sien pour ne
-                pas tripler ce même message. Le bouton Thème, lui, est
-                parti pour de bon dans Sidebar.jsx (à côté de Trophées) —
-                ce bloc ne contient donc plus jamais que ce SEUL bouton,
-                jamais les deux à la fois. */}
-            <div className="absolute top-4 right-4 md:top-6 md:right-6 z-[60] flex items-center gap-2">
+            {/* Bloc connexion — Polish UX (28/07, "icône standard haut-
+                droite") : remplace le bouton pilule "Se connecter" (texte +
+                fond plein) par une simple icône silhouette minimaliste,
+                réintroduite comme point d'entrée universel — le coin
+                supérieur droit reste le standard cognitif pour "mon compte",
+                indépendamment de GuestModeBar (qui, elle, reste le CTA
+                principal en bas). Condition `!isGuestBarVisible` du chantier
+                précédent RETIRÉE ici à dessein : ce bouton est maintenant
+                assez discret (icône seule, ~40px) pour ne plus justifier de
+                se masquer selon l'état de GuestModeBar — y compris sur
+                PlaylistDetailView, où GuestModeBar est déjà visible : les
+                deux coexistent sans problème, l'icône n'a pas le gabarit
+                pour recréer le risque de collision avec le titre de
+                PlaylistHeader.jsx qui avait motivé cette condition à
+                l'origine (voir historique de ce bloc). Le bouton avatar
+                (utilisateur CONNECTÉ, `changeView('settings')`) n'est pas
+                concerné par ce chantier, inchangé. */}
+            <div className="absolute top-4 right-4 md:top-6 md:right-8 z-[60] flex items-center gap-2">
               {isSupabaseConfigured && (
                 user ? (
                   <button
@@ -1295,13 +1291,21 @@ function AppContent({
                   >
                     {user.email.charAt(0).toUpperCase()}
                   </button>
-                ) : !isGuestBarVisible && (
+                ) : (
+                  // Style "ghost" adaptatif : transparent au repos, même
+                  // paire de tokens déjà utilisée pour les boutons Thème/
+                  // Trophées de Sidebar.jsx (`${textMuted} hover:bg-surface-
+                  // hover hover:text-main`) plutôt que du `text-slate-500`/
+                  // `hover:bg-white/5` en dur (invisible ou trop faible dans
+                  // un des deux thèmes, même famille de piège que les
+                  // chantiers précédents sur ce fichier) — cohérence totale
+                  // avec les autres boutons "icône seule" déjà dans l'app.
                   <button
                     onClick={() => openModal('AUTH')}
-                    className={`px-4 py-2.5 rounded-full shadow-lg border hover:scale-105 transition-transform flex items-center gap-1.5 text-sm font-bold ${bgAccentClass} text-white border-transparent`}
+                    title="Se connecter"
+                    className={`p-2 rounded-full transition-colors duration-200 ${textMuted} hover:bg-surface-hover hover:text-main`}
                   >
-                    <UserIcon size={16} />
-                    <span>Se connecter</span>
+                    <UserIcon size={24} strokeWidth={1.5} />
                   </button>
                 )
               )}
