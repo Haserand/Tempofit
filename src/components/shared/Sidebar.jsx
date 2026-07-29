@@ -303,7 +303,13 @@ export default function Sidebar({
           n'avait AUCUNE marge propre — rien à corriger sur ces 3 points
           précis, déjà réglés par les passes précédentes. Seul le
           séparateur central ajusté : `my-5` → `my-6` (24px), pour mieux
-          occuper l'espace vertical disponible, comme suggéré. */}
+          occuper l'espace vertical disponible, comme suggéré.
+          9e passe — "RÉGIME DES 3 PIXELS" (28/07, retour direct suivant :
+          "micro-scroll de 2-3px persiste") — `my-6` → `my-5` (retour en
+          arrière ciblé sur CE SEUL réglage, 8px gagnés au total sur les 2
+          côtés du séparateur) ; égalité des 2 titres (`mb-4`/`mb-4`, sans
+          `mt-*` sur les boutons juste après) RE-VÉRIFIÉE — déjà strictement
+          identique depuis la 8e passe, rien à changer sur ce point précis. */}
       <nav className="flex flex-col">
 
         {/* --- CRÉATION --- */}
@@ -330,7 +336,7 @@ export default function Sidebar({
             vertical") — remplace la marge géante (`mt-6`/`mt-8`, avant sur
             l'en-tête de "Mon Espace") par une VRAIE ligne de démarcation
             entre les 2 univers ("Création" et "Mon Espace"), avec une marge
-            modérée qui porte l'espacement à elle seule (`my-6` = 24px de
+            modérée qui porte l'espacement à elle seule (`my-5` = 20px de
             chaque côté). `border-divider` (micro, 1px, ${'${cardBorder}'})
             plutôt que `border-divider-strong` : cette ligne sépare 2
             GROUPES DE LIENS à l'intérieur de la même zone scrollable, pas 2
@@ -338,7 +344,7 @@ export default function Sidebar({
             eux utilisent la bordure macro 2px — voir plus haut/plus bas
             dans ce fichier) — same distinction que cardBorder/
             cardBorderStrong partout ailleurs dans l'app (voir useTheme.js). */}
-        <div className={`border-t ${cardBorder} w-full my-6`}></div>
+        <div className={`border-t ${cardBorder} w-full my-5`}></div>
 
         {/* --- MON ESPACE --- */}
         <div className="flex flex-col space-y-2">
