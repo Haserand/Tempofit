@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, X } from 'lucide-react';
+import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, X, LogOut } from 'lucide-react';
 import { genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getRankStyle } from './appConfig';
 
@@ -163,6 +163,26 @@ function AppContent({
   const [expandedDetailGenre, setExpandedDetailGenre] = useState(null);
   const [expandedDetailArtist, setExpandedDetailArtist] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Dropdown utilisateur (Feature UI, 28/07, "Header — menu déroulant avatar")
+  // — état d'ouverture + ref pour la fermeture au clic extérieur (voir le
+  // useEffect dédié plus bas, juste après le bloc de rendu du bouton
+  // avatar). `userMenuRef` pointe sur le CONTENEUR englobant à la fois le
+  // bouton avatar ET le dropdown lui-même — un clic sur le bouton (pour
+  // ouvrir/fermer) ne doit pas être interprété comme un clic "extérieur".
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!isUserMenuOpen) return;
+    const handleClickOutside = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isUserMenuOpen]);
   const [isScrolled, setIsScrolled] = useState(false);
   // Mode clair/sombre — persisté (voir usePersistentState) pour ne pas devoir
   // rebasculer à chaque visite. Toute la palette de couleurs (useTheme.js)
@@ -1276,19 +1296,43 @@ function AppContent({
                 deux coexistent sans problème, l'icône n'a pas le gabarit
                 pour recréer le risque de collision avec le titre de
                 PlaylistHeader.jsx qui avait motivé cette condition à
-                l'origine (voir historique de ce bloc). Le bouton avatar
-                (utilisateur CONNECTÉ, `changeView('settings')`) n'est pas
-                concerné par ce chantier, inchangé. */}
+                l'origine (voir historique de ce bloc).
+                Bouton avatar (utilisateur CONNECTÉ) — Feature UI (28/07,
+                "menu déroulant avatar") : n'appelle plus directement
+                `changeView('settings')` au clic ; ouvre désormais un
+                dropdown (voir `isUserMenuOpen`/`userMenuRef` plus haut)
+                avec l'e-mail du compte + "Se déconnecter". Réglages reste
+                accessible via son propre bouton dans la Sidebar — ce menu-
+                ci n'a pas besoin de dupliquer ce lien. */}
             <div className="absolute top-4 right-4 md:top-6 md:right-8 z-[60] flex items-center gap-2">
               {isSupabaseConfigured && (
                 user ? (
-                  <button
-                    onClick={() => changeView('settings')}
-                    title={user.email}
-                    className="w-11 h-11 rounded-full shadow-lg border hover:scale-110 transition-transform flex items-center justify-center bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-500 border-green-200 dark:border-green-700/50 font-bold"
-                  >
-                    {user.email.charAt(0).toUpperCase()}
-                  </button>
+                  <div ref={userMenuRef} className="relative">
+                    <button
+                      onClick={() => setIsUserMenuOpen((v) => !v)}
+                      title={user.email}
+                      className="w-11 h-11 rounded-full shadow-lg border hover:scale-110 transition-transform flex items-center justify-center bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-500 border-green-200 dark:border-green-700/50 font-bold cursor-pointer"
+                    >
+                      {user.email.charAt(0).toUpperCase()}
+                    </button>
+
+                    {isUserMenuOpen && (
+                      <div className={`absolute right-0 mt-2 w-60 rounded-xl border ${cardBorder} ${cardBg} shadow-xl z-50 overflow-hidden`}>
+                        <div className="px-4 py-3">
+                          <p className={`text-xs ${textMuted}`}>Connecté en tant que</p>
+                          <p className={`text-sm font-bold truncate ${textHighlight}`}>{user.email}</p>
+                        </div>
+                        <div className={`border-t ${cardBorder} my-0`} />
+                        <button
+                          onClick={() => { setIsUserMenuOpen(false); signOut(); }}
+                          className="w-full flex items-center gap-2 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                        >
+                          <LogOut size={16} />
+                          Se déconnecter
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   // Style "ghost" adaptatif : transparent au repos, même
                   // paire de tokens déjà utilisée pour les boutons Thème/
