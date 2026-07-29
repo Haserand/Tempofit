@@ -191,7 +191,7 @@ export default function Sidebar({
           au-dessus dépassait la hauteur disponible. `px-4` (absent de la
           demande initiale mais nécessaire) : remplace le padding horizontal
           qu'apportait jusqu'ici le conteneur unique qu'on scinde ici. */}
-      <div className="flex-1 overflow-y-auto no-scrollbar py-2 px-4">
+      <div className="flex-1 overflow-y-auto no-scrollbar py-4 px-4">
       {isNaughtyMode && (
         <div className={`py-2 border-b ${cardBorder}`}>
           {/* Mêmes classes que les boutons du menu juste en dessous
@@ -272,7 +272,29 @@ export default function Sidebar({
           retour) — sans navigateur réel pour confirmer visuellement dans
           cet environnement, corriger les 2 leviers en même temps limite le
           risque d'un 6e cycle. `mb-6` sur "Nouvelle séance" INCHANGÉ (pas
-          mis en cause par ce retour). */}
+          mis en cause par ce retour).
+          6e passe — SÉPARATEUR physique (28/07, retour direct suivant :
+          "rythme vertical erratique, espaces immenses sous Création") — le
+          VRAI coupable de cet espace "immense" était le `mb-6` isolé sur le
+          bouton "Nouvelle séance" (posé lors de la 4e passe) : retiré,
+          retour à un `space-y-2` uniforme sur TOUS les liens de la section,
+          y compris "Nouvelle séance". `mt-6` de "Mon Espace" retiré à son
+          tour, remplacé par un vrai `<div border-t ... my-5>` entre les 2
+          groupes — une ligne physique plutôt qu'un vide pour marquer la
+          rupture, `border-divider` (micro, pas macro : sépare 2 groupes de
+          liens DANS la même zone scrollable, pas 2 blocs structurels).
+          7e passe — SYMÉTRIE du conteneur PARENT (28/07, retour direct
+          suivant, mesuré précisément cette fois : "l'écart haut/bas de la
+          zone scrollable n'est PAS symétrique, en plus de forcer un
+          scroll") — cause réelle trouvée : le conteneur "Mon Espace"
+          portait un `mb-8` (32px) après "Statistiques", alors que le
+          conteneur scrollable lui-même n'avait que `py-2` (8px) de padding
+          — 8px en haut vs 8+32=40px en bas, jamais symétrique. `mb-8`
+          retiré (dernier enfant, aucune raison de porter sa propre marge
+          de fin) ; `py-2` → `py-4` sur le conteneur scrollable LUI-MÊME,
+          désormais SEULE source de l'espacement haut/bas de cette zone —
+          16px pile des deux côtés, aucun enfant ne vient plus perturber ce
+          calcul. */}
       <nav className="flex flex-col">
 
         {/* --- CRÉATION --- */}
@@ -310,7 +332,7 @@ export default function Sidebar({
         <div className={`border-t ${cardBorder} w-full my-5`}></div>
 
         {/* --- MON ESPACE --- */}
-        <div className="flex flex-col space-y-2 mb-8">
+        <div className="flex flex-col space-y-2">
           <div className={`px-3 mb-4 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Mon Espace{!user && ' • Invité'}</div>
 
           <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
