@@ -272,32 +272,56 @@ export function AuthProvider({ children }) {
     return { data: asObject, error: null };
   };
 
-  // Effacement RGPD (droit à l'oubli, Refactor UI, 28/07) — ⚠️ LIMITE
-  // ASSUMÉE, à traiter avant de considérer ce chantier terminé : ceci
-  // efface TOUTES les lignes `user_data` de l'utilisateur (favoris,
-  // routines, stats, profil athlétique...) puis déconnecte — c'est la
-  // partie réellement possible avec uniquement la clé "anon" (RLS autorise
-  // déjà un utilisateur à supprimer ses propres lignes, voir
-  // supabase-schema.sql). Ça N'EFFACE PAS le compte `auth.users` lui-même
-  // (email, mot de passe) : supprimer une ligne `auth.users` demande la
-  // clé "service_role" (jamais exposée côté client, voir supabaseClient.js)
-  // — en pratique, une Supabase Edge Function dédiée appelant
-  // `supabase.auth.admin.deleteUser(userId)`, qui N'EXISTE PAS ENCORE dans
-  // ce projet. Tant que cette fonction serveur n'est pas créée, ce bouton
-  // n'offre qu'un "effacement des données", pas une vraie suppression de
-  // compte au sens RGPD strict (l'email resterait enregistré et
-  // réutilisable pour se reconnecter) — SettingsView.jsx doit rester
-  // honnête là-dessus dans son wording, pas prétendre l'inverse.
-  const eraseUserData = async () => {
+  // Suppression RÉELLE du compte (Edge Function, 29/07 — chantier en
+  // suspens depuis la passation du 28/07, "vraie suppression de compte").
+  // Remplace `eraseUserData`, qui n'effaçait que les lignes `user_data`
+  // (favoris, routines, stats...) mais jamais le compte `auth.users`
+  // lui-même — limite assumée à l'époque, documentée honnêtement dans
+  // SettingsView.jsx ("Effacer mes données" plutôt que "Supprimer mon
+  // compte"). Cette limite n'existe plus : appelle la Supabase Edge
+  // Function `delete-account` (voir supabase/functions/delete-account/
+  // index.ts), seule capable d'utiliser la clé "service_role" nécessaire à
+  // `auth.admin.deleteUser` — jamais possible depuis ce client avec la
+  // seule clé "anon" (voir supabaseClient.js).
+  // Cascade AUTOMATIQUE côté Postgres, rien à faire ici en plus :
+  // `user_data.user_id` ET `profiles.user_id` référencent déjà
+  // `auth.users(id) on delete cascade` (voir supabase-schema.sql) — les
+  // données synchronisées ET le pseudonyme disparaissent d'eux-mêmes dès
+  // que la fonction supprime la ligne `auth.users`.
+  const deleteAccount = async () => {
     if (!isSupabaseConfigured || !user) return { error: "Non connecté." };
-    const { error } = await supabase.from('user_data').delete().eq('user_id', user.id);
-    if (error) return { error: error.message };
+
+    const { data, error } = await supabase.functions.invoke('delete-account');
+
+    if (error) {
+      // Piège connu de supabase-js v2 : sur une réponse HTTP non-2xx,
+      // `error.message` reste un message générique du SDK ("Edge Function
+      // returned a non-2xx status code"), PAS le message JSON réellement
+      // renvoyé par notre fonction (`{ error: "..." }`, voir index.ts) — ce
+      // vrai message vit dans `error.context`, la Response brute, qu'il
+      // faut relire nous-mêmes. Repli sur le message générique si cette
+      // relecture échoue (ex. la fonction n'est pas encore déployée, la
+      // réponse n'est peut-être même pas du JSON).
+      try {
+        const body = await error.context.json();
+        return { error: body?.error || error.message };
+      } catch {
+        return { error: error.message || "La suppression du compte a échoué." };
+      }
+    }
+    if (data?.error) return { error: data.error };
+
+    // La fonction a réellement supprimé `auth.users` côté serveur, mais le
+    // token JWT encore détenu par ce navigateur reste techniquement valide
+    // jusqu'à son expiration naturelle tant qu'on ne déconnecte pas
+    // explicitement ici — `signOut()` invalide la session locale tout de
+    // suite, pas d'attente du prochain refresh pour que l'app réagisse.
     await signOut();
     return { error: null };
   };
 
   return (
-    <AuthContext.Provider value={{ user, authLoading, signUp, signIn, signOut, resetPassword, updateEmail, updatePassword, exportUserData, eraseUserData, isSupabaseConfigured, userCount, username, usernameLoading, checkUsernameAvailable, setUsername }}>
+    <AuthContext.Provider value={{ user, authLoading, signUp, signIn, signOut, resetPassword, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, userCount, username, usernameLoading, checkUsernameAvailable, setUsername }}>
       {children}
     </AuthContext.Provider>
   );
@@ -316,7 +340,7 @@ const FALLBACK = {
   updateEmail: async () => ({ error: "AuthProvider manquant." }),
   updatePassword: async () => ({ error: "AuthProvider manquant." }),
   exportUserData: async () => ({ data: null, error: "AuthProvider manquant." }),
-  eraseUserData: async () => ({ error: "AuthProvider manquant." }),
+  deleteAccount: async () => ({ error: "AuthProvider manquant." }),
   checkUsernameAvailable: async () => ({ available: false, error: "AuthProvider manquant." }),
   setUsername: async () => ({ error: "AuthProvider manquant." }),
 };
