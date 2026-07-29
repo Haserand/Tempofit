@@ -200,7 +200,7 @@ export default function Sidebar({
               plutôt qu'un style à part. */}
           <button
             onClick={toggleNaughtyMode}
-            className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer text-rose-500 hover:bg-rose-500/10"
+            className="w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer text-rose-500 hover:bg-rose-500/10"
           >
             <Heart size={18} className="fill-rose-500" />
             <span className="font-bold text-sm">Quitter le Mode Intime</span>
@@ -247,24 +247,46 @@ export default function Sidebar({
           → `space-y-2`, en-têtes `mb-1.5` → `mb-3`. "Mon Espace" `mt-4`
           délibérément PAS remonté à `mt-6` (pas demandé cette fois, et la
           fusion du footer a changé l'équation de hauteur disponible —
-          inutile de redonner tout ce qu'avait pris la 2e passe). */}
+          inutile de redonner tout ce qu'avait pris la 2e passe).
+          4e passe — DISTRIBUTION VERTICALE finale (28/07, retour direct
+          suivant : "le menu paraît tassé en haut" après la refonte du
+          footer Réglages/crédit qui a libéré ENCORE plus de hauteur
+          scrollable) — `py-2.5` → `py-3` PARTOUT (liens de nav, PAS le
+          bouton Réglages du footer : lui reste `py-1.5`, toujours contraint
+          par une hauteur stricte, voir plus bas) ; en-têtes `mb-3` →
+          `mb-4` ; "Mon Espace" `mt-4` → `mt-12` CETTE FOIS (demande
+          explicite de "cassure visuelle évidente" entre Création et Mon
+          Espace, contrairement aux 2 passes précédentes qui l'avaient
+          délibérément laissé bas) ; `mb-6` ajouté DIRECTEMENT sur le bouton
+          "Nouvelle séance" (en plus du `space-y-2` du conteneur, qui régit
+          l'écart uniforme entre TOUS les autres liens) pour l'isoler
+          spécifiquement des liens secondaires qui le suivent, sans élargir
+          l'écart Mes Routines↔Découvrir. */}
       <nav className="flex flex-col">
 
         {/* --- CRÉATION --- */}
         <div className="flex flex-col space-y-2">
-          <div className={`px-3 mb-3 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Création</div>
+          <div className={`px-3 mb-4 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Création</div>
 
-          <button onClick={() => changeView('generator')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          {/* Fix UI (28/07, "distribution verticale") — `mb-6` ajouté ICI,
+              en plus du `space-y-2` déjà porté par le conteneur (qui, lui,
+              régit l'écart UNIFORME entre tous les liens de cette section) :
+              seul l'écart APRÈS ce bouton précis doit être plus large, pour
+              isoler le CTA principal ("Nouvelle séance") des liens
+              secondaires ("Mes Routines"/"Découvrir") qui le suivent — pas
+              question d'agrandir `space-y-2` globalement, ce qui aurait
+              aussi élargi l'écart Mes Routines↔Découvrir, non voulu ici. */}
+          <button onClick={() => changeView('generator')} className={`w-full mb-6 flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Zap size={18} className={view === 'generator' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Nouvelle séance</span>
           </button>
 
-          <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <ListPlus size={18} className={view === 'routines' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Mes Routines</span>
           </button>
 
-          <button onClick={() => changeView('discover')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'discover' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('discover')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'discover' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Compass size={18} className={view === 'discover' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Découvrir</span>
           </button>
@@ -272,19 +294,19 @@ export default function Sidebar({
 
         {/* --- MON ESPACE --- */}
         <div className="flex flex-col space-y-2 mb-8">
-          <div className={`px-3 mt-4 mb-3 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Mon Espace{!user && ' • Invité'}</div>
+          <div className={`px-3 mt-12 mb-4 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Mon Espace{!user && ' • Invité'}</div>
 
-          <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <List size={18} className={view === 'playlists' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Mes Séances</span>
           </button>
 
-          <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Star size={18} className={favorites.useFavorites && favorites.artists.length > 0 ? "text-yellow-500 fill-yellow-500/20" : (view === 'favorites' ? 'text-white' : '')} />
             <span className="font-bold text-sm">Mes Favoris</span>
           </button>
 
-          <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Activity size={18} className={view === 'stats' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Statistiques</span>
           </button>
