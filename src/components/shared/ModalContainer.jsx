@@ -26,7 +26,7 @@ import PendingUnsaveModal from '../modals/PendingUnsaveModal';
  * sans rapport avec ce chantier.
  */
 export default function ModalContainer({
-  theme, signUp, signIn, resetPassword, showToast,
+  theme, signUp, signIn, resetPassword, checkUsernameAvailable, showToast,
   onImportSharedPlaylist, resolvePendingNavigation, removeSavedPlaylist,
 }) {
   const { activeModal, modalData, closeModal } = useModalContext();
@@ -36,7 +36,7 @@ export default function ModalContainer({
       <AuthModal
         theme={theme}
         isAuthModalOpen={activeModal === 'AUTH'} onClose={closeModal}
-        signUp={signUp} signIn={signIn} resetPassword={resetPassword} showToast={showToast}
+        signUp={signUp} signIn={signIn} resetPassword={resetPassword} checkUsernameAvailable={checkUsernameAvailable} showToast={showToast}
       />
 
       <ImportSharedPlaylistModal
