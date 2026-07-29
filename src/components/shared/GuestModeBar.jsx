@@ -27,24 +27,46 @@ import { UserPlus } from 'lucide-react';
  * Reste pleine largeur sur MOBILE (`left-0`, pas de `md:` sur cette valeur) :
  * la Sidebar y est hors-écran par défaut (`-translate-x-full`, sauf menu
  * ouvert), donc rien à respecter à cette largeur.
+ *
+ * ── Renforcement du CTA (27/07, "le bouton haut-droit étant désormais
+ * masqué quand cette barre est visible, elle doit assumer seule la
+ * conversion") ─────────────────────────────────────────────────────────
+ * Hauteur 40px → 64px, message et bouton empilés sur 2 lignes plutôt que
+ * sur une seule (`flex flex-col` au lieu de l'ancien `flex-1` inline).
+ * Couleurs : le brief d'origine demandait `text-white`/`text-red-500` en
+ * dur, mais ce fond (`cardBg`) est ADAPTATIF clair/sombre (voir
+ * useTheme.js/index.css) — du texte blanc fixe y serait invisible en thème
+ * clair (même classe de bug que FavoritesView.jsx, déjà corrigée une fois
+ * cette semaine). Remplacé par l'équivalent sémantique déjà utilisé
+ * ailleurs pour ce même effet "texte proéminent" : `textHighlight` (message,
+ * au lieu du `textMuted` plus discret d'avant) et `textColorClass` (bouton
+ * — déjà l'accent rouge/rose adaptatif Mode Standard/Intime, inchangé dans
+ * sa couleur de base, juste plus gras et sans `underline`, sur sa propre
+ * ligne). Survol du bouton en `hover:opacity-80` plutôt qu'un
+ * `hover:text-red-400` fixe — un rouge fixe détonnerait en Mode Intime
+ * (accent rose, pas rouge) : `opacity` reste dans la même famille de
+ * couleur quel que soit le mode.
  */
 export default function GuestModeBar({ theme, isVisible, openModal }) {
-  const { cardBg, cardBorderStrong, textMuted, textColorClass } = theme;
+  const { cardBg, cardBorderStrong, textHighlight, textColorClass } = theme;
 
   if (!isVisible) return null;
 
   return (
-    // h-[40px] : DOIT rester une classe Tailwind écrite en toutes lettres
+    // h-[64px] : DOIT rester une classe Tailwind écrite en toutes lettres
     // (voir bottomBarLayout.js pour pourquoi) — si cette hauteur change,
     // reporter la même valeur dans GUEST_MODE_BAR_HEIGHT_PX (bottomBarLayout.js).
-    <div className={`h-[40px] border-t-2 ${cardBorderStrong} ${cardBg} flex items-center`}>
-      <div className="flex-1 px-4 text-center">
-        <p className={`text-xs ${textMuted}`}>
-          Mode invité — données sauvegardées uniquement sur cet appareil.{' '}
-          <button onClick={() => openModal('AUTH')} className={`inline-flex items-center gap-1 font-bold underline ${textColorClass}`}>
-            <UserPlus size={11} /> Créer un compte
-          </button>
-        </p>
+    <div className={`h-[64px] border-t-2 ${cardBorderStrong} ${cardBg} flex items-center`}>
+      <div className="flex-1 px-4 flex flex-col items-center justify-center h-full gap-1">
+        <span className={`text-sm font-medium ${textHighlight}`}>
+          Mode invité — données sauvegardées uniquement sur cet appareil.
+        </span>
+        <button
+          onClick={() => openModal('AUTH')}
+          className={`text-sm font-bold ${textColorClass} hover:opacity-80 flex items-center gap-2 transition-colors`}
+        >
+          <UserPlus size={14} /> Créer un compte
+        </button>
       </div>
     </div>
   );
