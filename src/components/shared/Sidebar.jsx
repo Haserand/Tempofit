@@ -294,7 +294,16 @@ export default function Sidebar({
           de fin) ; `py-2` → `py-4` sur le conteneur scrollable LUI-MÊME,
           désormais SEULE source de l'espacement haut/bas de cette zone —
           16px pile des deux côtés, aucun enfant ne vient plus perturber ce
-          calcul. */}
+          calcul.
+          8e passe — VÉRIFICATION + ajustement fin (28/07, retour direct
+          suivant : "écart Création↔bouton toujours plus grand qu'Mon
+          Espace↔Mes Séances") — vérifié précisément avant de toucher quoi
+          que ce soit (voir passes 6/7 ci-dessus) : les 2 titres étaient
+          DÉJÀ à `mb-4` symétrique, sans AUCUN `mt-*`, et "Nouvelle séance"
+          n'avait AUCUNE marge propre — rien à corriger sur ces 3 points
+          précis, déjà réglés par les passes précédentes. Seul le
+          séparateur central ajusté : `my-5` → `my-6` (24px), pour mieux
+          occuper l'espace vertical disponible, comme suggéré. */}
       <nav className="flex flex-col">
 
         {/* --- CRÉATION --- */}
@@ -321,7 +330,7 @@ export default function Sidebar({
             vertical") — remplace la marge géante (`mt-6`/`mt-8`, avant sur
             l'en-tête de "Mon Espace") par une VRAIE ligne de démarcation
             entre les 2 univers ("Création" et "Mon Espace"), avec une marge
-            modérée qui porte l'espacement à elle seule (`my-5` = 20px de
+            modérée qui porte l'espacement à elle seule (`my-6` = 24px de
             chaque côté). `border-divider` (micro, 1px, ${'${cardBorder}'})
             plutôt que `border-divider-strong` : cette ligne sépare 2
             GROUPES DE LIENS à l'intérieur de la même zone scrollable, pas 2
@@ -329,7 +338,7 @@ export default function Sidebar({
             eux utilisent la bordure macro 2px — voir plus haut/plus bas
             dans ce fichier) — same distinction que cardBorder/
             cardBorderStrong partout ailleurs dans l'app (voir useTheme.js). */}
-        <div className={`border-t ${cardBorder} w-full my-5`}></div>
+        <div className={`border-t ${cardBorder} w-full my-6`}></div>
 
         {/* --- MON ESPACE --- */}
         <div className="flex flex-col space-y-2">
