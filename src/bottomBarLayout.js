@@ -34,4 +34,4 @@
  * respecter si l'une des deux valeurs change un jour.
  */
 export const MINI_PLAYER_BAR_HEIGHT_PX = 90; // doit rester égal à `h-[90px]` dans MiniPlayerBar.jsx
-export const GUEST_MODE_BAR_HEIGHT_PX = 40;  // doit rester égal à `h-[40px]` dans GuestModeBar.jsx
+export const GUEST_MODE_BAR_HEIGHT_PX = 64;  // doit rester égal à `h-[64px]` dans GuestModeBar.jsx
