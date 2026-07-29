@@ -8,37 +8,40 @@ import { useGeneratorContext } from '../../contexts/GeneratorContext';
  * AthleticProfilePanel — page "Mon Profil Athlétique" (BPM cibles par zone
  * d'effort, par activité).
  *
- * Extraite de GeneratorView.jsx (25/07, chantier "séparer le générateur en
- * 2 composants" — retour direct : "un intérêt à séparer la génération de
- * base et le profil athlétique ?"). Avant extraction, GeneratorView.jsx
- * faisait 1572 lignes, dont une SEULE ligne (`{showAthleticProfile ? (...)
- * : (...)}`) séparait deux blocs quasi totalement indépendants — vérifié
- * précisément avant de couper (chaque variable locale et chaque champ de
- * useGeneratorContext() croisé par grep entre les deux branches) : AUCUNE
- * variable locale n'était partagée entre Profil Athlétique et le wizard de
- * génération, seul `theme` et quelques champs de contexte génériques
- * (`athleticProfile`, `buildDefaultPreviewProfile`, `setShowAthleticProfile`)
- * sont utilisés des deux côtés — chacun via son PROPRE appel à
- * `useGeneratorContext()`, pas une prop reçue de l'autre.
+ * Extraite à l'origine de GeneratorView.jsx (25/07, chantier "séparer le
+ * générateur en 2 composants"), puis RELOCALISÉE vers SettingsView.jsx en
+ * tant qu'onglet (28/07, Refactor UX/UI "Réglages à onglets" — voir la
+ * docstring de SettingsView.jsx pour l'historique complet des 2
+ * déménagements). Ce composant-ci n'a pas changé de forme pour autant :
+ * toujours aucune variable locale partagée avec le wizard de génération,
+ * seul `theme` et quelques champs génériques de `useGeneratorContext()`
+ * (`athleticProfile`, `buildDefaultPreviewProfile`...) sont utilisés des
+ * deux côtés — chacun via son PROPRE appel à `useGeneratorContext()`, pas
+ * une prop reçue de l'autre.
  *
- * `theme` et `showToast` restent des props explicites (hors du périmètre de
- * GeneratorContext, comme dans GeneratorView.jsx d'origine) — tout le reste
- * du state (activité sélectionnée, brouillon de BPM, etc.) est LOCAL à ce
- * composant, comme il l'était déjà dans GeneratorView.jsx avant l'extraction.
+ * `theme`/`showToast` restent des props explicites (hors du périmètre de
+ * GeneratorContext) — tout le reste du state (activité sélectionnée,
+ * brouillon de BPM, etc.) est LOCAL à ce composant.
  *
- * `return !isNaughtyMode && (...)` : reprend telle quelle la garde d'origine
- * (Profil Athlétique n'a aucun sens en Mode Intime — voir App.jsx, le filet
- * de sécurité qui referme ce panneau automatiquement au moment de basculer
- * en Mode Intime si jamais on y était déjà).
+ * `changeView` (nouvelle prop, 28/07) : REMPLACE l'ancien
+ * `setShowAthleticProfile(false)` du bouton final — "terminer" ce panneau
+ * ne veut plus dire "fermer un panneau local dans GeneratorView", mais
+ * "naviguer vers la vraie vue 'generator'", puisque ce panneau vit
+ * maintenant dans une vue entièrement différente ('settings').
+ *
+ * `return !isNaughtyMode && (...)` : garde interne (Profil Athlétique n'a
+ * aucun sens en Mode Intime) — défense en profondeur, en plus du garde-fou
+ * qui masque/rebascule déjà l'onglet correspondant dans SettingsView.jsx ;
+ * ce composant ne devrait normalement jamais être monté du tout en Mode
+ * Intime, mais reste sûr même si jamais il l'était.
  */
-export default function AthleticProfilePanel({ theme, showToast }) {
+export default function AthleticProfilePanel({ theme, showToast, changeView }) {
   const {
     isNaughtyMode,
     athleticProfile, setBaseBpmForActivity, setZoneForActivity, resetActivityProfile,
     addCustomActivity, removeCustomActivity, setBaseBpmForCustom, setZoneForCustom,
     getDefaultBaseBpm, buildDefaultPreviewProfile, getZoneSpacingForActivity,
     setCadenceIntentForActivity, setCadenceIntentForCustom, isCadenceIntentEligible,
-    setShowAthleticProfile,
   } = useGeneratorContext();
   const {
     cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass,
@@ -599,7 +602,7 @@ export default function AthleticProfilePanel({ theme, showToast }) {
                 `||`) — le libellé redevient simplement "Générer une
                 playlist →", exact dans ce cas. */}
             <button
-              onClick={() => { if (activeProfile?.isConfigured || computeAndApplyZones()) setShowAthleticProfile(false); }}
+              onClick={() => { if (activeProfile?.isConfigured || computeAndApplyZones()) changeView('generator'); }}
               className={`w-full mt-4 px-4 py-3 rounded-xl font-bold text-sm text-white ${bgAccentClass} hover:brightness-110`}
             >
               {activeProfile?.isConfigured ? 'Générer une playlist →' : 'Enregistrer mon profil et générer →'}
