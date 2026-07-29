@@ -1,4 +1,4 @@
-import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, ListPlus, Compass, Gauge, Sun, Moon } from 'lucide-react';
+import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, ListPlus, Compass, Sun, Moon } from 'lucide-react';
 import { MINI_PLAYER_BAR_HEIGHT_PX, GUEST_MODE_BAR_HEIGHT_PX } from '../../bottomBarLayout';
 
 /**
@@ -53,7 +53,6 @@ export default function Sidebar({
   cardBorder, cardBorderStrong, bgAccentClass, isNaughtyMode, textHighlight, textColorClass, textMuted,
   isMobileMenuOpen, setIsMobileMenuOpen,
   changeView, view,
-  showAthleticProfile, setShowAthleticProfile,
   favorites,
   user, userStats,
   guestBarVisible, playerBarVisible,
@@ -115,13 +114,9 @@ export default function Sidebar({
   return (
     <aside className={`fixed inset-y-0 left-0 z-50 w-64 h-full bg-surface border-r-2 ${cardBorderStrong} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${bottomBarPadding} md:pb-0`}>
       <div className={`p-6 mb-2 border-b-2 ${cardBorderStrong} flex items-center justify-between shrink-0`}>
-         {/* Logo cliquable = retour à l'accueil ("Nouvelle séance") — referme
-             aussi le Profil Athlétique s'il était ouvert (comportement
-             identique au bouton "Nouvelle séance" ci-dessous, pour que le
-             logo ne soit pas un raccourci à moitié fonctionnel qui laisserait
-             le Profil Athlétique affiché malgré `view === 'generator'`). */}
+         {/* Logo cliquable = retour à l'accueil ("Nouvelle séance"). */}
          <button
-           onClick={() => { changeView('generator'); setShowAthleticProfile(false); }}
+           onClick={() => changeView('generator')}
            title="Retour à l'accueil"
            className="flex items-center space-x-3 cursor-pointer"
          >
@@ -257,8 +252,8 @@ export default function Sidebar({
         <div className="flex flex-col space-y-1">
           <div className={`px-3 mb-1.5 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Création</div>
 
-          <button onClick={() => { changeView('generator'); setShowAthleticProfile(false); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' && !showAthleticProfile ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
-            <Zap size={18} className={view === 'generator' && !showAthleticProfile ? 'text-white' : textColorClass} />
+          <button onClick={() => changeView('generator')} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+            <Zap size={18} className={view === 'generator' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Nouvelle séance</span>
           </button>
 
@@ -324,27 +319,23 @@ export default function Sidebar({
                16px de bordure à texte en haut ; `pt-4` = 16px reproduit
                exactement ce total ici, pas une valeur approchante). */}
         <div className={`flex flex-col space-y-1 pt-4 px-4 border-t-2 ${cardBorderStrong}`}>
-          <div className={`px-3 mb-3 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Réglages</div>
-
-          {/* Masqué en Mode Intime (retour direct : "n'a aucun sens
-              fonctionnel dans ce mode et affiche une page vide") — le Profil
-              Athlétique configure des zones de BPM par activité SPORTIVE
-              (Course à pied/Cyclisme/Musculation), un concept sans équivalent
-              en Mode Intime (workoutType y est toujours "Ambiance", jamais
-              une vraie activité — voir PlaylistDetailContext.jsx/appConfig.js).
-              Voir aussi useNavigation.js pour le filet de sécurité qui
-              referme ce panneau automatiquement si l'utilisateur bascule en
-              Mode Intime pendant qu'il y est. */}
-          {!isNaughtyMode && (
-            <button onClick={() => { changeView('generator'); setShowAthleticProfile(true); }} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' && showAthleticProfile ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
-              <Gauge size={18} className={view === 'generator' && showAthleticProfile ? 'text-white' : textColorClass} />
-              <span className="font-bold text-sm">Profil Athlétique</span>
-            </button>
-          )}
-
+          {/* Refactor UX/UI (28/07, "Réglages à onglets") — les 2 boutons
+              "Profil Athlétique"/"Options & Comptes" fusionnent en un seul
+              point d'entrée, menant vers SettingsView.jsx ('settings'), qui
+              gère désormais lui-même la bascule entre les 2 via des onglets
+              horizontaux (voir ce fichier). Le titre de catégorie "RÉGLAGES"
+              disparaît avec : un unique bouton ne forme plus une vraie
+              "section" à étiqueter, contrairement à Création/Mon Espace.
+              Plus de garde `!isNaughtyMode` ICI (l'ancien bouton "Profil
+              Athlétique" dédié était masqué en Mode Intime, voir historique
+              — le concept de zones de BPM par activité SPORTIVE n'a pas de
+              sens dans ce mode) : ce garde-fou est réimplémenté PLUS FINEMENT
+              à l'intérieur de SettingsView.jsx, sur l'onglet lui-même
+              seulement — "Comptes & Synchronisation" reste pertinent en
+              Mode Intime, donc CE point d'entrée-ci doit rester visible. */}
           <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-colors select-none cursor-pointer ${view === 'settings' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Settings size={18} className={view === 'settings' ? 'text-white' : textColorClass} />
-            <span className="font-bold text-sm">Options & Comptes</span>
+            <span className="font-bold text-sm">Réglages</span>
           </button>
         </div>
 
