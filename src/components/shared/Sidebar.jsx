@@ -332,7 +332,15 @@ export default function Sidebar({
             rel="noopener noreferrer"
             className={`text-xs font-medium truncate ${textMuted} hover:text-main transition-colors`}
           >
-            Un projet créé par <span className="font-bold underline">Damien Grangé</span>
+            {/* Signature mise en valeur (27/07) — `textHighlight` (déjà
+                utilisé plus haut pour le logo "TempoFit") au lieu du
+                `text-white` en dur demandé initialement : ce fond
+                (cardBg) est adaptatif clair/sombre, un blanc fixe serait
+                illisible en thème clair. `textHighlight` produit le même
+                effet "texte proéminent" dans les deux thèmes. `underline`
+                retiré (l'emphase vient maintenant du contraste + gras,
+                plus de l'underline). */}
+            Un projet créé par <span className={`font-bold ${textHighlight}`}>Damien Grangé</span>
           </a>
         </div>
       </div>
