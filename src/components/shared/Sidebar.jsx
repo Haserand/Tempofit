@@ -279,15 +279,7 @@ export default function Sidebar({
         <div className="flex flex-col space-y-2">
           <div className={`px-3 mb-4 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Création</div>
 
-          {/* Fix UI (28/07, "distribution verticale") — `mb-6` ajouté ICI,
-              en plus du `space-y-2` déjà porté par le conteneur (qui, lui,
-              régit l'écart UNIFORME entre tous les liens de cette section) :
-              seul l'écart APRÈS ce bouton précis doit être plus large, pour
-              isoler le CTA principal ("Nouvelle séance") des liens
-              secondaires ("Mes Routines"/"Découvrir") qui le suivent — pas
-              question d'agrandir `space-y-2` globalement, ce qui aurait
-              aussi élargi l'écart Mes Routines↔Découvrir, non voulu ici. */}
-          <button onClick={() => changeView('generator')} className={`w-full mb-6 flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('generator')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Zap size={18} className={view === 'generator' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Nouvelle séance</span>
           </button>
@@ -303,9 +295,23 @@ export default function Sidebar({
           </button>
         </div>
 
+        {/* Séparateur physique (28/07, "Polish UI — normalisation du rythme
+            vertical") — remplace la marge géante (`mt-6`/`mt-8`, avant sur
+            l'en-tête de "Mon Espace") par une VRAIE ligne de démarcation
+            entre les 2 univers ("Création" et "Mon Espace"), avec une marge
+            modérée qui porte l'espacement à elle seule (`my-5` = 20px de
+            chaque côté). `border-divider` (micro, 1px, ${'${cardBorder}'})
+            plutôt que `border-divider-strong` : cette ligne sépare 2
+            GROUPES DE LIENS à l'intérieur de la même zone scrollable, pas 2
+            BLOCS structurels de la Sidebar (header/scrollable/footer, qui
+            eux utilisent la bordure macro 2px — voir plus haut/plus bas
+            dans ce fichier) — same distinction que cardBorder/
+            cardBorderStrong partout ailleurs dans l'app (voir useTheme.js). */}
+        <div className={`border-t ${cardBorder} w-full my-5`}></div>
+
         {/* --- MON ESPACE --- */}
         <div className="flex flex-col space-y-2 mb-8">
-          <div className={`px-3 mt-6 mb-4 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Mon Espace{!user && ' • Invité'}</div>
+          <div className={`px-3 mb-4 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Mon Espace{!user && ' • Invité'}</div>
 
           <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <List size={18} className={view === 'playlists' ? 'text-white' : textColorClass} />
