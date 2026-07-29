@@ -185,6 +185,29 @@ function AppContent({
     }
   };
 
+  // Fix UI/Tech (28/07, "comportement Native App — anti-flash blanc au
+  // rubber-banding") — les classes `.dark`/`.naughty` qui pilotent les
+  // variables CSS de thème (`--color-base`, etc. — voir index.css) ne
+  // vivaient JUSQU'ICI que sur la <div> racine du JSX (voir plus bas dans ce
+  // fichier), qui est déjà À L'INTÉRIEUR de <body>. Poser une règle
+  // `background: rgb(var(--color-base))` directement sur <html>/<body>
+  // (pour éviter le flash blanc natif au survol/dépassement du scroll,
+  // "overscroll-behavior") aurait donc TOUJOURS résolu la valeur CLAIRE
+  // par défaut de `:root`, jamais celle du mode sombre/Intime réellement
+  // actif — <html>/<body> étant des ANCÊTRES de cette div, pas des
+  // descendants, ils ne voient jamais ses classes. Ce useEffect reproduit
+  // les 2 mêmes classes sur `document.documentElement` (la vraie racine du
+  // document), en plus de la div existante (pas à la place — rien d'autre
+  // ne dépend de cette dernière, aucune raison de la retirer) : les
+  // variables CSS sont désormais aussi bien scopées à la racine réelle du
+  // document, donc `html, body { background: rgb(var(--color-base)) }`
+  // (index.css) résout enfin la BONNE couleur, quel que soit le thème.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle('dark', theme === 'dark');
+    root.classList.toggle('naughty', isNaughtyMode);
+  }, [theme, isNaughtyMode]);
+
   /**
    * "Moteur de vérité BPM" : détermine le BPM réel (et l'extrait audio, si dispo)
    * d'un morceau externe (ex. un titre liké sur Spotify dont on ne connaît pas
@@ -1112,7 +1135,15 @@ function AppContent({
 
   return (
     <div className={`${theme === 'dark' ? 'dark' : ''} ${isNaughtyMode ? 'naughty' : ''}`}>
-      <div className={`flex h-screen overflow-hidden ${bgMainApp} ${textMain} font-sans selection:bg-${themeColor}-500 selection:text-white transition-colors duration-500 relative`}>
+      {/* `h-screen overflow-hidden` déjà en place avant ce chantier (layout
+          Dashboard, 27/07) — le <body> ne scrolle donc déjà jamais, seules
+          les zones internes le font (`overflow-y-auto` sur `<main>`, voir
+          plus bas). `w-screen` ajouté ici en plus (28/07, conformité brief
+          "Native App") — redondant dans la plupart des cas (ce <div> de
+          bloc prend déjà 100% de la largeur de son parent par défaut, et
+          <body> couvre déjà toute la largeur de la fenêtre), mais explicite
+          plutôt qu'implicite, et sans risque. */}
+      <div className={`flex h-screen w-screen overflow-hidden ${bgMainApp} ${textMain} font-sans selection:bg-${themeColor}-500 selection:text-white transition-colors duration-500 relative`}>
 
         {/* Toast de notification global : style et icône dépendent de toast.variant
             ('default' = neutre, 'special' = trophée débloqué UNIQUEMENT, 'ambiance' =
