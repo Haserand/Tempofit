@@ -200,12 +200,12 @@ export default function Sidebar({
       {isNaughtyMode && (
         <div className={`py-2 border-b ${cardBorder}`}>
           {/* Mêmes classes que les boutons du menu juste en dessous
-              (`px-3 py-3`, icône 18px, `text-sm font-bold`) — retour direct :
+              (`px-3 py-2.5`, icône 18px, `text-sm font-bold`) — retour direct :
               "démarrer au même point horizontal, même taille de police" —
               plutôt qu'un style à part. */}
           <button
             onClick={toggleNaughtyMode}
-            className="w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer text-rose-500 hover:bg-rose-500/10"
+            className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer text-rose-500 hover:bg-rose-500/10"
           >
             <Heart size={18} className="fill-rose-500" />
             <span className="font-bold text-sm">Quitter le Mode Intime</span>
@@ -230,28 +230,36 @@ export default function Sidebar({
           font-bold`, ${'${textMuted}'} — PAS de slate-500/400 codé en dur :
           textMuted est le token déjà adaptatif clair/sombre ET Mode Intime,
           voir useTheme.js, un hardcode perdrait ce dernier réglage) +
-          respiration `mt-8` portée par l'en-tête de CHAQUE section (sauf la
-          toute première, "Création", qui n'a rien à repousser) plutôt que
-          `mb-8` sur le conteneur précédent comme avant — un seul et même
-          nombre (32px) porté par le bon élément à chaque fois, jamais
-          additionné deux fois entre deux sections. */}
+          respiration portée par l'en-tête de "Mon Espace" (`mt-6` — voir
+          plus bas), plutôt que `mb-8` sur le conteneur "Création" précédent
+          comme avant, pour ne jamais l'additionner deux fois entre les 2
+          sections.
+          Densité verticale resserrée (28/07, retour direct : "Mes Favoris
+          passe sous la ligne de flottaison à 100% de zoom") — seulement
+          dans CETTE zone SCROLLABLE (Création + Mon Espace + le toggle
+          Mode Intime juste au-dessus) : boutons `py-3` → `py-2.5`,
+          "Mon Espace" `mt-8` → `mt-6`. Le footer RÉGLAGES (plus bas,
+          conteneur `shrink-0` séparé) n'entre PAS dans ce budget de hauteur
+          — volontairement pas touché ici, sous peine de redéfaire la
+          symétrie haut/bas déjà réglée au pixel près (chantier Boy Scout,
+          même journée). */}
       <nav className="flex flex-col">
 
         {/* --- CRÉATION --- */}
         <div className="flex flex-col space-y-1">
           <div className={`px-3 mb-3 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Création</div>
 
-          <button onClick={() => { changeView('generator'); setShowAthleticProfile(false); }} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' && !showAthleticProfile ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => { changeView('generator'); setShowAthleticProfile(false); }} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' && !showAthleticProfile ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Zap size={18} className={view === 'generator' && !showAthleticProfile ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Nouvelle séance</span>
           </button>
 
-          <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <ListPlus size={18} className={view === 'routines' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Mes Routines</span>
           </button>
 
-          <button onClick={() => changeView('discover')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'discover' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('discover')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'discover' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Compass size={18} className={view === 'discover' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Découvrir</span>
           </button>
@@ -259,19 +267,19 @@ export default function Sidebar({
 
         {/* --- MON ESPACE --- */}
         <div className="flex flex-col space-y-1 mb-8">
-          <div className={`px-3 mt-8 mb-3 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Mon Espace{!user && ' • Invité'}</div>
+          <div className={`px-3 mt-6 mb-3 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Mon Espace{!user && ' • Invité'}</div>
 
-          <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <List size={18} className={view === 'playlists' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Mes Séances</span>
           </button>
 
-          <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Star size={18} className={favorites.useFavorites && favorites.artists.length > 0 ? "text-yellow-500 fill-yellow-500/20" : (view === 'favorites' ? 'text-white' : '')} />
             <span className="font-bold text-sm">Mes Favoris</span>
           </button>
 
-          <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Activity size={18} className={view === 'stats' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Statistiques</span>
           </button>
