@@ -57,6 +57,25 @@
   scrollbar-width: none;
 }
 
+/* Fix UI/Tech (28/07, "comportement Native App") — désactive le rebond
+   élastique du navigateur (rubber-banding/overscroll) qui laissait
+   apparaître un vide au-delà des bords de la fenêtre pendant un défilement
+   forcé (trackpad), et synchronise le fond de html/body sur la couleur de
+   fond PRINCIPALE actuelle du thème (`--color-base`, la même variable que
+   `bg-base` — voir useTheme.js `bgMainApp`/tailwind.config.js), pour que ce
+   vide, s'il apparaissait malgré tout (ex. navigateur ne supportant pas
+   `overscroll-behavior`), ne soit jamais un blanc natif qui détonne avec
+   l'appli. Résout correctement clair/sombre/Mode Intime : voir le
+   useEffect dédié dans App.jsx qui reproduit les classes `.dark`/`.naughty`
+   sur `document.documentElement` — SANS lui, cette règle ici résoudrait
+   TOUJOURS la valeur claire par défaut de `:root`, `html`/`body` étant des
+   ANCÊTRES de la <div> qui portait jusqu'ici seule ces classes, jamais des
+   descendants. */
+html, body {
+  overscroll-behavior: none;
+  background-color: rgb(var(--color-base));
+}
+
 /* Règle globale (retour utilisateur) : le texte à l'intérieur d'un <button>
    reste sélectionnable comme du texte normal par défaut, donc le curseur
    affiche un I-beam (texte éditable) au survol du LABEL lui-même — trompeur,
