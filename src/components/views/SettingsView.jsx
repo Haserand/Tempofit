@@ -1,26 +1,26 @@
 import { useState, useEffect } from 'react';
-import { Settings, Gauge, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as UserIcon, Edit3, X } from 'lucide-react';
+import { Gauge, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as UserIcon, Edit3, X, Key, Download, Trash2 } from 'lucide-react';
 import ViewHeader from '../shared/ViewHeader';
 import AthleticProfilePanel from './AthleticProfilePanel';
 
 /**
  * SettingsView — vue unifiée "Réglages" (Refactor UX/UI, 28/07, "Sidebar
- * simplifiée + Réglages à onglets"). Fusionne 2 anciennes entrées distinctes
- * de la Sidebar ("Profil Athlétique" et "Options & Comptes") en une seule
- * page à onglets horizontaux — la Sidebar n'a plus qu'un seul bouton
- * "Réglages" (voir Sidebar.jsx), ce qui libère de la hauteur dans sa zone
- * scrollable.
+ * simplifiée + Réglages à onglets"). Fusionne plusieurs anciennes entrées
+ * distinctes de la Sidebar en une seule page à onglets horizontaux.
  *
  * Historique du Profil Athlétique (pour ne pas refaire le même aller-retour
- * sans le savoir) : il vivait à l'origine ICI, dans "Options & Comptes" ;
+ * sans le savoir) : il vivait à l'origine dans "Options & Comptes" ;
  * déplacé une 1re fois vers GeneratorView.jsx (retour direct : "personne ne
- * le verra dans Options & Comptes — ça sert au générateur, ça doit vivre là
- * où on génère"). Ce chantier-ci l'inverse une 2e fois, pour une raison
- * différente : ce n'est plus "Options & Comptes" qui absorbe tout
- * silencieusement, c'est une vraie page "Réglages" dédiée, avec 2 onglets
- * clairement nommés et à parts égales — le risque qui avait motivé le 1er
- * déménagement (le noyer dans un menu qu'on ouvre rarement, sans étiquette)
- * ne s'applique plus de la même façon ici.
+ * le verra dans Options & Comptes"). Ramené ici une 2e fois comme onglet
+ * dédié, à parts égales avec les autres.
+ *
+ * Refactor 2 (28/07, "restructuration des onglets + ajouts RGPD") — l'ancien
+ * onglet unique "Comptes & Synchronisation" mélangeait 2 périmètres
+ * distincts (intégrations tierces vs identité/sécurité du compte). Scindé
+ * en 2 : `music` (Spotify — inchangé, juste déplacé) et `account` (NOUVEAU
+ * — email/mot de passe déjà existants ailleurs, déplacés ici + export RGPD
+ * + suppression de compte, tous deux NOUVEAUX). Voir le bloc `account`
+ * plus bas pour une limite assumée sur ce dernier point.
  *
  * `AthleticProfilePanel` lit lui-même `useGeneratorContext()` pour tout ce
  * dont il a besoin (voir sa propre docstring) — ce composant-ci ne fait que
@@ -31,23 +31,24 @@ import AthleticProfilePanel from './AthleticProfilePanel';
  * Profil Athlétique configure des zones de BPM par activité SPORTIVE
  * (Course à pied/Cyclisme/Musculation), un concept sans équivalent en Mode
  * Intime (workoutType y est toujours "Ambiance") — l'onglet est masqué
- * dans ce mode, et un effet de sécurité rebascule automatiquement vers
- * "Comptes & Synchronisation" si le Mode Intime s'active PENDANT que
- * l'onglet Profil est déjà ouvert (même filet que l'ancien, juste relocalisé
- * au bon endroit maintenant que Profil Athlétique n'est plus un sous-état
- * de 'generator').
+ * dans ce mode (SEUL cet onglet, pas toute la barre — contrairement à
+ * avant où 2 onglets seulement rendaient la barre inutile une fois l'un
+ * d'eux caché ; avec 3 onglets désormais, `music`/`account` restent tous
+ * les deux valides et sélectionnables). Un effet de sécurité rebascule
+ * automatiquement vers `music` si le Mode Intime s'active PENDANT que
+ * l'onglet Profil est déjà ouvert.
  */
-export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, signOut, updateEmail, isSupabaseConfigured, userCount, isNaughtyMode, showToast, changeView }) {
+export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, signOut, updateEmail, updatePassword, exportUserData, eraseUserData, isSupabaseConfigured, userCount, isNaughtyMode, showToast, changeView }) {
   const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg, textColorClass, borderAccentClass } = theme;
 
   // Onglet actif — jamais 'profile' par défaut en Mode Intime (voir garde-
   // fou dans la docstring) : l'initialisation lazy (fonction passée à
   // useState) évite un flash "Profil Athlétique" visible une frame avant
   // que l'effet de sécurité ci-dessous ne le referme.
-  const [activeTab, setActiveTab] = useState(() => (isNaughtyMode ? 'accounts' : 'profile'));
+  const [activeTab, setActiveTab] = useState(() => (isNaughtyMode ? 'music' : 'profile'));
 
   useEffect(() => {
-    if (isNaughtyMode && activeTab === 'profile') setActiveTab('accounts');
+    if (isNaughtyMode && activeTab === 'profile') setActiveTab('music');
   }, [isNaughtyMode, activeTab]);
 
   // Édition de l'adresse e-mail (retour direct, "aucun moyen de modifier
@@ -64,6 +65,78 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
   // AuthContext.jsx — `user.email` ne change qu'une fois le lien de
   // confirmation suivi) plutôt que de disparaître dès la soumission.
   const [emailUpdateSent, setEmailUpdateSent] = useState(false);
+
+  // Changement de mot de passe (Refactor UI, 28/07, "Réglages — Mon Compte")
+  // — même schéma que l'édition d'e-mail juste au-dessus, formulaire dédié
+  // distinct (2 champs séparés, jamais mélangés dans le même state/erreur).
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordUpdated, setPasswordUpdated] = useState(false);
+
+  const startChangingPassword = () => {
+    setNewPassword(''); setConfirmPassword(''); setPasswordError(''); setPasswordUpdated(false);
+    setIsChangingPassword(true);
+  };
+  const cancelChangingPassword = () => { setIsChangingPassword(false); setPasswordError(''); };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    if (newPassword.length < 6) { setPasswordError('Au moins 6 caractères.'); return; }
+    if (newPassword !== confirmPassword) { setPasswordError('Les 2 mots de passe ne correspondent pas.'); return; }
+    setPasswordSubmitting(true);
+    const { error } = await updatePassword(newPassword);
+    setPasswordSubmitting(false);
+    if (error) { setPasswordError(error); return; }
+    setIsChangingPassword(false);
+    setPasswordUpdated(true);
+  };
+
+  // Export RGPD (portabilité) — télécharge un fichier .json contenant
+  // toutes les données synchronisées de l'utilisateur (voir
+  // AuthContext.jsx, `exportUserData`). Le fichier est construit et
+  // déclenché entièrement côté client (Blob + lien temporaire), rien
+  // n'est envoyé nulle part d'autre qu'au navigateur de la personne.
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
+
+  const handleExportData = async () => {
+    setExportError('');
+    setIsExporting(true);
+    const { data, error } = await exportUserData();
+    setIsExporting(false);
+    if (error) { setExportError(error); return; }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tempofit-donnees-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Suppression de compte / "Zone dangereuse" — ⚠️ voir la docstring de
+  // `eraseUserData` dans AuthContext.jsx : ce bouton efface réellement
+  // toutes les données synchronisées de la personne, mais N'EFFACE PAS
+  // (pas encore) le compte `auth.users` lui-même — limite serveur assumée,
+  // documentée là-bas, pas cachée ici. Le texte affiché à l'utilisateur
+  // reste honnête sur ce point (voir plus bas, "Effacer mes données"
+  // plutôt que "Supprimer mon compte" sans nuance).
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  const handleConfirmDelete = async () => {
+    setDeleteError('');
+    setIsDeleting(true);
+    const { error } = await eraseUserData();
+    setIsDeleting(false);
+    if (error) { setDeleteError(error); return; }
+    setIsConfirmingDelete(false);
+  };
 
   const startEditingEmail = () => {
     setNewEmail(user.email);
@@ -122,19 +195,32 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
-        icon={activeTab === 'profile' ? <Gauge className={textColorClass} size={36} /> : <Settings className={textColorClass} size={36} />}
-        title={activeTab === 'profile' ? 'Mon Profil Athlétique' : 'Comptes & Synchronisation'}
-        subtitle={activeTab === 'profile'
-          ? "Définis ton BPM musical cible par zone d'effort, pour chaque activité."
-          : "Connecte tes plateformes et ton compte pour tout synchroniser."}
+        icon={
+          activeTab === 'profile' ? <Gauge className={textColorClass} size={36} /> :
+          activeTab === 'music' ? <LinkIcon className={textColorClass} size={36} /> :
+          <UserIcon className={textColorClass} size={36} />
+        }
+        title={
+          activeTab === 'profile' ? 'Mon Profil Athlétique' :
+          activeTab === 'music' ? 'Services Musicaux' :
+          'Mon Compte'
+        }
+        subtitle={
+          activeTab === 'profile' ? "Définis ton BPM musical cible par zone d'effort, pour chaque activité." :
+          activeTab === 'music' ? "Connecte tes plateformes de streaming pour synchroniser tes playlists." :
+          "Gère ta sécurité et tes données personnelles."
+        }
       />
 
-      {/* Onglets horizontaux — Profil Athlétique masqué en Mode Intime (voir
-          garde-fou dans la docstring de ce fichier) : seul "Comptes &
-          Synchronisation" reste affiché dans ce cas, sans ligne d'onglets à
-          proprement parler (un seul choix ne justifie pas un sélecteur). */}
-      {!isNaughtyMode && (
-        <div className={`flex space-x-6 border-b ${cardBorder}`}>
+      {/* Onglets horizontaux — Refactor (28/07, "restructuration des
+          onglets") : 3 onglets désormais (Profil Athlétique / Services
+          Musicaux / Mon Compte), la barre reste TOUJOURS visible même en
+          Mode Intime (contrairement à avant, où 2 onglets seulement
+          rendaient la barre inutile une fois Profil caché) — seul le
+          bouton "Profil Athlétique" se masque, les 2 autres restent
+          valides et sélectionnables dans ce mode. */}
+      <div className={`flex space-x-6 border-b ${cardBorder}`}>
+        {!isNaughtyMode && (
           <button
             onClick={() => setActiveTab('profile')}
             className={`pb-3 -mb-px text-sm font-bold border-b-2 transition-colors ${
@@ -143,204 +229,283 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           >
             Profil Athlétique
           </button>
-          <button
-            onClick={() => setActiveTab('accounts')}
-            className={`pb-3 -mb-px text-sm font-bold border-b-2 transition-colors ${
-              activeTab === 'accounts' ? `${textHighlight} ${borderAccentClass}` : `${textMuted} border-transparent hover:text-main`
-            }`}
-          >
-            Comptes & Synchronisation
-          </button>
-        </div>
-      )}
+        )}
+        <button
+          onClick={() => setActiveTab('music')}
+          className={`pb-3 -mb-px text-sm font-bold border-b-2 transition-colors ${
+            activeTab === 'music' ? `${textHighlight} ${borderAccentClass}` : `${textMuted} border-transparent hover:text-main`
+          }`}
+        >
+          Services Musicaux
+        </button>
+        <button
+          onClick={() => setActiveTab('account')}
+          className={`pb-3 -mb-px text-sm font-bold border-b-2 transition-colors ${
+            activeTab === 'account' ? `${textHighlight} ${borderAccentClass}` : `${textMuted} border-transparent hover:text-main`
+          }`}
+        >
+          Mon Compte
+        </button>
+      </div>
 
       {activeTab === 'profile' ? (
         <AthleticProfilePanel theme={theme} showToast={showToast} changeView={changeView} />
-      ) : (
-      <>
-      {/* RETOUR DIRECT ("vraiment synchroniser toutes les données entre
-          appareils, email/mot de passe pour commencer") — distincte de la
-          carte "Comptes connectés" juste en dessous : ceci, c'est L'IDENTITÉ
-          TempoFit elle-même (qui synchronise favoris/routines/stats/profil
-          athlétique — voir usePersistentState.js), pas une plateforme de
-          musique externe. Volontairement en premier : savoir "qui es-tu"
-          avant "à quoi es-tu relié". */}
-      {/* Carte masquée pour un invité QUAND les comptes sont configurés
-          côté serveur (25/07, retour direct : "utilité de garder cette
-          partie en vue invité maintenant qu'il y a toujours la barre
-          horizontale ?"). Dans ce cas précis, elle n'affichait déjà RIEN
-          d'autre qu'un titre + une phrase (voir plus bas, branche `user ?
-          ... : null` — le bouton avait déjà été retiré lors d'un retour
-          précédent, jugé redondant avec "Se connecter" dans le header).
-          Avec en plus GuestModeBar.jsx (bandeau persistant en bas d'écran)
-          ET le sous-titre de CETTE MÊME page ("Connecte tes plateformes et
-          ton compte pour tout synchroniser") qui disent déjà la même chose,
-          ça faisait 3 répétitions du même message sur un seul écran.
-          Reste visible dans les 2 seuls cas où elle a un vrai contenu à
-          montrer : connecté (gestion du compte), ou comptes non configurés
-          côté serveur (message d'erreur indépendant de l'état de connexion,
-          pertinent dans les deux cas). */}
-      {(user || !isSupabaseConfigured) && (
-      <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
-        <h3 className={`font-bold text-xl mb-2 ${textHighlight}`}>Mon compte TempoFit</h3>
-        <p className={`text-sm mb-6 line-clamp-1 ${textMuted}`}>Connecte-toi pour synchroniser tes données sur tous tes appareils.</p>
+      ) : activeTab === 'music' ? (
+        <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
+          <h3 className={`font-bold text-xl mb-6 ${textHighlight}`}>Comptes connectés</h3>
 
-        {!isSupabaseConfigured ? (
-          <div className={`p-4 rounded-2xl border ${inputBorder} ${inputBg} text-sm ${textMuted}`}>
-            Comptes pas encore configurés côté serveur.
+          <div className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${spotifyToken ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : inputBorder + ' ' + inputBg}`}>
+            <div className="flex items-center space-x-4">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${spotifyToken ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'}`}>
+                <LinkIcon size={24} />
+              </div>
+              <div>
+                <h4 className={`font-bold text-lg ${textHighlight}`}>Spotify</h4>
+                <p className={`text-sm ${textMuted}`}>{spotifyToken ? 'Connecté (Accès à 100M de titres)' : 'Non connecté'}</p>
+              </div>
+            </div>
+
+            {!spotifyToken ? (
+              <button onClick={loginSpotify} className="min-w-[168px] justify-center px-6 py-3 bg-[#1DB954] hover:bg-[#1ed760] text-black font-black rounded-xl shadow-md transition-all flex items-center space-x-2">
+                <span>Lier mon compte</span>
+              </button>
+            ) : (
+              <button onClick={disconnectSpotify} className={`px-4 py-2 bg-gray-200 dark:bg-gray-800 font-bold rounded-lg hover:bg-red-100 hover:text-red-500 transition-all text-gray-500`}>
+                Déconnecter
+              </button>
+            )}
           </div>
-        ) : user ? (
-          <>
-            <div className={`flex items-center justify-between p-4 rounded-2xl border border-green-500 bg-green-50 dark:bg-green-900/20`}>
-              <div className="flex items-center space-x-4 min-w-0 flex-1">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center bg-green-500 text-white shrink-0">
-                  <UserIcon size={24} />
-                </div>
-                {/* Mode édition — remplace l'affichage e-mail/statut par un
-                    petit formulaire inline (retour direct : "ajoute un
-                    bouton Modifier à côté de l'adresse e-mail actuelle").
-                    `min-w-0` sur le conteneur parent + celui-ci : sans ça,
-                    l'input pourrait pousser "Déconnecter" hors de la carte
-                    sur un écran étroit. */}
-                {isEditingEmail ? (
-                  <form onSubmit={handleEmailSubmit} className="min-w-0 flex-1 space-y-1.5">
-                    <input
-                      type="email" autoFocus autoComplete="email"
-                      value={newEmail} onChange={e => { setNewEmail(e.target.value); setEmailError(''); }}
-                      className={`w-full px-3 py-1.5 rounded-lg border ${inputBorder} ${inputBg} font-bold text-lg ${textHighlight} outline-none`}
-                    />
-                    {emailError && <p className="text-xs font-semibold text-red-500">{emailError}</p>}
-                  </form>
-                ) : (
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h4 className={`font-bold text-lg truncate ${textHighlight}`}>{user.email}</h4>
-                      <button onClick={startEditingEmail} title="Modifier l'adresse e-mail" className={`shrink-0 p-1 rounded-lg ${textMuted} hover:text-main transition-colors`}>
-                        <Edit3 size={14}/>
+
+          {/* Aide au dépannage "redirect_uri: Not matching configuration" —
+              n'apparaît que tant que Spotify n'est pas connecté. */}
+          {!spotifyToken && spotifyRedirectUri && (
+            <div className={`mt-4 p-4 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10`}>
+              <div className="flex items-start gap-2 text-sm font-bold text-amber-700 dark:text-amber-400 mb-2">
+                <AlertTriangle size={16} className="shrink-0 mt-0.5"/>
+                <span className="flex-1 min-w-0 line-clamp-1">Erreur "redirect_uri" ? Enregistre cette URL dans ton Dashboard développeur Spotify.</span>
+              </div>
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${inputBorder} ${inputBg}`}>
+                <code className={`flex-1 text-xs font-mono truncate ${textHighlight}`}>{spotifyRedirectUri}</code>
+                <button
+                  onClick={copyRedirectUri}
+                  title="Copier cette URL"
+                  className={`shrink-0 p-1.5 rounded-md transition-colors ${copied ? 'text-green-500' : textMuted + ' hover:text-amber-600'}`}
+                >
+                  {copied ? <Check size={16}/> : <Copy size={16}/>}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="h-4"></div>
+          <div className="p-4 rounded-2xl border border-green-500 bg-green-50 dark:bg-green-900/10 text-sm font-bold text-green-600 dark:text-green-400 flex items-center gap-2">
+            <Globe size={18}/> <span>Base musicale mondiale : connectée</span>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-8">
+          {/* Bloc 1 — Informations & Sécurité (Refactor UI, 28/07) : e-mail
+              (déjà existant, déplacé ici depuis l'ex-"Mon compte TempoFit")
+              + mot de passe (NOUVEAU, même schéma que l'e-mail : formulaire
+              inline, jamais les 2 formulaires ouverts en même temps). */}
+          {(user || !isSupabaseConfigured) && (
+          <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
+            <h3 className={`font-bold text-xl mb-2 ${textHighlight}`}>Informations & Sécurité</h3>
+            <p className={`text-sm mb-6 line-clamp-1 ${textMuted}`}>Connecte-toi pour synchroniser tes données sur tous tes appareils.</p>
+
+            {!isSupabaseConfigured ? (
+              <div className={`p-4 rounded-2xl border ${inputBorder} ${inputBg} text-sm ${textMuted}`}>
+                Comptes pas encore configurés côté serveur.
+              </div>
+            ) : user ? (
+              <>
+                <div className={`flex items-center justify-between p-4 rounded-2xl border border-green-500 bg-green-50 dark:bg-green-900/20`}>
+                  <div className="flex items-center space-x-4 min-w-0 flex-1">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-green-500 text-white shrink-0">
+                      <UserIcon size={24} />
+                    </div>
+                    {isEditingEmail ? (
+                      <form onSubmit={handleEmailSubmit} className="min-w-0 flex-1 space-y-1.5">
+                        <input
+                          type="email" autoFocus autoComplete="email"
+                          value={newEmail} onChange={e => { setNewEmail(e.target.value); setEmailError(''); }}
+                          className={`w-full px-3 py-1.5 rounded-lg border ${inputBorder} ${inputBg} font-bold text-lg ${textHighlight} outline-none`}
+                        />
+                        {emailError && <p className="text-xs font-semibold text-red-500">{emailError}</p>}
+                      </form>
+                    ) : (
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className={`font-bold text-lg truncate ${textHighlight}`}>{user.email}</h4>
+                          <button onClick={startEditingEmail} title="Modifier l'adresse e-mail" className={`shrink-0 p-1 rounded-lg ${textMuted} hover:text-main transition-colors`}>
+                            <Edit3 size={14}/>
+                          </button>
+                        </div>
+                        <p className={`text-sm ${textMuted}`}>Connecté — données synchronisées</p>
+                      </div>
+                    )}
+                  </div>
+                  {isEditingEmail ? (
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                      <button onClick={cancelEditingEmail} title="Annuler" className={`p-2.5 rounded-lg ${textMuted} hover:text-main hover:bg-surface-hover transition-colors`}>
+                        <X size={18}/>
+                      </button>
+                      <button
+                        onClick={handleEmailSubmit} disabled={emailSubmitting}
+                        className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg transition-all disabled:opacity-60 flex items-center gap-1.5"
+                      >
+                        <Check size={16}/> Enregistrer
                       </button>
                     </div>
-                    <p className={`text-sm ${textMuted}`}>Connecté — données synchronisées</p>
-                  </div>
-                )}
-              </div>
-              {/* "Enregistrer"/"Annuler" remplacent "Déconnecter" pendant
-                  l'édition — un seul groupe d'actions visible à la fois,
-                  jamais les deux mélangés dans la même rangée. */}
-              {isEditingEmail ? (
-                <div className="flex items-center gap-2 shrink-0 ml-3">
-                  <button onClick={cancelEditingEmail} title="Annuler" className={`p-2.5 rounded-lg ${textMuted} hover:text-main hover:bg-surface-hover transition-colors`}>
-                    <X size={18}/>
-                  </button>
-                  <button
-                    onClick={handleEmailSubmit} disabled={emailSubmitting}
-                    className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg transition-all disabled:opacity-60 flex items-center gap-1.5"
-                  >
-                    <Check size={16}/> Enregistrer
-                  </button>
+                  ) : (
+                    <button onClick={signOut} className={`shrink-0 ml-3 px-4 py-2 bg-gray-200 dark:bg-gray-800 font-bold rounded-lg hover:bg-red-100 hover:text-red-500 transition-all text-gray-500`}>
+                      Déconnecter
+                    </button>
+                  )}
                 </div>
-              ) : (
-                <button onClick={signOut} className={`shrink-0 ml-3 px-4 py-2 bg-gray-200 dark:bg-gray-800 font-bold rounded-lg hover:bg-red-100 hover:text-red-500 transition-all text-gray-500`}>
-                  Déconnecter
-                </button>
-              )}
-            </div>
-            {/* Confirmation de l'envoi — reste visible même après être
-                ressorti du mode édition (voir emailUpdateSent, distinct de
-                isEditingEmail) : l'action n'est réellement terminée que
-                lorsque le lien reçu par e-mail est confirmé, `user.email`
-                affiché au-dessus reste donc l'ANCIENNE adresse jusque-là,
-                ce message évite toute confusion sur ce qui vient de se
-                passer. */}
-            {emailUpdateSent && (
-              <p className="text-emerald-400 text-xs sm:text-sm mt-3">
-                Un e-mail de confirmation a été envoyé à la nouvelle adresse pour valider le changement.
-              </p>
-            )}
-            {/* RETOUR DIRECT ("un petit compteur discret, visible seulement
-                une fois connecté") — délibérément discret (texte simple, pas
-                de carte/badge qui attirerait l'œil) : c'est une curiosité
-                perso, pas une métrique à mettre en avant (voir la
-                discussion : un bandeau public aurait été contre-productif
-                tant que ce chiffre est faible). N'apparaît QUE si
-                `userCount` a été récupéré (voir AuthContext.jsx) — jamais
-                tant que déconnecté ou en cours de chargement. */}
-            {userCount !== null && (
-              <p className={`text-xs mt-2 ${textMuted}`}>{userCount} compte{userCount > 1 ? 's' : ''} TempoFit créé{userCount > 1 ? 's' : ''} au total.</p>
-            )}
-          </>
-        ) : (
-          // RETOUR DIRECT ("la phrase du bas est de trop non ?") — retirée
-          // entièrement : elle ne faisait que répéter ce que le paragraphe
-          // d'intro de la vue dit déjà ("Connecte-toi pour retrouver tes
-          // favoris... Sans compte, tout reste enregistré uniquement sur
-          // celui-ci"), sans rien ajouter de neuf — le bouton de connexion
-          // global (header, en haut à droite) est de toute façon visible et
-          // évident sur toutes les pages, pas besoin de le rappeler ici.
-          null
-        )}
-      </div>
-      )}
+                {emailUpdateSent && (
+                  <p className="text-emerald-400 text-xs sm:text-sm mt-3">
+                    Un e-mail de confirmation a été envoyé à la nouvelle adresse pour valider le changement.
+                  </p>
+                )}
 
-      <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
-        <h3 className={`font-bold text-xl mb-6 ${textHighlight}`}>Comptes connectés</h3>
+                {/* Mot de passe (NOUVEAU) — même principe que l'e-mail :
+                    ligne au repos avec bouton "Modifier", formulaire inline
+                    à 2 champs (nouveau + confirmation) au clic. */}
+                <div className={`flex items-center justify-between p-4 rounded-2xl border ${inputBorder} ${inputBg} mt-3`}>
+                  <div className="flex items-center space-x-4 min-w-0 flex-1">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${textMuted} bg-black/5 dark:bg-white/5`}>
+                      <Key size={22} />
+                    </div>
+                    {isChangingPassword ? (
+                      <form onSubmit={handlePasswordSubmit} className="min-w-0 flex-1 space-y-1.5">
+                        <input
+                          type="password" autoFocus autoComplete="new-password" placeholder="Nouveau mot de passe"
+                          value={newPassword} onChange={e => { setNewPassword(e.target.value); setPasswordError(''); }}
+                          className={`w-full px-3 py-1.5 rounded-lg border ${inputBorder} ${inputBg} font-medium ${textHighlight} outline-none`}
+                        />
+                        <input
+                          type="password" autoComplete="new-password" placeholder="Confirme le nouveau mot de passe"
+                          value={confirmPassword} onChange={e => { setConfirmPassword(e.target.value); setPasswordError(''); }}
+                          className={`w-full px-3 py-1.5 rounded-lg border ${inputBorder} ${inputBg} font-medium ${textHighlight} outline-none`}
+                        />
+                        {passwordError && <p className="text-xs font-semibold text-red-500">{passwordError}</p>}
+                      </form>
+                    ) : (
+                      <div className="min-w-0">
+                        <h4 className={`font-bold text-lg ${textHighlight}`}>Mot de passe</h4>
+                        <p className={`text-sm ${textMuted}`}>••••••••</p>
+                      </div>
+                    )}
+                  </div>
+                  {isChangingPassword ? (
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                      <button onClick={cancelChangingPassword} title="Annuler" className={`p-2.5 rounded-lg ${textMuted} hover:text-main hover:bg-surface-hover transition-colors`}>
+                        <X size={18}/>
+                      </button>
+                      <button
+                        onClick={handlePasswordSubmit} disabled={passwordSubmitting}
+                        className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg transition-all disabled:opacity-60 flex items-center gap-1.5"
+                      >
+                        <Check size={16}/> Enregistrer
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={startChangingPassword} className={`shrink-0 ml-3 px-4 py-2 ${textMuted} hover:text-main hover:bg-surface-hover font-bold rounded-lg transition-all`}>
+                      Modifier
+                    </button>
+                  )}
+                </div>
+                {passwordUpdated && (
+                  <p className="text-emerald-400 text-xs sm:text-sm mt-3">Mot de passe mis à jour.</p>
+                )}
 
-        <div className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${spotifyToken ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : inputBorder + ' ' + inputBg}`}>
-          <div className="flex items-center space-x-4">
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${spotifyToken ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'}`}>
-              <LinkIcon size={24} />
-            </div>
-            <div>
-              <h4 className={`font-bold text-lg ${textHighlight}`}>Spotify</h4>
-              <p className={`text-sm ${textMuted}`}>{spotifyToken ? 'Connecté (Accès à 100M de titres)' : 'Non connecté'}</p>
-            </div>
+                {userCount !== null && (
+                  <p className={`text-xs mt-4 ${textMuted}`}>{userCount} compte{userCount > 1 ? 's' : ''} TempoFit créé{userCount > 1 ? 's' : ''} au total.</p>
+                )}
+              </>
+            ) : null}
           </div>
-
-          {!spotifyToken ? (
-            <button onClick={loginSpotify} className="min-w-[168px] justify-center px-6 py-3 bg-[#1DB954] hover:bg-[#1ed760] text-black font-black rounded-xl shadow-md transition-all flex items-center space-x-2">
-              <span>Lier mon compte</span>
-            </button>
-          ) : (
-            <button onClick={disconnectSpotify} className={`px-4 py-2 bg-gray-200 dark:bg-gray-800 font-bold rounded-lg hover:bg-red-100 hover:text-red-500 transition-all text-gray-500`}>
-              Déconnecter
-            </button>
           )}
-        </div>
 
-        {/* Aide au dépannage "redirect_uri: Not matching configuration" — voir
-            le commentaire plus haut. N'apparaît que tant que Spotify n'est pas
-            connecté : une fois lié avec succès, plus la peine d'encombrer
-            l'écran avec ça.
-            RETOUR DIRECT ("supprime tout ce qui ne sert plus à rien niveau
-            Deezer") — cette boîte gérait avant 3 cas (Spotify seul, Deezer
-            seul, les deux) depuis que Deezer Connect existait. Simplifiée en
-            un seul cas maintenant que Deezer a été retiré (voir
-            DEEZER-CONNECT-REMOVED.md) — Spotify est redevenu la seule
-            plateforme externe connectable. */}
-        {!spotifyToken && spotifyRedirectUri && (
-          <div className={`mt-4 p-4 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10`}>
-            <div className="flex items-start gap-2 text-sm font-bold text-amber-700 dark:text-amber-400 mb-2">
-              <AlertTriangle size={16} className="shrink-0 mt-0.5"/>
-              <span className="flex-1 min-w-0 line-clamp-1">Erreur "redirect_uri" ? Enregistre cette URL dans ton Dashboard développeur Spotify.</span>
-            </div>
-            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${inputBorder} ${inputBg}`}>
-              <code className={`flex-1 text-xs font-mono truncate ${textHighlight}`}>{spotifyRedirectUri}</code>
+          {/* Bloc 2 — Données personnelles (RGPD, portabilité) — NOUVEAU.
+              Uniquement pour un utilisateur connecté (rien à exporter en
+              mode invité, tout reste déjà local sur son appareil). */}
+          {user && (
+            <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
+              <h3 className={`font-bold text-xl mb-2 ${textHighlight}`}>Données personnelles</h3>
+              <p className={`text-sm mb-4 ${textMuted}`}>
+                Télécharge une copie de toutes tes données synchronisées (favoris, routines, statistiques, profil athlétique).
+              </p>
               <button
-                onClick={copyRedirectUri}
-                title="Copier cette URL"
-                className={`shrink-0 p-1.5 rounded-md transition-colors ${copied ? 'text-green-500' : textMuted + ' hover:text-amber-600'}`}
+                onClick={handleExportData} disabled={isExporting}
+                className={`px-4 py-2.5 rounded-lg border ${inputBorder} ${inputBg} font-bold text-sm ${textHighlight} hover:bg-surface-hover transition-all disabled:opacity-60 flex items-center gap-2`}
               >
-                {copied ? <Check size={16}/> : <Copy size={16}/>}
+                <Download size={16}/> {isExporting ? 'Export en cours…' : 'Exporter mes données (JSON)'}
+              </button>
+              {exportError && <p className="text-xs font-semibold text-red-500 mt-2">{exportError}</p>}
+            </div>
+          )}
+
+          {/* Bloc 3 — Zone dangereuse (RGPD, droit à l'effacement) —
+              NOUVEAU. ⚠️ Wording DÉLIBÉRÉMENT "Effacer mes données" plutôt
+              que "Supprimer mon compte" (demandé initialement) : voir
+              `eraseUserData` dans AuthContext.jsx — cette action efface
+              réellement toutes les données synchronisées côté serveur,
+              mais ne supprime PAS (pas encore) le compte `auth.users`
+              lui-même (limite technique assumée, une vraie suppression de
+              compte demande une Supabase Edge Function avec la clé
+              "service_role", absente de ce projet). Employer le mot
+              "compte" ici aurait promis plus que ce que ce bouton fait
+              réellement — mieux vaut un intitulé honnête qu'une conformité
+              RGPD en trompe-l'œil. */}
+          {user && (
+            <div className="rounded-3xl p-6 md:p-8 border border-red-500/40 bg-red-500/5">
+              <h3 className="font-bold text-xl mb-2 text-red-500">Zone dangereuse</h3>
+              <p className={`text-sm mb-4 ${textMuted}`}>
+                Efface définitivement toutes tes données synchronisées de nos serveurs et te déconnecte. Cette action est irréversible.
+              </p>
+              <button
+                onClick={() => { setDeleteError(''); setIsConfirmingDelete(true); }}
+                className="px-4 py-2.5 rounded-lg border border-red-500 text-red-500 font-bold text-sm hover:bg-red-500/10 transition-all flex items-center gap-2"
+              >
+                <Trash2 size={16}/> Effacer mes données
               </button>
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="h-4"></div>
-        <div className="p-4 rounded-2xl border border-green-500 bg-green-50 dark:bg-green-900/10 text-sm font-bold text-green-600 dark:text-green-400 flex items-center gap-2">
-          <Globe size={18}/> <span>Base musicale mondiale : connectée</span>
+          {isConfirmingDelete && (
+            <div
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+              onClick={() => !isDeleting && setIsConfirmingDelete(false)}
+            >
+              <div
+                className={`${cardBg} rounded-2xl border ${cardBorder} shadow-xl max-w-md w-full p-6`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="font-bold text-lg text-red-500 mb-2">Confirmer l'effacement</h3>
+                <p className={`text-sm ${textMuted} mb-4`}>
+                  Toutes tes données synchronisées (favoris, routines, statistiques, profil athlétique) seront définitivement supprimées de nos serveurs, et tu seras déconnecté·e. Ton adresse e-mail reste enregistrée pour l'instant (limite technique actuelle) — contacte-nous si tu veux aussi la faire supprimer.
+                </p>
+                {deleteError && <p className="text-xs font-semibold text-red-500 mb-3">{deleteError}</p>}
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setIsConfirmingDelete(false)} disabled={isDeleting}
+                    className={`px-4 py-2 rounded-lg font-bold text-sm ${textMuted} hover:bg-surface-hover transition-all disabled:opacity-60`}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={handleConfirmDelete} disabled={isDeleting}
+                    className="px-4 py-2 rounded-lg font-bold text-sm bg-red-500 hover:bg-red-600 text-white transition-all disabled:opacity-60"
+                  >
+                    {isDeleting ? 'Suppression…' : 'Oui, effacer mes données'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
-      </>
       )}
     </div>
   );
