@@ -41,6 +41,7 @@ function PlaylistDetailViewInner({
   setPlaylistPlannedDate,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
   getRankStyle, triggerCSVUpload,
+  changeView,
 }) {
   // Chantier découpage (suite) : ce composant ne fait plus QUE l'orchestration
   // (état de filtre partagé entre TrackList/PlaylistCharts, génération du
@@ -383,16 +384,32 @@ function PlaylistDetailViewInner({
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
+      {/* Bouton Retour — Fix UI (27/07, "nettoyage global") : navigation
+          interne à l'app (state `view`, PAS react-router — ce projet n'en
+          utilise pas), via `changeView` (useNavigation.js) déjà utilisé
+          partout ailleurs. Pas de vraie pile d'historique dans l'app (voir
+          useNavigation.js — `changeView` prend toujours une vue EXPLICITE,
+          jamais "la précédente") : cette page peut être atteinte depuis Mes
+          Séances, Découvrir, Stats, le mini-lecteur ou un import CSV (voir
+          tous les appels à `changeView('playlist')`) — aucune de ces
+          origines n'est retenue. 'Mes Séances' choisi comme destination par
+          défaut, cohérent avec le fait que c'est la vue "bibliothèque" dont
+          celle-ci est un zoom. Si un jour un vrai "retour à l'origine" est
+          nécessaire, il faudra une pile d'historique dédiée — hors périmètre
+          ici. */}
+      <button
+        onClick={() => changeView('playlists')}
+        className="mb-4 text-sm font-medium text-slate-400 hover:text-white transition-colors flex items-center gap-2"
+      >
+        ← Retour
+      </button>
+
       {/* En-tête — extrait dans PlaylistHeader.jsx (chantier découpage,
-          suite de TrackList/TrackItem).
-          Fix UI (27/07) : le `pr-32 md:pr-40` vivait AVANT sur ce wrapper,
-          ce qui rétrécissait toute la carte (fond compris) en dessous de la
-          largeur du graphique juste en dessous — la carte suivait alors une
-          largeur "pleine largeur MOINS la zone anti-collision" au lieu de
-          "pleine largeur, avec juste le TEXTE protégé". Déplacé à
-          l'intérieur de PlaylistHeader.jsx, sur le conteneur du titre
-          uniquement (pas les boutons ni le fond) — voir la docstring de ce
-          composant. Ce wrapper ici n'a donc plus besoin d'exister. */}
+          suite de TrackList/TrackItem). Le coin supérieur droit global est
+          maintenant vide de tout élément flottant (Fix UI 27/07 — Thème
+          déménagé dans Sidebar.jsx, "Se connecter" en cours de discussion,
+          voir App.jsx) : plus besoin de réserver de "Safe Zone" ici, la
+          carte respire sur toute sa largeur — voir PlaylistHeader.jsx. */}
       <PlaylistHeader
         theme={theme} isLocked={isLocked} savedPlaylists={savedPlaylists}
         resolveAndTogglePreview={resolveAndTogglePreview} getNextTrackForAutoAdvance={getNextTrackForAutoAdvance}
@@ -526,6 +543,7 @@ export default function PlaylistDetailView({
   setIsBpmSearchMode, setPlaylistPlannedDate,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
   getRankStyle, triggerCSVUpload,
+  changeView,
 }) {
   return (
     <PlaylistDetailProvider
@@ -553,6 +571,7 @@ export default function PlaylistDetailView({
         editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
         editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
         getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload}
+        changeView={changeView}
       />
     </PlaylistDetailProvider>
   );
