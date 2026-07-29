@@ -65,7 +65,7 @@ export default function GuestModeBar({ theme, isVisible, openModal }) {
           onClick={() => openModal('AUTH')}
           className={`text-sm font-bold ${textColorClass} hover:opacity-80 flex items-center gap-2 transition-colors`}
         >
-          <UserPlus size={14} /> Créer un compte
+          <UserPlus size={14} /> Se connecter
         </button>
       </div>
     </div>
