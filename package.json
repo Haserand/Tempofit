@@ -14,10 +14,10 @@
     "test:run": "vitest run"
   },
   "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "lucide-react": "^0.383.0",
-    "recharts": "^2.12.7",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "lucide-react": "^1.27.0",
+    "recharts": "^2.15.0",
     "web-audio-beat-detector": "^8.2.35",
     "html2canvas": "^1.4.1",
     "@supabase/supabase-js": "^2.45.0"
@@ -29,5 +29,8 @@
     "tailwindcss": "^3.4.4",
     "vite": "^8.1.0",
     "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "react-is": "^19.0.0"
   }
 }
