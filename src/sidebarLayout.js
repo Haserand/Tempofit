@@ -21,7 +21,8 @@
  * des CLASSES TAILWIND COMPLÈTES (`py-2.5`, `mb-4`...), pas des fragments à
  * assembler. C'est la distinction qui compte pour le piège JIT documenté
  * partout dans ce projet : Tailwind scanne le texte SOURCE littéralement
- * (voir `tailwind.config.js`, `content: ["./src/**/*.{js,ts,jsx,tsx}"]`) —
+ * (voir `tailwind.config.js`, la liste `content`, qui couvre tous les
+ * fichiers .js/.ts/.jsx/.tsx sous `src`) —
  * tant que la classe complète apparaît EN TOUTES LETTRES quelque part dans
  * un fichier scanné (peu importe lequel), elle est générée, même si le
  * fichier où elle apparaît n'est pas celui où elle est réellement utilisée
