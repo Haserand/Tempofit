@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, Sun, Moon, X } from 'lucide-react';
+import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, X } from 'lucide-react';
 import { genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getRankStyle } from './appConfig';
 
@@ -1197,6 +1197,7 @@ function AppContent({
           guestBarVisible={isGuestBarVisible}
           playerBarVisible={!!(currentTrack || playingPreviewId)}
           toggleNaughtyMode={toggleNaughtyMode}
+          theme={theme} toggleTheme={toggleTheme}
         />
 
         <div className="flex-1 flex flex-col relative w-full">
@@ -1232,43 +1233,20 @@ function AppContent({
               marge globale. */}
           <main id="main-scroll-area" className="relative flex-1 overflow-y-auto pt-6 sm:pt-8 px-4 sm:px-8 pb-4 sm:pb-8 no-scrollbar">
 
-            {/* Bloc thème + connexion — RETOUR DIRECT ("je veux juste que les
-                boutons restent en haut et que quand on scroll on les voit
-                plus") : `absolute` (pas `fixed`) et positionné ICI, comme
-                premier enfant de `<main>` (devenu `relative` juste au-dessus
-                pour lui servir de repère) — il défile donc NORMALEMENT avec
-                le reste du contenu de `<main>`, visible en haut de page au
-                chargement, puis disparaît en scrollant comme n'importe quel
-                autre élément, au lieu de rester ancré au viewport. */}
+            {/* Bloc connexion — Fix UI (27/07, "nettoyage global") : le
+                basculeur de thème qui vivait ici est PARTI dans Sidebar.jsx
+                (à côté de Trophées, dans son header fixe) — plus de risque de
+                collision avec le contenu des cartes pleine largeur (voir
+                PlaylistHeader.jsx, même session). Le bouton "Se connecter"
+                reste ICI pour l'instant (voir échange avec l'utilisateur :
+                risque de régression identifié — GuestModeBar.jsx ne s'affiche
+                que si `savedPlaylists.length > 0 || routines.length > 0`,
+                donc un tout nouveau visiteur sans aucune séance/routine n'a
+                AUCUN autre point d'entrée vers la connexion si ce bouton
+                disparaît — SettingsView.jsx a délibérément retiré son propre
+                bouton de connexion il y a deux jours, précisément parce qu'il
+                était jugé redondant avec CELUI-CI). */}
             <div className="absolute top-4 right-4 md:top-6 md:right-6 z-[60] flex items-center gap-2">
-              {/* Fond du cercle retiré (25/07, retour direct : "je suis pas
-                  fan que le soleil soit dans une sphère") — visible
-                  seulement au survol/tap maintenant (`hover:` au lieu d'un
-                  fond permanent), pas en repos. Zone cliquable INCHANGÉE
-                  (`w-11 h-11`, 44px) : c'est la taille minimale recommandée
-                  pour une cible tactile confortable, et elle aligne ce
-                  bouton sur la même hauteur que "Se connecter" juste à côté
-                  — seul le fond visuel change, pas l'ergonomie.
-                  BUG CORRIGÉ ("ça a rien changé") : premier essai en
-                  `hover:${'${cardBg}'}` — Tailwind scanne le CODE SOURCE de
-                  façon purement textuelle pour savoir quelles classes
-                  générer ; une classe construite par interpolation de
-                  template littéral n'apparaît JAMAIS en toutes lettres dans
-                  le fichier, donc Tailwind ne génère aucune règle CSS pour
-                  elle. La classe était bien posée sur l'élément, mais sans
-                  aucun style associé — invisible, comme si rien n'avait
-                  changé. `cardBg`/`cardBorder` sont des constantes FIXES
-                  (jamais conditionnelles au mode, voir useTheme.js) : écrites
-                  ici en toutes lettres (`hover:bg-surface`/`hover:border-divider`)
-                  plutôt qu'interpolées, pour que Tailwind les voie et les
-                  génère réellement. */}
-              <button
-                onClick={toggleTheme}
-                title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
-                className={`w-11 h-11 rounded-full hover:scale-110 transition-transform flex items-center justify-center ${textMuted} hover:bg-surface hover:border hover:border-divider hover:shadow-lg`}
-              >
-                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-              </button>
               {isSupabaseConfigured && (
                 user ? (
                   <button
@@ -1429,6 +1407,7 @@ function AppContent({
                 editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
                 editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
                 getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload}
+                changeView={changeView}
               />
             )}
 
