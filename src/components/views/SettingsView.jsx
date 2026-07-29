@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Gauge, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as UserIcon, X, Key, Download, Trash2 } from 'lucide-react';
+import { Gauge, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as UserIcon, X, Key, Download, Trash2, AtSign, Lock, Loader2 } from 'lucide-react';
 import ViewHeader from '../shared/ViewHeader';
 import AthleticProfilePanel from './AthleticProfilePanel';
 
@@ -38,7 +38,7 @@ import AthleticProfilePanel from './AthleticProfilePanel';
  * automatiquement vers `music` si le Mode Intime s'active PENDANT que
  * l'onglet Profil est déjà ouvert.
  */
-export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, updateEmail, updatePassword, exportUserData, eraseUserData, isSupabaseConfigured, userCount, isNaughtyMode, showToast, changeView }) {
+export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, updateEmail, updatePassword, exportUserData, eraseUserData, isSupabaseConfigured, userCount, isNaughtyMode, showToast, changeView, username, usernameLoading, checkUsernameAvailable, setUsername }) {
   const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg, textColorClass, borderAccentClass } = theme;
 
   // Onglet actif — jamais 'profile' par défaut en Mode Intime (voir garde-
@@ -65,6 +65,46 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
   // AuthContext.jsx — `user.email` ne change qu'une fois le lien de
   // confirmation suivi) plutôt que de disparaître dès la soumission.
   const [emailUpdateSent, setEmailUpdateSent] = useState(false);
+
+  // Définition du pseudonyme pour un compte EXISTANT sans pseudonyme
+  // (rétrocompatibilité — voir le brief). Même schéma de validation que
+  // AuthModal.jsx (regex partagée, vérification `onBlur`) — dupliqué ici
+  // plutôt que factorisé dans un hook commun : 2 formulaires assez
+  // différents (celui-ci a son propre bouton "Valider" et sa propre carte,
+  // pas de mode signin/signup à gérer) pour que l'extraction n'apporte pas
+  // grand-chose de plus qu'une indirection.
+  const USERNAME_REGEX = /^[a-z0-9_]{3,20}$/;
+  const [usernameField, setUsernameFieldValue] = useState('');
+  const [usernameFieldStatus, setUsernameFieldStatus] = useState(null); // null | 'checking' | 'available' | 'taken' | 'invalid'
+  const [usernameFieldError, setUsernameFieldError] = useState('');
+  const [usernameSubmitting, setUsernameSubmitting] = useState(false);
+
+  const handleUsernameFieldBlur = async () => {
+    if (!usernameField) { setUsernameFieldStatus(null); return; }
+    if (!USERNAME_REGEX.test(usernameField)) { setUsernameFieldStatus('invalid'); return; }
+    setUsernameFieldStatus('checking');
+    const { available, error } = await checkUsernameAvailable(usernameField);
+    if (error) { setUsernameFieldStatus(null); return; }
+    setUsernameFieldStatus(available ? 'available' : 'taken');
+  };
+
+  const handleUsernameFormSubmit = async (e) => {
+    e.preventDefault();
+    setUsernameFieldError('');
+    if (!usernameField.trim()) { setUsernameFieldError('Choisis un pseudonyme.'); return; }
+    if (!USERNAME_REGEX.test(usernameField)) { setUsernameFieldError('3 à 20 caractères : minuscules, chiffres, underscore uniquement.'); return; }
+    if (usernameFieldStatus === 'taken') { setUsernameFieldError('Ce pseudonyme est déjà pris.'); return; }
+    setUsernameSubmitting(true);
+    const { error } = await setUsername(usernameField);
+    setUsernameSubmitting(false);
+    if (error) { setUsernameFieldError(error); return; }
+    // Pas besoin de vider `usernameField` ni de gérer un état "succès" ici
+    // — dès que `setUsername` réussit, le state `username` (reçu en prop,
+    // source de vérité côté AuthContext.jsx) devient non-null, et c'est
+    // CETTE condition qui bascule l'affichage vers la carte "Non
+    // modifiable" au rendu suivant (voir plus bas) : pas de duplication
+    // d'état local pour un succès qui se reflète déjà ailleurs.
+  };
 
   // Changement de mot de passe (Refactor UI, 28/07, "Réglages — Mon Compte")
   // — même schéma que l'édition d'e-mail juste au-dessus, formulaire dédié
@@ -323,6 +363,85 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
               </div>
             ) : user ? (
               <>
+                {/* Pseudonyme — Feature (28/07, "identifiant public
+                    immuable"). Placé EN PREMIER, au-dessus de l'e-mail
+                    (même logique que le brief : l'identité publique avant
+                    les identifiants de connexion). 3 états distincts :
+                    (1) en cours de vérification (`usernameLoading`) — rien
+                    n'est affiché plutôt qu'un flash "aucun pseudonyme"
+                    trompeur le temps de la requête ; (2) déjà défini — un
+                    badge "Non modifiable" (cadenas) à la place du bouton
+                    "Modifier", pour matérialiser l'immuabilité aussi
+                    explicitement que le demande le brief ; (3) compte
+                    existant SANS pseudonyme (créé avant cette
+                    fonctionnalité, voir "rétrocompatibilité") — un
+                    formulaire de définition, permis UNE SEULE fois (le
+                    verrou réel vit côté serveur, voir AuthContext.jsx/
+                    supabase-schema.sql — ceci n'est qu'un reflet côté UI). */}
+                {!usernameLoading && (
+                  username ? (
+                    <div className={`flex items-center justify-between p-4 rounded-2xl border ${inputBorder} ${inputBg} mb-3`}>
+                      <div className="flex items-center space-x-4 min-w-0 flex-1">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${textMuted} bg-black/5 dark:bg-white/5`}>
+                          <AtSign size={22} />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className={`font-bold text-lg truncate ${textHighlight}`}>@{username}</h4>
+                          <p className={`text-sm ${textMuted}`}>Pseudonyme</p>
+                        </div>
+                      </div>
+                      <div className={`shrink-0 ml-3 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold ${textMuted}`} title="Le pseudonyme est définitif, il ne peut plus être modifié.">
+                        <Lock size={14} /> Non modifiable
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={`p-4 rounded-2xl border ${inputBorder} ${inputBg} mb-3`}>
+                      <div className="flex items-center space-x-4 mb-3">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${textMuted} bg-black/5 dark:bg-white/5`}>
+                          <AtSign size={22} />
+                        </div>
+                        <div>
+                          <h4 className={`font-bold text-lg ${textHighlight}`}>Choisis ton pseudonyme</h4>
+                          <p className={`text-sm ${textMuted}`}>Ton compte a été créé avant cette fonctionnalité — définis-le maintenant (une seule fois, définitif).</p>
+                        </div>
+                      </div>
+                      <form onSubmit={handleUsernameFormSubmit} className="flex items-center gap-2">
+                        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border flex-1 min-w-0 ${
+                          usernameFieldStatus === 'taken' || usernameFieldStatus === 'invalid' ? 'border-red-500' :
+                          usernameFieldStatus === 'available' ? 'border-green-500' : inputBorder
+                        } ${inputBg}`}>
+                          <span className={textMuted}>@</span>
+                          <input
+                            type="text" autoComplete="off" placeholder="alex_runner"
+                            value={usernameField}
+                            onChange={e => { setUsernameFieldValue(e.target.value.toLowerCase()); setUsernameFieldStatus(null); setUsernameFieldError(''); }}
+                            onBlur={handleUsernameFieldBlur}
+                            className={`flex-1 min-w-0 bg-transparent outline-none text-sm ${textHighlight}`}
+                          />
+                          {usernameFieldStatus === 'checking' && <Loader2 size={14} className={`animate-spin ${textMuted}`}/>}
+                        </div>
+                        <button
+                          type="submit" disabled={usernameSubmitting}
+                          className="shrink-0 px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg transition-all disabled:opacity-60 text-sm"
+                        >
+                          Valider
+                        </button>
+                      </form>
+                      <p className={`text-xs mt-1.5 ${
+                        usernameFieldStatus === 'taken' || usernameFieldStatus === 'invalid' ? 'text-red-500' :
+                        usernameFieldStatus === 'available' ? 'text-green-500' : textMuted
+                      }`}>
+                        {usernameFieldError || (
+                          usernameFieldStatus === 'taken' ? 'Ce pseudonyme est déjà pris.'
+                          : usernameFieldStatus === 'invalid' ? '3 à 20 caractères : minuscules, chiffres, underscore.'
+                          : usernameFieldStatus === 'available' ? 'Disponible !'
+                          : 'Définitif — impossible à modifier ensuite.'
+                        )}
+                      </p>
+                    </div>
+                  )
+                )}
+
                 <div className={`flex items-center justify-between p-4 rounded-2xl border ${inputBorder} ${inputBg}`}>
                   <div className="flex items-center space-x-4 min-w-0 flex-1">
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${textMuted} bg-black/5 dark:bg-white/5`}>
