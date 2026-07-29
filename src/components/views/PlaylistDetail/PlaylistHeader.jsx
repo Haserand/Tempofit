@@ -144,7 +144,7 @@ export default function PlaylistHeader({
   return (
     <div
       className={
-        "relative rounded-2xl p-6 md:p-8 border border-white/10 shadow-xl backdrop-blur-md " +
+        "relative w-full rounded-2xl p-6 md:p-8 border border-white/10 shadow-xl backdrop-blur-md " +
         "bg-gradient-to-br from-slate-900/90 via-slate-900/60 to-slate-800/40 " +
         "flex flex-col md:flex-row items-start gap-6 md:gap-8"
       }
@@ -216,6 +216,17 @@ export default function PlaylistHeader({
           partir de `md:` : en dessous, la pochette est empilée AU-DESSUS de
           ce bloc (pas à côté), donc rien à aligner sur sa hauteur ici. */}
       <div className="flex-1 flex flex-col md:h-32 gap-2 text-center md:text-left w-full min-w-0">
+          {/* Fix UI (27/07) : `pr-32 md:pr-40` ici, sur le badge de
+              complétion + titre + ligne de métadonnées SEULEMENT — pas sur
+              toute cette colonne flex-1 (qui contient aussi la rangée
+              d'actions juste en dessous). Les boutons ("Retirer de Mes
+              Séances", "Planifier", "Partager"...) n'ont aucune raison
+              d'être rétrécis : ils sont en flex-wrap et se replient déjà
+              proprement, et l'écran constaté (voir capture) montrait le
+              texte du titre menacé, pas les boutons. Même convention que
+              ViewHeader.jsx (`pr-32 md:pr-40` appliqué au conteneur du
+              titre/sous-titre, jamais aux actions). */}
+          <div className="pr-32 md:pr-40 flex flex-col gap-2">
           {/* Badge "séance déjà réalisée" + dernière date — seul élément
               qui peut légitimement précéder le titre (information sur la
               séance elle-même, pas une action). Bloc entier conditionné à
@@ -319,6 +330,7 @@ export default function PlaylistHeader({
                 </>
               );
             })()}
+          </div>
           </div>
 
           {/* Ligne d'actions — hiérarchie explicite : action PRINCIPALE d'abord
