@@ -302,7 +302,7 @@ function AppContent({
   // `isAuthModalOpen` vivait ici (state local) avant le chantier "centraliser
   // les modales" (25/07) — dérivée maintenant de ModalContext
   // (`activeModal === 'AUTH'`), voir ModalContainer.jsx.
-  const { user, signUp, signIn, signOut, resetPassword, updateEmail, updatePassword, exportUserData, eraseUserData, isSupabaseConfigured, userCount } = useAuthContext();
+  const { user, signUp, signIn, signOut, resetPassword, updateEmail, updatePassword, exportUserData, eraseUserData, isSupabaseConfigured, userCount, username, usernameLoading, checkUsernameAvailable, setUsername } = useAuthContext();
 
   // RETOUR DIRECT ("pas de message d'erreur quand je clique sur un lien
   // expiré ?") — Supabase redirige bien vers l'app avec le détail de
@@ -1310,17 +1310,39 @@ function AppContent({
                   <div ref={userMenuRef} className="relative">
                     <button
                       onClick={() => setIsUserMenuOpen((v) => !v)}
-                      title={user.email}
+                      title={username ? `@${username}` : user.email}
                       className="w-11 h-11 rounded-full shadow-lg border hover:scale-110 transition-transform flex items-center justify-center bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-500 border-green-200 dark:border-green-700/50 font-bold cursor-pointer"
                     >
-                      {user.email.charAt(0).toUpperCase()}
+                      {/* Initiale du PSEUDONYME plutôt que de l'e-mail
+                          (Feature, 28/07, "identifiant public") — repli sur
+                          l'e-mail tant que `username` n'est pas encore
+                          chargé/défini (comptes créés avant cette
+                          fonctionnalité, voir SettingsView.jsx pour le
+                          formulaire de 1re définition). */}
+                      {(username || user.email).charAt(0).toUpperCase()}
                     </button>
 
                     {isUserMenuOpen && (
                       <div className={`absolute right-0 mt-2 w-60 rounded-xl border ${cardBorder} ${cardBg} shadow-xl z-50 overflow-hidden`}>
                         <div className="px-4 py-3">
-                          <p className={`text-xs ${textMuted}`}>Connecté en tant que</p>
-                          <p className={`text-sm font-bold truncate ${textHighlight}`}>{user.email}</p>
+                          {/* Pseudonyme en gras + e-mail en texte secondaire
+                              juste en dessous (Feature, 28/07) — remplace
+                              l'ancien "Connecté en tant que [email]" : le
+                              pseudonyme est maintenant l'identité mise en
+                              avant, l'e-mail redevient une information
+                              secondaire. Repli sur l'ancien affichage tant
+                              que `username` n'existe pas encore. */}
+                          {username ? (
+                            <>
+                              <p className={`text-sm font-bold truncate ${textHighlight}`}>@{username}</p>
+                              <p className={`text-xs truncate ${textMuted}`}>{user.email}</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className={`text-xs ${textMuted}`}>Connecté en tant que</p>
+                              <p className={`text-sm font-bold truncate ${textHighlight}`}>{user.email}</p>
+                            </>
+                          )}
                         </div>
                         <div className={`border-t ${cardBorder} my-0`} />
                         <button
@@ -1435,6 +1457,7 @@ function AppContent({
                 spotifyRedirectUri={REDIRECT_URI}
                 user={user} updateEmail={updateEmail} isSupabaseConfigured={isSupabaseConfigured}
                 updatePassword={updatePassword} exportUserData={exportUserData} eraseUserData={eraseUserData}
+                username={username} usernameLoading={usernameLoading} checkUsernameAvailable={checkUsernameAvailable} setUsername={setUsername}
                 userCount={userCount}
                 isNaughtyMode={isNaughtyMode} showToast={showToast} changeView={changeView}
               />
@@ -1612,7 +1635,7 @@ function AppContent({
             l'instant (voir ModalContext.jsx pour le détail du périmètre). */}
         <ModalContainer
           theme={themeTokens}
-          signUp={signUp} signIn={signIn} resetPassword={resetPassword} showToast={showToast}
+          signUp={signUp} signIn={signIn} resetPassword={resetPassword} checkUsernameAvailable={checkUsernameAvailable} showToast={showToast}
           onImportSharedPlaylist={importSharedPlaylist}
           resolvePendingNavigation={resolvePendingNavigation}
           removeSavedPlaylist={removeSavedPlaylist}
