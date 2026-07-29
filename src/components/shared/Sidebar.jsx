@@ -320,22 +320,22 @@ export default function Sidebar({
                header du logo, posé APRÈS sa propre bordure : 8px + 8px =
                16px de bordure à texte en haut ; `pt-4` = 16px reproduit
                exactement ce total ici, pas une valeur approchante). */}
-        <div className={`flex flex-col space-y-2 pt-4 pb-4 px-4 border-t-2 ${cardBorderStrong}`}>
-          {/* Fix UI (28/07, retour direct : "Réglages ne doit pas attirer
-              l'œil plus que Statistiques") — RETIRÉ : le style bouton
-              PRIMAIRE (`view === 'settings' ? bgAccentClass text-white` — le
-              même mécanisme actif/rouge que les autres liens de nav) que ce
-              bouton avait hérité en copiant leurs classes. Volontairement
-              une EXCEPTION à la convention "actif = accent" du reste de la
-              Sidebar : ce bouton reste TOUJOURS dans son style discret par
-              défaut (`${textMuted} hover:bg-surface-hover hover:text-main`),
-              même quand `view === 'settings'` — Réglages n'est pas un point
-              d'attention comme "Nouvelle séance", juste un accès utilitaire
-              parmi d'autres. Padding vertical du CONTENEUR (`pt-4 pb-4`,
-              symétrique) plutôt qu'un mélange pt-4/pas-de-pb comme avant
-              (ligne de bordure du crédit juste en dessous — sans pb-4, le
-              bouton collait contre elle alors qu'il respirait 16px côté
-              bordure macro du dessus). */}
+        <div className={`flex flex-col space-y-2 py-2 px-4 border-t-2 ${cardBorderStrong}`}>
+          {/* Fix UI (28/07, retour direct : "footer trop encombré, coupe
+              Statistiques au-dessus") — `pt-4 pb-4` (16px/16px, hérité du
+              fix Boy Scout précédent, pensé pour un footer à 2 boutons +
+              titre) devenu excessif maintenant que ce conteneur n'abrite
+              plus qu'UN SEUL bouton, déjà doté de son propre padding
+              interne (`py-2.5`) : `py-2` (8px/8px) suffit largement à le
+              faire respirer, tout en restant strictement symétrique
+              haut/bas. Le gain (16px) redescend directement dans la zone
+              scrollable juste au-dessus. */}
+          {/* Style volontairement DISCRET (28/07, retour direct : "Réglages
+              ne doit pas attirer l'œil plus que Statistiques") — pas de
+              mécanisme actif/rouge comme les autres liens de nav
+              (`view === 'settings' ? bgAccentClass...`), même quand cette
+              vue est active : Réglages reste un accès utilitaire parmi
+              d'autres, pas un point d'attention comme "Nouvelle séance". */}
           <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${textMuted} hover:bg-surface-hover hover:text-main`}>
             <Settings size={18} className={textColorClass} />
             <span className="font-bold text-sm">Réglages</span>
