@@ -405,11 +405,14 @@ function PlaylistDetailViewInner({
       </button>
 
       {/* En-tête — extrait dans PlaylistHeader.jsx (chantier découpage,
-          suite de TrackList/TrackItem). Le coin supérieur droit global est
-          maintenant vide de tout élément flottant (Fix UI 27/07 — Thème
-          déménagé dans Sidebar.jsx, "Se connecter" en cours de discussion,
-          voir App.jsx) : plus besoin de réserver de "Safe Zone" ici, la
-          carte respire sur toute sa largeur — voir PlaylistHeader.jsx. */}
+          suite de TrackList/TrackItem). Le coin supérieur droit global n'a
+          plus qu'UN SEUL élément potentiellement flottant ici (Thème
+          déménagé dans Sidebar.jsx ; "Se connecter" conditionné à
+          `!isGuestBarVisible`, voir App.jsx) — et sur CETTE vue précise, une
+          playlist affichée implique toujours au moins une donnée
+          sauvegardée, donc GuestModeBar est déjà visible et ce bouton déjà
+          masqué : plus besoin de "Safe Zone" ici, la carte respire sur
+          toute sa largeur — voir PlaylistHeader.jsx. */}
       <PlaylistHeader
         theme={theme} isLocked={isLocked} savedPlaylists={savedPlaylists}
         resolveAndTogglePreview={resolveAndTogglePreview} getNextTrackForAutoAdvance={getNextTrackForAutoAdvance}
