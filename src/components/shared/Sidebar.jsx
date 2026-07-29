@@ -330,17 +330,36 @@ export default function Sidebar({
             href="https://www.linkedin.com/in/damiengrange/"
             target="_blank"
             rel="noopener noreferrer"
-            className={`text-xs font-medium truncate ${textMuted} hover:text-main transition-colors`}
+            className={`text-xs font-medium truncate ${textMuted}`}
           >
-            {/* Signature mise en valeur (27/07) — `textHighlight` (déjà
-                utilisé plus haut pour le logo "TempoFit") au lieu du
-                `text-white` en dur demandé initialement : ce fond
-                (cardBg) est adaptatif clair/sombre, un blanc fixe serait
-                illisible en thème clair. `textHighlight` produit le même
-                effet "texte proéminent" dans les deux thèmes. `underline`
-                retiré (l'emphase vient maintenant du contraste + gras,
-                plus de l'underline). */}
-            Un projet créé par <span className={`font-bold ${textHighlight}`}>Damien Grangé</span>
+            {/* Signature redevenue discrète (27/07, retour direct : "trop
+                bruyante, `font-bold` + highlight") — `font-bold`/
+                `textHighlight` retirés du nom ; toute la phrase reste au
+                même ton `textMuted` au repos, SEUL le nom réagit au survol
+                (`underline decoration-transparent hover:decoration-current`
+                + couleur d'accent, pour garder l'affordance de lien LinkedIn
+                sans repeindre toute la phrase).
+                PIÈGE TAILWIND ÉVITÉ (voir bottomBarLayout.js/passation du
+                26-27/07, même piège que `hover:${'${cardBg}'}` jamais
+                généré) : `hover:${'${textColorClass}'}` construit par
+                interpolation N'AURAIT PAS marché — Tailwind scanne le texte
+                SOURCE littéralement, une classe assemblée à l'exécution
+                n'apparaît jamais telle quelle dans le fichier. Écrit ici en
+                toutes lettres pour CHACUNE des 2 classes composant
+                `textColorClass` (voir sa définition, useTheme.js :
+                `text-{couleur}-500 dark:text-{couleur}-500/400`), sous
+                forme d'un ternaire complet sur `isNaughtyMode` — même
+                technique déjà utilisée juste au-dessus dans ce fichier pour
+                le halo du logo en Mode Intime. */}
+            Un projet créé par{' '}
+            <span
+              className={
+                "underline decoration-transparent underline-offset-4 transition-colors duration-200 hover:decoration-current " +
+                (isNaughtyMode ? "hover:text-rose-500 dark:hover:text-rose-400" : "hover:text-red-500 dark:hover:text-red-500")
+              }
+            >
+              Damien Grangé
+            </span>
           </a>
         </div>
       </div>
