@@ -289,8 +289,26 @@ export default function Sidebar({
       <div className="shrink-0">
 
         {/* --- RÉGLAGES --- */}
-        <div className={`flex flex-col space-y-1 px-4 border-t ${cardBorder}`}>
-          <div className={`px-3 mt-8 mb-3 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Réglages</div>
+        {/* Fix UI Boy Scout (28/07, retour direct : "espace beaucoup trop
+            grand par rapport au haut, bordure quasi invisible") — 2
+            incohérences corrigées par rapport au header (`border-b-2
+            ${cardBorderStrong}` + conteneur scrollable `py-2` avant
+            "Création", voir plus haut) :
+            1. Bordure passée de `border-t ${cardBorder}` (micro, 1px —
+               pensée pour du contenu interne, pas pour séparer 2 BLOCS
+               structurels) à `border-t-2 ${cardBorderStrong}` (macro, 2px —
+               même token que la bordure du logo tout en haut).
+            2. `mt-8` (ajouté par erreur lors du chantier hiérarchie des
+               en-têtes, 27/07 — pensé pour séparer 2 sections DANS la même
+               zone scrollable, pas pour l'espacement bordure-titre du
+               footer) retiré de l'en-tête ; `pt-4` posé à la place sur CE
+               conteneur. PAS `pt-2` (l'espacement du haut n'est pas QUE le
+               `py-2` du conteneur scrollable — il s'additionne au `mb-2` du
+               header du logo, posé APRÈS sa propre bordure : 8px + 8px =
+               16px de bordure à texte en haut ; `pt-4` = 16px reproduit
+               exactement ce total ici, pas une valeur approchante). */}
+        <div className={`flex flex-col space-y-1 pt-4 px-4 border-t-2 ${cardBorderStrong}`}>
+          <div className={`px-3 mb-3 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Réglages</div>
 
           {/* Masqué en Mode Intime (retour direct : "n'a aucun sens
               fonctionnel dans ce mode et affiche une page vide") — le Profil
