@@ -1,5 +1,9 @@
 import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, ListPlus, Compass, Sun, Moon } from 'lucide-react';
 import { MINI_PLAYER_BAR_HEIGHT_PX, GUEST_MODE_BAR_HEIGHT_PX } from '../../bottomBarLayout';
+import {
+  SIDEBAR_LINK_PADDING, SIDEBAR_LINK_GAP, SIDEBAR_SECTION_TITLE_MARGIN,
+  SIDEBAR_SEPARATOR_MARGIN, SIDEBAR_SCROLL_PADDING, SIDEBAR_FOOTER_LINK_PADDING,
+} from '../../sidebarLayout';
 
 /**
  * Sidebar — navigation principale (logo, bouton Trophées si connecté, liens
@@ -98,11 +102,14 @@ export default function Sidebar({
   // juste plus bas, pas à réserver un espace vide.
   // MINI_PLAYER_BAR_HEIGHT_PX/GUEST_MODE_BAR_HEIGHT_PX importées depuis
   // bottomBarLayout.js (27/07) — seule source de vérité pour ces 2 nombres,
-  // partagée avec les classes Tailwind `h-[90px]`/`h-[40px]` de
+  // partagée avec les classes Tailwind `h-[90px]`/`h-[64px]` de
   // MiniPlayerBar.jsx/GuestModeBar.jsx (qui, elles, DOIVENT rester écrites
   // en dur — voir bottomBarLayout.js pour la contrainte Tailwind derrière ce
   // choix). `null` = aucune barre visible, la case crédit garde sa hauteur
   // naturelle (basée sur son padding).
+  // (Les autres réglages d'espacement de ce fichier — paddings des liens,
+  // marges des titres, séparateur — sont centralisés dans sidebarLayout.js,
+  // voir ce fichier pour le pourquoi de chaque valeur actuelle.)
   const creditRowHeight = playerBarVisible && guestBarVisible
     ? MINI_PLAYER_BAR_HEIGHT_PX + GUEST_MODE_BAR_HEIGHT_PX
     : playerBarVisible
@@ -191,7 +198,7 @@ export default function Sidebar({
           au-dessus dépassait la hauteur disponible. `px-4` (absent de la
           demande initiale mais nécessaire) : remplace le padding horizontal
           qu'apportait jusqu'ici le conteneur unique qu'on scinde ici. */}
-      <div className="flex-1 overflow-y-auto no-scrollbar py-4 px-4">
+      <div className={`flex-1 overflow-y-auto no-scrollbar ${SIDEBAR_SCROLL_PADDING}`}>
       {isNaughtyMode && (
         <div className={`py-2 border-b ${cardBorder}`}>
           {/* Mêmes classes que les boutons du menu juste en dessous
@@ -200,7 +207,7 @@ export default function Sidebar({
               plutôt qu'un style à part. */}
           <button
             onClick={toggleNaughtyMode}
-            className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer text-rose-500 hover:bg-rose-500/10"
+            className={`w-full flex items-center space-x-3 ${SIDEBAR_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer text-rose-500 hover:bg-rose-500/10`}
           >
             <Heart size={18} className="fill-rose-500" />
             <span className="font-bold text-sm">Quitter le Mode Intime</span>
@@ -217,116 +224,52 @@ export default function Sidebar({
           par défaut d'un <button>, mais explicite plutôt qu'implicite).
 
           3 clusters par INTENTION (voir docstring en haut de fichier), chacun
-          un conteneur `flex flex-col space-y-1` (espacement interne serré).
-          Hiérarchie des en-têtes de section renforcée (28/07, retour direct :
-          "CRÉATION/MON ESPACE/RÉGLAGES manquent de distinction, se font
-          écraser par les boutons actifs") — typographie "chapeau de
-          section" (`text-[10px] sm:text-xs uppercase tracking-widest
-          font-bold`, ${'${textMuted}'} — PAS de slate-500/400 codé en dur :
-          textMuted est le token déjà adaptatif clair/sombre ET Mode Intime,
-          voir useTheme.js, un hardcode perdrait ce dernier réglage) +
-          respiration portée par l'en-tête de "Mon Espace" (`mt-4` — voir
-          plus bas), plutôt que `mb-8` sur le conteneur "Création" précédent
-          comme avant, pour ne jamais l'additionner deux fois entre les 2
-          sections.
-          Densité verticale resserrée EN 2 PASSES (28/07, retour direct :
-          "Mes Favoris passe sous la ligne de flottaison à 100% de zoom") —
-          1re passe : `py-3` → `py-2.5`, "Mon Espace" `mt-8` → `mt-6`,
-          uniquement dans la zone SCROLLABLE (Création + Mon Espace + le
-          toggle Mode Intime juste au-dessus), footer RÉGLAGES pas touché
-          (hors budget de hauteur, symétrie Boy Scout préservée). Insuffisant
-          (retour direct : "toujours coupé") — 2e passe, plus agressive :
-          `py-2.5` → `py-2` PARTOUT, y COMPRIS le footer RÉGLAGES ; en-têtes
-          "Création"/"Mon Espace" : `mb-3` → `mb-1.5`, "Mon Espace"
-          `mt-6` → `mt-4`.
-          3e passe — DÉCOMPRESSION assumée (28/07, retour direct suivant :
-          "la Sidebar a perdu son élégance") — la fusion du footer Réglages
-          en un seul bouton (voir plus bas) a entre-temps libéré assez de
-          hauteur pour ne plus avoir besoin de la 2e passe : `py-2` →
-          `py-2.5` à nouveau PARTOUT (liens de nav + Réglages), `space-y-1`
-          → `space-y-2`, en-têtes `mb-1.5` → `mb-3`. "Mon Espace" `mt-4`
-          délibérément PAS remonté à `mt-6` (pas demandé cette fois, et la
-          fusion du footer a changé l'équation de hauteur disponible —
-          inutile de redonner tout ce qu'avait pris la 2e passe).
-          4e passe — DISTRIBUTION VERTICALE finale (28/07, retour direct
-          suivant : "le menu paraît tassé en haut" après la refonte du
-          footer Réglages/crédit qui a libéré ENCORE plus de hauteur
-          scrollable) — `py-2.5` → `py-3` PARTOUT (liens de nav, PAS le
-          bouton Réglages du footer : lui reste `py-1.5`, toujours contraint
-          par une hauteur stricte, voir plus bas) ; en-têtes `mb-3` →
-          `mb-4` ; "Mon Espace" `mt-4` → `mt-12` CETTE FOIS (demande
-          explicite de "cassure visuelle évidente" entre Création et Mon
-          Espace, contrairement aux 2 passes précédentes qui l'avaient
-          délibérément laissé bas) ; `mb-6` ajouté DIRECTEMENT sur le bouton
-          "Nouvelle séance" (en plus du `space-y-2` du conteneur, qui régit
-          l'écart uniforme entre TOUS les autres liens) pour l'isoler
-          spécifiquement des liens secondaires qui le suivent, sans élargir
-          l'écart Mes Routines↔Découvrir.
-          5e passe — CORRECTIF anti-scroll (28/07, retour direct suivant,
-          capture à l'appui : "mt-12 pousse le contenu sous la ligne de
-          flottaison, scroll indésirable qui masque le haut du menu") —
-          `mt-12` → `mt-6` (borne basse de la fourchette suggérée,
-          délibérément prudent après cette succession de 5 passes dans les
-          2 sens sur la même journée) ; `py-3` → `py-2.5` PARTOUT en plus,
-          appliqué de façon PROACTIVE (pas en attendant un nouvel aller-
-          retour) — sans navigateur réel pour confirmer visuellement dans
-          cet environnement, corriger les 2 leviers en même temps limite le
-          risque d'un 6e cycle. `mb-6` sur "Nouvelle séance" INCHANGÉ (pas
-          mis en cause par ce retour).
-          6e passe — SÉPARATEUR physique (28/07, retour direct suivant :
-          "rythme vertical erratique, espaces immenses sous Création") — le
-          VRAI coupable de cet espace "immense" était le `mb-6` isolé sur le
-          bouton "Nouvelle séance" (posé lors de la 4e passe) : retiré,
-          retour à un `space-y-2` uniforme sur TOUS les liens de la section,
-          y compris "Nouvelle séance". `mt-6` de "Mon Espace" retiré à son
-          tour, remplacé par un vrai `<div border-t ... my-5>` entre les 2
-          groupes — une ligne physique plutôt qu'un vide pour marquer la
-          rupture, `border-divider` (micro, pas macro : sépare 2 groupes de
-          liens DANS la même zone scrollable, pas 2 blocs structurels).
-          7e passe — SYMÉTRIE du conteneur PARENT (28/07, retour direct
-          suivant, mesuré précisément cette fois : "l'écart haut/bas de la
-          zone scrollable n'est PAS symétrique, en plus de forcer un
-          scroll") — cause réelle trouvée : le conteneur "Mon Espace"
-          portait un `mb-8` (32px) après "Statistiques", alors que le
-          conteneur scrollable lui-même n'avait que `py-2` (8px) de padding
-          — 8px en haut vs 8+32=40px en bas, jamais symétrique. `mb-8`
-          retiré (dernier enfant, aucune raison de porter sa propre marge
-          de fin) ; `py-2` → `py-4` sur le conteneur scrollable LUI-MÊME,
-          désormais SEULE source de l'espacement haut/bas de cette zone —
-          16px pile des deux côtés, aucun enfant ne vient plus perturber ce
-          calcul.
-          8e passe — VÉRIFICATION + ajustement fin (28/07, retour direct
-          suivant : "écart Création↔bouton toujours plus grand qu'Mon
-          Espace↔Mes Séances") — vérifié précisément avant de toucher quoi
-          que ce soit (voir passes 6/7 ci-dessus) : les 2 titres étaient
-          DÉJÀ à `mb-4` symétrique, sans AUCUN `mt-*`, et "Nouvelle séance"
-          n'avait AUCUNE marge propre — rien à corriger sur ces 3 points
-          précis, déjà réglés par les passes précédentes. Seul le
-          séparateur central ajusté : `my-5` → `my-6` (24px), pour mieux
-          occuper l'espace vertical disponible, comme suggéré.
-          9e passe — "RÉGIME DES 3 PIXELS" (28/07, retour direct suivant :
-          "micro-scroll de 2-3px persiste") — `my-6` → `my-5` (retour en
-          arrière ciblé sur CE SEUL réglage, 8px gagnés au total sur les 2
-          côtés du séparateur) ; égalité des 2 titres (`mb-4`/`mb-4`, sans
-          `mt-*` sur les boutons juste après) RE-VÉRIFIÉE — déjà strictement
-          identique depuis la 8e passe, rien à changer sur ce point précis. */}
+          un conteneur `flex flex-col ${'${SIDEBAR_LINK_GAP}'}`. Typographie
+          "chapeau de section" sur les titres (`text-[10px] sm:text-xs
+          uppercase tracking-widest font-bold`, ${'${textMuted}'} — PAS de
+          slate-500/400 codé en dur : textMuted est le token déjà adaptatif
+          clair/sombre ET Mode Intime, voir useTheme.js, un hardcode perdrait
+          ce dernier réglage).
+
+          ⚠️ HISTORIQUE DE 9 PASSES (28/07) sur ces espacements — retiré
+          d'ici (28/07 suite, "chantier en suspens" traité) : les valeurs
+          ci-dessous sont parties dans les 2 sens plusieurs fois le même jour
+          (`py-2` ↔ `py-2.5` ↔ `py-3`, `my-5` ↔ `my-6`, `mt-4` ↔ `mt-6` ↔
+          `mt-12`...) avant de se stabiliser. Le récit complet de CE
+          POURQUOI (quel retour a motivé quel changement, dans quel ordre)
+          vivait ici en commentaire — désormais dans l'historique Git de ce
+          fichier plutôt que dupliqué en prose à cet endroit, pour ne pas
+          laisser grossir indéfiniment ce bloc à chaque futur ajustement.
+          Les valeurs FINALES stabilisées, elles, vivent maintenant dans
+          `src/sidebarLayout.js` (constantes `SIDEBAR_LINK_PADDING`,
+          `SIDEBAR_SECTION_TITLE_MARGIN`, `SIDEBAR_SEPARATOR_MARGIN`,
+          `SIDEBAR_SCROLL_PADDING`, `SIDEBAR_FOOTER_LINK_PADDING`) — TOUT
+          futur ajustement doit changer LÀ-BAS, pas ici, pour rester la
+          référence unique. Résumé de l'état final (pour lecture rapide sans
+          ouvrir l'autre fichier) : liens de nav en `py-2.5`, titres de
+          section en `mb-4` (strictement identiques, sans `mt-*` sur le
+          bouton suivant), séparateur physique en `my-5` (pas un simple
+          vide), conteneur scrollable en `py-4` (seule source de l'équilibre
+          haut/bas, aucun enfant ne doit plus porter sa propre marge de fin),
+          bouton Réglages du footer en `py-1.5` (délibérément différent : ce
+          conteneur a une hauteur stricte à respecter, voir plus bas). */}
       <nav className="flex flex-col">
 
         {/* --- CRÉATION --- */}
-        <div className="flex flex-col space-y-2">
-          <div className={`px-3 mb-4 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Création</div>
+        <div className={`flex flex-col ${SIDEBAR_LINK_GAP}`}>
+          <div className={`px-3 ${SIDEBAR_SECTION_TITLE_MARGIN} text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Création</div>
 
-          <button onClick={() => changeView('generator')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('generator')} className={`w-full flex items-center space-x-3 ${SIDEBAR_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Zap size={18} className={view === 'generator' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Nouvelle séance</span>
           </button>
 
-          <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 ${SIDEBAR_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <ListPlus size={18} className={view === 'routines' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Mes Routines</span>
           </button>
 
-          <button onClick={() => changeView('discover')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'discover' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('discover')} className={`w-full flex items-center space-x-3 ${SIDEBAR_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${view === 'discover' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Compass size={18} className={view === 'discover' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Découvrir</span>
           </button>
@@ -335,32 +278,32 @@ export default function Sidebar({
         {/* Séparateur physique (28/07, "Polish UI — normalisation du rythme
             vertical") — remplace la marge géante (`mt-6`/`mt-8`, avant sur
             l'en-tête de "Mon Espace") par une VRAIE ligne de démarcation
-            entre les 2 univers ("Création" et "Mon Espace"), avec une marge
-            modérée qui porte l'espacement à elle seule (`my-5` = 20px de
-            chaque côté). `border-divider` (micro, 1px, ${'${cardBorder}'})
-            plutôt que `border-divider-strong` : cette ligne sépare 2
-            GROUPES DE LIENS à l'intérieur de la même zone scrollable, pas 2
-            BLOCS structurels de la Sidebar (header/scrollable/footer, qui
-            eux utilisent la bordure macro 2px — voir plus haut/plus bas
-            dans ce fichier) — same distinction que cardBorder/
-            cardBorderStrong partout ailleurs dans l'app (voir useTheme.js). */}
-        <div className={`border-t ${cardBorder} w-full my-5`}></div>
+            entre les 2 univers ("Création" et "Mon Espace"). `border-divider`
+            (micro, 1px, ${'${cardBorder}'}) plutôt que `border-divider-strong` :
+            cette ligne sépare 2 GROUPES DE LIENS à l'intérieur de la même
+            zone scrollable, pas 2 BLOCS structurels de la Sidebar (header/
+            scrollable/footer, qui eux utilisent la bordure macro 2px — voir
+            plus haut/plus bas dans ce fichier) — même distinction que
+            cardBorder/cardBorderStrong partout ailleurs dans l'app (voir
+            useTheme.js). Marge (`SIDEBAR_SEPARATOR_MARGIN`) centralisée dans
+            sidebarLayout.js — voir ce fichier pour la valeur actuelle. */}
+        <div className={`border-t ${cardBorder} w-full ${SIDEBAR_SEPARATOR_MARGIN}`}></div>
 
         {/* --- MON ESPACE --- */}
-        <div className="flex flex-col space-y-2">
-          <div className={`px-3 mb-4 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Mon Espace{!user && ' • Invité'}</div>
+        <div className={`flex flex-col ${SIDEBAR_LINK_GAP}`}>
+          <div className={`px-3 ${SIDEBAR_SECTION_TITLE_MARGIN} text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Mon Espace{!user && ' • Invité'}</div>
 
-          <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 ${SIDEBAR_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <List size={18} className={view === 'playlists' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Mes Séances</span>
           </button>
 
-          <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 ${SIDEBAR_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Star size={18} className={favorites.useFavorites && favorites.artists.length > 0 ? "text-yellow-500 fill-yellow-500/20" : (view === 'favorites' ? 'text-white' : '')} />
             <span className="font-bold text-sm">Mes Favoris</span>
           </button>
 
-          <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 ${SIDEBAR_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Activity size={18} className={view === 'stats' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Statistiques</span>
           </button>
@@ -402,7 +345,7 @@ export default function Sidebar({
               juste en dessous — un padding aussi généreux que les liens de
               la zone scrollable (qui, eux, ont de la place à volonté) ferait
               déborder l'ensemble hors de cette hauteur fixe. */}
-          <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 px-3 py-1.5 rounded-xl transition-colors select-none cursor-pointer ${textMuted} hover:bg-surface-hover hover:text-main`}>
+          <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 ${SIDEBAR_FOOTER_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${textMuted} hover:bg-surface-hover hover:text-main`}>
             <Settings size={18} className={textColorClass} />
             <span className="font-bold text-sm">Réglages</span>
           </button>
