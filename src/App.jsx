@@ -1233,19 +1233,27 @@ function AppContent({
               marge globale. */}
           <main id="main-scroll-area" className="relative flex-1 overflow-y-auto pt-6 sm:pt-8 px-4 sm:px-8 pb-4 sm:pb-8 no-scrollbar">
 
-            {/* Bloc connexion — Fix UI (27/07, "nettoyage global") : le
-                basculeur de thème qui vivait ici est PARTI dans Sidebar.jsx
-                (à côté de Trophées, dans son header fixe) — plus de risque de
-                collision avec le contenu des cartes pleine largeur (voir
-                PlaylistHeader.jsx, même session). Le bouton "Se connecter"
-                reste ICI pour l'instant (voir échange avec l'utilisateur :
-                risque de régression identifié — GuestModeBar.jsx ne s'affiche
-                que si `savedPlaylists.length > 0 || routines.length > 0`,
-                donc un tout nouveau visiteur sans aucune séance/routine n'a
-                AUCUN autre point d'entrée vers la connexion si ce bouton
-                disparaît — SettingsView.jsx a délibérément retiré son propre
-                bouton de connexion il y a deux jours, précisément parce qu'il
-                était jugé redondant avec CELUI-CI). */}
+            {/* Bloc connexion — Fix UI (27/07, "nettoyage global"), résolu
+                suite à l'échange avec l'utilisateur sur le risque de
+                "dead end" : le bouton "Se connecter" est maintenant
+                conditionné à `!isGuestBarVisible`, pas juste supprimé.
+                GuestModeBar.jsx ne s'affiche QUE si
+                `!user && (savedPlaylists.length > 0 || routines.length > 0)`
+                — donc, une fois qu'il existe au moins une séance ou une
+                routine, elle prend le relais comme SEUL point d'entrée vers
+                la connexion, et ce bouton ICI disparaît pour ne pas faire
+                doublon (c'est justement le cas sur PlaylistDetailView : une
+                playlist affichée implique forcément au moins une donnée,
+                donc GuestModeBar est déjà visible — la carte PlaylistHeader
+                respire sans collision, sans qu'aucun `pr-*` n'ait été remis).
+                À l'inverse, un tout nouveau visiteur SANS aucune séance ni
+                routine (GuestModeBar invisible) voit encore ce bouton — le
+                seul point d'entrée vers la connexion qui lui reste, cf.
+                SettingsView.jsx qui a délibérément retiré le sien pour ne
+                pas tripler ce même message. Le bouton Thème, lui, est
+                parti pour de bon dans Sidebar.jsx (à côté de Trophées) —
+                ce bloc ne contient donc plus jamais que ce SEUL bouton,
+                jamais les deux à la fois. */}
             <div className="absolute top-4 right-4 md:top-6 md:right-6 z-[60] flex items-center gap-2">
               {isSupabaseConfigured && (
                 user ? (
@@ -1256,7 +1264,7 @@ function AppContent({
                   >
                     {user.email.charAt(0).toUpperCase()}
                   </button>
-                ) : (
+                ) : !isGuestBarVisible && (
                   <button
                     onClick={() => openModal('AUTH')}
                     className={`px-4 py-2.5 rounded-full shadow-lg border hover:scale-105 transition-transform flex items-center gap-1.5 text-sm font-bold ${bgAccentClass} text-white border-transparent`}
