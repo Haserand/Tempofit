@@ -222,17 +222,24 @@ export default function Sidebar({
           par défaut d'un <button>, mais explicite plutôt qu'implicite).
 
           3 clusters par INTENTION (voir docstring en haut de fichier), chacun
-          un conteneur `flex flex-col space-y-1` (espacement interne serré)
-          séparé du suivant par `mb-8`/`mt-8` (respiration nette, constante,
-          entre groupes — jamais la même valeur qu'à l'intérieur d'un groupe).
-          Tous les boutons — plus de distinction "top-level" vs "sous-menu",
-          plus d'icône manquante ou de décalage `pl-[42px]` à maintenir en
-          synchronisation avec la largeur du parent. */}
+          un conteneur `flex flex-col space-y-1` (espacement interne serré).
+          Hiérarchie des en-têtes de section renforcée (28/07, retour direct :
+          "CRÉATION/MON ESPACE/RÉGLAGES manquent de distinction, se font
+          écraser par les boutons actifs") — typographie "chapeau de
+          section" (`text-[10px] sm:text-xs uppercase tracking-widest
+          font-bold`, ${'${textMuted}'} — PAS de slate-500/400 codé en dur :
+          textMuted est le token déjà adaptatif clair/sombre ET Mode Intime,
+          voir useTheme.js, un hardcode perdrait ce dernier réglage) +
+          respiration `mt-8` portée par l'en-tête de CHAQUE section (sauf la
+          toute première, "Création", qui n'a rien à repousser) plutôt que
+          `mb-8` sur le conteneur précédent comme avant — un seul et même
+          nombre (32px) porté par le bon élément à chaque fois, jamais
+          additionné deux fois entre deux sections. */}
       <nav className="flex flex-col">
 
         {/* --- CRÉATION --- */}
-        <div className="flex flex-col space-y-1 mb-8">
-          <div className={`px-3 mb-2 text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Création</div>
+        <div className="flex flex-col space-y-1">
+          <div className={`px-3 mb-3 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Création</div>
 
           <button onClick={() => { changeView('generator'); setShowAthleticProfile(false); }} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' && !showAthleticProfile ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Zap size={18} className={view === 'generator' && !showAthleticProfile ? 'text-white' : textColorClass} />
@@ -252,7 +259,7 @@ export default function Sidebar({
 
         {/* --- MON ESPACE --- */}
         <div className="flex flex-col space-y-1 mb-8">
-          <div className={`px-3 mb-2 text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Mon Espace{!user && ' • Invité'}</div>
+          <div className={`px-3 mt-8 mb-3 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Mon Espace{!user && ' • Invité'}</div>
 
           <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-3 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <List size={18} className={view === 'playlists' ? 'text-white' : textColorClass} />
@@ -282,8 +289,8 @@ export default function Sidebar({
       <div className="shrink-0">
 
         {/* --- RÉGLAGES --- */}
-        <div className={`flex flex-col space-y-1 pt-4 px-4 border-t ${cardBorder}`}>
-          <div className={`px-3 mb-2 text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Réglages</div>
+        <div className={`flex flex-col space-y-1 px-4 border-t ${cardBorder}`}>
+          <div className={`px-3 mt-8 mb-3 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Réglages</div>
 
           {/* Masqué en Mode Intime (retour direct : "n'a aucun sens
               fonctionnel dans ce mode et affiche une page vide") — le Profil
