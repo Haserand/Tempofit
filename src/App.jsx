@@ -1433,7 +1433,7 @@ function AppContent({
               <SettingsView
                 theme={themeTokens} spotifyToken={spotifyToken} loginSpotify={loginSpotify} setSpotifyToken={setSpotifyToken}
                 spotifyRedirectUri={REDIRECT_URI}
-                user={user} signOut={signOut} updateEmail={updateEmail} isSupabaseConfigured={isSupabaseConfigured}
+                user={user} updateEmail={updateEmail} isSupabaseConfigured={isSupabaseConfigured}
                 updatePassword={updatePassword} exportUserData={exportUserData} eraseUserData={eraseUserData}
                 userCount={userCount}
                 isNaughtyMode={isNaughtyMode} showToast={showToast} changeView={changeView}
