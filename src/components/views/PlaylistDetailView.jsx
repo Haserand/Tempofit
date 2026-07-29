@@ -384,25 +384,24 @@ function PlaylistDetailViewInner({
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       {/* En-tête — extrait dans PlaylistHeader.jsx (chantier découpage,
-          suite de TrackList/TrackItem). Pas de div "border-b pb-6" ici
-          (structure carte différente des autres vues, pas juste un titre
-          texte) — mais le même risque de collision avec les boutons
-          flottants Thème/Connexion s'applique à ses badges `absolute` en
-          haut à droite (médaille de rang, "Lecture seule") : `pr-32 md:pr-40`
-          appliqué ici, sur ce wrapper dédié, PAS sur le conteneur principal
-          juste au-dessus (qui, lui, doit garder sa pleine largeur pour le
-          reste de la page — la liste des titres, les graphiques...). */}
-      <div className="pr-32 md:pr-40">
-        <PlaylistHeader
-          theme={theme} isLocked={isLocked} savedPlaylists={savedPlaylists}
-          resolveAndTogglePreview={resolveAndTogglePreview} getNextTrackForAutoAdvance={getNextTrackForAutoAdvance}
-          setPlaylistPlannedDate={setPlaylistPlannedDate} bpmChartActivityName={bpmChartActivityName}
-          editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
-          editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
-          getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload}
-          onShare={handleShareClick}
-        />
-      </div>
+          suite de TrackList/TrackItem).
+          Fix UI (27/07) : le `pr-32 md:pr-40` vivait AVANT sur ce wrapper,
+          ce qui rétrécissait toute la carte (fond compris) en dessous de la
+          largeur du graphique juste en dessous — la carte suivait alors une
+          largeur "pleine largeur MOINS la zone anti-collision" au lieu de
+          "pleine largeur, avec juste le TEXTE protégé". Déplacé à
+          l'intérieur de PlaylistHeader.jsx, sur le conteneur du titre
+          uniquement (pas les boutons ni le fond) — voir la docstring de ce
+          composant. Ce wrapper ici n'a donc plus besoin d'exister. */}
+      <PlaylistHeader
+        theme={theme} isLocked={isLocked} savedPlaylists={savedPlaylists}
+        resolveAndTogglePreview={resolveAndTogglePreview} getNextTrackForAutoAdvance={getNextTrackForAutoAdvance}
+        setPlaylistPlannedDate={setPlaylistPlannedDate} bpmChartActivityName={bpmChartActivityName}
+        editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
+        editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
+        getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload}
+        onShare={handleShareClick}
+      />
 
       {/* Bloc d'analyse (courbe BPM + les 2 camemberts) — extrait dans
           PlaylistCharts.jsx. Réorganisation assumée : les camemberts sont
