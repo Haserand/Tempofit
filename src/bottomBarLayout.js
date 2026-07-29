@@ -22,12 +22,13 @@
  * pour que le scanner JIT la génère — une classe reconstruite par
  * interpolation (`` `h-[${GUEST_BAR_HEIGHT_PX}px]` ``) NE FONCTIONNERAIT
  * PAS, même en important la constante depuis ici. C'est pour ça que
- * MiniPlayerBar.jsx/GuestModeBar.jsx gardent `h-[90px]`/`h-[40px]` écrits en
+ * MiniPlayerBar.jsx/GuestModeBar.jsx gardent `h-[90px]`/`h-[64px]` écrits en
  * dur dans leur JSX (Tailwind doit les voir tels quels) — SEULE la valeur
  * numérique utilisée pour les calculs JS (`creditRowHeight` dans
  * Sidebar.jsx) est vraiment centralisée ici. Les deux classes Tailwind et
  * ces constantes doivent donc rester manuellement synchronisées EN VALEUR
- * (90 ↔ h-[90px], 40 ↔ h-[40px]) — ce fichier ne peut pas éliminer
+ * (90 ↔ h-[90px], 64 ↔ h-[64px] — bumpé depuis 40px le 28/07, voir passation
+ * de cette date) — ce fichier ne peut pas éliminer
  * complètement la duplication à cause de cette contrainte Tailwind, mais il
  * réduit le risque à UN SEUL calcul dérivé (creditRowHeight) au lieu de
  * trois copies indépendantes, et documente explicitement le lien à
