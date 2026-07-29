@@ -294,86 +294,51 @@ export default function Sidebar({
       </div>
 
       {/* Pied de page FIGÉ (shrink-0) — Réglages + crédit, toujours visibles
-          sans avoir à faire défiler la zone centrale au-dessus. Avant cette
-          refonte, les deux vivaient dans le même conteneur `flex-1
-          overflow-y-auto` que Création/Mon Espace (voir le commentaire sur
-          le wrapper scrollable plus haut) — c'est justement ce qui les
-          rendait poussés hors champ sur petit écran. */}
+          sans avoir à faire défiler la zone centrale au-dessus.
+          Fix UI (28/07, retour direct : "effet escalier" — la bordure du
+          haut de ce pied de page ne s'alignait plus avec celle de
+          GuestModeBar.jsx sur la partie droite de l'écran) : la CAUSE était
+          que Réglages vivait dans son PROPRE conteneur (hauteur naturelle,
+          non synchronisée), EMPILÉ AU-DESSUS du conteneur crédit (lui,
+          hauteur fixe = `creditRowHeight`, synchronisée avec
+          MiniPlayerBar/GuestModeBar) — la hauteur TOTALE du pied de page
+          dépassait donc `creditRowHeight`, décalant sa bordure supérieure
+          vers le haut par rapport à celle de la barre du bas. Réglages et
+          le crédit fusionnent maintenant dans UN SEUL conteneur, dont la
+          hauteur (quand une barre du bas est visible) est EXACTEMENT
+          `creditRowHeight` — la bordure de ce conteneur unique s'aligne
+          donc de nouveau, sur toute la largeur de l'écran, avec celle de
+          MiniPlayerBar/GuestModeBar. */}
       <div className="shrink-0">
-
-        {/* --- RÉGLAGES --- */}
-        {/* Fix UI Boy Scout (28/07, retour direct : "espace beaucoup trop
-            grand par rapport au haut, bordure quasi invisible") — 2
-            incohérences corrigées par rapport au header (`border-b-2
-            ${cardBorderStrong}` + conteneur scrollable `py-2` avant
-            "Création", voir plus haut) :
-            1. Bordure passée de `border-t ${cardBorder}` (micro, 1px —
-               pensée pour du contenu interne, pas pour séparer 2 BLOCS
-               structurels) à `border-t-2 ${cardBorderStrong}` (macro, 2px —
-               même token que la bordure du logo tout en haut).
-            2. `mt-8` (ajouté par erreur lors du chantier hiérarchie des
-               en-têtes, 27/07 — pensé pour séparer 2 sections DANS la même
-               zone scrollable, pas pour l'espacement bordure-titre du
-               footer) retiré de l'en-tête ; `pt-4` posé à la place sur CE
-               conteneur. PAS `pt-2` (l'espacement du haut n'est pas QUE le
-               `py-2` du conteneur scrollable — il s'additionne au `mb-2` du
-               header du logo, posé APRÈS sa propre bordure : 8px + 8px =
-               16px de bordure à texte en haut ; `pt-4` = 16px reproduit
-               exactement ce total ici, pas une valeur approchante). */}
-        <div className={`flex flex-col space-y-2 py-2 px-4 border-t-2 ${cardBorderStrong}`}>
-          {/* Fix UI (28/07, retour direct : "footer trop encombré, coupe
-              Statistiques au-dessus") — `pt-4 pb-4` (16px/16px, hérité du
-              fix Boy Scout précédent, pensé pour un footer à 2 boutons +
-              titre) devenu excessif maintenant que ce conteneur n'abrite
-              plus qu'UN SEUL bouton, déjà doté de son propre padding
-              interne (`py-2.5`) : `py-2` (8px/8px) suffit largement à le
-              faire respirer, tout en restant strictement symétrique
-              haut/bas. Le gain (16px) redescend directement dans la zone
-              scrollable juste au-dessus. */}
+        <div
+          className={`flex flex-col items-center justify-center gap-1 px-4 border-t-2 ${cardBorderStrong}`}
+          style={creditRowHeight ? { height: `${creditRowHeight}px` } : undefined}
+        >
           {/* Style volontairement DISCRET (28/07, retour direct : "Réglages
               ne doit pas attirer l'œil plus que Statistiques") — pas de
               mécanisme actif/rouge comme les autres liens de nav
               (`view === 'settings' ? bgAccentClass...`), même quand cette
               vue est active : Réglages reste un accès utilitaire parmi
-              d'autres, pas un point d'attention comme "Nouvelle séance". */}
-          <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${textMuted} hover:bg-surface-hover hover:text-main`}>
+              d'autres, pas un point d'attention comme "Nouvelle séance".
+              `py-1.5` (plutôt que `py-2.5` comme les autres liens) : ce
+              conteneur a maintenant une hauteur STRICTE (64px minimum,
+              `GUEST_MODE_BAR_HEIGHT_PX`) à partager avec la signature
+              juste en dessous — un padding aussi généreux que les liens de
+              la zone scrollable (qui, eux, ont de la place à volonté) ferait
+              déborder l'ensemble hors de cette hauteur fixe. */}
+          <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 px-3 py-1.5 rounded-xl transition-colors select-none cursor-pointer ${textMuted} hover:bg-surface-hover hover:text-main`}>
             <Settings size={18} className={textColorClass} />
             <span className="font-bold text-sm">Réglages</span>
           </button>
-        </div>
 
-        {/* Crédit du projet, en bas de la sidebar — discret, ouvre dans un nouvel onglet
-            pour ne pas faire quitter l'app en un clic accidentel.
-            Vit dans le même pied de page FIGÉ (shrink-0) que Réglages, juste
-            au-dessus — plus besoin de `mt-auto` pour le pousser en bas : ce
-            n'est plus un enfant d'un conteneur flex-1 à remplir, juste le 2e
-            élément empilé d'un pied de page de hauteur naturelle, déjà
-            ancré en bas de la sidebar par la structure flex-col en 3 blocs
-            (header shrink-0 / zone scrollable flex-1 / ce pied de page
-            shrink-0).
-            TOUJOURS affiché désormais (27/07, layout Dashboard) — plus de
-            condition `!guestBarVisible` : GuestModeBar.jsx ne recouvre plus
-            jamais la Sidebar sur desktop (calée à sa droite,
-            `md:left-64 md:w-[calc(100%-16rem)]` sur le conteneur commun,
-            App.jsx) et n'affiche donc plus de réplique de ce crédit à
-            synchroniser — ce bloc-ci est maintenant la SEULE source.
-            `border-t-2` RETIRÉE ici (28/07, retour direct : "effet cage" —
-            Réglages enfermé entre 2 bordures macro, une au-dessus ET une en
-            dessous). Seule la bordure AU-DESSUS de "Réglages" (celle qui
-            délimite la fin de la zone scrollable, sur le conteneur juste au-
-            dessus) est conservée — cruciale, elle marque la frontière
-            zone-scrollable/footer. Celle-ci séparait 2 éléments qui font
-            maintenant partie du MÊME footer visuel (bouton + signature),
-            elle n'avait plus de rôle structurel à jouer, juste un
-            enfermement visuel. Pas de `mt-*` ajouté en compensation : le
-            `py-2` du conteneur Réglages (8px, en dessous du bouton) + le
-            `py-4` de CE conteneur (16px, au-dessus du texte) forment déjà
-            24px de respiration naturelle entre le bouton et la signature —
-            largement suffisant sans bordure, pas besoin d'en rajouter. */}
-        <div
-          className="px-4 py-4 text-center flex items-center justify-center"
-          style={creditRowHeight ? { height: `${creditRowHeight}px` } : undefined}
-        >
+          {/* Crédit du projet — discret, ouvre dans un nouvel onglet pour ne
+              pas faire quitter l'app en un clic accidentel.
+              TOUJOURS affiché désormais (27/07, layout Dashboard) — plus de
+              condition `!guestBarVisible` : GuestModeBar.jsx ne recouvre plus
+              jamais la Sidebar sur desktop (calée à sa droite,
+              `md:left-64 md:w-[calc(100%-16rem)]` sur le conteneur commun,
+              App.jsx) et n'affiche donc plus de réplique de ce crédit à
+              synchroniser — ce bloc-ci est maintenant la SEULE source. */}
           <a
             href="https://www.linkedin.com/in/damiengrange/"
             target="_blank"
