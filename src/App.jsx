@@ -1305,7 +1305,7 @@ function AppContent({
                     title="Se connecter"
                     className={`p-2 rounded-full transition-colors duration-200 ${textMuted} hover:bg-surface-hover hover:text-main`}
                   >
-                    <UserIcon size={24} strokeWidth={1.5} />
+                    <UserIcon size={20} strokeWidth={2} />
                   </button>
                 )
               )}
