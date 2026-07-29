@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Gauge, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as UserIcon, Edit3, X, Key, Download, Trash2 } from 'lucide-react';
+import { Gauge, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as UserIcon, X, Key, Download, Trash2 } from 'lucide-react';
 import ViewHeader from '../shared/ViewHeader';
 import AthleticProfilePanel from './AthleticProfilePanel';
 
@@ -38,7 +38,7 @@ import AthleticProfilePanel from './AthleticProfilePanel';
  * automatiquement vers `music` si le Mode Intime s'active PENDANT que
  * l'onglet Profil est déjà ouvert.
  */
-export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, signOut, updateEmail, updatePassword, exportUserData, eraseUserData, isSupabaseConfigured, userCount, isNaughtyMode, showToast, changeView }) {
+export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, updateEmail, updatePassword, exportUserData, eraseUserData, isSupabaseConfigured, userCount, isNaughtyMode, showToast, changeView }) {
   const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg, textColorClass, borderAccentClass } = theme;
 
   // Onglet actif — jamais 'profile' par défaut en Mode Intime (voir garde-
@@ -304,14 +304,18 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
         </div>
       ) : (
         <div className="space-y-8">
-          {/* Bloc 1 — Informations & Sécurité (Refactor UI, 28/07) : e-mail
-              (déjà existant, déplacé ici depuis l'ex-"Mon compte TempoFit")
-              + mot de passe (NOUVEAU, même schéma que l'e-mail : formulaire
-              inline, jamais les 2 formulaires ouverts en même temps). */}
+          {/* Bloc 1 — Informations & Sécurité (Refactor UI, 28/07 puis
+              28/07 suite, "passe Boy-Scout") : e-mail et mot de passe
+              partagent maintenant EXACTEMENT le même design (style neutre
+              `inputBorder`/`inputBg`, avatar `textMuted` + fond discret,
+              bouton "Modifier" identique) — la carte email avait avant un
+              style distinct (vert, icône crayon, bouton "Déconnecter" —
+              redondant avec l'avatar du header qui fait déjà ça) sans
+              raison fonctionnelle de différer de la carte mot de passe. */}
           {(user || !isSupabaseConfigured) && (
           <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
             <h3 className={`font-bold text-xl mb-2 ${textHighlight}`}>Informations & Sécurité</h3>
-            <p className={`text-sm mb-6 line-clamp-1 ${textMuted}`}>Connecte-toi pour synchroniser tes données sur tous tes appareils.</p>
+            <p className={`text-sm mb-6 line-clamp-1 ${textMuted}`}>Gère tes identifiants d'accès et la sécurité de ton compte.</p>
 
             {!isSupabaseConfigured ? (
               <div className={`p-4 rounded-2xl border ${inputBorder} ${inputBg} text-sm ${textMuted}`}>
@@ -319,10 +323,10 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
               </div>
             ) : user ? (
               <>
-                <div className={`flex items-center justify-between p-4 rounded-2xl border border-green-500 bg-green-50 dark:bg-green-900/20`}>
+                <div className={`flex items-center justify-between p-4 rounded-2xl border ${inputBorder} ${inputBg}`}>
                   <div className="flex items-center space-x-4 min-w-0 flex-1">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-green-500 text-white shrink-0">
-                      <UserIcon size={24} />
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${textMuted} bg-black/5 dark:bg-white/5`}>
+                      <UserIcon size={22} />
                     </div>
                     {isEditingEmail ? (
                       <form onSubmit={handleEmailSubmit} className="min-w-0 flex-1 space-y-1.5">
@@ -335,13 +339,8 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                       </form>
                     ) : (
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h4 className={`font-bold text-lg truncate ${textHighlight}`}>{user.email}</h4>
-                          <button onClick={startEditingEmail} title="Modifier l'adresse e-mail" className={`shrink-0 p-1 rounded-lg ${textMuted} hover:text-main transition-colors`}>
-                            <Edit3 size={14}/>
-                          </button>
-                        </div>
-                        <p className={`text-sm ${textMuted}`}>Connecté — données synchronisées</p>
+                        <h4 className={`font-bold text-lg truncate ${textHighlight}`}>{user.email}</h4>
+                        <p className={`text-sm ${textMuted}`}>Adresse e-mail</p>
                       </div>
                     )}
                   </div>
@@ -358,8 +357,8 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                       </button>
                     </div>
                   ) : (
-                    <button onClick={signOut} className={`shrink-0 ml-3 px-4 py-2 bg-gray-200 dark:bg-gray-800 font-bold rounded-lg hover:bg-red-100 hover:text-red-500 transition-all text-gray-500`}>
-                      Déconnecter
+                    <button onClick={startEditingEmail} className={`shrink-0 ml-3 px-4 py-2 ${textMuted} hover:text-main hover:bg-surface-hover font-bold rounded-lg transition-all`}>
+                      Modifier
                     </button>
                   )}
                 </div>
@@ -369,9 +368,10 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                   </p>
                 )}
 
-                {/* Mot de passe (NOUVEAU) — même principe que l'e-mail :
-                    ligne au repos avec bouton "Modifier", formulaire inline
-                    à 2 champs (nouveau + confirmation) au clic. */}
+                {/* Mot de passe — même principe que l'e-mail juste au-
+                    dessus : ligne au repos avec bouton "Modifier",
+                    formulaire inline à 2 champs (nouveau + confirmation)
+                    au clic. */}
                 <div className={`flex items-center justify-between p-4 rounded-2xl border ${inputBorder} ${inputBg} mt-3`}>
                   <div className="flex items-center space-x-4 min-w-0 flex-1">
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${textMuted} bg-black/5 dark:bg-white/5`}>
@@ -418,10 +418,6 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                 </div>
                 {passwordUpdated && (
                   <p className="text-emerald-400 text-xs sm:text-sm mt-3">Mot de passe mis à jour.</p>
-                )}
-
-                {userCount !== null && (
-                  <p className={`text-xs mt-4 ${textMuted}`}>{userCount} compte{userCount > 1 ? 's' : ''} TempoFit créé{userCount > 1 ? 's' : ''} au total.</p>
                 )}
               </>
             ) : null}
