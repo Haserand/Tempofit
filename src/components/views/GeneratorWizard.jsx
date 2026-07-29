@@ -17,8 +17,8 @@ import { useModalContext } from '../../contexts/ModalContext';
 
 /**
  * GeneratorWizard — le wizard de génération en 4 étapes ("Sculpte ta
- * séance"), page par défaut de GeneratorView.jsx quand `showAthleticProfile`
- * est faux.
+ * séance"), seul contenu de GeneratorView.jsx (Profil Athlétique a
+ * déménagé vers SettingsView.jsx, 28/07 — voir docstring de GeneratorView.jsx).
  *
  * Extrait de GeneratorView.jsx (25/07, chantier "séparer le générateur en 2
  * composants" — voir AthleticProfilePanel.jsx pour le raisonnement complet
