@@ -105,11 +105,11 @@ import Sidebar from './components/shared/Sidebar';
 // pur : aucune logique changée dans ce qui suit, seuls les 3 blocs
 // explicitement commentés "MIGRÉ VERS GeneratorContext" ont bougé.
 //
-// `isNaughtyMode`, `showAthleticProfile` et `athleticProfileApi` (le retour
-// intact de useAthleticProfile()) sont maintenant reçus EN PROPS plutôt que
-// déclarés ici via useState/useAthleticProfile() directement — ils doivent
-// exister AVANT que <GeneratorProvider> ne se monte (le Provider en a besoin
-// pour sa propre valeur), donc ils ne peuvent plus vivre à l'intérieur du
+// `isNaughtyMode` et `athleticProfileApi` (le retour intact de
+// useAthleticProfile()) sont maintenant reçus EN PROPS plutôt que déclarés
+// ici via useState/useAthleticProfile() directement — ils doivent exister
+// AVANT que <GeneratorProvider> ne se monte (le Provider en a besoin pour
+// sa propre valeur), donc ils ne peuvent plus vivre à l'intérieur du
 // composant que ce Provider enveloppe. Remontés d'un cran dans `App`, qui
 // les passe à la fois au Provider et ici, en props, à l'identique.
 //
@@ -121,7 +121,6 @@ import Sidebar from './components/shared/Sidebar';
 // même raison que athleticProfile, pas ré-instancié.
 function AppContent({
   isNaughtyMode, setIsNaughtyMode,
-  showAthleticProfile, setShowAthleticProfile,
   athleticProfileApi,
   toast, showToast,
 }) {
@@ -870,7 +869,7 @@ function AppContent({
   const { hasUnsavedPlaylist, changeView, openCuratedPlaylist } = useNavigation(
     view, setView, setIsMobileMenuOpen,
     currentPlaylist, setCurrentPlaylist, savedPlaylists,
-    setShowAthleticProfile, isNaughtyMode,
+    isNaughtyMode,
   );
 
   // (L'effet `beforeunload` associé à hasUnsavedPlaylist vit maintenant DANS
@@ -1222,7 +1221,6 @@ function AppContent({
           textHighlight={textHighlight} textColorClass={textColorClass} textMuted={textMuted}
           isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen}
           changeView={changeView} view={view}
-          showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
           favorites={favorites}
           user={user} userStats={userStats}
           guestBarVisible={isGuestBarVisible}
@@ -1321,7 +1319,7 @@ function AppContent({
               // (workoutType, bpm, segments, genres, profil athlétique...)
               // directement via useGeneratorContext(). Passé de 93 à 15 props.
               <GeneratorView
-                theme={themeTokens} showToast={showToast}
+                theme={themeTokens}
                 toggleNaughtyMode={toggleNaughtyMode}
                 setCurrentPlaylist={setCurrentPlaylist} setIsBpmSearchMode={setIsBpmSearchMode}
                 setSearchQuery={setSearchQuery} setWorldSearchResults={setWorldSearchResults}
@@ -1393,7 +1391,7 @@ function AppContent({
                 spotifyRedirectUri={REDIRECT_URI}
                 user={user} signOut={signOut} updateEmail={updateEmail} isSupabaseConfigured={isSupabaseConfigured}
                 userCount={userCount}
-                isNaughtyMode={isNaughtyMode}
+                isNaughtyMode={isNaughtyMode} showToast={showToast} changeView={changeView}
               />
             )}
 
@@ -1642,14 +1640,14 @@ function AppContent({
  * resterait celui de main.jsx de toute façon vu qu'aucun composant ici ne
  * s'intercale entre les deux. Un seul <AuthProvider>, tout en haut, suffit.
  *
- * `isNaughtyMode`, `showAthleticProfile` et l'instance UNIQUE de
- * useAthleticProfile() vivent ici et sont transmis 2 fois : une fois au
- * Provider (pour que GeneratorView les récupère via useGeneratorContext()),
- * une fois en props classiques à AppContent (qui en a toujours besoin
- * directement — StatsView, PlaylistDetailView, Sidebar, et ses propres
- * fonctions comme handleSaveRoutine/toggleNaughtyMode ne passent pas par ce
- * contexte). Résultat : une seule source de vérité pour chacun des 3, jamais
- * dupliquée, distribuée par 2 canaux différents selon qui la consomme.
+ * `isNaughtyMode` et l'instance UNIQUE de useAthleticProfile() vivent ici et
+ * sont transmis 2 fois : une fois au Provider (pour que GeneratorView les
+ * récupère via useGeneratorContext()), une fois en props classiques à
+ * AppContent (qui en a toujours besoin directement — StatsView,
+ * PlaylistDetailView, Sidebar, et ses propres fonctions comme
+ * handleSaveRoutine/toggleNaughtyMode ne passent pas par ce contexte).
+ * Résultat : une seule source de vérité pour chacun des 2, jamais dupliquée,
+ * distribuée par 2 canaux différents selon qui la consomme.
  *
  * `toast`/`showToast` (useToast()) suivent EXACTEMENT le même schéma, ajoutés
  * ici pour <AudioPlayerProvider> (useAudioPreview en dépend) — remontés pour
@@ -1668,35 +1666,19 @@ function AppContent({
  */
 export default function App() {
   const [isNaughtyMode, setIsNaughtyMode] = useState(false);
-  const [showAthleticProfile, setShowAthleticProfile] = useState(false);
   const athleticProfileApi = useAthleticProfile();
   const { toast, showToast } = useToast();
-
-  // Filet de sécurité navigation (retour direct : "Mon Profil Athlétique n'a
-  // aucun sens en Mode Intime et affiche une page vide") — si l'utilisateur
-  // est SUR ce panneau au moment de basculer en Mode Intime (l'entrée de
-  // sidebar qui y mène est désormais masquée dans ce mode, voir Sidebar.jsx,
-  // mais rien n'empêchait D'Y ÊTRE DÉJÀ juste avant de basculer), on le
-  // referme automatiquement — reste sur la vue "Générer" elle-même (déjà
-  // fonctionnelle en Mode Intime), pas de redirection vers une autre vue,
-  // ce panneau étant un sous-état de "Générer", pas une vue à part entière.
-  useEffect(() => {
-    if (isNaughtyMode) setShowAthleticProfile(false);
-  }, [isNaughtyMode]);
 
   return (
     <GeneratorProvider
       isNaughtyMode={isNaughtyMode}
       athleticProfileApi={athleticProfileApi}
-      showAthleticProfile={showAthleticProfile}
-      setShowAthleticProfile={setShowAthleticProfile}
     >
       <AudioPlayerProvider showToast={showToast}>
         <ErrorBoundary>
           <ModalProvider>
             <AppContent
               isNaughtyMode={isNaughtyMode} setIsNaughtyMode={setIsNaughtyMode}
-              showAthleticProfile={showAthleticProfile} setShowAthleticProfile={setShowAthleticProfile}
               athleticProfileApi={athleticProfileApi}
               toast={toast} showToast={showToast}
             />
