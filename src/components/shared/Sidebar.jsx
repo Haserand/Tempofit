@@ -200,7 +200,7 @@ export default function Sidebar({
               plutôt qu'un style à part. */}
           <button
             onClick={toggleNaughtyMode}
-            className="w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-colors select-none cursor-pointer text-rose-500 hover:bg-rose-500/10"
+            className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer text-rose-500 hover:bg-rose-500/10"
           >
             <Heart size={18} className="fill-rose-500" />
             <span className="font-bold text-sm">Quitter le Mode Intime</span>
@@ -236,53 +236,55 @@ export default function Sidebar({
           toggle Mode Intime juste au-dessus), footer RÉGLAGES pas touché
           (hors budget de hauteur, symétrie Boy Scout préservée). Insuffisant
           (retour direct : "toujours coupé") — 2e passe, plus agressive :
-          `py-2.5` → `py-2` PARTOUT cette fois, y COMPRIS le footer RÉGLAGES
-          (demande explicite : harmoniser la taille de zone cliquable sur
-          toute la hauteur de la sidebar, ce fix-ci n'est plus contraint par
-          le budget de hauteur scrollable comme la 1re passe) ; en-têtes
+          `py-2.5` → `py-2` PARTOUT, y COMPRIS le footer RÉGLAGES ; en-têtes
           "Création"/"Mon Espace" : `mb-3` → `mb-1.5`, "Mon Espace"
-          `mt-6` → `mt-4`. Le titre "Réglages" lui-même (`mb-3`) et
-          l'espacement au-dessus (`pt-4` sur son conteneur, symétrique avec
-          le haut de la sidebar) restent INCHANGÉS — pas demandés cette
-          fois, et les toucher redéferait la symétrie Boy Scout au pixel
-          près. */}
+          `mt-6` → `mt-4`.
+          3e passe — DÉCOMPRESSION assumée (28/07, retour direct suivant :
+          "la Sidebar a perdu son élégance") — la fusion du footer Réglages
+          en un seul bouton (voir plus bas) a entre-temps libéré assez de
+          hauteur pour ne plus avoir besoin de la 2e passe : `py-2` →
+          `py-2.5` à nouveau PARTOUT (liens de nav + Réglages), `space-y-1`
+          → `space-y-2`, en-têtes `mb-1.5` → `mb-3`. "Mon Espace" `mt-4`
+          délibérément PAS remonté à `mt-6` (pas demandé cette fois, et la
+          fusion du footer a changé l'équation de hauteur disponible —
+          inutile de redonner tout ce qu'avait pris la 2e passe). */}
       <nav className="flex flex-col">
 
         {/* --- CRÉATION --- */}
-        <div className="flex flex-col space-y-1">
-          <div className={`px-3 mb-1.5 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Création</div>
+        <div className="flex flex-col space-y-2">
+          <div className={`px-3 mb-3 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Création</div>
 
-          <button onClick={() => changeView('generator')} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('generator')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Zap size={18} className={view === 'generator' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Nouvelle séance</span>
           </button>
 
-          <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <ListPlus size={18} className={view === 'routines' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Mes Routines</span>
           </button>
 
-          <button onClick={() => changeView('discover')} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-colors select-none cursor-pointer ${view === 'discover' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('discover')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'discover' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Compass size={18} className={view === 'discover' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Découvrir</span>
           </button>
         </div>
 
         {/* --- MON ESPACE --- */}
-        <div className="flex flex-col space-y-1 mb-8">
-          <div className={`px-3 mt-4 mb-1.5 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Mon Espace{!user && ' • Invité'}</div>
+        <div className="flex flex-col space-y-2 mb-8">
+          <div className={`px-3 mt-4 mb-3 text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Mon Espace{!user && ' • Invité'}</div>
 
-          <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <List size={18} className={view === 'playlists' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Mes Séances</span>
           </button>
 
-          <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Star size={18} className={favorites.useFavorites && favorites.artists.length > 0 ? "text-yellow-500 fill-yellow-500/20" : (view === 'favorites' ? 'text-white' : '')} />
             <span className="font-bold text-sm">Mes Favoris</span>
           </button>
 
-          <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Activity size={18} className={view === 'stats' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Statistiques</span>
           </button>
@@ -318,23 +320,24 @@ export default function Sidebar({
                header du logo, posé APRÈS sa propre bordure : 8px + 8px =
                16px de bordure à texte en haut ; `pt-4` = 16px reproduit
                exactement ce total ici, pas une valeur approchante). */}
-        <div className={`flex flex-col space-y-1 pt-4 px-4 border-t-2 ${cardBorderStrong}`}>
-          {/* Refactor UX/UI (28/07, "Réglages à onglets") — les 2 boutons
-              "Profil Athlétique"/"Options & Comptes" fusionnent en un seul
-              point d'entrée, menant vers SettingsView.jsx ('settings'), qui
-              gère désormais lui-même la bascule entre les 2 via des onglets
-              horizontaux (voir ce fichier). Le titre de catégorie "RÉGLAGES"
-              disparaît avec : un unique bouton ne forme plus une vraie
-              "section" à étiqueter, contrairement à Création/Mon Espace.
-              Plus de garde `!isNaughtyMode` ICI (l'ancien bouton "Profil
-              Athlétique" dédié était masqué en Mode Intime, voir historique
-              — le concept de zones de BPM par activité SPORTIVE n'a pas de
-              sens dans ce mode) : ce garde-fou est réimplémenté PLUS FINEMENT
-              à l'intérieur de SettingsView.jsx, sur l'onglet lui-même
-              seulement — "Comptes & Synchronisation" reste pertinent en
-              Mode Intime, donc CE point d'entrée-ci doit rester visible. */}
-          <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-colors select-none cursor-pointer ${view === 'settings' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
-            <Settings size={18} className={view === 'settings' ? 'text-white' : textColorClass} />
+        <div className={`flex flex-col space-y-2 pt-4 pb-4 px-4 border-t-2 ${cardBorderStrong}`}>
+          {/* Fix UI (28/07, retour direct : "Réglages ne doit pas attirer
+              l'œil plus que Statistiques") — RETIRÉ : le style bouton
+              PRIMAIRE (`view === 'settings' ? bgAccentClass text-white` — le
+              même mécanisme actif/rouge que les autres liens de nav) que ce
+              bouton avait hérité en copiant leurs classes. Volontairement
+              une EXCEPTION à la convention "actif = accent" du reste de la
+              Sidebar : ce bouton reste TOUJOURS dans son style discret par
+              défaut (`${textMuted} hover:bg-surface-hover hover:text-main`),
+              même quand `view === 'settings'` — Réglages n'est pas un point
+              d'attention comme "Nouvelle séance", juste un accès utilitaire
+              parmi d'autres. Padding vertical du CONTENEUR (`pt-4 pb-4`,
+              symétrique) plutôt qu'un mélange pt-4/pas-de-pb comme avant
+              (ligne de bordure du crédit juste en dessous — sans pb-4, le
+              bouton collait contre elle alors qu'il respirait 16px côté
+              bordure macro du dessus). */}
+          <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-colors select-none cursor-pointer ${textMuted} hover:bg-surface-hover hover:text-main`}>
+            <Settings size={18} className={textColorClass} />
             <span className="font-bold text-sm">Réglages</span>
           </button>
         </div>
