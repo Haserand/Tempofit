@@ -126,9 +126,9 @@ export default function Sidebar({
            className="flex items-center space-x-3 cursor-pointer"
          >
             <div className={`${bgAccentClass} p-1.5 rounded-lg transition-colors duration-500 ${isNaughtyMode ? 'shadow-[0_0_15px_rgba(244,63,94,0.4)]' : ''}`}>
-              {isNaughtyMode ? <Heart size={20} className="text-white fill-white" /> : <Activity size={20} className="text-white" />}
+              {isNaughtyMode ? <Heart size={28} className="text-white fill-white" /> : <Activity size={28} className="text-white" />}
             </div>
-            <span className={`font-bold text-xl tracking-tight leading-none ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
+            <span className={`font-bold text-2xl tracking-tight leading-none ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
          </button>
          <div className="flex items-center gap-2">
            {/* Bouton Trophées — même comportement qu'avant son déménagement
@@ -169,7 +169,7 @@ export default function Sidebar({
              title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
              className={`p-2 rounded-lg transition-colors ${textMuted} hover:bg-surface-hover hover:text-main`}
            >
-             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+             {theme === 'dark' ? <Sun size={20} strokeWidth={2} /> : <Moon size={20} strokeWidth={2} />}
            </button>
            <button className="md:hidden text-gray-500 hover:text-gray-900 dark:hover:text-white" onClick={() => setIsMobileMenuOpen(false)}><X size={20} /></button>
          </div>
