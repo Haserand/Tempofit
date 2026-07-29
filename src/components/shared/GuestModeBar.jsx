@@ -38,12 +38,18 @@ import { UserPlus } from 'lucide-react';
  * inchangée, budget de hauteur déjà validé/synchronisé — voir
  * bottomBarLayout.js) : le message + bouton empilés en 2 lignes centrées
  * (`flex-col items-center`, ancien design "bandeau d'alerte") deviennent un
- * VRAI bandeau applicatif, `flex-row justify-between` — bloc texte
- * titre/sous-titre à gauche (même hiérarchie typographique que ViewHeader,
- * `textHighlight` gras pour "Mode invité" + `textMuted` normal pour le
- * sous-titre), bouton "Se connecter" repoussé à droite par le
- * `justify-between`, plus de tiret entre les 2 phrases (désormais 2
- * lignes distinctes du même bloc, pas une seule phrase concaténée).
+ * VRAI bandeau applicatif — bloc texte titre/sous-titre (même hiérarchie
+ * typographique que ViewHeader, `textHighlight` gras pour "Mode invité" +
+ * `textMuted` normal pour le sous-titre) et bouton "Se connecter", plus de
+ * tiret entre les 2 phrases (désormais 2 lignes distinctes du même bloc,
+ * pas une seule phrase concaténée).
+ * Distribution horizontale : `justify-between` (1er essai, retour direct :
+ * "étire trop vers les extrémités, vide artificiel au centre") remplacé
+ * par `justify-center gap-6` — texte et bouton forment un groupe COMPACT
+ * centré sous le contenu principal, plutôt que plaqués chacun à une
+ * extrémité. Le bloc texte garde son alignement interne à gauche
+ * (`items-start`) pour préserver la hiérarchie visuelle Titre/Sous-titre
+ * même une fois le groupe centré dans la barre.
  * Couleurs : `textHighlight`/`textMuted`/`textColorClass` — tous des
  * tokens déjà adaptatifs clair/sombre/Mode Intime (voir useTheme.js), un
  * hardcode (`text-white`/`text-slate-*` en dur) casserait ce réglage, même
@@ -60,7 +66,7 @@ export default function GuestModeBar({ theme, isVisible, openModal }) {
     // h-[64px] : DOIT rester une classe Tailwind écrite en toutes lettres
     // (voir bottomBarLayout.js pour pourquoi) — si cette hauteur change,
     // reporter la même valeur dans GUEST_MODE_BAR_HEIGHT_PX (bottomBarLayout.js).
-    <div className={`h-[64px] border-t-2 ${cardBorderStrong} ${cardBg} flex flex-row justify-between items-center px-6`}>
+    <div className={`h-[64px] border-t-2 ${cardBorderStrong} ${cardBg} flex flex-row justify-center items-center gap-6 px-6`}>
       <div className="flex flex-col items-start min-w-0">
         <span className={`font-bold text-base ${textHighlight}`}>Mode invité</span>
         <span className={`text-sm font-normal mt-0.5 truncate ${textMuted}`}>
@@ -69,7 +75,7 @@ export default function GuestModeBar({ theme, isVisible, openModal }) {
       </div>
       <button
         onClick={() => openModal('AUTH')}
-        className={`shrink-0 ml-4 text-sm font-bold ${textColorClass} hover:opacity-80 flex items-center gap-2 transition-colors`}
+        className={`shrink-0 text-sm font-bold ${textColorClass} hover:opacity-80 flex items-center gap-2 transition-colors`}
       >
         <UserPlus size={14} /> Se connecter
       </button>
