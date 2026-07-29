@@ -42,6 +42,139 @@ export function AuthProvider({ children }) {
   // nombre valide en soi.
   const [userCount, setUserCount] = useState(null);
 
+  // Pseudonyme public, unique et IMMUABLE (Feature, 28/07) — voir
+  // supabase-schema.sql (`profiles`, contrainte `unique` réelle côté
+  // Postgres, pas juste une convention côté client) pour le pourquoi d'une
+  // table dédiée plutôt qu'une entrée `user_data` de plus.
+  // `null` = pas encore récupéré/déconnecté ; `''` (chaîne vide) ne sert
+  // jamais ici — soit un pseudonyme existe (chaîne non vide), soit aucun
+  // (voir `usernameLoading`, qui distingue "en cours de vérification" de
+  // "vérifié, aucun pseudonyme trouvé" — SettingsView.jsx a besoin de cette
+  // distinction pour ne pas proposer le formulaire de 1re définition trop
+  // tôt, avant même d'avoir fini de vérifier si un pseudonyme existe déjà).
+  const [username, setUsernameState] = useState(null);
+  const [usernameLoading, setUsernameLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !user) { setUsernameState(null); setUsernameLoading(false); return; }
+
+    let cancelled = false;
+    setUsernameLoading(true);
+
+    (async () => {
+      const { data, error } = await supabase.from('profiles').select('username').eq('user_id', user.id).maybeSingle();
+      if (cancelled) return;
+
+      if (!error && data?.username) {
+        setUsernameState(data.username);
+        setUsernameLoading(false);
+        return;
+      }
+
+      // Aucun profil trouvé — synchronise depuis `user_metadata.username`
+      // (déposé au moment de `signUp`, voir plus bas) si un pseudonyme
+      // était en attente. Couvre le cas où l'inscription exigeait une
+      // confirmation par e-mail avant la 1re vraie session : au moment de
+      // `signUp`, `auth.uid()` n'existait pas encore côté RLS, l'insertion
+      // dans `profiles` n'a donc pu se faire qu'ICI, une fois la session
+      // réellement établie.
+      const pendingUsername = user.user_metadata?.username;
+      if (pendingUsername) {
+        const { error: insertError } = await supabase.from('profiles').insert({ user_id: user.id, username: pendingUsername });
+        if (cancelled) return;
+        // Échec possible (rare) : quelqu'un d'autre a pris ce pseudonyme
+        // entre l'inscription et cette synchronisation (contrainte `unique`
+        // qui refuse l'insertion). Pas de recours automatique ici — reste
+        // simplement `null`, ce qui fait retomber la personne sur le même
+        // formulaire de 1re définition que les comptes créés avant cette
+        // fonctionnalité (voir `setUsername` plus bas) : elle en choisit un
+        // autre, disponible celui-là.
+        setUsernameState(insertError ? null : pendingUsername);
+      } else {
+        setUsernameState(null);
+      }
+      setUsernameLoading(false);
+    })();
+
+    return () => { cancelled = true; };
+  }, [user]);
+
+  // Vérifie si un pseudonyme est déjà pris — utilisée à la fois par
+  // AuthModal.jsx (avant l'inscription) et SettingsView.jsx (fallback
+  // comptes existants). Lecture PUBLIQUE (RLS `for select using (true)`,
+  // voir supabase-schema.sql) : fonctionne même AVANT toute connexion,
+  // avec la seule clé "anon".
+  const checkUsernameAvailable = async (candidate) => {
+    if (!isSupabaseConfigured) return { available: false, error: "Les comptes ne sont pas encore configurés côté serveur." };
+    const { data, error } = await supabase.from('profiles').select('user_id').eq('username', candidate).maybeSingle();
+    if (error) return { available: false, error: error.message };
+    return { available: !data, error: null };
+  };
+
+  // Regex PARTAGÉE avec AuthModal.jsx/SettingsView.jsx (voir leur propre
+  // validation) — revérifiée ici en dernier rempart avant tout appel
+  // réseau, un utilisateur ne devrait jamais atteindre ce point avec un
+  // format invalide, mais un formulaire n'est pas la seule porte d'entrée
+  // possible vers ces fonctions.
+  const USERNAME_REGEX = /^[a-z0-9_]{3,20}$/;
+
+  // Définition du pseudonyme pour un compte EXISTANT sans pseudonyme
+  // (comptes créés avant cette fonctionnalité — voir le brief,
+  // "rétrocompatibilité"). Une seule fois : refuse d'emblée si `username`
+  // (le state ci-dessus) est déjà renseigné — immutabilité en profondeur,
+  // en plus de l'absence de policy `update` côté Postgres (voir
+  // supabase-schema.sql) et de l'absence de bouton "Modifier" côté UI.
+  const setUsername = async (candidate) => {
+    if (!isSupabaseConfigured || !user) return { error: "Non connecté." };
+    if (username) return { error: "Un pseudonyme est déjà défini pour ce compte — il ne peut pas être changé." };
+    if (!USERNAME_REGEX.test(candidate)) return { error: "3 à 20 caractères : minuscules, chiffres et underscore uniquement." };
+
+    const { available, error: checkError } = await checkUsernameAvailable(candidate);
+    if (checkError) return { error: checkError };
+    if (!available) return { error: "Ce pseudonyme est déjà pris." };
+
+    const { error } = await supabase.from('profiles').insert({ user_id: user.id, username: candidate });
+    if (error) return { error: error.code === '23505' ? "Ce pseudonyme vient d'être pris par quelqu'un d'autre." : error.message };
+    setUsernameState(candidate);
+    return { error: null };
+  };
+
+  // `signUp` — `username` maintenant obligatoire (voir le brief,
+  // "pseudonyme unique immuable à l'inscription"), déposé dans
+  // `options.data.username` (`user_metadata`, toujours possible même sans
+  // session active — contrairement à une insertion directe dans
+  // `profiles`, qui elle exige `auth.uid()` pour passer la policy RLS, donc
+  // une session RÉELLEMENT établie ; voir le useEffect de synchronisation
+  // plus haut pour la suite). Revalidation format + disponibilité ICI,
+  // même si AuthModal.jsx la fait déjà avant d'appeler cette fonction —
+  // dernier rempart, pas une redite superflue.
+  const signUp = async (email, password, usernameCandidate) => {
+    if (!isSupabaseConfigured) return { error: "Les comptes ne sont pas encore configurés côté serveur." };
+    if (!USERNAME_REGEX.test(usernameCandidate || '')) {
+      return { error: "Pseudonyme invalide : 3 à 20 caractères, minuscules/chiffres/underscore uniquement." };
+    }
+    const { available, error: checkError } = await checkUsernameAvailable(usernameCandidate);
+    if (checkError) return { error: checkError };
+    if (!available) return { error: "Ce pseudonyme est déjà pris." };
+
+    const { data, error } = await supabase.auth.signUp({
+      email, password,
+      options: { data: { username: usernameCandidate } },
+    });
+    if (error) return { error: error.message };
+
+    // Session immédiate (confirmation par e-mail désactivée côté projet
+    // Supabase) : `auth.uid()` est déjà utilisable, on peut synchroniser
+    // `profiles` tout de suite plutôt que d'attendre le useEffect (qui de
+    // toute façon le referait au prochain rendu — mais autant ne pas
+    // dépendre de ce timing si `data.session` est déjà là).
+    if (data?.session && data?.user) {
+      const { error: insertError } = await supabase.from('profiles').insert({ user_id: data.user.id, username: usernameCandidate });
+      if (!insertError) setUsernameState(usernameCandidate);
+    }
+    return { error: null };
+  };
+
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
@@ -72,12 +205,6 @@ export function AuthProvider({ children }) {
       if (!error && typeof data === 'number') setUserCount(data);
     });
   }, [user]);
-
-  const signUp = async (email, password) => {
-    if (!isSupabaseConfigured) return { error: "Les comptes ne sont pas encore configurés côté serveur." };
-    const { error } = await supabase.auth.signUp({ email, password });
-    return { error: error ? error.message : null };
-  };
 
   const signIn = async (email, password) => {
     if (!isSupabaseConfigured) return { error: "Les comptes ne sont pas encore configurés côté serveur." };
@@ -170,7 +297,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, authLoading, signUp, signIn, signOut, resetPassword, updateEmail, updatePassword, exportUserData, eraseUserData, isSupabaseConfigured, userCount }}>
+    <AuthContext.Provider value={{ user, authLoading, signUp, signIn, signOut, resetPassword, updateEmail, updatePassword, exportUserData, eraseUserData, isSupabaseConfigured, userCount, username, usernameLoading, checkUsernameAvailable, setUsername }}>
       {children}
     </AuthContext.Provider>
   );
@@ -181,6 +308,7 @@ export function AuthProvider({ children }) {
 // plutôt qu'un écran blanc si jamais un composant est testé isolément).
 const FALLBACK = {
   user: null, authLoading: false, isSupabaseConfigured: false, userCount: null,
+  username: null, usernameLoading: false,
   signUp: async () => ({ error: "AuthProvider manquant." }),
   signIn: async () => ({ error: "AuthProvider manquant." }),
   signOut: async () => {},
@@ -189,6 +317,8 @@ const FALLBACK = {
   updatePassword: async () => ({ error: "AuthProvider manquant." }),
   exportUserData: async () => ({ data: null, error: "AuthProvider manquant." }),
   eraseUserData: async () => ({ error: "AuthProvider manquant." }),
+  checkUsernameAvailable: async () => ({ available: false, error: "AuthProvider manquant." }),
+  setUsername: async () => ({ error: "AuthProvider manquant." }),
 };
 
 export function useAuthContext() {
