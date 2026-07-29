@@ -1,4 +1,4 @@
-import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, ListPlus, Compass, Gauge } from 'lucide-react';
+import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, ListPlus, Compass, Gauge, Sun, Moon } from 'lucide-react';
 import { MINI_PLAYER_BAR_HEIGHT_PX, GUEST_MODE_BAR_HEIGHT_PX } from '../../bottomBarLayout';
 
 /**
@@ -33,12 +33,21 @@ import { MINI_PLAYER_BAR_HEIGHT_PX, GUEST_MODE_BAR_HEIGHT_PX } from '../../botto
  * même forme évite de réécrire chaque usage pour un gain minime.
  *
  * RETOUR DIRECT (inversion Thème/Trophées, "un header épuré pour les
- * visiteurs") — le basculeur de thème (Sun/Moon) qui vivait ici est parti
- * dans App.jsx, à côté de "Se connecter"/l'avatar (coin haut-droit) ; le
- * bouton Trophées (qui vivait là-bas) arrive ici, à côté du logo — mais
+ * visiteurs", 25/07) — le basculeur de thème (Sun/Moon) était parti dans
+ * App.jsx, à côté de "Se connecter"/l'avatar (coin haut-droit) ; le bouton
+ * Trophées (qui vivait là-bas) était arrivé ici, à côté du logo — mais
  * SEULEMENT si `user` (connecté), contrairement à avant où il était visible
  * inconditionnellement : un badge de progression n'a de sens que pour
  * quelqu'un qui a un compte pour le conserver d'une session à l'autre.
+ *
+ * RE-RELOCALISATION (Fix UI, 27/07, "nettoyage global") — le bouton Thème
+ * REVIENT ici, à côté de Trophées : le coin haut-droit flottant d'App.jsx
+ * entrait en collision avec les cartes pleine largeur (ex. PlaylistHeader.jsx,
+ * même session) — regrouper les 2 utilitaires (Trophées + Thème) dans le
+ * header FIXE de la Sidebar élimine ce risque de collision une bonne fois
+ * pour toutes, quelle que soit la vue affichée. Contrairement à Trophées,
+ * le bouton Thème reste inconditionnel (pas de `user &&`) : le thème
+ * clair/sombre concerne tout visiteur, connecté ou non.
  */
 export default function Sidebar({
   cardBorder, cardBorderStrong, bgAccentClass, isNaughtyMode, textHighlight, textColorClass, textMuted,
@@ -49,6 +58,7 @@ export default function Sidebar({
   user, userStats,
   guestBarVisible, playerBarVisible,
   toggleNaughtyMode,
+  theme, toggleTheme,
 }) {
   // BUG CORRIGÉ (25/07, retour direct : "je ne peux pas cliquer sur Options
   // & Comptes quand le lecteur audio est actif") — le padding précédent
@@ -120,7 +130,7 @@ export default function Sidebar({
             </div>
             <span className={`font-bold text-xl tracking-tight leading-none ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
          </button>
-         <div className="flex items-center gap-1">
+         <div className="flex items-center gap-2">
            {/* Bouton Trophées — même comportement qu'avant son déménagement
                (discret/gris tant qu'aucun trophée n'est débloqué, doré +
                badge du nombre sinon, pour garder l'effet de surprise/
@@ -145,6 +155,22 @@ export default function Sidebar({
                )}
              </button>
            )}
+           {/* Bouton Thème — relocalisé depuis App.jsx (Fix UI 27/07, "nettoyage
+               global") : vivait avant `absolute top-4 right-4` en haut de
+               `<main>`, ce qui pouvait entrer en collision avec le contenu des
+               cartes pleine largeur (voir PlaylistHeader.jsx, même session).
+               Ici, à côté de Trophées, dans le header FIXE de la Sidebar :
+               plus jamais de superposition possible avec le contenu, quelle
+               que soit la vue. Visible inconditionnellement (pas de `user &&`
+               comme Trophées) — le thème clair/sombre concerne tout le monde,
+               connecté ou non. */}
+           <button
+             onClick={toggleTheme}
+             title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
+             className={`p-2 rounded-lg transition-colors ${textMuted} hover:bg-surface-hover hover:text-main`}
+           >
+             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+           </button>
            <button className="md:hidden text-gray-500 hover:text-gray-900 dark:hover:text-white" onClick={() => setIsMobileMenuOpen(false)}><X size={20} /></button>
          </div>
       </div>
