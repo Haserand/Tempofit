@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, User, Mail, Lock, Loader2, Eye, EyeOff, ArrowLeft, CheckCircle } from 'lucide-react';
+import { X, User, Mail, Lock, Loader2, Eye, EyeOff, ArrowLeft, CheckCircle, AtSign } from 'lucide-react';
 
 /**
  * AuthModal — connexion/inscription par e-mail + mot de passe (voir la
@@ -27,8 +27,19 @@ import { X, User, Mail, Lock, Loader2, Eye, EyeOff, ArrowLeft, CheckCircle } fro
  * demandait explicitement l'e-mail pré-rempli si déjà saisi en arrivant sur
  * ce mode depuis le formulaire de connexion — réutiliser le même state fait
  * ça gratuitement, sans logique de pré-remplissage à écrire à part.
+ *
+ * Pseudonyme obligatoire à l'inscription (Feature, 28/07, "identifiant
+ * public immuable") — voir AuthContext.jsx/supabase-schema.sql pour
+ * l'unicité réelle (contrainte SQL) et l'immuabilité (aucune policy
+ * `update`). Champ SEULEMENT en mode 'signup' (se connecter n'a besoin de
+ * rien de plus que email/mot de passe, le pseudonyme est déjà fixé).
+ * Vérification de disponibilité `onBlur` (pas à chaque frappe — un appel
+ * réseau par lettre tapée serait excessif) + revalidée une dernière fois
+ * à la soumission, dans `checkUsernameAvailable` puis dans `signUp`
+ * lui-même côté AuthContext.jsx (défense en profondeur, ce champ n'est pas
+ * le seul chemin possible vers ces fonctions).
  */
-export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, signIn, resetPassword, showToast }) {
+export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, signIn, resetPassword, checkUsernameAvailable, showToast }) {
   const { cardBg, cardBorder, textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
 
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'forgot'
@@ -44,6 +55,23 @@ export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, sig
   // changement de mode (resetFields), jamais laissée affichée après coup.
   const [resetEmailSent, setResetEmailSent] = useState(false);
 
+  // Pseudonyme (mode 'signup' uniquement) — `usernameStatus` distinct de
+  // `errorMsg` : erreur/état PROPRE à ce champ (format invalide, déjà pris,
+  // en cours de vérification), affichée juste sous le champ lui-même plutôt
+  // que mélangée au message d'erreur générique du formulaire en bas.
+  const [username, setUsernameField] = useState('');
+  const [usernameStatus, setUsernameStatus] = useState(null); // null | 'checking' | 'available' | 'taken' | 'invalid'
+  const USERNAME_REGEX = /^[a-z0-9_]{3,20}$/;
+
+  const handleUsernameBlur = async () => {
+    if (!username) { setUsernameStatus(null); return; }
+    if (!USERNAME_REGEX.test(username)) { setUsernameStatus('invalid'); return; }
+    setUsernameStatus('checking');
+    const { available, error } = await checkUsernameAvailable(username);
+    if (error) { setUsernameStatus(null); return; }
+    setUsernameStatus(available ? 'available' : 'taken');
+  };
+
   if (!isAuthModalOpen) return null;
 
   const resetFields = () => {
@@ -52,6 +80,8 @@ export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, sig
     setConfirmPassword('');
     setShowPassword(false);
     setResetEmailSent(false);
+    setUsernameField('');
+    setUsernameStatus(null);
   };
 
   const close = () => {
@@ -112,8 +142,18 @@ export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, sig
       setErrorMsg('Les 2 mots de passe ne correspondent pas.');
       return;
     }
+    // Pseudonyme obligatoire à l'inscription — revalidé ici même si
+    // `usernameStatus` a déjà tourné au vert via `handleUsernameBlur` :
+    // rien n'empêche de soumettre sans jamais quitter le champ (ex. touche
+    // Entrée directement dedans), donc `usernameStatus` seul ne suffit pas
+    // comme garde.
+    if (mode === 'signup') {
+      if (!username.trim()) { setErrorMsg('Choisis un pseudonyme.'); return; }
+      if (!USERNAME_REGEX.test(username)) { setErrorMsg('Pseudonyme invalide : 3 à 20 caractères, minuscules/chiffres/underscore uniquement.'); return; }
+      if (usernameStatus === 'taken') { setErrorMsg('Ce pseudonyme est déjà pris.'); return; }
+    }
     setSubmitting(true);
-    const { error } = mode === 'signup' ? await signUp(email.trim(), password) : await signIn(email.trim(), password);
+    const { error } = mode === 'signup' ? await signUp(email.trim(), password, username) : await signIn(email.trim(), password);
     setSubmitting(false);
 
     if (error) {
@@ -202,6 +242,42 @@ export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, sig
         ) : (
           <>
             <form onSubmit={handleSubmit} className="space-y-3">
+              {/* Pseudonyme — SEULEMENT à l'inscription, avant l'e-mail
+                  (c'est la 1re information demandée, cohérent avec le
+                  brief : "identifiant public", donc l'identité mise en
+                  avant avant les identifiants de connexion). Bordure de la
+                  couleur du statut (`taken`/`invalid` en rouge,
+                  `available` en vert) plutôt qu'un simple message texte
+                  sous le champ — feedback visuel immédiat, sans attendre
+                  la lecture du message. */}
+              {mode === 'signup' && (
+                <div>
+                  <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border ${
+                    usernameStatus === 'taken' || usernameStatus === 'invalid' ? 'border-red-500' :
+                    usernameStatus === 'available' ? 'border-green-500' : inputBorder
+                  } ${inputBg}`}>
+                    <AtSign size={18} className={textMuted}/>
+                    <input
+                      type="text" autoComplete="off" placeholder="pseudonyme (ex: alex_runner)"
+                      value={username}
+                      onChange={e => { setUsernameField(e.target.value.toLowerCase()); setUsernameStatus(null); setErrorMsg(''); }}
+                      onBlur={handleUsernameBlur}
+                      className={`flex-1 bg-transparent outline-none ${textHighlight}`}
+                    />
+                    {usernameStatus === 'checking' && <Loader2 size={16} className={`animate-spin ${textMuted}`}/>}
+                  </div>
+                  <p className={`text-xs mt-1 ${
+                    usernameStatus === 'taken' || usernameStatus === 'invalid' ? 'text-red-500' :
+                    usernameStatus === 'available' ? 'text-green-500' : textMuted
+                  }`}>
+                    {usernameStatus === 'taken' ? 'Ce pseudonyme est déjà pris.'
+                      : usernameStatus === 'invalid' ? '3 à 20 caractères : minuscules, chiffres, underscore.'
+                      : usernameStatus === 'available' ? 'Disponible !'
+                      : 'Définitif — impossible à modifier ensuite. 3-20 caractères, minuscules/chiffres/_.'}
+                  </p>
+                </div>
+              )}
+
               <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border ${inputBorder} ${inputBg}`}>
                 <Mail size={18} className={textMuted}/>
                 <input
