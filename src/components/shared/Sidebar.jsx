@@ -356,9 +356,22 @@ export default function Sidebar({
             jamais la Sidebar sur desktop (calée à sa droite,
             `md:left-64 md:w-[calc(100%-16rem)]` sur le conteneur commun,
             App.jsx) et n'affiche donc plus de réplique de ce crédit à
-            synchroniser — ce bloc-ci est maintenant la SEULE source. */}
+            synchroniser — ce bloc-ci est maintenant la SEULE source.
+            `border-t-2` RETIRÉE ici (28/07, retour direct : "effet cage" —
+            Réglages enfermé entre 2 bordures macro, une au-dessus ET une en
+            dessous). Seule la bordure AU-DESSUS de "Réglages" (celle qui
+            délimite la fin de la zone scrollable, sur le conteneur juste au-
+            dessus) est conservée — cruciale, elle marque la frontière
+            zone-scrollable/footer. Celle-ci séparait 2 éléments qui font
+            maintenant partie du MÊME footer visuel (bouton + signature),
+            elle n'avait plus de rôle structurel à jouer, juste un
+            enfermement visuel. Pas de `mt-*` ajouté en compensation : le
+            `py-2` du conteneur Réglages (8px, en dessous du bouton) + le
+            `py-4` de CE conteneur (16px, au-dessus du texte) forment déjà
+            24px de respiration naturelle entre le bouton et la signature —
+            largement suffisant sans bordure, pas besoin d'en rajouter. */}
         <div
-          className={`px-4 py-4 border-t-2 ${cardBorderStrong} text-center flex items-center justify-center`}
+          className="px-4 py-4 text-center flex items-center justify-center"
           style={creditRowHeight ? { height: `${creditRowHeight}px` } : undefined}
         >
           <a
