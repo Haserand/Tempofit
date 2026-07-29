@@ -20,8 +20,8 @@ import { useCustomActivity } from '../hooks/useCustomActivity';
  *   et tous les setters de zones/activités) est aussi consommé DIRECTEMENT
  *   par StatsView et PlaylistDetailView (pas seulement GeneratorView) — voir
  *   App.jsx lignes ~2551 et ~2607.
- * - `isNaughtyMode` et `showAthleticProfile` sont utilisés dans Sidebar.jsx
- *   en plus de GeneratorView (~29 usages de isNaughtyMode dans tout App.jsx).
+ * - `isNaughtyMode` est utilisé dans Sidebar.jsx en plus de GeneratorView
+ *   (~29 usages de isNaughtyMode dans tout App.jsx).
  * - `useAthleticProfile()` persiste son état via `usePersistentState` : en
  *   appeler une 2e instance ICI, à côté de celle d'App.jsx, créerait DEUX
  *   états React indépendants adossés à la même clé stockage → exactement le
@@ -55,14 +55,10 @@ const GeneratorContext = createContext(null);
  *   setBaseBpmForActivity, setZoneForActivity, resetActivityProfile,
  *   addCustomActivity, removeCustomActivity, setBaseBpmForCustom, setZoneForCustom,
  *   setCadenceIntentForActivity, setCadenceIntentForCustom, isCadenceIntentEligible, ... }
- * @param {boolean} showAthleticProfile - état d'affichage du panneau profil (partagé avec Sidebar, reçu)
- * @param {function} setShowAthleticProfile
  */
 export function GeneratorProvider({
   isNaughtyMode,
   athleticProfileApi,
-  showAthleticProfile,
-  setShowAthleticProfile,
   children,
 }) {
   const { athleticProfile } = athleticProfileApi;
@@ -94,7 +90,6 @@ export function GeneratorProvider({
 
     // --- Reçu en props, simplement re-exposé (source de vérité = App.jsx) ---
     isNaughtyMode,
-    showAthleticProfile, setShowAthleticProfile,
     ...athleticProfileApi,
   };
 
@@ -117,7 +112,6 @@ const FALLBACK = {
   segments: [], setSegments: () => {},
   selectedGenres: [], setSelectedGenres: () => {},
   isNaughtyMode: false,
-  showAthleticProfile: false, setShowAthleticProfile: () => {},
   athleticProfile: { activities: {}, custom: [] },
   getProfileForWorkout: () => ({ isConfigured: false }),
   applyProfileBpmIfUntouched: () => {},
