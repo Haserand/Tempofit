@@ -31,24 +31,28 @@ import { UserPlus } from 'lucide-react';
  * ── Renforcement du CTA (27/07, "le bouton haut-droit étant désormais
  * masqué quand cette barre est visible, elle doit assumer seule la
  * conversion") ─────────────────────────────────────────────────────────
- * Hauteur 40px → 64px, message et bouton empilés sur 2 lignes plutôt que
- * sur une seule (`flex flex-col` au lieu de l'ancien `flex-1` inline).
- * Couleurs : le brief d'origine demandait `text-white`/`text-red-500` en
- * dur, mais ce fond (`cardBg`) est ADAPTATIF clair/sombre (voir
- * useTheme.js/index.css) — du texte blanc fixe y serait invisible en thème
- * clair (même classe de bug que FavoritesView.jsx, déjà corrigée une fois
- * cette semaine). Remplacé par l'équivalent sémantique déjà utilisé
- * ailleurs pour ce même effet "texte proéminent" : `textHighlight` (message,
- * au lieu du `textMuted` plus discret d'avant) et `textColorClass` (bouton
- * — déjà l'accent rouge/rose adaptatif Mode Standard/Intime, inchangé dans
- * sa couleur de base, juste plus gras et sans `underline`, sur sa propre
- * ligne). Survol du bouton en `hover:opacity-80` plutôt qu'un
- * `hover:text-red-400` fixe — un rouge fixe détonnerait en Mode Intime
- * (accent rose, pas rouge) : `opacity` reste dans la même famille de
- * couleur quel que soit le mode.
+ * Hauteur 40px → 64px (`h-[64px]`, INCHANGÉE depuis — voir plus bas).
+ *
+ * ── Alignement Design System, layout horizontal (28/07) ─────────────────
+ * Refonte du contenu INTERNE de la barre (hauteur `h-[64px]` toujours
+ * inchangée, budget de hauteur déjà validé/synchronisé — voir
+ * bottomBarLayout.js) : le message + bouton empilés en 2 lignes centrées
+ * (`flex-col items-center`, ancien design "bandeau d'alerte") deviennent un
+ * VRAI bandeau applicatif, `flex-row justify-between` — bloc texte
+ * titre/sous-titre à gauche (même hiérarchie typographique que ViewHeader,
+ * `textHighlight` gras pour "Mode invité" + `textMuted` normal pour le
+ * sous-titre), bouton "Se connecter" repoussé à droite par le
+ * `justify-between`, plus de tiret entre les 2 phrases (désormais 2
+ * lignes distinctes du même bloc, pas une seule phrase concaténée).
+ * Couleurs : `textHighlight`/`textMuted`/`textColorClass` — tous des
+ * tokens déjà adaptatifs clair/sombre/Mode Intime (voir useTheme.js), un
+ * hardcode (`text-white`/`text-slate-*` en dur) casserait ce réglage, même
+ * classe de piège que documenté plus haut dans ce fichier. Survol du
+ * bouton en `hover:opacity-80` (inchangé) plutôt qu'une couleur fixe, pour
+ * la même raison (Mode Intime = accent rose, pas rouge).
  */
 export default function GuestModeBar({ theme, isVisible, openModal }) {
-  const { cardBg, cardBorderStrong, textHighlight, textColorClass } = theme;
+  const { cardBg, cardBorderStrong, textHighlight, textMuted, textColorClass } = theme;
 
   if (!isVisible) return null;
 
@@ -56,18 +60,19 @@ export default function GuestModeBar({ theme, isVisible, openModal }) {
     // h-[64px] : DOIT rester une classe Tailwind écrite en toutes lettres
     // (voir bottomBarLayout.js pour pourquoi) — si cette hauteur change,
     // reporter la même valeur dans GUEST_MODE_BAR_HEIGHT_PX (bottomBarLayout.js).
-    <div className={`h-[64px] border-t-2 ${cardBorderStrong} ${cardBg} flex items-center`}>
-      <div className="flex-1 px-4 flex flex-col items-center justify-center h-full gap-1">
-        <span className={`text-sm font-medium ${textHighlight}`}>
-          Mode invité — données sauvegardées uniquement sur cet appareil.
+    <div className={`h-[64px] border-t-2 ${cardBorderStrong} ${cardBg} flex flex-row justify-between items-center px-6`}>
+      <div className="flex flex-col items-start min-w-0">
+        <span className={`font-bold text-base ${textHighlight}`}>Mode invité</span>
+        <span className={`text-sm font-normal mt-0.5 truncate ${textMuted}`}>
+          Données sauvegardées uniquement sur cet appareil.
         </span>
-        <button
-          onClick={() => openModal('AUTH')}
-          className={`text-sm font-bold ${textColorClass} hover:opacity-80 flex items-center gap-2 transition-colors`}
-        >
-          <UserPlus size={14} /> Se connecter
-        </button>
       </div>
+      <button
+        onClick={() => openModal('AUTH')}
+        className={`shrink-0 ml-4 text-sm font-bold ${textColorClass} hover:opacity-80 flex items-center gap-2 transition-colors`}
+      >
+        <UserPlus size={14} /> Se connecter
+      </button>
     </div>
   );
 }
