@@ -38,7 +38,7 @@ import AthleticProfilePanel from './AthleticProfilePanel';
  * automatiquement vers `music` si le Mode Intime s'active PENDANT que
  * l'onglet Profil est déjà ouvert.
  */
-export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, updateEmail, updatePassword, exportUserData, eraseUserData, isSupabaseConfigured, userCount, isNaughtyMode, showToast, changeView, username, usernameLoading, checkUsernameAvailable, setUsername }) {
+export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, userCount, isNaughtyMode, showToast, changeView, username, usernameLoading, checkUsernameAvailable, setUsername }) {
   const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg, textColorClass, borderAccentClass } = theme;
 
   // Onglet actif — jamais 'profile' par défaut en Mode Intime (voir garde-
@@ -158,13 +158,15 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
     URL.revokeObjectURL(url);
   };
 
-  // Suppression de compte / "Zone dangereuse" — ⚠️ voir la docstring de
-  // `eraseUserData` dans AuthContext.jsx : ce bouton efface réellement
-  // toutes les données synchronisées de la personne, mais N'EFFACE PAS
-  // (pas encore) le compte `auth.users` lui-même — limite serveur assumée,
-  // documentée là-bas, pas cachée ici. Le texte affiché à l'utilisateur
-  // reste honnête sur ce point (voir plus bas, "Effacer mes données"
-  // plutôt que "Supprimer mon compte" sans nuance).
+  // Suppression de compte / "Zone dangereuse" — Feature (29/07, "chantier en
+  // suspens" traité) : REMPLACE l'ancien `eraseUserData` (qui n'effaçait que
+  // `user_data`, jamais le compte `auth.users` lui-même — limite assumée
+  // documentée ici jusqu'à cette session). `deleteAccount` (AuthContext.jsx)
+  // appelle désormais la Supabase Edge Function `delete-account`, qui
+  // supprime RÉELLEMENT le compte — voir sa docstring pour le détail
+  // (`service_role`, cascade automatique sur `user_data`/`profiles`). Le
+  // wording ci-dessous reflète maintenant cette réalité ("Supprimer mon
+  // compte", plus "Effacer mes données").
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
@@ -172,7 +174,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
   const handleConfirmDelete = async () => {
     setDeleteError('');
     setIsDeleting(true);
-    const { error } = await eraseUserData();
+    const { error } = await deleteAccount();
     setIsDeleting(false);
     if (error) { setDeleteError(error); return; }
     setIsConfirmingDelete(false);
@@ -563,28 +565,25 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           )}
 
           {/* Bloc 3 — Zone dangereuse (RGPD, droit à l'effacement) —
-              NOUVEAU. ⚠️ Wording DÉLIBÉRÉMENT "Effacer mes données" plutôt
-              que "Supprimer mon compte" (demandé initialement) : voir
-              `eraseUserData` dans AuthContext.jsx — cette action efface
-              réellement toutes les données synchronisées côté serveur,
-              mais ne supprime PAS (pas encore) le compte `auth.users`
-              lui-même (limite technique assumée, une vraie suppression de
-              compte demande une Supabase Edge Function avec la clé
-              "service_role", absente de ce projet). Employer le mot
-              "compte" ici aurait promis plus que ce que ce bouton fait
-              réellement — mieux vaut un intitulé honnête qu'une conformité
-              RGPD en trompe-l'œil. */}
+              suppression RÉELLE du compte depuis cette session (29/07,
+              Edge Function `delete-account`, voir AuthContext.jsx/
+              supabase/functions/delete-account/index.ts) : le compte
+              `auth.users` est désormais réellement supprimé, plus
+              seulement les données synchronisées — l'ancien wording
+              "Effacer mes données" (limite technique alors assumée)
+              devient donc "Supprimer mon compte", sans plus de nuance à
+              apporter sur ce point précis. */}
           {user && (
             <div className="rounded-3xl p-6 md:p-8 border border-red-500/40 bg-red-500/5">
               <h3 className="font-bold text-xl mb-2 text-red-500">Zone dangereuse</h3>
               <p className={`text-sm mb-4 ${textMuted}`}>
-                Efface définitivement toutes tes données synchronisées de nos serveurs et te déconnecte. Cette action est irréversible.
+                Supprime définitivement ton compte (identifiants, données synchronisées, pseudonyme) de nos serveurs. Cette action est irréversible.
               </p>
               <button
                 onClick={() => { setDeleteError(''); setIsConfirmingDelete(true); }}
                 className="px-4 py-2.5 rounded-lg border border-red-500 text-red-500 font-bold text-sm hover:bg-red-500/10 transition-all flex items-center gap-2"
               >
-                <Trash2 size={16}/> Effacer mes données
+                <Trash2 size={16}/> Supprimer mon compte
               </button>
             </div>
           )}
@@ -598,9 +597,9 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                 className={`${cardBg} rounded-2xl border ${cardBorder} shadow-xl max-w-md w-full p-6`}
                 onClick={(e) => e.stopPropagation()}
               >
-                <h3 className="font-bold text-lg text-red-500 mb-2">Confirmer l'effacement</h3>
+                <h3 className="font-bold text-lg text-red-500 mb-2">Confirmer la suppression</h3>
                 <p className={`text-sm ${textMuted} mb-4`}>
-                  Toutes tes données synchronisées (favoris, routines, statistiques, profil athlétique) seront définitivement supprimées de nos serveurs, et tu seras déconnecté·e. Ton adresse e-mail reste enregistrée pour l'instant (limite technique actuelle) — contacte-nous si tu veux aussi la faire supprimer.
+                  Ton compte (adresse e-mail, pseudonyme, favoris, routines, statistiques, profil athlétique) sera définitivement supprimé de nos serveurs. Cette action est irréversible et ne peut pas être annulée.
                 </p>
                 {deleteError && <p className="text-xs font-semibold text-red-500 mb-3">{deleteError}</p>}
                 <div className="flex justify-end gap-2">
@@ -614,7 +613,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                     onClick={handleConfirmDelete} disabled={isDeleting}
                     className="px-4 py-2 rounded-lg font-bold text-sm bg-red-500 hover:bg-red-600 text-white transition-all disabled:opacity-60"
                   >
-                    {isDeleting ? 'Suppression…' : 'Oui, effacer mes données'}
+                    {isDeleting ? 'Suppression…' : 'Oui, supprimer mon compte'}
                   </button>
                 </div>
               </div>
