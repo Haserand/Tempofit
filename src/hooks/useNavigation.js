@@ -35,7 +35,7 @@ import { useModalContext } from '../contexts/ModalContext';
 export function useNavigation(
   view, setView, setIsMobileMenuOpen,
   currentPlaylist, setCurrentPlaylist, savedPlaylists,
-  setShowAthleticProfile, isNaughtyMode,
+  isNaughtyMode,
 ) {
   const { setWizardStep } = useGeneratorContext();
   const { openModal } = useModalContext();
@@ -59,23 +59,12 @@ export function useNavigation(
     }
     setView(newView);
     setIsMobileMenuOpen(false);
-    // BUG CORRIGÉ (retour direct : "je ne peux plus revenir dans Générer après
-    // avoir cliqué sur Mon Profil Athlétique") — `showAthleticProfile` bascule
-    // GeneratorView entre 2 pages mutuellement exclusives (le profil ou le
-    // wizard, voir section 4 de la passation), mais rien ne le remettait
-    // jamais à `false` en repartant vers 'generator'. Comme `view` valait déjà
-    // 'generator' une fois sur la page profil, cliquer sur le bouton "Générer"
-    // de la sidebar ne faisait que re-régler `view` sur la même valeur —
-    // `showAthleticProfile` restait bloqué à `true` pour toujours, quel que
-    // soit le point d'entrée (sidebar, ou n'importe quel CTA "Créer une
-    // playlist" ailleurs dans l'app qui appelle aussi `changeView('generator')`
-    // — PlaylistsView/RoutinesView/StatsView). Recalé ici, à la racine,
-    // plutôt que dans chaque bouton séparément. Le bouton "Mon Profil
-    // Athlétique" (voir plus bas) rappelle `setShowAthleticProfile(true)`
-    // juste après son propre `changeView('generator')` — React regroupe les 2
-    // mises à jour du même clic, la dernière (`true`) l'emporte, donc ce cas
-    // précis n'est pas cassé par ce reset.
-    if (newView === 'generator') { setWizardStep(1); setShowAthleticProfile(false); }
+    // Refactor UX/UI (28/07, "Réglages à onglets") : le reset de
+    // `showAthleticProfile` qui vivait ici a été retiré — Profil Athlétique
+    // n'est plus une sous-page mutuellement exclusive de 'generator' (voir
+    // GeneratorView.jsx), il vit désormais comme onglet dans SettingsView.jsx
+    // ('settings'), donc ce bug de retour n'a plus lieu d'être.
+    if (newView === 'generator') { setWizardStep(1); }
   };
 
   /**
