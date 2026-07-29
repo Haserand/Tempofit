@@ -45,11 +45,15 @@ import { UserPlus } from 'lucide-react';
  * pas une seule phrase concaténée).
  * Distribution horizontale : `justify-between` (1er essai, retour direct :
  * "étire trop vers les extrémités, vide artificiel au centre") remplacé
- * par `justify-center gap-6` — texte et bouton forment un groupe COMPACT
- * centré sous le contenu principal, plutôt que plaqués chacun à une
- * extrémité. Le bloc texte garde son alignement interne à gauche
- * (`items-start`) pour préserver la hiérarchie visuelle Titre/Sous-titre
- * même une fois le groupe centré dans la barre.
+ * par `justify-center` — le bloc texte+bouton forme un groupe COMPACT
+ * centré sous le contenu principal, plutôt que plaqué à une extrémité.
+ * Alignement du bouton (28/07, retour direct suivant : "Se connecter
+ * paraît flottant, centré par rapport aux 2 lignes de texte") — le bouton
+ * n'est plus un 3e élément séparé du bloc texte (ce qui le centrait
+ * verticalement sur TOUTE la hauteur des 2 lignes) : il rejoint le titre
+ * "Mode invité" dans un sous-conteneur `flex-row items-center gap-4`
+ * dédié à la 1re ligne — strictement aligné sur elle, pas sur l'ensemble
+ * du bloc. Le sous-titre reste seul sur la 2e ligne, en dessous.
  * Couleurs : `textHighlight`/`textMuted`/`textColorClass` — tous des
  * tokens déjà adaptatifs clair/sombre/Mode Intime (voir useTheme.js), un
  * hardcode (`text-white`/`text-slate-*` en dur) casserait ce réglage, même
@@ -66,19 +70,21 @@ export default function GuestModeBar({ theme, isVisible, openModal }) {
     // h-[64px] : DOIT rester une classe Tailwind écrite en toutes lettres
     // (voir bottomBarLayout.js pour pourquoi) — si cette hauteur change,
     // reporter la même valeur dans GUEST_MODE_BAR_HEIGHT_PX (bottomBarLayout.js).
-    <div className={`h-[64px] border-t-2 ${cardBorderStrong} ${cardBg} flex flex-row justify-center items-center gap-6 px-6`}>
+    <div className={`h-[64px] border-t-2 ${cardBorderStrong} ${cardBg} flex flex-row justify-center items-center px-6`}>
       <div className="flex flex-col items-start min-w-0">
-        <span className={`font-bold text-base ${textHighlight}`}>Mode invité</span>
+        <div className="flex flex-row items-center gap-4">
+          <span className={`font-bold text-base ${textHighlight}`}>Mode invité</span>
+          <button
+            onClick={() => openModal('AUTH')}
+            className={`shrink-0 text-sm font-bold ${textColorClass} hover:opacity-80 flex items-center gap-2 transition-colors`}
+          >
+            <UserPlus size={14} /> Se connecter
+          </button>
+        </div>
         <span className={`text-sm font-normal mt-0.5 truncate ${textMuted}`}>
           Données sauvegardées uniquement sur cet appareil.
         </span>
       </div>
-      <button
-        onClick={() => openModal('AUTH')}
-        className={`shrink-0 text-sm font-bold ${textColorClass} hover:opacity-80 flex items-center gap-2 transition-colors`}
-      >
-        <UserPlus size={14} /> Se connecter
-      </button>
     </div>
   );
 }
