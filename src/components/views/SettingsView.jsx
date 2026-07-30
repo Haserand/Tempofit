@@ -418,7 +418,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                             value={usernameField}
                             onChange={e => { setUsernameFieldValue(e.target.value.toLowerCase()); setUsernameFieldStatus(null); setUsernameFieldError(''); }}
                             onBlur={handleUsernameFieldBlur}
-                            className={`flex-1 min-w-0 bg-transparent outline-none text-sm ${textHighlight}`}
+                            className={`flex-1 min-w-0 bg-transparent outline-hidden text-sm ${textHighlight}`}
                           />
                           {usernameFieldStatus === 'checking' && <Loader2 size={14} className={`animate-spin ${textMuted}`}/>}
                         </div>
@@ -454,7 +454,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                         <input
                           type="email" autoFocus autoComplete="email"
                           value={newEmail} onChange={e => { setNewEmail(e.target.value); setEmailError(''); }}
-                          className={`w-full px-3 py-1.5 rounded-lg border ${inputBorder} ${inputBg} font-bold text-lg ${textHighlight} outline-none`}
+                          className={`w-full px-3 py-1.5 rounded-lg border ${inputBorder} ${inputBg} font-bold text-lg ${textHighlight} outline-hidden`}
                         />
                         {emailError && <p className="text-xs font-semibold text-red-500">{emailError}</p>}
                       </form>
@@ -503,12 +503,12 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                         <input
                           type="password" autoFocus autoComplete="new-password" placeholder="Nouveau mot de passe"
                           value={newPassword} onChange={e => { setNewPassword(e.target.value); setPasswordError(''); }}
-                          className={`w-full px-3 py-1.5 rounded-lg border ${inputBorder} ${inputBg} font-medium ${textHighlight} outline-none`}
+                          className={`w-full px-3 py-1.5 rounded-lg border ${inputBorder} ${inputBg} font-medium ${textHighlight} outline-hidden`}
                         />
                         <input
                           type="password" autoComplete="new-password" placeholder="Confirme le nouveau mot de passe"
                           value={confirmPassword} onChange={e => { setConfirmPassword(e.target.value); setPasswordError(''); }}
-                          className={`w-full px-3 py-1.5 rounded-lg border ${inputBorder} ${inputBg} font-medium ${textHighlight} outline-none`}
+                          className={`w-full px-3 py-1.5 rounded-lg border ${inputBorder} ${inputBg} font-medium ${textHighlight} outline-hidden`}
                         />
                         {passwordError && <p className="text-xs font-semibold text-red-500">{passwordError}</p>}
                       </form>
