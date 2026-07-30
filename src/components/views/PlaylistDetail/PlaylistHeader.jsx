@@ -145,7 +145,7 @@ export default function PlaylistHeader({
     <div
       className={
         "relative w-full rounded-2xl p-6 md:p-8 border border-white/10 shadow-xl backdrop-blur-md " +
-        "bg-gradient-to-br from-slate-900/90 via-slate-900/60 to-slate-800/40 " +
+        "bg-linear-to-br from-slate-900/90 via-slate-900/60 to-slate-800/40 " +
         "flex flex-col md:flex-row items-start gap-6 md:gap-8"
       }
     >
