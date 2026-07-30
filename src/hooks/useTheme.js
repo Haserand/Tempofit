@@ -39,8 +39,25 @@
  */
 export function useTheme(isNaughtyMode) {
   const themeColor = isNaughtyMode ? 'rose' : 'red';
+  // Dégradé Mode Intime — CASSÉ SILENCIEUSEMENT par la bascule Tailwind v4
+  // (29/07), corrigé ici (retour direct : "le dégradé rose du Mode Intime a
+  // disparu"). L'ancienne classe `bg-[radial-gradient(ellipse_at_top,
+  // _var(--tw-gradient-stops))]` était un bricolage manuel datant d'avant
+  // l'existence d'un utilitaire radial natif dans Tailwind (v3 n'en avait
+  // pas) : elle référence directement `--tw-gradient-stops`, une variable
+  // interne que `from-*`/`via-*`/`to-*` suffisaient à peupler en v3. En v4,
+  // le moteur de dégradés a été entièrement réécrit (interpolation OKLCH
+  // par défaut, nouvelles classes `bg-linear-*`/`bg-radial-*`/`bg-conic-*`)
+  // et introduit une variable compagnon, `--tw-gradient-position`, que SEULES
+  // ces nouvelles classes natives posent correctement — jamais posée par
+  // l'ancien bricolage, resté à `initial`, ce qui invalide tout le dégradé
+  // composé malgré `from-*`/`to-*` toujours présents. Remplacé par
+  // `bg-radial-[at_top]`, l'équivalent natif v4 (le mot-clé CSS `top` est
+  // valide dans la syntaxe `at <position>` d'un radial-gradient standard,
+  // `ellipse` reste la forme par défaut si non précisée — rendu identique à
+  // l'original, juste par le bon mécanisme).
   const bgMainApp = isNaughtyMode
-    ? 'bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-rose-50 to-white dark:from-gray-900 dark:via-rose-950/20 dark:to-black'
+    ? 'bg-radial-[at_top] from-rose-50 to-white dark:from-gray-900 dark:via-rose-950/20 dark:to-black'
     : 'bg-base';
   const textMain = 'text-gray-900 dark:text-gray-100';
   const textColorClass = isNaughtyMode ? 'text-rose-500 dark:text-rose-400' : 'text-red-500 dark:text-red-500';
