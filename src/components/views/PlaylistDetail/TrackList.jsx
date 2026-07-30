@@ -105,7 +105,7 @@ export default function TrackList({
           </div>
         ) : (
           <div className="p-2 bg-gray-50 dark:bg-gray-900/50">
-            <button onClick={() => { setIsBpmSearchMode(false); openModal('SEARCH'); }} className={"w-full py-3 flex items-center justify-center gap-2 text-sm font-bold border-2 border-dashed rounded-xl transition-colors hover:border-gray-400 " + inputBorder + " " + textMuted + " hover:" + textHighlight}>
+            <button onClick={() => { setIsBpmSearchMode(false); openModal('SEARCH'); }} className={`w-full py-3 flex items-center justify-center gap-2 text-sm font-bold border-2 border-dashed rounded-xl transition-colors hover:border-gray-400 ${inputBorder} ${textMuted} hover:text-main`}>
               <Plus size={18} /> <span>Ajouter un titre</span>
             </button>
           </div>
