@@ -1331,7 +1331,20 @@ function AppContent({
                 avec l'e-mail du compte + "Se déconnecter". Réglages reste
                 accessible via son propre bouton dans la Sidebar — ce menu-
                 ci n'a pas besoin de dupliquer ce lien. */}
-            <div className="absolute top-4 right-4 md:top-6 md:right-8 z-[60] flex items-center gap-2">
+            {/* top-offset RECALCULÉ (Refactor UI "ligne de flottaison",
+                29/07, 8e itération, retour direct : "le bouton thème doit
+                être parfaitement aligné avec le bouton de connexion") —
+                `md:top-6` (24px) ne centrait plus ce bouton sur la ligne du
+                logo Sidebar depuis l'agrandissement de son icône (28→34px,
+                7e itération) : centre de la ligne logo = pt-6 (24px) +
+                moitié du badge (icône 34px + padding p-1.5×2 = 46px) =
+                47px depuis le haut ; ce bouton (icône 20px + padding p-2 =
+                36px de haut) doit donc démarrer à 47 − 36/2 = 29px pour
+                que SON centre tombe au même endroit — d'où `md:top-[29px]`
+                plutôt que `md:top-6`. `top-4` (mobile, Sidebar masquée,
+                pas de logo à côté à cet endroit) reste inchangé — cet
+                alignement ne concerne que la disposition desktop. */}
+            <div className="absolute top-4 right-4 md:top-[29px] md:right-8 z-[60] flex items-center gap-2">
               {isSupabaseConfigured && (
                 user ? (
                   <div ref={userMenuRef} className="relative">
