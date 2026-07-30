@@ -632,7 +632,7 @@ export default function StatsView({
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
-        icon={<Activity className={statsMode === 'naughty' ? 'text-rose-500' : textColorClass} size={36} />}
+        icon={<Activity className={statsMode === 'naughty' ? 'text-rose-500' : textColorClass} size={28} />}
         title={statsMode === 'naughty' ? 'Statistiques · Intime' : 'Statistiques'}
         subtitle={statsMode === 'naughty' ? "Ce que tu as écouté en mode Intime, à part du reste." : "Ce que tu as écouté, séance après séance."}
         right={
