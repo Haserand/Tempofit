@@ -85,7 +85,7 @@ export default function SearchModal({
               if (e.key === 'Enter') e.currentTarget.blur();
               if (e.key === 'Escape') setEditingBpmId(null);
             }}
-            className={`w-16 text-right font-mono text-sm font-bold bg-transparent border-b outline-none ${textColorClass} ${inputBorder}`}
+            className={`w-16 text-right font-mono text-sm font-bold bg-transparent border-b outline-hidden ${textColorClass} ${inputBorder}`}
           />
         ) : (track._bpmSource === 'detected' || track._bpmSource === 'manual') ? (
           // L'édition n'est proposée QUE là où il y a un doute réel à corriger :
@@ -146,7 +146,7 @@ export default function SearchModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={closeSearchModal}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" onClick={closeSearchModal}>
       <div className={"p-6 md:p-8 rounded-3xl w-full max-w-lg shadow-2xl flex flex-col max-h-[80vh] border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-1">
           <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
@@ -171,7 +171,7 @@ export default function SearchModal({
           <div className="mb-4 flex gap-2">
             <div className={"flex-1 flex items-center px-4 py-3 rounded-xl border " + inputBg + " " + inputBorder + (isWorldSearching ? ' opacity-60' : '')}>
               <Search size={18} className={"mr-3 " + textMuted} />
-              <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !isWorldSearching && searchWorldMusicApi(true)} disabled={isWorldSearching} placeholder="Titre ou artiste (ex: One More Time, Daft Punk)..." className={"bg-transparent w-full font-bold outline-none disabled:cursor-not-allowed " + textHighlight} autoFocus />
+              <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !isWorldSearching && searchWorldMusicApi(true)} disabled={isWorldSearching} placeholder="Titre ou artiste (ex: One More Time, Daft Punk)..." className={"bg-transparent w-full font-bold outline-hidden disabled:cursor-not-allowed " + textHighlight} autoFocus />
             </div>
             <button onClick={() => searchWorldMusicApi(true)} disabled={isWorldSearching} className={"px-4 rounded-xl text-white font-bold transition-transform active:scale-95 flex items-center justify-center " + bgAccentClass}>
               {isWorldSearching ? <Loader2 className="animate-spin" size={20}/> : <Search size={20}/>}
