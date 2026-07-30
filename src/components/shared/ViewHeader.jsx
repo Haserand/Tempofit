@@ -29,7 +29,7 @@
  * taille codée en dur ici depuis le Refactor UI "ligne de flottaison",
  * 29/07 ; voir ce fichier pour le budget de hauteur qui la contraint.)
  *
- * `icon` — un ÉLÉMENT déjà construit (`<Zap className="..." size={24}/>`),
+ * `icon` — un ÉLÉMENT déjà construit (`<Zap className="..." size={28}/>`),
  * pas juste un composant : la couleur de l'icône suit parfois une règle
  * spéciale propre à une vue (ex. StatsView, rose en Mode Intime plutôt que
  * `textColorClass`) — plus simple de laisser l'appelant construire l'icône
@@ -74,43 +74,38 @@ export default function ViewHeader({ theme, icon, title, subtitle, right = null,
   const { cardBorder, textHighlight, textMuted } = theme;
 
   return (
-    <div className={`border-b ${cardBorder} pb-3 pr-32 md:pr-40 flex flex-col sm:flex-row sm:items-start justify-between gap-4`}>
+    <div className={`border-b ${cardBorder} pb-3.5 pr-32 md:pr-40 flex flex-col sm:flex-row sm:items-start justify-between gap-4`}>
       {/* `min-w-0` est nécessaire ici (pas juste sur le <p>) : dans un flex
           item, la largeur par défaut ne descend jamais sous le contenu
           (`min-width: auto`), donc sans ça le sous-titre ne serait JAMAIS
           contraint, quel que soit le mécanisme utilisé pour la 1 ligne. */}
-      {/* 3e ITÉRATION (Refactor UI "ligne de flottaison", 29/07, retours
-          directs successifs : "trop d'espace entre le sous-titre et le
-          liseret" + "le titre doit faire la même taille que celle du logo"
-          + "les titres doivent être au même niveau que le logo, même ligne
-          horizontale" + "fais un truc joli avec les sous-titres") — la 2e
-          itération réduisait le titre lui-même (`text-base`) pour tenir
-          dans un budget de hauteur calculé à la main ; cette 3e itération
-          change d'approche : le TITRE reprend EXACTEMENT la typographie du
-          logo (`text-2xl font-bold tracking-tight leading-none`, voir
-          Sidebar.jsx — même classes, au caractère près), et plutôt que
-          d'empiler titre+sous-titre sur 2 lignes (ce qui rendait un
-          alignement avec le logo, lui sur 1 seule ligne, mécaniquement
-          impossible sans rogner sur l'un des deux), les deux passent SUR
-          LA MÊME LIGNE dès `sm:` (`sm:items-baseline`, alignement sur la
-          ligne de base du texte — un vrai standard éditorial : titre fort
-          + continuation plus discrète juste après, séparés par un point
-          médian `·`). Conséquences :
-          - Le "niveau" (ligne d'horizon) du titre est maintenant
-            directement comparable à celui du logo : les deux sont des
-            blocs À UNE SEULE LIGNE, avec le même `pt-6` partagé en amont
-            (`<main>`/Sidebar.jsx, voir viewHeaderLayout.js) — plus besoin
-            de calcul de budget entre 2 lignes empilées et 1 seule.
-          - `pb-6` → `pb-3` : le contenu tenant maintenant sur une seule
-            ligne (au lieu de 2 empilées), il ne reste plus besoin d'autant
-            d'espace avant le liseret.
-          - Sur mobile (SOUS `sm:`), titre et sous-titre restent empilés
-            (`flex-col`, comportement inchangé) : la place manque pour les
-            mettre côte à côte sur un petit écran, et l'alignement avec le
-            logo n'est de toute façon pas un enjeu visuel là où la Sidebar
-            n'est pas affichée à côté du contenu. */}
-      <div className="min-w-0 flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-2.5">
-        <h1 className={`text-2xl font-bold tracking-tight leading-none flex items-center gap-2 shrink-0 ${textHighlight}`}>
+      {/* 4e ITÉRATION (Refactor UI "ligne de flottaison", 29/07, retour
+          direct : "je tiens à 2 lignes", après une 3e itération qui les
+          avait fusionnées sur 1 seule) — retour à 2 lignes empilées
+          (titre puis sous-titre, TOUJOURS, plus de fusion `sm:` sur la
+          même ligne ni de point médian), mais cette fois avec un VRAI
+          calcul de budget pour que la bordure s'aligne quand même sur
+          celle de la Sidebar (voir viewHeaderLayout.js pour le calcul
+          complet) :
+          - Bloc logo Sidebar, du haut jusqu'à sa bordure : pt-6 (24px) +
+            hauteur de sa ligne (badge icône 28px + padding, ≈ 40px, le
+            plus haut élément) + pb-6 (24px) = 88px.
+          - `<main>` partage déjà pt-6 (24px, VIEW_HEADER_TOP_PADDING) —
+            il reste donc 88 − 24 = 64px pour (icône + titre + espacement
+            + sous-titre + pb de CE conteneur).
+          - Contenu retenu : icône 28px (VIEW_HEADER_ICON_SIZE, alignée
+            sur le logo) + titre `text-2xl leading-none` (24px, la ligne
+            fait donc 28px de haut, dominée par l'icône) + `mt-1` (4px) +
+            sous-titre `text-sm leading-tight` (≈18px) = 50px de contenu.
+          - `pb` nécessaire : 64 − 50 = 14px → `pb-3.5` (0.875rem = 14px
+            pile, un palier standard de l'échelle Tailwind par défaut, pas
+            une valeur arbitraire bricolée).
+          Reste une ESTIMATION (aucun navigateur réel dans cet
+          environnement de dev, métriques de police réelles à confirmer
+          sur le déploiement) — mais un calcul complet cette fois, pas une
+          approximation à l'aveugle. */}
+      <div className="min-w-0">
+        <h1 className={`text-2xl font-bold tracking-tight leading-none flex items-center gap-2 ${textHighlight}`}>
           {icon} <span>{title}</span>
         </h1>
         {/* TENTATIVE 25/07 (nouvelle session) — `line-clamp-1` plutôt que
@@ -144,13 +139,7 @@ export default function ViewHeader({ theme, icon, title, subtitle, right = null,
             (donc en mode standard, ou en Mode Intime + thème clair), le
             sous-titre garde `textMuted` comme avant — comportement
             inchangé partout ailleurs. */}
-        <p className={`text-sm min-w-0 ${textMuted} line-clamp-1 ${isNaughtyMode ? 'dark:text-white' : ''}`}>
-          {/* Point médian — visible SEULEMENT à partir de `sm:` (masqué en
-              `flex-col` mobile, où titre/sous-titre sont sur 2 lignes
-              séparées, un séparateur en tête de ligne serait incongru). */}
-          <span className="hidden sm:inline mr-2" aria-hidden="true">·</span>
-          {subtitle}
-        </p>
+        <p className={`mt-1 text-sm leading-tight ${textMuted} line-clamp-1 ${isNaughtyMode ? 'dark:text-white' : ''}`}>{subtitle}</p>
       </div>
       {right && <div className="shrink-0 flex items-center gap-2">{right}</div>}
     </div>
