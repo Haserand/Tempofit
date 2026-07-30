@@ -75,7 +75,7 @@ export default function TrophiesView({ theme, userStats, handleShare, isNaughtyM
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
-        icon={<Award className="text-yellow-500" size={36} />}
+        icon={<Award className="text-yellow-500" size={28} />}
         title="Mes Trophées"
         subtitle="Le mur des légendes. Accomplis tes sessions pour débloquer ces succès."
       />
