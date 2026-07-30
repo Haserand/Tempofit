@@ -147,7 +147,31 @@ export default function Sidebar({
                   par cette seule icône plus grande). */}
               {isNaughtyMode ? <Heart size={34} className="text-white fill-white" /> : <Activity size={34} className="text-white" />}
             </div>
-            <span className={`font-bold text-2xl tracking-tight leading-none ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
+            {/* Taille conditionnelle (Refactor UI "Verrouillage du bouton
+                Thème", 29/07, retour direct : "TempoIntime pousse le
+                bouton thème contre le séparateur") — la ligne entière est
+                déjà en `justify-between` (logo à gauche, boutons à
+                droite) : en théorie, la position du bouton thème ne
+                dépend PAS de la longueur du texte du logo, `justify-
+                between` ancre les 2 groupes aux extrémités du conteneur,
+                quel que soit ce qu'il y a entre les deux. Le VRAI problème
+                : "TempoIntime" (11 caractères) est assez large pour faire
+                DÉBORDER le contenu total au-delà de la largeur disponible
+                de la Sidebar (256px − px-6×2 = 208px), ce qui casse cet
+                ancrage — calcul : badge(46) + gap(12) + bouton thème seul
+                en mode invité(36) = 94px de côtés fixes, laissant 114px
+                pour le texte ; "TempoFit" (~108px à `text-2xl`) tient
+                dedans, "TempoIntime" (~148px à la même taille) déborde de
+                ~34px. `text-lg` (au lieu de `text-2xl`) UNIQUEMENT en Mode
+                Intime ramène "TempoIntime" à ~111px, sous la barre des
+                114px — `tracking-tighter` (au lieu de `tracking-tight`) en
+                plus, pour une marge de sécurité supplémentaire face à
+                l'approximation de cette estimation (aucun navigateur réel
+                dans cet environnement de dev pour mesurer la largeur
+                exacte). "TempoFit" (mode normal) garde `text-2xl
+                tracking-tight` EXACTEMENT comme avant — seule la variante
+                "TempoIntime" est concernée par cette réduction. */}
+            <span className={`font-bold leading-none ${isNaughtyMode ? 'text-lg tracking-tighter' : 'text-2xl tracking-tight'} ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
          </button>
          <div className="flex items-center gap-2">
            {/* Bouton Trophées — même comportement qu'avant son déménagement
