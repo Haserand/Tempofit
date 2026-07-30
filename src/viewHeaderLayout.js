@@ -40,31 +40,34 @@
  * mené à réduire le TITRE lui-même (`text-base`, ~20px) pour tenir dans un
  * budget de 40px calculé à la main.
  *
- * 3e ITÉRATION (même jour, retours directs : "le titre doit faire la même
- * taille que le logo" + "même niveau/ligne horizontale que le logo" +
- * "trop d'espace avant le liseret" + "fais un truc joli avec les sous-
- * titres") — CHANGEMENT D'APPROCHE : plutôt que de réduire le titre pour
- * le faire tenir à côté d'un sous-titre empilé en dessous, ViewHeader.jsx
- * fait maintenant tenir titre ET sous-titre SUR LA MÊME LIGNE (dès `sm:`,
- * séparés par un point médian, alignés sur la ligne de base) — le titre
- * peut alors reprendre EXACTEMENT la typographie du logo (`text-2xl
- * font-bold tracking-tight leading-none`, voir Sidebar.jsx et
- * ViewHeader.jsx) sans calcul de budget à 2 lignes : les deux blocs (logo
- * et en-tête de vue) sont maintenant CHACUN à une seule ligne, avec le
- * même `pt-6` partagé — leur "niveau" se correspond directement, sans
- * arithmétique. Voir ViewHeader.jsx pour le détail de cette fusion sur 1
- * ligne (et son repli en 2 lignes empilées sur mobile, où la comparaison
- * avec la Sidebar n'est de toute façon pas visible).
+ * 4e ITÉRATION (même jour, retour direct : "je tiens à 2 lignes" — la 3e
+ * itération avait fusionné titre+sous-titre sur 1 seule ligne pour
+ * contourner le problème d'alignement, refusé) — retour à 2 lignes
+ * empilées dans ViewHeader.jsx (titre puis sous-titre, comme à l'origine),
+ * mais avec un vrai calcul de budget cette fois plutôt qu'une réduction à
+ * l'aveugle du titre (2e itération) ou un changement de structure (3e) :
+ * - Sidebar (référence FIXE) : pt-6 (24px) + ligne logo (badge icône 28px
+ *   + padding ≈ 40px) + pb-6 (24px) = 88px jusqu'à sa bordure.
+ * - `<main>` partage déjà pt-6 (24px) — reste 88 − 24 = 64px pour
+ *   (icône + titre + espacement + sous-titre + pb de ViewHeader.jsx).
+ * - Retenu : icône 28px (= logo) + titre `text-2xl leading-none` (ligne
+ *   dominée par l'icône, 28px) + `mt-1` (4px) + sous-titre `text-sm
+ *   leading-tight` (≈18px) = 50px de contenu → pb nécessaire = 64 − 50 =
+ *   14px = `pb-3.5` (0.875rem, un palier STANDARD de l'échelle Tailwind,
+ *   pas une valeur arbitraire bricolée pour l'occasion).
+ * Reste une ESTIMATION (aucun navigateur réel dans cet environnement de
+ * dev) mais un calcul complet, documenté, reproductible si les métriques
+ * réelles imposent un ajustement fin après déploiement — voir
+ * ViewHeader.jsx pour le détail.
  *
  * Ce module exporte 2 valeurs, de nature différente :
  * - `VIEW_HEADER_ICON_SIZE` : un NOMBRE (prop `size` des icônes lucide-
  *   react) — aucune contrainte Tailwind ici, c'est une simple constante JS,
- *   importable et utilisable telle quelle partout. Valeur 24px (3e
- *   itération) : proportionnée au nouveau titre `text-2xl` (24px) —
- *   légèrement SOUS les 28px de l'icône du logo Sidebar (qui, elle, vit
- *   dans un badge coloré avec son propre padding, un contexte visuel
- *   différent d'une icône nue à côté du texte) plutôt qu'une égalité
- *   stricte à l'aveugle.
+ *   importable et utilisable telle quelle partout. Valeur 28px (4e
+ *   itération) : égale à l'icône du logo Sidebar, le budget recalculé
+ *   ci-dessus laisse maintenant la place nécessaire pour cette égalité
+ *   stricte (contrairement à la 2e itération, où 28px seul occupait déjà
+ *   70% d'un budget bien plus serré, calculé pour un TITRE réduit).
  * - `VIEW_HEADER_TOP_PADDING` : une classe Tailwind COMPLÈTE (`'pt-6'`),
  *   pas un nombre — à la différence de bottomBarLayout.js (qui ne pouvait
  *   rester qu'en pixels bruts, une classe `h-[${x}px]` construite par
@@ -88,11 +91,10 @@
  */
 
 // Icône du titre H1 de chaque vue (Zap, Compass, Star, Activity...) —
-// proportionnée au titre `text-2xl` (3e itération, voir plus haut) : même
-// typographie que le logo, icône légèrement sous sa taille brute (28px)
-// puisqu'elle n'a ici aucun badge coloré autour pour "gonfler" sa présence
-// visuelle comme celle du logo.
-export const VIEW_HEADER_ICON_SIZE = 24;
+// EXACTEMENT la même taille que l'icône du logo Sidebar (4e itération,
+// voir plus haut) : le budget recalculé pour 2 lignes empilées laisse
+// maintenant la place nécessaire à cette égalité stricte.
+export const VIEW_HEADER_ICON_SIZE = 28;
 
 // Padding-top de `<main>` (App.jsx) — DOIT rester une valeur FIXE (pas de
 // variante `sm:`/`md:` qui l'escalade à un breakpoint donné) puisque le
