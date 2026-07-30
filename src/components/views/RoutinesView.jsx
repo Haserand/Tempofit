@@ -49,7 +49,7 @@ export default function RoutinesView({
             </button>
           </div>
         ) : (
-          <button onClick={() => changeView('generator')} className={`rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 py-10 font-bold transition-colors ${isNaughtyMode ? 'border-slate-400 text-slate-800 hover:text-slate-950' : 'border-slate-700 text-slate-400 hover:text-white'}`}>
+          <button onClick={() => changeView('generator')} className={`rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 py-10 font-bold transition-colors ${isNaughtyMode ? 'border-slate-400 text-slate-300 hover:text-white' : 'border-slate-700 text-slate-400 hover:text-white'}`}>
             <Plus size={28} />
             <span>Créer une nouvelle routine</span>
           </button>
