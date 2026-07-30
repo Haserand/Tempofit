@@ -63,9 +63,14 @@ export const SIDEBAR_SECTION_TITLE_MARGIN = 'mb-4';
 // `sectionTitleMargin`) qui choisissent entre normal et compact UNE SEULE
 // FOIS, réutilisées à chaque usage plutôt que de répéter le ternaire à
 // chaque bouton.
-export const SIDEBAR_LINK_PADDING_COMPACT = 'px-3 py-1.5';
-export const SIDEBAR_LINK_GAP_COMPACT = 'space-y-1';
-export const SIDEBAR_SECTION_TITLE_MARGIN_COMPACT = 'mb-1';
+// 2e ITÉRATION (même jour, retour direct : "trop agressif, tasse trop la
+// navigation, on a de la marge au-dessus de Statistiques") — valeurs
+// desserrées vers un compromis intermédiaire (`py-1.5`→`py-2`,
+// `space-y-1`→`space-y-1.5`, `mb-1`→`mb-2.5`), toujours sous les valeurs
+// normales mais moins radicales que le 1er passage.
+export const SIDEBAR_LINK_PADDING_COMPACT = 'px-3 py-2';
+export const SIDEBAR_LINK_GAP_COMPACT = 'space-y-1.5';
+export const SIDEBAR_SECTION_TITLE_MARGIN_COMPACT = 'mb-2.5';
 
 // Séparateur physique entre "Création" et "Mon Espace" (`border-t ... my-5`
 // sur une div vide) — remplace l'ancienne marge géante `mt-6`/`mt-8`/`mt-12`
