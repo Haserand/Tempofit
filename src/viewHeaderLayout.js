@@ -67,12 +67,16 @@
  * 5e ITÉRATION (même jour, retour direct : "bien ! micro-ajustement,
  * agrandir un peu le logo, de l'ordre de 5/6 pixels") — un seul nombre
  * changé : `VIEW_HEADER_ICON_SIZE` 28→34 (+6px), qui suit exactement la
- * même bascule sur l'icône du logo (Sidebar.jsx). Cette icône étant déjà
- * l'élément le plus haut de sa ligne (badge logo ET titre H1 de page),
- * l'agrandir pousse mécaniquement le liseret de +6px des DEUX côtés à la
- * fois, sans toucher `pb-3.5`, ni la taille du texte du titre/sous-titre —
- * l'alignement calculé en 4e itération reste donc valide tel quel, juste
- * translaté de 6px plus bas.
+ * même bascule sur l'icône du logo (Sidebar.jsx).
+ * ⚠️ CLAIM ERRONÉE à l'époque (corrigée en 9e itération, voir plus bas) :
+ * cette note affirmait alors que l'icône du titre H1 étant "l'élément le
+ * plus haut de sa ligne (badge logo ET titre H1 de page)", l'agrandir
+ * poussait le liseret de +6px des DEUX côtés IDENTIQUEMENT — FAUX : le
+ * badge du logo a un PADDING autour de son icône (`p-1.5`, 12px) que
+ * l'icône du titre n'a jamais eu (icône nue) — même valeur NUMÉRIQUE des 2
+ * icônes ne veut donc pas dire même HAUTEUR DE LIGNE. Un vrai décalage de
+ * 6px entre les 2 lignes en résultait, resté invisible jusqu'à un retour
+ * direct explicite ("les titres ne sont pas alignés avec le logo").
  *
  * Ce module exporte 2 valeurs, de nature différente :
  * - `VIEW_HEADER_ICON_SIZE` : un NOMBRE (prop `size` des icônes lucide-
@@ -97,6 +101,17 @@
  *   le CÔTÉ HAUT — son padding gauche/droite/bas reste un raccourci
  *   `px-6 pb-6` local, non partagé, puisque rien ailleurs n'a besoin de
  *   s'y aligner).
+ *
+ * 9e ITÉRATION (même jour, retour direct : "les titres ne sont pas
+ * alignés avec le logo") — voir la correction ci-dessus (5e itération) :
+ * le badge du logo (icône 34px + padding p-1.5 = 46px de ligne) reste 12px
+ * plus haut que la ligne du titre H1 (icône seule, 34px, sans badge),
+ * décalant leurs centres de 6px malgré le même `pt-6` partagé. Corrigé
+ * dans ViewHeader.jsx (PAS ici) : un simple décalage `mt-1.5` (6px) sur le
+ * bloc titre+sous-titre, plutôt que d'ajouter un padding autour de l'icône
+ * (aurait fait déborder le budget de hauteur déjà serré) — `pb-3.5` →
+ * `pb-2` en conséquence, pour garder la bordure alignée. Voir ViewHeader.jsx
+ * pour le calcul complet.
  *
  * Si un futur ajustement change l'une de ces 2 valeurs — ou la typographie
  * du titre/sous-titre dans ViewHeader.jsx — la changer ICI (et dans
