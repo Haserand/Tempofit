@@ -158,7 +158,7 @@ export default function TrackItem({
 
       {/* Menu d'options (Dupliquer / Remplacer large / Remplacer même artiste). */}
       <div className="relative shrink-0">
-        <button onClick={() => setOpenTrackMenuIndex(openTrackMenuIndex === index ? null : index)} className={"p-2 rounded-lg transition-colors " + textMuted + " hover:" + textHighlight} title="Plus d'options">
+        <button onClick={() => setOpenTrackMenuIndex(openTrackMenuIndex === index ? null : index)} className={`p-2 rounded-lg transition-colors ${textMuted} hover:text-main`} title="Plus d'options">
           <MoreVertical size={16}/>
         </button>
         {openTrackMenuIndex === index && (
