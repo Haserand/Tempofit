@@ -1,5 +1,6 @@
 import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, ListPlus, Compass, Sun, Moon } from 'lucide-react';
 import { MINI_PLAYER_BAR_HEIGHT_PX, GUEST_MODE_BAR_HEIGHT_PX } from '../../bottomBarLayout';
+import { VIEW_HEADER_TOP_PADDING } from '../../viewHeaderLayout';
 import {
   SIDEBAR_LINK_PADDING, SIDEBAR_LINK_GAP, SIDEBAR_SECTION_TITLE_MARGIN,
   SIDEBAR_SEPARATOR_MARGIN, SIDEBAR_SCROLL_PADDING, SIDEBAR_FOOTER_LINK_PADDING,
@@ -120,7 +121,7 @@ export default function Sidebar({
 
   return (
     <aside className={`fixed inset-y-0 left-0 z-50 w-64 h-full bg-surface border-r-2 ${cardBorderStrong} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${bottomBarPadding} md:pb-0`}>
-      <div className={`p-6 mb-2 border-b-2 ${cardBorderStrong} flex items-center justify-between shrink-0`}>
+      <div className={`${VIEW_HEADER_TOP_PADDING} px-6 pb-6 mb-2 border-b-2 ${cardBorderStrong} flex items-center justify-between shrink-0`}>
          {/* Logo cliquable = retour à l'accueil ("Nouvelle séance"). */}
          <button
            onClick={() => changeView('generator')}
@@ -128,6 +129,11 @@ export default function Sidebar({
            className="flex items-center space-x-3 cursor-pointer"
          >
             <div className={`${bgAccentClass} p-1.5 rounded-lg transition-colors duration-500 ${isNaughtyMode ? 'shadow-[0_0_15px_rgba(244,63,94,0.4)]' : ''}`}>
+              {/* `size={28}` : valeur de RÉFÉRENCE que `VIEW_HEADER_ICON_SIZE`
+                  (viewHeaderLayout.js, importée par les icônes de titre H1
+                  de chaque vue) reproduit — reste un littéral ICI, pas une
+                  constante importée : ce logo est la source à laquelle les
+                  autres s'alignent, pas l'inverse. */}
               {isNaughtyMode ? <Heart size={28} className="text-white fill-white" /> : <Activity size={28} className="text-white" />}
             </div>
             <span className={`font-bold text-2xl tracking-tight leading-none ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
