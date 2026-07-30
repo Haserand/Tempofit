@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Award, Share2, HelpCircle, Lock } from 'lucide-react';
 import { TROPHIES_DATA, TROPHY_CATEGORIES } from '../../appConfig';
 import ViewHeader from '../shared/ViewHeader';
-import { VIEW_HEADER_ICON_SIZE } from '../../viewHeaderLayout';
+import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../viewHeaderLayout';
 
 /**
  * TrophiesView — vue "Mes Trophées" (mur des succès débloqués).
@@ -72,7 +72,7 @@ export default function TrophiesView({ theme, userStats, handleShare, isNaughtyM
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className={`${VIEW_CONTENT_WRAPPER} space-y-8`}>
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
