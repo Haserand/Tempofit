@@ -1294,7 +1294,20 @@ function AppContent({
               PAR CHAQUE VUE elle-même (`pr-32 md:pr-40` sur le bloc d'en-tête
               — voir GeneratorView.jsx/PlaylistsView.jsx/etc.), pas par cette
               marge globale. */}
-          <main id="main-scroll-area" className="relative flex-1 overflow-y-auto pt-6 sm:pt-8 px-4 sm:px-8 pb-4 sm:pb-8 no-scrollbar">
+          {/* Harmonisation de la ligne de flottaison (Refactor UI, 29/07,
+              retour direct : "léger décalage visuel en haut d'écran entre
+              le logo et les titres de page") — `pt-6 sm:pt-8` ESCALADAIT
+              avec le breakpoint (24px → 32px dès `sm:`), alors que le bloc
+              logo de la Sidebar reste fixe à `p-6` (24px, AUCUNE variante
+              responsive, voir Sidebar.jsx) : sur desktop (`sm:` et plus,
+              exactement la disposition où Sidebar+contenu principal sont
+              visibles côte à côte), le titre de page démarrait donc 8px
+              plus bas que le logo. `sm:pt-8` retiré ici plutôt qu'ajouté à
+              la Sidebar : un seul token à corriger (celui qui divergeait),
+              pas besoin de complexifier le `p-6` de la Sidebar (raccourci
+              qui couvre aussi left/right/bottom) pour lui ajouter une
+              variante responsive dont il n'a par ailleurs aucun besoin. */}
+          <main id="main-scroll-area" className="relative flex-1 overflow-y-auto pt-6 px-4 sm:px-8 pb-4 sm:pb-8 no-scrollbar">
 
             {/* Bloc connexion — Polish UX (28/07, "icône standard haut-
                 droite") : remplace le bouton pilule "Se connecter" (texte +
