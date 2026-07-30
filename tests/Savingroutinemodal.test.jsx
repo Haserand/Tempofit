@@ -99,15 +99,18 @@ describe('SavingRoutineModal', () => {
   });
 
   it('affiche 8 icônes en mode normal, 14 en Mode Intime (AVAILABLE_ICONS.slice)', () => {
+    // ⚠️ BUG DE TEST CORRIGÉ (déploiement du 29/07) : `.justify-between` est
+    // AMBIGU dans ce composant — 3 éléments différents portent cette classe
+    // (l'en-tête titre/fermer, CETTE grille d'icônes, et le label de
+    // fréquence) — `querySelector` renvoyait le 1er (l'en-tête, 1 seul
+    // bouton), pas la grille. `.bg-gray-50` est unique à la grille d'icônes
+    // dans ce fichier (vérifié), sélecteur sans ambiguïté.
     const { container, rerender } = render(<SavingRoutineModal {...baseProps} isNaughtyMode={false} />);
-    // Chaque icône est un <button> dans la grille d'icônes (pas le bouton X
-    // ni "Enregistrer") — la grille est le 1er <div> avec la classe
-    // "justify-between" dans ce fichier.
-    const iconGrid = container.querySelector('.justify-between');
+    const iconGrid = container.querySelector('.bg-gray-50');
     expect(iconGrid.querySelectorAll('button')).toHaveLength(8);
 
     rerender(<SavingRoutineModal {...baseProps} isNaughtyMode={true} />);
-    const iconGridNaughty = container.querySelector('.justify-between');
+    const iconGridNaughty = container.querySelector('.bg-gray-50');
     expect(iconGridNaughty.querySelectorAll('button')).toHaveLength(14);
   });
 });
