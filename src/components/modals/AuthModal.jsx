@@ -176,7 +176,7 @@ export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, sig
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={close}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" onClick={close}>
       <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6">
           <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
@@ -214,7 +214,7 @@ export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, sig
                   <input
                     type="email" autoComplete="email" placeholder="ton@email.com" autoFocus
                     value={email} onChange={e => { setEmail(e.target.value); setErrorMsg(''); }}
-                    className={`flex-1 bg-transparent outline-none ${textHighlight}`}
+                    className={`flex-1 bg-transparent outline-hidden ${textHighlight}`}
                   />
                 </div>
 
@@ -262,7 +262,7 @@ export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, sig
                       value={username}
                       onChange={e => { setUsernameField(e.target.value.toLowerCase()); setUsernameStatus(null); setErrorMsg(''); }}
                       onBlur={handleUsernameBlur}
-                      className={`flex-1 bg-transparent outline-none ${textHighlight}`}
+                      className={`flex-1 bg-transparent outline-hidden ${textHighlight}`}
                     />
                     {usernameStatus === 'checking' && <Loader2 size={16} className={`animate-spin ${textMuted}`}/>}
                   </div>
@@ -283,7 +283,7 @@ export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, sig
                 <input
                   type="email" autoComplete="email" placeholder="ton@email.com"
                   value={email} onChange={e => { setEmail(e.target.value); setErrorMsg(''); }}
-                  className={`flex-1 bg-transparent outline-none ${textHighlight}`}
+                  className={`flex-1 bg-transparent outline-hidden ${textHighlight}`}
                 />
               </div>
 
@@ -293,7 +293,7 @@ export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, sig
                   <input
                     type={showPassword ? 'text' : 'password'} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} placeholder="Mot de passe"
                     value={password} onChange={e => { setPassword(e.target.value); setErrorMsg(''); }}
-                    className={`flex-1 bg-transparent outline-none ${textHighlight}`}
+                    className={`flex-1 bg-transparent outline-hidden ${textHighlight}`}
                   />
                   <button type="button" onClick={() => setShowPassword(s => !s)} title={showPassword ? 'Masquer' : 'Afficher'} className={`${textMuted} hover:text-main transition-colors`}>
                     {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
@@ -324,7 +324,7 @@ export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, sig
                   <input
                     type={showPassword ? 'text' : 'password'} autoComplete="new-password" placeholder="Confirme ton mot de passe"
                     value={confirmPassword} onChange={e => { setConfirmPassword(e.target.value); setErrorMsg(''); }}
-                    className={`flex-1 bg-transparent outline-none ${textHighlight}`}
+                    className={`flex-1 bg-transparent outline-hidden ${textHighlight}`}
                   />
                   <button type="button" onClick={() => setShowPassword(s => !s)} title={showPassword ? 'Masquer' : 'Afficher'} className={`${textMuted} hover:text-main transition-colors`}>
                     {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
