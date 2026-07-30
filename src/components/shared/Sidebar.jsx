@@ -5,6 +5,7 @@ import {
   SIDEBAR_LINK_PADDING, SIDEBAR_LINK_GAP, SIDEBAR_SECTION_TITLE_MARGIN,
   SIDEBAR_SEPARATOR_MARGIN, SIDEBAR_SCROLL_PADDING, SIDEBAR_FOOTER_LINK_PADDING,
   SIDEBAR_LINK_PADDING_COMPACT, SIDEBAR_LINK_GAP_COMPACT, SIDEBAR_SECTION_TITLE_MARGIN_COMPACT,
+  SIDEBAR_SCROLL_PADDING_COMPACT,
 } from '../../sidebarLayout';
 
 /**
@@ -78,6 +79,10 @@ export default function Sidebar({
   const linkPadding = isNaughtyMode ? SIDEBAR_LINK_PADDING_COMPACT : SIDEBAR_LINK_PADDING;
   const linkGap = isNaughtyMode ? SIDEBAR_LINK_GAP_COMPACT : SIDEBAR_LINK_GAP;
   const sectionTitleMargin = isNaughtyMode ? SIDEBAR_SECTION_TITLE_MARGIN_COMPACT : SIDEBAR_SECTION_TITLE_MARGIN;
+  // 3e itération (même jour, retour direct : "supprimer le léger mouvement
+  // de scroll restant") — même principe, sur le padding du conteneur
+  // scrollable lui-même cette fois (voir sidebarLayout.js).
+  const scrollPadding = isNaughtyMode ? SIDEBAR_SCROLL_PADDING_COMPACT : SIDEBAR_SCROLL_PADDING;
 
   // BUG CORRIGÉ (25/07, retour direct : "je ne peux pas cliquer sur Options
   // & Comptes quand le lecteur audio est actif") — le padding précédent
@@ -254,13 +259,26 @@ export default function Sidebar({
           au-dessus dépassait la hauteur disponible. `px-4` (absent de la
           demande initiale mais nécessaire) : remplace le padding horizontal
           qu'apportait jusqu'ici le conteneur unique qu'on scinde ici. */}
-      <div className={`flex-1 overflow-y-auto no-scrollbar ${SIDEBAR_SCROLL_PADDING}`}>
+      <div className={`flex-1 overflow-y-auto no-scrollbar ${scrollPadding}`}>
       {isNaughtyMode && (
-        <div className={`py-2 border-b ${cardBorder}`}>
-          {/* Mêmes classes que les boutons du menu juste en dessous
-              (`px-3 py-2`, icône 18px, `text-sm font-bold`) — retour direct :
-              "démarrer au même point horizontal, même taille de police" —
-              plutôt qu'un style à part. */}
+        <div className={`pt-0.5 pb-3.5 border-b ${cardBorder}`}>
+          {/* Padding ASYMÉTRIQUE (Refactor UI "Centrage du bouton Quitter le
+              Mode Intime", 29/07, 3e itération, retour direct : "pile entre
+              le trait du logo en haut et le liseret de Création en bas") —
+              l'ancien `py-2` (8px/8px, symétrique) ne centrait PAS
+              réellement le bouton : le conteneur scrollable parent ajoute
+              DÉJÀ 12px au-dessus (`scrollPadding` compact, py-3, voir
+              sidebarLayout.js) avant que ce wrapper ne commence, alors que
+              rien d'équivalent ne s'ajoute après sa bordure — l'espace
+              "au-dessus" du bouton était donc 12+8=20px contre seulement
+              8px "en-dessous", visiblement décentré vers le bas.
+              Calcul : espace_haut = 12 (scrollPadding compact) + pt ;
+              espace_bas = pb ; on veut les 2 égaux, en gardant pt+pb=16
+              (même total qu'avant, donc AUCUN changement de hauteur ici) —
+              12+pt = 16−pt => pt = 2px (`pt-0.5`), pb = 14px (`pb-3.5`) :
+              espace_haut = 12+2 = 14px = espace_bas. Les 2 valeurs
+              (`scrollPadding` ET ce padding) sont calculées ENSEMBLE —
+              changer l'une sans l'autre décale à nouveau le bouton. */}
           <button
             onClick={toggleNaughtyMode}
             className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer text-rose-500 hover:bg-rose-500/10`}
