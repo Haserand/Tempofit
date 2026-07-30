@@ -1,7 +1,7 @@
 import { ListPlus, Plus, Edit3, Trash2, Layers, Info, Loader2, PlaySquare } from 'lucide-react';
 import { useModalContext } from '../../contexts/ModalContext';
 import ViewHeader from '../shared/ViewHeader';
-import { VIEW_HEADER_ICON_SIZE } from '../../viewHeaderLayout';
+import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../viewHeaderLayout';
 
 /**
  * RoutinesView — vue "Mes Routines" (configurations sauvegardées, relançables en un clic).
@@ -29,7 +29,7 @@ export default function RoutinesView({
     .map(r => r.id);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className={`${VIEW_CONTENT_WRAPPER} space-y-8`}>
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
