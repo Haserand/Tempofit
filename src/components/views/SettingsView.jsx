@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Gauge, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as UserIcon, X, Key, Download, Trash2, AtSign, Lock, Loader2 } from 'lucide-react';
 import ViewHeader from '../shared/ViewHeader';
+import { VIEW_HEADER_ICON_SIZE } from '../../viewHeaderLayout';
 import AthleticProfilePanel from './AthleticProfilePanel';
 
 /**
@@ -249,9 +250,9 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
         theme={theme}
         isNaughtyMode={isNaughtyMode}
         icon={
-          activeTab === 'profile' ? <Gauge className={textColorClass} size={28} /> :
-          activeTab === 'music' ? <LinkIcon className={textColorClass} size={28} /> :
-          <UserIcon className={textColorClass} size={28} />
+          activeTab === 'profile' ? <Gauge className={textColorClass} size={VIEW_HEADER_ICON_SIZE} /> :
+          activeTab === 'music' ? <LinkIcon className={textColorClass} size={VIEW_HEADER_ICON_SIZE} /> :
+          <UserIcon className={textColorClass} size={VIEW_HEADER_ICON_SIZE} />
         }
         title={
           activeTab === 'profile' ? 'Mon Profil Athlétique' :
