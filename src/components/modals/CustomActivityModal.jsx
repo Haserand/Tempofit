@@ -58,7 +58,7 @@ export default function CustomActivityModal({ theme, userStats, checkTrophies })
           onKeyDown={(e) => { if (e.key === 'Enter') confirm(); }}
         />
         <div className="flex justify-end space-x-3">
-          <button onClick={() => setIsCustomActivityModalOpen(false)} className={"px-6 py-3 font-medium hover:" + textHighlight + " " + textMuted}>Annuler</button>
+          <button onClick={() => setIsCustomActivityModalOpen(false)} className={`px-6 py-3 font-medium hover:text-main ${textMuted}`}>Annuler</button>
           <button onClick={confirm} className={"px-6 py-3 text-white font-bold rounded-xl shadow-md " + bgAccentClass}>Valider</button>
         </div>
       </div>
