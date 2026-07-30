@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, X, LogOut } from 'lucide-react';
 import { genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getRankStyle } from './appConfig';
@@ -55,17 +55,31 @@ import { AudioPlayerProvider, useAudioPlayer } from './contexts/AudioPlayerConte
 import { useShare } from './hooks/useShare';
 import { useElapsedTimer } from './hooks/useElapsedTimer';
 import { useSessionAnalysis } from './hooks/useSessionAnalysis';
-import SettingsView from './components/views/SettingsView';
-import FavoritesView from './components/views/FavoritesView';
-import TrophiesView from './components/views/TrophiesView';
-import RoutinesView from './components/views/RoutinesView';
-import PlaylistsView from './components/views/PlaylistsView';
+// Vues chargées en lazy (Optimisation "app encore petite", 29/07) — une SEULE
+// de ces 9 vues est jamais montée à la fois (voir le switch `view === '...'`
+// plus bas, toujours mutuellement exclusif), donc les charger toutes de façon
+// statique dans le bundle initial force TOUT LE MONDE à télécharger le code
+// de StatsView/PlaylistCharts (recharts, ~gros) et de GeneratorWizard (1000+
+// lignes) dès le premier chargement, même quelqu'un qui ne fait QUE générer
+// une séance et ne visitera jamais Stats. `React.lazy()` + le `<Suspense>`
+// unique qui entoure le switch plus bas (seule modification nécessaire côté
+// rendu) suffit à découper chaque vue dans son propre chunk JS, chargé à la
+// demande au premier changement de vue — Vite/Rolldown s'en charge tout
+// seul, aucune configuration supplémentaire. Les imports non listés ici
+// (DualRangeSlider, CustomActivityModal, MiniPlayerBar, GuestModeBar...)
+// restent statiques : ce sont des petits composants de chrome partagé,
+// potentiellement visibles dès le premier écran, pas des vues entières.
+const SettingsView = lazy(() => import('./components/views/SettingsView'));
+const FavoritesView = lazy(() => import('./components/views/FavoritesView'));
+const TrophiesView = lazy(() => import('./components/views/TrophiesView'));
+const RoutinesView = lazy(() => import('./components/views/RoutinesView'));
+const PlaylistsView = lazy(() => import('./components/views/PlaylistsView'));
 import DualRangeSlider from './components/shared/DualRangeSlider';
-import StatsView from './components/views/StatsView';
-import GeneratorView from './components/views/GeneratorView';
-import PlaylistDetailView from './components/views/PlaylistDetailView';
+const StatsView = lazy(() => import('./components/views/StatsView'));
+const GeneratorView = lazy(() => import('./components/views/GeneratorView'));
+const PlaylistDetailView = lazy(() => import('./components/views/PlaylistDetailView'));
 import CustomActivityModal from './components/modals/CustomActivityModal';
-import DiscoverView from './components/views/DiscoverView';
+const DiscoverView = lazy(() => import('./components/views/DiscoverView'));
 import MiniPlayerBar from './components/shared/MiniPlayerBar';
 import GuestModeBar from './components/shared/GuestModeBar';
 import ErrorBoundary from './components/shared/ErrorBoundary';
@@ -1376,6 +1390,21 @@ function AppContent({
             </div>
 
 
+            {/* Suspense unique pour les 9 vues lazy ci-dessus (voir le
+                commentaire près des imports) — un SEUL fallback pour tout le
+                switch puisqu'une seule vue est jamais montée à la fois. Motif
+                de chargement identique à celui déjà utilisé ailleurs dans ce
+                fichier (`Loader2 animate-spin` + `textColorClass`, voir plus
+                haut) plutôt qu'un nouveau style de spinner. Ne s'affiche
+                QUE lors du tout premier changement vers une vue donnée (son
+                chunk JS est ensuite mis en cache par le navigateur) — jamais
+                vu du tout pour la vue affichée au chargement initial de
+                l'app, elle est déjà prête au moment où ce composant monte. */}
+            <Suspense fallback={
+              <div className="flex items-center justify-center py-24">
+                <Loader2 size={28} className={`animate-spin ${textColorClass}`} />
+              </div>
+            }>
             {/* ===================== VIEW: GENERATOR (ASSISTANT MULTI-ETAPES) ===================== */}
             {view === 'generator' && (
               // Chantier God Component étape 2 : cet appel ne porte plus QUE
@@ -1519,6 +1548,7 @@ function AppContent({
                 changeView={changeView}
               />
             )}
+            </Suspense>
 
             {/* Espaceur — réserve de la place en bas du contenu défilant pour
                 MiniPlayerBar (fixed bottom-0, hors du flux normal, ne pousse
