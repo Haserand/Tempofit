@@ -27,8 +27,11 @@ import { useModalContext } from '../../contexts/ModalContext';
  * lignes de JSX + la logique Crescendo/sélecteur rapide de zone/indicateur
  * de scroll qui n'appartenait qu'à lui) — rien de partagé avec
  * AthleticProfilePanel.jsx au-delà de quelques champs génériques de
- * useGeneratorContext() (`athleticProfile`, `buildDefaultPreviewProfile`,
- * `setShowAthleticProfile`), chacun lu ICI via son propre appel au Contexte.
+ * useGeneratorContext() (`athleticProfile`, `buildDefaultPreviewProfile`),
+ * chacun lu ICI via son propre appel au Contexte. (`setShowAthleticProfile`
+ * retiré de cette liste le 29/07 — dead reference depuis le refactor
+ * "Réglages à onglets" du 28/07, voir plus bas dans ce fichier pour le
+ * détail du nettoyage.)
  *
  * Props reçues de GeneratorView.jsx : tout ce qui vient d'App.jsx et n'est
  * PAS dans GeneratorContext (recherche/génération/theme) — identique à ce
@@ -41,7 +44,7 @@ export default function GeneratorWizard({
   setCurrentPlaylist, setIsBpmSearchMode, setSearchQuery, setWorldSearchResults,
   setResultsContextLabel, setNoUsableResultsHint, searchTracksByBpm,
   executeGeneration, isGenerating,
-  toggleNaughtyMode,
+  toggleNaughtyMode, changeView,
 }) {
   const { openModal } = useModalContext();
   const {
@@ -62,25 +65,18 @@ export default function GeneratorWizard({
     bpmTolerance, setBpmTolerance, crossfade, setCrossfade, allowLongTracks, setAllowLongTracks,
     getActiveWorkoutName,
     athleticProfile, getProfileForWorkout, buildDefaultPreviewProfile,
-    setShowAthleticProfile,
   } = useGeneratorContext();
   const {
     cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass,
     borderAccentClass, bgMainApp, inputBg, inputBorder,
   } = theme;
 
-  // BUG CORRIGÉ (25/07) : cette déclaration avait été oubliée lors du
-  // découpage de GeneratorView.jsx en 3 fichiers (voir GeneratorView.jsx,
-  // "séparer le générateur en 2 composants") — la ligne d'origine se
-  // trouvait dans une plage de lignes que le script d'extraction avait
-  // classée "Profil Athlétique" (elle vivait juste à côté d'autres
-  // déclarations propres à cette page-là), mais SON USAGE réel (la
-  // bannière "Configure ton Profil Athlétique" ci-dessous) est bien côté
-  // wizard — d'où un `configuredProfilesCount is not defined` en
-  // production. Retirée d'AthleticProfilePanel.jsx (où elle ne servait à
-  // rien) et déplacée ici.
-  const configuredProfilesCount = Object.values(athleticProfile.activities).filter(p => p.isConfigured).length
-    + athleticProfile.custom.filter(c => c.isConfigured).length;
+  // `configuredProfilesCount` (comptait les profils Constante/Crescendo/
+  // Fractionné déjà configurés) retiré (Refactor UX "Option A", 29/07) :
+  // son seul usage était de conditionner l'affichage de l'ancienne bannière
+  // "Configure ton Profil Athlétique" (retirée juste au-dessus) — devenu
+  // dead code une fois la bannière supprimée, retiré plutôt que laissé
+  // traîner sans consommateur.
 
   // Plancher BPM pour l'échauffement/retour au calme du mode Crescendo —
   // mêmes bornes que le curseur BPM principal de l'étape 3 (40 en mode
@@ -212,26 +208,19 @@ export default function GeneratorWizard({
               voir useAthleticProfile.js. Reformulé en "ajustés à ton profil",
               volontairement générique plutôt que de réintroduire un mot qui a
               déjà causé une confusion. */}
-          {!isNaughtyMode && configuredProfilesCount === 0 && (
-            // `pointer-events-none`/`opacity-60` pendant une génération, comme la
-            // grande carte du wizard juste en dessous — CHOIX ASSUMÉ (25/07) :
-            // rien n'empêchait techniquement de garder ce bouton actif (le profil
-            // édité ici ne s'appliquerait qu'à la PROCHAINE génération, jamais à
-            // celle en cours, dont la config est déjà figée), mais laisser CE
-            // SEUL bouton cliquable au milieu d'une UI par ailleurs entièrement
-            // gelée aurait cassé la cohérence visuelle du principe "rien ne bouge
-            // tant que ça génère" — mieux vaut un principe simple et prévisible
-            // qu'une exception techniquement correcte mais déroutante.
-            <div className={`${cardBg} rounded-2xl border ${cardBorder} p-4 flex items-center gap-3 ${isGenerating ? 'opacity-60 pointer-events-none select-none' : ''}`}>
-              <div className={`shrink-0 p-2 rounded-xl ${bgAccentClass} text-white`}><Gauge size={18}/></div>
-              <p className={`text-sm ${textMuted}`}>
-                <button onClick={() => setShowAthleticProfile(true)} disabled={isGenerating} className={`font-bold underline whitespace-nowrap ${textColorClass}`}>
-                  Configure →
-                </button>{' '}
-                ton <span className={`font-semibold ${textHighlight}`}>Profil Athlétique</span> pour un BPM ajusté à chaque zone d'effort.
-              </p>
-            </div>
-          )}
+          {/* Bannière "Configure ton Profil Athlétique" SUPPRIMÉE (Refactor
+              UX "Option A", 29/07, retour direct : "détourne l'attention
+              avant même la première séance générée"). Elle appelait de
+              toute façon `setShowAthleticProfile(true)`, une fonction qui
+              n'existe plus nulle part dans GeneratorContext.jsx depuis le
+              refactor "Réglages à onglets" du 28/07 (Profil Athlétique est
+              devenu un onglet de SettingsView.jsx) — ce bouton était donc
+              déjà cassé en production, jamais mis à jour à l'époque. Son
+              successeur ("Profil : Ajuster mes zones BPM") vit maintenant
+              dans le footer de la carte, à côté du bouton "Suivant" — voir
+              plus bas, `changeView('settings')` (qui atterrit directement
+              sur l'onglet Profil Athlétique par défaut hors Mode Intime,
+              voir SettingsView.jsx `activeTab`). */}
 
           {/* `pointer-events-none` + `opacity-60` pendant une génération : gèle
               TOUTE la carte du wizard (sliders, toggles, champs, boutons) d'un
@@ -1003,6 +992,30 @@ export default function GeneratorWizard({
             {wizardStep > 1 ? (
               <button onClick={() => setWizardStep(wizardStep - 1)} className={`px-6 py-3 rounded-xl font-bold flex items-center space-x-2 ${textMuted} hover:text-main bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`}>
                 <ChevronLeft size={20}/> <span>Précédent</span>
+              </button>
+            ) : !isNaughtyMode ? (
+              // Successeur de l'ancienne bannière "Configure ton Profil
+              // Athlétique" (Refactor UX "Option A", 29/07) — discret,
+              // dans le footer plutôt qu'en évidence au-dessus du wizard,
+              // pour que "Qu'est-ce qu'on fait aujourd'hui ?" reste le
+              // premier élément visuel fort de l'écran. Visible en
+              // PERMANENCE (pas seulement tant qu'aucun profil n'est
+              // configuré, contrairement à l'ancienne bannière) : le
+              // libellé "Ajuster mes zones BPM" a autant de sens pour une
+              // première configuration que pour un réglage ultérieur.
+              // `changeView('settings')` atterrit directement sur l'onglet
+              // Profil Athlétique par défaut (voir SettingsView.jsx,
+              // `activeTab` s'initialise à 'profile' hors Mode Intime) —
+              // sans réinitialiser les étapes déjà remplies du wizard,
+              // puisque `changeView` ne réinitialise `wizardStep` que pour
+              // `newView === 'generator'` (voir useNavigation.js), jamais
+              // pour 'settings'.
+              <button
+                onClick={() => changeView('settings')} disabled={isGenerating}
+                className={`flex items-center gap-1.5 text-xs ${textMuted} hover:text-main transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer`}
+              >
+                <Gauge size={14}/>
+                <span>Profil : <span className="underline">Ajuster mes zones BPM</span></span>
               </button>
             ) : <div/>}
             <button onClick={() => setWizardStep(wizardStep + 1)} className={`px-8 py-3 rounded-xl font-bold flex items-center space-x-2 text-white shadow-md transition-colors ${isNaughtyMode ?
