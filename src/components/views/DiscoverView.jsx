@@ -3,7 +3,7 @@ import { Compass, Search, SearchX } from 'lucide-react';
 import { curatedSessions, naughtyCuratedSessions } from '../../data/curatedSessions';
 import TemplateCard from './TemplateCard';
 import ViewHeader from '../shared/ViewHeader';
-import { VIEW_HEADER_ICON_SIZE } from '../../viewHeaderLayout';
+import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../viewHeaderLayout';
 
 /**
  * DiscoverView — bibliothèque de modèles de séances ensemencés (voir
@@ -70,7 +70,7 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode }) {
   const filteredSessions = activeSessions.filter(t => matchesCategory(t) && matchesSearch(t));
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
+    <div className={`${VIEW_CONTENT_WRAPPER} space-y-8`}>
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
