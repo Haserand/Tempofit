@@ -103,7 +103,7 @@ export default function Sidebar({
   // juste plus bas, pas à réserver un espace vide.
   // MINI_PLAYER_BAR_HEIGHT_PX/GUEST_MODE_BAR_HEIGHT_PX importées depuis
   // bottomBarLayout.js (27/07) — seule source de vérité pour ces 2 nombres,
-  // partagée avec les classes Tailwind `h-[90px]`/`h-[64px]` de
+  // partagée avec les classes Tailwind `h-[90px]`/`h-[72px]` de
   // MiniPlayerBar.jsx/GuestModeBar.jsx (qui, elles, DOIVENT rester écrites
   // en dur — voir bottomBarLayout.js pour la contrainte Tailwind derrière ce
   // choix). `null` = aucune barre visible, la case crédit garde sa hauteur
@@ -347,7 +347,7 @@ export default function Sidebar({
           MiniPlayerBar/GuestModeBar. */}
       <div className="shrink-0">
         <div
-          className={`flex flex-col items-center justify-center gap-1 px-4 border-t-2 ${cardBorderStrong}`}
+          className={`flex flex-col items-center justify-center gap-1 py-3 px-4 border-t-2 ${cardBorderStrong}`}
           style={creditRowHeight ? { height: `${creditRowHeight}px` } : undefined}
         >
           {/* Style volontairement DISCRET (28/07, retour direct : "Réglages
@@ -357,11 +357,21 @@ export default function Sidebar({
               vue est active : Réglages reste un accès utilitaire parmi
               d'autres, pas un point d'attention comme "Nouvelle séance".
               `py-1.5` (plutôt que `py-2.5` comme les autres liens) : ce
-              conteneur a maintenant une hauteur STRICTE (64px minimum,
-              `GUEST_MODE_BAR_HEIGHT_PX`) à partager avec la signature
-              juste en dessous — un padding aussi généreux que les liens de
-              la zone scrollable (qui, eux, ont de la place à volonté) ferait
-              déborder l'ensemble hors de cette hauteur fixe. */}
+              conteneur a maintenant une hauteur STRICTE (72px minimum,
+              `GUEST_MODE_BAR_HEIGHT_PX`, 64→72 le 29/07) à partager avec la
+              signature juste en dessous — un padding aussi généreux que les
+              liens de la zone scrollable (qui, eux, ont de la place à
+              volonté) ferait déborder l'ensemble hors de cette hauteur
+              fixe.
+              `py-3` AJOUTÉ sur le conteneur PARENT (Refactor UI "aération
+              footer/GuestBar", 29/07, retour direct : "la ligne de crédit
+              frôle la bordure inférieure") — les +8px de
+              `GUEST_MODE_BAR_HEIGHT_PX` (voir bottomBarLayout.js) donnaient
+              déjà un peu de mou à `justify-center`, ce `py-3` explicite en
+              plus pour que le texte de signature respire clairement de la
+              bordure du bas, sans jamais toucher à la disposition
+              (`flex flex-col items-center justify-center gap-1`, la SEULE
+              modification sur ce fichier concerne ce padding). */}
           <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 ${SIDEBAR_FOOTER_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${textMuted} hover:bg-surface-hover hover:text-main`}>
             <Settings size={18} className={textColorClass} />
             <span className="font-bold text-sm">Réglages</span>
