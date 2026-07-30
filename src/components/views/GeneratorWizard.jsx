@@ -1030,7 +1030,7 @@ export default function GeneratorWizard({
                 <Gauge className="w-4 h-4 shrink-0"/>
                 <span>
                   Profil : Ajuster mes zones BPM{' '}
-                  <span className={`font-semibold ${textColorClass}`}>Configure →</span>
+                  <span className={`font-semibold ml-2 ${textColorClass}`}>Configure →</span>
                 </span>
               </button>
             ) : <div/>}
