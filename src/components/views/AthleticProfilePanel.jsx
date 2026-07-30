@@ -251,7 +251,7 @@ export default function AthleticProfilePanel({ theme, showToast, changeView }) {
                     value={newCustomActivityName}
                     onChange={(e) => setNewCustomActivityName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && confirmAddCustomActivity()}
-                    className={`bg-transparent text-sm font-bold outline-none w-28 px-2 ${textHighlight}`}
+                    className={`bg-transparent text-sm font-bold outline-hidden w-28 px-2 ${textHighlight}`}
                   />
                   <button onClick={confirmAddCustomActivity} className={`p-1.5 rounded-full text-white ${bgAccentClass}`}><Plus size={14}/></button>
                   <button onClick={() => { setShowAddCustomActivity(false); setNewCustomActivityName(''); }} className={`p-1.5 rounded-full ${textMuted} hover:text-red-500`}><Trash2 size={14}/></button>
@@ -386,7 +386,7 @@ export default function AthleticProfilePanel({ theme, showToast, changeView }) {
                         key={value}
                         title={desc}
                         onClick={() => isCustomProfileTab ? setCadenceIntentForCustom(selectedProfileActivity, value) : setCadenceIntentForActivity(selectedProfileActivity, value)}
-                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${currentIntent === value ? `${bgAccentClass} text-white shadow-sm` : `${textMuted} hover:text-main`}`}
+                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${currentIntent === value ? `${bgAccentClass} text-white shadow-xs` : `${textMuted} hover:text-main`}`}
                       >
                         {title}
                       </button>
@@ -442,7 +442,7 @@ export default function AthleticProfilePanel({ theme, showToast, changeView }) {
                     value={baseBpmDraft}
                     onChange={(e) => { setBaseBpmDraft(syncClampedInput(e, { min: isNaughtyMode ? 40 : 80, max: 220 })); if (bpmInputError) setBpmInputError(false); }}
                     onKeyDown={(e) => e.key === 'Enter' && computeAndApplyZones()}
-                    className={`bg-transparent w-full text-lg font-bold outline-none ${textHighlight}`}
+                    className={`bg-transparent w-full text-lg font-bold outline-hidden ${textHighlight}`}
                   />
                   <span className={`text-sm font-bold shrink-0 ${textMuted}`}>{zoneBpmUnit}</span>
                 </div>
@@ -535,7 +535,7 @@ export default function AthleticProfilePanel({ theme, showToast, changeView }) {
                         value={activeProfile?.[z.key] ?? defaultPreviewProfile[z.key]}
                         onChange={(e) => handleSetZone(z.key, syncClampedInput(e, { min: isNaughtyMode ? 40 : 80, max: 220 }))}
                         onBlur={notifyPastGraphsWillUpdate}
-                        className={`w-14 bg-transparent text-right font-mono font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${textHighlight}`}
+                        className={`w-14 bg-transparent text-right font-mono font-bold outline-hidden [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${textHighlight}`}
                       />
                       <span className={`text-xs font-bold ${textMuted}`}>{zoneBpmUnit}</span>
                       <div className="flex flex-col">
@@ -547,7 +547,7 @@ export default function AthleticProfilePanel({ theme, showToast, changeView }) {
                             handleSetZone(z.key, Math.min(220, current + 1));
                             notifyPastGraphsWillUpdate();
                           }}
-                          className={`p-0.5 rounded ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}
+                          className={`p-0.5 rounded-sm ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}
                         >
                           <ChevronUp size={14} />
                         </button>
@@ -559,7 +559,7 @@ export default function AthleticProfilePanel({ theme, showToast, changeView }) {
                             handleSetZone(z.key, Math.max(floor, current - 1));
                             notifyPastGraphsWillUpdate();
                           }}
-                          className={`p-0.5 rounded ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}
+                          className={`p-0.5 rounded-sm ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}
                         >
                           <ChevronDown size={14} />
                         </button>
