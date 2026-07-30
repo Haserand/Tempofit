@@ -173,7 +173,7 @@ export default function PlaylistsView({
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
-        icon={<Library className={textColorClass} size={36} />}
+        icon={<Library className={textColorClass} size={28} />}
         title="Mes Séances"
         subtitle="Retrouve tes playlists générées, planifie tes écoutes et consulte ton historique."
       />
