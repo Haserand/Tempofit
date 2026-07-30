@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { List, Library, Plus, Calendar, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import PlaylistCard from './PlaylistCard';
 import ViewHeader from '../shared/ViewHeader';
+import { VIEW_HEADER_ICON_SIZE } from '../../viewHeaderLayout';
 
 /**
  * PlaylistsView — vue "Mes Séances" (nom d'origine restauré le 25/07 : elle
@@ -173,7 +174,7 @@ export default function PlaylistsView({
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
-        icon={<Library className={textColorClass} size={28} />}
+        icon={<Library className={textColorClass} size={VIEW_HEADER_ICON_SIZE} />}
         title="Mes Séances"
         subtitle="Retrouve tes playlists générées, planifie tes écoutes et consulte ton historique."
       />
