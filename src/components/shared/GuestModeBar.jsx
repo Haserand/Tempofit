@@ -31,7 +31,7 @@ import { UserPlus } from 'lucide-react';
  * ── Renforcement du CTA (27/07, "le bouton haut-droit étant désormais
  * masqué quand cette barre est visible, elle doit assumer seule la
  * conversion") ─────────────────────────────────────────────────────────
- * Hauteur 40px → 64px (`h-[64px]`, INCHANGÉE depuis — voir plus bas).
+ * Hauteur 40px → 64px (`h-[64px]`) — puis 64→72px le 29/07 (voir plus bas).
  *
  * ── Alignement Design System, puis simplification 1-ligne (28/07) ───────
  * Chantier en plusieurs itérations le même jour : d'abord un "vrai bandeau
@@ -45,9 +45,10 @@ import { UserPlus } from 'lucide-react';
  * deux sur UNE SEULE ligne (`flex-row items-center justify-center gap-3`).
  * `textHighlight` (qui stylait l'ancien titre) n'est donc plus utilisé ici
  * — retiré de la déstructuration plutôt que laissé en import mort.
- * Hauteur `h-[64px]` toujours INCHANGÉE (budget déjà validé/synchronisé —
- * voir bottomBarLayout.js) : un contenu 1-ligne y respire encore plus
- * largement qu'avant, aucune raison de revoir ce nombre.
+ * Hauteur `h-[64px]` restée inchangée jusqu'au 29/07 — bumpée à `h-[72px]`
+ * ce jour-là (Refactor UI "aération footer/GuestBar", retour direct : "la
+ * ligne de crédit de la Sidebar frôle la bordure inférieure") : un contenu
+ * 1-ligne y respire maintenant encore plus largement.
  * Couleurs : `textMuted`/`textColorClass` — tous des
  * tokens déjà adaptatifs clair/sombre/Mode Intime (voir useTheme.js), un
  * hardcode (`text-white`/`text-slate-*` en dur) casserait ce réglage, même
@@ -61,10 +62,15 @@ export default function GuestModeBar({ theme, isVisible, openModal }) {
   if (!isVisible) return null;
 
   return (
-    // h-[64px] : DOIT rester une classe Tailwind écrite en toutes lettres
-    // (voir bottomBarLayout.js pour pourquoi) — si cette hauteur change,
-    // reporter la même valeur dans GUEST_MODE_BAR_HEIGHT_PX (bottomBarLayout.js).
-    <div className={`h-[64px] border-t-2 ${cardBorderStrong} ${cardBg} flex flex-row items-center justify-center gap-3 px-6`}>
+    // h-[72px] (64→72, +8px, Refactor UI "aération footer/GuestBar", 29/07,
+    // retour direct : "la ligne de crédit frôle la bordure inférieure") —
+    // DOIT rester une classe Tailwind écrite en toutes lettres (voir
+    // bottomBarLayout.js pour pourquoi) — reporté depuis GUEST_MODE_BAR_HEIGHT_PX
+    // (bottomBarLayout.js), déjà mis à jour à l'identique. Disposition
+    // mono-ligne (`flex-row items-center justify-center gap-3`) INCHANGÉE :
+    // le contenu profite juste des 8px supplémentaires pour se centrer
+    // verticalement avec un peu plus d'air, sans aucune restructuration.
+    <div className={`h-[72px] border-t-2 ${cardBorderStrong} ${cardBg} flex flex-row items-center justify-center gap-3 px-6`}>
       <span className={`text-sm font-normal ${textMuted}`}>
         Données sauvegardées uniquement sur cet appareil.
       </span>
