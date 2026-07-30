@@ -994,35 +994,41 @@ export default function GeneratorWizard({
                 <ChevronLeft size={20}/> <span>Précédent</span>
               </button>
             ) : !isNaughtyMode ? (
-              // Restylage (Refactor UI, 29/07, 3e itération sur cet
-              // emplacement) — badge icône + typo contrastée + lien
-              // accentué, plutôt que le texte gris plat de la version
-              // précédente. ⚠️ Substitution assumée par rapport au style
-              // fourni tel quel dans la demande (`bg-main/10 text-main`) :
-              // dans CE projet, `main`/`textHighlight` sont les tokens
-              // adaptatifs de texte "au premier plan" (quasi noir/blanc
-              // selon le thème), PAS la couleur d'accent — "fond rouge/
-              // accentué transparent" correspond en réalité au token
-              // `primary` (voir tailwind.config.js/useTheme.js,
-              // `bgAccentClass`/`textColorClass`), utilisé ici à la place
-              // pour un vrai badge rouge/rose translucide, cohérent avec
-              // le reste de l'app plutôt qu'un texte gris passe-partout.
-              // Bloc ENTIER cliquable (pas seulement "Configure →") —
-              // cible plus généreuse, cohérent avec la demande ("clic sur
-              // tout le bloc"). `changeView('settings')` : navigation déjà
-              // corrigée lors de l'itération précédente, inchangée ici
-              // (jamais l'ancien `setShowAthleticProfile`, retiré de
-              // GeneratorContext.jsx depuis le refactor "Réglages à
-              // onglets" du 28/07).
+              // 4e itération sur cet emplacement (Refactor UI, 29/07, retour
+              // direct : "le lien est un peu trop petit face au bouton
+              // principal"). Le style "badge rouge + Configure →" de
+              // l'itération précédente est retiré — retour à un style
+              // SOBRE (gris par défaut, `textMuted`), mais agrandi par
+              // rapport à la toute première version (`text-xs` → `text-sm`,
+              // icône 14px → 16px, `gap-1.5` → `gap-2`) pour mieux tenir
+              // face au bouton "Suivant" à côté. Libellé "Profil : Ajuster
+              // mes zones BPM" (celui de la toute première version, pas
+              // "Configure ton Profil Athlétique... Configure →" de
+              // l'itération intermédiaire). `hover:text-main` plutôt que le
+              // `hover:text-white` suggéré tel quel : un blanc en dur
+              // serait invisible en thème clair, `textHighlight` (déjà
+              // "text-main" dans ce projet, voir useTheme.js) est
+              // l'équivalent adaptatif clair/sombre — même substitution que
+              // sur les itérations précédentes. Navigation/conditions
+              // d'affichage inchangées (`changeView('settings')`, masqué
+              // en Mode Intime).
+              // ⚠️ PIÈGE ÉVITÉ (même famille que celui documenté dans
+              // Sidebar.jsx/GuestModeBar.jsx, sessions du 26-27/07) :
+              // `hover:${textHighlight}` aurait construit la classe par
+              // interpolation avec un préfixe — le token combiné
+              // `hover:text-main` n'apparaîtrait alors JAMAIS en toutes
+              // lettres dans le code source, donc jamais généré par
+              // Tailwind (scan littéral du texte source, pas d'évaluation
+              // JS). `textHighlight` vaut toujours exactement `"text-main"`
+              // dans ce projet (aucune variante Mode Intime, voir
+              // useTheme.js) — `hover:text-main` écrit ici en dur plutôt
+              // qu'interpolé, en toute sécurité.
               <button
                 onClick={() => changeView('settings')} disabled={isGenerating}
-                className="group flex items-center gap-2.5 text-left disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className={`flex items-center gap-2 text-sm ${textMuted} hover:text-main hover:underline transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
               >
-                <span className={`shrink-0 p-1.5 rounded-lg bg-primary/10 ${textColorClass}`}><Gauge size={16}/></span>
-                <span className={`text-sm ${textMuted}`}>
-                  Configure ton <span className={`font-semibold ${textHighlight}`}>Profil Athlétique</span>
-                  <span className={`font-medium ml-1.5 group-hover:underline ${textColorClass}`}>Configure →</span>
-                </span>
+                <Gauge className="w-4 h-4 shrink-0"/>
+                <span>Profil : Ajuster mes zones BPM</span>
               </button>
             ) : <div/>}
             <button onClick={() => setWizardStep(wizardStep + 1)} className={`px-8 py-3 rounded-xl font-bold flex items-center space-x-2 text-white shadow-md transition-colors ${isNaughtyMode ?
