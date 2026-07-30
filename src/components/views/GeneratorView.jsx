@@ -1,7 +1,7 @@
 import { useGeneratorContext } from '../../contexts/GeneratorContext';
 import { Zap } from 'lucide-react';
 import ViewHeader from '../shared/ViewHeader';
-import { VIEW_HEADER_ICON_SIZE } from '../../viewHeaderLayout';
+import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../viewHeaderLayout';
 import GeneratorWizard from './GeneratorWizard';
 
 /**
@@ -37,7 +37,7 @@ export default function GeneratorView({
   const { textColorClass } = theme;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className={`${VIEW_CONTENT_WRAPPER} space-y-8`}>
       {/* En-tête standardisé — via <ViewHeader/> (components/shared/ViewHeader.jsx),
           le modèle commun à toutes les vues. */}
       <ViewHeader
