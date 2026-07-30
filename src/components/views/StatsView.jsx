@@ -7,7 +7,7 @@ import { genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog'
 import { formatDuration } from '../../utils/format';
 import GlobalStatsShareCard from '../shared/GlobalStatsShareCard';
 import ViewHeader from '../shared/ViewHeader';
-import { VIEW_HEADER_ICON_SIZE } from '../../viewHeaderLayout';
+import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../viewHeaderLayout';
 
 /**
  * StatsView — vue "Statistiques" ("Wrapped" personnel).
@@ -629,7 +629,7 @@ export default function StatsView({
     .sort((a, b) => b.seconds - a.seconds);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className={`${VIEW_CONTENT_WRAPPER} space-y-8`}>
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
