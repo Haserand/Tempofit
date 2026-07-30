@@ -1,6 +1,7 @@
 import { useGeneratorContext } from '../../contexts/GeneratorContext';
 import { Zap } from 'lucide-react';
 import ViewHeader from '../shared/ViewHeader';
+import { VIEW_HEADER_ICON_SIZE } from '../../viewHeaderLayout';
 import GeneratorWizard from './GeneratorWizard';
 
 /**
@@ -42,7 +43,7 @@ export default function GeneratorView({
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
-        icon={<Zap className={textColorClass} size={28} />}
+        icon={<Zap className={textColorClass} size={VIEW_HEADER_ICON_SIZE} />}
         title={isNaughtyMode ? "Prépare l'ambiance..." : "Sculpte ta séance"}
         subtitle={displaySubtitleGen}
       />
