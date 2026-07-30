@@ -129,12 +129,23 @@ export default function Sidebar({
            className="flex items-center space-x-3 cursor-pointer"
          >
             <div className={`${bgAccentClass} p-1.5 rounded-lg transition-colors duration-500 ${isNaughtyMode ? 'shadow-[0_0_15px_rgba(244,63,94,0.4)]' : ''}`}>
-              {/* `size={28}` : valeur de RÉFÉRENCE que `VIEW_HEADER_ICON_SIZE`
+              {/* `size={34}` : valeur de RÉFÉRENCE que `VIEW_HEADER_ICON_SIZE`
                   (viewHeaderLayout.js, importée par les icônes de titre H1
                   de chaque vue) reproduit — reste un littéral ICI, pas une
                   constante importée : ce logo est la source à laquelle les
-                  autres s'alignent, pas l'inverse. */}
-              {isNaughtyMode ? <Heart size={28} className="text-white fill-white" /> : <Activity size={28} className="text-white" />}
+                  autres s'alignent, pas l'inverse.
+                  Micro-ajustement (Refactor UI "ligne de flottaison", 29/07,
+                  5e itération, retour direct : "agrandir un poil le logo,
+                  de l'ordre de 5/6 pixels") — `size=28` → `size=34` (+6px)
+                  UNIQUEMENT : l'icône est déjà l'élément le plus haut de
+                  cette ligne (badge = icône + padding `p-1.5` inchangé),
+                  donc l'agrandir pousse mécaniquement le liseret sous le
+                  logo de +6px, sans toucher au padding. `VIEW_HEADER_ICON_SIZE`
+                  suit la même valeur — les titres de page grandissent du
+                  même coup, sans changement de leur `pb-3.5` (voir
+                  ViewHeader.jsx, budget de hauteur absorbé automatiquement
+                  par cette seule icône plus grande). */}
+              {isNaughtyMode ? <Heart size={34} className="text-white fill-white" /> : <Activity size={34} className="text-white" />}
             </div>
             <span className={`font-bold text-2xl tracking-tight leading-none ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
          </button>
