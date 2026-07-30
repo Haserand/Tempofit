@@ -58,7 +58,7 @@ export default function RoutinesView({
           const rank = routineRanks.indexOf(routine.id);
           const rankStyle = getRankStyle(rank);
           return (
-            <div key={routine.id} className={`${cardBg} rounded-2xl p-6 border ${rankStyle ? rankStyle.border : cardBorder} shadow-sm relative group overflow-hidden flex flex-col`}>
+            <div key={routine.id} className={`${cardBg} rounded-2xl p-6 border ${rankStyle ? rankStyle.border : cardBorder} shadow-xs relative group overflow-hidden flex flex-col`}>
               {rankStyle && <span className="absolute -top-2 -right-2 text-xl" title={`${routine.manualGenerations} générations — la ${rank === 0 ? 'plus' : rank === 1 ? '2e plus' : '3e plus'} utilisée`}>{rankStyle.emoji}</span>}
               <div className="flex items-start justify-between mb-4 gap-2">
                 <div className="flex items-center gap-3 min-w-0">
@@ -103,7 +103,7 @@ export default function RoutinesView({
                     <select
                       value={batchCount} onChange={(e) => setRoutineBatchCounts({...routineBatchCounts, [routine.id]: parseInt(e.target.value)})}
                       disabled={isGenerating}
-                      className={`bg-transparent text-sm font-bold outline-none text-blue-600 dark:text-blue-400 cursor-pointer py-3 appearance-none pl-1 pr-2 disabled:opacity-40 disabled:cursor-not-allowed`}
+                      className={`bg-transparent text-sm font-bold outline-hidden text-blue-600 dark:text-blue-400 cursor-pointer py-3 appearance-none pl-1 pr-2 disabled:opacity-40 disabled:cursor-not-allowed`}
                     >
                       <option value={1} className="bg-surface text-main">x1</option>
                       <option value={3} className="bg-surface text-main">x3</option>
