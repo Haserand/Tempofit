@@ -29,7 +29,7 @@
  * taille codée en dur ici depuis le Refactor UI "ligne de flottaison",
  * 29/07 ; voir ce fichier pour le budget de hauteur qui la contraint.)
  *
- * `icon` — un ÉLÉMENT déjà construit (`<Zap className="..." size={28}/>`),
+ * `icon` — un ÉLÉMENT déjà construit (`<Zap className="..." size={34}/>`),
  * pas juste un composant : la couleur de l'icône suit parfois une règle
  * spéciale propre à une vue (ex. StatsView, rose en Mode Intime plutôt que
  * `textColorClass`) — plus simple de laisser l'appelant construire l'icône
