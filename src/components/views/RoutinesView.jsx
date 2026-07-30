@@ -1,6 +1,7 @@
 import { ListPlus, Plus, Edit3, Trash2, Layers, Info, Loader2, PlaySquare } from 'lucide-react';
 import { useModalContext } from '../../contexts/ModalContext';
 import ViewHeader from '../shared/ViewHeader';
+import { VIEW_HEADER_ICON_SIZE } from '../../viewHeaderLayout';
 
 /**
  * RoutinesView — vue "Mes Routines" (configurations sauvegardées, relançables en un clic).
@@ -32,7 +33,7 @@ export default function RoutinesView({
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
-        icon={<ListPlus className={textColorClass} size={28} />}
+        icon={<ListPlus className={textColorClass} size={VIEW_HEADER_ICON_SIZE} />}
         title="Mes Routines"
         subtitle="Génère instantanément des playlists à partir de tes configurations."
       />
