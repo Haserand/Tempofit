@@ -51,6 +51,17 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
     if (isNaughtyMode && activeTab === 'profile') setActiveTab('music');
   }, [isNaughtyMode, activeTab]);
 
+  // Garde-fou symétrique (Refactor UI, 29/07, retour direct : "en mode
+  // invité, l'onglet Mon Compte s'affiche mais reste vide") — même
+  // principe que l'effet Mode Intime ci-dessus : si l'utilisateur se
+  // déconnecte (ou n'était déjà pas connecté) alors que `activeTab` valait
+  // encore 'account', bascule vers 'music', jamais vers 'profile' (qui
+  // reste, lui, accessible en mode invité — seul "Mon Compte" a besoin
+  // d'un vrai compte Supabase pour avoir le moindre contenu).
+  useEffect(() => {
+    if (!user && activeTab === 'account') setActiveTab('music');
+  }, [user, activeTab]);
+
   // Édition de l'adresse e-mail (retour direct, "aucun moyen de modifier
   // son e-mail") — `newEmail` pré-rempli avec `user.email` à l'ouverture du
   // mode édition (voir startEditingEmail), pas à l'initialisation du state
@@ -258,9 +269,17 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           onglets") : 3 onglets désormais (Profil Athlétique / Services
           Musicaux / Mon Compte), la barre reste TOUJOURS visible même en
           Mode Intime (contrairement à avant, où 2 onglets seulement
-          rendaient la barre inutile une fois Profil caché) — seul le
-          bouton "Profil Athlétique" se masque, les 2 autres restent
-          valides et sélectionnables dans ce mode. */}
+          rendaient la barre inutile une fois Profil caché) — le bouton
+          "Profil Athlétique" se masque en Mode Intime, "Services Musicaux"
+          reste toujours valide, et "Mon Compte" se masque à son tour en
+          mode invité (Refactor UI, 29/07, retour direct : "l'onglet
+          s'affiche mais reste vide sans compte") — voir le garde-fou
+          `activeTab` symétrique juste au-dessus (`!user && activeTab ===
+          'account'`), qui bascule vers 'music' si la personne se
+          déconnecte pendant qu'elle y était déjà. Les 2 masquages sont
+          INDÉPENDANTS l'un de l'autre : un compte invité EN Mode Intime ne
+          voit ainsi plus que "Services Musicaux", seul onglet valide dans
+          les 2 cas à la fois. */}
       <div className={`flex space-x-6 border-b ${cardBorder}`}>
         {!isNaughtyMode && (
           <button
@@ -280,14 +299,16 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
         >
           Services Musicaux
         </button>
-        <button
-          onClick={() => setActiveTab('account')}
-          className={`pb-3 -mb-px text-sm font-bold border-b-2 transition-colors ${
-            activeTab === 'account' ? `${textHighlight} ${borderAccentClass}` : `${textMuted} border-transparent hover:text-main`
-          }`}
-        >
-          Mon Compte
-        </button>
+        {user && (
+          <button
+            onClick={() => setActiveTab('account')}
+            className={`pb-3 -mb-px text-sm font-bold border-b-2 transition-colors ${
+              activeTab === 'account' ? `${textHighlight} ${borderAccentClass}` : `${textMuted} border-transparent hover:text-main`
+            }`}
+          >
+            Mon Compte
+          </button>
+        )}
       </div>
 
       {activeTab === 'profile' ? (
