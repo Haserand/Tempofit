@@ -30,7 +30,7 @@ export default function GeneratorView({
   setCurrentPlaylist, setIsBpmSearchMode, setSearchQuery, setWorldSearchResults,
   setResultsContextLabel, setNoUsableResultsHint, searchTracksByBpm,
   executeGeneration, isGenerating,
-  toggleNaughtyMode,
+  toggleNaughtyMode, changeView,
 }) {
   const { isNaughtyMode, displaySubtitleGen } = useGeneratorContext();
   const { textColorClass } = theme;
@@ -54,7 +54,7 @@ export default function GeneratorView({
         setResultsContextLabel={setResultsContextLabel} setNoUsableResultsHint={setNoUsableResultsHint}
         searchTracksByBpm={searchTracksByBpm}
         executeGeneration={executeGeneration} isGenerating={isGenerating}
-        toggleNaughtyMode={toggleNaughtyMode}
+        toggleNaughtyMode={toggleNaughtyMode} changeView={changeView}
       />
     </div>
   );
