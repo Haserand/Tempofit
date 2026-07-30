@@ -49,10 +49,23 @@ export default function RoutinesView({
             </button>
           </div>
         ) : (
-          <button onClick={() => changeView('generator')} className={`rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 py-10 font-bold transition-colors ${isNaughtyMode ? 'border-slate-400 text-slate-300 hover:text-white' : 'border-slate-700 text-slate-400 hover:text-white'}`}>
-            <Plus size={28} />
-            <span>Créer une nouvelle routine</span>
-          </button>
+          <>
+            {/* Ménage "Centraliser les règles de couleur" (29/07) — l'ancien
+                ternaire `isNaughtyMode ? 'border-slate-400 text-slate-300
+                hover:text-white' : 'border-slate-700 text-slate-400
+                hover:text-white'` dupliquait à la main une logique que
+                `useTheme.js` gère déjà : `cardBorder`/`textMuted` s'adaptent
+                tout seuls (clair/sombre/Intime) via les variables CSS de
+                `.dark`/`.naughty` (index.css) — plus besoin de `isNaughtyMode`
+                ici du tout. `hover:text-main` gardé littéral (déjà utilisé
+                tel quel ailleurs dans ce fichier) plutôt qu'interpolé via
+                `hover:${'${textHighlight}'}`, qui ne serait jamais généré par
+                Tailwind (piège JIT documenté partout dans ce projet). */}
+            <button onClick={() => changeView('generator')} className={`rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 py-10 font-bold transition-colors ${cardBorder} ${textMuted} hover:text-main`}>
+              <Plus size={28} />
+              <span>Créer une nouvelle routine</span>
+            </button>
+          </>
         )}
         {sortedRoutines.map(routine => {
           const batchCount = routineBatchCounts[routine.id] || 1;
