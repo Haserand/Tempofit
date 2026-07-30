@@ -34,7 +34,14 @@ export default function PendingUnsaveModal({
           <button onClick={() => { removeSavedPlaylist(pendingUnsavePlaylist.id); onClose(); }} className="w-full px-6 py-3 font-bold rounded-xl border border-red-200 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
             Retirer quand même
           </button>
-          <button onClick={onClose} className={"w-full px-6 py-3 font-medium hover:" + textHighlight + " " + textMuted}>
+          <button onClick={onClose} className={"w-full px-6 py-3 font-medium hover:text-main " + textMuted}>
+            {/* `hover:text-main` ÉCRIT EN TOUTES LETTRES (29/07, trouvé en
+                écrivant le test de ce composant) — remplace `"hover:" +
+                textHighlight`, qui fonctionnait par COÏNCIDENCE (le même
+                token littéral existe déjà ailleurs, Sidebar.jsx), pas par
+                construction : le piège JIT déjà documenté partout dans ce
+                projet (classe assemblée par concaténation, jamais écrite
+                en toutes lettres ICI). */}
             Annuler
           </button>
         </div>
