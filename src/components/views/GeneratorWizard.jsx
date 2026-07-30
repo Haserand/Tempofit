@@ -340,11 +340,11 @@ export default function GeneratorWizard({
                     </label>
                     <div className="flex bg-surface-hover rounded-2xl p-1.5">
                       <button onClick={() => setTargetMode('time')} className={`flex-1 flex flex-col items-center justify-center py-4 rounded-xl font-bold transition-all ${targetMode === 'time' ?
-                        'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted}`}>
+                        'bg-white dark:bg-gray-700 text-main shadow-xs' : textMuted}`}>
                         <Clock size={20} className="mb-1"/> Par Durée (Temps)
                       </button>
                       <button onClick={() => setTargetMode('distance')} className={`flex-1 flex flex-col items-center justify-center py-4 rounded-xl font-bold transition-all ${targetMode === 'distance' ?
-                        'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted}`}>
+                        'bg-white dark:bg-gray-700 text-main shadow-xs' : textMuted}`}>
                         <Footprints size={20} className="mb-1"/> Par Distance (Km/Mi)
                       </button>
                     </div>
@@ -357,17 +357,17 @@ export default function GeneratorWizard({
                       </label>
                       <div className="flex flex-col sm:flex-row gap-4">
                         <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center pl-4 pr-2 py-4 justify-between`}>
-                          <input type="number" min="0" step="0.1" value={distanceVal} onChange={(e) => setDistanceVal(e.target.value)} className={`bg-transparent w-full text-2xl font-bold ${textHighlight} outline-none`} />
-                          <select value={distanceUnit} onChange={(e)=>setDistanceUnit(e.target.value)} className={`font-bold text-lg ${textMuted} bg-transparent outline-none cursor-pointer`}>
+                          <input type="number" min="0" step="0.1" value={distanceVal} onChange={(e) => setDistanceVal(e.target.value)} className={`bg-transparent w-full text-2xl font-bold ${textHighlight} outline-hidden`} />
+                          <select value={distanceUnit} onChange={(e)=>setDistanceUnit(e.target.value)} className={`font-bold text-lg ${textMuted} bg-transparent outline-hidden cursor-pointer`}>
                             <option value="km">Km</option><option value="mi">Miles</option>
                           </select>
                         </div>
                         <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-4 justify-between`}>
                           <span className={`text-sm font-bold ${textMuted} mr-2`}>Allure:</span>
                           <div className="flex items-center">
-                            <input type="number" min="1" max="15" value={paceMin} onChange={(e) => setPaceMin(syncClampedInput(e, { min: 1, max: 15 }))} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-none text-right`} />
+                            <input type="number" min="1" max="15" value={paceMin} onChange={(e) => setPaceMin(syncClampedInput(e, { min: 1, max: 15 }))} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-hidden text-right`} />
                             <span className={`${textHighlight} mx-1 font-bold text-xl`}>:</span>
-                            <input type="number" min="0" max="59" value={paceSec} onChange={(e) => setPaceSec(syncClampedInput(e, { min: 0, max: 59 }))} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
+                            <input type="number" min="0" max="59" value={paceSec} onChange={(e) => setPaceSec(syncClampedInput(e, { min: 0, max: 59 }))} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-hidden [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
                             <div className="flex flex-col mr-1">
                               <button type="button" onClick={() => setPaceSec(s => { const v = (parseInt(s) || 0) + 1; return v > 59 ? 0 : v; })} className={`${textMuted} hover:text-main`}>
                                 <ChevronUp size={12} />
@@ -388,19 +388,19 @@ export default function GeneratorWizard({
                       </label>
                       <div className="flex space-x-4">
                         <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-6 py-4`}>
-                          <input type="number" min="0" max="12" value={hours} onChange={(e) => setHours(syncClampedInput(e, { min: 0, max: 12 }))} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-none`} />
+                          <input type="number" min="0" max="12" value={hours} onChange={(e) => setHours(syncClampedInput(e, { min: 0, max: 12 }))} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-hidden`} />
                           <span className={`font-bold text-lg ${textMuted}`}>Heures</span>
                         </div>
                         <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-6 py-4`}>
                           {/* Flèches personnalisées plutôt que le spinner natif : un input
                               number natif s'arrête à 59 (ou 0) au lieu de boucler. */}
-                          <input type="number" min="0" max="59" value={minutes} onChange={(e) => setMinutes(syncClampedInput(e, { min: 0, max: 59 }))} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
+                          <input type="number" min="0" max="59" value={minutes} onChange={(e) => setMinutes(syncClampedInput(e, { min: 0, max: 59 }))} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-hidden [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
                           <span className={`font-bold text-lg ${textMuted} mr-2`}>Min</span>
                           <div className="flex flex-col">
-                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) + 1; return v > 59 ? 0 : v; })} className={`p-0.5 rounded ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}>
+                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) + 1; return v > 59 ? 0 : v; })} className={`p-0.5 rounded-sm ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}>
                               <ChevronUp size={16} />
                             </button>
-                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) - 1; return v < 0 ? 59 : v; })} className={`p-0.5 rounded ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}>
+                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) - 1; return v < 0 ? 59 : v; })} className={`p-0.5 rounded-sm ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}>
                               <ChevronDown size={16} />
                             </button>
                           </div>
@@ -531,17 +531,17 @@ export default function GeneratorWizard({
                       </label>
                       <div className="flex flex-col sm:flex-row gap-4">
                         <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center pl-4 pr-2 py-4 justify-between`}>
-                          <input type="number" min="0" step="0.1" value={distanceVal} onChange={(e) => setDistanceVal(e.target.value)} className={`bg-transparent w-full text-2xl font-bold ${textHighlight} outline-none`} />
-                          <select value={distanceUnit} onChange={(e)=>setDistanceUnit(e.target.value)} className={`font-bold text-lg ${textMuted} bg-transparent outline-none cursor-pointer`}>
+                          <input type="number" min="0" step="0.1" value={distanceVal} onChange={(e) => setDistanceVal(e.target.value)} className={`bg-transparent w-full text-2xl font-bold ${textHighlight} outline-hidden`} />
+                          <select value={distanceUnit} onChange={(e)=>setDistanceUnit(e.target.value)} className={`font-bold text-lg ${textMuted} bg-transparent outline-hidden cursor-pointer`}>
                             <option value="km">Km</option><option value="mi">Miles</option>
                           </select>
                         </div>
                         <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-4 justify-between`}>
                           <span className={`text-sm font-bold ${textMuted} mr-2`}>Allure:</span>
                           <div className="flex items-center">
-                            <input type="number" min="1" max="15" value={paceMin} onChange={(e) => setPaceMin(syncClampedInput(e, { min: 1, max: 15 }))} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-none text-right`} />
+                            <input type="number" min="1" max="15" value={paceMin} onChange={(e) => setPaceMin(syncClampedInput(e, { min: 1, max: 15 }))} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-hidden text-right`} />
                             <span className={`${textHighlight} mx-1 font-bold text-xl`}>:</span>
-                            <input type="number" min="0" max="59" value={paceSec} onChange={(e) => setPaceSec(syncClampedInput(e, { min: 0, max: 59 }))} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
+                            <input type="number" min="0" max="59" value={paceSec} onChange={(e) => setPaceSec(syncClampedInput(e, { min: 0, max: 59 }))} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-hidden [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
                             <div className="flex flex-col mr-1">
                               <button type="button" onClick={() => setPaceSec(s => { const v = (parseInt(s) || 0) + 1; return v > 59 ? 0 : v; })} className={`${textMuted} hover:text-main`}>
                                 <ChevronUp size={12} />
@@ -562,17 +562,17 @@ export default function GeneratorWizard({
                       </label>
                       <div className="flex space-x-4">
                         <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-6 py-4`}>
-                          <input type="number" min="0" max="12" value={hours} onChange={(e) => setHours(syncClampedInput(e, { min: 0, max: 12 }))} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-none`} />
+                          <input type="number" min="0" max="12" value={hours} onChange={(e) => setHours(syncClampedInput(e, { min: 0, max: 12 }))} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-hidden`} />
                           <span className={`font-bold text-lg ${textMuted}`}>Heures</span>
                         </div>
                         <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-6 py-4`}>
-                          <input type="number" min="0" max="59" value={minutes} onChange={(e) => setMinutes(syncClampedInput(e, { min: 0, max: 59 }))} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
+                          <input type="number" min="0" max="59" value={minutes} onChange={(e) => setMinutes(syncClampedInput(e, { min: 0, max: 59 }))} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-hidden [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
                           <span className={`font-bold text-lg ${textMuted} mr-2`}>Min</span>
                           <div className="flex flex-col">
-                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) + 1; return v > 59 ? 0 : v; })} className={`p-0.5 rounded ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}>
+                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) + 1; return v > 59 ? 0 : v; })} className={`p-0.5 rounded-sm ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}>
                               <ChevronUp size={16} />
                             </button>
-                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) - 1; return v < 0 ? 59 : v; })} className={`p-0.5 rounded ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}>
+                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) - 1; return v < 0 ? 59 : v; })} className={`p-0.5 rounded-sm ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}>
                               <ChevronDown size={16} />
                             </button>
                           </div>
@@ -683,9 +683,9 @@ export default function GeneratorWizard({
                     {targetMode === 'distance' && (
                       <div className={`text-sm font-bold ${textMuted} flex items-center bg-surface-hover px-3 py-1.5 rounded-lg`}>
                         Allure moy:
-                        <input type="number" value={paceMin} onChange={e=>setPaceMin(syncClampedInput(e, { min: 1, max: 15 }))} className={`w-8 bg-transparent ml-2 text-center outline-none ${textHighlight}`}/>:
-                        <input type="number" value={paceSec} onChange={e=>setPaceSec(syncClampedInput(e, { min: 0, max: 59 }))} className={`w-8 bg-transparent text-center outline-none ${textHighlight}`}/>
-                        <select value={distanceUnit} onChange={e=>setDistanceUnit(e.target.value)} className="bg-transparent outline-none ml-1 cursor-pointer">
+                        <input type="number" value={paceMin} onChange={e=>setPaceMin(syncClampedInput(e, { min: 1, max: 15 }))} className={`w-8 bg-transparent ml-2 text-center outline-hidden ${textHighlight}`}/>:
+                        <input type="number" value={paceSec} onChange={e=>setPaceSec(syncClampedInput(e, { min: 0, max: 59 }))} className={`w-8 bg-transparent text-center outline-hidden ${textHighlight}`}/>
+                        <select value={distanceUnit} onChange={e=>setDistanceUnit(e.target.value)} className="bg-transparent outline-hidden ml-1 cursor-pointer">
                           <option value="km">/km</option><option value="mi">/mi</option>
                         </select>
                       </div>
@@ -702,14 +702,14 @@ export default function GeneratorWizard({
                           <div className={`w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center font-bold text-sm ${textHighlight}`}>{index + 1}</div>
                           <div className="flex-1 flex gap-3">
                             <div className="flex-1">
-                              <div className={`flex items-center bg-surface rounded-lg px-3 py-2 shadow-sm`}>
-                                <input type="number" value={segment.bpm} onChange={(e) => setSegments(segments.map(s => s.id === segment.id ? { ...s, bpm: parseInt(e.target.value) || 0 } : s))} className={`w-full bg-transparent text-lg font-bold outline-none ${textHighlight}`} />
+                              <div className={`flex items-center bg-surface rounded-lg px-3 py-2 shadow-xs`}>
+                                <input type="number" value={segment.bpm} onChange={(e) => setSegments(segments.map(s => s.id === segment.id ? { ...s, bpm: parseInt(e.target.value) || 0 } : s))} className={`w-full bg-transparent text-lg font-bold outline-hidden ${textHighlight}`} />
                                 <span className={`text-xs font-bold ${textMuted}`}>BPM</span>
                               </div>
                               {renderZoneQuickPicks(segment.bpm, (zoneBpm) => setSegments(segments.map(s => s.id === segment.id ? { ...s, bpm: zoneBpm } : s)))}
                             </div>
-                            <div className={`flex-1 flex items-center bg-surface rounded-lg px-3 py-2 shadow-sm h-fit`}>
-                              <input type="number" step={targetMode==='distance'?'0.1':'1'} value={segment.durationValue} onChange={(e) => setSegments(segments.map(s => s.id === segment.id ? { ...s, durationValue: parseFloat(e.target.value) || 0 } : s))} className={`w-full bg-transparent text-lg font-bold outline-none ${textHighlight}`} />
+                            <div className={`flex-1 flex items-center bg-surface rounded-lg px-3 py-2 shadow-xs h-fit`}>
+                              <input type="number" step={targetMode==='distance'?'0.1':'1'} value={segment.durationValue} onChange={(e) => setSegments(segments.map(s => s.id === segment.id ? { ...s, durationValue: parseFloat(e.target.value) || 0 } : s))} className={`w-full bg-transparent text-lg font-bold outline-hidden ${textHighlight}`} />
                               <span className={`text-xs font-bold ${textMuted}`}>{targetMode === 'distance' ? distanceUnit : 'Min'}</span>
                             </div>
                           </div>
@@ -897,7 +897,7 @@ export default function GeneratorWizard({
                           type="number" min="0" max="100"
                           value={genreWeights[genre] ?? 0}
                           onChange={(e) => setGenreWeight(genre, e.target.value)}
-                          className={`w-12 bg-transparent text-right font-mono font-bold ${textColorClass} outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                          className={`w-12 bg-transparent text-right font-mono font-bold ${textColorClass} outline-hidden [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                         />
                         <span className={`text-xs ${textMuted}`}>%</span>
                       </div>
