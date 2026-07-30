@@ -1,6 +1,33 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+/* Tailwind v3 → v4 (chantier "dernières versions majeures", 29/07) —
+ * `@tailwind base/components/utilities` (3 directives) remplacé par un
+ * unique `@import "tailwindcss"` : nouvelle syntaxe obligatoire en v4.
+ *
+ * `@config "../tailwind.config.js"` : v4 pousse normalement vers une config
+ * 100% CSS (`@theme` directement ici) plutôt que le fichier JS — DÉLIBÉRÉMENT
+ * PAS FAIT ici. Le design system sémantique ci-dessous (variables RGB
+ * réécrites par `.dark`/`.naughty`) fonctionne déjà et est déjà éprouvé sur
+ * tout le projet ; le réécrire en `@theme` aurait mélangé DEUX changements
+ * risqués dans le même chantier (migration de build ET migration du système
+ * de couleurs) pour un gain qui n'est que cosmétique ici. `@config` est le
+ * mécanisme de compatibilité OFFICIEL v4 pour ce cas précis — garde
+ * `tailwind.config.js` fonctionnel tel quel (content/darkMode/theme.extend.
+ * colors), seules les options `safelist`/`corePlugins`/`separator`
+ * cesseraient de fonctionner via cette voie, et ce projet n'en utilise
+ * aucune.
+ *
+ * Classes renommées par v4 (audit fait avant bascule, voir passation) —
+ * déjà remplacées PARTOUT dans src/ pour préserver le rendu visuel exact :
+ * `shadow`→`shadow-sm`, `shadow-sm`→`shadow-xs`, `rounded`→`rounded-sm`,
+ * `backdrop-blur`→`backdrop-blur-sm`, `backdrop-blur-sm`→`backdrop-blur-xs`,
+ * `outline-none`→`outline-hidden`. Vérifié également : aucune bordure/
+ * `divide-*` de ce projet ne dépendait de la couleur par défaut (gray-200 en
+ * v3, currentColor en v4) — chaque bordure du projet a soit une couleur
+ * Tailwind explicite, soit un token sémantique dédié (`cardBorder`,
+ * `inputBorder`...), soit une couleur posée via `style` (React, toujours
+ * prioritaire sur la classe) — donc rien à changer sur ce point précis. */
 
 /* ─────────────────────────────────────────────────────────────────────────
    DESIGN SYSTEM SÉMANTIQUE — variables RGB "triplet" (pas hex) pour que
