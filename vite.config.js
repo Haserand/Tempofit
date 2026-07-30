@@ -41,12 +41,26 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   // Vitest lit ce même fichier de config (pas de vitest.config.js séparé,
   // donc pas de 2e source de vérité à tenir à jour). `environment: 'node'`
-  // (pas 'jsdom') volontairement : les tests visent des fonctions pures
-  // (musicEngine.js, musicCatalog.js...), aucun composant React monté, donc
-  // aucune simulation de navigateur nécessaire — plus rapide, zéro dépendance
-  // supplémentaire (jsdom n'est même pas installé).
+  // (pas 'jsdom') par défaut, VOLONTAIREMENT INCHANGÉ (chantier "premier
+  // test de composant React", 29/07, retour direct : "je me moque que ça
+  // bloque le déploiement") — les 163 tests existants visent des fonctions
+  // pures (musicEngine.js, musicCatalog.js...), aucun composant React monté,
+  // donc `node` reste le bon environnement pour EUX (plus rapide, zéro
+  // dépendance supplémentaire). Le nouveau test de composant
+  // (`tests/ViewHeader.test.jsx`) a besoin de `jsdom` — plutôt que de
+  // changer cet `environment` global (ce qui ralentirait TOUS les tests,
+  // même ceux qui n'en ont pas besoin), Vitest permet un override PAR
+  // FICHIER via un commentaire pragma `// @vitest-environment jsdom` en
+  // tête de fichier — voir ce fichier pour ce mécanisme en action. Les 163
+  // tests existants restent donc intégralement en `node`, ce nouveau seul
+  // bascule en `jsdom`.
+  // `include` élargi à `.jsx` (en plus de `.js`) : ce nouveau test contient
+  // du JSX (il monte `<ViewHeader/>` pour de vrai via
+  // `@testing-library/react`) — nécessite l'extension `.jsx` pour que
+  // `@vitejs/plugin-react` lui applique sa transformation JSX (comme pour
+  // n'importe quel autre fichier `.jsx` du projet).
   test: {
     environment: 'node',
-    include: ['tests/**/*.test.js'],
+    include: ['tests/**/*.test.{js,jsx}'],
   },
 })
