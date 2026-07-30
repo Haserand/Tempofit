@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Gauge, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as UserIcon, X, Key, Download, Trash2, AtSign, Lock, Loader2 } from 'lucide-react';
 import ViewHeader from '../shared/ViewHeader';
-import { VIEW_HEADER_ICON_SIZE } from '../../viewHeaderLayout';
+import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../viewHeaderLayout';
 import AthleticProfilePanel from './AthleticProfilePanel';
 
 /**
@@ -245,7 +245,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className={`${VIEW_CONTENT_WRAPPER} space-y-8`}>
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
