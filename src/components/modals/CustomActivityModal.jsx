@@ -45,7 +45,7 @@ export default function CustomActivityModal({ theme, userStats, checkTrophies })
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setIsCustomActivityModalOpen(false)}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" onClick={() => setIsCustomActivityModalOpen(false)}>
       <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl transform transition-all border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6">
           <h3 className={"text-2xl font-bold " + textHighlight}>Activité personnalisée</h3>
@@ -54,7 +54,7 @@ export default function CustomActivityModal({ theme, userStats, checkTrophies })
         <input
           type="text" value={tempCustomActivity} onChange={e => setTempCustomActivity(e.target.value)}
           placeholder="Ex: Yoga..." autoFocus
-          className={"w-full rounded-xl px-4 py-4 text-lg focus:outline-none focus:border-red-500 mb-8 border " + inputBg + " " + inputBorder + " " + textHighlight}
+          className={"w-full rounded-xl px-4 py-4 text-lg focus:outline-hidden focus:border-red-500 mb-8 border " + inputBg + " " + inputBorder + " " + textHighlight}
           onKeyDown={(e) => { if (e.key === 'Enter') confirm(); }}
         />
         <div className="flex justify-end space-x-3">
