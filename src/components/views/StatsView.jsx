@@ -7,6 +7,7 @@ import { genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog'
 import { formatDuration } from '../../utils/format';
 import GlobalStatsShareCard from '../shared/GlobalStatsShareCard';
 import ViewHeader from '../shared/ViewHeader';
+import { VIEW_HEADER_ICON_SIZE } from '../../viewHeaderLayout';
 
 /**
  * StatsView — vue "Statistiques" ("Wrapped" personnel).
@@ -632,7 +633,7 @@ export default function StatsView({
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
-        icon={<Activity className={statsMode === 'naughty' ? 'text-rose-500' : textColorClass} size={28} />}
+        icon={<Activity className={statsMode === 'naughty' ? 'text-rose-500' : textColorClass} size={VIEW_HEADER_ICON_SIZE} />}
         title={statsMode === 'naughty' ? 'Statistiques · Intime' : 'Statistiques'}
         subtitle={statsMode === 'naughty' ? "Ce que tu as écouté en mode Intime, à part du reste." : "Ce que tu as écouté, séance après séance."}
         right={
