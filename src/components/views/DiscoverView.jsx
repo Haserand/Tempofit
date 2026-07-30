@@ -73,7 +73,7 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode }) {
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
-        icon={<Compass className={theme.textColorClass} size={36} />}
+        icon={<Compass className={theme.textColorClass} size={28} />}
         title="Découvrir"
         subtitle="Des séances prêtes à l'emploi, adaptables à ton profil en un clic."
       />
