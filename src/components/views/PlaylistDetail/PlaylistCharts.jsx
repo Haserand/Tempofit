@@ -32,12 +32,12 @@ const CustomChartTooltip = ({ active, payload, isNaughtyMode, currentUnit, metri
         )}
         <div className="flex flex-col gap-2">
             {data.bpmTarget !== undefined && (
-               <div className={`px-2 py-1.5 rounded text-xs font-bold font-mono text-white ${isNaughtyMode ? 'bg-rose-500' : 'bg-gray-800 dark:bg-gray-700'}`}>
+               <div className={`px-2 py-1.5 rounded-sm text-xs font-bold font-mono text-white ${isNaughtyMode ? 'bg-rose-500' : 'bg-gray-800 dark:bg-gray-700'}`}>
                  🎯 Cible: {data.bpmTarget} BPM musical
                </div>
             )}
             {data.realValue !== undefined && (
-               <div className="px-2 py-1.5 rounded text-xs font-bold font-mono bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+               <div className="px-2 py-1.5 rounded-sm text-xs font-bold font-mono bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
                  {metric === 'heartRate' ? `❤️ Fréquence cardiaque: ${data.realValue} pulsations/min` : `🏃 Cadence réelle: ${data.realValue} ${cadenceUnit}`}
                </div>
             )}
@@ -229,32 +229,32 @@ export default function PlaylistCharts({
                 présentes pour cette séance précise. */}
             {availableMetrics.cadence && availableMetrics.heartRate && (
               <div className="flex items-center bg-surface-hover rounded-lg p-1">
-                <button onClick={() => setSelectedMetric('cadence')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (selectedMetric === 'cadence' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted)}>Cadence ({playlistCadenceUnit})</button>
-                <button onClick={() => setSelectedMetric('heartRate')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (selectedMetric === 'heartRate' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted)}>Fréquence cardiaque</button>
+                <button onClick={() => setSelectedMetric('cadence')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (selectedMetric === 'cadence' ? 'bg-white dark:bg-gray-700 text-main shadow-xs' : textMuted)}>Cadence ({playlistCadenceUnit})</button>
+                <button onClick={() => setSelectedMetric('heartRate')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (selectedMetric === 'heartRate' ? 'bg-white dark:bg-gray-700 text-main shadow-xs' : textMuted)}>Fréquence cardiaque</button>
               </div>
             )}
             {currentActualData && (
               <div className="flex items-center gap-2 bg-surface-hover p-1 rounded-lg">
-                <button onClick={() => setDataOffset(o => o - 10)} className="px-2 py-1 bg-white dark:bg-gray-700 rounded text-xs font-bold text-gray-700 dark:text-gray-200 shadow-sm">-10s</button>
+                <button onClick={() => setDataOffset(o => o - 10)} className="px-2 py-1 bg-white dark:bg-gray-700 rounded-sm text-xs font-bold text-gray-700 dark:text-gray-200 shadow-xs">-10s</button>
                 <span className={"text-xs font-bold w-24 text-center " + textMuted}>Décalage: {dataOffset > 0 ? '+' : ''}{dataOffset}s</span>
-                <button onClick={() => setDataOffset(o => o + 10)} className="px-2 py-1 bg-white dark:bg-gray-700 rounded text-xs font-bold text-gray-700 dark:text-gray-200 shadow-sm">+10s</button>
+                <button onClick={() => setDataOffset(o => o + 10)} className="px-2 py-1 bg-white dark:bg-gray-700 rounded-sm text-xs font-bold text-gray-700 dark:text-gray-200 shadow-xs">+10s</button>
               </div>
             )}
             <div className="flex items-center bg-surface-hover rounded-lg p-1">
-              <button onClick={() => setChartAxisType('temps')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartAxisType === 'temps' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted)}>Temps (Min)</button>
+              <button onClick={() => setChartAxisType('temps')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartAxisType === 'temps' ? 'bg-white dark:bg-gray-700 text-main shadow-xs' : textMuted)}>Temps (Min)</button>
               {/* Toujours proposé, même pour une playlist générée en mode Temps —
                   une distance est calculable pour N'IMPORTE QUELLE playlist via
                   l'allure/BPM (startDistVal), pas seulement celles basées sur une
                   distance cible. Pour une playlist Temps, c'est une distance
                   ESTIMÉE (déduite du rythme), pas mesurée. */}
-              <button onClick={() => setChartAxisType('distance')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartAxisType === 'distance' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted)}>Distance</button>
+              <button onClick={() => setChartAxisType('distance')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartAxisType === 'distance' ? 'bg-white dark:bg-gray-700 text-main shadow-xs' : textMuted)}>Distance</button>
             </div>
             {/* Sélecteur km/mi : purement cosmétique, ne change jamais l'unité
                 réellement utilisée pour générer la playlist. */}
             {chartAxisType === 'distance' && (
               <div className="flex items-center bg-surface-hover rounded-lg p-1">
-                <button onClick={() => setChartDistanceUnitOverride('km')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartDistanceUnit === 'km' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted)}>km</button>
-                <button onClick={() => setChartDistanceUnitOverride('mi')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartDistanceUnit === 'mi' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted)}>mi</button>
+                <button onClick={() => setChartDistanceUnitOverride('km')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartDistanceUnit === 'km' ? 'bg-white dark:bg-gray-700 text-main shadow-xs' : textMuted)}>km</button>
+                <button onClick={() => setChartDistanceUnitOverride('mi')} className={"px-3 py-1.5 rounded-md text-xs font-bold transition-colors " + (chartDistanceUnit === 'mi' ? 'bg-white dark:bg-gray-700 text-main shadow-xs' : textMuted)}>mi</button>
               </div>
             )}
           </div>
@@ -595,7 +595,7 @@ export default function PlaylistCharts({
                           <div
                             key={i}
                             title={`${t.title} — ${t.bpm} BPM (${t.gap > 0 ? '+' : ''}${t.gap})`}
-                            className={`absolute w-2.5 h-2.5 rounded-full -translate-x-1/2 shadow ${isNaughtyMode ? 'bg-rose-400' : 'bg-red-400'}`}
+                            className={`absolute w-2.5 h-2.5 rounded-full -translate-x-1/2 shadow-sm ${isNaughtyMode ? 'bg-rose-400' : 'bg-red-400'}`}
                             style={{ left: `${pct}%`, top: `${8 + (i % 3) * 14}px` }}
                           ></div>
                         );
