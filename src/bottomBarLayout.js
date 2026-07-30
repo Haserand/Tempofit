@@ -27,12 +27,13 @@
  * numérique utilisée pour les calculs JS (`creditRowHeight` dans
  * Sidebar.jsx) est vraiment centralisée ici. Les deux classes Tailwind et
  * ces constantes doivent donc rester manuellement synchronisées EN VALEUR
- * (90 ↔ h-[90px], 64 ↔ h-[64px] — bumpé depuis 40px le 28/07, voir passation
- * de cette date) — ce fichier ne peut pas éliminer
+ * (90 ↔ h-[90px], 72 ↔ h-[72px] — bumpé de 64 à 72px le 29/07, "aération
+ * footer/GuestBar", avant ça 40→64px le 28/07, voir passations de ces
+ * dates) — ce fichier ne peut pas éliminer
  * complètement la duplication à cause de cette contrainte Tailwind, mais il
  * réduit le risque à UN SEUL calcul dérivé (creditRowHeight) au lieu de
  * trois copies indépendantes, et documente explicitement le lien à
  * respecter si l'une des deux valeurs change un jour.
  */
 export const MINI_PLAYER_BAR_HEIGHT_PX = 90; // doit rester égal à `h-[90px]` dans MiniPlayerBar.jsx
-export const GUEST_MODE_BAR_HEIGHT_PX = 64;  // doit rester égal à `h-[64px]` dans GuestModeBar.jsx
+export const GUEST_MODE_BAR_HEIGHT_PX = 72;  // doit rester égal à `h-[72px]` dans GuestModeBar.jsx (64→72, +8px, Refactor UI "aération footer/GuestBar", 29/07)
