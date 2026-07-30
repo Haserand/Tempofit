@@ -151,7 +151,7 @@ export default function Sidebar({
              >
                <Trophy size={18} className={userStats.unlockedTrophies.length > 0 ? "fill-yellow-500" : ""} />
                {userStats.unlockedTrophies.length > 0 && (
-                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
+                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
                    {userStats.unlockedTrophies.length}
                  </span>
                )}
