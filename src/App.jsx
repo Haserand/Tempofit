@@ -1276,9 +1276,14 @@ function AppContent({
           {/* Header desktop flottant, n'apparaît qu'après un certain scroll (isScrolled) */}
           <header className={`hidden md:flex absolute top-0 left-0 right-0 p-6 z-30 transition-all duration-300 pointer-events-none ${isScrolled ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
             <div className={`bg-surface/80 backdrop-blur-md border ${cardBorder} shadow-lg px-6 py-3 rounded-full flex items-center space-x-4 pointer-events-auto`}>
-              <button onClick={() => changeView('generator')} title="Retour à l'accueil" className="cursor-pointer">
-                <span className={`font-bold text-sm ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
-              </button>
+              {/* STATIQUE (Refactor UI "Suppression du lien de retour sur les
+                  titres de pages", 29/07, retour direct : capture montrant
+                  l'infobulle "Retour à l'accueil" superposée au titre de
+                  page) — cette pastille flottante dupliquait le comportement
+                  du logo Sidebar (toujours visible juste à côté sur
+                  desktop) : `onClick`/`title`/`cursor-pointer` retirés,
+                  `<button>` redevient un `<span>` neutre. */}
+              <span className={`font-bold text-sm ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
               <div className={`w-1 h-1 rounded-full ${bgAccentClass}`}></div>
               <span className={`text-sm font-medium ${textMuted}`}>{displaySubtitleGen}</span>
             </div>
