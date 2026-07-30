@@ -10,6 +10,7 @@ import { PlaylistDetailProvider, usePlaylistDetail } from '../../contexts/Playli
 import TrackList from './PlaylistDetail/TrackList';
 import PlaylistHeader from './PlaylistDetail/PlaylistHeader';
 import PlaylistCharts from './PlaylistDetail/PlaylistCharts';
+import { VIEW_CONTENT_WRAPPER } from '../../viewHeaderLayout';
 
 /**
  * PlaylistDetailView — détail d'UNE playlist générée (nom, graphique BPM
@@ -383,7 +384,18 @@ function PlaylistDetailViewInner({
   // TrackList), simplement transmis en props aux deux.
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className={`${VIEW_CONTENT_WRAPPER} space-y-8`}>
+      {/* max-w-5xl → VIEW_CONTENT_WRAPPER (Refactor UI "harmoniser la
+          distance horizontale à la Sidebar", 29/07, 7e itération, retour
+          direct : "tu as la manie d'oublier certaines vues, comme quand
+          je rentre dans une playlist") — cette vue n'utilise pas
+          `<ViewHeader/>` (pas de titre H1 comparable aux 8 autres, elle
+          affiche directement la carte de la séance via PlaylistHeader.jsx)
+          donc elle n'était jamais apparue dans les recherches précédentes
+          ciblant spécifiquement les usages de `<ViewHeader/>` — mais son
+          conteneur englobant souffrait du même défaut structurel que
+          DiscoverView.jsx (une 3e valeur différente, `max-w-5xl`, ni
+          `max-w-4xl` ni l'ancien `max-w-7xl`). */}
       {/* Bouton Retour — Fix UI (27/07, "nettoyage global") : navigation
           interne à l'app (state `view`, PAS react-router — ce projet n'en
           utilise pas), via `changeView` (useNavigation.js) déjà utilisé
