@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
 // Vite 5 → 8 (chantier "dernières versions majeures", 29/07) — CE fichier
 // n'a presque rien à changer : aucune des options désormais retirées entre
@@ -25,9 +26,19 @@ import react from '@vitejs/plugin-react'
 //   avec Vite 8) — aucun usage de `vi.fn`/`vi.mock`/`vi.spyOn` dans
 //   `tests/`, donc aucun des changements de comportement des mocks
 //   (le plus gros morceau de la migration Vitest 4) ne concerne ce projet.
+//
+// Tailwind v3 → v4 (29/07, même session) — `tailwindcss()` ajouté aux
+// plugins Vite : v4 recommande le plugin Vite DÉDIÉ (`@tailwindcss/vite`)
+// plutôt que l'ancienne voie PostCSS. `postcss.config.js` et les
+// devDependencies `postcss`/`autoprefixer` sont donc SUPPRIMÉS (voir
+// package.json) — v4 gère lui-même le préfixage vendor et l'import CSS en
+// interne (moteur Lightning CSS), ces 2 dépendances ne servent plus à rien
+// ici. Voir src/index.css pour le reste de cette bascule (nouvelle syntaxe
+// d'import, classes renommées, choix de garder tailwind.config.js via
+// `@config` plutôt que de tout migrer vers `@theme`).
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   // Vitest lit ce même fichier de config (pas de vitest.config.js séparé,
   // donc pas de 2e source de vérité à tenir à jour). `environment: 'node'`
   // (pas 'jsdom') volontairement : les tests visent des fonctions pures
