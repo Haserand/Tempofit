@@ -1028,7 +1028,10 @@ export default function GeneratorWizard({
                 className={`flex items-center gap-2 text-sm ${textMuted} hover:text-main hover:underline transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
               >
                 <Gauge className="w-4 h-4 shrink-0"/>
-                <span>Profil : Ajuster mes zones BPM</span>
+                <span>
+                  Profil : Ajuster mes zones BPM{' '}
+                  <span className={`font-semibold ${textColorClass}`}>Configure →</span>
+                </span>
               </button>
             ) : <div/>}
             <button onClick={() => setWizardStep(wizardStep + 1)} className={`px-8 py-3 rounded-xl font-bold flex items-center space-x-2 text-white shadow-md transition-colors ${isNaughtyMode ?
