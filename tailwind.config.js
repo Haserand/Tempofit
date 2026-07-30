@@ -1,4 +1,11 @@
 /** @type {import('tailwindcss').Config} */
+// Tailwind v3 → v4 (29/07) — ce fichier n'est PLUS chargé automatiquement
+// (v4 ne scanne plus tailwind.config.js par défaut) : il est désormais
+// explicitement importé via `@config "../tailwind.config.js"` dans
+// src/index.css. Voir ce fichier pour pourquoi le système de couleurs
+// ci-dessous est resté en JS plutôt que migré vers `@theme` (CSS natif v4).
+// Contenu INCHANGÉ sinon — `content`/`darkMode`/`theme.extend.colors`
+// continuent de fonctionner à l'identique via `@config`.
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   darkMode: 'class',
