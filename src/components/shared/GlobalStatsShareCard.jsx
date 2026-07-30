@@ -56,7 +56,7 @@ export default function GlobalStatsShareCard({
 
       <div className="relative p-8 pb-6">
         <div className="flex items-center gap-2 mb-8">
-          <div className="w-9 h-9 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center">
+          <div className="w-9 h-9 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center">
             <Activity size={20} color="white" />
           </div>
           <span className="text-white font-black text-lg tracking-tight">TempoFit</span>
@@ -86,11 +86,11 @@ export default function GlobalStatsShareCard({
             </div>
 
             <div className="grid grid-cols-2 gap-3 mb-8">
-              <div className="bg-white/10 backdrop-blur rounded-2xl p-4 border border-white/10">
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
                 <div className="flex items-center gap-1.5 text-white/70 mb-1"><ListMusic size={14}/><span className="text-[10px] font-bold uppercase tracking-wide">Playlists générées</span></div>
                 <p className="text-white text-2xl font-black">{totalPlaylistsGenerated}</p>
               </div>
-              <div className="bg-white/10 backdrop-blur rounded-2xl p-4 border border-white/10">
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
                 <div className="flex items-center gap-1.5 text-white/70 mb-1"><Zap size={14}/><span className="text-[10px] font-bold uppercase tracking-wide">BPM moyen</span></div>
                 <p className="text-white text-2xl font-black">{avgBpm}</p>
               </div>
@@ -98,7 +98,7 @@ export default function GlobalStatsShareCard({
 
             {/* Stat 2 — Profil d'effort : l'allure la plus jouée, mise en avant
                 comme le "signature move" de l'utilisateur. */}
-            <div className="bg-black/20 backdrop-blur rounded-2xl p-5 border border-white/10 mb-2">
+            <div className="bg-black/20 backdrop-blur-sm rounded-2xl p-5 border border-white/10 mb-2">
               <p className="text-white/70 text-[11px] font-bold uppercase tracking-widest mb-1">Ton allure favorite</p>
               <p className="text-white text-3xl font-black">{favoriteBpmLabel}</p>
             </div>
