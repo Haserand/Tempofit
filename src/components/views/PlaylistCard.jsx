@@ -77,7 +77,7 @@ export default function PlaylistCard({
 
   return (
     <div
-      className={`${cardBg} rounded-2xl p-4 border ${borderClasses} shadow-sm flex flex-col group hover:border-gray-400 transition-colors cursor-pointer select-none relative ${isDragging ? 'opacity-40' : ''}`}
+      className={`${cardBg} rounded-2xl p-4 border ${borderClasses} shadow-xs flex flex-col group hover:border-gray-400 transition-colors cursor-pointer select-none relative ${isDragging ? 'opacity-40' : ''}`}
       onClick={onClick}
       draggable={draggable}
       onDragStart={onDragStart}
