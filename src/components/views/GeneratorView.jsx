@@ -42,7 +42,7 @@ export default function GeneratorView({
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
-        icon={<Zap className={textColorClass} size={36} />}
+        icon={<Zap className={textColorClass} size={28} />}
         title={isNaughtyMode ? "Prépare l'ambiance..." : "Sculpte ta séance"}
         subtitle={displaySubtitleGen}
       />
