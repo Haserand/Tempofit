@@ -88,7 +88,7 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode }) {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Rechercher une séance, un style, un BPM..."
-            className={`flex-1 bg-transparent outline-none text-sm ${textHighlight}`}
+            className={`flex-1 bg-transparent outline-hidden text-sm ${textHighlight}`}
           />
         </div>
 
