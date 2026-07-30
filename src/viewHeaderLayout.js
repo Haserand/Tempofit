@@ -60,6 +60,16 @@
  * réelles imposent un ajustement fin après déploiement — voir
  * ViewHeader.jsx pour le détail.
  *
+ * 5e ITÉRATION (même jour, retour direct : "bien ! micro-ajustement,
+ * agrandir un peu le logo, de l'ordre de 5/6 pixels") — un seul nombre
+ * changé : `VIEW_HEADER_ICON_SIZE` 28→34 (+6px), qui suit exactement la
+ * même bascule sur l'icône du logo (Sidebar.jsx). Cette icône étant déjà
+ * l'élément le plus haut de sa ligne (badge logo ET titre H1 de page),
+ * l'agrandir pousse mécaniquement le liseret de +6px des DEUX côtés à la
+ * fois, sans toucher `pb-3.5`, ni la taille du texte du titre/sous-titre —
+ * l'alignement calculé en 4e itération reste donc valide tel quel, juste
+ * translaté de 6px plus bas.
+ *
  * Ce module exporte 2 valeurs, de nature différente :
  * - `VIEW_HEADER_ICON_SIZE` : un NOMBRE (prop `size` des icônes lucide-
  *   react) — aucune contrainte Tailwind ici, c'est une simple constante JS,
@@ -91,10 +101,13 @@
  */
 
 // Icône du titre H1 de chaque vue (Zap, Compass, Star, Activity...) —
-// EXACTEMENT la même taille que l'icône du logo Sidebar (4e itération,
-// voir plus haut) : le budget recalculé pour 2 lignes empilées laisse
-// maintenant la place nécessaire à cette égalité stricte.
-export const VIEW_HEADER_ICON_SIZE = 28;
+// EXACTEMENT la même taille que l'icône du logo Sidebar. Valeur 34px (5e
+// itération, retour direct : "agrandir un poil le logo, de l'ordre de 5/6
+// pixels") — +6px par rapport à la 4e itération (28px) : cette icône,
+// déjà l'élément le plus haut de la ligne titre H1, absorbe TOUT le +6px
+// automatiquement, sans toucher à `pb-3.5` ni à la taille du texte du
+// titre/sous-titre (voir ViewHeader.jsx, budget de hauteur recalculé).
+export const VIEW_HEADER_ICON_SIZE = 34;
 
 // Padding-top de `<main>` (App.jsx) — DOIT rester une valeur FIXE (pas de
 // variante `sm:`/`md:` qui l'escalade à un breakpoint donné) puisque le
