@@ -51,6 +51,22 @@ export const SIDEBAR_LINK_GAP = 'space-y-2';
 // la 8e passe), sans `mt-*` sur le bouton qui suit.
 export const SIDEBAR_SECTION_TITLE_MARGIN = 'mb-4';
 
+// Variantes COMPACTES (Refactor UI "Compression du menu en Mode Intime",
+// 29/07, retour direct : "Statistiques passe sous la ligne de flottaison,
+// scroll indésirable") — le bouton "Quitter le Mode Intime" (visible
+// SEULEMENT en Mode Intime, en plus des liens habituels) ajoute une
+// hauteur que le menu normal n'a jamais à absorber ; plutôt que de
+// compacter TOUT le temps (ce qui aurait resserré le mode normal sans
+// raison, contraire à la demande explicite de préserver TempoFit intact),
+// ces 3 variantes ne s'appliquent QUE quand `isNaughtyMode` est vrai — voir
+// Sidebar.jsx, 3 variables locales (`linkPadding`/`linkGap`/
+// `sectionTitleMargin`) qui choisissent entre normal et compact UNE SEULE
+// FOIS, réutilisées à chaque usage plutôt que de répéter le ternaire à
+// chaque bouton.
+export const SIDEBAR_LINK_PADDING_COMPACT = 'px-3 py-1.5';
+export const SIDEBAR_LINK_GAP_COMPACT = 'space-y-1';
+export const SIDEBAR_SECTION_TITLE_MARGIN_COMPACT = 'mb-1';
+
 // Séparateur physique entre "Création" et "Mon Espace" (`border-t ... my-5`
 // sur une div vide) — remplace l'ancienne marge géante `mt-6`/`mt-8`/`mt-12`
 // testée puis abandonnée (voir 6e passe, historique complet dans Sidebar.jsx).
