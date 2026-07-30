@@ -82,6 +82,17 @@ export const SIDEBAR_SEPARATOR_MARGIN = 'my-5';
 // la 7e passe ; aucun enfant ne doit plus porter sa propre marge de fin.
 export const SIDEBAR_SCROLL_PADDING = 'py-4 px-4';
 
+// Variante COMPACTE (Refactor UI "Assouplissement du mode compact", 29/07,
+// 3e itération, retour direct : "supprimer le léger mouvement de scroll
+// restant") — `py-3` (au lieu de `py-4`) UNIQUEMENT en Mode Intime : -4px
+// en haut ET en bas du conteneur scrollable, un dernier coup de pouce
+// après le relâchement des 3 constantes COMPACT ci-dessus (2e itération),
+// qui avait réintroduit un tout petit débordement. Contribue aussi au
+// recentrage du bouton "Quitter le Mode Intime" (voir Sidebar.jsx, son
+// wrapper `pt-0.5 pb-3.5` est calculé main dans la main avec CETTE valeur
+// précise — changer l'une sans l'autre décale à nouveau le bouton).
+export const SIDEBAR_SCROLL_PADDING_COMPACT = 'py-3 px-4';
+
 // Bouton "Réglages" du pied de page — délibérément DIFFÉRENT des liens de
 // nav ci-dessus (`py-1.5`, pas `py-2.5`) : ce conteneur a une hauteur
 // STRICTE à respecter (voir `GUEST_MODE_BAR_HEIGHT_PX`, bottomBarLayout.js,
