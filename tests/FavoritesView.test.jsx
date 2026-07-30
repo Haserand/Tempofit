@@ -85,7 +85,10 @@ describe('FavoritesView', () => {
     render(<FavoritesView {...baseProps()} />);
     expect(screen.getByText('Mr. Brightside')).toBeInTheDocument();
     expect(screen.getByText('Thunderstruck')).toBeInTheDocument();
-    expect(screen.getByText('The Killers')).toBeInTheDocument();
+    // "The Killers" apparaît 2 fois (ligne artiste du titre + chip artiste
+    // favori) — AC/DC n'apparaît qu'une fois (aucun titre d'AC/DC n'a été
+    // ajouté aux favoris ici), donc pas d'ambiguïté sur celui-ci.
+    expect(screen.getAllByText('The Killers').length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('AC/DC')).toBeInTheDocument();
   });
 
@@ -145,7 +148,11 @@ describe('FavoritesView', () => {
     const setFavorites = vi.fn();
     render(<FavoritesView {...baseProps({ setFavorites })} />);
 
-    const artistChip = screen.getByText('The Killers').closest('span');
+    // "The Killers" est ambigu (apparaît aussi dans la ligne artiste du
+    // titre favori) — le chip artiste est directement le <span> renvoyé
+    // (le texte est un enfant direct du span, pas besoin de .closest ici),
+    // repérable par son tagName parmi les 2 correspondances.
+    const artistChip = screen.getAllByText('The Killers').find(el => el.tagName === 'SPAN');
     fireEvent.click(artistChip.querySelector('button'));
 
     const updater = setFavorites.mock.calls[0][0];
