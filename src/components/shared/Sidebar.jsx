@@ -347,7 +347,7 @@ export default function Sidebar({
           MiniPlayerBar/GuestModeBar. */}
       <div className="shrink-0">
         <div
-          className={`flex flex-col items-center justify-center gap-1 py-3 px-4 border-t-2 ${cardBorderStrong}`}
+          className={`flex flex-col items-center justify-center gap-1 py-2 px-4 border-t-2 ${cardBorderStrong}`}
           style={creditRowHeight ? { height: `${creditRowHeight}px` } : undefined}
         >
           {/* Style volontairement DISCRET (28/07, retour direct : "Réglages
@@ -363,15 +363,18 @@ export default function Sidebar({
               liens de la zone scrollable (qui, eux, ont de la place à
               volonté) ferait déborder l'ensemble hors de cette hauteur
               fixe.
-              `py-3` AJOUTÉ sur le conteneur PARENT (Refactor UI "aération
+              `py-2` sur le conteneur PARENT (Refactor UI "aération
               footer/GuestBar", 29/07, retour direct : "la ligne de crédit
-              frôle la bordure inférieure") — les +8px de
-              `GUEST_MODE_BAR_HEIGHT_PX` (voir bottomBarLayout.js) donnaient
-              déjà un peu de mou à `justify-center`, ce `py-3` explicite en
-              plus pour que le texte de signature respire clairement de la
-              bordure du bas, sans jamais toucher à la disposition
-              (`flex flex-col items-center justify-center gap-1`, la SEULE
-              modification sur ce fichier concerne ce padding). */}
+              frôle la bordure inférieure", PUIS "les crédits sont coupés"
+              — BUG RÉEL, corrigé dans la foulée) — le premier essai
+              (`py-3`, 24px) faisait DÉBORDER le contenu (bouton Réglages +
+              gap + texte de signature, ≈50px) hors des 72px fixes de ce
+              conteneur (`style={{height: creditRowHeight+'px'}}` plus bas) :
+              50 + 24 = 74px > 72px, d'où le texte visuellement rogné en
+              bas. `py-2` (16px) laisse 6px de marge (50+16=66 ≤ 72) — le
+              texte respire un peu plus qu'avant SANS déborder. Disposition
+              (`flex flex-col items-center justify-center gap-1`) toujours
+              INCHANGÉE — seule cette valeur de padding a bougé. */}
           <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 ${SIDEBAR_FOOTER_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${textMuted} hover:bg-surface-hover hover:text-main`}>
             <Settings size={18} className={textColorClass} />
             <span className="font-bold text-sm">Réglages</span>
