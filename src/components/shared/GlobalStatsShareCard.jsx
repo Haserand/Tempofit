@@ -50,7 +50,7 @@ export default function GlobalStatsShareCard({
       {/* Fond dégradé accrocheur (demande explicite) + halo décoratif — le halo
           utilise `blur` en CSS pur (pas une image), donc capturé sans souci
           par html2canvas au moment de l'export. */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700" />
+      <div className="absolute inset-0 bg-linear-to-br from-blue-600 via-indigo-600 to-purple-700" />
       <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-white/10 blur-3xl" />
       <div className="absolute -bottom-20 -left-10 w-64 h-64 rounded-full bg-black/20 blur-3xl" />
 
