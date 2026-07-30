@@ -275,7 +275,7 @@ export default function PlaylistHeader({
               <input
                 type="text" autoFocus value={editedPlaylistName} onChange={e => setEditedPlaylistName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleRenamePlaylist(); if (e.key === 'Escape') setIsEditingPlaylistName(false); }}
-                className="text-xl font-bold bg-transparent outline-none border-b-2 border-rose-500 text-white w-full"
+                className="text-xl font-bold bg-transparent outline-hidden border-b-2 border-rose-500 text-white w-full"
               />
               <button onClick={handleRenamePlaylist} className="p-2 rounded-lg text-white shrink-0 bg-rose-600 hover:bg-rose-500"><Check size={20}/></button>
             </div>
