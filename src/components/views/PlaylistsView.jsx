@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { List, Library, Plus, Calendar, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import PlaylistCard from './PlaylistCard';
 import ViewHeader from '../shared/ViewHeader';
-import { VIEW_HEADER_ICON_SIZE } from '../../viewHeaderLayout';
+import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../viewHeaderLayout';
 
 /**
  * PlaylistsView — vue "Mes Séances" (nom d'origine restauré le 25/07 : elle
@@ -170,7 +170,7 @@ export default function PlaylistsView({
   const isEmpty = visiblePlaylists.length === 0;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-10">
+    <div className={`${VIEW_CONTENT_WRAPPER} space-y-10`}>
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
