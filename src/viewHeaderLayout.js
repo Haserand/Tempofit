@@ -1,7 +1,11 @@
 /**
  * viewHeaderLayout.js — valeurs partagées entre l'en-tête de chaque vue
- * (`<ViewHeader/>`, dans les 8 fichiers `views/*.jsx` qui l'utilisent) et le
- * bloc logo de la Sidebar, en une seule source de vérité.
+ * (`<ViewHeader/>`, dans les 8 fichiers `views/*.jsx` qui l'utilisent), le
+ * conteneur qui enveloppe leur contenu, et le bloc logo de la Sidebar, en
+ * une seule source de vérité (portée élargie à la 6e itération, voir plus
+ * bas — le nom du fichier n'a plus reflété exactement son contenu à partir
+ * de ce moment-là, mais le renommer aurait cassé tous les imports existants
+ * pour un gain purement cosmétique).
  *
  * Pourquoi ce fichier existe (Refactor UI "Harmonisation de la ligne de
  * flottaison", 29/07) : avant lui, deux réglages vivaient dupliqués SANS
@@ -98,6 +102,24 @@
  * du titre/sous-titre dans ViewHeader.jsx — la changer ICI (et dans
  * ViewHeader.jsx pour la typographie) uniquement — ni App.jsx, ni
  * Sidebar.jsx, ni aucun fichier de vue ne la répète en dur ailleurs.
+ *
+ * 6e ITÉRATION (même jour, retour direct : "toutes les cartes ne
+ * démarrent pas à la même distance horizontale de la Sidebar") — PORTÉE
+ * DE CE FICHIER ÉLARGIE : au-delà de l'EN-TÊTE de chaque vue (icône,
+ * padding-top), il centralise maintenant aussi le conteneur qui enveloppe
+ * TOUT le contenu de chaque vue (`VIEW_CONTENT_WRAPPER`, voir plus bas).
+ * Cause du décalage trouvée : 7 des 8 fichiers `views/*.jsx` utilisaient
+ * déjà `max-w-4xl mx-auto`, identique au caractère près — SAUF
+ * DiscoverView.jsx, resté à `max-w-7xl mx-auto` (plus large, pour sa
+ * grille de cartes de séances). `mx-auto` centre le bloc dans l'espace
+ * disponible : un bloc plus LARGE (max-w-7xl) laisse mécaniquement MOINS
+ * de marge à gauche qu'un bloc plus étroit (max-w-4xl) — d'où le contenu
+ * de DiscoverView qui démarrait plus près de la Sidebar que les 7 autres
+ * vues, sans qu'aucune classe ne soit individuellement "fausse". Retour
+ * direct, choix confirmé explicitement : harmoniser DiscoverView.jsx sur
+ * `max-w-4xl` comme les 7 autres, MÊME SI ÇA RÉTRÉCIT sa grille de cartes
+ * (moins de colonnes visibles par ligne sur grand écran) — la cohérence
+ * de l'alignement l'emporte ici sur la densité de cette grille précise.
  */
 
 // Icône du titre H1 de chaque vue (Zap, Compass, Star, Activity...) —
@@ -114,3 +136,13 @@ export const VIEW_HEADER_ICON_SIZE = 34;
 // bloc logo de la Sidebar qu'elle doit égaler (`Sidebar.jsx`, `p-6` sur son
 // conteneur logo) n'a lui-même aucune variante responsive.
 export const VIEW_HEADER_TOP_PADDING = 'pt-6';
+
+// Conteneur qui enveloppe TOUT le contenu de chaque vue (6e itération,
+// "harmoniser la distance horizontale à la Sidebar") — `max-w-4xl` (896px)
+// + `mx-auto` (centrage) : la valeur de "Sculpte ta séance" (GeneratorView),
+// désignée explicitement comme la bonne référence. Utilisée EN ENTIER
+// (les 2 classes ensemble, jamais l'une sans l'autre) par les 8 fichiers
+// `views/*.jsx` — chacun y ajoute seulement son propre `space-y-*` local
+// (l'espacement vertical ENTRE sections internes n'a pas besoin d'être
+// partagé, contrairement à cette largeur/ce centrage).
+export const VIEW_CONTENT_WRAPPER = 'max-w-4xl mx-auto';
