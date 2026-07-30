@@ -55,7 +55,7 @@ export default function SearchModal({
       }
     };
     return (
-    <div key={key} className={"flex items-center gap-2 p-2 rounded-xl hover:bg-surface-hover transition-colors border border-transparent hover:" + cardBorder}>
+    <div key={key} className={`flex items-center gap-2 p-2 rounded-xl hover:bg-surface-hover transition-colors border border-transparent hover:border-divider`}>
       {/* Bouton lecture/pause de l'extrait audio 30s (Deezer). Désactivé si aucun extrait disponible. */}
       <button
         onClick={() => togglePreview(track)}
@@ -234,7 +234,7 @@ export default function SearchModal({
                 <button
                   onClick={() => searchWorldMusicApi(false)}
                   disabled={isLoadingMoreResults}
-                  className={"w-full mt-1 py-2.5 rounded-xl border-2 border-dashed text-sm font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-60 " + inputBorder + " " + textMuted + " hover:" + textHighlight + " hover:border-gray-400"}
+                  className={`w-full mt-1 py-2.5 rounded-xl border-2 border-dashed text-sm font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-60 ${inputBorder} ${textMuted} hover:text-main hover:border-gray-400`}
                 >
                   {isLoadingMoreResults ? <Loader2 className="animate-spin" size={16}/> : <ChevronDown size={16}/>}
                   <span>{isLoadingMoreResults ? "Chargement..." : "Voir plus de résultats"}</span>
