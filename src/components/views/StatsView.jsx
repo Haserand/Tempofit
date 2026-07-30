@@ -895,7 +895,7 @@ export default function StatsView({
                       <div
                         key={i}
                         title={`${t.title} — ${t.bpm} BPM (${t.gap > 0 ? '+' : ''}${t.gap})`}
-                        className={`absolute w-2.5 h-2.5 rounded-full -translate-x-1/2 shadow ${textColorClass.includes('rose') ? 'bg-rose-400' : 'bg-red-400'}`}
+                        className={`absolute w-2.5 h-2.5 rounded-full -translate-x-1/2 shadow-sm ${textColorClass.includes('rose') ? 'bg-rose-400' : 'bg-red-400'}`}
                         style={{ left: `${pct}%`, top: `${8 + (i % 3) * 14}px` }}
                       ></div>
                     );
@@ -998,8 +998,8 @@ export default function StatsView({
                       activité, résumé du mois, CTA) est relocalisé ici. */}
                   {zoneBreakdown.length > 0 && (
                     <div className="inline-flex rounded-lg bg-black/5 dark:bg-white/10 p-1 shrink-0">
-                      <button onClick={() => setStatsChartMode('zones')} className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${statsChartMode === 'zones' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted}`}>Zones d'effort</button>
-                      <button onClick={() => setStatsChartMode('bpm')} className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${statsChartMode === 'bpm' ? 'bg-white dark:bg-gray-700 text-main shadow-sm' : textMuted}`}>BPM Bruts</button>
+                      <button onClick={() => setStatsChartMode('zones')} className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${statsChartMode === 'zones' ? 'bg-white dark:bg-gray-700 text-main shadow-xs' : textMuted}`}>Zones d'effort</button>
+                      <button onClick={() => setStatsChartMode('bpm')} className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${statsChartMode === 'bpm' ? 'bg-white dark:bg-gray-700 text-main shadow-xs' : textMuted}`}>BPM Bruts</button>
                     </div>
                   )}
                 </div>
