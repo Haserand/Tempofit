@@ -23,10 +23,13 @@
  *
  * Usage minimal (la grande majorité des vues) :
  *   <ViewHeader theme={theme} isNaughtyMode={isNaughtyMode}
- *     icon={<Zap className={theme.textColorClass} size={36} />}
+ *     icon={<Zap className={theme.textColorClass} size={VIEW_HEADER_ICON_SIZE} />}
  *     title="Sculpte ta séance" subtitle="Laisse l'algorithme..." />
+ * (`VIEW_HEADER_ICON_SIZE`, importée de `viewHeaderLayout.js` — plus de
+ * taille codée en dur ici depuis le Refactor UI "ligne de flottaison",
+ * 29/07 ; voir ce fichier pour le budget de hauteur qui la contraint.)
  *
- * `icon` — un ÉLÉMENT déjà construit (`<Zap className="..." size={36}/>`),
+ * `icon` — un ÉLÉMENT déjà construit (`<Zap className="..." size={20}/>`),
  * pas juste un composant : la couleur de l'icône suit parfois une règle
  * spéciale propre à une vue (ex. StatsView, rose en Mode Intime plutôt que
  * `textColorClass`) — plus simple de laisser l'appelant construire l'icône
@@ -77,7 +80,19 @@ export default function ViewHeader({ theme, icon, title, subtitle, right = null,
           (`min-width: auto`), donc sans ça le sous-titre ne serait JAMAIS
           contraint, quel que soit le mécanisme utilisé pour la 1 ligne. */}
       <div className="min-w-0">
-        <h1 className={`text-3xl md:text-4xl font-bold flex items-center space-x-3 ${textHighlight}`}>
+        {/* Titre H1 — RÉDUIT (Refactor UI "Bordure alignée sur la
+            Sidebar", 29/07, 2e itération, retour direct : "le liseret sous
+            le sous-titre doit se caler EXACTEMENT sur celui du logo") :
+            `text-3xl md:text-4xl` (~36-40px de ligne à lui seul) ne
+            pouvait matériellement pas tenir dans le budget de 40px total
+            (icône + titre + espacement + sous-titre) calculé pour égaler
+            la hauteur du bloc logo de la Sidebar — voir viewHeaderLayout.js
+            pour le calcul complet. `text-base leading-tight` (~20px de
+            ligne) laisse la place au sous-titre juste en dessous.
+            `space-x-3` → `space-x-2` : gap icône/texte resserré, plus
+            proportionné à la nouvelle taille d'icône (`VIEW_HEADER_ICON_SIZE`,
+            28→20px, voir viewHeaderLayout.js). */}
+        <h1 className={`text-base leading-tight font-bold flex items-center space-x-2 ${textHighlight}`}>
           {icon} <span>{title}</span>
         </h1>
         {/* TENTATIVE 25/07 (nouvelle session) — `line-clamp-1` plutôt que
@@ -93,15 +108,18 @@ export default function ViewHeader({ theme, icon, title, subtitle, right = null,
             Tailwind depuis 3.3, aucun plugin requis) n'avait jamais été
             essayé lors des tentatives précédentes (toutes basées sur
             `truncate`) — c'est une vraie piste neuve, pas une redite.
-            Volontairement PAS de `text-sm md:text-base` ici : c'était le
-            facteur commun à toutes les tentatives ratées précédentes, jamais
-            isolé — on ne réintroduit qu'UNE seule variable nouvelle à la
+            À L'ÉPOQUE (25/07), volontairement PAS de `text-sm md:text-base`
+            ici : c'était le facteur commun à toutes les tentatives ratées
+            précédentes, jamais isolé — une seule variable nouvelle à la
             fois (`line-clamp-1` + `min-w-0`), comme recommandé dans la
             passation du 25/07.
-            À VALIDER SUR UN VRAI DÉPLOIEMENT (aucun navigateur dans ce
-            sandbox de dev) : si le symptôme revient malgré tout, la piste
-            suivante serait d'isoler `text-sm md:text-base` seul, sans
-            toucher aucune autre classe sur cette ligne.
+            2e ITÉRATION (29/07, "budget de hauteur partagé avec la
+            Sidebar") — `line-clamp-1`/`min-w-0` sont maintenant stables
+            depuis plusieurs sessions (aucun symptôme rapporté depuis) :
+            introduire `text-xs` MAINTENANT respecte la même méthode "une
+            seule variable à la fois", cette fois sur une base déjà
+            confirmée plutôt qu'en cumul avec elle. À surveiller quand même
+            sur le 1er déploiement réel, par prudence.
 
             COULEUR CONDITIONNELLE (25/07, retour direct : "uniquement pour
             le mode intime, uniquement pour le mode dark, changer la couleur
@@ -120,7 +138,7 @@ export default function ViewHeader({ theme, icon, title, subtitle, right = null,
             (donc en mode standard, ou en Mode Intime + thème clair), le
             sous-titre garde `textMuted` comme avant — comportement
             inchangé partout ailleurs. */}
-        <p className={`mt-2 ${textMuted} line-clamp-1 ${isNaughtyMode ? 'dark:text-white' : ''}`}>{subtitle}</p>
+        <p className={`mt-1 text-xs leading-tight ${textMuted} line-clamp-1 ${isNaughtyMode ? 'dark:text-white' : ''}`}>{subtitle}</p>
       </div>
       {right && <div className="shrink-0 flex items-center gap-2">{right}</div>}
     </div>
