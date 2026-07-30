@@ -208,45 +208,19 @@ export default function GeneratorWizard({
               voir useAthleticProfile.js. Reformulé en "ajustés à ton profil",
               volontairement générique plutôt que de réintroduire un mot qui a
               déjà causé une confusion. */}
-          {/* Bannière "Configure ton Profil Athlétique" — RESTAURÉE (Refactor
-              UI, 29/07, retour direct : "le lien du footer est trop discret,
-              nuit à l'ergonomie"). Le lien footer de la tentative précédente
-              (juste "Profil : Ajuster mes zones BPM", à côté du bouton
-              "Suivant") est retiré — remplacé par CETTE bannière, au même
-              emplacement structurel que l'originale (juste au-dessus de la
-              carte principale du wizard), mais avec 2 différences
-              assumées par rapport à l'ORIGINALE (celle d'avant le 29/07) :
-              1) navigation CORRIGÉE — `changeView('settings')` plutôt que
-              `setShowAthleticProfile(true)`, une fonction qui n'existe plus
-              nulle part dans GeneratorContext.jsx depuis le refactor
-              "Réglages à onglets" du 28/07 (déjà cassée en production,
-              jamais mise à jour à l'époque) ; atterrit directement sur
-              l'onglet Profil Athlétique par défaut hors Mode Intime (voir
-              SettingsView.jsx, `activeTab`), sans réinitialiser les étapes
-              déjà remplies du wizard (`changeView` ne réinitialise
-              `wizardStep` que pour `newView === 'generator'`, jamais
-              'settings' — voir useNavigation.js).
-              2) visible SEULEMENT à l'étape 1 (`wizardStep === 1`, condition
-              NOUVELLE — l'originale s'affichait à toutes les étapes tant
-              qu'aucun profil n'était configuré) : cohérent avec l'intention
-              du refactor UI initial de garder les étapes 2/3 concentrées
-              sur leur propre contenu, sans repasser par ce même rappel. */}
-          {!isNaughtyMode && wizardStep === 1 && (
-            <div className={`${cardBg} rounded-xl border ${cardBorder} p-3.5 px-4 flex justify-between items-center gap-3 ${isGenerating ? 'opacity-60 pointer-events-none select-none' : ''}`}>
-              <div className="flex items-center gap-3">
-                <Gauge className={`shrink-0 ${textColorClass}`} size={20}/>
-                <p className={`text-sm ${textMuted}`}>
-                  Configure ton <span className={`font-semibold ${textHighlight}`}>Profil Athlétique</span> pour un BPM ajusté à chaque zone d'effort.
-                </p>
-              </div>
-              <button
-                onClick={() => changeView('settings')} disabled={isGenerating}
-                className={`shrink-0 font-bold text-sm whitespace-nowrap hover:underline transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${textColorClass}`}
-              >
-                Configure →
-              </button>
-            </div>
-          )}
+          {/* Bannière "Configure ton Profil Athlétique" (au-dessus de la
+              carte) RETIRÉE (Refactor UI, 29/07, 3e itération sur cet
+              emplacement — retour direct : "l'emplacement en bas à gauche
+              de la carte était le bon, juste le style qui manquait de
+              présence"). Redescendue dans le footer de la carte, restylée
+              (badge icône + typo contrastée + lien rouge accentué) — voir
+              plus bas, slot gauche du footer (`wizardStep === 1`), à côté
+              du bouton "Suivant". Navigation et conditions d'affichage
+              INCHANGÉES par rapport à la version bannière : toujours
+              `changeView('settings')` (jamais l'ancien
+              `setShowAthleticProfile`, une fonction retirée de
+              GeneratorContext.jsx depuis le refactor "Réglages à onglets"
+              du 28/07), toujours masqué en Mode Intime. */}
 
           {/* `pointer-events-none` + `opacity-60` pendant une génération : gèle
               TOUTE la carte du wizard (sliders, toggles, champs, boutons) d'un
@@ -1018,6 +992,37 @@ export default function GeneratorWizard({
             {wizardStep > 1 ? (
               <button onClick={() => setWizardStep(wizardStep - 1)} className={`px-6 py-3 rounded-xl font-bold flex items-center space-x-2 ${textMuted} hover:text-main bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`}>
                 <ChevronLeft size={20}/> <span>Précédent</span>
+              </button>
+            ) : !isNaughtyMode ? (
+              // Restylage (Refactor UI, 29/07, 3e itération sur cet
+              // emplacement) — badge icône + typo contrastée + lien
+              // accentué, plutôt que le texte gris plat de la version
+              // précédente. ⚠️ Substitution assumée par rapport au style
+              // fourni tel quel dans la demande (`bg-main/10 text-main`) :
+              // dans CE projet, `main`/`textHighlight` sont les tokens
+              // adaptatifs de texte "au premier plan" (quasi noir/blanc
+              // selon le thème), PAS la couleur d'accent — "fond rouge/
+              // accentué transparent" correspond en réalité au token
+              // `primary` (voir tailwind.config.js/useTheme.js,
+              // `bgAccentClass`/`textColorClass`), utilisé ici à la place
+              // pour un vrai badge rouge/rose translucide, cohérent avec
+              // le reste de l'app plutôt qu'un texte gris passe-partout.
+              // Bloc ENTIER cliquable (pas seulement "Configure →") —
+              // cible plus généreuse, cohérent avec la demande ("clic sur
+              // tout le bloc"). `changeView('settings')` : navigation déjà
+              // corrigée lors de l'itération précédente, inchangée ici
+              // (jamais l'ancien `setShowAthleticProfile`, retiré de
+              // GeneratorContext.jsx depuis le refactor "Réglages à
+              // onglets" du 28/07).
+              <button
+                onClick={() => changeView('settings')} disabled={isGenerating}
+                className="group flex items-center gap-2.5 text-left disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <span className={`shrink-0 p-1.5 rounded-lg bg-primary/10 ${textColorClass}`}><Gauge size={16}/></span>
+                <span className={`text-sm ${textMuted}`}>
+                  Configure ton <span className={`font-semibold ${textHighlight}`}>Profil Athlétique</span>
+                  <span className={`font-medium ml-1.5 group-hover:underline ${textColorClass}`}>Configure →</span>
+                </span>
               </button>
             ) : <div/>}
             <button onClick={() => setWizardStep(wizardStep + 1)} className={`px-8 py-3 rounded-xl font-bold flex items-center space-x-2 text-white shadow-md transition-colors ${isNaughtyMode ?
