@@ -2,7 +2,7 @@ import { Star, Heart, Play, Pause, Loader2, X, Plus, User, Target, Search, Info 
 import { getGenreLocalDepthWarning, getGenresForDisplay, genreDisplayLabel, EXTRA_GENRES } from '../../musicCatalog';
 import { useModalContext } from '../../contexts/ModalContext';
 import ViewHeader from '../shared/ViewHeader';
-import { VIEW_HEADER_ICON_SIZE } from '../../viewHeaderLayout';
+import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../viewHeaderLayout';
 
 /**
  * FavoritesView — vue "Mes Favoris" (titres/artistes favoris + exploration BPM/genre).
@@ -64,7 +64,7 @@ export default function FavoritesView({
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className={`${VIEW_CONTENT_WRAPPER} space-y-8`}>
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
