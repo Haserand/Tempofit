@@ -66,45 +66,50 @@
  * Intime ensemble — `useTheme.js` le dit explicitement dans son propre
  * commentaire sur `textMuted` ("le ternaire n'est plus nécessaire"), jamais
  * répercuté ici au moment de la création de ce composant. `theme.textHighlight`/
- * `theme.textMuted` remplacent maintenant la palette fixe INCONDITIONNELLEMENT
- * (`isNaughtyMode` n'a donc plus d'effet sur la couleur du texte — il reste
- * accepté en prop pour compatibilité mais n'est plus lu ici).
+ * `theme.textMuted` remplacent maintenant la palette fixe pour la couleur DE
+ * BASE du titre/sous-titre — `isNaughtyMode` reste bel et bien lu, mais
+ * UNIQUEMENT pour le `dark:text-white` conditionnel du sous-titre (voir plus
+ * bas), pas pour la couleur de base elle-même, qui vient exclusivement du
+ * thème.
  */
 export default function ViewHeader({ theme, icon, title, subtitle, right = null, isNaughtyMode = false }) {
   const { cardBorder, textHighlight, textMuted } = theme;
 
   return (
-    <div className={`border-b ${cardBorder} pb-3.5 pr-32 md:pr-40 flex flex-col sm:flex-row sm:items-start justify-between gap-4`}>
+    <div className={`border-b ${cardBorder} pb-2 pr-32 md:pr-40 flex flex-col sm:flex-row sm:items-start justify-between gap-4`}>
       {/* `min-w-0` est nécessaire ici (pas juste sur le <p>) : dans un flex
           item, la largeur par défaut ne descend jamais sous le contenu
           (`min-width: auto`), donc sans ça le sous-titre ne serait JAMAIS
           contraint, quel que soit le mécanisme utilisé pour la 1 ligne. */}
-      {/* 4e ITÉRATION (Refactor UI "ligne de flottaison", 29/07, retour
-          direct : "je tiens à 2 lignes", après une 3e itération qui les
-          avait fusionnées sur 1 seule) — retour à 2 lignes empilées
-          (titre puis sous-titre, TOUJOURS, plus de fusion `sm:` sur la
-          même ligne ni de point médian), mais cette fois avec un VRAI
-          calcul de budget pour que la bordure s'aligne quand même sur
-          celle de la Sidebar (voir viewHeaderLayout.js pour le calcul
-          complet) :
-          - Bloc logo Sidebar, du haut jusqu'à sa bordure : pt-6 (24px) +
-            hauteur de sa ligne (badge icône 28px + padding, ≈ 40px, le
-            plus haut élément) + pb-6 (24px) = 88px.
-          - `<main>` partage déjà pt-6 (24px, VIEW_HEADER_TOP_PADDING) —
-            il reste donc 88 − 24 = 64px pour (icône + titre + espacement
-            + sous-titre + pb de CE conteneur).
-          - Contenu retenu : icône 28px (VIEW_HEADER_ICON_SIZE, alignée
-            sur le logo) + titre `text-2xl leading-none` (24px, la ligne
-            fait donc 28px de haut, dominée par l'icône) + `mt-1` (4px) +
-            sous-titre `text-sm leading-tight` (≈18px) = 50px de contenu.
-          - `pb` nécessaire : 64 − 50 = 14px → `pb-3.5` (0.875rem = 14px
-            pile, un palier standard de l'échelle Tailwind par défaut, pas
-            une valeur arbitraire bricolée).
-          Reste une ESTIMATION (aucun navigateur réel dans cet
-          environnement de dev, métriques de police réelles à confirmer
-          sur le déploiement) — mais un calcul complet cette fois, pas une
-          approximation à l'aveugle. */}
-      <div className="min-w-0">
+      {/* 9e ITÉRATION (Refactor UI "ligne de flottaison", 29/07, retour
+          direct : "les titres ne sont pas alignés avec le logo") — VRAIE
+          CAUSE trouvée, ratée lors des itérations précédentes : le badge du
+          logo (Sidebar.jsx) a un PADDING autour de son icône (`p-1.5` =
+          12px), que l'icône du titre H1 ICI n'a jamais eu (icône nue, pas
+          de badge) — même en donnant la MÊME VALEUR NUMÉRIQUE aux deux
+          icônes (34px, 5e itération), la ligne du logo restait donc 12px
+          plus haute que celle du titre (badge 34+12=46px contre icône
+          seule 34px), décalant leurs centres de 6px l'un par rapport à
+          l'autre malgré un `pt-6` déjà partagé.
+          2 corrections possibles : ajouter le même padding autour de
+          l'icône du titre (mais ça n'aurait laissé que 2px de marge avant
+          la bordure, `pb-0.5`, trop serré) — ÉCARTÉE au profit d'un simple
+          DÉCALAGE du bloc titre+sous-titre de 6px vers le bas (`mt-1.5` sur
+          le conteneur juste en dessous), qui recentre les 2 lignes sans
+          ajouter de volume visuel :
+          - Sidebar (référence FIXE) : pt-6 (24px) + badge (icône 34px +
+            padding 12px = 46px) + pb-6 (24px) = 94px jusqu'à sa bordure.
+          - `<main>` partage déjà pt-6 (24px) — reste 94 − 24 = 70px.
+          - Contenu : `mt-1.5` (6px, le décalage) + icône 34px (ligne
+            dominée par elle, sans badge) + `mt-1` (4px) + sous-titre
+            `text-sm leading-tight` (≈18px) = 62px → `pb` nécessaire =
+            70 − 62 = 8px = `pb-2`, un palier standard, raisonnable (ni
+            trop serré comme l'aurait été l'alternative au padding, ni
+            trop large comme l'ancien `pb-3.5` calculé sans ce décalage).
+          Reste une ESTIMATION de métriques de police (aucun navigateur
+          réel dans cet environnement de dev) — calcul complet, documenté,
+          à confirmer sur un vrai déploiement. */}
+      <div className="min-w-0 mt-1.5">
         <h1 className={`text-2xl font-bold tracking-tight leading-none flex items-center gap-2 ${textHighlight}`}>
           {icon} <span>{title}</span>
         </h1>
