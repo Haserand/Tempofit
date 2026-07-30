@@ -205,7 +205,11 @@ export default function PlaylistsView({
               {/* Zone vide "Générer une nouvelle playlist" (retour direct :
                   "le texte gris clair et le + sont illisibles") — même
                   schéma slate normalisé que le reste de cette vue. */}
-              <button onClick={() => changeView('generator')} className={`rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 py-10 font-bold transition-colors ${isNaughtyMode ? 'border-slate-400 text-slate-300 hover:text-white' : 'border-slate-700 text-slate-400 hover:text-white'}`}>
+              {/* Ménage "Centraliser les règles de couleur" (29/07) —
+                  ternaire `isNaughtyMode` retiré, remplacé par les tokens
+                  déjà adaptatifs de useTheme.js (voir RoutinesView.jsx pour
+                  le détail identique). */}
+              <button onClick={() => changeView('generator')} className={`rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 py-10 font-bold transition-colors ${cardBorder} ${textMuted} hover:text-main`}>
                 <Plus size={28} />
                 <span>Générer une nouvelle playlist</span>
               </button>
