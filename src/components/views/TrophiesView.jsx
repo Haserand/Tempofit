@@ -52,7 +52,7 @@ export default function TrophiesView({ theme, userStats, handleShare, isNaughtyM
     return (
       <div key={trophy.id} className={`${cardBg} rounded-2xl p-6 border ${isUnlocked ? 'border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.1)]' : isMasked ? `border-dashed ${cardBorder}` : cardBorder} flex items-start space-x-4 transition-all`}>
         <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-4xl shrink-0 ${isUnlocked ?
-          'bg-gradient-to-br from-yellow-100 to-yellow-300 dark:from-yellow-900/40 dark:to-yellow-700/40' : 'bg-surface-hover grayscale opacity-40'}`}>
+          'bg-linear-to-br from-yellow-100 to-yellow-300 dark:from-yellow-900/40 dark:to-yellow-700/40' : 'bg-surface-hover grayscale opacity-40'}`}>
           {isMasked ? <HelpCircle size={28} className={textMuted} /> : trophy.icon}
         </div>
         <div className="flex-1">
