@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Award, Share2, HelpCircle, Lock } from 'lucide-react';
 import { TROPHIES_DATA, TROPHY_CATEGORIES } from '../../appConfig';
 import ViewHeader from '../shared/ViewHeader';
+import { VIEW_HEADER_ICON_SIZE } from '../../viewHeaderLayout';
 
 /**
  * TrophiesView — vue "Mes Trophées" (mur des succès débloqués).
@@ -75,7 +76,7 @@ export default function TrophiesView({ theme, userStats, handleShare, isNaughtyM
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
-        icon={<Award className="text-yellow-500" size={28} />}
+        icon={<Award className="text-yellow-500" size={VIEW_HEADER_ICON_SIZE} />}
         title="Mes Trophées"
         subtitle="Le mur des légendes. Accomplis tes sessions pour débloquer ces succès."
       />
