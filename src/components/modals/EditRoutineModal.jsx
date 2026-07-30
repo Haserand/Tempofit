@@ -32,7 +32,7 @@ export default function EditRoutineModal({
   const close = () => { onClose(); setEditingRoutine(null); };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={close}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" onClick={close}>
       <div className={"p-6 md:p-8 rounded-3xl w-full max-w-lg shadow-2xl flex flex-col max-h-[85vh] border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6">
           <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
@@ -43,7 +43,7 @@ export default function EditRoutineModal({
         </div>
 
         <div className="flex-1 overflow-y-auto no-scrollbar space-y-5 pr-1">
-          <input type="text" value={editingRoutine.name} onChange={e => setEditingRoutine({...editingRoutine, name: e.target.value})} className={`w-full rounded-xl px-4 py-3 font-bold outline-none border ${inputBg} ${inputBorder} ${textHighlight}`} placeholder="Nom de la routine" />
+          <input type="text" value={editingRoutine.name} onChange={e => setEditingRoutine({...editingRoutine, name: e.target.value})} className={`w-full rounded-xl px-4 py-3 font-bold outline-hidden border ${inputBg} ${inputBorder} ${textHighlight}`} placeholder="Nom de la routine" />
 
           <div>
             <div className="flex justify-between items-end mb-2">
@@ -63,17 +63,17 @@ export default function EditRoutineModal({
 
           {editingRoutine.targetMode === 'distance' ? (
             <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-3 justify-between`}>
-              <input type="number" min="0" step="0.1" value={editingRoutine.distanceVal} onChange={e => setEditingRoutine({...editingRoutine, distanceVal: e.target.value})} className={`bg-transparent w-full font-bold outline-none ${textHighlight}`} />
+              <input type="number" min="0" step="0.1" value={editingRoutine.distanceVal} onChange={e => setEditingRoutine({...editingRoutine, distanceVal: e.target.value})} className={`bg-transparent w-full font-bold outline-hidden ${textHighlight}`} />
               <span className={`text-sm font-bold ${textMuted}`}>{editingRoutine.distanceUnit}</span>
             </div>
           ) : (
             <div className="flex gap-3">
               <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-3 justify-between`}>
-                <input type="number" min="0" max="12" value={editingRoutine.hours} onChange={e => setEditingRoutine({...editingRoutine, hours: syncClampedInput(e, { min: 0, max: 12 })})} className={`bg-transparent w-full font-bold outline-none ${textHighlight}`} />
+                <input type="number" min="0" max="12" value={editingRoutine.hours} onChange={e => setEditingRoutine({...editingRoutine, hours: syncClampedInput(e, { min: 0, max: 12 })})} className={`bg-transparent w-full font-bold outline-hidden ${textHighlight}`} />
                 <span className={`text-sm font-bold ${textMuted}`}>Heures</span>
               </div>
               <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-3 justify-between`}>
-                <input type="number" min="0" max="59" value={editingRoutine.minutes} onChange={e => setEditingRoutine({...editingRoutine, minutes: syncClampedInput(e, { min: 0, max: 59 })})} className={`bg-transparent w-full font-bold outline-none ${textHighlight} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
+                <input type="number" min="0" max="59" value={editingRoutine.minutes} onChange={e => setEditingRoutine({...editingRoutine, minutes: syncClampedInput(e, { min: 0, max: 59 })})} className={`bg-transparent w-full font-bold outline-hidden ${textHighlight} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
                 <span className={`text-sm font-bold ${textMuted} mr-1`}>Min</span>
                 <div className="flex flex-col">
                   <button type="button" onClick={() => setEditingRoutine(r => ({...r, minutes: (parseInt(r.minutes) || 0) + 1 > 59 ? 0 : (parseInt(r.minutes) || 0) + 1}))} className={`${textMuted} hover:text-main`}>
