@@ -29,7 +29,7 @@
  * taille codée en dur ici depuis le Refactor UI "ligne de flottaison",
  * 29/07 ; voir ce fichier pour le budget de hauteur qui la contraint.)
  *
- * `icon` — un ÉLÉMENT déjà construit (`<Zap className="..." size={20}/>`),
+ * `icon` — un ÉLÉMENT déjà construit (`<Zap className="..." size={24}/>`),
  * pas juste un composant : la couleur de l'icône suit parfois une règle
  * spéciale propre à une vue (ex. StatsView, rose en Mode Intime plutôt que
  * `textColorClass`) — plus simple de laisser l'appelant construire l'icône
@@ -74,25 +74,43 @@ export default function ViewHeader({ theme, icon, title, subtitle, right = null,
   const { cardBorder, textHighlight, textMuted } = theme;
 
   return (
-    <div className={`border-b ${cardBorder} pb-6 pr-32 md:pr-40 flex flex-col sm:flex-row sm:items-start justify-between gap-4`}>
+    <div className={`border-b ${cardBorder} pb-3 pr-32 md:pr-40 flex flex-col sm:flex-row sm:items-start justify-between gap-4`}>
       {/* `min-w-0` est nécessaire ici (pas juste sur le <p>) : dans un flex
           item, la largeur par défaut ne descend jamais sous le contenu
           (`min-width: auto`), donc sans ça le sous-titre ne serait JAMAIS
           contraint, quel que soit le mécanisme utilisé pour la 1 ligne. */}
-      <div className="min-w-0">
-        {/* Titre H1 — RÉDUIT (Refactor UI "Bordure alignée sur la
-            Sidebar", 29/07, 2e itération, retour direct : "le liseret sous
-            le sous-titre doit se caler EXACTEMENT sur celui du logo") :
-            `text-3xl md:text-4xl` (~36-40px de ligne à lui seul) ne
-            pouvait matériellement pas tenir dans le budget de 40px total
-            (icône + titre + espacement + sous-titre) calculé pour égaler
-            la hauteur du bloc logo de la Sidebar — voir viewHeaderLayout.js
-            pour le calcul complet. `text-base leading-tight` (~20px de
-            ligne) laisse la place au sous-titre juste en dessous.
-            `space-x-3` → `space-x-2` : gap icône/texte resserré, plus
-            proportionné à la nouvelle taille d'icône (`VIEW_HEADER_ICON_SIZE`,
-            28→20px, voir viewHeaderLayout.js). */}
-        <h1 className={`text-base leading-tight font-bold flex items-center space-x-2 ${textHighlight}`}>
+      {/* 3e ITÉRATION (Refactor UI "ligne de flottaison", 29/07, retours
+          directs successifs : "trop d'espace entre le sous-titre et le
+          liseret" + "le titre doit faire la même taille que celle du logo"
+          + "les titres doivent être au même niveau que le logo, même ligne
+          horizontale" + "fais un truc joli avec les sous-titres") — la 2e
+          itération réduisait le titre lui-même (`text-base`) pour tenir
+          dans un budget de hauteur calculé à la main ; cette 3e itération
+          change d'approche : le TITRE reprend EXACTEMENT la typographie du
+          logo (`text-2xl font-bold tracking-tight leading-none`, voir
+          Sidebar.jsx — même classes, au caractère près), et plutôt que
+          d'empiler titre+sous-titre sur 2 lignes (ce qui rendait un
+          alignement avec le logo, lui sur 1 seule ligne, mécaniquement
+          impossible sans rogner sur l'un des deux), les deux passent SUR
+          LA MÊME LIGNE dès `sm:` (`sm:items-baseline`, alignement sur la
+          ligne de base du texte — un vrai standard éditorial : titre fort
+          + continuation plus discrète juste après, séparés par un point
+          médian `·`). Conséquences :
+          - Le "niveau" (ligne d'horizon) du titre est maintenant
+            directement comparable à celui du logo : les deux sont des
+            blocs À UNE SEULE LIGNE, avec le même `pt-6` partagé en amont
+            (`<main>`/Sidebar.jsx, voir viewHeaderLayout.js) — plus besoin
+            de calcul de budget entre 2 lignes empilées et 1 seule.
+          - `pb-6` → `pb-3` : le contenu tenant maintenant sur une seule
+            ligne (au lieu de 2 empilées), il ne reste plus besoin d'autant
+            d'espace avant le liseret.
+          - Sur mobile (SOUS `sm:`), titre et sous-titre restent empilés
+            (`flex-col`, comportement inchangé) : la place manque pour les
+            mettre côte à côte sur un petit écran, et l'alignement avec le
+            logo n'est de toute façon pas un enjeu visuel là où la Sidebar
+            n'est pas affichée à côté du contenu. */}
+      <div className="min-w-0 flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-2.5">
+        <h1 className={`text-2xl font-bold tracking-tight leading-none flex items-center gap-2 shrink-0 ${textHighlight}`}>
           {icon} <span>{title}</span>
         </h1>
         {/* TENTATIVE 25/07 (nouvelle session) — `line-clamp-1` plutôt que
@@ -105,21 +123,9 @@ export default function ViewHeader({ theme, icon, title, subtitle, right = null,
             de layout pas encore stabilisé, d'où un texte présent dans le DOM
             mais visuellement absent jusqu'à un reflow forcé (resize, DevTools).
             `line-clamp-1` (`display:-webkit-box`+`-webkit-line-clamp`, natif
-            Tailwind depuis 3.3, aucun plugin requis) n'avait jamais été
-            essayé lors des tentatives précédentes (toutes basées sur
-            `truncate`) — c'est une vraie piste neuve, pas une redite.
-            À L'ÉPOQUE (25/07), volontairement PAS de `text-sm md:text-base`
-            ici : c'était le facteur commun à toutes les tentatives ratées
-            précédentes, jamais isolé — une seule variable nouvelle à la
-            fois (`line-clamp-1` + `min-w-0`), comme recommandé dans la
-            passation du 25/07.
-            2e ITÉRATION (29/07, "budget de hauteur partagé avec la
-            Sidebar") — `line-clamp-1`/`min-w-0` sont maintenant stables
-            depuis plusieurs sessions (aucun symptôme rapporté depuis) :
-            introduire `text-xs` MAINTENANT respecte la même méthode "une
-            seule variable à la fois", cette fois sur une base déjà
-            confirmée plutôt qu'en cumul avec elle. À surveiller quand même
-            sur le 1er déploiement réel, par prudence.
+            Tailwind depuis 3.3, aucun plugin requis) reste utilisé ici à
+            travers toutes les itérations suivantes de ce fichier — jamais
+            remis en cause, aucun symptôme rapporté depuis son introduction.
 
             COULEUR CONDITIONNELLE (25/07, retour direct : "uniquement pour
             le mode intime, uniquement pour le mode dark, changer la couleur
@@ -138,7 +144,13 @@ export default function ViewHeader({ theme, icon, title, subtitle, right = null,
             (donc en mode standard, ou en Mode Intime + thème clair), le
             sous-titre garde `textMuted` comme avant — comportement
             inchangé partout ailleurs. */}
-        <p className={`mt-1 text-xs leading-tight ${textMuted} line-clamp-1 ${isNaughtyMode ? 'dark:text-white' : ''}`}>{subtitle}</p>
+        <p className={`text-sm min-w-0 ${textMuted} line-clamp-1 ${isNaughtyMode ? 'dark:text-white' : ''}`}>
+          {/* Point médian — visible SEULEMENT à partir de `sm:` (masqué en
+              `flex-col` mobile, où titre/sous-titre sont sur 2 lignes
+              séparées, un séparateur en tête de ligne serait incongru). */}
+          <span className="hidden sm:inline mr-2" aria-hidden="true">·</span>
+          {subtitle}
+        </p>
       </div>
       {right && <div className="shrink-0 flex items-center gap-2">{right}</div>}
     </div>
