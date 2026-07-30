@@ -673,18 +673,16 @@ export default function StatsView({
           par exemple, alors que la même logique s'y applique tout autant).
           Un seul bloc centralisé désormais, persistant sur toutes les vues. */}
 
+      {/* Ménage "Centraliser les règles de couleur" (29/07) — ternaires
+          `statsMode === 'naughty'` retirés sur la bordure/icône/paragraphe
+          de ce placeholder, remplacés par les tokens déjà adaptatifs de
+          useTheme.js (`cardBorder`/`textMuted`, voir RoutinesView.jsx/
+          PlaylistsView.jsx pour le même ménage). */}
       {totalSessions === 0 ? (
-        <div className={`py-16 text-center border-2 border-dashed rounded-2xl ${statsMode === 'naughty' ? 'border-slate-400' : 'border-slate-700'}`}>
-          {/* Contrastes CORRIGÉS (Refactor UI "Accessibilité Mode Intime",
-              29/07, retour direct : "le texte des cadres en pointillés est
-              sombre et illisible") — `text-slate-800`/`text-slate-950`
-              (icône/titre/paragraphe) étaient bien trop sombres pour le
-              fond ROSE FONCÉ du Mode Intime (pas un fond clair) : quasi
-              invisibles. Remplacés par des gris clairs/blanc, lisibles sur
-              fond sombre comme sur fond clair. */}
-          <Activity size={48} className={`mx-auto mb-4 ${statsMode === 'naughty' ? 'text-slate-300' : 'text-slate-400'}`} />
+        <div className={`py-16 text-center border-2 border-dashed rounded-2xl ${cardBorder}`}>
+          <Activity size={48} className={`mx-auto mb-4 ${textMuted}`} />
           <h3 className="text-lg font-bold mb-2 text-white">Rien à montrer pour l'instant</h3>
-          <p className={`text-sm mb-6 max-w-sm mx-auto line-clamp-1 ${statsMode === 'naughty' ? 'text-slate-300' : 'text-slate-400'}`}>
+          <p className={`text-sm mb-6 max-w-sm mx-auto line-clamp-1 ${textMuted}`}>
             {statsMode === 'naughty'
               ? "Aucune séance Mode Intime marquée pour l'instant."
               : 'Termine une séance pour voir tes stats démarrer.'}
@@ -802,7 +800,7 @@ export default function StatsView({
               séparer clairement en 2 groupes, chacun avec un sous-titre
               explicite, au lieu de les laisser visuellement adjacents comme
               avant, réduit le risque de les lire comme la même donnée. */}
-          <p className={`text-xs font-bold uppercase tracking-wide ${statsMode === 'naughty' ? 'text-slate-300' : 'text-slate-400'}`}>🏃 Entraînement</p>
+          <p className={`text-xs font-bold uppercase tracking-wide ${textMuted}`}>🏃 Entraînement</p>
 
           <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
             <h3 className={`font-bold mb-4 ${textHighlight}`}>Tes activités</h3>
@@ -918,7 +916,7 @@ export default function StatsView({
             );
           })}
 
-          <p className={`text-xs font-bold uppercase tracking-wide pt-2 ${statsMode === 'naughty' ? 'text-slate-300' : 'text-slate-400'}`}>🎵 Musique</p>
+          <p className={`text-xs font-bold uppercase tracking-wide pt-2 ${textMuted}`}>🎵 Musique</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
