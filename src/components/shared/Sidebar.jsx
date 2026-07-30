@@ -4,6 +4,7 @@ import { VIEW_HEADER_TOP_PADDING } from '../../viewHeaderLayout';
 import {
   SIDEBAR_LINK_PADDING, SIDEBAR_LINK_GAP, SIDEBAR_SECTION_TITLE_MARGIN,
   SIDEBAR_SEPARATOR_MARGIN, SIDEBAR_SCROLL_PADDING, SIDEBAR_FOOTER_LINK_PADDING,
+  SIDEBAR_LINK_PADDING_COMPACT, SIDEBAR_LINK_GAP_COMPACT, SIDEBAR_SECTION_TITLE_MARGIN_COMPACT,
 } from '../../sidebarLayout';
 
 /**
@@ -64,6 +65,20 @@ export default function Sidebar({
   toggleNaughtyMode,
   theme, toggleTheme,
 }) {
+  // Compaction conditionnelle du menu en Mode Intime (Refactor UI, 29/07,
+  // retour direct : "Statistiques passe sous la ligne de flottaison,
+  // scroll indésirable") — le bouton "Quitter le Mode Intime" (visible
+  // SEULEMENT dans ce mode, en plus des liens habituels) ajoute une
+  // hauteur que le mode normal n'a jamais à absorber. 3 variables locales,
+  // calculées UNE SEULE FOIS ici puis réutilisées à chaque usage (au lieu
+  // de répéter le ternaire à chaque bouton) — normal (`!isNaughtyMode`)
+  // garde EXACTEMENT ses valeurs d'origine, aucun changement visuel :
+  // seul le Mode Intime bascule vers les variantes compactes de
+  // sidebarLayout.js.
+  const linkPadding = isNaughtyMode ? SIDEBAR_LINK_PADDING_COMPACT : SIDEBAR_LINK_PADDING;
+  const linkGap = isNaughtyMode ? SIDEBAR_LINK_GAP_COMPACT : SIDEBAR_LINK_GAP;
+  const sectionTitleMargin = isNaughtyMode ? SIDEBAR_SECTION_TITLE_MARGIN_COMPACT : SIDEBAR_SECTION_TITLE_MARGIN;
+
   // BUG CORRIGÉ (25/07, retour direct : "je ne peux pas cliquer sur Options
   // & Comptes quand le lecteur audio est actif") — le padding précédent
   // (`pb-10` conditionnel) ne réservait de la place QUE pour GuestModeBar.jsx
@@ -248,7 +263,7 @@ export default function Sidebar({
               plutôt qu'un style à part. */}
           <button
             onClick={toggleNaughtyMode}
-            className={`w-full flex items-center space-x-3 ${SIDEBAR_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer text-rose-500 hover:bg-rose-500/10`}
+            className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer text-rose-500 hover:bg-rose-500/10`}
           >
             <Heart size={18} className="fill-rose-500" />
             <span className="font-bold text-sm">Quitter le Mode Intime</span>
@@ -297,20 +312,20 @@ export default function Sidebar({
       <nav className="flex flex-col">
 
         {/* --- CRÉATION --- */}
-        <div className={`flex flex-col ${SIDEBAR_LINK_GAP}`}>
-          <div className={`px-3 ${SIDEBAR_SECTION_TITLE_MARGIN} text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Création</div>
+        <div className={`flex flex-col ${linkGap}`}>
+          <div className={`px-3 ${sectionTitleMargin} text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Création</div>
 
-          <button onClick={() => changeView('generator')} className={`w-full flex items-center space-x-3 ${SIDEBAR_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('generator')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Zap size={18} className={view === 'generator' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Nouvelle séance</span>
           </button>
 
-          <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 ${SIDEBAR_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <ListPlus size={18} className={view === 'routines' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Mes Routines</span>
           </button>
 
-          <button onClick={() => changeView('discover')} className={`w-full flex items-center space-x-3 ${SIDEBAR_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${view === 'discover' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('discover')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'discover' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Compass size={18} className={view === 'discover' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Découvrir</span>
           </button>
@@ -331,20 +346,20 @@ export default function Sidebar({
         <div className={`border-t ${cardBorder} w-full ${SIDEBAR_SEPARATOR_MARGIN}`}></div>
 
         {/* --- MON ESPACE --- */}
-        <div className={`flex flex-col ${SIDEBAR_LINK_GAP}`}>
-          <div className={`px-3 ${SIDEBAR_SECTION_TITLE_MARGIN} text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Mon Espace{!user && ' • Invité'}</div>
+        <div className={`flex flex-col ${linkGap}`}>
+          <div className={`px-3 ${sectionTitleMargin} text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Mon Espace{!user && ' • Invité'}</div>
 
-          <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 ${SIDEBAR_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <List size={18} className={view === 'playlists' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Mes Séances</span>
           </button>
 
-          <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 ${SIDEBAR_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Star size={18} className={favorites.useFavorites && favorites.artists.length > 0 ? "text-yellow-500 fill-yellow-500/20" : (view === 'favorites' ? 'text-white' : '')} />
             <span className="font-bold text-sm">Mes Favoris</span>
           </button>
 
-          <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 ${SIDEBAR_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+          <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Activity size={18} className={view === 'stats' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Statistiques</span>
           </button>
