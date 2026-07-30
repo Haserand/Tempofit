@@ -3,6 +3,7 @@ import { Compass, Search, SearchX } from 'lucide-react';
 import { curatedSessions, naughtyCuratedSessions } from '../../data/curatedSessions';
 import TemplateCard from './TemplateCard';
 import ViewHeader from '../shared/ViewHeader';
+import { VIEW_HEADER_ICON_SIZE } from '../../viewHeaderLayout';
 
 /**
  * DiscoverView — bibliothèque de modèles de séances ensemencés (voir
@@ -73,7 +74,7 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode }) {
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
-        icon={<Compass className={theme.textColorClass} size={28} />}
+        icon={<Compass className={theme.textColorClass} size={VIEW_HEADER_ICON_SIZE} />}
         title="Découvrir"
         subtitle="Des séances prêtes à l'emploi, adaptables à ton profil en un clic."
       />
