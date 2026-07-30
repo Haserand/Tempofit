@@ -249,9 +249,9 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
         theme={theme}
         isNaughtyMode={isNaughtyMode}
         icon={
-          activeTab === 'profile' ? <Gauge className={textColorClass} size={36} /> :
-          activeTab === 'music' ? <LinkIcon className={textColorClass} size={36} /> :
-          <UserIcon className={textColorClass} size={36} />
+          activeTab === 'profile' ? <Gauge className={textColorClass} size={28} /> :
+          activeTab === 'music' ? <LinkIcon className={textColorClass} size={28} /> :
+          <UserIcon className={textColorClass} size={28} />
         }
         title={
           activeTab === 'profile' ? 'Mon Profil Athlétique' :
