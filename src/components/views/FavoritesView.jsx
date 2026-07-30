@@ -134,7 +134,7 @@ export default function FavoritesView({
             <h4 className={`text-sm font-bold uppercase tracking-wider mb-4 flex items-center ${textMuted} ${isNaughtyMode ? 'dark:text-white' : ''}`}><User size={16} className="mr-2"/> Top Artistes</h4>
             <div className="flex flex-wrap gap-2.5 items-center">
               {favorites.artists.map((artist, idx) => (
-                <span key={idx} className={`px-4 py-2 bg-surface-hover border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold ${textHighlight} shadow-sm flex items-center gap-2`}>
+                <span key={idx} className={`px-4 py-2 bg-surface-hover border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold ${textHighlight} shadow-xs flex items-center gap-2`}>
                   {artist}
                   <button onClick={() => setFavorites(prev => ({ ...prev, artists: prev.artists.filter(a => a !== artist) }))} className="text-gray-400 hover:text-red-500 transition-colors">
                     <X size={13}/>
@@ -142,7 +142,7 @@ export default function FavoritesView({
                 </span>
               ))}
               {isAddingArtist ? (
-                <div className={`flex items-center gap-1 ${cardBg} border ${cardBorder} rounded-xl pl-3 pr-1 py-1 shadow-sm`}>
+                <div className={`flex items-center gap-1 ${cardBg} border ${cardBorder} rounded-xl pl-3 pr-1 py-1 shadow-xs`}>
                   <input
                     type="text" autoFocus value={newFavArtist} onChange={e => setNewFavArtist(e.target.value)}
                     onKeyDown={(e) => {
@@ -151,14 +151,14 @@ export default function FavoritesView({
                     }}
                     onBlur={() => { if (!newFavArtist.trim()) setIsAddingArtist(false); }}
                     placeholder="Nom de l'artiste..."
-                    className={`text-sm font-bold ${textHighlight} outline-none bg-transparent w-36`}
+                    className={`text-sm font-bold ${textHighlight} outline-hidden bg-transparent w-36`}
                   />
                   <button onClick={() => addFavoriteArtistValidated(newFavArtist)} className={`w-7 h-7 rounded-full flex items-center justify-center text-white shrink-0 ${bgAccentClass}`}>
                     <Plus size={14}/>
                   </button>
                 </div>
               ) : (
-                <button onClick={() => setIsAddingArtist(true)} title="Ajouter un artiste" className={`w-10 h-10 rounded-full ${cardBg} border-2 border-dashed ${cardBorder} flex items-center justify-center ${textMuted} hover:text-main transition-colors shadow-sm`}>
+                <button onClick={() => setIsAddingArtist(true)} title="Ajouter un artiste" className={`w-10 h-10 rounded-full ${cardBg} border-2 border-dashed ${cardBorder} flex items-center justify-center ${textMuted} hover:text-main transition-colors shadow-xs`}>
                   <Plus size={18}/>
                 </button>
               )}
