@@ -135,7 +135,7 @@ export default function TrackItem({
           durée/début, remplace l'ancien affichage BPM neutre. */}
       <div className="w-28 text-center shrink-0 flex flex-col items-center gap-0.5">
         <span
-          className="px-2 py-0.5 rounded-full text-xs font-mono font-black text-white shadow-sm"
+          className="px-2 py-0.5 rounded-full text-xs font-mono font-black text-white shadow-xs"
           style={{ backgroundColor: zoneColor }}
         >
           {track.bpm} BPM
