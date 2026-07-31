@@ -444,9 +444,14 @@ describe('GeneratorWizard — étape 2 (couverture complète)', () => {
     expect(setDistanceVal).toHaveBeenCalledWith('10');
 
     // Allure : les 2 inputs dans le bloc situé juste après le texte "Allure:".
+    // ⚠️ paceMin vaut déjà 5 par défaut dans les données de ce test — lui
+    // donner la MÊME valeur ('5') ne déclenche jamais le handler : React
+    // (via son "value tracker" interne) ignore silencieusement un
+    // fireEvent.change qui ne change rien à la valeur déjà affichée. D'où
+    // '8' ici (différent du défaut), au lieu de '5' comme dans le 1er jet.
     const paceInputs = screen.getByText('Allure:').parentElement.querySelectorAll('input[type="number"]');
-    fireEvent.change(paceInputs[0], { target: { value: '5' } });
-    expect(setPaceMin).toHaveBeenCalledWith('5');
+    fireEvent.change(paceInputs[0], { target: { value: '8' } });
+    expect(setPaceMin).toHaveBeenCalledWith('8');
 
     fireEvent.change(paceInputs[1], { target: { value: '45' } });
     expect(setPaceSec).toHaveBeenCalledWith('45');
