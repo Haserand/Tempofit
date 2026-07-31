@@ -148,7 +148,10 @@ describe('TrackItem', () => {
 
     expect(container.firstChild).toHaveAttribute('draggable', 'false');
     expect(screen.queryByTitle('Retirer de la proposition')).not.toBeInTheDocument();
-    expect(screen.getByTitle(/Verrouillé/)).toBeInTheDocument();
+    // "Verrouillé" apparaît 2 fois (poignée de drag ET zone de suppression,
+    // chacune avec son propre message) — on cible ici précisément celui du
+    // cadenas de suppression, celui que ce test veut vérifier.
+    expect(screen.getByTitle("Verrouillé — impossible de retirer un titre d'une séance déjà réalisée")).toBeInTheDocument();
   });
 
   it('isSaved=false (pas encore dans "Mes Séances") : pas de bouton de suppression, message dédié', () => {
