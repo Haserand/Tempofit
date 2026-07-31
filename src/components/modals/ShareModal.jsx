@@ -1,273 +1,152 @@
-import { X, Target, Search, RefreshCw, Loader2, ChevronDown, Play, Pause, Edit3, Check, Plus } from 'lucide-react';
-import { genreDisplayLabel, getGenresForDisplay } from '../../musicCatalog';
+import { X, Share2, MessageCircle, ExternalLink, Copy, Loader2, Download } from 'lucide-react';
 
 /**
- * SearchModal — recherche manuelle d'un titre (par nom/artiste, ou par BPM
- * cible depuis un camembert "Titres à ce BPM"). Extrait de App.jsx (voir
- * CustomActivityModal.jsx pour le contexte de cette série d'extractions).
+ * ShareModal — partage d'une playlist/routine (lien copié, réseaux sociaux,
+ * e-mail, partage natif du téléphone/OS si disponible). Extrait de App.jsx
+ * (voir CustomActivityModal.jsx pour le contexte de cette série
+ * d'extractions).
  *
- * `renderSearchResultRow` vit maintenant ICI (retour direct : "prends du
- * recul, regarde si ça vaut le coup" sur useDeezerSearch.js, puis "continue
- * avec renderSearchResultRow") plutôt que reçue en prop depuis App.jsx —
- * elle produit du JSX propre à CETTE modale (une ligne de résultat), ça n'a
- * jamais eu de sens qu'elle vive ailleurs que là où elle s'affiche. Ses
- * dépendances (favoris, playlist en cours, lecture audio, édition BPM)
- * arrivent en props individuelles, comme le reste de cette modale.
+ * ⚠️ RESTAURÉ (31/07) — ce fichier était devenu, par accident, une copie
+ * EXACTE de SearchModal.jsx (même contenu, même nom de fonction exportée),
+ * cassant totalement le partage dans toute l'app : `App.jsx` passe
+ * `isShareModalOpen`/`shareData`/etc., mais le code (celui de SearchModal)
+ * attendait `isSearchModalOpen`/`closeSearchModal`/etc. — jamais fournis,
+ * donc `if (!isSearchModalOpen) return null` était TOUJOURS vrai. Le
+ * bouton "Partager" ne faisait donc plus rien de visible, nulle part,
+ * probablement depuis un commit du 25/07 (dernier commit GitHub validé
+ * avant la casse : `e128533`). Contenu ci-dessous récupéré depuis ce
+ * commit, avec seulement 2 classes Tailwind v3 obsolètes mises à jour vers
+ * la convention v4 déjà en place partout ailleurs dans le projet
+ * (`backdrop-blur-sm` → `backdrop-blur-xs` ; retrait de
+ * `animate-in fade-in duration-200`, qui dépendait du plugin
+ * `tailwindcss-animate`, jamais installé dans ce projet — ces classes
+ * n'avaient donc jamais eu d'effet réel).
+ *
+ * RETOUR DIRECT ("insérer le bilan image directement dans l'option de
+ * partage, avec une croix pour le retirer") — le Bilan Visuel de Séance
+ * (voir PlaylistDetailView.jsx, `startBackgroundImageGeneration`) se génère
+ * maintenant TOUT SEUL en arrière-plan dès l'ouverture du menu "Partager",
+ * PAS ICI : cette modale se contente d'en afficher l'état
+ * (`summaryImageStatus`) et l'aperçu une fois prêt, sans jamais déclencher ni
+ * bloquer sur la génération elle-même — le partage texte/lien reste
+ * utilisable immédiatement, que l'image soit prête, en cours, ou en échec.
+ * `summaryImage*`/`includeSummaryImage` sont `undefined` pour un partage de
+ * trophée (voir TrophiesView.jsx, `handleShare('trophy', ...)`) — toute cette
+ * section reste alors masquée (pas de session à résumer en image).
  */
-export default function SearchModal({
+export default function ShareModal({
   theme,
-  isSearchModalOpen, closeSearchModal,
-  isBpmSearchMode, bpmSearchParams, searchTracksByBpm,
-  searchQuery, setSearchQuery, searchWorldMusicApi,
-  isWorldSearching, worldSearchResults, worldSearchOtherResults,
-  searchLoadingMessage, searchElapsedSeconds,
-  searchHasMoreResults, isLoadingMoreResults,
-  resultsContextLabel, searchActiveArtistName, noUsableResultsHint,
-  currentPlaylist, favorites, setFavorites,
-  editingBpmId, setEditingBpmId, commitBpmEdit,
-  handleAddManualTrack, togglePreview, playingPreviewId,
-  showToast,
+  isShareModalOpen, onClose, shareData,
+  shareNative, shareToWhatsApp, shareToTwitter, shareToFacebook,
+  copyToClipboard, shareViaEmail,
+  shareImageFile,
+  summaryImageStatus, summaryImageFile, summaryImagePreviewUrl,
+  includeSummaryImage, setIncludeSummaryImage,
 }) {
-  const { cardBg, cardBorder, textHighlight, textColorClass, textMuted, inputBg, inputBorder, bgAccentClass } = theme;
+  const { cardBg, cardBorder, textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
 
-  if (!isSearchModalOpen) return null;
+  if (!isShareModalOpen || !shareData) return null;
 
-  // Une seule ligne de résultat de recherche (bouton extrait + ajout/favori) —
-  // extraite en fonction réutilisable pour être partagée entre la liste
-  // principale (worldSearchResults) et la réserve "autres résultats" révélée en
-  // bas une fois la recherche épuisée (voir worldSearchOtherResults).
-  const renderSearchResultRow = (track, key) => {
-    const isEditingThisBpm = editingBpmId === track.trackId;
-    const isAlreadyFavorited = !currentPlaylist && favorites.tracks.some(t => t.trackId === track.trackId);
-    const addOrToggleFavorite = () => {
-      // Si on est dans la vue Playlist, on l'ajoute. Sinon, ça bascule dans les Favoris !
-      if (currentPlaylist) handleAddManualTrack(track);
-      else if (isAlreadyFavorited) {
-         setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.trackId !== track.trackId) }));
-         showToast("Retiré de tes favoris.");
-      } else {
-         setFavorites(prev => ({
-           ...prev,
-           artists: Array.from(new Set([...prev.artists, track.artist])),
-           tracks: [...prev.tracks, track]
-         }));
-         showToast("🎵 Ajouté à tes favoris !");
-      }
-    };
-    return (
-    <div key={key} className={`flex items-center gap-2 p-2 rounded-xl hover:bg-surface-hover transition-colors border border-transparent hover:border-divider`}>
-      {/* Bouton lecture/pause de l'extrait audio 30s (Deezer). Désactivé si aucun extrait disponible. */}
-      <button
-        onClick={() => togglePreview(track)}
-        disabled={!track.preview}
-        title={track.preview ? "Écouter un extrait" : "Extrait non disponible pour ce titre (source sans aperçu audio)"}
-        className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${track.preview ? `${bgAccentClass} text-white hover:brightness-110` : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
-      >
-        {playingPreviewId === track.trackId ? <Pause size={16} fill="currentColor"/> : <Play size={16} fill="currentColor" className="ml-0.5"/>}
-      </button>
+  const hasReadyImage = shareData.type === 'playlist' && summaryImageStatus === 'ready' && includeSummaryImage && summaryImageFile;
 
-      <button onClick={addOrToggleFavorite} className="flex-1 min-w-0 text-left">
-        <div className="truncate">
-          <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
-          <div className={"text-xs truncate " + textMuted}>{track.artist}{track.genre ? ` · ${getGenresForDisplay(track.genre, track.artist, track.title).join(', ')}` : ''}{track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Genre Deezer différent — peut quand même correspondre.">⚠️ Genre non confirmé</span>}{track._bpmSource === 'detected' && <span className="ml-1 text-amber-500 font-bold" title="BPM deviné par l'app, pas garanti.">⚠️ BPM estimé</span>}</div>
-        </div>
-      </button>
-
-      <div className="flex items-center gap-1.5 shrink-0">
-        {isEditingThisBpm ? (
-          <input
-            type="number"
-            autoFocus
-            defaultValue={track.bpm}
-            onFocus={(e) => e.target.select()}
-            onBlur={(e) => commitBpmEdit(track, e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur();
-              if (e.key === 'Escape') setEditingBpmId(null);
-            }}
-            className={`w-16 text-right font-mono text-sm font-bold bg-transparent border-b outline-hidden ${textColorClass} ${inputBorder}`}
-          />
-        ) : (track._bpmSource === 'detected' || track._bpmSource === 'manual') ? (
-          // L'édition n'est proposée QUE là où il y a un doute réel à corriger :
-          // `detected` (deviné par analyse audio, ambiguïté d'octave documentée
-          // plus haut) et `manual` (pour pouvoir se corriger à nouveau soi-même).
-          //
-          // ⚠️ Décision prise après retour utilisateur : au départ, TOUS les BPM
-          // étaient éditables, y compris ceux fournis directement par Deezer —
-          // ce qui n'a pas de sens ("corriger" une valeur qu'on n'a aucune
-          // raison de mettre en doute), et affaiblissait le signal du crayon
-          // pour les cas où il compte vraiment. Un titre `deezer`/`getsongbpm`
-          // s'affiche donc maintenant en texte simple, sans bouton ni crayon —
-          // le risque, sinon, est qu'un utilisateur tape un chiffre erroné sur
-          // un titre déjà fiable, et fausse silencieusement le matching BPM
-          // plus tard (le générateur choisirait ce titre pour un tempo qu'il
-          // n'a en réalité pas, puisque seule la métadonnée aurait changé, pas
-          // l'audio réel).
-          //
-          // Titre choisi avec soin : "~" seul (déjà présent) signale l'incertitude
-          // sans expliquer quoi faire. Le texte au survol dit explicitement
-          // qu'un clic permet de corriger — la seule vraie parade à une
-          // détection audio par nature ambiguë (voir le long historique de
-          // cette fonction plus haut) est de laisser l'utilisateur trancher
-          // lui-même quand il connaît la vraie valeur.
-          //
-          // Icône crayon TOUJOURS visible (pas seulement au survol) : le `title`
-          // (infobulle native) et un simple `hover:underline` sont tous les deux
-          // invisibles sur écran tactile (pas de survol au doigt) — sans indice
-          // visuel permanent, ce bouton ne se distinguait pas de texte normal
-          // sur mobile. Le `title` reste en plus, pour la souris/clavier.
-          <button
-            onClick={() => setEditingBpmId(track.trackId)}
-            title={
-              track._bpmSource === 'detected'
-                ? "BPM deviné, pas garanti — touche pour corriger."
-                : "BPM corrigé à la main. Touche pour modifier."
-            }
-            className={"flex items-center gap-1 font-mono text-sm font-bold " + textColorClass}
-          >
-            <span>{track._bpmSource === 'detected' ? '~' : ''}{track.bpm} BPM</span>
-            <Edit3 size={12} className="opacity-50"/>
-          </button>
-        ) : (
-          // Source fiable (Deezer ou GetSongBPM) : pas d'affordance d'édition —
-          // voir le commentaire ci-dessus pour le raisonnement complet.
-          <span className={"font-mono text-sm font-bold " + textColorClass}>{track.bpm} BPM</span>
-        )}
-        <button onClick={addOrToggleFavorite} title={isAlreadyFavorited ? "Retirer des favoris" : "Ajouter"}>
-          {isAlreadyFavorited ? (
-            <Check size={16} className="text-green-500" />
-          ) : (
-            <Plus size={16} className={textMuted}/>
-          )}
-        </button>
-      </div>
-    </div>
-    );
+  // Partage natif AVEC l'image si elle est prête et incluse (le fichier
+  // ET le texte partent ensemble via shareImageFile — voir useShare.js) —
+  // sinon repli sur le partage texte/lien classique (`shareNative`), comme
+  // avant ce chantier. `shareImageFile` ne ferme pas la modale elle-même
+  // (appelée aussi ailleurs sans modale de partage ouverte, voir
+  // PlaylistDetailView.jsx) — fermée ici explicitement après.
+  const handleNativeShare = async () => {
+    if (hasReadyImage) {
+      await shareImageFile(summaryImageFile, shareData.title, shareData.text);
+      onClose();
+    } else {
+      shareNative();
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" onClick={closeSearchModal}>
-      <div className={"p-6 md:p-8 rounded-3xl w-full max-w-lg shadow-2xl flex flex-col max-h-[80vh] border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-1">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" onClick={() => onClose()}>
+      <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-6">
           <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
-            {isBpmSearchMode ? <Target className={textColorClass}/> : <Search className={textColorClass}/>}
-            <span>{isBpmSearchMode ? "Titres à ce BPM" : "Rechercher un titre"}</span>
+            <Share2 className={textColorClass}/>
+            <span>Partager</span>
           </h3>
-          <button onClick={closeSearchModal} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
+          <button onClick={() => onClose()} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
         </div>
-        {/* Disclaimer honnête : l'utilisateur n'a pas besoin de savoir qu'on passe par
-            une API, mais mérite de savoir que les résultats viennent d'un service tiers
-            (Deezer) et peuvent être incomplets ou approximatifs — sans jargon technique. */}
-        <p className={`text-xs mb-5 ${textMuted}`}>* Connecté via Deezer — le BPM peut être approximatif, et certains titres peuvent rester introuvables.</p>
+        <div className={`p-4 rounded-xl mb-4 text-sm ${inputBg} border ${inputBorder} ${textHighlight}`}>
+          {shareData.text}
+        </div>
 
-        {isBpmSearchMode ? (
-          <div className={`mb-4 px-4 py-3 rounded-xl border ${inputBorder} ${inputBg} flex items-center justify-between`}>
-            <span className={`text-sm font-bold ${textMuted}`}>Cible : <span className={textColorClass}>{bpmSearchParams.bpm} BPM ± {bpmSearchParams.tolerance}</span> · {bpmSearchParams.genres.length > 0 ? bpmSearchParams.genres.map(genreDisplayLabel).join(', ') : 'tous genres'}</span>
-            <button onClick={() => searchTracksByBpm(bpmSearchParams.bpm, bpmSearchParams.tolerance, bpmSearchParams.genres)} disabled={isWorldSearching} className={`p-2 rounded-lg text-white ${bgAccentClass}`}>
-              {isWorldSearching ? <Loader2 className="animate-spin" size={16}/> : <RefreshCw size={16}/>}
-            </button>
+        {/* Aperçu du Bilan Visuel de Séance — génération en arrière-plan (voir
+            la docstring), jamais déclenchée depuis cette modale. 3 états
+            visibles, le 4e (error) reste silencieux (voir
+            startBackgroundImageGeneration, PlaylistDetailView.jsx — c'est un
+            bonus discret, pas une action explicitement demandée). */}
+        {shareData.type === 'playlist' && summaryImageStatus === 'loading' && (
+          <div className={`flex items-center gap-2 mb-4 text-xs font-semibold ${textMuted}`}>
+            <Loader2 size={14} className="animate-spin"/> Préparation du bilan visuel...
           </div>
-        ) : (
-          <div className="mb-4 flex gap-2">
-            <div className={"flex-1 flex items-center px-4 py-3 rounded-xl border " + inputBg + " " + inputBorder + (isWorldSearching ? ' opacity-60' : '')}>
-              <Search size={18} className={"mr-3 " + textMuted} />
-              <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !isWorldSearching && searchWorldMusicApi(true)} disabled={isWorldSearching} placeholder="Titre ou artiste (ex: One More Time, Daft Punk)..." className={"bg-transparent w-full font-bold outline-hidden disabled:cursor-not-allowed " + textHighlight} autoFocus />
-            </div>
-            <button onClick={() => searchWorldMusicApi(true)} disabled={isWorldSearching} className={"px-4 rounded-xl text-white font-bold transition-transform active:scale-95 flex items-center justify-center " + bgAccentClass}>
-              {isWorldSearching ? <Loader2 className="animate-spin" size={20}/> : <Search size={20}/>}
+        )}
+        {hasReadyImage && (
+          <div className="relative mb-4 inline-block">
+            <img src={summaryImagePreviewUrl} alt="Bilan visuel de la séance" className={`h-28 rounded-xl border ${inputBorder} object-cover`} />
+            <button
+              onClick={() => setIncludeSummaryImage(false)}
+              title="Retirer le bilan visuel"
+              className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center shadow-md hover:bg-red-500 transition-colors"
+            >
+              <X size={14}/>
             </button>
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 min-h-[200px]">
-          {isWorldSearching && worldSearchResults.length === 0 ? (
-            // Standardisé sur le même visuel "pilule" que l'indicateur de génération
-            // (voir plus haut, "Génération en cours...") — retour utilisateur : les
-            // indicateurs de chargement de l'app étaient trop différents d'un endroit
-            // à l'autre (ici, un gros bloc vertical centré vs une pilule horizontale
-            // ailleurs). Même structure exacte reprise : icône + texte + puce
-            // chronomètre au format M:SS, plutôt qu'un simple "Xs" comme avant.
-            <div className="flex justify-center py-8">
-              <div className={`${cardBg} border ${cardBorder} shadow-2xl px-6 py-3 rounded-full flex items-center space-x-3`}>
-                <Loader2 size={18} className={`animate-spin ${textColorClass}`} />
-                <span className={`font-medium text-sm ${textHighlight}`}>{searchLoadingMessage}</span>
-                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-full ${textMuted} bg-black/5 dark:bg-white/10`}>
-                  {Math.floor(searchElapsedSeconds / 60)}:{String(searchElapsedSeconds % 60).padStart(2, '0')}
-                </span>
-              </div>
-            </div>
-          ) : (worldSearchResults.length > 0 || (!searchHasMoreResults && worldSearchOtherResults.length > 0)) ? (
-            <>
-              {/* RETOUR DIRECT (affichage progressif) : indicateur discret que la
-                  recherche continue en arrière-plan même une fois les premiers
-                  résultats déjà affichés — sans ça, rien ne distingue "la recherche
-                  est terminée" de "encore en cours, potentiellement d'autres titres
-                  à venir". Uniquement en mode BPM (seul chemin concerné par la
-                  recherche progressive, voir fetchBpmSearchResults). */}
-              {isBpmSearchMode && isWorldSearching && worldSearchResults.length > 0 && (
-                <div className={`flex items-center gap-2 text-xs font-semibold px-1 pb-2 ${textMuted}`}>
-                  <Loader2 size={12} className="animate-spin"/>
-                  <span>Recherche toujours en cours — d'autres titres peuvent encore apparaître...</span>
-                </div>
-              )}
-              {resultsContextLabel && !isBpmSearchMode && worldSearchResults.length > 0 && (
-                <div className={`text-xs font-bold uppercase tracking-wider mb-2 px-1 ${textMuted}`}>{resultsContextLabel}</div>
-              )}
-              {(() => {
-                // Filtre les titres déjà en favoris — pas la peine de les
-                // remontrer à chaque nouvelle recherche identique. Uniquement
-                // hors contexte playlist : dans une playlist, un titre déjà
-                // en favoris reste pertinent à ajouter, la notion de
-                // "favori" n'a rien à voir avec ce qu'on cherche à faire ici.
-                const isAlreadyFav = (t) => !currentPlaylist && favorites.tracks.some(f => f.trackId === t.trackId);
-                const visibleMainResults = worldSearchResults.filter(t => !isAlreadyFav(t));
-                return (
-                  <>
-                    {worldSearchResults.length > 0 && visibleMainResults.length === 0 && (
-                      <div className={`text-xs italic px-1 pb-1 ${textMuted}`}>Tous les titres trouvés ici sont déjà dans tes favoris.</div>
-                    )}
-                    {visibleMainResults.map((track, i) => renderSearchResultRow(track, i))}
-                  </>
-                );
-              })()}
-              {searchHasMoreResults && !isBpmSearchMode && (
-                <button
-                  onClick={() => searchWorldMusicApi(false)}
-                  disabled={isLoadingMoreResults}
-                  className={`w-full mt-1 py-2.5 rounded-xl border-2 border-dashed text-sm font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-60 ${inputBorder} ${textMuted} hover:text-main hover:border-gray-400`}
-                >
-                  {isLoadingMoreResults ? <Loader2 className="animate-spin" size={16}/> : <ChevronDown size={16}/>}
-                  <span>{isLoadingMoreResults ? "Chargement..." : "Voir plus de résultats"}</span>
-                </button>
-              )}
-              {/* Réserve "autres résultats" (titres qui matchent le texte tapé
-                  mais pas l'artiste identifié, ex. Starboy pour "daft punk") —
-                  révélée seulement une fois la recherche générale épuisée
-                  (searchHasMoreResults = false), jamais avant : voir searchWorldMusicApi. */}
-              {!searchHasMoreResults && !isBpmSearchMode && worldSearchOtherResults.length > 0 && (
-                <>
-                  <div className={`text-xs font-bold uppercase tracking-wider mt-4 mb-2 px-1 ${textMuted}`}>Autres résultats pour "{searchQuery}" (pas {searchActiveArtistName})</div>
-                  {worldSearchOtherResults.filter(t => !(!currentPlaylist && favorites.tracks.some(f => f.trackId === t.trackId))).map((track, i) => renderSearchResultRow(track, `other-${i}`))}
-                </>
-              )}
-            </>
-          ) : (
-            (isBpmSearchMode || searchQuery.length > 0) && !isWorldSearching ? (
-              noUsableResultsHint ? (
-                <div className={`text-center py-8 px-4 font-medium ${textMuted}`}>
-                  {isBpmSearchMode
-                    ? <>Aucun titre trouvé pile à {bpmSearchParams.bpm} BPM (± {bpmSearchParams.tolerance}) pour ces genres.<br/>Essaie d'élargir la marge d'erreur.</>
-                    : <>Aucun titre avec un BPM connu trouvé pour "{searchQuery}".<br/>Essaie une orthographe différente, ou un titre plus précis.</>
-                  }
-                </div>
-              ) : (
-                <div className={`text-center py-8 font-medium ${textMuted}`}>Aucun résultat.</div>
-              )
-            ) : (
-              <div className={`text-center py-8 font-medium ${textMuted}`}>Tape un titre ou un nom d'artiste pour chercher son BPM.</div>
-            )
+        {/* Boutons directs vers les réseaux les plus courants — tuiles discrètes
+            (fond léger + accent coloré) plutôt que des blocs pleins saturés qui se
+            battaient visuellement entre eux. Le partage natif (menu "Partager"
+            habituel du téléphone/OS, quand disponible) est intégré comme une tuile
+            de plus, pas un gros bouton séparé qui dominait tout le reste. */}
+        <div className={`grid gap-2 mb-4 ${typeof navigator !== 'undefined' && navigator.share ? 'grid-cols-4' : 'grid-cols-3'}`}>
+          {typeof navigator !== 'undefined' && navigator.share && (
+            <button onClick={handleNativeShare} title={hasReadyImage ? "Partager le visuel (Story, Instagram, WhatsApp...)" : "Autres options"} className={`flex flex-col items-center gap-1.5 py-3.5 rounded-xl ${cardBg} border ${cardBorder} hover:bg-surface-hover transition-colors`}>
+              <Share2 size={18} className={textColorClass}/>
+              <span className={`text-[11px] font-bold text-center leading-tight ${textMuted}`}>{hasReadyImage ? 'Story / IG' : 'Plus'}</span>
+            </button>
           )}
+          <button onClick={shareToWhatsApp} title="WhatsApp" className="flex flex-col items-center gap-1.5 py-3.5 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/30 transition-colors">
+            <MessageCircle size={18} className="text-[#25D366]"/>
+            <span className="text-[11px] font-bold text-[#25D366]">WhatsApp</span>
+          </button>
+          <button onClick={shareToTwitter} title="X (Twitter)" className={`flex flex-col items-center gap-1.5 py-3.5 rounded-xl ${cardBg} border ${cardBorder} hover:bg-surface-hover transition-colors`}>
+            <span className={`text-base font-black leading-none ${textHighlight}`}>𝕏</span>
+            <span className={`text-[11px] font-bold ${textMuted}`}>X</span>
+          </button>
+          <button onClick={shareToFacebook} title="Facebook" className="flex flex-col items-center gap-1.5 py-3.5 rounded-xl bg-[#1877F2]/10 hover:bg-[#1877F2]/20 border border-[#1877F2]/30 transition-colors">
+            <ExternalLink size={18} className="text-[#1877F2]"/>
+            <span className="text-[11px] font-bold text-[#1877F2]">Facebook</span>
+          </button>
         </div>
+
+        <button onClick={copyToClipboard} className={`w-full py-4 text-white font-bold rounded-xl shadow-md hover:brightness-110 transition-all flex items-center justify-center gap-2 ${bgAccentClass}`}>
+          <Copy size={18}/> Copier le lien
+        </button>
+
+        {/* Repli manuel pour WhatsApp/X/Facebook ci-dessus : ces liens n'ouvrent
+            qu'une URL, impossible d'y joindre un fichier automatiquement (limite
+            technique de ces plateformes, pas de ce code) — au moins l'image est
+            à portée de main pour l'attacher soi-même après. */}
+        {hasReadyImage && (
+          <a
+            href={summaryImagePreviewUrl} download="tempofit-bilan-de-seance.png"
+            className={`w-full py-3 mt-2 rounded-xl text-sm font-bold ${textMuted} hover:text-main transition-colors flex items-center justify-center gap-2`}
+          >
+            <Download size={16}/> Télécharger le visuel (pour WhatsApp/X/Facebook, ou si le partage natif n'est pas disponible)
+          </a>
+        )}
+
+        <button onClick={shareViaEmail} className={`w-full py-3 mt-2 rounded-xl text-sm font-bold ${textMuted} hover:text-main transition-colors flex items-center justify-center gap-2`}>
+          <MessageCircle size={16}/> Envoyer par e-mail
+        </button>
       </div>
     </div>
   );
