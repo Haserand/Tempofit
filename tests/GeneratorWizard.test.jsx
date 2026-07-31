@@ -315,8 +315,12 @@ describe('GeneratorWizard — étape 4 (genres & génération)', () => {
 
   it('le bouton de génération est désactivé pendant isGenerating', () => {
     mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 4 }));
-    render(<GeneratorWizard {...baseProps({ isGenerating: true })} />);
-    expect(screen.getByText('Générer ma Playlist').closest('button')).toBeDisabled();
+    const { container } = render(<GeneratorWizard {...baseProps({ isGenerating: true })} />);
+    // Le bouton n'a plus de texte "Générer ma Playlist" pendant le
+    // chargement (affiche un loader à la place) — on le cible via sa
+    // classe stable plutôt qu'un texte absent dans cet état précis.
+    const generateButton = container.querySelector('.flex-1.text-xl.font-black');
+    expect(generateButton).toBeDisabled();
   });
 
   it('"Créer routine" ouvre la modale SAVING_ROUTINE', () => {
@@ -432,16 +436,19 @@ describe('GeneratorWizard — étape 2 (couverture complète)', () => {
     const setPaceMin = vi.fn();
     const setPaceSec = vi.fn();
     mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 2, targetMode: 'distance', setDistanceVal, setPaceMin, setPaceSec }));
-    const { container } = render(<GeneratorWizard {...baseProps()} />);
+    render(<GeneratorWizard {...baseProps()} />);
 
-    const numberInputs = container.querySelectorAll('input[type="number"]');
-    fireEvent.change(numberInputs[0], { target: { value: '10' } }); // distance
+    // Distance : le seul input dans le même bloc que le sélecteur d'unité (Km/Miles).
+    const distanceInput = screen.getByText('Km').closest('div').querySelector('input[type="number"]');
+    fireEvent.change(distanceInput, { target: { value: '10' } });
     expect(setDistanceVal).toHaveBeenCalledWith('10');
 
-    fireEvent.change(numberInputs[1], { target: { value: '5' } }); // allure min
+    // Allure : les 2 inputs dans le bloc situé juste après le texte "Allure:".
+    const paceInputs = screen.getByText('Allure:').parentElement.querySelectorAll('input[type="number"]');
+    fireEvent.change(paceInputs[0], { target: { value: '5' } });
     expect(setPaceMin).toHaveBeenCalledWith('5');
 
-    fireEvent.change(numberInputs[2], { target: { value: '45' } }); // allure sec
+    fireEvent.change(paceInputs[1], { target: { value: '45' } });
     expect(setPaceSec).toHaveBeenCalledWith('45');
   });
 
