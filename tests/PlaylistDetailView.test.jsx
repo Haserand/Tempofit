@@ -207,6 +207,10 @@ describe('PlaylistDetailView', () => {
     const setSummaryImageStatus = vi.fn();
     mockUsePlaylistDetail.mockReturnValue(makeContextValue());
     render(<PlaylistDetailView {...baseProps({ setSummaryImageStatus, summaryImageStatus: 'ready' })} />);
+    // L'effet de reset (currentPlaylist.id) se déclenche AUSSI au tout 1er
+    // montage (undefined → l'id réel) — on vide les appels d'abord pour
+    // n'observer que ceux causés par le clic ci-dessous, pas celui du montage.
+    setSummaryImageStatus.mockClear();
 
     fireEvent.click(screen.getByText('trigger-share'));
 
