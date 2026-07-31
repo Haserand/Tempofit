@@ -116,9 +116,15 @@ describe('SettingsView — onglets', () => {
 });
 
 describe('SettingsView — onglet Services Musicaux (Spotify)', () => {
+  function renderOnMusicTab(overrides = {}) {
+    const utils = render(<SettingsView {...baseProps(overrides)} />);
+    fireEvent.click(screen.getByText('Services Musicaux'));
+    return utils;
+  }
+
   it('non connecté : affiche "Lier mon compte", clic appelle loginSpotify', () => {
     const loginSpotify = vi.fn();
-    render(<SettingsView {...baseProps({ loginSpotify })} />);
+    renderOnMusicTab({ loginSpotify });
     fireEvent.click(screen.getByText('Lier mon compte'));
     expect(loginSpotify).toHaveBeenCalled();
   });
@@ -126,7 +132,7 @@ describe('SettingsView — onglet Services Musicaux (Spotify)', () => {
   it('connecté : affiche "Déconnecter", clic vide le localStorage et appelle setSpotifyToken(null)', () => {
     const setSpotifyToken = vi.fn();
     window.localStorage.setItem('spotify_token', 'abc123');
-    render(<SettingsView {...baseProps({ spotifyToken: 'abc123', setSpotifyToken })} />);
+    renderOnMusicTab({ spotifyToken: 'abc123', setSpotifyToken });
 
     fireEvent.click(screen.getByText('Déconnecter'));
 
@@ -135,7 +141,7 @@ describe('SettingsView — onglet Services Musicaux (Spotify)', () => {
   });
 
   it('affiche l\'aide "redirect_uri" uniquement si non connecté ET qu\'une redirectUri existe', () => {
-    const { rerender } = render(<SettingsView {...baseProps({ spotifyToken: null, spotifyRedirectUri: 'https://x/callback' })} />);
+    const { rerender } = renderOnMusicTab({ spotifyToken: null, spotifyRedirectUri: 'https://x/callback' });
     expect(screen.getByText('https://x/callback')).toBeInTheDocument();
 
     rerender(<SettingsView {...baseProps({ spotifyToken: 'abc', spotifyRedirectUri: 'https://x/callback' })} />);
@@ -143,7 +149,7 @@ describe('SettingsView — onglet Services Musicaux (Spotify)', () => {
   });
 
   it('le clic sur "Copier cette URL" copie la redirectUri dans le presse-papier', () => {
-    render(<SettingsView {...baseProps({ spotifyRedirectUri: 'https://x/callback' })} />);
+    renderOnMusicTab({ spotifyRedirectUri: 'https://x/callback' });
     fireEvent.click(screen.getByTitle('Copier cette URL'));
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://x/callback');
   });
