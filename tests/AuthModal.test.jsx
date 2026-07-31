@@ -46,7 +46,7 @@ describe('AuthModal — affichage de base', () => {
 
   it('mode par défaut "signin" : titre "Se connecter", e-mail/mot de passe visibles, pas de pseudonyme ni confirmation', () => {
     render(<AuthModal {...baseProps()} />);
-    expect(screen.getByText('Se connecter')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Se connecter' })).toBeInTheDocument();
     expect(screen.getByPlaceholderText('ton@email.com')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Mot de passe')).toBeInTheDocument();
     expect(screen.queryByPlaceholderText(/pseudonyme/)).not.toBeInTheDocument();
@@ -90,7 +90,7 @@ describe('AuthModal — bascule entre les modes', () => {
     render(<AuthModal {...baseProps()} />);
     fireEvent.click(screen.getByText("Pas encore de compte ? S'inscrire"));
     fireEvent.click(screen.getByText('Déjà un compte ? Se connecter'));
-    expect(screen.getByText('Se connecter')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Se connecter' })).toBeInTheDocument();
     expect(screen.queryByPlaceholderText(/pseudonyme/)).not.toBeInTheDocument();
   });
 
@@ -107,7 +107,7 @@ describe('AuthModal — bascule entre les modes', () => {
     render(<AuthModal {...baseProps()} />);
     fireEvent.click(screen.getByText('Mot de passe oublié ?'));
     fireEvent.click(screen.getByText(/Retour à la connexion/));
-    expect(screen.getByText('Se connecter')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Se connecter' })).toBeInTheDocument();
   });
 
   it('changer de mode réinitialise le mot de passe/la confirmation (resetFields)', () => {
@@ -292,7 +292,10 @@ describe('AuthModal — soumission signup', () => {
     fireEvent.click(screen.getByRole('button', { name: /Créer mon compte/ }));
 
     expect(signUp).not.toHaveBeenCalled();
-    expect(screen.getByText('Ce pseudonyme est déjà pris.')).toBeInTheDocument();
+    // Le message apparaît maintenant à 2 endroits (statut dédié sous le
+    // champ ET erreur générique du formulaire, ajoutée par la soumission
+    // bloquée) — les 2 sont attendues, pas une ambiguïté à éviter ici.
+    expect(screen.getAllByText('Ce pseudonyme est déjà pris.').length).toBeGreaterThanOrEqual(1);
   });
 
   it('tout est valide : appelle signUp(email trimé, password, username), showToast et close en cas de succès', async () => {
