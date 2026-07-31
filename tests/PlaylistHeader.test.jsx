@@ -33,7 +33,11 @@ vi.mock('../src/utils/coverArt.js', () => ({
 }));
 
 vi.mock('../src/components/shared/TopCompletionDate.jsx', () => ({
-  default: () => <div data-testid="top-completion-date-mock">TopCompletionDate (mock)</div>,
+  // Rendu inline (span, pas div) : le vrai PlaylistHeader.jsx insère ce
+  // composant À L'INTÉRIEUR d'un <p> — un <div> y serait du HTML invalide
+  // (avertissement React "cannot be a descendant of <p>", repéré au 1er
+  // déploiement de ce fichier).
+  default: () => <span data-testid="top-completion-date-mock">TopCompletionDate (mock)</span>,
 }));
 
 vi.mock('../src/components/shared/CompletionsList.jsx', () => ({
