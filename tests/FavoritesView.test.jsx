@@ -85,11 +85,12 @@ describe('FavoritesView', () => {
     render(<FavoritesView {...baseProps()} />);
     expect(screen.getByText('Mr. Brightside')).toBeInTheDocument();
     expect(screen.getByText('Thunderstruck')).toBeInTheDocument();
-    // "The Killers" apparaît 2 fois (ligne artiste du titre + chip artiste
-    // favori) — AC/DC n'apparaît qu'une fois (aucun titre d'AC/DC n'a été
-    // ajouté aux favoris ici), donc pas d'ambiguïté sur celui-ci.
+    // "The Killers" et "AC/DC" apparaissent chacun 2 fois (ligne artiste du
+    // titre + chip artiste favori) puisque les 2 artistes ont à la fois un
+    // titre ET un chip dans ce jeu de données de test — pas d'assertion
+    // getByText simple possible sur ces deux noms.
     expect(screen.getAllByText('The Killers').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText('AC/DC')).toBeInTheDocument();
+    expect(screen.getAllByText('AC/DC').length).toBeGreaterThanOrEqual(2);
   });
 
   it('le clic sur play d\'un titre AVEC preview appelle togglePreview directement (pas resolveAndPlay)', () => {
