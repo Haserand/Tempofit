@@ -11,11 +11,11 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 const mockOpenModal = vi.fn();
-vi.mock('../src/contexts/ModalContext.jsx', () => ({
+vi.mock('../../src/contexts/ModalContext.jsx', () => ({
   useModalContext: () => ({ openModal: mockOpenModal, activeModal: null, modalData: null, closeModal: vi.fn() }),
 }));
 
-import RoutinesView from '../src/components/views/RoutinesView.jsx';
+import RoutinesView from '../../src/components/views/RoutinesView.jsx';
 
 afterEach(() => {
   cleanup();
