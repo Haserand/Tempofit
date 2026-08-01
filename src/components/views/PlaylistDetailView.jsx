@@ -608,7 +608,7 @@ function PlaylistDetailViewInner({
 export default function PlaylistDetailView({
   currentPlaylist, setCurrentPlaylist, savedPlaylists, setSavedPlaylists,
   favorites, spotifyTrackPool, userStats, checkTrophies,
-  showToast, requestRemoveSavedPlaylist, handleSavePlaylist,
+  showToast, requestRemoveSavedPlaylist, handleSavePlaylist, handleClonePlaylist,
   currentActualData, selectedMetric, setSelectedMetric,
   dataOffset, setDataOffset,
   selectedAnalysisDate, setSelectedAnalysisDate, availableMetrics,
@@ -628,6 +628,7 @@ export default function PlaylistDetailView({
       favorites={favorites} spotifyTrackPool={spotifyTrackPool}
       userStats={userStats} checkTrophies={checkTrophies}
       showToast={showToast} requestRemoveSavedPlaylist={requestRemoveSavedPlaylist} handleSavePlaylist={handleSavePlaylist}
+      handleClonePlaylist={handleClonePlaylist}
       currentActualData={currentActualData} selectedMetric={selectedMetric} setSelectedMetric={setSelectedMetric}
       dataOffset={dataOffset} setDataOffset={setDataOffset}
       selectedAnalysisDate={selectedAnalysisDate} setSelectedAnalysisDate={setSelectedAnalysisDate}
