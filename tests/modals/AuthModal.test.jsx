@@ -11,7 +11,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
-import AuthModal from '../src/components/modals/AuthModal.jsx';
+import AuthModal from '../../src/components/modals/AuthModal.jsx';
 
 afterEach(() => {
   cleanup();
