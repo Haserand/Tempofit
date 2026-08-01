@@ -21,14 +21,23 @@ import { useModalContext } from '../contexts/ModalContext';
  */
 export function usePlaylistLibrary(
   currentPlaylist, setCurrentPlaylist, savedPlaylists, setSavedPlaylists, showToast,
-  openCuratedPlaylist, userStats, checkTrophies,
+  openCuratedPlaylist, userStats, checkTrophies, defaultPlaylistPublic,
 ) {
   const { openModal } = useModalContext();
 
   // Ajoute la playlist en cours d'affichage à "Mes Séances" (si pas déjà sauvegardée).
   const handleSavePlaylist = () => {
     if (currentPlaylist && !savedPlaylists.find(p => p.id === currentPlaylist.id)) {
-      const saved = { ...currentPlaylist, status: 'pending' };
+      // `isPublic` (Feature Sociale — Refonte Structurale Round 2/2, 01/08)
+      // — valeur de DÉPART lue depuis le réglage par défaut de
+      // SettingsView.jsx (`profilePrivacy.defaultPlaylistPublic`, reçu ici
+      // en paramètre) : juste une commodité au moment de la sauvegarde,
+      // ajustable ensuite au cas par cas (voir PlaylistHeader.jsx/
+      // PlaylistCard.jsx pour la bascule individuelle). `!!` en repli sûr :
+      // `undefined` (Supabase pas configuré, ou avant le 1er chargement du
+      // profil) doit se comporter comme `false`, jamais planter ce
+      // spread.
+      const saved = { ...currentPlaylist, status: 'pending', isPublic: !!defaultPlaylistPublic };
       setSavedPlaylists([saved, ...savedPlaylists]);
       // `currentPlaylist` et l'entrée poussée dans `savedPlaylists` étaient 2
       // objets distincts (même id, mais 2 références différentes) tant que
