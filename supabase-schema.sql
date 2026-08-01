@@ -158,3 +158,104 @@ create trigger prevent_username_change_trigger
 -- déclenchée par la suppression du compte lui-même (Edge Function
 -- `delete-account`, voir AuthContext.jsx/deleteAccount), jamais en direct.
 create index if not exists profiles_username_idx on profiles (username);
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- ÉVOLUTION "Vue Profil Public" (01/08, Feature Sociale Partie 2/3) —
+-- `show_sport_stats`/`show_intimate_stats` (profiles) restaient jusqu'ici
+-- de simples bascules SANS AUCUN EFFET réel : les vraies statistiques
+-- (BPM, temps d'entraînement) ne vivent pas dans `profiles` mais dans
+-- `user_data` (clé 'savedPlaylists', un DOUBLE blob JSON par utilisateur —
+-- voir usePersistentState.js/App.jsx) — une table RLS strictement privée
+-- (`using (auth.uid() = user_id)`, sans exception), donc totalement fermée
+-- à un visiteur non propriétaire quel que soit l'état de ces 2 bascules.
+--
+-- Cette fonction est la SEULE porte d'entrée autorisée à lire les données
+-- d'un AUTRE utilisateur pour les besoins d'un profil public — jamais une
+-- policy RLS élargie sur `user_data` elle-même (qui contient AUSSI les
+-- favoris, routines, thème, profil athlétique... aucune raison qu'un
+-- visiteur y touche, même en lecture). SECURITY DEFINER + vérifications
+-- explicites AU DÉBUT (profil trouvé ? public ? bascule concernée
+-- activée ?) avant toute lecture de `user_data` — si l'une échoue, renvoie
+-- `null` sans jamais avoir lu la moindre ligne de `savedPlaylists`.
+--
+-- Ne renvoie QUE `{ totalDuration, bpm }` par séance (JAMAIS le titre, les
+-- pistes, les dates, ou tout autre détail) — même en inspectant la requête
+-- réseau depuis le navigateur, un visiteur ne peut pas voir plus que ce
+-- résumé réduit. `sport_sessions`/`intimate_sessions` : présents dans le
+-- JSON renvoyé UNIQUEMENT si la bascule correspondante est active — clé
+-- ABSENTE (pas juste `null`), pour que ProfileView.jsx distingue "non
+-- autorisé à voir" de "autorisé, mais aucune séance" (voir sa docstring).
+--
+-- ⚠️ Point NON VÉRIFIÉ (pas d'accès à un vrai projet Supabase pour
+-- l'exécuter) : la syntaxe JSONB a été relue avec soin mais jamais testée
+-- contre de vraies données. À valider dans l'éditeur SQL Supabase avant de
+-- s'y fier en prod :
+--   select public.get_public_profile_summary('un_pseudo_de_test_existant');
+create or replace function public.get_public_profile_summary(target_username text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_user_id uuid;
+  is_public boolean;
+  want_sport boolean;
+  want_intimate boolean;
+  target_avatar text;
+  all_playlists jsonb;
+  sport_sessions jsonb;
+  intimate_sessions jsonb;
+  result jsonb;
+begin
+  select user_id, is_profile_public, show_sport_stats, show_intimate_stats, avatar_url
+    into target_user_id, is_public, want_sport, want_intimate, target_avatar
+  from profiles
+  where username = target_username;
+
+  if target_user_id is null or is_public is not true then
+    return null;
+  end if;
+
+  result := jsonb_build_object('username', target_username, 'avatar_url', target_avatar);
+
+  -- Lecture de `user_data` retardée jusqu'ICI, seulement si au moins une
+  -- des 2 bascules est active — inutile de lire quoi que ce soit sinon
+  -- (profil public mais aucune stat consentie à être montrée).
+  if want_sport or want_intimate then
+    select value into all_playlists
+    from user_data
+    where user_id = target_user_id and key = 'savedPlaylists';
+
+    all_playlists := coalesce(all_playlists, '[]'::jsonb);
+
+    if want_sport then
+      select coalesce(jsonb_agg(jsonb_build_object(
+               'totalDuration', elem->'totalDuration',
+               'bpm', elem->'config'->'bpm'
+             )), '[]'::jsonb)
+        into sport_sessions
+      from jsonb_array_elements(all_playlists) elem
+      where coalesce((elem->>'isNaughty')::boolean, false) = false;
+
+      result := result || jsonb_build_object('sport_sessions', sport_sessions);
+    end if;
+
+    if want_intimate then
+      select coalesce(jsonb_agg(jsonb_build_object(
+               'totalDuration', elem->'totalDuration',
+               'bpm', elem->'config'->'bpm'
+             )), '[]'::jsonb)
+        into intimate_sessions
+      from jsonb_array_elements(all_playlists) elem
+      where coalesce((elem->>'isNaughty')::boolean, false) = true;
+
+      result := result || jsonb_build_object('intimate_sessions', intimate_sessions);
+    end if;
+  end if;
+
+  return result;
+end;
+$$;
+
+grant execute on function public.get_public_profile_summary(text) to anon, authenticated;
