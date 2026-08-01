@@ -335,3 +335,167 @@ $$;
 
 revoke execute on function public.search_public_profiles(text) from anon;
 grant execute on function public.search_public_profiles(text) to authenticated;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- ÉVOLUTION "Refonte Structurale — Round 1/2" (01/08) — 2 nouvelles tables
+-- relationnelles (`playlists`/`routines`, une LIGNE par élément) en
+-- PARALLÈLE de `user_data` (clés 'savedPlaylists'/'routines', un seul blob
+-- JSON par utilisateur) — pas un remplacement destructeur : `user_data`
+-- N'EST PAS vidée par ce fichier, elle reste en place comme filet de
+-- sécurité tant que les nouveaux hooks (voir useSyncedCollection.js) n'ont
+-- pas été vérifiés en usage réel.
+--
+-- ⚠️ ÉCART AU BRIEF #1 (id UUID → id text) — le brief demandait `id UUID
+-- PRIMARY KEY`, mais les id réels générés côté client pour une playlist/
+-- routine sont des CHAÎNES ARBITRAIRES (`pl-1731000000000-a1b2c3d4f`,
+-- `routine-1`, `playlist-example-1`... voir musicEngine.js/App.jsx/
+-- useRoutines.js) — JAMAIS au format UUID. Une colonne `uuid` stricte
+-- aurait rejeté CHAQUE insertion dès le 1er essai (erreur de syntaxe
+-- UUID), y compris toute la migration ci-dessous. `text` préserve la
+-- compatibilité avec l'existant sans qu'aucun id n'ait besoin d'être
+-- régénéré.
+--
+-- ⚠️ ÉCART AU BRIEF #2 (clé primaire composite `(id, user_id)`, PAS `id`
+-- seul comme demandé) — trouvé en relisant ma propre conception avant
+-- livraison : la playlist de DÉMONSTRATION par défaut (voir App.jsx,
+-- `usePersistentState('savedPlaylists', ...)`) a l'id LITTÉRAL
+-- `'playlist-example-1'`, IDENTIQUE pour chaque nouveau compte tant que
+-- personne n'a encore sauvegardé sa propre séance (même chose pour
+-- `'routine-1'` côté routines) — un `id` seul comme clé primaire GLOBALE
+-- (toutes lignes, tous utilisateurs confondus) aurait fait échouer
+-- l'insertion du 2e compte à créer un profil dans cet état par défaut :
+-- collision de clé primaire sur `'playlist-example-1'` déjà pris par le
+-- 1er compte. `(id, user_id)` résout ça sans rien perdre : chaque
+-- opération de useSyncedCollection.js filtre de toute façon déjà
+-- SYSTÉMATIQUEMENT par `id` ET `user_id` ensemble (jamais l'un sans
+-- l'autre), donc ce changement ne coûte rien côté application — même
+-- convention déjà utilisée par `user_data` (`primary key (user_id, key)`,
+-- voir plus haut dans ce fichier).
+create table if not exists playlists (
+  id text not null,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  content jsonb not null,
+  is_public boolean not null default false,
+  is_intimate boolean not null default false,
+  created_at timestamptz not null default now(),
+  primary key (id, user_id)
+);
+
+alter table playlists enable row level security;
+
+drop policy if exists "Une playlist est lisible par son propriétaire ou si publique" on playlists;
+create policy "Une playlist est lisible par son propriétaire ou si publique"
+  on playlists for select
+  using (auth.uid() = user_id or is_public = true);
+
+drop policy if exists "Un utilisateur crée uniquement ses propres playlists" on playlists;
+create policy "Un utilisateur crée uniquement ses propres playlists"
+  on playlists for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Un utilisateur modifie uniquement ses propres playlists" on playlists;
+create policy "Un utilisateur modifie uniquement ses propres playlists"
+  on playlists for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Un utilisateur supprime uniquement ses propres playlists" on playlists;
+create policy "Un utilisateur supprime uniquement ses propres playlists"
+  on playlists for delete
+  using (auth.uid() = user_id);
+
+create index if not exists playlists_user_id_idx on playlists (user_id);
+-- Index PARTIEL (uniquement les lignes publiques) — la future page "profil
+-- public" (Round 2/2) lira surtout `where is_public = true`, jamais la
+-- table entière ; un index complet sur toutes les lignes coûterait de
+-- l'espace pour rien sur les ~99% de lignes qui resteront privées.
+create index if not exists playlists_public_idx on playlists (user_id) where is_public = true;
+
+-- `routines` — MÊME structure exacte que `playlists` (demandée telle
+-- quelle par le brief). Note honnête : contrairement à `playlists`, aucune
+-- vue de l'app n'expose encore de routine publiquement (pas de toggle, pas
+-- d'affichage sur ProfileView.jsx) — `is_public`/`is_intimate` restent donc
+-- posées mais INERTES pour l'instant, prêtes pour une future fonctionnalité
+-- plutôt qu'un besoin déjà branché aujourd'hui.
+create table if not exists routines (
+  id text not null,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  content jsonb not null,
+  is_public boolean not null default false,
+  is_intimate boolean not null default false,
+  created_at timestamptz not null default now(),
+  primary key (id, user_id)
+);
+
+alter table routines enable row level security;
+
+drop policy if exists "Une routine est lisible par son propriétaire ou si publique" on routines;
+create policy "Une routine est lisible par son propriétaire ou si publique"
+  on routines for select
+  using (auth.uid() = user_id or is_public = true);
+
+drop policy if exists "Un utilisateur crée uniquement ses propres routines" on routines;
+create policy "Un utilisateur crée uniquement ses propres routines"
+  on routines for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Un utilisateur modifie uniquement ses propres routines" on routines;
+create policy "Un utilisateur modifie uniquement ses propres routines"
+  on routines for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Un utilisateur supprime uniquement ses propres routines" on routines;
+create policy "Un utilisateur supprime uniquement ses propres routines"
+  on routines for delete
+  using (auth.uid() = user_id);
+
+create index if not exists routines_user_id_idx on routines (user_id);
+create index if not exists routines_public_idx on routines (user_id) where is_public = true;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- MIGRATION — copie chaque ÉLÉMENT du blob JSON `user_data` (clés
+-- 'savedPlaylists'/'routines', un tableau par utilisateur) vers UNE LIGNE
+-- de la table relationnelle correspondante. `jsonb_array_elements` déplie
+-- le tableau ; `cross join lateral` associe chaque élément déplié à la
+-- ligne `user_data` (donc au bon `user_id`) dont il provient.
+--
+-- `on conflict (id, user_id) do nothing` — REJOUABLE sans risque : une 2e
+-- exécution (ex. après avoir ajouté de nouveaux utilisateurs) n'écrase
+-- jamais une ligne déjà migrée, se contente d'ajouter ce qui manque
+-- encore. Cible la clé primaire COMPOSITE `(id, user_id)` (voir plus haut,
+-- pourquoi `id` seul aurait pu collisionner entre 2 comptes différents).
+-- Aucune suppression : `user_data` n'est PAS vidée par ce script,
+-- volontairement (voir plus haut) — à faire manuellement, plus tard, une
+-- fois les nouveaux hooks vérifiés en usage réel.
+--
+-- `coalesce(elem->>'id', ...)` — filet de sécurité si jamais un élément
+-- existant n'avait pas de champ `id` du tout (ne devrait pas arriver avec
+-- le modèle de données actuel, mais une ligne SANS id ferait échouer
+-- toute la migration sur une contrainte `primary key`, pas la peine de
+-- risquer ça pour un cas limite).
+insert into playlists (id, user_id, content, is_public, is_intimate, created_at)
+select
+  coalesce(elem->>'id', gen_random_uuid()::text),
+  ud.user_id,
+  elem,
+  false,
+  coalesce((elem->>'isNaughty')::boolean, false),
+  now()
+from user_data ud
+cross join lateral jsonb_array_elements(ud.value) as elem
+where ud.key = 'savedPlaylists'
+on conflict (id, user_id) do nothing;
+
+insert into routines (id, user_id, content, is_public, is_intimate, created_at)
+select
+  coalesce(elem->>'id', gen_random_uuid()::text),
+  ud.user_id,
+  elem,
+  false,
+  false,
+  now()
+from user_data ud
+cross join lateral jsonb_array_elements(ud.value) as elem
+where ud.key = 'routines'
+on conflict (id, user_id) do nothing;
