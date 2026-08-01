@@ -5,11 +5,11 @@ import {
   levenshteinDistance,
   isConfidentArtistMatch,
   dedupeAppend,
-} from '../src/searchEngine.js';
+} from '../src/engine/searchEngine.js';
 
 /**
  * searchEngine.test.js — sécurise les fonctions PURES du moteur de
- * recherche/sélection par nom d'artiste (src/searchEngine.js) : aucune
+ * recherche/sélection par nom d'artiste (src/engine/searchEngine.js) : aucune
  * n'était couverte jusqu'ici, malgré leur usage central dans la recherche
  * manuelle (SearchModal.jsx) et la résolution BPM par artiste. Toutes les
  * valeurs attendues ci-dessous ont été vérifiées par exécution réelle des
