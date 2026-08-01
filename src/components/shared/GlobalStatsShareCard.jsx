@@ -44,7 +44,7 @@ export default function GlobalStatsShareCard({
 
   return (
     <div
-      className="w-[400px] rounded-[32px] overflow-hidden shadow-2xl relative"
+      className="w-[400px] rounded-[32px] overflow-hidden relative"
       style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
     >
       {/* Fond dégradé accrocheur (demande explicite) + halo décoratif — le halo
