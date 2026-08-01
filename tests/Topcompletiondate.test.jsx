@@ -131,4 +131,38 @@ describe('TopCompletionDate', () => {
     expect(setEditingCompletion).toHaveBeenCalledWith(null);
     expect(editCompletionDate).not.toHaveBeenCalled();
   });
+
+  // isReadOnly (Feature Sociale — Consultation/Clonage, 01/08) — playlist
+  // étrangère consultée en aperçu (PlaylistHeader.jsx) : la date reste
+  // visible mais ne doit plus être cliquable/éditable.
+  describe('isReadOnly', () => {
+    it('affiche la date en texte simple, sans bouton ni icône crayon', () => {
+      render(
+        <TopCompletionDate
+          playlist={mockPlaylist}
+          editingCompletion={null}
+          setEditingCompletion={() => {}}
+          editCompletionDate={() => {}}
+          theme={mockTheme}
+          isReadOnly={true}
+        />
+      );
+      expect(screen.queryByRole('button')).toBeNull();
+      expect(screen.getByText(/15.*2026/)).toBeInTheDocument();
+    });
+
+    it('ignore editingCompletion — jamais de <input type="date"> même si un état d\'édition matche CETTE date', () => {
+      render(
+        <TopCompletionDate
+          playlist={mockPlaylist}
+          editingCompletion={{ playlistId: 'playlist-1', isoDate: '2026-03-15T10:00:00.000Z' }}
+          setEditingCompletion={() => {}}
+          editCompletionDate={() => {}}
+          theme={mockTheme}
+          isReadOnly={true}
+        />
+      );
+      expect(document.querySelector('input[type="date"]')).toBeNull();
+    });
+  });
 });
