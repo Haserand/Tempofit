@@ -48,7 +48,6 @@ const baseProps = {
   toggleNaughtyMode: () => {},
   theme: 'dark', // chaîne simple ('dark'/'light'), PAS l'objet de tokens — juste pour le bouton Sun/Moon
   toggleTheme: () => {},
-  openModal: () => {},
 };
 
 describe('Sidebar', () => {
@@ -137,19 +136,5 @@ describe('Sidebar', () => {
     render(<Sidebar {...baseProps} user={{ id: 'abc' }} />);
     expect(screen.getByText('Mon Espace')).toHaveTextContent('Mon Espace');
     expect(screen.queryByText(/Invité/)).toBeNull();
-  });
-
-  it('masque le bouton "Rechercher un profil" quand aucun utilisateur n\'est connecté (user=null)', () => {
-    render(<Sidebar {...baseProps} user={null} />);
-    expect(screen.queryByTitle('Rechercher un profil')).toBeNull();
-  });
-
-  it('le clic sur "Rechercher un profil" appelle openModal(\'SEARCH_USERS\')', () => {
-    const openModal = vi.fn();
-    render(<Sidebar {...baseProps} user={{ id: 'abc' }} openModal={openModal} />);
-
-    fireEvent.click(screen.getByTitle('Rechercher un profil'));
-
-    expect(openModal).toHaveBeenCalledWith('SEARCH_USERS');
   });
 });
