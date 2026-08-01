@@ -1,5 +1,5 @@
 import { WEAK_DEEZER_KEYWORD_GENRES } from '../musicCatalog';
-import { dedupeAppend, fetchWorldSearchResults, fetchBpmSearchResults } from '../searchEngine';
+import { dedupeAppend, fetchWorldSearchResults, fetchBpmSearchResults } from '../engine/searchEngine';
 import { SEARCH_LOADING_MESSAGES } from './useTrackSearch';
 import { useModalContext } from '../contexts/ModalContext';
 
