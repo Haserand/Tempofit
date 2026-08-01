@@ -39,6 +39,22 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // `build.sourcemap: true` (01/08, "E is not a function" — pile d'appels
+  // totalement illisible en prod, noms de variables/fonctions réduits à
+  // 1-2 lettres par le minifieur, impossible de savoir quelle ligne réelle
+  // plante) — Vite ne génère AUCUNE sourcemap en prod par défaut
+  // (`build.sourcemap` vaut `false`). Une fois activé, Chrome/Firefox
+  // DevTools résolvent automatiquement les piles d'erreurs vers les VRAIS
+  // noms de fichiers/fonctions/lignes du code source, exactement comme en
+  // dev — aucun changement de comportement runtime, juste des fichiers
+  // `.map` supplémentaires déployés à côté des `.js` (légèrement plus gros
+  // à héberger, sans impact sur ce que le navigateur exécute). Precious
+  // pour CE diagnostic en cours, mais utile durablement au-delà : chaque
+  // futur bug "X is not a function" en prod deviendra lisible du premier
+  // coup, sans ce même aller-retour.
+  build: {
+    sourcemap: true,
+  },
   // Vitest lit ce même fichier de config (pas de vitest.config.js séparé,
   // donc pas de 2e source de vérité à tenir à jour). `environment: 'node'`
   // (pas 'jsdom') par défaut, VOLONTAIREMENT INCHANGÉ (chantier "premier
