@@ -457,8 +457,15 @@ export default function PlaylistHeader({
               rien à rendre public. Prime sur le réglage par défaut de
               SettingsView.jsx, qui ne sert qu'à préremplir cette valeur
               AU MOMENT de la sauvegarde initiale — modifiable ici à tout
-              moment ensuite, dans un sens comme dans l'autre. */}
-          {isSaved && (
+              moment ensuite, dans un sens comme dans l'autre.
+              `!isReadOnly` ajouté (01/08, trouvé en écrivant les tests de
+              ce fichier) — défense en profondeur, même principe exact que
+              le bouton CSV plus haut : `isSaved` vaut TOUJOURS `false`
+              pour une vraie playlist étrangère en pratique (voir
+              PlaylistDetailContext.jsx), donc ce garde ne change rien
+              aujourd'hui, mais protège contre un futur changement qui
+              romprait cette hypothèse implicite sans y penser. */}
+          {isSaved && !isReadOnly && (
             <button
               onClick={handleTogglePlaylistPublic}
               title={currentPlaylist.isPublic ? "Visible sur ton profil public — clique pour la rendre privée" : "Rendre cette playlist visible sur ton profil public"}
