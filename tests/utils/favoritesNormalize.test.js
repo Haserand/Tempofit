@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeFavorites } from '../src/utils/favoritesNormalize.js';
+import { normalizeFavorites } from '../../src/utils/favoritesNormalize.js';
 
 describe('normalizeFavorites', () => {
   it('laisse inchangé un objet déjà au nouveau format (standard/naughty)', () => {
