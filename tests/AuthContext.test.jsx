@@ -13,7 +13,7 @@
 // ModalContext était directement mocké — ici, c'est justement CE Provider
 // qu'on veut tester, donc il doit tourner pour de vrai).
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 
 // `vi.mock()` est hissé (hoisted) tout en haut du fichier par Vitest, AVANT
@@ -73,6 +73,22 @@ const wrapper = ({ children }) => <AuthProvider>{children}</AuthProvider>;
 function renderAuth() {
   return renderHook(() => useAuthContext(), { wrapper });
 }
+
+beforeEach(() => {
+  // Repose un builder neutre et COMPLET avant chaque test — sans ça, un
+  // `mockReturnValue` posé par un test précédent (ex: exportUserData, dont
+  // le builder a `.eq()` qui renvoie directement une Promise plutôt que le
+  // builder chaînable) reste actif pour tous les tests suivants qui ne le
+  // reconfigurent pas eux-mêmes (`vi.clearAllMocks()` efface les APPELS
+  // enregistrés, jamais les valeurs de retour déjà posées). Concrètement :
+  // n'importe quel test qui pose un `user` déclenche l'effet de synchro du
+  // pseudonyme (`.select().eq().maybeSingle()`) en arrière-plan — sans ce
+  // reset, il tombait parfois sur un builder incomplet laissé par un AUTRE
+  // test et plantait silencieusement après coup (7 "Unhandled Rejection"
+  // au 1er déploiement réel de ce fichier, invisibles tant qu'on ne
+  // regarde que le statut ✓/× de chaque test).
+  mockFrom.mockReturnValue(makeBuilder());
+});
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -243,7 +259,19 @@ describe('AuthContext — exportUserData (RGPD)', () => {
 
   it('connecté : transforme les lignes [{key,value}] en objet {clé: valeur}', async () => {
     mockAuth.getSession.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
-    mockFrom.mockReturnValue(makeBuilder({ selectEqResult: { data: [{ key: 'favorites', value: { tracks: [] } }, { key: 'theme', value: 'dark' }], error: null } }));
+    // Ce test déclenche AUSSI l'effet de synchro du pseudonyme (dès qu'un
+    // `user` existe) — qui interroge 'profiles' via .select().eq().maybeSingle(),
+    // un chaînage incompatible avec le builder "eq() résout directement"
+    // dont exportUserData a besoin pour 'user_data'. D'où la distinction
+    // explicite par table plutôt qu'un mockReturnValue uniforme (qui avait
+    // cassé l'effet de synchro en arrière-plan au 1er déploiement réel de
+    // ce fichier — 7 "Unhandled Rejection" invisibles dans le résultat
+    // ✓/× de chaque test).
+    mockFrom.mockImplementation((table) =>
+      table === 'user_data'
+        ? makeBuilder({ selectEqResult: { data: [{ key: 'favorites', value: { tracks: [] } }, { key: 'theme', value: 'dark' }], error: null } })
+        : makeBuilder()
+    );
     const { result } = renderAuth();
     await waitFor(() => expect(result.current.user).toEqual({ id: 'u1' }));
 
