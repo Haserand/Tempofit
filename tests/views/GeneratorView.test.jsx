@@ -11,15 +11,15 @@ import { render, screen, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 const mockUseGeneratorContext = vi.fn();
-vi.mock('../src/contexts/GeneratorContext.jsx', () => ({
+vi.mock('../../src/contexts/GeneratorContext.jsx', () => ({
   useGeneratorContext: () => mockUseGeneratorContext(),
 }));
 
-vi.mock('../src/components/views/GeneratorWizard.jsx', () => ({
+vi.mock('../../src/components/views/GeneratorWizard.jsx', () => ({
   default: ({ isGenerating }) => <div data-testid="generator-wizard-mock" data-generating={String(isGenerating)} />,
 }));
 
-import GeneratorView from '../src/components/views/GeneratorView.jsx';
+import GeneratorView from '../../src/components/views/GeneratorView.jsx';
 
 afterEach(() => {
   cleanup();
