@@ -31,6 +31,7 @@ import { deezerFetch, deduceCrescendoBpm, buildCrescendoSegments, recalculateTim
 import { decodePlaylistFromSharing } from './utils/playlistShareCode';
 import { useTheme } from './hooks/useTheme';
 import { usePersistentState } from './hooks/usePersistentState';
+import { useSyncedCollection } from './hooks/useSyncedCollection';
 // useToast est toujours importé ici, mais appelé UNE SEULE FOIS par le
 // composant racine `App` (chantier AudioPlayerContext — voir fin de fichier),
 // plus par AppContent : toast/showToast lui arrivent maintenant en props.
@@ -518,7 +519,15 @@ function AppContent({
   // useEffect dédié plus bas, après celui du <title>) plutôt que codé en dur —
   // une URL d'extrait Deezer expire au bout de quelques heures, donc la figer
   // ici casserait le bouton d'écoute silencieusement après coup.
-  const [savedPlaylists, setSavedPlaylists] = usePersistentState('savedPlaylists', () => [{
+  // "Refonte Structurale — Round 1/2" (01/08) — remplace
+  // `usePersistentState('savedPlaylists', ...)` par
+  // `useSyncedCollection('savedPlaylists', 'playlists', ...)` : chaque
+  // playlist vit désormais dans sa PROPRE ligne de la table `playlists`
+  // (voir supabase-schema.sql) plutôt que dans un blob JSON unique — sans
+  // rien changer pour les ~20 appelants existants de `setSavedPlaylists`
+  // ailleurs dans l'app (voir la docstring de useSyncedCollection.js pour
+  // le raisonnement complet). Mode invité/hors-ligne INCHANGÉ.
+  const [savedPlaylists, setSavedPlaylists] = useSyncedCollection('savedPlaylists', 'playlists', () => [{
     id: 'playlist-example-1',
     name: 'Exemple : Session Rock/Métal',
     workoutType: 'Course à pied',
