@@ -14,11 +14,11 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 const mockUseModalContext = vi.fn();
-vi.mock('../src/contexts/ModalContext.jsx', () => ({
+vi.mock('../../src/contexts/ModalContext.jsx', () => ({
   useModalContext: () => mockUseModalContext(),
 }));
 
-vi.mock('../src/components/modals/AuthModal.jsx', () => ({
+vi.mock('../../src/components/modals/AuthModal.jsx', () => ({
   default: ({ isAuthModalOpen, onClose, signUp, signIn, resetPassword, checkUsernameAvailable, showToast }) => (
     <div data-testid="auth-modal-mock" data-open={String(isAuthModalOpen)}>
       <button onClick={onClose}>close-auth</button>
@@ -31,7 +31,7 @@ vi.mock('../src/components/modals/AuthModal.jsx', () => ({
   ),
 }));
 
-vi.mock('../src/components/modals/ImportSharedPlaylistModal.jsx', () => ({
+vi.mock('../../src/components/modals/ImportSharedPlaylistModal.jsx', () => ({
   default: ({ isOpen, preview, onImport, onClose }) => (
     <div data-testid="import-shared-modal-mock" data-open={String(isOpen)} data-preview={JSON.stringify(preview)}>
       <button onClick={onClose}>close-import</button>
@@ -40,7 +40,7 @@ vi.mock('../src/components/modals/ImportSharedPlaylistModal.jsx', () => ({
   ),
 }));
 
-vi.mock('../src/components/modals/PendingNavigationModal.jsx', () => ({
+vi.mock('../../src/components/modals/PendingNavigationModal.jsx', () => ({
   default: ({ pendingNavigation, onClose, resolvePendingNavigation }) => (
     <div data-testid="pending-nav-modal-mock" data-value={JSON.stringify(pendingNavigation)}>
       <button onClick={onClose}>close-pending-nav</button>
@@ -49,7 +49,7 @@ vi.mock('../src/components/modals/PendingNavigationModal.jsx', () => ({
   ),
 }));
 
-vi.mock('../src/components/modals/PendingUnsaveModal.jsx', () => ({
+vi.mock('../../src/components/modals/PendingUnsaveModal.jsx', () => ({
   default: ({ pendingUnsavePlaylist, onClose, removeSavedPlaylist }) => (
     <div data-testid="pending-unsave-modal-mock" data-value={JSON.stringify(pendingUnsavePlaylist)}>
       <button onClick={onClose}>close-pending-unsave</button>
@@ -58,7 +58,7 @@ vi.mock('../src/components/modals/PendingUnsaveModal.jsx', () => ({
   ),
 }));
 
-import ModalContainer from '../src/components/shared/ModalContainer.jsx';
+import ModalContainer from '../../src/components/shared/ModalContainer.jsx';
 
 afterEach(() => {
   cleanup();
