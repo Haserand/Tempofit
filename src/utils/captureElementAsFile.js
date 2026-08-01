@@ -98,7 +98,7 @@ async function waitForImagesToLoad(element) {
  * `startBackgroundImageGeneration`, PlaylistDetailView.jsx, qui bascule
  * `summaryImageStatus` sur `'error'` dans ce cas).
  */
-export async function captureElementAsFile(element, filename, { scale = 2, extraDelayMs = 50, timeoutMs = 15000 } = {}) {
+export async function captureElementAsFile(element, filename, { scale = 2, extraDelayMs = 50, timeoutMs = 30000 } = {}) {
   if (!element) throw new Error('captureElementAsFile: élément DOM manquant');
 
   if (extraDelayMs > 0) await new Promise(resolve => setTimeout(resolve, extraDelayMs));
