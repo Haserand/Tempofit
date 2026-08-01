@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { deezerFetch } from '../musicEngine';
+import { deezerFetch } from '../engine/musicEngine';
 import { usePersistentState } from './usePersistentState';
 import { normalizeFavorites } from '../utils/favoritesNormalize';
 
