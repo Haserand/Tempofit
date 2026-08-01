@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { resolveDeezerTrackByTitleArtist } from '../musicEngine';
+import { resolveDeezerTrackByTitleArtist } from '../engine/musicEngine';
 
 /**
  * useAudioPreview — lecture des extraits audio (30s, fournis par Deezer).
