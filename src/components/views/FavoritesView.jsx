@@ -2,7 +2,7 @@ import { Star, Heart, Play, Pause, Loader2, X, Plus, User, Target, Search, Info 
 import { getGenreLocalDepthWarning, getGenresForDisplay, genreDisplayLabel, EXTRA_GENRES } from '../../musicCatalog';
 import { useModalContext } from '../../contexts/ModalContext';
 import ViewHeader from '../shared/ViewHeader';
-import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../viewHeaderLayout';
+import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 
 /**
  * FavoritesView — vue "Mes Favoris" (titres/artistes favoris + exploration BPM/genre).
