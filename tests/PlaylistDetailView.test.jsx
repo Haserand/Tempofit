@@ -73,7 +73,7 @@ vi.mock('../src/utils/captureElementAsFile.js', () => ({
   fetchImageAsDataUri: vi.fn(() => Promise.resolve('data:image/png;base64,mock')),
 }));
 
-vi.mock('../src/musicEngine.js', () => ({
+vi.mock('../src/engine/musicEngine.js', () => ({
   deezerFetch: vi.fn(() => Promise.resolve({ data: { album: { cover_medium: 'https://cover.jpg' } } })),
 }));
 
