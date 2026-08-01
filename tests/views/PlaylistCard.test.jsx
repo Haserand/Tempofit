@@ -11,19 +11,19 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
-vi.mock('../src/appConfig.js', () => ({
+vi.mock('../../src/appConfig.js', () => ({
   getActivityEmoji: vi.fn(() => '🏃'),
 }));
 
-vi.mock('../src/utils/coverArt.js', () => ({
+vi.mock('../../src/utils/coverArt.js', () => ({
   buildCoverUrl: vi.fn((name) => `generated-cover://${name}`),
 }));
 
-vi.mock('../src/components/shared/CompletionsList.jsx', () => ({
+vi.mock('../../src/components/shared/CompletionsList.jsx', () => ({
   default: () => <div data-testid="completions-list-mock">CompletionsList (mock)</div>,
 }));
 
-import PlaylistCard from '../src/components/views/PlaylistCard.jsx';
+import PlaylistCard from '../../src/components/views/PlaylistCard.jsx';
 
 afterEach(() => {
   cleanup();
