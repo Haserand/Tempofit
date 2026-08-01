@@ -7,15 +7,13 @@ import { formatDuration } from '../../utils/format';
  * PUREMENT présentationnel, capturé ensuite via html2canvas par l'appelant —
  * voir StatsView.jsx pour la logique d'export une fois câblée).
  *
- * ⚠️ ÉTAPE 1/2 (consigne explicite) : ce fichier ne contient QUE le
- * composant visuel, avec des valeurs de démonstration par défaut pour
- * chaque prop — pas encore branché sur `useUserStats.js`/`StatsView.jsx`.
- * Toutes les props ont une valeur par défaut réaliste, donc
- * `<GlobalStatsShareCard />` sans rien lui passer s'affiche déjà
- * correctement pour ajuster le design. Le câblage aux vraies données
- * (`totalSeconds`, BPM moyen, etc. — déjà calculés dans StatsView.jsx pour
- * les besoins des graphiques existants, voir `totalSeconds`/`bpmSum`/
- * `bpmCount` là-bas) viendra dans un 2e temps, une fois le design validé.
+ * Câblé sur les VRAIES données depuis StatsView.jsx (voir le rendu hors
+ * écran juste avant `exportGlobalStatsImage`, qui lui passe `totalSeconds`/
+ * `avgBpm`/`favoriteBpmLabel`/`totalPlaylistsGenerated` déjà calculés là-bas
+ * pour les besoins des graphiques existants). Toutes les props gardent
+ * cependant une valeur par défaut réaliste : `<GlobalStatsShareCard />` sans
+ * rien lui passer reste utilisable telle quelle (design, tests, Storybook
+ * éventuel) sans dépendre de StatsView.jsx.
  *
  * Design volontairement DIFFÉRENT du rouge habituel de l'app (voir
  * SessionSummaryCard.jsx, qui lui reste dans la charte TempoFit) — dégradé
