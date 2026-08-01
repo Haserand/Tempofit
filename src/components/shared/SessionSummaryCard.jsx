@@ -167,7 +167,7 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sess
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: accent }}>
             <Activity size={20} color="white" />
           </div>
-          <span className="text-white font-black text-lg tracking-tight">Tempo<span style={{ color: accent }}>Fit</span></span>
+          <span className="font-black text-lg tracking-tight" style={{ color: '#ffffff' }}>Tempo<span style={{ color: accent }}>Fit</span></span>
         </div>
 
         {/* En-tête : pochette de la séance à côté du titre — retour direct
@@ -178,15 +178,15 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sess
         <div className="flex items-start gap-4 mb-2">
           <img src={coverUrl} alt="" className="w-16 h-16 rounded-2xl object-cover shrink-0 shadow-lg" />
           <div className="min-w-0 flex-1 pt-0.5">
-            <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Bilan de séance</p>
-            <h1 className="text-white text-2xl font-black leading-tight">{playlist.name}</h1>
+            <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: '#9ca3af' }}>Bilan de séance</p>
+            <h1 className="text-2xl font-black leading-tight" style={{ color: '#ffffff' }}>{playlist.name}</h1>
           </div>
         </div>
 
         {/* Ligne de méta : date · activité · distance (si pertinente) — un
             simple texte gris séparé par des points, pas des badges séparés,
             pour rester compact sur une seule ligne. */}
-        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mb-6 mt-3 text-gray-400 text-xs font-semibold">
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mb-6 mt-3 text-xs font-semibold" style={{ color: '#9ca3af' }}>
           {displayDate && (
             <span className="flex items-center gap-1"><Calendar size={12}/> {displayDate}</span>
           )}
@@ -197,16 +197,16 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sess
         </div>
 
         <div className="flex gap-3 mb-6">
-          <div className="flex-1 bg-white/5 rounded-2xl p-4 border border-white/10">
-            <div className="flex items-center gap-1.5 text-gray-400 mb-1"><Clock size={14}/><span className="text-[11px] font-bold uppercase tracking-wide">Durée</span></div>
-            <p className="text-white text-2xl font-black">{formatDuration(playlist.totalDuration || 0)}</p>
+          <div className="flex-1 rounded-2xl p-4 border" style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.10)' }}>
+            <div className="flex items-center gap-1.5 mb-1" style={{ color: '#9ca3af' }}><Clock size={14}/><span className="text-[11px] font-bold uppercase tracking-wide">Durée</span></div>
+            <p className="text-2xl font-black" style={{ color: '#ffffff' }}>{formatDuration(playlist.totalDuration || 0)}</p>
           </div>
           {/* Badge BPM — identique à PlaylistHeader.jsx (pastille colorée,
               icône Gauge, libellé de zone si un vrai profil est configuré),
               plutôt qu'un simple nombre blanc comme avant : cette carte suit
               maintenant le même repère visuel BPM/Zone que la vue playlist. */}
-          <div className="flex-1 bg-white/5 rounded-2xl p-4 border border-white/10 flex flex-col justify-between">
-            <div className="flex items-center gap-1.5 text-gray-400 mb-1"><Gauge size={14}/><span className="text-[11px] font-bold uppercase tracking-wide">BPM moyen</span></div>
+          <div className="flex-1 rounded-2xl p-4 border flex flex-col justify-between" style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.10)' }}>
+            <div className="flex items-center gap-1.5 mb-1" style={{ color: '#9ca3af' }}><Gauge size={14}/><span className="text-[11px] font-bold uppercase tracking-wide">BPM moyen</span></div>
             {bpmBadgeColor ? (
               <div
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-black border w-fit"
@@ -215,7 +215,7 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sess
                 <span>{avgBpm}{avgBpmZone ? ` • ${avgBpmZone.shortLabel}` : ''}</span>
               </div>
             ) : (
-              <p className="text-white text-2xl font-black">{avgBpm}</p>
+              <p className="text-2xl font-black" style={{ color: '#ffffff' }}>{avgBpm}</p>
             )}
           </div>
         </div>
@@ -227,7 +227,7 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sess
             profil réel) — jamais l'un affiché avec le libellé de l'autre. */}
         {bars.length > 0 && (
           <div className="mb-6">
-            <p className="text-gray-400 text-[11px] font-bold uppercase tracking-widest mb-2">{matchedAnyZone ? "Zones d'intensité" : "Répartition par BPM"}</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: '#9ca3af' }}>{matchedAnyZone ? "Zones d'intensité" : "Répartition par BPM"}</p>
             <div className="w-full h-3 rounded-full overflow-hidden flex">
               {bars.map((b, i) => (
                 <div key={i} style={{ width: `${b.pct}%`, backgroundColor: b.color }} />
@@ -237,7 +237,7 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sess
               {bars.map((b, i) => (
                 <div key={i} className="flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: b.color }} />
-                  <span className="text-gray-400 text-[10px] font-semibold">{b.label} · {b.pct}%</span>
+                  <span className="text-[10px] font-semibold" style={{ color: '#9ca3af' }}>{b.label} · {b.pct}%</span>
                 </div>
               ))}
             </div>
@@ -263,19 +263,19 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sess
             contraire. */}
         {topTracks.length > 0 && (
           <div className="space-y-2">
-            <p className="text-gray-400 text-[11px] font-bold uppercase tracking-widest mb-1">Premiers titres</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: '#9ca3af' }}>Premiers titres</p>
             {topTracks.map((t, i) => (
-              <div key={i} className="flex items-center gap-3 bg-white/5 rounded-xl p-2.5 border border-white/10">
+              <div key={i} className="flex items-center gap-3 rounded-xl p-2.5 border" style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.10)' }}>
                 {topTrackCovers[t.trackId] ? (
                   <img src={topTrackCovers[t.trackId]} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
                 ) : (
-                  <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
-                    <Music2 size={16} className="text-gray-500" />
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(255,255,255,0.10)' }}>
+                    <Music2 size={16} style={{ color: '#6b7280' }} />
                   </div>
                 )}
                 <div className="min-w-0 flex-1 py-1.5">
-                  <p className="text-white text-sm font-bold truncate" style={{ lineHeight: 1.8 }}>{t.title}</p>
-                  <p className="text-gray-400 text-xs truncate" style={{ lineHeight: 1.8 }}>{t.artist}</p>
+                  <p className="text-sm font-bold truncate" style={{ lineHeight: 1.8, color: '#ffffff' }}>{t.title}</p>
+                  <p className="text-xs truncate" style={{ lineHeight: 1.8, color: '#9ca3af' }}>{t.artist}</p>
                 </div>
               </div>
             ))}
@@ -283,8 +283,8 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sess
         )}
       </div>
 
-      <div className="mt-auto px-8 py-4 border-t border-white/10 flex items-center justify-center">
-        <p className="text-gray-500 text-[11px] font-semibold">Généré avec TempoFit — l'app qui cale ta musique sur ton effort</p>
+      <div className="mt-auto px-8 py-4 border-t flex items-center justify-center" style={{ borderColor: 'rgba(255,255,255,0.10)' }}>
+        <p className="text-[11px] font-semibold" style={{ color: '#6b7280' }}>Généré avec TempoFit — l'app qui cale ta musique sur ton effort</p>
       </div>
     </div>
   );
