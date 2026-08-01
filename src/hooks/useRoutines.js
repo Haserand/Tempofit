@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NAUGHTY_ROUTINE_NAMES } from '../appConfig';
-import { usePersistentState } from './usePersistentState';
+import { useSyncedCollection } from './useSyncedCollection';
 import { useModalContext } from '../contexts/ModalContext';
 
 // Hash simple et stable (même routine → toujours le même résultat, pas
@@ -46,7 +46,12 @@ export function useRoutines(isNaughtyMode, showToast) {
   const isSavingRoutineModalOpen = activeModal === 'SAVING_ROUTINE';
   const isEditRoutineModalOpen = activeModal === 'EDIT_ROUTINE';
 
-  const [routines, setRoutines] = usePersistentState('routines', () => [{
+  // "Refonte Structurale — Round 1/2" (01/08) — même changement exact que
+  // savedPlaylists dans App.jsx, voir useSyncedCollection.js pour le
+  // raisonnement complet. Chaque routine vit désormais dans sa propre
+  // ligne de la table `routines` plutôt que dans le blob JSON
+  // `user_data`/'routines'.
+  const [routines, setRoutines] = useSyncedCollection('routines', 'routines', () => [{
     id: 'routine-1', name: 'Mon 5km Quotidien', workoutType: 'Course à pied', customActivity: '',
     isIntervalMode: false, bpm: 160, selectedGenres: ['Métal', 'Rock'], bpmTolerance: 10, crossfade: 2,
     segments: [], coverIcon: '🏃‍♂️', autoGenFreq: 'Manuel', manualGenerations: 0, recentTrackIds: [],
