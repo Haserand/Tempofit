@@ -5,7 +5,7 @@ import {
   levenshteinDistance,
   isConfidentArtistMatch,
   dedupeAppend,
-} from '../src/engine/searchEngine.js';
+} from '../../src/engine/searchEngine.js';
 
 /**
  * searchEngine.test.js — sécurise les fonctions PURES du moteur de
