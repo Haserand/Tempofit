@@ -5,6 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 import { NAUGHTY_WORKOUT_LABELS } from '../../appConfig';
 import { genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog';
 import { formatDuration } from '../../utils/format';
+import { captureElementAsFile } from '../../utils/captureElementAsFile';
 import GlobalStatsShareCard from '../shared/GlobalStatsShareCard';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../viewHeaderLayout';
@@ -38,10 +39,12 @@ export default function StatsView({
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
 
   // --- Bilan Global (export image, "Spotify Wrapped") ---
-  // Carte rendue hors écran en permanence (même principe que
-  // SessionSummaryCard/PlaylistDetailView.jsx) — mais ici, pas d'attente
-  // d'image à charger avant la capture (GlobalStatsShareCard.jsx n'affiche
-  // aucune pochette, que du texte/dégradé), donc l'export est plus direct.
+  // Carte rendue hors écran en permanence, capturée via captureElementAsFile
+  // (utils/, MÊME utilitaire que SessionSummaryCard/PlaylistDetailView.jsx,
+  // depuis le 01/08) — mais ici, `waitForImagesToLoad`/la résolution en
+  // data URI n'ont concrètement rien à faire (GlobalStatsShareCard.jsx
+  // n'affiche aucune pochette, que du texte/dégradé) : aucun risque de
+  // canvas "tainted" par une image cross-origin sur cette carte précise.
   const globalStatsCardRef = useRef(null);
   const [isExportingGlobalStats, setIsExportingGlobalStats] = useState(false);
   // Bascule Zones d'effort / BPM Bruts pour le camembert de droite de la
@@ -72,11 +75,15 @@ export default function StatsView({
     if (isExportingGlobalStats) return;
     setIsExportingGlobalStats(true);
     try {
-      const { default: html2canvas } = await import('html2canvas');
-      const canvas = await html2canvas(globalStatsCardRef.current, { scale: 2, backgroundColor: null, useCORS: true });
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-      if (!blob) throw new Error('Conversion en image échouée');
-      const file = new File([blob], 'tempofit-bilan-global.png', { type: 'image/png' });
+      // Centralisé via captureElementAsFile (utils/, règle du Boy Scout) —
+      // évite une 2e implémentation de la logique de capture, dupliquée à
+      // la main ici jusqu'au 01/08 (import html2canvas direct + conversion
+      // en blob/File réécrites sur place). GlobalStatsShareCard.jsx
+      // n'affiche aucune image (voir sa docstring) : `waitForImagesToLoad`
+      // et la résolution en data URI (voir PlaylistDetailView.jsx) restent
+      // sans effet ici, mais ne coûtent rien non plus — pas de raison de
+      // s'en passer pour cette seule carte.
+      const file = await captureElementAsFile(globalStatsCardRef.current, 'tempofit-bilan-global.png', { scale: 2 });
       await shareImageFile(file, 'Mon Bilan TempoFit', "Mon bilan d'entraînement sur TempoFit 💪🎧");
     } catch (e) {
       if (showToast) showToast("Impossible de générer l'image du bilan — réessaie dans un instant.", 'error');
