@@ -18,11 +18,11 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
-vi.mock('../src/components/views/AthleticProfilePanel.jsx', () => ({
+vi.mock('../../src/components/views/AthleticProfilePanel.jsx', () => ({
   default: () => <div data-testid="athletic-profile-panel-mock">AthleticProfilePanel (mock)</div>,
 }));
 
-import SettingsView from '../src/components/views/SettingsView.jsx';
+import SettingsView from '../../src/components/views/SettingsView.jsx';
 
 beforeEach(() => {
   global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
