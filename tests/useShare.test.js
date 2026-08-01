@@ -42,7 +42,19 @@ afterEach(() => {
   delete navigator.clipboard;
   delete navigator.share;
   delete navigator.canShare;
+  delete document.execCommand;
 });
+
+// jsdom n'implémente PAS `document.execCommand` du tout (même pas comme
+// fonction qui ne fait rien) — `vi.spyOn(document, 'execCommand')` échoue
+// donc avec "The property is not defined on the object" (vi.spyOn a
+// besoin que la propriété existe déjà). On l'assigne directement à la
+// place.
+function stubExecCommand(returnValue) {
+  const fn = vi.fn(() => returnValue);
+  document.execCommand = fn;
+  return fn;
+}
 
 function renderUseShare(showToast = vi.fn()) {
   return renderHook(() => useShare(showToast));
@@ -124,7 +136,7 @@ describe('useShare — copyToClipboard', () => {
   it('navigator.clipboard disponible et réussit : toast de succès, ferme la modale, PAS de repli execCommand', async () => {
     const writeText = vi.fn(() => Promise.resolve());
     Object.assign(navigator, { clipboard: { writeText } });
-    const execSpy = vi.spyOn(document, 'execCommand');
+    const execSpy = stubExecCommand(true);
     const showToast = vi.fn();
     const { result } = renderUseShare(showToast);
 
@@ -138,7 +150,7 @@ describe('useShare — copyToClipboard', () => {
 
   it('navigator.clipboard échoue (ex: permission refusée) : repli sur execCommand, succès → toast de succès', async () => {
     Object.assign(navigator, { clipboard: { writeText: vi.fn(() => Promise.reject(new Error('denied'))) } });
-    vi.spyOn(document, 'execCommand').mockReturnValue(true);
+    stubExecCommand(true);
     const showToast = vi.fn();
     const { result } = renderUseShare(showToast);
 
@@ -150,7 +162,7 @@ describe('useShare — copyToClipboard', () => {
 
   it('BUG CORRIGÉ (31/07) — execCommand renvoie false (échec silencieux) : toast d\'ERREUR, pas de faux succès', async () => {
     // Pas de navigator.clipboard du tout → passe directement par execCommand.
-    vi.spyOn(document, 'execCommand').mockReturnValue(false);
+    stubExecCommand(false);
     const showToast = vi.fn();
     const { result } = renderUseShare(showToast);
 
@@ -161,7 +173,7 @@ describe('useShare — copyToClipboard', () => {
   });
 
   it('le <textarea> temporaire (repli execCommand) est bien retiré du DOM après usage', async () => {
-    vi.spyOn(document, 'execCommand').mockReturnValue(true);
+    stubExecCommand(true);
     const { result } = renderUseShare();
 
     await act(async () => { await result.current.copyToClipboard(); });
