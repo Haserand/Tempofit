@@ -318,6 +318,7 @@ export function AuthProvider({ children }) {
       }));
       return { error: null };
     } catch (e) {
+      console.error('updatePrivacySettings a échoué :', e);
       return { error: e?.message || "Une erreur inattendue est survenue." };
     }
   };
