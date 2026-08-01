@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatDuration, formatCompletionDate, parseTimeToSeconds } from '../src/utils/format.js';
+import { formatDuration, formatCompletionDate, parseTimeToSeconds } from '../../src/utils/format.js';
 
 describe('formatDuration', () => {
   it('formate en dessous d\'une heure en "Xm YYs"', () => {
