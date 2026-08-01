@@ -18,16 +18,16 @@ const { mockUseAuthContext, mockFrom } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
 }));
 
-vi.mock('../src/contexts/AuthContext.jsx', () => ({
+vi.mock('../../src/contexts/AuthContext.jsx', () => ({
   useAuthContext: () => mockUseAuthContext(),
 }));
 
-vi.mock('../src/supabaseClient.js', () => ({
+vi.mock('../../src/supabaseClient.js', () => ({
   isSupabaseConfigured: true,
   supabase: { from: mockFrom },
 }));
 
-import { useSyncedCollection } from '../src/hooks/useSyncedCollection.js';
+import { useSyncedCollection } from '../../src/hooks/useSyncedCollection.js';
 
 afterEach(() => {
   cleanup();
