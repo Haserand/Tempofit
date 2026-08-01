@@ -70,6 +70,17 @@ export default function PlaylistsView({
 
   const isCompleted = (p) => p.completions && p.completions.length > 0;
 
+  // Bascule publique/privée INDIVIDUELLE (Feature Sociale — Refonte
+  // Structurale Round 2/2, 01/08) — MÊME principe exact que
+  // `handleTogglePlaylistPublic` de PlaylistDetailContext.jsx (celui-là
+  // agit sur `currentPlaylist`, celui-ci sur n'importe quelle carte de
+  // cette liste par id) : `useSyncedCollection.js` détecte le changement
+  // au prochain rendu et pousse la mise à jour vers Supabase tout seul,
+  // rien de plus à faire ici.
+  const handleTogglePlaylistPublic = (id) => {
+    setSavedPlaylists(savedPlaylists.map(p => p.id === id ? { ...p, isPublic: !p.isPublic } : p));
+  };
+
   // Pare-feu Mode Intime (retour direct : "les vues Mes Séances et Découvrir
   // mélangent les contenus des deux modes") — TOUT le reste de ce composant
   // travaille sur `visiblePlaylists`, jamais directement sur `savedPlaylists`
@@ -128,6 +139,7 @@ export default function PlaylistsView({
         theme={theme} isNaughtyMode={isNaughtyMode} playlist={playlist} rankStyle={rankStyle} rank={rank}
         onClick={() => { setCurrentPlaylist(playlist); changeView('playlist'); }}
         onDelete={requestRemoveSavedPlaylist}
+        onTogglePublic={handleTogglePlaylistPublic}
         renderConfigInfoLine={renderConfigInfoLine}
         editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
         editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
