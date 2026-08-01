@@ -78,20 +78,83 @@ alter table profiles enable row level security;
 -- Lecture PUBLIQUE (pas seulement `auth.uid() = user_id`) : nécessaire pour
 -- vérifier la disponibilité d'un pseudonyme AVANT la création du compte,
 -- avec la seule clé "anon" — voir `checkUsernameAvailable`, AuthContext.jsx.
-create policy "Tout le monde peut lire les pseudonymes"
-  on profiles for select
-  using (true);
+-- ─────────────────────────────────────────────────────────────────────────
+-- ÉVOLUTION "Profil public" (01/08, Feature Sociale Partie 1/2) — le pseudo
+-- était jusqu'ici la SEULE donnée de `profiles`, lisible par tout le monde
+-- sans distinction. Ajout de 4 colonnes pour un vrai profil public
+-- OPT-IN (avatar + 3 bascules de confidentialité) : contrairement au
+-- pseudo, tout le reste du profil ne doit être lisible QUE par son
+-- propriétaire OU par un visiteur SI `is_profile_public = true`.
+--
+-- ⚠️ Resserrer la policy SELECT à "soi-même OU is_profile_public" (au lieu
+-- de `using (true)`, jusqu'ici) casserait `checkUsernameAvailable`
+-- (AuthContext.jsx) : un visiteur non connecté doit pouvoir vérifier qu'un
+-- pseudo est pris même si le propriétaire n'a PAS rendu son profil public —
+-- "ce pseudo existe déjà" n'a rien à voir avec "ce profil est visible
+-- publiquement". Résolu ci-dessous par une fonction dédiée
+-- (`is_username_available`, SECURITY DEFINER, même principe que
+-- `get_registered_users_count` déjà en place) : elle seule contourne RLS,
+-- et ne renvoie qu'un booléen, jamais la ligne elle-même.
+alter table profiles
+  add column if not exists avatar_url text,
+  add column if not exists is_profile_public boolean not null default false,
+  add column if not exists show_sport_stats boolean not null default false,
+  add column if not exists show_intimate_stats boolean not null default false;
 
--- Un utilisateur ne peut créer QUE sa propre ligne (jamais au nom de
--- quelqu'un d'autre) — la contrainte `unique` sur `username` empêche déjà le
--- doublon, cette policy empêche en plus qu'on écrive `user_id` d'un tiers.
+drop policy if exists "Tout le monde peut lire les pseudonymes" on profiles;
+
+create policy "Un profil est lisible par son propriétaire ou s'il est public"
+  on profiles for select
+  using (auth.uid() = user_id or is_profile_public = true);
+
+-- Fonction dédiée à la SEULE vérification de disponibilité d'un pseudo —
+-- ne fuit RIEN d'autre du profil (ni avatar_url, ni les bascules, ni
+-- l'existence même d'un profil privé) à un visiteur non connecté.
+create or replace function public.is_username_available(candidate text)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select not exists (select 1 from profiles where username = candidate);
+$$;
+
+grant execute on function public.is_username_available(text) to anon, authenticated;
+
 create policy "Un utilisateur crée uniquement son propre pseudonyme"
   on profiles for insert
   with check (auth.uid() = user_id);
 
--- ⚠️ AUCUNE policy `update`/`delete` — volontairement absent, pas un oubli.
--- L'immuabilité du pseudonyme est garantie ICI, côté serveur : même un
--- appel direct à l'API Supabase (en contournant totalement l'UI) ne peut
--- pas modifier ou supprimer une ligne existante, RLS refuse la requête
--- avant même qu'elle n'atteigne la table.
+-- Modification autorisée maintenant (contrairement à avant) — mais
+-- UNIQUEMENT pour avatar_url/is_profile_public/show_sport_stats/
+-- show_intimate_stats : le pseudo reste IMMUABLE, garanti ci-dessous par un
+-- trigger dédié plutôt que par la simple absence de policy update (qui ne
+-- suffit plus, puisqu'une policy update doit désormais exister pour ces
+-- 4 nouvelles colonnes).
+create policy "Un utilisateur modifie uniquement son propre profil"
+  on profiles for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create or replace function public.prevent_username_change()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.username <> old.username then
+    raise exception 'Le pseudonyme est immuable et ne peut pas être modifié.';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists prevent_username_change_trigger on profiles;
+create trigger prevent_username_change_trigger
+  before update on profiles
+  for each row execute function public.prevent_username_change();
+
+-- ⚠️ AUCUNE policy `delete` — toujours volontairement absent (voir plus
+-- haut) : un profil ne se supprime que via la cascade `on delete cascade`
+-- déclenchée par la suppression du compte lui-même (Edge Function
+-- `delete-account`, voir AuthContext.jsx/deleteAccount), jamais en direct.
 create index if not exists profiles_username_idx on profiles (username);
