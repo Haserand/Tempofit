@@ -11,16 +11,16 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 const mockUsePlaylistDetail = vi.fn();
-vi.mock('../src/contexts/PlaylistDetailContext.jsx', () => ({
+vi.mock('../../../src/contexts/PlaylistDetailContext.jsx', () => ({
   usePlaylistDetail: () => mockUsePlaylistDetail(),
 }));
 
 const mockOpenModal = vi.fn();
-vi.mock('../src/contexts/ModalContext.jsx', () => ({
+vi.mock('../../../src/contexts/ModalContext.jsx', () => ({
   useModalContext: () => ({ openModal: mockOpenModal, activeModal: null, modalData: null, closeModal: vi.fn() }),
 }));
 
-vi.mock('../src/components/views/PlaylistDetail/TrackItem.jsx', () => ({
+vi.mock('../../../src/components/views/PlaylistDetail/TrackItem.jsx', () => ({
   default: ({ track, isDimmed, isHighlighted }) => (
     <div data-testid={`track-${track.id}`} data-dimmed={String(isDimmed)} data-highlighted={String(isHighlighted)}>
       {track.title}
@@ -28,7 +28,7 @@ vi.mock('../src/components/views/PlaylistDetail/TrackItem.jsx', () => ({
   ),
 }));
 
-import TrackList from '../src/components/views/PlaylistDetail/TrackList.jsx';
+import TrackList from '../../../src/components/views/PlaylistDetail/TrackList.jsx';
 
 afterEach(() => {
   cleanup();
