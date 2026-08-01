@@ -347,11 +347,14 @@ describe('PlaylistDetailView — génération d\'image, résolution des pochette
 
     fireEvent.click(screen.getByText('trigger-share'));
 
-    // currentPlaylist.coverUrl est absent → repli sur buildCoverUrl(name),
-    // une URL DiceBear (SVG) — c'est justement la source du plantage
-    // d'origine, elle doit passer par la résolution en data URI comme
-    // n'importe quelle autre pochette.
-    await waitFor(() => expect(captureUtils.fetchImageAsDataUri).toHaveBeenCalledWith(expect.stringContaining('dicebear.com')));
+    // Pochette de séance TOUJOURS régénérée via buildCoverUrlPng(name) (01/08,
+    // suite) — peu importe que currentPlaylist.coverUrl soit posé ou non,
+    // les deux proviennent de la même fonction déterministe seed→image.
+    // Format PNG explicitement vérifié : c'est justement le format SVG
+    // (utilisé avant ce correctif) qui causait l'échec silencieux
+    // d'html2canvas — un htmlcanvas qui recevrait encore du SVG ici
+    // signalerait une régression.
+    await waitFor(() => expect(captureUtils.fetchImageAsDataUri).toHaveBeenCalledWith(expect.stringMatching(/dicebear\.com\/10\.x\/shapes\/png\?/)));
   });
 
   it('résout UNIQUEMENT les pochettes des titres sourcés Deezer (pas les favoris/Spotify sans trackId "deezer-")', async () => {
