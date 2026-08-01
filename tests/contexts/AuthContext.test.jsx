@@ -49,12 +49,12 @@ const { mockAuth, mockRpc, mockFunctionsInvoke, mockFrom } = vi.hoisted(() => ({
 // Vercel) — le comportement "non configuré" reste correctement décrit par
 // le code lui-même (`if (!isSupabaseConfigured) return { error: ... }` au
 // début de chaque fonction) mais n'a pas de test dédié ici.
-vi.mock('../src/supabaseClient.js', () => ({
+vi.mock('../../src/supabaseClient.js', () => ({
   isSupabaseConfigured: true,
   supabase: { auth: mockAuth, from: mockFrom, rpc: mockRpc, functions: { invoke: mockFunctionsInvoke } },
 }));
 
-import { AuthProvider, useAuthContext } from '../src/contexts/AuthContext.jsx';
+import { AuthProvider, useAuthContext } from '../../src/contexts/AuthContext.jsx';
 
 // Constructeur de "query builder" chaînable minimal, assez pour couvrir
 // tous les enchaînements réellement utilisés dans AuthContext.jsx
@@ -488,13 +488,13 @@ describe('AuthContext — isSupabaseConfigured=false (no-op silencieux, sans dé
   // le mettant à la fin.
   it('toutes les fonctions renvoient une erreur dédiée, sans jamais appeler Supabase', async () => {
     vi.resetModules();
-    vi.doMock('../src/supabaseClient.js', () => ({
+    vi.doMock('../../src/supabaseClient.js', () => ({
       isSupabaseConfigured: false,
       supabase: { auth: mockAuth, from: mockFrom, rpc: mockRpc, functions: { invoke: mockFunctionsInvoke } },
     }));
 
     const { AuthProvider: UnconfiguredProvider, useAuthContext: useUnconfiguredAuthContext } =
-      await import('../src/contexts/AuthContext.jsx');
+      await import('../../src/contexts/AuthContext.jsx');
     const localWrapper = ({ children }) => <UnconfiguredProvider>{children}</UnconfiguredProvider>;
     const { result } = renderHook(() => useUnconfiguredAuthContext(), { wrapper: localWrapper });
 
@@ -544,12 +544,12 @@ describe('AuthContext — isSupabaseConfigured=false (no-op silencieux, sans dé
 
   it('signOut reste un no-op silencieux (pas d\'erreur, mais n\'appelle pas Supabase non plus)', async () => {
     vi.resetModules();
-    vi.doMock('../src/supabaseClient.js', () => ({
+    vi.doMock('../../src/supabaseClient.js', () => ({
       isSupabaseConfigured: false,
       supabase: { auth: mockAuth, from: mockFrom, rpc: mockRpc, functions: { invoke: mockFunctionsInvoke } },
     }));
     const { AuthProvider: UnconfiguredProvider, useAuthContext: useUnconfiguredAuthContext } =
-      await import('../src/contexts/AuthContext.jsx');
+      await import('../../src/contexts/AuthContext.jsx');
     const localWrapper = ({ children }) => <UnconfiguredProvider>{children}</UnconfiguredProvider>;
     const { result } = renderHook(() => useUnconfiguredAuthContext(), { wrapper: localWrapper });
 
