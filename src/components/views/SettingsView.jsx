@@ -114,9 +114,23 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
   const handleTogglePrivacy = async (field, currentValue) => {
     setPrivacySavingKey(field);
     setPrivacyError('');
-    const { error } = await updatePrivacySettings({ [field]: !currentValue });
-    if (error) setPrivacyError(error);
-    setPrivacySavingKey(null);
+    // BUG CORRIGÉ (01/08, retour direct : "je peux cliquer une première
+    // fois, ensuite le bouton reste bloqué") — sans `finally`, si
+    // `updatePrivacySettings` LÈVE une exception (panne réseau, session
+    // expirée...) au lieu de renvoyer proprement `{ error }`,
+    // `setPrivacySavingKey(null)` n'était jamais atteint : le bouton
+    // restait `disabled` pour toujours après le 1er clic qui échouait de
+    // cette façon — exactement le symptôme observé. `finally` garantit
+    // maintenant que le bouton se réactive TOUJOURS, que l'appel réussisse,
+    // renvoie une erreur propre, ou lève une exception inattendue.
+    try {
+      const { error } = await updatePrivacySettings({ [field]: !currentValue });
+      if (error) setPrivacyError(error);
+    } catch (e) {
+      setPrivacyError(e?.message || "Une erreur inattendue est survenue.");
+    } finally {
+      setPrivacySavingKey(null);
+    }
   };
 
   const handleUsernameFormSubmit = async (e) => {
@@ -387,7 +401,86 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
         </div>
       ) : (
         <div className="space-y-8">
-          {/* Bloc 1 — Informations & Sécurité (Refactor UI, 28/07 puis
+          {/* Bloc 1 — Confidentialité & Profil Public (Feature, 01/08, remonté
+              en tête de page sur demande explicite : la confidentialité prime
+              sur les identifiants de connexion dans l'ordre de lecture) —
+              UNIQUEMENT pour un compte connecté avec un pseudonyme déjà
+              défini (`username`) : un profil public n'a aucun sens tant
+              qu'il n'a pas d'identifiant à exposer dans l'URL
+              (`?profile=pseudo`, voir App.jsx/ProfileView.jsx). `!usernameLoading`
+              évite un flash de ce bloc AVANT que le pseudonyme ne soit
+              connu, comme pour le bloc Pseudonyme plus haut. `is_profile_public`
+              toujours affiché en 1er, seul toggle visible tant qu'il est
+              désactivé — les 2 autres (portée du profil PUBLIC une fois
+              activé) n'ont aucun sens tant que le profil lui-même reste
+              privé, donc masqués plutôt que simplement désactivés/grisés :
+              rien à décider tant que le profil n'est pas public.
+              `show_intimate_stats` en plus masqué si l'app n'est pas
+              actuellement en Mode Intime (`isNaughtyMode`, reçu en prop) —
+              cohérent avec le reste de cette page (l'onglet Profil
+              Athlétique lui-même disparaît en Mode Intime, voir plus haut) :
+              pas la peine d'exposer un réglage sur une facette de
+              l'app qu'on ne consulte pas actuellement. */}
+          {user && !usernameLoading && username && (
+            <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
+              <h3 className={`font-bold text-xl mb-2 flex items-center gap-2 ${textHighlight}`}><Eye className={textColorClass} size={20}/> Confidentialité & Profil Public</h3>
+              <p className={`text-sm mb-6 ${textMuted}`}>
+                Choisis si et comment ton profil est visible par les autres, à l'adresse <span className="font-mono">tempofit.app/?profile={username}</span>.
+              </p>
+
+              <div className="space-y-3">
+                <div className={`flex items-center justify-between p-4 rounded-2xl border ${inputBorder} ${inputBg}`}>
+                  <div className="min-w-0 flex-1 pr-4">
+                    <h4 className={`font-bold ${textHighlight}`}>Rendre mon profil public</h4>
+                    <p className={`text-xs mt-0.5 ${textMuted}`}>N'importe qui avec le lien peut voir ton pseudonyme et ton avatar.</p>
+                  </div>
+                  <button
+                    onClick={() => handleTogglePrivacy('is_profile_public', !!profilePrivacy?.isProfilePublic)}
+                    disabled={privacySavingKey === 'is_profile_public'}
+                    className={`relative w-14 h-8 rounded-full transition-colors shrink-0 disabled:opacity-60 ${profilePrivacy?.isProfilePublic ? (isNaughtyMode ? 'bg-rose-500' : 'bg-red-500') : 'bg-gray-300 dark:bg-gray-600'}`}
+                  >
+                    <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${profilePrivacy?.isProfilePublic ? 'translate-x-6' : ''}`} />
+                  </button>
+                </div>
+
+                {profilePrivacy?.isProfilePublic && (
+                  <div className={`flex items-center justify-between p-4 rounded-2xl border ${inputBorder} ${inputBg}`}>
+                    <div className="min-w-0 flex-1 pr-4">
+                      <h4 className={`font-bold ${textHighlight}`}>Afficher mes statistiques sportives</h4>
+                      <p className={`text-xs mt-0.5 ${textMuted}`}>BPM moyen, temps total d'entraînement (hors Mode Intime).</p>
+                    </div>
+                    <button
+                      onClick={() => handleTogglePrivacy('show_sport_stats', !!profilePrivacy?.showSportStats)}
+                      disabled={privacySavingKey === 'show_sport_stats'}
+                      className={`relative w-14 h-8 rounded-full transition-colors shrink-0 disabled:opacity-60 ${profilePrivacy?.showSportStats ? (isNaughtyMode ? 'bg-rose-500' : 'bg-red-500') : 'bg-gray-300 dark:bg-gray-600'}`}
+                    >
+                      <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${profilePrivacy?.showSportStats ? 'translate-x-6' : ''}`} />
+                    </button>
+                  </div>
+                )}
+
+                {profilePrivacy?.isProfilePublic && isNaughtyMode && (
+                  <div className={`flex items-center justify-between p-4 rounded-2xl border ${inputBorder} ${inputBg}`}>
+                    <div className="min-w-0 flex-1 pr-4">
+                      <h4 className={`font-bold ${textHighlight} flex items-center gap-1.5`}><Heart size={14} className="text-rose-500 fill-rose-500"/> Afficher mes statistiques du Mode Intime</h4>
+                      <p className={`text-xs mt-0.5 ${textMuted}`}>Visible uniquement par un visiteur ayant lui-même activé le Mode Intime.</p>
+                    </div>
+                    <button
+                      onClick={() => handleTogglePrivacy('show_intimate_stats', !!profilePrivacy?.showIntimateStats)}
+                      disabled={privacySavingKey === 'show_intimate_stats'}
+                      className={`relative w-14 h-8 rounded-full transition-colors shrink-0 disabled:opacity-60 ${profilePrivacy?.showIntimateStats ? 'bg-rose-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                    >
+                      <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${profilePrivacy?.showIntimateStats ? 'translate-x-6' : ''}`} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {privacyError && <p className="text-xs font-semibold text-red-500 mt-3">{privacyError}</p>}
+            </div>
+          )}
+
+          {/* Bloc 2 — Informations & Sécurité (Refactor UI, 28/07 puis
               28/07 suite, "passe Boy-Scout") : e-mail et mot de passe
               partagent maintenant EXACTEMENT le même design (style neutre
               `inputBorder`/`inputBg`, avatar `textMuted` + fond discret,
@@ -586,84 +679,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           </div>
           )}
 
-          {/* Bloc 1.5 — Confidentialité & Profil Public (Feature, 01/08) —
-              UNIQUEMENT pour un compte connecté avec un pseudonyme déjà
-              défini (`username`) : un profil public n'a aucun sens tant
-              qu'il n'a pas d'identifiant à exposer dans l'URL
-              (`?profile=pseudo`, voir App.jsx/ProfileView.jsx). `!usernameLoading`
-              évite un flash de ce bloc AVANT que le pseudonyme ne soit
-              connu, comme pour le bloc Pseudonyme plus haut. `is_profile_public`
-              toujours affiché en 1er, seul toggle visible tant qu'il est
-              désactivé — les 2 autres (portée du profil PUBLIC une fois
-              activé) n'ont aucun sens tant que le profil lui-même reste
-              privé, donc masqués plutôt que simplement désactivés/grisés :
-              rien à décider tant que le profil n'est pas public.
-              `show_intimate_stats` en plus masqué si l'app n'est pas
-              actuellement en Mode Intime (`isNaughtyMode`, reçu en prop) —
-              cohérent avec le reste de cette page (l'onglet Profil
-              Athlétique lui-même disparaît en Mode Intime, voir plus haut) :
-              pas la peine d'exposer un réglage sur une facette de
-              l'app qu'on ne consulte pas actuellement. */}
-          {user && !usernameLoading && username && (
-            <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
-              <h3 className={`font-bold text-xl mb-2 flex items-center gap-2 ${textHighlight}`}><Eye className={textColorClass} size={20}/> Confidentialité & Profil Public</h3>
-              <p className={`text-sm mb-6 ${textMuted}`}>
-                Choisis si et comment ton profil est visible par les autres, à l'adresse <span className="font-mono">tempofit.app/?profile={username}</span>.
-              </p>
-
-              <div className="space-y-3">
-                <div className={`flex items-center justify-between p-4 rounded-2xl border ${inputBorder} ${inputBg}`}>
-                  <div className="min-w-0 flex-1 pr-4">
-                    <h4 className={`font-bold ${textHighlight}`}>Rendre mon profil public</h4>
-                    <p className={`text-xs mt-0.5 ${textMuted}`}>N'importe qui avec le lien peut voir ton pseudonyme et ton avatar.</p>
-                  </div>
-                  <button
-                    onClick={() => handleTogglePrivacy('is_profile_public', !!profilePrivacy?.isProfilePublic)}
-                    disabled={privacySavingKey === 'is_profile_public'}
-                    className={`relative w-14 h-8 rounded-full transition-colors shrink-0 disabled:opacity-60 ${profilePrivacy?.isProfilePublic ? (isNaughtyMode ? 'bg-rose-500' : 'bg-red-500') : 'bg-gray-300 dark:bg-gray-600'}`}
-                  >
-                    <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${profilePrivacy?.isProfilePublic ? 'translate-x-6' : ''}`} />
-                  </button>
-                </div>
-
-                {profilePrivacy?.isProfilePublic && (
-                  <div className={`flex items-center justify-between p-4 rounded-2xl border ${inputBorder} ${inputBg}`}>
-                    <div className="min-w-0 flex-1 pr-4">
-                      <h4 className={`font-bold ${textHighlight}`}>Afficher mes statistiques sportives</h4>
-                      <p className={`text-xs mt-0.5 ${textMuted}`}>BPM moyen, temps total d'entraînement (hors Mode Intime).</p>
-                    </div>
-                    <button
-                      onClick={() => handleTogglePrivacy('show_sport_stats', !!profilePrivacy?.showSportStats)}
-                      disabled={privacySavingKey === 'show_sport_stats'}
-                      className={`relative w-14 h-8 rounded-full transition-colors shrink-0 disabled:opacity-60 ${profilePrivacy?.showSportStats ? (isNaughtyMode ? 'bg-rose-500' : 'bg-red-500') : 'bg-gray-300 dark:bg-gray-600'}`}
-                    >
-                      <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${profilePrivacy?.showSportStats ? 'translate-x-6' : ''}`} />
-                    </button>
-                  </div>
-                )}
-
-                {profilePrivacy?.isProfilePublic && isNaughtyMode && (
-                  <div className={`flex items-center justify-between p-4 rounded-2xl border ${inputBorder} ${inputBg}`}>
-                    <div className="min-w-0 flex-1 pr-4">
-                      <h4 className={`font-bold ${textHighlight} flex items-center gap-1.5`}><Heart size={14} className="text-rose-500 fill-rose-500"/> Afficher mes statistiques du Mode Intime</h4>
-                      <p className={`text-xs mt-0.5 ${textMuted}`}>Visible uniquement par un visiteur ayant lui-même activé le Mode Intime.</p>
-                    </div>
-                    <button
-                      onClick={() => handleTogglePrivacy('show_intimate_stats', !!profilePrivacy?.showIntimateStats)}
-                      disabled={privacySavingKey === 'show_intimate_stats'}
-                      className={`relative w-14 h-8 rounded-full transition-colors shrink-0 disabled:opacity-60 ${profilePrivacy?.showIntimateStats ? 'bg-rose-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-                    >
-                      <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${profilePrivacy?.showIntimateStats ? 'translate-x-6' : ''}`} />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {privacyError && <p className="text-xs font-semibold text-red-500 mt-3">{privacyError}</p>}
-            </div>
-          )}
-
-          {/* Bloc 2 — Données personnelles (RGPD, portabilité) — NOUVEAU.
+          {/* Bloc 3 — Données personnelles (RGPD, portabilité) — NOUVEAU.
               Uniquement pour un utilisateur connecté (rien à exporter en
               mode invité, tout reste déjà local sur son appareil). */}
           {user && (
@@ -682,7 +698,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
             </div>
           )}
 
-          {/* Bloc 3 — Zone dangereuse (RGPD, droit à l'effacement) —
+          {/* Bloc 4 — Zone dangereuse (RGPD, droit à l'effacement) —
               suppression RÉELLE du compte depuis cette session (29/07,
               Edge Function `delete-account`, voir AuthContext.jsx/
               supabase/functions/delete-account/index.ts) : le compte
