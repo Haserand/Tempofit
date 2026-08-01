@@ -5,13 +5,13 @@ import { getCadenceUnitLabel, getZoneForValue, getBpmBucketLabel } from '../../a
 import { formatDuration } from '../../utils/format';
 import { captureElementAsFile, fetchImageAsDataUri } from '../../utils/captureElementAsFile';
 import { buildCoverUrlPng } from '../../utils/coverArt';
-import { deezerFetch } from '../../musicEngine';
+import { deezerFetch } from '../../engine/musicEngine';
 import SessionSummaryCard from '../shared/SessionSummaryCard';
 import { PlaylistDetailProvider, usePlaylistDetail } from '../../contexts/PlaylistDetailContext';
 import TrackList from './PlaylistDetail/TrackList';
 import PlaylistHeader from './PlaylistDetail/PlaylistHeader';
 import PlaylistCharts from './PlaylistDetail/PlaylistCharts';
-import { VIEW_CONTENT_WRAPPER } from '../../viewHeaderLayout';
+import { VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 
 /**
  * PlaylistDetailView — détail d'UNE playlist générée (nom, graphique BPM
