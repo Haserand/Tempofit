@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { checkGenreWeightDeviation, equalSplitWeights } from '../src/genreWeightDeviation.js';
+import { checkGenreWeightDeviation, equalSplitWeights } from '../src/engine/genreWeightDeviation.js';
 
 /**
  * genreWeightDeviation.test.js — sécurise checkGenreWeightDeviation
- * (src/genreWeightDeviation.js), extraite de useGeneratorForm.js.
+ * (src/engine/genreWeightDeviation.js), extraite de useGeneratorForm.js.
  *
  * Converti depuis une version node:test (session du 26/07/2026) — même
  * noms de tests, mêmes valeurs attendues, déjà vérifiées par exécution
