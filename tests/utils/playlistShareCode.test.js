@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { encodePlaylistForSharing, decodePlaylistFromSharing } from '../src/utils/playlistShareCode.js';
+import { encodePlaylistForSharing, decodePlaylistFromSharing } from '../../src/utils/playlistShareCode.js';
 
 /**
  * playlistShareCode.test.js — sécurise l'encodage/décodage base64 "URL-safe"
