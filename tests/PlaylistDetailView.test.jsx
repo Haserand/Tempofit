@@ -330,3 +330,62 @@ describe('PlaylistDetailView', () => {
     expect(result.tracks).toEqual([trackA, resolvedTrack]);
   });
 });
+
+describe('PlaylistDetailView — génération d\'image, résolution des pochettes en data URI (01/08)', () => {
+  // Test de non-régression pour le plantage réel signalé le 01/08 (voir
+  // captureElementAsFile.js/fetchImageAsDataUri) : jsdom n'a pas de vrai
+  // moteur de canvas ni de notion de CORS/"tainting", donc impossible de
+  // PROUVER ici qu'une vraie SecurityError ne se produira plus dans un
+  // navigateur — ce qu'on peut vérifier, c'est que le nouveau chemin de
+  // code (résolution en data URI AVANT la capture) est bien câblé comme
+  // prévu, ce qui est le cœur du correctif.
+
+  it('résout la pochette de séance en data URI (fetchImageAsDataUri), même sans coverUrl déjà posé', async () => {
+    const captureUtils = await import('../src/utils/captureElementAsFile.js');
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue());
+    render(<PlaylistDetailView {...baseProps({ currentPlaylist: makePlaylist({ name: 'Ma Séance', coverUrl: null }) })} />);
+
+    fireEvent.click(screen.getByText('trigger-share'));
+
+    // currentPlaylist.coverUrl est absent → repli sur buildCoverUrl(name),
+    // une URL DiceBear (SVG) — c'est justement la source du plantage
+    // d'origine, elle doit passer par la résolution en data URI comme
+    // n'importe quelle autre pochette.
+    await waitFor(() => expect(captureUtils.fetchImageAsDataUri).toHaveBeenCalledWith(expect.stringContaining('dicebear.com')));
+  });
+
+  it('résout UNIQUEMENT les pochettes des titres sourcés Deezer (pas les favoris/Spotify sans trackId "deezer-")', async () => {
+    const captureUtils = await import('../src/utils/captureElementAsFile.js');
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue());
+    render(<PlaylistDetailView {...baseProps()} />); // trackA = deezer-1, trackB = fav-2 (voir fixtures en tête de fichier)
+
+    fireEvent.click(screen.getByText('trigger-share'));
+
+    await waitFor(() => expect(captureUtils.fetchImageAsDataUri).toHaveBeenCalledWith('https://cover.jpg')); // cover_medium mocké de deezerFetch
+    // trackB (fav-2) n'a pas de trackId Deezer exploitable : jamais interrogé.
+    expect(captureUtils.fetchImageAsDataUri.mock.calls.filter(c => c[0] === 'https://cover.jpg')).toHaveLength(1);
+  });
+
+  it('si la résolution d\'une pochette échoue (renvoie null) : la génération continue quand même, jusqu\'à "ready"', async () => {
+    const captureUtils = await import('../src/utils/captureElementAsFile.js');
+    captureUtils.fetchImageAsDataUri.mockResolvedValue(null); // simule un échec réseau/CORS pour TOUTES les pochettes de ce test
+    const setSummaryImageStatus = vi.fn();
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue());
+    render(<PlaylistDetailView {...baseProps({ setSummaryImageStatus, summaryImageStatus: 'idle' })} />);
+
+    fireEvent.click(screen.getByText('trigger-share'));
+
+    // Le plantage d'origine venait justement d'une pochette qui faisait
+    // échouer TOUTE la capture — la garantie centrale de ce correctif est
+    // qu'un échec de résolution d'UNE pochette (renvoyant proprement
+    // `null`, jamais une exception) n'empêche plus la génération
+    // d'aboutir : la capture elle-même (mockée séparément) n'a besoin
+    // d'aucune de ces données pour réussir.
+    await waitFor(() => expect(setSummaryImageStatus).toHaveBeenCalledWith('ready'));
+
+    // Restaure le comportement par défaut — vi.clearAllMocks() (afterEach
+    // global) n'efface pas un mockResolvedValue déjà posé, seulement les
+    // appels enregistrés.
+    captureUtils.fetchImageAsDataUri.mockResolvedValue('data:image/png;base64,mock');
+  });
+});
