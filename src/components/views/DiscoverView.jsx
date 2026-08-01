@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Compass, Search, SearchX } from 'lucide-react';
+import { Compass, Search, SearchX, Users } from 'lucide-react';
 import { curatedSessions, naughtyCuratedSessions } from '../../data/curatedSessions';
 import TemplateCard from './TemplateCard';
 import ViewHeader from '../shared/ViewHeader';
@@ -40,7 +40,7 @@ import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHe
  * sections partiellement vides (si la recherche ne matche que certaines
  * catégories).
  */
-export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode }) {
+export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode, user, openModal }) {
   const { textHighlight, textMuted, cardBg, cardBorder, inputBg, inputBorder, bgAccentClass } = theme;
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -109,6 +109,31 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode }) {
               {category}
             </button>
           ))}
+
+          {/* Pastille "Profils" (Feature Sociale — Navigation, 01/08,
+              retour direct : "je la veux en option dans le menu découvrir
+              au départ") — délibérément SÉPARÉE des pilules de catégorie
+              juste au-dessus (un `border-l` + un peu d'espace la détache
+              visuellement du groupe) : ce n'est PAS un filtre de la grille
+              de séances, c'est une action différente (ouvrir
+              SearchUsersModal.jsx) — la confondre visuellement avec
+              "Cardio Express"/"Force & Renfo" aurait laissé croire à tort
+              qu'elle filtre aussi la grille du dessous. Icône `Users`
+              (pas `Search`, déjà utilisé par le champ de recherche de
+              séances juste au-dessus — éviter la répétition d'icône entre
+              2 actions différentes sur la même vue). Masquée si non
+              connecté (Login Wall déjà en place côté
+              ProfileView.jsx/get_public_profile_summary — cohérent de ne
+              pas proposer une recherche vouée à échouer). */}
+          {user && (
+            <button
+              onClick={() => openModal('SEARCH_USERS')}
+              className={`shrink-0 ml-2 pl-4 pr-4 py-2 border-l ${cardBorder} flex items-center gap-1.5 rounded-full text-sm font-bold transition-colors ${cardBg} border ${textMuted} hover:text-main`}
+            >
+              <Users size={14} />
+              Profils
+            </button>
+          )}
         </div>
       </div>
 
