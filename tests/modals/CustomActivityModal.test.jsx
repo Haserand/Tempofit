@@ -19,13 +19,13 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 const mockUseGeneratorContext = vi.fn();
-vi.mock('../src/contexts/GeneratorContext.jsx', () => ({
+vi.mock('../../src/contexts/GeneratorContext.jsx', () => ({
   useGeneratorContext: () => mockUseGeneratorContext(),
 }));
 
 // Import APRÈS le vi.mock (obligatoire avec l'hoisting de Vitest, mais
 // l'ordre dans le fichier source reste celui qu'on écrit ici par lisibilité).
-import CustomActivityModal from '../src/components/modals/CustomActivityModal.jsx';
+import CustomActivityModal from '../../src/components/modals/CustomActivityModal.jsx';
 
 afterEach(() => {
   cleanup();
