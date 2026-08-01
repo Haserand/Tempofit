@@ -49,21 +49,27 @@ export default function GlobalStatsShareCard({
     >
       {/* Fond dégradé accrocheur (demande explicite) + halo décoratif — le halo
           utilise `blur` en CSS pur (pas une image), donc capturé sans souci
-          par html2canvas au moment de l'export. */}
-      <div className="absolute inset-0 bg-linear-to-br from-blue-600 via-indigo-600 to-purple-700" />
-      <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-white/10 blur-3xl" />
-      <div className="absolute -bottom-20 -left-10 w-64 h-64 rounded-full bg-black/20 blur-3xl" />
+          par html2canvas au moment de l'export.
+          BUG CORRIGÉ (01/08) : `bg-linear-to-br from-blue-600 via-indigo-600
+          to-purple-700` (couleurs NOMMÉES Tailwind, donc générées en oklch()
+          sous Tailwind v4) faisait échouer html2canvas ("Attempting to parse
+          an unsupported color function oklch"). Dégradé réécrit en style
+          inline avec les valeurs hex réelles de ces mêmes couleurs — même
+          rendu visuel, mais un format qu'html2canvas sait lire. */}
+      <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom right, #2563eb, #4f46e5, #7e22ce)' }} />
+      <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full blur-3xl" style={{ backgroundColor: 'rgba(255,255,255,0.10)' }} />
+      <div className="absolute -bottom-20 -left-10 w-64 h-64 rounded-full blur-3xl" style={{ backgroundColor: 'rgba(0,0,0,0.20)' }} />
 
       <div className="relative p-8 pb-6">
         <div className="flex items-center gap-2 mb-8">
-          <div className="w-9 h-9 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center">
+          <div className="w-9 h-9 rounded-xl backdrop-blur-sm flex items-center justify-center" style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}>
             <Activity size={20} color="white" />
           </div>
-          <span className="text-white font-black text-lg tracking-tight">TempoFit</span>
+          <span className="font-black text-lg tracking-tight" style={{ color: '#ffffff' }}>TempoFit</span>
         </div>
 
-        <p className="text-white/70 text-xs font-bold uppercase tracking-[0.2em] mb-1">{periodLabel}</p>
-        <h1 className="text-white text-3xl font-black leading-tight mb-1">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] mb-1" style={{ color: 'rgba(255,255,255,0.70)' }}>{periodLabel}</p>
+        <h1 className="text-3xl font-black leading-tight mb-1" style={{ color: '#ffffff' }}>
           {userName ? `Le bilan de ${userName}` : 'Mon Bilan TempoFit'}
         </h1>
 
@@ -72,8 +78,8 @@ export default function GlobalStatsShareCard({
           // motivant plutôt qu'un mur de zéros.
           <div className="mt-10 mb-4 text-center py-10">
             <p className="text-6xl mb-4">🚀</p>
-            <p className="text-white text-xl font-black mb-2">Début de l'aventure !</p>
-            <p className="text-white/70 text-sm px-4">Ta première séance n'attend plus que toi. Reviens ici pour voir ton bilan prendre forme.</p>
+            <p className="text-xl font-black mb-2" style={{ color: '#ffffff' }}>Début de l'aventure !</p>
+            <p className="text-sm px-4" style={{ color: 'rgba(255,255,255,0.70)' }}>Ta première séance n'attend plus que toi. Reviens ici pour voir ton bilan prendre forme.</p>
           </div>
         ) : (
           <>
@@ -81,33 +87,33 @@ export default function GlobalStatsShareCard({
                 mise en scène "gros chiffre" façon Spotify Wrapped plutôt
                 qu'une carte discrète comme dans SessionSummaryCard. */}
             <div className="mt-8 mb-6">
-              <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">Temps total d'entraînement</p>
-              <p className="text-white text-5xl font-black leading-none tracking-tight">{formatDuration(totalSeconds)}</p>
+              <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: 'rgba(255,255,255,0.70)' }}>Temps total d'entraînement</p>
+              <p className="text-5xl font-black leading-none tracking-tight" style={{ color: '#ffffff' }}>{formatDuration(totalSeconds)}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 mb-8">
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
-                <div className="flex items-center gap-1.5 text-white/70 mb-1"><ListMusic size={14}/><span className="text-[10px] font-bold uppercase tracking-wide">Playlists générées</span></div>
-                <p className="text-white text-2xl font-black">{totalPlaylistsGenerated}</p>
+              <div className="backdrop-blur-sm rounded-2xl p-4 border" style={{ backgroundColor: 'rgba(255,255,255,0.10)', borderColor: 'rgba(255,255,255,0.10)' }}>
+                <div className="flex items-center gap-1.5 mb-1" style={{ color: 'rgba(255,255,255,0.70)' }}><ListMusic size={14}/><span className="text-[10px] font-bold uppercase tracking-wide">Playlists générées</span></div>
+                <p className="text-2xl font-black" style={{ color: '#ffffff' }}>{totalPlaylistsGenerated}</p>
               </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
-                <div className="flex items-center gap-1.5 text-white/70 mb-1"><Zap size={14}/><span className="text-[10px] font-bold uppercase tracking-wide">BPM moyen</span></div>
-                <p className="text-white text-2xl font-black">{avgBpm}</p>
+              <div className="backdrop-blur-sm rounded-2xl p-4 border" style={{ backgroundColor: 'rgba(255,255,255,0.10)', borderColor: 'rgba(255,255,255,0.10)' }}>
+                <div className="flex items-center gap-1.5 mb-1" style={{ color: 'rgba(255,255,255,0.70)' }}><Zap size={14}/><span className="text-[10px] font-bold uppercase tracking-wide">BPM moyen</span></div>
+                <p className="text-2xl font-black" style={{ color: '#ffffff' }}>{avgBpm}</p>
               </div>
             </div>
 
             {/* Stat 2 — Profil d'effort : l'allure la plus jouée, mise en avant
                 comme le "signature move" de l'utilisateur. */}
-            <div className="bg-black/20 backdrop-blur-sm rounded-2xl p-5 border border-white/10 mb-2">
-              <p className="text-white/70 text-[11px] font-bold uppercase tracking-widest mb-1">Ton allure favorite</p>
-              <p className="text-white text-3xl font-black">{favoriteBpmLabel}</p>
+            <div className="backdrop-blur-sm rounded-2xl p-5 border mb-2" style={{ backgroundColor: 'rgba(0,0,0,0.20)', borderColor: 'rgba(255,255,255,0.10)' }}>
+              <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: 'rgba(255,255,255,0.70)' }}>Ton allure favorite</p>
+              <p className="text-3xl font-black" style={{ color: '#ffffff' }}>{favoriteBpmLabel}</p>
             </div>
           </>
         )}
       </div>
 
-      <div className="relative px-8 py-4 border-t border-white/10 flex items-center justify-center">
-        <p className="text-white/60 text-[11px] font-semibold">tempofit.app — cale ta musique sur ton effort</p>
+      <div className="relative px-8 py-4 border-t flex items-center justify-center" style={{ borderColor: 'rgba(255,255,255,0.10)' }}>
+        <p className="text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.60)' }}>tempofit.app — cale ta musique sur ton effort</p>
       </div>
     </div>
   );
