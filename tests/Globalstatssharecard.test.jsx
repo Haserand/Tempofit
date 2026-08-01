@@ -68,11 +68,11 @@ describe('GlobalStatsShareCard', () => {
     // le mode — incohérence repérée et corrigée en même temps.
     const { container, rerender } = render(<GlobalStatsShareCard isNaughtyMode={false} />);
     const gradientLayer = container.querySelector('.absolute.inset-0');
-    expect(gradientLayer.style.background).toContain('#2563eb'); // bleu, mode normal
+    expect(gradientLayer.style.background).toContain('rgb(37, 99, 235)'); // #2563eb, bleu, mode normal
 
     rerender(<GlobalStatsShareCard isNaughtyMode={true} />);
     const gradientLayerNaughty = container.querySelector('.absolute.inset-0');
-    expect(gradientLayerNaughty.style.background).toContain('#be123c'); // rose/rouge, Mode Intime
-    expect(gradientLayerNaughty.style.background).not.toContain('#2563eb');
+    expect(gradientLayerNaughty.style.background).toContain('rgb(190, 18, 60)'); // #be123c, rose/rouge, Mode Intime
+    expect(gradientLayerNaughty.style.background).not.toContain('rgb(37, 99, 235)');
   });
 });
