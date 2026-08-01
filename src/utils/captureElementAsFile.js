@@ -104,7 +104,24 @@ export async function captureElementAsFile(element, filename, { scale = 2, extra
   if (extraDelayMs > 0) await new Promise(resolve => setTimeout(resolve, extraDelayMs));
   await waitForImagesToLoad(element);
 
-  const { default: html2canvas } = await import('html2canvas');
+  // BUG CORRIGÉ (01/08, définitivement) — après plusieurs correctifs
+  // successifs sans effet (résolution CORS en data URI, retrait des
+  // ombres, retrait de TOUTES les classes de couleur Tailwind des 2
+  // composants capturés), la vraie erreur enfin journalisée a révélé la
+  // cause exacte : `Attempting to parse an unsupported color function
+  // "oklch"`. Tailwind v4 génère ses couleurs NOMMÉES (y compris celles de
+  // tout le RESTE de l'app — Sidebar, boutons...) avec `oklch()` par
+  // défaut ; `html2canvas` CLONE TOUTE LA PAGE avant d'extraire l'élément
+  // ciblé, donc même un composant "propre" (sans classe de couleur
+  // Tailwind) reste affecté par le reste de l'app autour de lui. Corriger
+  // ça composant par composant aurait voulu dé-Tailwindiser TOUTE
+  // l'application — largement disproportionné. `html2canvas` lui-même n'a
+  // jamais ajouté le support d'oklch (ticket ouvert depuis 2024, sans
+  // suite : niklasvh/html2canvas#3148/#3235/#3269) — `html2canvas-pro`
+  // est un FORK au même API strictement identique (même signature d'appel,
+  // aucun autre changement de code nécessaire ici), qui ajoute justement
+  // ce support (color()/lab()/lch()/oklab()/oklch()).
+  const { default: html2canvas } = await import('html2canvas-pro');
   const canvas = await Promise.race([
     html2canvas(element, { scale, backgroundColor: null, useCORS: true }),
     new Promise((_, reject) => setTimeout(() => reject(new Error('captureElementAsFile: délai dépassé (html2canvas bloqué ou trop lent)')), timeoutMs)),
