@@ -59,8 +59,36 @@ export default defineConfig({
   // `@testing-library/react`) — nécessite l'extension `.jsx` pour que
   // `@vitejs/plugin-react` lui applique sa transformation JSX (comme pour
   // n'importe quel autre fichier `.jsx` du projet).
+  //
+  // `pool: 'threads'` (01/08, "chaque déploiement Vercel prend une minute,
+  // y a pas moyen de réduire ?") — décision prise à partir des VRAIS
+  // chiffres du log Vercel, pas d'une supposition : `vitest run` pèse à lui
+  // seul 45,7s sur 52s de build total (88%), et là-dedans le sous-poste
+  // "environment" (initialisation de jsdom, pour chacun des ~35 fichiers de
+  // test qui montent un composant React) pèse 20,37s — PLUS que
+  // l'exécution réelle des 614 tests (11,03s). La machine de build Vercel
+  // n'a que 2 cœurs (voir le log : "Build machine configuration: 2 cores,
+  // 8 GB") : le pool par défaut de Vitest 4 (`'forks'`, de vrais processus
+  // enfants — le plus isolé, mais aussi le plus lourd à démarrer) fait
+  // donc surtout la queue plutôt que du vrai parallélisme. `'threads'`
+  // (worker_threads natifs Node, démarrage nettement plus léger) vise
+  // directement ce poste, sans toucher à la logique d'aucun test.
+  //
+  // ⚠️ Seul point que je n'ai pas pu vérifier ici (bac à sable sans accès
+  // réseau, donc pas de vrai `vitest run` possible) : le pool `'threads'`
+  // partage un contexte V8 plus léger entre fichiers que `'forks'`, ce qui
+  // pourrait en théorie exposer une pollution d'état entre 2 fichiers de
+  // test si l'un d'eux modifiait un objet global sans le nettoyer
+  // correctement dans son `afterEach` (voir les pièges déjà documentés en
+  // passation sur `cleanup()`/`clearAllMocks()`). Aucun cas de ce genre
+  // repéré dans l'audit du projet à ce jour, mais c'est LE point à
+  // surveiller sur le prochain déploiement : si un test devient
+  // instable/aléatoire qui ne l'était pas avant, revenir à `pool: 'forks'`
+  // (ou juste supprimer cette ligne, `'forks'` est le défaut) et me le
+  // signaler avec le nom du test concerné plutôt que d'insister.
   test: {
     environment: 'node',
     include: ['tests/**/*.test.{js,jsx}'],
+    pool: 'threads',
   },
 })
