@@ -70,7 +70,30 @@ export function useSyncedCollection(storageKey, tableName, initialValue) {
   const userRef = useRef(user);
   useEffect(() => { userRef.current = user; }, [user]);
 
-  const isApplyingRemoteRef = useRef(false);
+  // BUG CORRIGÉ (01/08, trouvé en écrivant les tests de ce hook, pas
+  // signalé par un retour utilisateur) — un `isApplyingRemoteRef` existait
+  // ici : posé à `true` juste avant l'appel à `setStateInternal` du pull
+  // (remplacement par les données serveur), avec l'intention de "ne pas
+  // repousser vers Supabase une valeur qui vient DÉJÀ de Supabase". Sauf
+  // que ce flag n'était vérifié/réinitialisé QUE dans `setState` (la
+  // fonction wrapper exposée à toute l'app, plus bas) — jamais dans
+  // `setStateInternal` (le setter React brut, celui que le pull appelle
+  // RÉELLEMENT). Résultat concret : le flag restait bloqué à `true` après
+  // toute connexion où le serveur avait déjà des données, jusqu'au tout
+  // PROCHAIN appel de `setState` — n'importe lequel, sauvegarder une
+  // nouvelle playlist, la modifier, la supprimer. Ce 1er appel se
+  // retrouvait donc traité À TORT comme "vient du serveur", son diff
+  // sauté entièrement — la modification restait visible localement (l'état
+  // change bien) mais ne partait JAMAIS vers Supabase. Perte de donnée
+  // SILENCIEUSE, sans la moindre erreur console pour l'indiquer.
+  //
+  // Le vrai correctif : ce flag n'a JAMAIS été nécessaire. Le pull appelle
+  // déjà `setStateInternal` DIRECTEMENT (pas `setState`) — la logique de
+  // diff/synchro vit ENTIÈREMENT dans le callback interne de `setState`
+  // (plus bas), jamais exécutée par un simple `setStateInternal`. Le
+  // pull ne peut donc, par construction, jamais déclencher de synchro
+  // parasite — retirer ce flag ne change RIEN au comportement du pull,
+  // et corrige le bug pour tous les appels de `setState` qui le suivent.
   const hasSyncedForUserRef = useRef(null);
   // État actuellement en mémoire, lu au moment du pull initial (1re
   // connexion) pour décider s'il faut pousser les données invité
@@ -110,7 +133,6 @@ export function useSyncedCollection(storageKey, tableName, initialValue) {
           return;
         }
         if (data && data.length > 0) {
-          isApplyingRemoteRef.current = true;
           setStateInternal(data.map(rowToItem));
         } else if (stateRef.current.length > 0) {
           const { error: insertError } = await supabase.from(tableName).insert(
@@ -139,12 +161,11 @@ export function useSyncedCollection(storageKey, tableName, initialValue) {
     setStateInternal(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
 
-      // Valeur qui vient d'un pull distant (voir plus haut) — déjà la
-      // vérité serveur, rien à repousser dessus.
-      if (isApplyingRemoteRef.current) {
-        isApplyingRemoteRef.current = false;
-        return next;
-      }
+      // Valeur qui vient d'un pull distant : IMPOSSIBLE d'arriver ici — le
+      // pull appelle `setStateInternal` directement (voir plus haut),
+      // jamais ce wrapper `setState`. Rien à vérifier de ce côté (voir le
+      // commentaire du bug corrigé, à la déclaration de
+      // `hasSyncedForUserRef` plus haut, pour l'historique complet).
 
       if (isSupabaseConfigured && userRef.current) {
         const uid = userRef.current.id;
