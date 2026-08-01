@@ -8,7 +8,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import GlobalStatsShareCard from '../src/components/shared/GlobalStatsShareCard.jsx';
+import GlobalStatsShareCard from '../../src/components/shared/GlobalStatsShareCard.jsx';
 
 afterEach(() => {
   cleanup();
