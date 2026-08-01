@@ -87,34 +87,27 @@ export default defineConfig({
   // (ou juste supprimer cette ligne, `'forks'` est le défaut) et me le
   // signaler avec le nom du test concerné plutôt que d'insister.
   //
-  // `isolate: false` (01/08, suite — gain de `pool: 'threads'` seul jugé
-  // trop faible : 45,70s → 43,60s, -4,6%) — RÉUTILISE le même environnement
-  // jsdom entre fichiers d'un même worker au lieu d'en recréer un neuf par
-  // fichier (35 fichiers jsdom, 2 cœurs seulement sur la machine Vercel :
-  // voir le log, "environment" pesait 20,37s à lui seul, PLUS que
-  // l'exécution réelle des 614 tests). Cible directement ce poste, gain
-  // potentiel bien plus net que `pool: 'threads'` seul.
+  // `isolate: false` TENTÉ puis RETIRÉ (01/08) — gain espéré pour cibler le
+  // poste "environment" (20,37s, le plus gros poste de `vitest run`), audit
+  // de sécurité fait AVANT d'activer (voir tests/ShareModal.test.jsx, seul
+  // vrai risque trouvé, corrigé et gardé — bonne pratique indépendamment du
+  // reste). Mesuré sur un vrai déploiement Vercel ensuite : AUCUN gain
+  // (environment 18,95s → 19,19s, dans le bruit de mesure). Cherché
+  // pourquoi plutôt que de re-deviner à l'aveugle une 3e fois : c'est une
+  // limitation CONNUE de Vitest lui-même, pas un souci de config ici —
+  // l'environnement jsdom est recréé à chaque fichier MÊME sous
+  // `--no-isolate` (voir vitest-dev/vitest#8478, signalé par l'équipe MUI
+  // exactement sur ce symptôme). Gain nul + risque de fuite d'état entre
+  // fichiers de test conservé pour rien = pas justifié, retiré. Si Vitest
+  // corrige un jour cette limitation, ça vaudra le coup de retenter.
   //
-  // AUDIT DE SÉCURITÉ fait avant d'activer ceci (01/08) — isolate:false
-  // rend une fuite d'état global entre 2 fichiers de test RÉELLEMENT
-  // possible (elle ne l'était pas avant : chaque fichier repartait de
-  // zéro). Les 6 fichiers de `tests/` qui touchent à un objet global
-  // (`navigator`/`document`/`window`/`global`) ont été relus un par un :
-  //   - `ResizeObserver` (PlaylistCharts/GeneratorWizard) : stub posé au
-  //     niveau module, jamais lu avant d'être écrit, idempotent — sans risque.
-  //   - `vi.stubGlobal('location', ...)` (Errorboundary) : API Vitest
-  //     PRÉVUE pour ça, restaurée automatiquement par `vi.unstubAllGlobals()`
-  //     quel que soit le pool — sans risque.
-  //   - `URL.createObjectURL`/`revokeObjectURL` (useShare/PlaylistDetailView/
-  //     SettingsView) : les 3 fichiers reposent une valeur fraîche dans leur
-  //     PROPRE `beforeEach`, aucun ne dépend de ce que le fichier précédent
-  //     a laissé — sans risque.
-  //   - `navigator.share` (ShareModal.test.jsx) : SEUL vrai risque trouvé —
-  //     réinitialisé avant chaque test de CE fichier, mais pas nettoyé
-  //     après ; un `vi.fn()` posé par son dernier test pouvait fuiter vers
-  //     le fichier suivant dans le même worker. Corrigé dans le même commit
-  //     (ajout du nettoyage symétrique en `afterEach`, voir ce fichier).
-  isolate: false,
+  // Seul gain confirmé et gardé sur ce chantier "vitesse de build" (01/08) :
+  // `pool: 'threads'` ci-dessus (-4,6% sur `vitest run`, 0 régression sur 3
+  // déploiements réels). Le reste du temps de `vitest run` (~44s, dominé
+  // par la création répétée de jsdom, 1 fois par fichier) semble être un
+  // plancher structurel de Vitest sur ce projet en l'état — la seule vraie
+  // marge de manœuvre restante serait côté infra (plus de cœurs sur la
+  // machine de build Vercel), pas côté config.
   test: {
     environment: 'node',
     include: ['tests/**/*.test.{js,jsx}'],
