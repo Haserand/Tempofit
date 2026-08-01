@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
-import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, X, LogOut } from 'lucide-react';
+import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, X, LogOut, Search as SearchIcon } from 'lucide-react';
 import { genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getRankStyle } from './appConfig';
 import { VIEW_HEADER_TOP_PADDING } from './layout/viewHeaderLayout';
@@ -1311,7 +1311,6 @@ function AppContent({
           playerBarVisible={!!(currentTrack || playingPreviewId)}
           toggleNaughtyMode={toggleNaughtyMode}
           theme={theme} toggleTheme={toggleTheme}
-          openModal={openModal}
         />
 
         <div className="flex-1 flex flex-col relative w-full">
@@ -1440,6 +1439,24 @@ function AppContent({
                           )}
                         </div>
                         <div className={`border-t ${cardBorder} my-0`} />
+                        {/* Rechercher un profil (Feature Sociale —
+                            Navigation, 01/08, retour direct : "je la veux
+                            en option... quand je clique sur mon logo pour
+                            voir éventuellement d'autres utilisateurs") —
+                            ouvre SearchUsersModal.jsx (déjà câblée plus
+                            bas dans ce fichier). `setIsUserMenuOpen(false)`
+                            avant `openModal` : ferme CE menu-ci en premier,
+                            même geste que "Se déconnecter" juste en
+                            dessous — jamais les deux ouverts en même
+                            temps. */}
+                        <button
+                          onClick={() => { setIsUserMenuOpen(false); openModal('SEARCH_USERS'); }}
+                          className={`w-full flex items-center gap-2 px-4 py-3 text-sm font-bold ${textHighlight} hover:bg-surface-hover transition-colors cursor-pointer`}
+                        >
+                          <SearchIcon size={16} />
+                          Rechercher un profil
+                        </button>
+                        <div className={`border-t ${cardBorder} my-0`} />
                         <button
                           onClick={() => { setIsUserMenuOpen(false); signOut(); }}
                           className="w-full flex items-center gap-2 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
@@ -1506,7 +1523,7 @@ function AppContent({
             )}
 
             {view === 'discover' && (
-              <DiscoverView theme={themeTokens} onPlayTemplate={openCuratedPlaylist} isNaughtyMode={isNaughtyMode} />
+              <DiscoverView theme={themeTokens} onPlayTemplate={openCuratedPlaylist} isNaughtyMode={isNaughtyMode} user={user} openModal={openModal} />
             )}
 
             {view === 'profile' && (
