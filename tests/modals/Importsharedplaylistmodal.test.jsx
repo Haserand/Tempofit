@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import ImportSharedPlaylistModal from '../src/components/modals/ImportSharedPlaylistModal.jsx';
+import ImportSharedPlaylistModal from '../../src/components/modals/ImportSharedPlaylistModal.jsx';
 
 afterEach(() => {
   cleanup();
