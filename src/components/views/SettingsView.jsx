@@ -443,7 +443,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                 <div className={`flex items-center justify-between p-4 rounded-2xl border ${inputBorder} ${inputBg}`}>
                   <div className="min-w-0 flex-1 pr-4">
                     <h4 className={`font-bold ${textHighlight}`}>Rendre mon profil public</h4>
-                    <p className={`text-xs mt-0.5 ${textMuted}`}>N'importe qui avec le lien peut voir ton pseudonyme et ton avatar.</p>
+                    <p className={`text-xs mt-0.5 ${textMuted}`}>N'importe qui avec un compte TempoFit et le lien peut voir ton pseudonyme et ton avatar.</p>
                   </div>
                   <button
                     onClick={() => handleTogglePrivacy('is_profile_public', !!profilePrivacy?.isProfilePublic)}
