@@ -81,6 +81,7 @@ const GeneratorView = lazy(() => import('./components/views/GeneratorView'));
 const PlaylistDetailView = lazy(() => import('./components/views/PlaylistDetailView'));
 import CustomActivityModal from './components/modals/CustomActivityModal';
 const DiscoverView = lazy(() => import('./components/views/DiscoverView'));
+const ProfileView = lazy(() => import('./components/views/ProfileView'));
 import MiniPlayerBar from './components/shared/MiniPlayerBar';
 import GuestModeBar from './components/shared/GuestModeBar';
 import ErrorBoundary from './components/shared/ErrorBoundary';
@@ -141,6 +142,11 @@ function AppContent({
 }) {
   // --- Navigation & état d'affichage global ---
   const [view, setView] = useState('generator');
+  // Pseudo actuellement consulté sur la vue Profil Public (ProfileView.jsx),
+  // posé par la détection `?profile=...` ci-dessous (voir ce useEffect pour
+  // le raisonnement complet) — `null` tant qu'aucun profil n'est en cours
+  // de consultation, jamais lu ailleurs que par ce composant.
+  const [viewingProfileUsername, setViewingProfileUsername] = useState(null);
   // Bascule "vue détaillée" de la page Statistiques — voir plus bas. Volontairement
   // hors du bloc `view === 'stats' && (() => {...})()` : ce bloc ne s'exécute que
   // quand cette vue est active, donc un `useState` dedans violerait les règles des
@@ -317,7 +323,7 @@ function AppContent({
   // `isAuthModalOpen` vivait ici (state local) avant le chantier "centraliser
   // les modales" (25/07) — dérivée maintenant de ModalContext
   // (`activeModal === 'AUTH'`), voir ModalContainer.jsx.
-  const { user, signUp, signIn, signOut, resetPassword, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, userCount, username, usernameLoading, checkUsernameAvailable, setUsername } = useAuthContext();
+  const { user, signUp, signIn, signOut, resetPassword, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, userCount, username, usernameLoading, checkUsernameAvailable, setUsername, profilePrivacy, updatePrivacySettings } = useAuthContext();
 
   // RETOUR DIRECT ("pas de message d'erreur quand je clique sur un lien
   // expiré ?") — Supabase redirige bien vers l'app avec le détail de
@@ -366,6 +372,37 @@ function AppContent({
     // Nettoie l'URL dans les 2 cas (valide ou pas) — évite de re-proposer le
     // même import à chaque rafraîchissement de la page.
     window.history.replaceState({}, document.title, window.location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Profil Public (01/08, Feature Sociale Partie 2/3) — détecte
+  // `?profile=pseudo` au montage, MÊME PRINCIPE EXACT que `?import=...`
+  // juste au-dessus (pas de coïncidence : ce projet n'utilise pas
+  // react-router — voir useNavigation.js — donc toute "route" est en
+  // réalité un paramètre de requête lu ici, une seule fois, au chargement).
+  // Contrairement à `?import=`, pas de décodage local à faire : `pseudo`
+  // est directement le nom à interroger, toute la résolution/vérification
+  // se fait côté serveur dans ProfileView.jsx (fonction Postgres
+  // `get_public_profile_summary`, voir supabase-schema.sql) — rien à valider
+  // ici avant de basculer la vue.
+  //
+  // ⚠️ Pas de vraie route `/user/:username` : un lien direct vers ce chemin
+  // ouvert à froid (pas depuis l'app) renverrait un 404 AVANT même que React
+  // ne s'exécute, `vercel.json` n'ayant aucune règle de réécriture pour un
+  // chemin arbitraire. Un paramètre de requête, lui, atteint toujours
+  // `index.html` normalement, quel que soit l'hébergeur.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const profileUsername = params.get('profile');
+    if (!profileUsername) return;
+
+    setViewingProfileUsername(profileUsername);
+    setView('profile');
+    // PAS de nettoyage de l'URL ici (contrairement à `?import=` juste au-
+    // dessus) — volontaire : cette page doit rester partageable/rechargeable
+    // telle quelle (`tempofit.app/?profile=alex`), exactement comme un lien
+    // de playlist reste valide une fois ouvert. Nettoyer l'URL casserait le
+    // rafraîchissement de page et le partage du lien lui-même.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1459,6 +1496,10 @@ function AppContent({
               <DiscoverView theme={themeTokens} onPlayTemplate={openCuratedPlaylist} isNaughtyMode={isNaughtyMode} />
             )}
 
+            {view === 'profile' && (
+              <ProfileView theme={themeTokens} username={viewingProfileUsername} isNaughtyMode={isNaughtyMode} changeView={changeView} />
+            )}
+
             {view === 'routines' && (
               <RoutinesView
                 theme={themeTokens} isNaughtyMode={isNaughtyMode} routines={routines} setRoutines={setRoutines}
@@ -1518,6 +1559,7 @@ function AppContent({
                 user={user} updateEmail={updateEmail} isSupabaseConfigured={isSupabaseConfigured}
                 updatePassword={updatePassword} exportUserData={exportUserData} deleteAccount={deleteAccount}
                 username={username} usernameLoading={usernameLoading} checkUsernameAvailable={checkUsernameAvailable} setUsername={setUsername}
+                profilePrivacy={profilePrivacy} updatePrivacySettings={updatePrivacySettings}
                 userCount={userCount}
                 isNaughtyMode={isNaughtyMode} showToast={showToast} changeView={changeView}
               />
