@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { fetchSpotifyRawData, resolveTracksBpm } from '../spotifyEngine';
+import { fetchSpotifyRawData, resolveTracksBpm } from '../engine/spotifyEngine';
 
 const SPOTIFY_AUTH_BASE = 'https://accounts.spotify.com/authorize?';
 const SPOTIFY_TOKEN_BASE = 'https://accounts.spotify.com/api/token';
