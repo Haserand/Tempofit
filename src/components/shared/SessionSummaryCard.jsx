@@ -159,7 +159,7 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sess
 
   return (
     <div
-      className="w-[400px] min-h-[711px] flex flex-col rounded-[32px] overflow-hidden shadow-2xl"
+      className="w-[400px] min-h-[711px] flex flex-col rounded-[32px] overflow-hidden"
       style={{ background: isNaughtyMode ? 'linear-gradient(160deg, #1a0b12 0%, #0d0509 100%)' : 'linear-gradient(160deg, #111827 0%, #030712 100%)', fontFamily: 'system-ui, -apple-system, sans-serif' }}
     >
       <div className="p-8 pb-6">
