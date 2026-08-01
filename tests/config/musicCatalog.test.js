@@ -5,7 +5,7 @@ import {
   isLiveOrPerformanceVersion,
   detectTitleStyleConflict,
   detectLanguageVersionConflict,
-} from '../src/musicCatalog.js';
+} from '../../src/musicCatalog.js';
 
 describe('isDirectGenreMatch', () => {
   it('accepte toujours "Autre" (absence de restriction de genre)', () => {
