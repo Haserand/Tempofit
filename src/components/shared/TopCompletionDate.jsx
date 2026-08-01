@@ -27,13 +27,31 @@ import { Edit3 } from 'lucide-react';
  * élément-ci reste le seul de la carte à ne pas suivre cette palette fixe. Un
  * changement visuel, pas structurel : à traiter séparément, avec confirmation par
  * capture d'écran comme le reste des choix visuels de l'app.
+ *
+ * `isReadOnly` (Feature Sociale — Consultation/Clonage, 01/08, retour direct :
+ * "à traiter si vous voulez que ce soit parfaitement propre") — `false` par défaut
+ * (AUCUN appelant existant n'a besoin de le préciser, comportement inchangé partout
+ * ailleurs). Sur une playlist étrangère consultée en aperçu (PlaylistHeader.jsx,
+ * `isReadOnly` du contexte), la date affichée devient du texte simple, sans bouton ni
+ * icône crayon : cette date appartient à l'HISTOIRE du propriétaire d'origine, pas à
+ * celle du visiteur — la modifier ici n'aurait plus persisté nulle part (cette
+ * playlist n'est jamais dans SA propre `savedPlaylists`, voir
+ * PlaylistDetailContext.jsx) mais aurait quand même semblé fonctionner à l'écran,
+ * silencieusement inefficace — un bouton qui a l'air de marcher sans rien faire est
+ * pire qu'un bouton absent.
  */
 export default function TopCompletionDate({
-  playlist, editingCompletion, setEditingCompletion, editCompletionDate, theme,
+  playlist, editingCompletion, setEditingCompletion, editCompletionDate, theme, isReadOnly = false,
 }) {
   const { inputBg, borderAccentClass, textHighlight } = theme;
   const iso = playlist.completions?.[0];
   if (!iso) return null;
+
+  const longLabel = new Date(iso.slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  if (isReadOnly) {
+    return <span>{longLabel}</span>;
+  }
 
   const isEditing = editingCompletion && editingCompletion.playlistId === playlist.id && editingCompletion.isoDate === iso;
   if (isEditing) {
@@ -47,7 +65,6 @@ export default function TopCompletionDate({
     );
   }
 
-  const longLabel = new Date(iso.slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
   return (
     <button
       onClick={() => setEditingCompletion({ playlistId: playlist.id, isoDate: iso })}
