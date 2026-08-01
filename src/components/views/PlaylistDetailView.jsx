@@ -3,7 +3,8 @@ import { Activity, ChevronDown, ChevronUp } from 'lucide-react';
 import { genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog';
 import { getCadenceUnitLabel, getZoneForValue, getBpmBucketLabel } from '../../appConfig';
 import { formatDuration } from '../../utils/format';
-import { captureElementAsFile } from '../../utils/captureElementAsFile';
+import { captureElementAsFile, fetchImageAsDataUri } from '../../utils/captureElementAsFile';
+import { buildCoverUrl } from '../../utils/coverArt';
 import { deezerFetch } from '../../musicEngine';
 import SessionSummaryCard from '../shared/SessionSummaryCard';
 import { PlaylistDetailProvider, usePlaylistDetail } from '../../contexts/PlaylistDetailContext';
@@ -214,6 +215,7 @@ function PlaylistDetailViewInner({
   // montage du composant lui-même.
   const summaryCardRef = useRef(null);
   const [summaryCovers, setSummaryCovers] = useState({});
+  const [summarySessionCover, setSummarySessionCover] = useState(null);
 
   // RETOUR DIRECT ("insérer le bilan image directement dans l'option de
   // partage, avec une croix pour le retirer") — DEUXIÈME évolution de ce
@@ -247,6 +249,7 @@ function PlaylistDetailViewInner({
     setSummaryImageStatus('idle');
     setSummaryImageFile(null);
     setIncludeSummaryImage(true);
+    setSummarySessionCover(null);
     setSummaryImagePreviewUrl(prev => {
       if (prev) URL.revokeObjectURL(prev);
       return null;
@@ -262,23 +265,50 @@ function PlaylistDetailViewInner({
    * l'aperçu et gère elle-même le partage une fois l'image prête.
    */
   const generateSummaryImageFile = async () => {
-    // 1. Pochettes des 3 premiers titres — uniquement pour ceux sourcés de
+    // 1. Pochette de LA SÉANCE (celle affichée en en-tête de la carte) —
+    // résolue en data URI comme les pochettes de titres ci-dessous, pour
+    // la même raison (voir fetchImageAsDataUri). Sans ça, la pochette de
+    // repli (DiceBear, un SVG) faisait planter la capture à elle seule,
+    // même quand aucun titre Deezer n'était concerné.
+    const sessionCoverSourceUrl = currentPlaylist.coverUrl || buildCoverUrl(currentPlaylist.name);
+    const sessionCoverDataUri = await fetchImageAsDataUri(sessionCoverSourceUrl);
+    setSummarySessionCover(sessionCoverDataUri);
+
+    // 2. Pochettes des 3 premiers titres — uniquement pour ceux sourcés de
     // Deezer (trackId de la forme "deezer-{id}") ; un titre favori/
     // Spotify sans équivalent n'a pas d'ID Deezer exploitable, repli sur
     // l'icône générique dans SessionSummaryCard (composant volontairement
     // pur, aucun appel réseau dedans — voir sa docstring).
+    //
+    // BUG CORRIGÉ (01/08, "la préparation des bilans visuels plante") —
+    // ces pochettes étaient jusqu'ici de simples URLs Deezer directes,
+    // chargées cross-origin par le <img> de SessionSummaryCard.jsx au
+    // moment de la capture html2canvas. Rien ne garantit que le CDN Deezer
+    // renvoie les en-têtes CORS nécessaires pour un <img crossOrigin=
+    // "anonymous"> (contrairement à l'appel JSON ci-dessous, déjà proxyé
+    // via /api/deezer.js) — un canvas "tainted" par une image cross-origin
+    // mal chargée fait échouer `canvas.toBlob()` avec une SecurityError,
+    // qui remontait jusqu'ici (voir aussi la pochette de séance ci-dessus,
+    // même cause, encore plus systématique : DiceBear renvoie du SVG,
+    // réputé pour "tainted" un canvas même avec les bons en-têtes CORS).
+    // Résolues maintenant en data URI ICI, AVANT le rendu — une data URI
+    // n'a par définition aucune notion de "cross-origin", donc plus aucun
+    // risque de taint, quel que soit le comportement CORS réel du CDN.
     const topTracks = currentPlaylist.tracks.slice(0, 3);
     const covers = {};
     await Promise.all(topTracks.map(async (t) => {
       if (!t.trackId || !t.trackId.startsWith('deezer-')) return;
       try {
         const { data } = await deezerFetch(`https://api.deezer.com/track/${t.trackId.replace('deezer-', '')}`);
-        if (data?.album?.cover_medium) covers[t.trackId] = data.album.cover_medium;
+        if (data?.album?.cover_medium) {
+          const dataUri = await fetchImageAsDataUri(data.album.cover_medium);
+          if (dataUri) covers[t.trackId] = dataUri;
+        }
       } catch (e) { /* pas de pochette pour ce titre — repli déjà géré côté composant */ }
     }));
     setSummaryCovers(covers);
 
-    // 2-3. Attente du re-render + capture — entièrement centralisées dans
+    // 3-4. Attente du re-render + capture — entièrement centralisées dans
     // captureElementAsFile (utils/, règle du Boy Scout) plutôt qu'inlinées
     // ici avec l'import html2canvas. `scale: 2.7` sur une carte de 400px de
     // large vise exactement 1080px de sortie (format Story Instagram,
@@ -519,7 +549,7 @@ function PlaylistDetailViewInner({
           none` par sécurité (jamais interactif, jamais censé être vu). */}
       <div style={{ position: 'fixed', left: '-9999px', top: 0, pointerEvents: 'none' }} aria-hidden="true">
         <div ref={summaryCardRef}>
-          <SessionSummaryCard playlist={currentPlaylist} topTrackCovers={summaryCovers} isNaughtyMode={isNaughtyMode} getProfileForWorkout={getProfileForWorkout} />
+          <SessionSummaryCard playlist={currentPlaylist} topTrackCovers={summaryCovers} sessionCoverUrl={summarySessionCover} isNaughtyMode={isNaughtyMode} getProfileForWorkout={getProfileForWorkout} />
         </div>
       </div>
     </div>
