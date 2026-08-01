@@ -74,6 +74,28 @@ function renderAuth() {
   return renderHook(() => useAuthContext(), { wrapper });
 }
 
+// BUG CORRIGÉ (01/08, suite — chantier "Profil public") — checkUsernameAvailable
+// (AuthContext.jsx) passe désormais par la fonction RPC dédiée
+// `is_username_available` (SECURITY DEFINER, voir supabase-schema.sql) au
+// lieu d'une lecture directe de `profiles` : la policy SELECT a été
+// resserrée à "soi-même OU is_profile_public", une lecture directe aurait
+// donc pu renvoyer `null` pour un pseudo déjà pris par un profil resté
+// privé. Les tests de ce fichier configuraient encore `mockFrom` avec
+// `maybeSingleResult` pour ce cas précis — resté SANS EFFET après le
+// changement (checkUsernameAvailable n'appelle plus `mockFrom` du tout),
+// ce qui a fait échouer 5 tests en silence jusqu'au déploiement réel
+// (déploiement du 01/08, 620 tests dont 5 échecs). Ce helper reconfigure
+// `mockRpc` pour ce cas précis — `mockRpc` est PARTAGÉ avec
+// `get_registered_users_count` (voir describe 'userCount' plus bas) :
+// filtré sur le nom de fonction en 1er argument pour ne jamais laisser un
+// test configurer les deux appels avec la même réponse par erreur.
+function mockUsernameAvailability(result) {
+  mockRpc.mockImplementation((fnName) => {
+    if (fnName === 'is_username_available') return Promise.resolve(result);
+    return Promise.resolve({ data: null, error: null });
+  });
+}
+
 beforeEach(() => {
   // Repose un builder neutre et COMPLET avant chaque test — sans ça, un
   // `mockReturnValue` posé par un test précédent (ex: exportUserData, dont
@@ -88,6 +110,14 @@ beforeEach(() => {
   // au 1er déploiement réel de ce fichier, invisibles tant qu'on ne
   // regarde que le statut ✓/× de chaque test).
   mockFrom.mockReturnValue(makeBuilder());
+  // Même discipline pour `mockRpc` (01/08, suite — trouvé en corrigeant les
+  // tests de checkUsernameAvailable) : un `mockImplementation` posé par un
+  // test (`mockUsernameAvailability`) persisterait sinon silencieusement
+  // dans le test suivant qui ne le reconfigure pas lui-même — sans
+  // conséquence observable aujourd'hui (le repli par défaut du helper
+  // reproduit exactement ce comportement neutre), mais un vrai risque
+  // latent si un futur test ajoute un 3e appel RPC sans y penser.
+  mockRpc.mockResolvedValue({ data: null, error: null });
 });
 
 afterEach(() => {
@@ -99,15 +129,16 @@ afterEach(() => {
 
 describe('AuthContext — checkUsernameAvailable', () => {
   it('disponible (aucune ligne trouvée)', async () => {
-    mockFrom.mockReturnValue(makeBuilder({ maybeSingleResult: { data: null, error: null } }));
+    mockUsernameAvailability({ data: true, error: null });
     const { result } = renderAuth();
     let outcome;
     await act(async () => { outcome = await result.current.checkUsernameAvailable('alex_runner'); });
     expect(outcome).toEqual({ available: true, error: null });
+    expect(mockRpc).toHaveBeenCalledWith('is_username_available', { candidate: 'alex_runner' });
   });
 
   it('déjà pris (une ligne trouvée)', async () => {
-    mockFrom.mockReturnValue(makeBuilder({ maybeSingleResult: { data: { user_id: 'u2' }, error: null } }));
+    mockUsernameAvailability({ data: false, error: null });
     const { result } = renderAuth();
     let outcome;
     await act(async () => { outcome = await result.current.checkUsernameAvailable('alex_runner'); });
@@ -115,7 +146,7 @@ describe('AuthContext — checkUsernameAvailable', () => {
   });
 
   it('erreur base de données : available=false avec le message', async () => {
-    mockFrom.mockReturnValue(makeBuilder({ maybeSingleResult: { data: null, error: { message: 'DB down' } } }));
+    mockUsernameAvailability({ data: null, error: { message: 'DB down' } });
     const { result } = renderAuth();
     let outcome;
     await act(async () => { outcome = await result.current.checkUsernameAvailable('alex_runner'); });
@@ -133,7 +164,7 @@ describe('AuthContext — signUp', () => {
   });
 
   it('pseudonyme déjà pris : erreur, signUp Supabase jamais appelé', async () => {
-    mockFrom.mockReturnValue(makeBuilder({ maybeSingleResult: { data: { user_id: 'u2' }, error: null } }));
+    mockUsernameAvailability({ data: false, error: null });
     const { result } = renderAuth();
     let outcome;
     await act(async () => { outcome = await result.current.signUp('a@b.com', 'pw123456', 'alex_runner'); });
@@ -142,7 +173,7 @@ describe('AuthContext — signUp', () => {
   });
 
   it('Supabase auth.signUp renvoie une erreur : la propage telle quelle', async () => {
-    mockFrom.mockReturnValue(makeBuilder({ maybeSingleResult: { data: null, error: null } }));
+    mockUsernameAvailability({ data: true, error: null });
     mockAuth.signUp.mockResolvedValue({ data: null, error: { message: 'Email déjà utilisé' } });
     const { result } = renderAuth();
     let outcome;
@@ -151,7 +182,8 @@ describe('AuthContext — signUp', () => {
   });
 
   it('succès AVEC session immédiate : insère le profil tout de suite', async () => {
-    const builder = makeBuilder({ maybeSingleResult: { data: null, error: null }, insertResult: { data: {}, error: null } });
+    mockUsernameAvailability({ data: true, error: null });
+    const builder = makeBuilder({ insertResult: { data: {}, error: null } });
     mockFrom.mockReturnValue(builder);
     mockAuth.signUp.mockResolvedValue({ data: { session: { id: 's1' }, user: { id: 'u1' } }, error: null });
     const { result } = renderAuth();
@@ -164,7 +196,8 @@ describe('AuthContext — signUp', () => {
   });
 
   it('succès SANS session immédiate (confirmation e-mail requise) : n\'insère PAS le profil ici', async () => {
-    const builder = makeBuilder({ maybeSingleResult: { data: null, error: null } });
+    mockUsernameAvailability({ data: true, error: null });
+    const builder = makeBuilder();
     mockFrom.mockReturnValue(builder);
     mockAuth.signUp.mockResolvedValue({ data: { session: null, user: { id: 'u1' } }, error: null });
     const { result } = renderAuth();
@@ -196,6 +229,7 @@ describe('AuthContext — setUsername', () => {
 
   it('collision au moment de l\'insertion (code 23505) : message dédié', async () => {
     mockAuth.getSession.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
+    mockUsernameAvailability({ data: true, error: null });
     mockFrom.mockReturnValue(
       makeBuilder({ maybeSingleResult: { data: null, error: null }, insertResult: { data: null, error: { code: '23505', message: 'duplicate key' } } })
     );
