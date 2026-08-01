@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'rea
 import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, X, LogOut } from 'lucide-react';
 import { genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getRankStyle } from './appConfig';
-import { VIEW_HEADER_TOP_PADDING } from './viewHeaderLayout';
+import { VIEW_HEADER_TOP_PADDING } from './layout/viewHeaderLayout';
 
 // =====================================================================================
 // CONSTANTES GLOBALES & CONFIGURATION
@@ -27,7 +27,7 @@ import { VIEW_HEADER_TOP_PADDING } from './viewHeaderLayout';
 // traduction jamais poursuivi. Retiré pour rester cohérent avec le reste : le
 // texte est maintenant écrit en dur à son unique point d'usage.
 
-import { deezerFetch, deduceCrescendoBpm, buildCrescendoSegments, recalculateTimeline } from './musicEngine';
+import { deezerFetch, deduceCrescendoBpm, buildCrescendoSegments, recalculateTimeline } from './engine/musicEngine';
 import { decodePlaylistFromSharing } from './utils/playlistShareCode';
 import { useTheme } from './hooks/useTheme';
 import { usePersistentState } from './hooks/usePersistentState';
