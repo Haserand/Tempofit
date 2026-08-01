@@ -7,7 +7,7 @@ import {
   isCadenceIntentEligible,
   emptyProfile,
   ATHLETIC_BPM_FLOOR,
-} from '../src/athleticZones.js';
+} from '../../src/athleticZones.js';
 
 /**
  * athleticZones.test.js — sécurise la logique de calcul des zones BPM
