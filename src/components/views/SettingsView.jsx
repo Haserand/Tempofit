@@ -485,6 +485,39 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                     </button>
                   </div>
                 )}
+
+                {/* Réglage par défaut des NOUVELLES playlists (Feature
+                    Sociale — Refonte Structurale Round 2/2, 01/08, retour
+                    direct : "par défaut... dans ses réglages, et ensuite on
+                    peut activer une option dans les 2 vues pour faire de
+                    l'individuel") — celui-ci ne change RIEN aux playlists
+                    déjà sauvegardées, seulement la valeur de départ des
+                    PROCHAINES (voir usePlaylistLibrary.js,
+                    handleSavePlaylist). La confidentialité RÉELLE de
+                    chaque playlist reste ajustable individuellement au cas
+                    par cas, depuis PlaylistDetailView.jsx et "Mes
+                    Séances" (voir PlaylistHeader.jsx/PlaylistCard.jsx) —
+                    ce toggle-ci n'est qu'un point de départ pratique, pas
+                    une bascule rétroactive. Pas de dépendance à
+                    `isNaughtyMode` (contrairement au toggle Intime
+                    juste au-dessus) : une nouvelle playlist peut être
+                    sauvegardée dans n'importe quel mode, ce réglage
+                    s'applique aux deux indifféremment. */}
+                {profilePrivacy?.isProfilePublic && (
+                  <div className={`flex items-center justify-between p-4 rounded-2xl border ${inputBorder} ${inputBg}`}>
+                    <div className="min-w-0 flex-1 pr-4">
+                      <h4 className={`font-bold ${textHighlight}`}>Rendre mes nouvelles playlists publiques par défaut</h4>
+                      <p className={`text-xs mt-0.5 ${textMuted}`}>S'applique aux prochaines sauvegardes — ajustable individuellement ensuite, séance par séance.</p>
+                    </div>
+                    <button
+                      onClick={() => handleTogglePrivacy('default_playlist_public', !!profilePrivacy?.defaultPlaylistPublic)}
+                      disabled={privacySavingKey === 'default_playlist_public'}
+                      className={`relative w-14 h-8 rounded-full transition-colors shrink-0 disabled:opacity-60 ${profilePrivacy?.defaultPlaylistPublic ? (isNaughtyMode ? 'bg-rose-500' : 'bg-red-500') : 'bg-gray-300 dark:bg-gray-600'}`}
+                    >
+                      <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${profilePrivacy?.defaultPlaylistPublic ? 'translate-x-6' : ''}`} />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {privacyError && <p className="text-xs font-semibold text-red-500 mt-3">{privacyError}</p>}
