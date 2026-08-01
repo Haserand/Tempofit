@@ -55,18 +55,36 @@ export function AuthProvider({ children }) {
   const [username, setUsernameState] = useState(null);
   const [usernameLoading, setUsernameLoading] = useState(false);
 
+  // Profil public (Feature, 01/08, "Confidentialité & Profil Public") —
+  // avatar + 3 bascules de confidentialité, récupérées EN MÊME TEMPS que le
+  // pseudonyme ci-dessus (même ligne `profiles`, pas une 2e requête réseau
+  // séparée). `null` = pas encore récupéré/déconnecté, comme `username` —
+  // une fois récupéré, toujours un objet complet (jamais partiellement
+  // rempli), les 3 bascules valant `false` par défaut côté base (voir
+  // `not null default false`, supabase-schema.sql) donc jamais `undefined`
+  // ici non plus.
+  const [profilePrivacy, setProfilePrivacy] = useState(null);
+
   useEffect(() => {
-    if (!isSupabaseConfigured || !user) { setUsernameState(null); setUsernameLoading(false); return; }
+    if (!isSupabaseConfigured || !user) { setUsernameState(null); setProfilePrivacy(null); setUsernameLoading(false); return; }
 
     let cancelled = false;
     setUsernameLoading(true);
 
     (async () => {
-      const { data, error } = await supabase.from('profiles').select('username').eq('user_id', user.id).maybeSingle();
+      const { data, error } = await supabase.from('profiles')
+        .select('username, avatar_url, is_profile_public, show_sport_stats, show_intimate_stats')
+        .eq('user_id', user.id).maybeSingle();
       if (cancelled) return;
 
       if (!error && data?.username) {
         setUsernameState(data.username);
+        setProfilePrivacy({
+          avatarUrl: data.avatar_url ?? null,
+          isProfilePublic: !!data.is_profile_public,
+          showSportStats: !!data.show_sport_stats,
+          showIntimateStats: !!data.show_intimate_stats,
+        });
         setUsernameLoading(false);
         return;
       }
@@ -90,8 +108,12 @@ export function AuthProvider({ children }) {
         // fonctionnalité (voir `setUsername` plus bas) : elle en choisit un
         // autre, disponible celui-là.
         setUsernameState(insertError ? null : pendingUsername);
+        // Ligne fraîchement créée : les 3 bascules valent forcément `false`
+        // (défaut côté base) — inutile de relire, on le sait déjà.
+        setProfilePrivacy(insertError ? null : { avatarUrl: null, isProfilePublic: false, showSportStats: false, showIntimateStats: false });
       } else {
         setUsernameState(null);
+        setProfilePrivacy(null);
       }
       setUsernameLoading(false);
     })();
@@ -267,6 +289,28 @@ export function AuthProvider({ children }) {
     return { error: error ? error.message : null };
   };
 
+  // Mise à jour des bascules de confidentialité (Feature, 01/08,
+  // "Confidentialité & Profil Public") — `fields` : un sous-ensemble de
+  // `{ is_profile_public, show_sport_stats, show_intimate_stats }`, jamais
+  // `username` (immuable, voir `prevent_username_change_trigger`,
+  // supabase-schema.sql — même si quelqu'un l'incluait ici par erreur, la
+  // base refuserait la modification, mais autant ne jamais lui en donner
+  // l'occasion). Mise à jour OPTIMISTE de `profilePrivacy` après succès
+  // (pas de refetch) — cohérent avec `setUsernameState(candidate)` juste
+  // au-dessus dans `setUsername`, même principe déjà en place ici.
+  const updatePrivacySettings = async (fields) => {
+    if (!isSupabaseConfigured || !user) return { error: "Non connecté." };
+    const { error } = await supabase.from('profiles').update(fields).eq('user_id', user.id);
+    if (error) return { error: error.message };
+    setProfilePrivacy(prev => ({
+      avatarUrl: prev?.avatarUrl ?? null,
+      isProfilePublic: fields.is_profile_public ?? prev?.isProfilePublic ?? false,
+      showSportStats: fields.show_sport_stats ?? prev?.showSportStats ?? false,
+      showIntimateStats: fields.show_intimate_stats ?? prev?.showIntimateStats ?? false,
+    }));
+    return { error: null };
+  };
+
   // Export RGPD (portabilité, Refactor UI, 28/07) — récupère TOUTES les
   // lignes `user_data` de l'utilisateur connecté (favoris, routines, stats,
   // profil athlétique, thème... tout ce que usePersistentState.js
@@ -332,7 +376,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, authLoading, signUp, signIn, signOut, resetPassword, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, userCount, username, usernameLoading, checkUsernameAvailable, setUsername }}>
+    <AuthContext.Provider value={{ user, authLoading, signUp, signIn, signOut, resetPassword, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, userCount, username, usernameLoading, checkUsernameAvailable, setUsername, profilePrivacy, updatePrivacySettings }}>
       {children}
     </AuthContext.Provider>
   );
@@ -343,7 +387,7 @@ export function AuthProvider({ children }) {
 // plutôt qu'un écran blanc si jamais un composant est testé isolément).
 const FALLBACK = {
   user: null, authLoading: false, isSupabaseConfigured: false, userCount: null,
-  username: null, usernameLoading: false,
+  username: null, usernameLoading: false, profilePrivacy: null,
   signUp: async () => ({ error: "AuthProvider manquant." }),
   signIn: async () => ({ error: "AuthProvider manquant." }),
   signOut: async () => {},
@@ -354,6 +398,7 @@ const FALLBACK = {
   deleteAccount: async () => ({ error: "AuthProvider manquant." }),
   checkUsernameAvailable: async () => ({ available: false, error: "AuthProvider manquant." }),
   setUsername: async () => ({ error: "AuthProvider manquant." }),
+  updatePrivacySettings: async () => ({ error: "AuthProvider manquant." }),
 };
 
 export function useAuthContext() {
