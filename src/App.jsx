@@ -87,6 +87,7 @@ import GuestModeBar from './components/shared/GuestModeBar';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 import SavingRoutineModal from './components/modals/SavingRoutineModal';
 import ShareModal from './components/modals/ShareModal';
+import SearchUsersModal from './components/modals/SearchUsersModal';
 import { useAuthContext } from './contexts/AuthContext';
 import { ModalProvider, useModalContext } from './contexts/ModalContext';
 import { GeneratorProvider, useGeneratorContext } from './contexts/GeneratorContext';
@@ -147,6 +148,17 @@ function AppContent({
   // le raisonnement complet) — `null` tant qu'aucun profil n'est en cours
   // de consultation, jamais lu ailleurs que par ce composant.
   const [viewingProfileUsername, setViewingProfileUsername] = useState(null);
+
+  // Navigation vers un profil DEPUIS l'app elle-même (Feature Sociale —
+  // Navigation, 01/08 — clic sur un résultat de SearchUsersModal.jsx), par
+  // opposition à la détection `?profile=...` ci-dessous (arrivée depuis
+  // un lien externe). Même state cible (`viewingProfileUsername`), 2
+  // chemins différents pour y arriver — ProfileView.jsx ne fait aucune
+  // différence entre les deux une fois affichée.
+  const handleViewProfile = (username) => {
+    setViewingProfileUsername(username);
+    changeView('profile');
+  };
   // Bascule "vue détaillée" de la page Statistiques — voir plus bas. Volontairement
   // hors du bloc `view === 'stats' && (() => {...})()` : ce bloc ne s'exécute que
   // quand cette vue est active, donc un `useState` dedans violerait les règles des
@@ -1299,6 +1311,7 @@ function AppContent({
           playerBarVisible={!!(currentTrack || playingPreviewId)}
           toggleNaughtyMode={toggleNaughtyMode}
           theme={theme} toggleTheme={toggleTheme}
+          openModal={openModal}
         />
 
         <div className="flex-1 flex flex-col relative w-full">
@@ -1497,7 +1510,7 @@ function AppContent({
             )}
 
             {view === 'profile' && (
-              <ProfileView theme={themeTokens} username={viewingProfileUsername} isNaughtyMode={isNaughtyMode} changeView={changeView} />
+              <ProfileView theme={themeTokens} username={viewingProfileUsername} isNaughtyMode={isNaughtyMode} changeView={changeView} user={user} openModal={openModal} />
             )}
 
             {view === 'routines' && (
@@ -1728,6 +1741,19 @@ function AppContent({
           summaryImageStatus={summaryImageStatus} summaryImageFile={summaryImageFile}
           summaryImagePreviewUrl={summaryImagePreviewUrl}
           includeSummaryImage={includeSummaryImage} setIncludeSummaryImage={setIncludeSummaryImage}
+        />
+
+        {/* Feature Sociale — Navigation (01/08) — déclenchée depuis le
+            bouton loupe de Sidebar.jsx, `activeModal === 'SEARCH_USERS'`
+            (ModalContext, même mécanisme que ShareModal juste au-dessus).
+            `onViewProfile` bascule directement `view` sur 'profile' — pas
+            besoin de passer par un paramètre d'URL `?profile=...` ici,
+            contrairement à un lien externe (voir le useEffect de détection
+            plus haut) : on est DÉJÀ dans l'app, changer le state suffit. */}
+        <SearchUsersModal
+          theme={themeTokens}
+          isOpen={activeModal === 'SEARCH_USERS'} onClose={closeModal}
+          user={user} onViewProfile={handleViewProfile}
         />
 
         {/* AuthModal/ImportSharedPlaylistModal/PendingNavigationModal/PendingUnsaveModal
