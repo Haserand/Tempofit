@@ -299,3 +299,39 @@ $$;
 -- déjà accordés ailleurs.
 revoke execute on function public.get_public_profile_summary(text) from anon;
 grant execute on function public.get_public_profile_summary(text) to authenticated;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- ÉVOLUTION "Recherche d'utilisateurs" (01/08, Feature Sociale — Navigation)
+-- — permet de trouver un profil par pseudo depuis une modale dédiée (voir
+-- SearchUsersModal.jsx). Même principe de confidentialité que
+-- `get_public_profile_summary` : réservée aux visiteurs CONNECTÉS
+-- (`authenticated` uniquement, jamais `anon`) et ne renvoie QUE les
+-- profils `is_profile_public = true` — chercher un pseudo resté privé ne
+-- doit renvoyer AUCUN résultat, pas même confirmer son existence.
+--
+-- `ilike` (insensible à la casse) + `%query%` (sous-chaîne, pas seulement
+-- préfixe) — plus permissif qu'une recherche stricte, cohérent avec ce
+-- qu'on attend d'une barre de recherche ("alex" retrouve "alex_runner" ET
+-- "the_alex99"). `limit 20` : borne dure côté serveur, jamais renvoyer une
+-- liste illimitée même si la requête matche des centaines de profils —
+-- protège aussi contre un usage abusif de cette fonction pour lister TOUS
+-- les profils publics d'un coup (une chaîne vide ou très courte matcherait
+-- sinon tout le monde).
+create or replace function public.search_public_profiles(search_query text)
+returns table (username text, avatar_url text)
+language sql
+security definer
+set search_path = public
+as $$
+  select p.username, p.avatar_url
+  from profiles p
+  where p.is_profile_public = true
+    and auth.uid() is not null
+    and length(trim(search_query)) >= 2
+    and p.username ilike '%' || trim(search_query) || '%'
+  order by p.username asc
+  limit 20;
+$$;
+
+revoke execute on function public.search_public_profiles(text) from anon;
+grant execute on function public.search_public_profiles(text) to authenticated;
