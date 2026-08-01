@@ -334,11 +334,15 @@ function PlaylistDetailViewInner({
       setSummaryImagePreviewUrl(URL.createObjectURL(file));
       setSummaryImageStatus('ready');
     } catch (e) {
-      // Échec silencieux ici — cette génération est un bonus discret en
-      // arrière-plan, pas une action explicitement demandée par
-      // l'utilisateur : un toast d'erreur pour quelque chose qu'il n'a pas
-      // lui-même déclenché serait plus perturbant qu'utile. ShareModal reste
-      // pleinement utilisable en mode texte/lien si ça échoue.
+      // Erreur maintenant JOURNALISÉE (console.error, pas debugLog — utile
+      // aussi en prod pour diagnostiquer, même convention que les erreurs
+      // API Deezer/Spotify ailleurs dans le projet) — jusqu'ici totalement
+      // avalée, ce qui a rendu ce bug impossible à diagnostiquer à distance
+      // (01/08 : plusieurs allers-retours pour deviner la cause faute de
+      // pouvoir simplement LIRE l'erreur réelle). Reste un échec SILENCIEUX
+      // pour l'utilisateur (pas de toast) — ce choix Produit reste
+      // inchangé, seul le diagnostic devient possible.
+      console.error('Génération du bilan visuel de séance échouée :', e);
       setSummaryImageStatus('error');
     }
   };
