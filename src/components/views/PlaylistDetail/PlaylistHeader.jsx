@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Music2, Play,
-  Calendar, Lock, Upload, Trash2, Gauge,
+  Calendar, Lock, Upload, Trash2, Gauge, Globe,
 } from 'lucide-react';
 import { getGenresForDisplay, genreDisplayLabel } from '../../../musicCatalog';
 import { formatDuration } from '../../../utils/format';
@@ -99,7 +99,7 @@ export default function PlaylistHeader({
   const {
     currentPlaylist, isSaved, getProfileForWorkout,
     isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
-    handleSavePlaylist, handleUnsavePlaylist,
+    handleSavePlaylist, handleUnsavePlaylist, handleTogglePlaylistPublic,
   } = usePlaylistDetail();
 
   // BPM moyen réel de la playlist — même formule que SessionSummaryCard.jsx/
@@ -426,6 +426,30 @@ export default function PlaylistHeader({
           >
             <Share2 size={16} /> <span>Partager</span>
           </button>
+
+          {/* Bascule publique/privée INDIVIDUELLE (Feature Sociale —
+              Refonte Structurale Round 2/2, 01/08, retour direct : "activer
+              une option dans les 2 vues pour faire de l'individuel") —
+              visible UNIQUEMENT une fois la playlist sauvegardée
+              (`isSaved`) : une playlist qui n'existe pas encore dans
+              "Mes Séances" n'a pas de ligne dans la table `playlists`,
+              rien à rendre public. Prime sur le réglage par défaut de
+              SettingsView.jsx, qui ne sert qu'à préremplir cette valeur
+              AU MOMENT de la sauvegarde initiale — modifiable ici à tout
+              moment ensuite, dans un sens comme dans l'autre. */}
+          {isSaved && (
+            <button
+              onClick={handleTogglePlaylistPublic}
+              title={currentPlaylist.isPublic ? "Visible sur ton profil public — clique pour la rendre privée" : "Rendre cette playlist visible sur ton profil public"}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm shrink-0 border transition-colors ${
+                currentPlaylist.isPublic
+                  ? 'bg-emerald-600/20 border-emerald-600/40 text-emerald-400 hover:bg-emerald-600/30'
+                  : 'bg-slate-800/80 border-slate-700 hover:bg-slate-700 text-slate-200'
+              }`}
+            >
+              <Globe size={16} /> <span>{currentPlaylist.isPublic ? 'Publique' : 'Rendre publique'}</span>
+            </button>
+          )}
 
           {/* Badge BPM/Zone — `ml-auto` le pousse à droite des boutons dans
               CETTE MÊME rangée (retour direct : plus jamais un élément
