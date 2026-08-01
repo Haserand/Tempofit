@@ -516,21 +516,28 @@ export default function PlaylistCharts({
             </ResponsiveContainer>
           </div>
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2">
-            {genreDistributionData.map((entry, i) => {
+            {/* Optimisation (31/07) : le total était recalculé (reduce) à
+                CHAQUE itération de cette légende au lieu d'une seule fois
+                avant la boucle — O(n²) au lieu de O(n). Impact réel
+                négligeable avec le nombre de genres habituel, mais gratuit
+                à corriger. */}
+            {(() => {
               const total = genreDistributionData.reduce((s, e) => s + e.value, 0);
-              const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
-              return (
-                <button
-                  key={i}
-                  onClick={() => selectDetailGenre(entry.name)}
-                  className={`flex items-center gap-1.5 text-xs font-bold rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedDetailGenre.has(entry.name) ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
-                >
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }}></span>
-                  <span className={textHighlight}>{entry.name}</span>
-                  <span className={textMuted}>{pct}%</span>
-                </button>
-              );
-            })}
+              return genreDistributionData.map((entry, i) => {
+                const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => selectDetailGenre(entry.name)}
+                    className={`flex items-center gap-1.5 text-xs font-bold rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedDetailGenre.has(entry.name) ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }}></span>
+                    <span className={textHighlight}>{entry.name}</span>
+                    <span className={textMuted}>{pct}%</span>
+                  </button>
+                );
+              });
+            })()}
           </div>
           {/* Récap des titres associés à la part sélectionnée — la mise en
               évidence dans TrackList ne suffisait pas, il fallait aussi voir
@@ -635,21 +642,24 @@ export default function PlaylistCharts({
             </ResponsiveContainer>
           </div>
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-2">
-            {bpmDistributionData.map((entry, i) => {
+            {/* Même optimisation que la légende genres plus haut (31/07). */}
+            {(() => {
               const total = bpmDistributionData.reduce((s, e) => s + e.value, 0);
-              const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
-              return (
-                <button
-                  key={i}
-                  onClick={() => selectDetailBpmBucket(entry.name)}
-                  className={`flex items-center gap-1.5 text-xs font-bold rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedDetailBpmBucket.has(entry.name) ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
-                >
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }}></span>
-                  <span className={textHighlight}>{entry.name}</span>
-                  <span className={textMuted}>{pct}%</span>
-                </button>
-              );
-            })}
+              return bpmDistributionData.map((entry, i) => {
+                const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => selectDetailBpmBucket(entry.name)}
+                    className={`flex items-center gap-1.5 text-xs font-bold rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedDetailBpmBucket.has(entry.name) ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }}></span>
+                    <span className={textHighlight}>{entry.name}</span>
+                    <span className={textMuted}>{pct}%</span>
+                  </button>
+                );
+              });
+            })()}
           </div>
           {hasDetailFilter && (
             <div className={`mt-4 pt-4 border-t ${cardBorder} space-y-1`}>
