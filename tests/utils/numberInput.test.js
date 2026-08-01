@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { clampNumericInput, syncClampedInput } from '../src/utils/numberInput.js';
+import { clampNumericInput, syncClampedInput } from '../../src/utils/numberInput.js';
 
 /**
  * numberInput.test.js — tests pour clampNumericInput/syncClampedInput.
