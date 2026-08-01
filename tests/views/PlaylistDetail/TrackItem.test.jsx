@@ -13,21 +13,21 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 const mockUsePlaylistDetail = vi.fn();
-vi.mock('../src/contexts/PlaylistDetailContext.jsx', () => ({
+vi.mock('../../../src/contexts/PlaylistDetailContext.jsx', () => ({
   usePlaylistDetail: () => mockUsePlaylistDetail(),
 }));
 
-vi.mock('../src/appConfig.js', () => ({
+vi.mock('../../../src/appConfig.js', () => ({
   getZoneForValue: vi.fn(() => null),
   getBpmBucketColor: vi.fn(() => '#123456'),
   getBpmBucketStart: vi.fn((bpm) => Math.floor(bpm / 20) * 20),
 }));
 
-vi.mock('../src/musicCatalog.js', () => ({
+vi.mock('../../../src/musicCatalog.js', () => ({
   getGenresForDisplay: vi.fn((genre) => [genre]),
 }));
 
-import TrackItem from '../src/components/views/PlaylistDetail/TrackItem.jsx';
+import TrackItem from '../../../src/components/views/PlaylistDetail/TrackItem.jsx';
 
 afterEach(() => {
   cleanup();
@@ -207,7 +207,7 @@ describe('TrackItem', () => {
     );
     // getZoneForValue est mocké au niveau module : on le fait renvoyer une
     // zone concrète pour CE test uniquement.
-    const appConfig = await import('../src/appConfig.js');
+    const appConfig = await import('../../../src/appConfig.js');
     appConfig.getZoneForValue.mockReturnValue({ key: 'zone3', shortLabel: 'Seuil', color: '#f59e0b' });
 
     render(<TrackItem {...baseProps()} />);
