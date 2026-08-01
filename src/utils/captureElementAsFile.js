@@ -13,6 +13,44 @@
  */
 
 /**
+ * Convertit une image distante en data URI (base64) — utilisé pour
+ * pré-résoudre les images cross-origin (pochettes) AVANT la capture
+ * html2canvas.
+ *
+ * BUG CORRIGÉ (01/08, "la préparation des bilans visuels plante") — les
+ * pochettes (DiceBear pour la pochette de secours, Deezer pour les
+ * titres) étaient chargées directement dans le DOM via <img
+ * crossOrigin="anonymous">. Piège connu de html2canvas : une image SVG
+ * cross-origin (DiceBear renvoie du SVG) peut "tainted" le canvas MÊME
+ * avec les bons en-têtes CORS, dans plusieurs navigateurs — et rien ne
+ * garantit que le CDN Deezer renvoie lui-même ces en-têtes pour un simple
+ * <img> (contrairement à l'appel JSON, déjà proxyé via /api/deezer.js).
+ * Un canvas "tainted" fait échouer `canvas.toBlob()` avec une
+ * SecurityError. Une data URI n'a, PAR DÉFINITION, aucune notion de
+ * "cross-origin" pour le navigateur : jamais de taint possible, quelle
+ * que soit la source ou le format (SVG inclus).
+ *
+ * Échec silencieux (renvoie `null`) plutôt que de faire échouer toute la
+ * génération pour UNE pochette manquante — SessionSummaryCard.jsx sait
+ * déjà afficher une icône de repli si une pochette est absente.
+ */
+export async function fetchImageAsDataUri(url) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
  * Attend que toutes les <img> à l'intérieur de `element` aient fini de
  * charger (ou aient échoué) avant de continuer — html2canvas capture l'état
  * du DOM à l'instant T ; une image encore en cours de chargement à ce
