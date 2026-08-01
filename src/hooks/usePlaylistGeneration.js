@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { EXTRA_GENRES, WEAK_DEEZER_KEYWORD_GENRES } from '../musicCatalog';
-import { createPlaylistData } from '../musicEngine';
+import { createPlaylistData } from '../engine/musicEngine';
 import { useGeneratorContext } from '../contexts/GeneratorContext';
 
 /**
