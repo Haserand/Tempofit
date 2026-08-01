@@ -1,7 +1,7 @@
 import { useGeneratorContext } from '../../contexts/GeneratorContext';
 import { Zap } from 'lucide-react';
 import ViewHeader from '../shared/ViewHeader';
-import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../viewHeaderLayout';
+import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 import GeneratorWizard from './GeneratorWizard';
 
 /**
