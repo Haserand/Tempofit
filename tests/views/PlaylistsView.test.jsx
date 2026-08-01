@@ -11,7 +11,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
-vi.mock('../src/components/views/PlaylistCard.jsx', () => ({
+vi.mock('../../src/components/views/PlaylistCard.jsx', () => ({
   default: ({ playlist, onClick, onDelete, onTogglePublic, draggable, isDragging, onDragStart, onDragEnter, onDragEnd, rank }) => (
     <div
       data-testid={`card-${playlist.id}`}
@@ -31,7 +31,7 @@ vi.mock('../src/components/views/PlaylistCard.jsx', () => ({
   ),
 }));
 
-import PlaylistsView from '../src/components/views/PlaylistsView.jsx';
+import PlaylistsView from '../../src/components/views/PlaylistsView.jsx';
 
 afterEach(() => {
   cleanup();
