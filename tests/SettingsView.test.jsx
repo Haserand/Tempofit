@@ -67,6 +67,9 @@ function baseProps(overrides = {}) {
     usernameLoading: false,
     checkUsernameAvailable: vi.fn(() => Promise.resolve({ available: true, error: null })),
     setUsername: vi.fn(() => Promise.resolve({ error: null })),
+    profilePrivacy: null,
+    updatePrivacySettings: vi.fn(() => Promise.resolve({ error: null })),
+    onViewOwnProfile: vi.fn(),
     ...overrides,
   };
 }
@@ -298,5 +301,97 @@ describe('SettingsView — onglet Mon Compte (Informations & Sécurité)', () =>
 
     await waitFor(() => expect(screen.getByText('Erreur serveur, réessaie plus tard.')).toBeInTheDocument());
     expect(screen.getByText('Confirmer la suppression')).toBeInTheDocument();
+  });
+});
+
+// Feature Sociale (01/08) — 0 test jusqu'ici pour toute cette section
+// malgré 4 bascules + 1 lien, sur l'onglet "Mon Compte".
+describe('SettingsView — Confidentialité & Profil Public', () => {
+  function renderOnAccountTab(overrides = {}) {
+    const utils = render(<SettingsView {...baseProps({ user: loggedInUser, username: 'alex_runner', usernameLoading: false, ...overrides })} />);
+    fireEvent.click(screen.getByText('Mon Compte'));
+    return utils;
+  }
+
+  it('section absente sans username résolu (usernameLoading=true)', () => {
+    renderOnAccountTab({ usernameLoading: true });
+    expect(screen.queryByText('Confidentialité & Profil Public')).not.toBeInTheDocument();
+  });
+
+  it('affiche le pseudo dans l\'adresse de profil, le toggle maître "Rendre mon profil public" toujours visible', () => {
+    renderOnAccountTab({ profilePrivacy: { isProfilePublic: false } });
+    expect(screen.getByText('tempofit.app/?profile=alex_runner')).toBeInTheDocument();
+    expect(screen.getByText('Rendre mon profil public')).toBeInTheDocument();
+  });
+
+  it('isProfilePublic=false : les 3 autres bascules et le lien d\'aperçu sont ABSENTS', () => {
+    renderOnAccountTab({ profilePrivacy: { isProfilePublic: false } });
+    expect(screen.queryByText('Afficher mes statistiques sportives')).not.toBeInTheDocument();
+    expect(screen.queryByText(/statistiques du Mode Intime/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Rendre mes nouvelles playlists publiques par défaut')).not.toBeInTheDocument();
+    expect(screen.queryByText('Voir l\'aperçu de mon profil public')).not.toBeInTheDocument();
+  });
+
+  it('isProfilePublic=true, mode Sport : stats sportives + playlists par défaut visibles, stats Intime ABSENTES', () => {
+    renderOnAccountTab({ profilePrivacy: { isProfilePublic: true }, isNaughtyMode: false });
+    expect(screen.getByText('Afficher mes statistiques sportives')).toBeInTheDocument();
+    expect(screen.getByText('Rendre mes nouvelles playlists publiques par défaut')).toBeInTheDocument();
+    expect(screen.queryByText(/statistiques du Mode Intime/)).not.toBeInTheDocument();
+  });
+
+  it('isProfilePublic=true ET Mode Intime actif : les 4 bascules sont TOUTES visibles', () => {
+    renderOnAccountTab({ profilePrivacy: { isProfilePublic: true }, isNaughtyMode: true });
+    expect(screen.getByText('Rendre mon profil public')).toBeInTheDocument();
+    expect(screen.getByText('Afficher mes statistiques sportives')).toBeInTheDocument();
+    expect(screen.getByText(/statistiques du Mode Intime/)).toBeInTheDocument();
+    expect(screen.getByText('Rendre mes nouvelles playlists publiques par défaut')).toBeInTheDocument();
+  });
+
+  it('le clic sur une bascule appelle updatePrivacySettings avec le champ inversé', () => {
+    const updatePrivacySettings = vi.fn(() => Promise.resolve({ error: null }));
+    renderOnAccountTab({ profilePrivacy: { isProfilePublic: false }, updatePrivacySettings });
+
+    fireEvent.click(screen.getByText('Rendre mon profil public').closest('div').parentElement.querySelector('button'));
+
+    expect(updatePrivacySettings).toHaveBeenCalledWith({ is_profile_public: true });
+  });
+
+  it('le clic sur le toggle playlists par défaut appelle updatePrivacySettings({ default_playlist_public: true })', () => {
+    const updatePrivacySettings = vi.fn(() => Promise.resolve({ error: null }));
+    renderOnAccountTab({ profilePrivacy: { isProfilePublic: true, defaultPlaylistPublic: false }, updatePrivacySettings });
+
+    fireEvent.click(screen.getByText('Rendre mes nouvelles playlists publiques par défaut').closest('div').parentElement.querySelector('button'));
+
+    expect(updatePrivacySettings).toHaveBeenCalledWith({ default_playlist_public: true });
+  });
+
+  it('en cas d\'erreur, affiche le message renvoyé par updatePrivacySettings', async () => {
+    const updatePrivacySettings = vi.fn(() => Promise.resolve({ error: 'Échec réseau, réessaie.' }));
+    renderOnAccountTab({ profilePrivacy: { isProfilePublic: false }, updatePrivacySettings });
+
+    fireEvent.click(screen.getByText('Rendre mon profil public').closest('div').parentElement.querySelector('button'));
+
+    expect(await screen.findByText('Échec réseau, réessaie.')).toBeInTheDocument();
+  });
+
+  describe('lien "Voir l\'aperçu de mon profil public"', () => {
+    it('absent si isProfilePublic=false, même avec onViewOwnProfile fourni (éviterait un lien mort — get_public_profile_summary refuse même le propriétaire tant que le profil n\'est pas public)', () => {
+      renderOnAccountTab({ profilePrivacy: { isProfilePublic: false }, onViewOwnProfile: vi.fn() });
+      expect(screen.queryByText('Voir l\'aperçu de mon profil public')).not.toBeInTheDocument();
+    });
+
+    it('absent si onViewOwnProfile n\'est pas fourni, même avec isProfilePublic=true', () => {
+      renderOnAccountTab({ profilePrivacy: { isProfilePublic: true }, onViewOwnProfile: undefined });
+      expect(screen.queryByText('Voir l\'aperçu de mon profil public')).not.toBeInTheDocument();
+    });
+
+    it('visible et cliquable quand isProfilePublic=true ET onViewOwnProfile fourni', () => {
+      const onViewOwnProfile = vi.fn();
+      renderOnAccountTab({ profilePrivacy: { isProfilePublic: true }, onViewOwnProfile });
+
+      fireEvent.click(screen.getByText('Voir l\'aperçu de mon profil public'));
+
+      expect(onViewOwnProfile).toHaveBeenCalled();
+    });
   });
 });
