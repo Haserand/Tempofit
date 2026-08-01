@@ -112,6 +112,27 @@ export default function PlaylistsView({
   // `savedPlaylists`, en conservant la position relative de tout le reste
   // (playlists datées ou terminées) — même principe que le glisser-déposer
   // des titres dans une playlist (voir handleTrackDragEnter dans App.jsx).
+  // Réordonne UNIQUEMENT le sous-ensemble "À planifier" au sein de
+  // `savedPlaylists`, en conservant la position relative de tout le reste
+  // (playlists datées ou terminées) — même principe que le glisser-déposer
+  // des titres dans une playlist (voir handleTrackDragEnter dans App.jsx).
+  //
+  // BUG CORRIGÉ (01/08, remonté par un échec de build réel — voir logs
+  // Vercel, tests/PlaylistsView.test.jsx) — `cursor++` vivait DANS le
+  // comparateur passé à `.find()` (`prev.find(pp => pp.id ===
+  // reordered[cursor++])`) : `.find()` appelle ce comparateur une fois
+  // par élément qu'il TESTE en interne, pas une fois par itération
+  // EXTERNE de `.map()` — `cursor` avançait donc bien plus vite que prévu
+  // (jusqu'à 3 incréments pour une seule itération de `.map()` sur ce
+  // tableau de 3 éléments), lisant `reordered[cursor]` hors limites
+  // (`undefined`) dès la 3e comparaison. Résultat concret en production :
+  // glisser-déposer une playlist dans "À planifier" remplaçait
+  // SILENCIEUSEMENT des playlists par `undefined` dans `savedPlaylists` —
+  // une vraie perte de données, pas juste un affichage cassé. Corrigé en
+  // séparant complètement les deux opérations : une `Map` construite UNE
+  // FOIS (recherche par id en O(1), aucun `.find()` répété) et `cursor`
+  // incrémenté par une INSTRUCTION à part, hors de tout comparateur —
+  // impossible qu'il avance plus vite que voulu désormais.
   const reorderToPlan = (draggedPlaylistId, targetPlaylistId) => {
     setSavedPlaylists(prev => {
       const inSection = (p) => !isCompleted(p) && !p.plannedDate && !!p.isNaughty === !!isNaughtyMode;
@@ -122,10 +143,13 @@ export default function PlaylistsView({
       const reordered = [...ids];
       const [moved] = reordered.splice(fromIdx, 1);
       reordered.splice(toIdx, 0, moved);
+      const byId = new Map(prev.map(p => [p.id, p]));
       let cursor = 0;
       return prev.map(p => {
-        if (inSection(p)) return prev.find(pp => pp.id === reordered[cursor++]);
-        return p;
+        if (!inSection(p)) return p;
+        const nextId = reordered[cursor];
+        cursor += 1;
+        return byId.get(nextId);
       });
     });
   };
