@@ -88,9 +88,30 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
     if (!user) { setStatus('login_wall'); return; }
 
     (async () => {
+      // Journalisation complète (01/08, retour direct : "ça marche
+      // toujours pas, évite de corriger à l'aveugle, installe des logs")
+      // — jusqu'ici cet appel avalait SILENCIEUSEMENT toute erreur (`error
+      // || !data` → 'not_found', sans un seul console.log/console.error),
+      // impossible de savoir si le problème vient d'une vraie erreur
+      // Supabase (RLS, réseau, param mal nommé...), d'un `data` vide
+      // légitime, ou d'autre chose. Journalisé à chaque étape ci-dessous,
+      // TOUJOURS (succès compris) — pas seulement en cas d'échec — pour
+      // pouvoir comparer un cas qui marche à un cas qui ne marche pas.
+      console.log('[ProfileView] Appel get_public_profile_summary', { target_username: username, user_id: user?.id });
       const { data, error } = await supabase.rpc('get_public_profile_summary', { target_username: username });
-      if (cancelled) return;
-      if (error || !data) { setStatus('not_found'); return; }
+      if (cancelled) { console.log('[ProfileView] Réponse reçue mais composant démonté/changé entre-temps, ignorée.'); return; }
+      console.log('[ProfileView] Réponse brute reçue', { data, error });
+      if (error) {
+        console.error('[ProfileView] get_public_profile_summary a renvoyé une erreur :', error);
+        setStatus('not_found');
+        return;
+      }
+      if (!data) {
+        console.log('[ProfileView] Aucune erreur, mais data est vide/null — profil privé, introuvable, ou pseudo mal orthographié.');
+        setStatus('not_found');
+        return;
+      }
+      console.log('[ProfileView] Profil chargé avec succès :', data);
       setProfile(data);
       setStatus('ready');
     })();
