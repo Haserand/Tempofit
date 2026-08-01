@@ -14,7 +14,7 @@
 // qu'on veut tester, donc il doit tourner pour de vrai).
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act, waitFor, cleanup } from '@testing-library/react';
 
 // `vi.mock()` est hissé (hoisted) tout en haut du fichier par Vitest, AVANT
 // toute autre instruction — y compris de simples `const mockX = ...` placés
@@ -91,6 +91,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  cleanup();
   vi.clearAllMocks();
   mockAuth.getSession.mockResolvedValue({ data: { session: null } });
   mockAuth.onAuthStateChange.mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } });
