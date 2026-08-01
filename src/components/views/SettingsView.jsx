@@ -127,6 +127,17 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
       const { error } = await updatePrivacySettings({ [field]: !currentValue });
       if (error) setPrivacyError(error);
     } catch (e) {
+      // Journalisée (console.error, pas juste affichée dans l'app) —
+      // BUG EN COURS DE DIAGNOSTIC (01/08, "E is not a function") :
+      // jusqu'ici cette exception était avalée silencieusement (le message
+      // s'affichait bien dans l'app via setPrivacyError, mais jamais dans
+      // la console), impossible d'en voir la pile d'appels complète pour
+      // remonter à la vraie ligne fautive — même piège déjà rencontré et
+      // corrigé une fois sur PlaylistDetailView.jsx (voir sa passation,
+      // "TOUJOURS journaliser l'erreur réelle dès le premier signe de
+      // dysfonctionnement silencieux, ne pas deviner à l'aveugle plusieurs
+      // tours durant").
+      console.error('Échec de la mise à jour de la confidentialité du profil :', e);
       setPrivacyError(e?.message || "Une erreur inattendue est survenue.");
     } finally {
       setPrivacySavingKey(null);
