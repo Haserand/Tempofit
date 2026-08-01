@@ -110,7 +110,16 @@ alter table profiles
   add column if not exists avatar_url text,
   add column if not exists is_profile_public boolean not null default false,
   add column if not exists show_sport_stats boolean not null default false,
-  add column if not exists show_intimate_stats boolean not null default false;
+  add column if not exists show_intimate_stats boolean not null default false,
+  -- "Refonte Structurale — Round 2/2" (01/08, retour direct : "par défaut
+  -- quand un utilisateur veut afficher ses playlists c'est dans ses
+  -- réglages") — préférence PAR DÉFAUT appliquée à CHAQUE NOUVELLE playlist
+  -- sauvegardée (voir usePlaylistLibrary.js, handleSavePlaylist) — ne
+  -- change JAMAIS rétroactivement les playlists déjà existantes. La
+  -- confidentialité RÉELLE d'une playlist reste TOUJOURS `playlists.is_public`
+  -- (déjà en place depuis Round 1/2) — cette colonne-ci n'est qu'une valeur
+  -- de départ pratique, jamais consultée après la sauvegarde initiale.
+  add column if not exists default_playlist_public boolean not null default false;
 
 drop policy if exists "Tout le monde peut lire les pseudonymes" on profiles;
 drop policy if exists "Un profil est lisible par son propriétaire ou s'il est public" on profiles;
@@ -242,7 +251,7 @@ begin
     return null;
   end if;
 
-  result := jsonb_build_object('username', target_username, 'avatar_url', target_avatar);
+  result := jsonb_build_object('username', target_username, 'user_id', target_user_id, 'avatar_url', target_avatar);
 
   -- BUG CORRIGÉ (01/08, suite — retour direct : "j'ai fait une séance
   -- exemple mise comme faite, je la vois pas depuis mon profil") — cette
@@ -389,7 +398,25 @@ alter table playlists enable row level security;
 drop policy if exists "Une playlist est lisible par son propriétaire ou si publique" on playlists;
 create policy "Une playlist est lisible par son propriétaire ou si publique"
   on playlists for select
-  using (auth.uid() = user_id or is_public = true);
+  -- ÉVOLUTION (01/08, "Refonte Structurale — Round 2/2") — la lecture
+  -- publique exigeait UNIQUEMENT `is_public = true` sur la playlist
+  -- elle-même, sans tenir compte ni du Login Wall (déjà en place partout
+  -- ailleurs dans cette feature sociale : ProfileView.jsx, get_public_
+  -- profile_summary, search_public_profiles) ni du réglage GLOBAL "Rendre
+  -- mon profil public" du propriétaire — une playlist individuellement
+  -- publique restait donc consultable même par un visiteur non connecté,
+  -- ou même si le propriétaire avait depuis désactivé tout son profil.
+  -- `exists (...)` vérifie que le PROFIL du propriétaire est bien public en
+  -- plus du flag individuel de la playlist — les deux consentements sont
+  -- désormais réellement nécessaires ensemble, pas l'un OU l'autre.
+  using (
+    auth.uid() = user_id
+    or (
+      is_public = true
+      and auth.uid() is not null
+      and exists (select 1 from profiles p where p.user_id = playlists.user_id and p.is_profile_public = true)
+    )
+  );
 
 drop policy if exists "Un utilisateur crée uniquement ses propres playlists" on playlists;
 create policy "Un utilisateur crée uniquement ses propres playlists"
@@ -435,7 +462,15 @@ alter table routines enable row level security;
 drop policy if exists "Une routine est lisible par son propriétaire ou si publique" on routines;
 create policy "Une routine est lisible par son propriétaire ou si publique"
   on routines for select
-  using (auth.uid() = user_id or is_public = true);
+  -- Même correction exacte que playlists ci-dessus — voir son commentaire.
+  using (
+    auth.uid() = user_id
+    or (
+      is_public = true
+      and auth.uid() is not null
+      and exists (select 1 from profiles p where p.user_id = routines.user_id and p.is_profile_public = true)
+    )
+  );
 
 drop policy if exists "Un utilisateur crée uniquement ses propres routines" on routines;
 create policy "Un utilisateur crée uniquement ses propres routines"
