@@ -1,4 +1,4 @@
-import { parseGarminCsv } from '../workoutDataEngine';
+import { parseGarminCsv } from '../engine/workoutDataEngine';
 import { formatCompletionDate } from '../utils/format';
 
 /**
