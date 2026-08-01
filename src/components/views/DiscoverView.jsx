@@ -3,7 +3,7 @@ import { Compass, Search, SearchX } from 'lucide-react';
 import { curatedSessions, naughtyCuratedSessions } from '../../data/curatedSessions';
 import TemplateCard from './TemplateCard';
 import ViewHeader from '../shared/ViewHeader';
-import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../viewHeaderLayout';
+import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 
 /**
  * DiscoverView — bibliothèque de modèles de séances ensemencés (voir
