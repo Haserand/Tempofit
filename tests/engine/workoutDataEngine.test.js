@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseGarminCsv } from '../src/engine/workoutDataEngine.js';
+import { parseGarminCsv } from '../../src/engine/workoutDataEngine.js';
 
 /**
  * workoutDataEngine.test.js — sécurise le parsing des exports CSV Garmin/
