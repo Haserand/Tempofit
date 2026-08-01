@@ -217,7 +217,6 @@ declare
   want_sport boolean;
   want_intimate boolean;
   target_avatar text;
-  all_playlists jsonb;
   sport_sessions jsonb;
   intimate_sessions jsonb;
   result jsonb;
@@ -245,39 +244,43 @@ begin
 
   result := jsonb_build_object('username', target_username, 'avatar_url', target_avatar);
 
-  -- Lecture de `user_data` retardée jusqu'ICI, seulement si au moins une
-  -- des 2 bascules est active — inutile de lire quoi que ce soit sinon
-  -- (profil public mais aucune stat consentie à être montrée).
-  if want_sport or want_intimate then
-    select value into all_playlists
-    from user_data
-    where user_id = target_user_id and key = 'savedPlaylists';
+  -- BUG CORRIGÉ (01/08, suite — retour direct : "j'ai fait une séance
+  -- exemple mise comme faite, je la vois pas depuis mon profil") — cette
+  -- fonction lisait encore `user_data` (clé 'savedPlaylists', l'ANCIEN
+  -- blob JSON unique), alors que la migration "Refonte Structurale —
+  -- Round 1/2" (voir plus bas dans ce fichier, useSyncedCollection.js côté
+  -- app) a fait basculer TOUTES les sauvegardes/modifications de playlists
+  -- vers la nouvelle table relationnelle `playlists` (une VRAIE ligne par
+  -- playlist). Résultat concret : depuis cette bascule, cette fonction
+  -- restait figée sur une photo de `user_data` prise au moment de la
+  -- migration ponctuelle — plus jamais mise à jour par les sauvegardes/
+  -- suppressions/modifications réelles faites APRÈS coup. Lit maintenant
+  -- directement `playlists`, plus simple ET plus à jour : `is_intimate`
+  -- est une VRAIE colonne désormais (plus besoin de la lire depuis le
+  -- contenu JSON), et chaque ligne EST déjà une playlist individuelle
+  -- (plus besoin de `jsonb_array_elements` pour déplier un tableau).
+  if want_sport then
+    select coalesce(jsonb_agg(jsonb_build_object(
+             'totalDuration', content->'totalDuration',
+             'bpm', content->'config'->'bpm'
+           )), '[]'::jsonb)
+      into sport_sessions
+    from playlists
+    where user_id = target_user_id and is_intimate = false;
 
-    all_playlists := coalesce(all_playlists, '[]'::jsonb);
+    result := result || jsonb_build_object('sport_sessions', sport_sessions);
+  end if;
 
-    if want_sport then
-      select coalesce(jsonb_agg(jsonb_build_object(
-               'totalDuration', elem->'totalDuration',
-               'bpm', elem->'config'->'bpm'
-             )), '[]'::jsonb)
-        into sport_sessions
-      from jsonb_array_elements(all_playlists) elem
-      where coalesce((elem->>'isNaughty')::boolean, false) = false;
+  if want_intimate then
+    select coalesce(jsonb_agg(jsonb_build_object(
+             'totalDuration', content->'totalDuration',
+             'bpm', content->'config'->'bpm'
+           )), '[]'::jsonb)
+      into intimate_sessions
+    from playlists
+    where user_id = target_user_id and is_intimate = true;
 
-      result := result || jsonb_build_object('sport_sessions', sport_sessions);
-    end if;
-
-    if want_intimate then
-      select coalesce(jsonb_agg(jsonb_build_object(
-               'totalDuration', elem->'totalDuration',
-               'bpm', elem->'config'->'bpm'
-             )), '[]'::jsonb)
-        into intimate_sessions
-      from jsonb_array_elements(all_playlists) elem
-      where coalesce((elem->>'isNaughty')::boolean, false) = true;
-
-      result := result || jsonb_build_object('intimate_sessions', intimate_sessions);
-    end if;
+    result := result || jsonb_build_object('intimate_sessions', intimate_sessions);
   end if;
 
   return result;
