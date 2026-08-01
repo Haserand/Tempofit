@@ -37,32 +37,32 @@ class ResizeObserverStub {
 global.ResizeObserver = ResizeObserverStub;
 
 const mockUseGeneratorContext = vi.fn();
-vi.mock('../src/contexts/GeneratorContext.jsx', () => ({
+vi.mock('../../src/contexts/GeneratorContext.jsx', () => ({
   useGeneratorContext: () => mockUseGeneratorContext(),
 }));
 
 const mockOpenModal = vi.fn();
-vi.mock('../src/contexts/ModalContext.jsx', () => ({
+vi.mock('../../src/contexts/ModalContext.jsx', () => ({
   useModalContext: () => ({ openModal: mockOpenModal, activeModal: null, modalData: null, closeModal: vi.fn() }),
 }));
 
-vi.mock('../src/appConfig.js', async (importOriginal) => {
+vi.mock('../../src/appConfig.js', async (importOriginal) => {
   const actual = await importOriginal();
   return { ...actual, getZoneForValue: vi.fn(() => null) };
 });
 
-vi.mock('../src/musicCatalog.js', () => ({
+vi.mock('../../src/musicCatalog.js', () => ({
   STANDARD_GENRES: ['Rock', 'Pop', 'Métal'],
   EXTRA_GENRES: ['Techno', 'Jazz'],
   getGenreLocalDepthWarning: vi.fn(() => null),
   genreDisplayLabel: vi.fn((g) => g),
 }));
 
-vi.mock('../src/components/shared/DualRangeSlider.jsx', () => ({
+vi.mock('../../src/components/shared/DualRangeSlider.jsx', () => ({
   default: () => <div data-testid="dual-range-slider-mock" />,
 }));
 
-import GeneratorWizard from '../src/components/views/GeneratorWizard.jsx';
+import GeneratorWizard from '../../src/components/views/GeneratorWizard.jsx';
 
 afterEach(() => {
   cleanup();
@@ -626,7 +626,7 @@ describe('GeneratorWizard — étape 3, Fractionné/segments (détail)', () => {
 describe('GeneratorWizard — étape 4 (compléments)', () => {
   it('un genre avec un avertissement affiche le ⚠️ et le title correspondant', async () => {
     mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 4, availableGenres: ['Rock'] }));
-    const musicCatalog = await import('../src/musicCatalog.js');
+    const musicCatalog = await import('../../src/musicCatalog.js');
     musicCatalog.getGenreLocalDepthWarning.mockReturnValueOnce('Catalogue local limité pour ce genre.');
 
     render(<GeneratorWizard {...baseProps()} />);
