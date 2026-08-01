@@ -13,18 +13,18 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 const mockOpenModal = vi.fn();
-vi.mock('../src/contexts/ModalContext.jsx', () => ({
+vi.mock('../../src/contexts/ModalContext.jsx', () => ({
   useModalContext: () => ({ openModal: mockOpenModal, activeModal: null, modalData: null, closeModal: vi.fn() }),
 }));
 
-vi.mock('../src/musicCatalog.js', () => ({
+vi.mock('../../src/musicCatalog.js', () => ({
   getGenreLocalDepthWarning: vi.fn(() => null),
   getGenresForDisplay: vi.fn((genre) => [genre]),
   genreDisplayLabel: vi.fn((genre) => genre),
   EXTRA_GENRES: ['Techno', 'Jazz'],
 }));
 
-import FavoritesView from '../src/components/views/FavoritesView.jsx';
+import FavoritesView from '../../src/components/views/FavoritesView.jsx';
 
 afterEach(() => {
   cleanup();
