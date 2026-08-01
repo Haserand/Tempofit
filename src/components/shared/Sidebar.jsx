@@ -1,12 +1,12 @@
 import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, ListPlus, Compass, Sun, Moon } from 'lucide-react';
-import { MINI_PLAYER_BAR_HEIGHT_PX, GUEST_MODE_BAR_HEIGHT_PX } from '../../bottomBarLayout';
-import { VIEW_HEADER_TOP_PADDING } from '../../viewHeaderLayout';
+import { MINI_PLAYER_BAR_HEIGHT_PX, GUEST_MODE_BAR_HEIGHT_PX } from '../../layout/bottomBarLayout';
+import { VIEW_HEADER_TOP_PADDING } from '../../layout/viewHeaderLayout';
 import {
   SIDEBAR_LINK_PADDING, SIDEBAR_LINK_GAP, SIDEBAR_SECTION_TITLE_MARGIN,
   SIDEBAR_SEPARATOR_MARGIN, SIDEBAR_SCROLL_PADDING, SIDEBAR_FOOTER_LINK_PADDING,
   SIDEBAR_LINK_PADDING_COMPACT, SIDEBAR_LINK_GAP_COMPACT, SIDEBAR_SECTION_TITLE_MARGIN_COMPACT,
   SIDEBAR_SCROLL_PADDING_COMPACT,
-} from '../../sidebarLayout';
+} from '../../layout/sidebarLayout';
 
 /**
  * Sidebar — navigation principale (logo, bouton Trophées si connecté, liens
@@ -315,7 +315,7 @@ export default function Sidebar({
           fichier plutôt que dupliqué en prose à cet endroit, pour ne pas
           laisser grossir indéfiniment ce bloc à chaque futur ajustement.
           Les valeurs FINALES stabilisées, elles, vivent maintenant dans
-          `src/sidebarLayout.js` (constantes `SIDEBAR_LINK_PADDING`,
+          `src/layout/sidebarLayout.js` (constantes `SIDEBAR_LINK_PADDING`,
           `SIDEBAR_SECTION_TITLE_MARGIN`, `SIDEBAR_SEPARATOR_MARGIN`,
           `SIDEBAR_SCROLL_PADDING`, `SIDEBAR_FOOTER_LINK_PADDING`) — TOUT
           futur ajustement doit changer LÀ-BAS, pas ici, pour rester la
