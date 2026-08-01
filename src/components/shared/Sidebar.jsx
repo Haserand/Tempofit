@@ -1,4 +1,4 @@
-import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, ListPlus, Compass, Sun, Moon } from 'lucide-react';
+import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, ListPlus, Compass, Sun, Moon, Search } from 'lucide-react';
 import { MINI_PLAYER_BAR_HEIGHT_PX, GUEST_MODE_BAR_HEIGHT_PX } from '../../layout/bottomBarLayout';
 import { VIEW_HEADER_TOP_PADDING } from '../../layout/viewHeaderLayout';
 import {
@@ -65,6 +65,7 @@ export default function Sidebar({
   guestBarVisible, playerBarVisible,
   toggleNaughtyMode,
   theme, toggleTheme,
+  openModal,
 }) {
   // Compaction conditionnelle du menu en Mode Intime (Refactor UI, 29/07,
   // retour direct : "Statistiques passe sous la ligne de flottaison,
@@ -194,6 +195,25 @@ export default function Sidebar({
             <span className={`font-bold leading-none ${isNaughtyMode ? 'text-lg tracking-tighter' : 'text-2xl tracking-tight'} ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
          </button>
          <div className="flex items-center gap-2">
+           {/* Bouton Rechercher un profil (Feature Sociale — Navigation,
+               01/08) — même garde-fou `user &&` que Trophées juste en
+               dessous : chercher un AUTRE profil n'a de sens que si on a
+               soi-même un compte (Login Wall déjà en place côté
+               ProfileView.jsx/get_public_profile_summary — cohérent de
+               masquer le point d'entrée plutôt que de laisser un visiteur
+               non connecté ouvrir une modale qui échouerait de toute
+               façon). Ouvre SearchUsersModal.jsx (nouvelle modale dédiée,
+               PAS SearchModal.jsx — celle-ci reste réservée à la
+               recherche de titres pour une playlist, voir sa docstring). */}
+           {user && (
+             <button
+               onClick={() => openModal('SEARCH_USERS')}
+               title="Rechercher un profil"
+               className={`p-2 rounded-lg transition-colors ${textMuted} hover:bg-surface-hover hover:text-main`}
+             >
+               <Search size={18} />
+             </button>
+           )}
            {/* Bouton Trophées — même comportement qu'avant son déménagement
                (discret/gris tant qu'aucun trophée n'est débloqué, doré +
                badge du nombre sinon, pour garder l'effet de surprise/
