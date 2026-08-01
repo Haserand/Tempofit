@@ -160,6 +160,24 @@ function AppContent({
     setViewingProfileUsername(username);
     changeView('profile');
   };
+
+  // Ouvre une playlist PUBLIQUE d'un autre utilisateur en APERÇU (Feature
+  // Sociale — Consultation/Clonage, 01/08, clic sur une carte de
+  // ProfileView.jsx) — `row` est une LIGNE brute de la table `playlists`
+  // (voir supabase-schema.sql), déjà en mémoire côté ProfileView.jsx (pas
+  // besoin d'un 2e fetch : contrairement à `?profile=...`, ce n'est PAS un
+  // lien externe froid, on est déjà DANS l'app, la donnée est déjà là).
+  // `isReadOnly: true` posé ICI, et NULLE PART AILLEURS dans toute l'app —
+  // c'est la SEULE source de ce champ (voir PlaylistDetailContext.jsx pour
+  // tout ce qui en découle). `isPublic: !!row.is_public` reflète l'état
+  // RÉEL de la ligne consultée — pas de raison de le forcer à autre chose
+  // ici, seul `handleClonePlaylist` (usePlaylistLibrary.js) le remet à
+  // `false` au moment du clonage.
+  const handleOpenPublicPlaylist = (row) => {
+    setCurrentPlaylist({ ...row.content, id: row.id, isPublic: !!row.is_public, isReadOnly: true });
+    changeView('playlist');
+  };
+
   // Bascule "vue détaillée" de la page Statistiques — voir plus bas. Volontairement
   // hors du bloc `view === 'stats' && (() => {...})()` : ce bloc ne s'exécute que
   // quand cette vue est active, donc un `useState` dedans violerait les règles des
@@ -1088,7 +1106,7 @@ function AppContent({
   // La modale de confirmation (openModal('PENDING_UNSAVE', ...)) est gérée par
   // usePlaylistLibrary.js lui-même via ModalContext, pas transmise en paramètre.
   const {
-    handleSavePlaylist, removeSavedPlaylist, playlistHasHistory, requestRemoveSavedPlaylist, setPlaylistPlannedDate,
+    handleSavePlaylist, handleClonePlaylist, removeSavedPlaylist, playlistHasHistory, requestRemoveSavedPlaylist, setPlaylistPlannedDate,
   } = usePlaylistLibrary(
     currentPlaylist, setCurrentPlaylist, savedPlaylists, setSavedPlaylists, showToast,
     openCuratedPlaylist, userStats, checkTrophies, profilePrivacy?.defaultPlaylistPublic,
@@ -1536,7 +1554,7 @@ function AppContent({
             )}
 
             {view === 'profile' && (
-              <ProfileView theme={themeTokens} username={viewingProfileUsername} isNaughtyMode={isNaughtyMode} changeView={changeView} user={user} openModal={openModal} />
+              <ProfileView theme={themeTokens} username={viewingProfileUsername} isNaughtyMode={isNaughtyMode} changeView={changeView} user={user} openModal={openModal} onOpenPlaylist={handleOpenPublicPlaylist} />
             )}
 
             {view === 'routines' && (
@@ -1642,6 +1660,7 @@ function AppContent({
                 favorites={favorites} spotifyTrackPool={spotifyTrackPool}
                 userStats={userStats} checkTrophies={checkTrophies}
                 showToast={showToast} requestRemoveSavedPlaylist={requestRemoveSavedPlaylist} handleSavePlaylist={handleSavePlaylist}
+                handleClonePlaylist={handleClonePlaylist}
                 currentActualData={currentActualData} selectedMetric={selectedMetric} setSelectedMetric={setSelectedMetric}
                 dataOffset={dataOffset} setDataOffset={setDataOffset}
                 selectedAnalysisDate={selectedAnalysisDate} setSelectedAnalysisDate={setSelectedAnalysisDate}
