@@ -101,14 +101,25 @@ export function AuthProvider({ children }) {
 
   // Vérifie si un pseudonyme est déjà pris — utilisée à la fois par
   // AuthModal.jsx (avant l'inscription) et SettingsView.jsx (fallback
-  // comptes existants). Lecture PUBLIQUE (RLS `for select using (true)`,
-  // voir supabase-schema.sql) : fonctionne même AVANT toute connexion,
-  // avec la seule clé "anon".
+  // comptes existants).
+  //
+  // BUG ÉVITÉ (01/08, chantier "Profil public") — passait avant par une
+  // lecture directe (`select user_id ... eq('username', ...)`), possible
+  // uniquement parce que la policy SELECT de `profiles` était encore
+  // `using (true)` (tout le monde peut tout lire). Cette policy vient
+  // d'être resserrée à "soi-même OU is_profile_public" (voir
+  // supabase-schema.sql) — une lecture directe aurait alors RENVOYÉ `null`
+  // pour un pseudo pourtant déjà pris par un profil resté privé, laissant
+  // croire à tort qu'il est disponible. Passe maintenant par
+  // `is_username_available` (fonction Postgres dédiée, SECURITY DEFINER,
+  // même principe que `get_registered_users_count` plus bas) : elle seule
+  // contourne RLS pour cette vérification précise, et ne renvoie qu'un
+  // booléen — jamais la ligne de profil elle-même.
   const checkUsernameAvailable = async (candidate) => {
     if (!isSupabaseConfigured) return { available: false, error: "Les comptes ne sont pas encore configurés côté serveur." };
-    const { data, error } = await supabase.from('profiles').select('user_id').eq('username', candidate).maybeSingle();
+    const { data, error } = await supabase.rpc('is_username_available', { candidate });
     if (error) return { available: false, error: error.message };
-    return { available: !data, error: null };
+    return { available: data === true, error: null };
   };
 
   // Regex PARTAGÉE avec AuthModal.jsx/SettingsView.jsx (voir leur propre
