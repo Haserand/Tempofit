@@ -50,6 +50,54 @@ export function usePlaylistLibrary(
   };
 
   /**
+   * Clone une playlist ÉTRANGÈRE consultée en aperçu (Feature Sociale —
+   * Consultation/Clonage, 01/08) vers une vraie copie personnelle,
+   * éditable. DISTINCT de `handleSavePlaylist` ci-dessus (qui, lui, garde
+   * le même `id` — légitime pour une playlist qu'on a soi-même générée ou
+   * ouverte depuis un modèle du catalogue, jamais "possédée" par quelqu'un
+   * d'autre avant) : réutiliser `handleSavePlaylist` tel quel pour une
+   * playlist étrangère aurait inséré une ligne `playlists` sous L'ID
+   * ORIGINAL du propriétaire — la contrainte `primary key (id, user_id)`
+   * l'aurait techniquement toléré (clé composite, `user_id` différent),
+   * mais 2 lignes sans rapport partageant le même `id` reste une
+   * incohérence évitable, et surtout : le brief demande explicitement un
+   * NOUVEL id pour la copie.
+   *
+   * Repartis à zéro sur tout ce qui appartient à L'HISTOIRE du
+   * propriétaire d'origine, jamais mentionné explicitement dans le brief
+   * mais indispensable pour ne pas mentir sur la nouvelle copie :
+   * `completions`/`actualDataByDate`/`plannedDate` — la copie n'a, de fait,
+   * jamais été faite par son nouvel acquéreur, lui prêter l'historique de
+   * quelqu'un d'autre afficherait des séances qu'il n'a jamais réalisées.
+   * `isPublic: false` (demandé explicitement par le brief) : la copie
+   * redevient privée, son nouveau propriétaire décide lui-même s'il veut
+   * la rendre publique à son tour. `isReadOnly` retiré : la copie est
+   * désormais VRAIMENT la sienne, plus un aperçu.
+   */
+  const handleClonePlaylist = () => {
+    if (!currentPlaylist) return;
+    const cloned = {
+      ...currentPlaylist,
+      id: `pl-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      status: 'pending',
+      isPublic: false,
+      isReadOnly: false,
+      completions: [],
+      actualDataByDate: {},
+      plannedDate: null,
+      createdAt: new Date().toLocaleDateString(),
+    };
+    setSavedPlaylists([cloned, ...savedPlaylists]);
+    // Bascule IMMÉDIATEMENT sur la copie (brief, UX : "redirige
+    // immédiatement... sortant ainsi du mode lecture seule") — `isReadOnly`
+    // valant désormais `false` sur cet objet, l'interface redevient
+    // éditable au prochain rendu, sans navigation séparée nécessaire (on
+    // reste sur la même vue détail, seul l'objet affiché change).
+    setCurrentPlaylist(cloned);
+    showToast("🎵 Playlist clonée dans Mes Séances !");
+  };
+
+  /**
    * Retire une playlist de "Mes Séances" par id — fonction UNIQUE utilisée à
    * la fois par le bouton "Sauvegardée..." de la vue détail (retrait) et par
    * la poubelle des cartes dans "Mes Séances" (PlaylistsView/PlaylistCard) :
@@ -134,5 +182,5 @@ export function usePlaylistLibrary(
     }
   };
 
-  return { handleSavePlaylist, removeSavedPlaylist, playlistHasHistory, requestRemoveSavedPlaylist, setPlaylistPlannedDate };
+  return { handleSavePlaylist, handleClonePlaylist, removeSavedPlaylist, playlistHasHistory, requestRemoveSavedPlaylist, setPlaylistPlannedDate };
 }
