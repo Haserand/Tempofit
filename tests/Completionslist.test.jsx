@@ -119,4 +119,37 @@ describe('CompletionsList', () => {
 
     expect(onParentClick).not.toHaveBeenCalled();
   });
+
+  // isReadOnly (Feature Sociale — Consultation/Clonage, 01/08) — playlist
+  // étrangère consultée en aperçu (PlaylistHeader.jsx) : les dates restent
+  // visibles mais ne doivent plus rien proposer à modifier.
+  describe('isReadOnly', () => {
+    it('affiche les dates en texte simple, sans aucun bouton interactif', () => {
+      const { container } = render(<CompletionsList {...baseProps} isReadOnly={true} />);
+      expect(screen.queryByTitle('Modifier cette date')).toBeNull();
+      expect(screen.queryByTitle('Retirer cette date')).toBeNull();
+      expect(screen.queryByTitle('Importer Garmin/Strava (cadence/FC)')).toBeNull();
+      expect(screen.queryByTitle('Données déjà importées — cliquer pour remplacer')).toBeNull();
+      // Aucun bouton du tout dans la liste — que du texte. Les 3 dates
+      // restent chacune affichées (une pastille par date, comme d'habitude),
+      // vérifié structurellement plutôt que sur le texte exact :
+      // `formatCompletionDate` (utils/format.js) appelle `toLocaleDateString()`
+      // SANS locale explicite (contrairement à TopCompletionDate.jsx, qui
+      // précise 'fr-FR') — le format rendu dépend donc de l'environnement
+      // d'exécution, pas garanti "10 janv. 2026" partout.
+      expect(container.querySelectorAll('button')).toHaveLength(0);
+      expect(container.querySelectorAll('span')).toHaveLength(3);
+    });
+
+    it('ignore editingCompletion — jamais de <input type="date"> même si un état d\'édition matche', () => {
+      render(
+        <CompletionsList
+          {...baseProps}
+          isReadOnly={true}
+          editingCompletion={{ playlistId: 'playlist-1', isoDate: '2026-02-15' }}
+        />
+      );
+      expect(document.querySelectorAll('input[type="date"]')).toHaveLength(0);
+    });
+  });
 });
