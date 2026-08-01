@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Music2, ArrowUpRight, Trash2, CheckCircle, Circle, Activity, List, Calendar, GripVertical } from 'lucide-react';
+import { Music2, ArrowUpRight, Trash2, CheckCircle, Circle, Activity, List, Calendar, GripVertical, Globe } from 'lucide-react';
 import { buildCoverUrl } from '../../utils/coverArt';
 import { getActivityEmoji } from '../../appConfig';
 import CompletionsList from '../shared/CompletionsList';
@@ -29,7 +29,7 @@ import CompletionsList from '../shared/CompletionsList';
  */
 export default function PlaylistCard({
   theme, playlist, rankStyle, rank,
-  onClick, onDelete,
+  onClick, onDelete, onTogglePublic,
   renderConfigInfoLine, markPlaylistAsCompleted,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate, triggerCSVUpload,
   onSetPlannedDate,
@@ -172,6 +172,27 @@ export default function PlaylistCard({
                 className="absolute inset-0 opacity-0 cursor-pointer"
               />
             </label>
+          )}
+          {/* Bascule publique/privée INDIVIDUELLE (Feature Sociale —
+              Refonte Structurale Round 2/2, 01/08) — MÊME bouton
+              exactement que PlaylistHeader.jsx (fiche détaillée), ici en
+              version icône seule (place restreinte sur une carte de
+              liste). Toujours VISIBLE quand la playlist est déjà publique
+              (statut persistant à signaler, pas juste une action
+              ponctuelle) — révélé au survol sinon, cohérent avec le
+              bouton Supprimer juste à côté. */}
+          {onTogglePublic && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onTogglePublic(playlist.id); }}
+              title={playlist.isPublic ? "Visible sur ton profil public — clique pour la rendre privée" : "Rendre cette playlist visible sur ton profil public"}
+              className={`p-2 rounded-lg transition-colors ${
+                playlist.isPublic
+                  ? 'text-emerald-500 hover:text-emerald-600'
+                  : 'text-gray-400 hover:text-emerald-500 opacity-0 group-hover:opacity-100'
+              }`}
+            >
+              <Globe size={18} />
+            </button>
           )}
           <button onClick={(e) => { e.stopPropagation(); onDelete(playlist.id); }} className="p-2 rounded-lg text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100">
             <Trash2 size={18} />
