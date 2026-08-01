@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import PendingUnsaveModal from '../src/components/modals/PendingUnsaveModal.jsx';
+import PendingUnsaveModal from '../../src/components/modals/PendingUnsaveModal.jsx';
 
 afterEach(() => {
   cleanup();
