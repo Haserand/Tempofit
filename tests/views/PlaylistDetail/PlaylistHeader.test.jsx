@@ -12,27 +12,27 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 const mockUsePlaylistDetail = vi.fn();
-vi.mock('../src/contexts/PlaylistDetailContext.jsx', () => ({
+vi.mock('../../../src/contexts/PlaylistDetailContext.jsx', () => ({
   usePlaylistDetail: () => mockUsePlaylistDetail(),
 }));
 
-vi.mock('../src/appConfig.js', () => ({
+vi.mock('../../../src/appConfig.js', () => ({
   getActivityEmoji: vi.fn(() => '🏃'),
   getZoneForValue: vi.fn(() => null),
   getBpmBucketColor: vi.fn(() => '#123456'),
   getBpmBucketStart: vi.fn((bpm) => Math.floor(bpm / 20) * 20),
 }));
 
-vi.mock('../src/musicCatalog.js', () => ({
+vi.mock('../../../src/musicCatalog.js', () => ({
   getGenresForDisplay: vi.fn((genre) => [genre]),
   genreDisplayLabel: vi.fn((genre) => genre),
 }));
 
-vi.mock('../src/utils/coverArt.js', () => ({
+vi.mock('../../../src/utils/coverArt.js', () => ({
   buildCoverUrl: vi.fn((name) => `generated-cover://${name}`),
 }));
 
-vi.mock('../src/components/shared/TopCompletionDate.jsx', () => ({
+vi.mock('../../../src/components/shared/TopCompletionDate.jsx', () => ({
   // Rendu inline (span, pas div) : le vrai PlaylistHeader.jsx insère ce
   // composant À L'INTÉRIEUR d'un <p> — un <div> y serait du HTML invalide
   // (avertissement React "cannot be a descendant of <p>", repéré au 1er
@@ -40,11 +40,11 @@ vi.mock('../src/components/shared/TopCompletionDate.jsx', () => ({
   default: () => <span data-testid="top-completion-date-mock">TopCompletionDate (mock)</span>,
 }));
 
-vi.mock('../src/components/shared/CompletionsList.jsx', () => ({
+vi.mock('../../../src/components/shared/CompletionsList.jsx', () => ({
   default: () => <div data-testid="completions-list-mock">CompletionsList (mock)</div>,
 }));
 
-import PlaylistHeader from '../src/components/views/PlaylistDetail/PlaylistHeader.jsx';
+import PlaylistHeader from '../../../src/components/views/PlaylistDetail/PlaylistHeader.jsx';
 
 afterEach(() => {
   cleanup();
@@ -302,7 +302,7 @@ describe('PlaylistHeader', () => {
 
   it('badge BPM : affiche le BPM moyen, avec le libellé de zone si un profil réel est configuré', async () => {
     mockUsePlaylistDetail.mockReturnValue(makeContextValue());
-    const appConfig = await import('../src/appConfig.js');
+    const appConfig = await import('../../../src/appConfig.js');
     appConfig.getZoneForValue.mockReturnValueOnce({ shortLabel: 'Seuil', color: '#f59e0b' });
 
     render(<PlaylistHeader {...baseProps()} />);
