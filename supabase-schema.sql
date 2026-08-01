@@ -1,5 +1,15 @@
--- supabase-schema.sql — À exécuter UNE FOIS dans Supabase → le projet →
--- SQL Editor → New query → coller ce fichier entier → Run.
+-- supabase-schema.sql — À exécuter dans Supabase → le projet → SQL Editor →
+-- New query → coller ce fichier entier → Run.
+--
+-- BUG CORRIGÉ (01/08) — ce fichier n'était PAS réellement rejouable tel
+-- quel malgré ce que disait ce commentaire : `create table if not exists`/
+-- `add column if not exists` sont idempotents, mais `create policy` n'a
+-- PAS d'équivalent `if not exists` en Postgres — le rejouer entier une 2e
+-- fois échouait dès la 1re policy rencontrée (`ERROR: 42710: policy ...
+-- already exists`), avant même d'atteindre les évolutions plus récentes en
+-- bas de fichier. Toutes les policies sont désormais précédées d'un `drop
+-- policy if exists` — ce fichier entier est maintenant sûr à rejouer
+-- autant de fois que nécessaire, sur un projet neuf comme déjà initialisé.
 --
 -- Une seule table générique (clé → valeur JSON), au lieu d'une table dédiée
 -- par fonctionnalité (favoris, routines, stats...) — reflet exact de la
@@ -26,18 +36,22 @@ create table if not exists user_data (
 -- qui protège réellement les données de chacun ici.
 alter table user_data enable row level security;
 
+drop policy if exists "Un utilisateur lit uniquement ses propres données" on user_data;
 create policy "Un utilisateur lit uniquement ses propres données"
   on user_data for select
   using (auth.uid() = user_id);
 
+drop policy if exists "Un utilisateur crée uniquement ses propres données" on user_data;
 create policy "Un utilisateur crée uniquement ses propres données"
   on user_data for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "Un utilisateur modifie uniquement ses propres données" on user_data;
 create policy "Un utilisateur modifie uniquement ses propres données"
   on user_data for update
   using (auth.uid() = user_id);
 
+drop policy if exists "Un utilisateur supprime uniquement ses propres données" on user_data;
 create policy "Un utilisateur supprime uniquement ses propres données"
   on user_data for delete
   using (auth.uid() = user_id);
@@ -58,14 +72,11 @@ create index if not exists user_data_user_id_idx on user_data (user_id);
 -- Rappel (voir passation du 28/07) : cette table a été livrée initialement
 -- comme un fichier de migration séparé (`supabase-migration-profiles.sql`)
 -- pour ne pas casser un projet Supabase déjà existant en relançant tout ce
--- fichier. Elle est désormais intégrée ICI aussi, pour qu'une INSTALLATION
--- NEUVE (un `supabase-schema.sql` exécuté une seule fois sur un projet vide)
--- obtienne le schéma complet dès le départ, sans dépendre d'un second fichier
--- de migration qui n'est pas commité dans le dépôt. Si le projet Supabase
--- existe déjà et a SEULEMENT `user_data`, utiliser plutôt
--- `supabase-migration-profiles.sql` pour n'ajouter que ce qui manque (voir
--- la note en tête de ce fichier sur pourquoi ne jamais relancer ce fichier
--- entier sur un projet déjà initialisé).
+-- fichier — à l'époque, une vraie limite (voir le correctif d'idempotence
+-- des policies en tête de fichier, 01/08 : ce n'est PLUS le cas). Elle est
+-- désormais intégrée ICI aussi, pour qu'une INSTALLATION NEUVE (un
+-- `supabase-schema.sql` exécuté sur un projet vide) obtienne le schéma
+-- complet dès le départ.
 create table if not exists profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   username text not null unique,
@@ -102,6 +113,7 @@ alter table profiles
   add column if not exists show_intimate_stats boolean not null default false;
 
 drop policy if exists "Tout le monde peut lire les pseudonymes" on profiles;
+drop policy if exists "Un profil est lisible par son propriétaire ou s'il est public" on profiles;
 
 create policy "Un profil est lisible par son propriétaire ou s'il est public"
   on profiles for select
@@ -121,6 +133,7 @@ $$;
 
 grant execute on function public.is_username_available(text) to anon, authenticated;
 
+drop policy if exists "Un utilisateur crée uniquement son propre pseudonyme" on profiles;
 create policy "Un utilisateur crée uniquement son propre pseudonyme"
   on profiles for insert
   with check (auth.uid() = user_id);
@@ -131,6 +144,7 @@ create policy "Un utilisateur crée uniquement son propre pseudonyme"
 -- trigger dédié plutôt que par la simple absence de policy update (qui ne
 -- suffit plus, puisqu'une policy update doit désormais exister pour ces
 -- 4 nouvelles colonnes).
+drop policy if exists "Un utilisateur modifie uniquement son propre profil" on profiles;
 create policy "Un utilisateur modifie uniquement son propre profil"
   on profiles for update
   using (auth.uid() = user_id)
