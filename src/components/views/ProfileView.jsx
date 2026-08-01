@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UserX, Loader2, Clock, Gauge, ListMusic, Heart, Lock } from 'lucide-react';
+import { UserX, Loader2, Clock, Gauge, ListMusic, Heart, Lock, Music2 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../supabaseClient';
 import { formatDuration } from '../../utils/format';
 import { VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
@@ -45,6 +45,16 @@ import { VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
  * base — voir supabase-schema.sql pour la marche à suivre avant de compter
  * dessus en prod (`select public.get_public_profile_summary('un_pseudo_test');`
  * dans l'éditeur SQL Supabase).
+ *
+ * "Refonte Structurale — Round 2/2" (01/08) — les playlists/routines
+ * PUBLIQUES individuelles (pas seulement le résumé chiffré ci-dessus) sont
+ * maintenant affichées, grâce à la migration relationnelle du Round 1/2
+ * (`playlists`/`routines`, une VRAIE ligne par élément, voir
+ * supabase-schema.sql). Récupérées via une requête DIRECTE (pas de
+ * fonction RPC dédiée pour celles-ci) : la policy RLS resserrée fait déjà
+ * tout le filtrage nécessaire (Login Wall + profil public du propriétaire
+ * + `is_public` de la ligne elle-même) — voir le 2e `useEffect` plus bas
+ * pour le détail.
  */
 
 // Agrège une liste de séances `{ totalDuration, bpm }` (déjà filtrée/
@@ -66,11 +76,56 @@ export function summarizeSessions(sessions) {
   };
 }
 
+// Carte d'une playlist/routine PUBLIQUE, vue par un visiteur — Feature
+// Sociale — Refonte Structurale Round 2/2 (01/08). Délibérément un
+// composant À PART, PAS une réutilisation de PlaylistCard.jsx : celui-ci
+// est plein d'actions réservées au PROPRIÉTAIRE (supprimer, marquer comme
+// faite, planifier une date, glisser-déposer...) qui n'ont aucun sens pour
+// un visiteur consultant la playlist de quelqu'un d'autre — l'inclure tel
+// quel aurait soit exigé de désactiver la moitié de ses props un par un,
+// soit exposé par erreur des actions qui écriraient dans les données de
+// quelqu'un d'autre (RLS les bloquerait côté serveur, mais autant ne
+// jamais les afficher en premier lieu). `item` = une LIGNE brute de
+// `playlists`/`routines` (voir supabase-schema.sql) : `item.content` porte
+// l'objet complet (mêmes champs qu'un objet playlist/routine normal côté
+// app, voir useSyncedCollection.js).
+function PublicItemCard({ item, theme }) {
+  const { cardBg, cardBorder, textHighlight, textMuted } = theme;
+  const content = item.content || {};
+  const totalMinutes = Math.round((content.totalDuration || 0) / 60);
+  const avgBpm = content.config?.bpm ?? null;
+
+  return (
+    <div className={`${cardBg} rounded-2xl p-4 border ${cardBorder} shadow-xs`}>
+      <div className="flex items-center gap-3 mb-2">
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-black/5 dark:bg-white/5 ${textMuted}`}>
+          <Music2 size={20} />
+        </div>
+        <div className="min-w-0">
+          <h4 className={`font-bold text-sm truncate ${textHighlight}`}>{content.name || 'Séance'}</h4>
+          {content.workoutType && <p className={`text-xs truncate ${textMuted}`}>{content.workoutType}</p>}
+        </div>
+      </div>
+      <div className={`flex items-center gap-3 text-xs ${textMuted}`}>
+        {totalMinutes > 0 && <span className="flex items-center gap-1"><Clock size={12}/>{totalMinutes} min</span>}
+        {avgBpm != null && <span className="flex items-center gap-1"><Gauge size={12}/>{avgBpm} BPM</span>}
+      </div>
+    </div>
+  );
+}
+
 export default function ProfileView({ theme, username, isNaughtyMode, changeView, user, openModal }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
 
   const [status, setStatus] = useState('loading'); // 'loading' | 'login_wall' | 'not_found' | 'ready'
   const [profile, setProfile] = useState(null);
+  // Playlists/routines publiques du profil consulté — récupérées
+  // SÉPARÉMENT du résumé chiffré ci-dessus (2e effet, ci-dessous), une fois
+  // `profile.user_id` connu. `itemsLoaded` distingue "pas encore chargé"
+  // de "chargé, 0 résultat" — indispensable pour ne pas afficher l'état
+  // vide un court instant avant que la vraie réponse n'arrive.
+  const [publicItems, setPublicItems] = useState({ playlists: [], routines: [] });
+  const [itemsLoaded, setItemsLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,6 +164,63 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
 
     return () => { cancelled = true; };
   }, [username, user]);
+
+  // Récupération des playlists/routines publiques (Feature Sociale —
+  // Refonte Structurale Round 2/2, 01/08) — DÉCLENCHÉE UNIQUEMENT une fois
+  // `status === 'ready'` (profil résolu, `profile.user_id` connu — voir
+  // l'ajout de ce champ dans get_public_profile_summary,
+  // supabase-schema.sql). Requête DIRECTE sur `playlists`/`routines`
+  // (`.select('*').eq('user_id', ...)`, pas de fonction RPC dédiée) : la
+  // policy RLS resserrée (Login Wall + `is_profile_public` du propriétaire
+  // + `is_public` de la ligne elle-même, voir supabase-schema.sql) fait
+  // déjà tout le travail de filtrage — un visiteur authentifié qui
+  // interroge directement cette table ne reçoit QUE ce qu'il a le droit de
+  // voir, RLS oblige, quelle que soit la requête envoyée.
+  //
+  // Filtrage par MODE (`is_intimate`) fait ICI, côté client, APRÈS la
+  // requête plutôt que dans le `.eq(...)` — `isNaughtyMode` change en
+  // direct si le visiteur bascule de mode SANS recharger la page (bouton
+  // Sidebar), un `.eq('is_intimate', isNaughtyMode)` dans la requête
+  // réseau aurait demandé de relancer un fetch à chaque bascule ; filtrer
+  // un tableau déjà en mémoire est instantané, aucun aller-retour réseau
+  // nécessaire pour ce cas précis.
+  useEffect(() => {
+    if (status !== 'ready' || !profile?.user_id) { setItemsLoaded(false); return; }
+
+    let cancelled = false;
+    setItemsLoaded(false);
+
+    (async () => {
+      const [playlistsResult, routinesResult] = await Promise.all([
+        supabase.from('playlists').select('*').eq('user_id', profile.user_id),
+        supabase.from('routines').select('*').eq('user_id', profile.user_id),
+      ]);
+      if (cancelled) return;
+
+      if (playlistsResult.error) {
+        console.error('[ProfileView] Récupération des playlists publiques échouée :', playlistsResult.error);
+      }
+      if (routinesResult.error) {
+        console.error('[ProfileView] Récupération des routines publiques échouée :', routinesResult.error);
+      }
+
+      setPublicItems({
+        playlists: playlistsResult.data || [],
+        routines: routinesResult.data || [],
+      });
+      setItemsLoaded(true);
+    })();
+
+    return () => { cancelled = true; };
+  }, [status, profile?.user_id]);
+
+  // Cloisonnement contextuel (brief, tâche 2) — même règle EXACTE que les
+  // blocs de stats plus haut : `!!` normalise `is_intimate` (colonne
+  // Postgres, toujours un vrai booléen, mais `!!` reste une garde peu
+  // coûteuse et cohérente avec le reste du fichier) avant comparaison à
+  // `isNaughtyMode`.
+  const visiblePlaylists = publicItems.playlists.filter(row => !!row.is_intimate === !!isNaughtyMode);
+  const visibleRoutines = publicItems.routines.filter(row => !!row.is_intimate === !!isNaughtyMode);
 
   // Résumés chiffrés — `null` si la fonction serveur n'a pas renvoyé ce
   // tableau du tout (bascule de confidentialité désactivée côté
@@ -233,14 +345,35 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
             </div>
           )}
 
-          {/* Playlists partagées — PLACEHOLDER (chantier "Partie 3", refonte
-              du stockage JSON vers des tables relationnelles, seule
-              structure permettant de lister/interroger des playlists
-              individuellement plutôt qu'un unique blob par utilisateur —
-              voir la discussion du 01/08). Rien de fonctionnel ici tant
-              que cette migration n'est pas faite. */}
-          <div className={`rounded-3xl p-6 md:p-8 border border-dashed ${cardBorder} text-center`}>
-            <p className={`text-sm ${textMuted}`}>Les playlists partagées apparaîtront ici prochainement.</p>
+          {/* Playlists/routines partagées (Feature Sociale — Refonte
+              Structurale Round 2/2, 01/08) — indépendant des 2 blocs de
+              stats ci-dessus (pas de garde `showSportBlock`/
+              `showIntimateBlock` ici) : la confidentialité d'une playlist
+              individuelle est un consentement SÉPARÉ (`playlists.is_public`
+              + le réglage global `is_profile_public`, voir
+              supabase-schema.sql), jamais lié aux bascules
+              `show_sport_stats`/`show_intimate_stats` qui, elles, ne
+              concernent que les CHIFFRES agrégés plus haut. Les routines
+              sont récupérées/affichées elles aussi (brief, tâche 1) mais
+              resteront très probablement TOUJOURS vides en pratique pour
+              l'instant : aucun toggle "rendre publique" n'existe encore
+              pour une routine dans l'app (contrairement aux playlists,
+              voir PlaylistHeader.jsx/PlaylistCard.jsx) — prêt pour une
+              future fonctionnalité, pas branché aujourd'hui. */}
+          <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
+            <h3 className={`font-bold text-lg mb-4 ${textHighlight}`}>Playlists partagées</h3>
+            {!itemsLoaded ? (
+              <div className="flex justify-center py-8">
+                <Loader2 size={24} className={`animate-spin ${textMuted}`} />
+              </div>
+            ) : (visiblePlaylists.length === 0 && visibleRoutines.length === 0) ? (
+              <p className={`text-sm text-center py-4 ${textMuted}`}>Aucune playlist publique dans ce mode pour le moment.</p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {visiblePlaylists.map(row => <PublicItemCard key={row.id} item={row} theme={theme} />)}
+                {visibleRoutines.map(row => <PublicItemCard key={row.id} item={row} theme={theme} />)}
+              </div>
+            )}
           </div>
         </>
       )}
