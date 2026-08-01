@@ -4,7 +4,7 @@ import { genreDisplayLabel, normalizeGenreForDisplay } from '../../musicCatalog'
 import { getCadenceUnitLabel, getZoneForValue, getBpmBucketLabel } from '../../appConfig';
 import { formatDuration } from '../../utils/format';
 import { captureElementAsFile, fetchImageAsDataUri } from '../../utils/captureElementAsFile';
-import { buildCoverUrl } from '../../utils/coverArt';
+import { buildCoverUrlPng } from '../../utils/coverArt';
 import { deezerFetch } from '../../musicEngine';
 import SessionSummaryCard from '../shared/SessionSummaryCard';
 import { PlaylistDetailProvider, usePlaylistDetail } from '../../contexts/PlaylistDetailContext';
@@ -270,7 +270,13 @@ function PlaylistDetailViewInner({
     // la même raison (voir fetchImageAsDataUri). Sans ça, la pochette de
     // repli (DiceBear, un SVG) faisait planter la capture à elle seule,
     // même quand aucun titre Deezer n'était concerné.
-    const sessionCoverSourceUrl = currentPlaylist.coverUrl || buildCoverUrl(currentPlaylist.name);
+    // Pochette de LA SÉANCE, en PNG (jamais en SVG ici — voir
+    // buildCoverUrlPng, coverArt.js) : que `currentPlaylist.coverUrl` soit
+    // déjà posé (playlist ensemencée) ou non, les deux proviennent de la
+    // MÊME fonction déterministe seed→image (`buildCoverUrl`/
+    // `buildCoverUrlPng`, même seed = même pochette) — on régénère
+    // directement en PNG plutôt que de convertir une URL SVG existante.
+    const sessionCoverSourceUrl = buildCoverUrlPng(currentPlaylist.name);
     const sessionCoverDataUri = await fetchImageAsDataUri(sessionCoverSourceUrl);
     setSummarySessionCover(sessionCoverDataUri);
 
