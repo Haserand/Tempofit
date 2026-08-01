@@ -13,7 +13,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
-import ShareModal from '../src/components/modals/ShareModal.jsx';
+import ShareModal from '../../src/components/modals/ShareModal.jsx';
 
 const mockTheme = {
   cardBg: 'mock-card-bg', cardBorder: 'mock-border', textHighlight: 'mock-highlight',
