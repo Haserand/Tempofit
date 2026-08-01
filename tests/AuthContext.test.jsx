@@ -403,3 +403,84 @@ describe('AuthContext — utilisation hors <AuthProvider> (repli FALLBACK)', () 
     expect(outcome.error).toBe('AuthProvider manquant.');
   });
 });
+
+describe('AuthContext — isSupabaseConfigured=false (no-op silencieux, sans dépendance Supabase)', () => {
+  // Placé en DERNIER dans ce fichier, volontairement : `vi.resetModules()`
+  // vide le registre de modules de Vitest pour les FUTURS `import()`
+  // dynamiques, mais n'invalide pas les références déjà capturées plus
+  // haut (`AuthProvider`/`useAuthContext` importés en haut de fichier,
+  // utilisés par tous les describe précédents) — aucun risque de perturber
+  // les tests déjà écrits, mais on évite quand même tout ordre ambigu en
+  // le mettant à la fin.
+  it('toutes les fonctions renvoient une erreur dédiée, sans jamais appeler Supabase', async () => {
+    vi.resetModules();
+    vi.doMock('../src/supabaseClient.js', () => ({
+      isSupabaseConfigured: false,
+      supabase: { auth: mockAuth, from: mockFrom, rpc: mockRpc, functions: { invoke: mockFunctionsInvoke } },
+    }));
+
+    const { AuthProvider: UnconfiguredProvider, useAuthContext: useUnconfiguredAuthContext } =
+      await import('../src/contexts/AuthContext.jsx');
+    const localWrapper = ({ children }) => <UnconfiguredProvider>{children}</UnconfiguredProvider>;
+    const { result } = renderHook(() => useUnconfiguredAuthContext(), { wrapper: localWrapper });
+
+    // authLoading initialisé via useState(isSupabaseConfigured) : doit
+    // être `false` D'EMBLÉE (pas besoin d'attendre getSession(), qui ne
+    // doit même jamais être appelé — voir plus bas).
+    expect(result.current.authLoading).toBe(false);
+
+    let outcome;
+    await act(async () => { outcome = await result.current.signUp('a@b.com', 'pw123456', 'alex_runner'); });
+    expect(outcome.error).toBe('Les comptes ne sont pas encore configurés côté serveur.');
+
+    await act(async () => { outcome = await result.current.signIn('a@b.com', 'pw123456'); });
+    expect(outcome.error).toBe('Les comptes ne sont pas encore configurés côté serveur.');
+
+    await act(async () => { outcome = await result.current.resetPassword('a@b.com'); });
+    expect(outcome.error).toBe('Les comptes ne sont pas encore configurés côté serveur.');
+
+    await act(async () => { outcome = await result.current.updateEmail('a@b.com'); });
+    expect(outcome.error).toBe('Les comptes ne sont pas encore configurés côté serveur.');
+
+    await act(async () => { outcome = await result.current.updatePassword('newpass123'); });
+    expect(outcome.error).toBe('Les comptes ne sont pas encore configurés côté serveur.');
+
+    await act(async () => { outcome = await result.current.checkUsernameAvailable('alex_runner'); });
+    expect(outcome).toEqual({ available: false, error: 'Les comptes ne sont pas encore configurés côté serveur.' });
+
+    await act(async () => { outcome = await result.current.exportUserData(); });
+    // exportUserData()/deleteAccount() combinent isSupabaseConfigured ET
+    // user dans UNE SEULE condition (`if (!isSupabaseConfigured || !user)`)
+    // — le message reste "Non connecté." dans les 2 cas, pas de message
+    // dédié "pas configuré" spécifique à ces 2 fonctions précises.
+    expect(outcome).toEqual({ data: null, error: 'Non connecté.' });
+
+    await act(async () => { outcome = await result.current.deleteAccount(); });
+    expect(outcome.error).toBe('Non connecté.');
+
+    // Aucune de ces fonctions n'a dû toucher Supabase, ni au montage ni
+    // via les appels ci-dessus.
+    expect(mockAuth.getSession).not.toHaveBeenCalled();
+    expect(mockAuth.onAuthStateChange).not.toHaveBeenCalled();
+    expect(mockAuth.signUp).not.toHaveBeenCalled();
+    expect(mockAuth.signInWithPassword).not.toHaveBeenCalled();
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockFunctionsInvoke).not.toHaveBeenCalled();
+  });
+
+  it('signOut reste un no-op silencieux (pas d\'erreur, mais n\'appelle pas Supabase non plus)', async () => {
+    vi.resetModules();
+    vi.doMock('../src/supabaseClient.js', () => ({
+      isSupabaseConfigured: false,
+      supabase: { auth: mockAuth, from: mockFrom, rpc: mockRpc, functions: { invoke: mockFunctionsInvoke } },
+    }));
+    const { AuthProvider: UnconfiguredProvider, useAuthContext: useUnconfiguredAuthContext } =
+      await import('../src/contexts/AuthContext.jsx');
+    const localWrapper = ({ children }) => <UnconfiguredProvider>{children}</UnconfiguredProvider>;
+    const { result } = renderHook(() => useUnconfiguredAuthContext(), { wrapper: localWrapper });
+
+    await act(async () => { await result.current.signOut(); });
+
+    expect(mockAuth.signOut).not.toHaveBeenCalled();
+  });
+});
