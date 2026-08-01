@@ -76,6 +76,9 @@ function makeContextValue(overrides = {}) {
     handleRenamePlaylist: vi.fn(),
     handleSavePlaylist: vi.fn(),
     handleUnsavePlaylist: vi.fn(),
+    handleTogglePlaylistPublic: vi.fn(),
+    handleClonePlaylist: vi.fn(),
+    isReadOnly: false,
     ...overrides,
   };
 }
@@ -318,5 +321,85 @@ describe('PlaylistHeader', () => {
     mockUsePlaylistDetail.mockReturnValue(makeContextValue({ currentPlaylist: makePlaylist({ tracks: [] }) }));
     render(<PlaylistHeader {...baseProps()} />);
     expect(screen.queryByText(/BPM/)).not.toBeInTheDocument();
+  });
+
+  // Feature Sociale — Refonte Structurale Round 2/2 (01/08) : bascule
+  // publique/privée individuelle.
+  describe('toggle publique/privée', () => {
+    it('absent quand isSaved=false — rien à rendre public tant que la playlist n\'existe pas dans "Mes Séances"', () => {
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: false }));
+      render(<PlaylistHeader {...baseProps()} />);
+      expect(screen.queryByText('Rendre publique')).not.toBeInTheDocument();
+      expect(screen.queryByText('Publique')).not.toBeInTheDocument();
+    });
+
+    it('affiche "Rendre publique" quand currentPlaylist.isPublic=false, "Publique" quand true', () => {
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: true, currentPlaylist: makePlaylist({ isPublic: false }) }));
+      const { rerender } = render(<PlaylistHeader {...baseProps()} />);
+      expect(screen.getByText('Rendre publique')).toBeInTheDocument();
+
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: true, currentPlaylist: makePlaylist({ isPublic: true }) }));
+      rerender(<PlaylistHeader {...baseProps()} />);
+      expect(screen.getByText('Publique')).toBeInTheDocument();
+      expect(screen.queryByText('Rendre publique')).not.toBeInTheDocument();
+    });
+
+    it('le clic appelle handleTogglePlaylistPublic', () => {
+      const handleTogglePlaylistPublic = vi.fn();
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: true, handleTogglePlaylistPublic }));
+      render(<PlaylistHeader {...baseProps()} />);
+
+      fireEvent.click(screen.getByText('Rendre publique'));
+
+      expect(handleTogglePlaylistPublic).toHaveBeenCalled();
+    });
+  });
+
+  // Feature Sociale — Consultation/Clonage (01/08) : mode lecture seule
+  // sur une playlist étrangère consultée depuis le profil public de
+  // quelqu'un d'autre.
+  describe('isReadOnly', () => {
+    it('affiche "Sauvegarder dans mes séances" (pas "Ajouter"/"Retirer"), le clic appelle handleClonePlaylist', () => {
+      const handleClonePlaylist = vi.fn();
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isReadOnly: true, isSaved: false, handleClonePlaylist }));
+      render(<PlaylistHeader {...baseProps()} />);
+
+      expect(screen.getByText('Sauvegarder dans mes séances')).toBeInTheDocument();
+      expect(screen.queryByText('Ajouter à Mes Séances')).not.toBeInTheDocument();
+      expect(screen.queryByText('Retirer de Mes Séances')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByText('Sauvegarder dans mes séances'));
+      expect(handleClonePlaylist).toHaveBeenCalled();
+    });
+
+    it('isReadOnly=true PRIME sur isSaved=true (cas normalement impossible, mais l\'ordre de vérification du code doit rester isReadOnly EN PREMIER)', () => {
+      // Vérifie l'ORDRE de la chaîne ternaire elle-même (isReadOnly ?
+      // ... : isSaved ? ... : ...) plutôt que de supposer qu'isSaved vaut
+      // toujours false quand isReadOnly est vrai — un futur changement qui
+      // inverserait l'ordre des deux conditions casserait silencieusement
+      // le comportement pour un visiteur, ce test l'attraperait.
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isReadOnly: true, isSaved: true }));
+      render(<PlaylistHeader {...baseProps()} />);
+      expect(screen.getByText('Sauvegarder dans mes séances')).toBeInTheDocument();
+      expect(screen.queryByText('Retirer de Mes Séances')).not.toBeInTheDocument();
+    });
+
+    it('masque le bouton d\'import CSV même si isLocked=true', () => {
+      const triggerCSVUpload = vi.fn();
+      mockUsePlaylistDetail.mockReturnValue(
+        makeContextValue({ isReadOnly: true, currentPlaylist: makePlaylist({ completions: ['2026-01-01'] }) })
+      );
+      render(<PlaylistHeader {...baseProps({ isLocked: true, triggerCSVUpload })} />);
+
+      expect(screen.queryByText('Importe tes données')).not.toBeInTheDocument();
+      expect(screen.queryByText('Données importées')).not.toBeInTheDocument();
+    });
+
+    it('reste absent même si isSaved=true (défense en profondeur, !isReadOnly ajouté au garde)', () => {
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isReadOnly: true, isSaved: true, currentPlaylist: makePlaylist({ isPublic: true }) }));
+      render(<PlaylistHeader {...baseProps()} />);
+      expect(screen.queryByText('Publique')).not.toBeInTheDocument();
+      expect(screen.queryByText('Rendre publique')).not.toBeInTheDocument();
+    });
   });
 });
