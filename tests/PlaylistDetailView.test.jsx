@@ -70,6 +70,7 @@ vi.mock('../src/components/shared/SessionSummaryCard.jsx', () => ({
 
 vi.mock('../src/utils/captureElementAsFile.js', () => ({
   captureElementAsFile: vi.fn(() => Promise.resolve(new File(['x'], 'bilan.png'))),
+  fetchImageAsDataUri: vi.fn(() => Promise.resolve('data:image/png;base64,mock')),
 }));
 
 vi.mock('../src/musicEngine.js', () => ({
