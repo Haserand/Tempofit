@@ -39,7 +39,7 @@ import AthleticProfilePanel from './AthleticProfilePanel';
  * automatiquement vers `music` si le Mode Intime s'active PENDANT que
  * l'onglet Profil est déjà ouvert.
  */
-export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, userCount, isNaughtyMode, showToast, changeView, username, usernameLoading, checkUsernameAvailable, setUsername, profilePrivacy, updatePrivacySettings }) {
+export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, userCount, isNaughtyMode, showToast, changeView, username, usernameLoading, checkUsernameAvailable, setUsername, profilePrivacy, updatePrivacySettings, onViewOwnProfile }) {
   const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg, textColorClass, borderAccentClass } = theme;
 
   // Onglet actif — jamais 'profile' par défaut en Mode Intime (voir garde-
@@ -435,9 +435,40 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           {user && !usernameLoading && username && (
             <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
               <h3 className={`font-bold text-xl mb-2 flex items-center gap-2 ${textHighlight}`}><Eye className={textColorClass} size={20}/> Confidentialité & Profil Public</h3>
-              <p className={`text-sm mb-6 ${textMuted}`}>
+              <p className={`text-sm mb-4 ${textMuted}`}>
                 Choisis si et comment ton profil est visible par les autres, à l'adresse <span className="font-mono">tempofit.app/?profile={username}</span>.
               </p>
+
+              {/* Lien vers son propre aperçu (01/08, relecture globale,
+                  retour direct : "j'ai l'impression que tu as pas imaginé
+                  le cas où je visite mon propre profil") — jusqu'ici, AUCUN
+                  point d'entrée n'existait nulle part dans l'app pour
+                  atteindre son propre profil public — seul moyen : taper
+                  l'URL à la main. `onViewOwnProfile` (App.jsx) réutilise
+                  directement `handleViewProfile` (déjà utilisée par
+                  SearchUsersModal.jsx pour voir le profil d'AUTRUI) avec
+                  son PROPRE pseudo — même mécanisme, juste une autre
+                  cible. Sur cette page, ProfileView.jsx affiche la
+                  bannière "Aperçu de ton profil" (`isSelf`) et ne montre
+                  QUE les playlists/routines réellement publiques, jamais
+                  les privées — un vrai aperçu de ce qu'un visiteur externe
+                  verrait, pas la vue "Mes Séances" habituelle. */}
+              {/* Gaté sur `isProfilePublic` (comme les 2 toggles Stats
+                  juste en dessous) — sans ça, ce lien mènerait à "Ce
+                  profil est privé ou introuvable" tant que "Rendre mon
+                  profil public" est désactivé : `get_public_profile_summary`
+                  refuse l'accès à TOUT LE MONDE, propriétaire compris, si
+                  `is_profile_public` vaut `false` (voir
+                  supabase-schema.sql) — pas de cas particulier pour son
+                  propre profil côté serveur. */}
+              {onViewOwnProfile && profilePrivacy?.isProfilePublic && (
+                <button
+                  onClick={onViewOwnProfile}
+                  className={`flex items-center gap-2 text-sm font-bold mb-6 ${textColorClass} hover:underline`}
+                >
+                  <Eye size={16} /> Voir l'aperçu de mon profil public
+                </button>
+              )}
 
               <div className="space-y-3">
                 <div className={`flex items-center justify-between p-4 rounded-2xl border ${inputBorder} ${inputBg}`}>
