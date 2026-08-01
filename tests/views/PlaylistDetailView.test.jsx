@@ -25,12 +25,12 @@ import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/re
 import '@testing-library/jest-dom/vitest';
 
 const mockUsePlaylistDetail = vi.fn();
-vi.mock('../src/contexts/PlaylistDetailContext.jsx', () => ({
+vi.mock('../../src/contexts/PlaylistDetailContext.jsx', () => ({
   PlaylistDetailProvider: ({ children }) => <>{children}</>,
   usePlaylistDetail: () => mockUsePlaylistDetail(),
 }));
 
-vi.mock('../src/components/views/PlaylistDetail/PlaylistHeader.jsx', () => ({
+vi.mock('../../src/components/views/PlaylistDetail/PlaylistHeader.jsx', () => ({
   default: ({ isLocked, onShare, resolveAndTogglePreview, getNextTrackForAutoAdvance }) => (
     <div data-testid="playlist-header-mock" data-locked={String(isLocked)}>
       <button onClick={onShare}>trigger-share</button>
@@ -47,13 +47,13 @@ vi.mock('../src/components/views/PlaylistDetail/PlaylistHeader.jsx', () => ({
   ),
 }));
 
-vi.mock('../src/components/views/PlaylistDetail/PlaylistCharts.jsx', () => ({
+vi.mock('../../src/components/views/PlaylistDetail/PlaylistCharts.jsx', () => ({
   default: ({ isLocked, hasDetailFilter }) => (
     <div data-testid="playlist-charts-mock" data-locked={String(isLocked)} data-has-filter={String(hasDetailFilter)} />
   ),
 }));
 
-vi.mock('../src/components/views/PlaylistDetail/TrackList.jsx', () => ({
+vi.mock('../../src/components/views/PlaylistDetail/TrackList.jsx', () => ({
   default: ({ isLocked, hasDetailFilter, trackMatchesDetailFilter }) => (
     <div
       data-testid="track-list-mock"
@@ -64,31 +64,31 @@ vi.mock('../src/components/views/PlaylistDetail/TrackList.jsx', () => ({
   ),
 }));
 
-vi.mock('../src/components/shared/SessionSummaryCard.jsx', () => ({
+vi.mock('../../src/components/shared/SessionSummaryCard.jsx', () => ({
   default: () => <div data-testid="session-summary-card-mock" />,
 }));
 
-vi.mock('../src/utils/captureElementAsFile.js', () => ({
+vi.mock('../../src/utils/captureElementAsFile.js', () => ({
   captureElementAsFile: vi.fn(() => Promise.resolve(new File(['x'], 'bilan.png'))),
   fetchImageAsDataUri: vi.fn(() => Promise.resolve('data:image/png;base64,mock')),
 }));
 
-vi.mock('../src/engine/musicEngine.js', () => ({
+vi.mock('../../src/engine/musicEngine.js', () => ({
   deezerFetch: vi.fn(() => Promise.resolve({ data: { album: { cover_medium: 'https://cover.jpg' } } })),
 }));
 
-vi.mock('../src/appConfig.js', () => ({
+vi.mock('../../src/appConfig.js', () => ({
   getCadenceUnitLabel: vi.fn(() => 'PPM'),
   getZoneForValue: vi.fn(() => null),
   getBpmBucketLabel: vi.fn(() => '140-159'),
 }));
 
-vi.mock('../src/musicCatalog.js', () => ({
+vi.mock('../../src/musicCatalog.js', () => ({
   genreDisplayLabel: vi.fn((g) => g),
   normalizeGenreForDisplay: vi.fn((g) => g),
 }));
 
-import PlaylistDetailView from '../src/components/views/PlaylistDetailView.jsx';
+import PlaylistDetailView from '../../src/components/views/PlaylistDetailView.jsx';
 
 beforeEach(() => {
   global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
@@ -341,7 +341,7 @@ describe('PlaylistDetailView — génération d\'image, résolution des pochette
   // prévu, ce qui est le cœur du correctif.
 
   it('résout la pochette de séance en data URI (fetchImageAsDataUri), même sans coverUrl déjà posé', async () => {
-    const captureUtils = await import('../src/utils/captureElementAsFile.js');
+    const captureUtils = await import('../../src/utils/captureElementAsFile.js');
     mockUsePlaylistDetail.mockReturnValue(makeContextValue());
     render(<PlaylistDetailView {...baseProps({ currentPlaylist: makePlaylist({ name: 'Ma Séance', coverUrl: null }) })} />);
 
@@ -358,7 +358,7 @@ describe('PlaylistDetailView — génération d\'image, résolution des pochette
   });
 
   it('résout UNIQUEMENT les pochettes des titres sourcés Deezer (pas les favoris/Spotify sans trackId "deezer-")', async () => {
-    const captureUtils = await import('../src/utils/captureElementAsFile.js');
+    const captureUtils = await import('../../src/utils/captureElementAsFile.js');
     mockUsePlaylistDetail.mockReturnValue(makeContextValue());
     render(<PlaylistDetailView {...baseProps()} />); // trackA = deezer-1, trackB = fav-2 (voir fixtures en tête de fichier)
 
@@ -370,7 +370,7 @@ describe('PlaylistDetailView — génération d\'image, résolution des pochette
   });
 
   it('si la résolution d\'une pochette échoue (renvoie null) : la génération continue quand même, jusqu\'à "ready"', async () => {
-    const captureUtils = await import('../src/utils/captureElementAsFile.js');
+    const captureUtils = await import('../../src/utils/captureElementAsFile.js');
     captureUtils.fetchImageAsDataUri.mockResolvedValue(null); // simule un échec réseau/CORS pour TOUTES les pochettes de ce test
     const setSummaryImageStatus = vi.fn();
     mockUsePlaylistDetail.mockReturnValue(makeContextValue());
