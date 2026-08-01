@@ -608,7 +608,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
             <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
               <h3 className={`font-bold text-xl mb-2 flex items-center gap-2 ${textHighlight}`}><Eye className={textColorClass} size={20}/> Confidentialité & Profil Public</h3>
               <p className={`text-sm mb-6 ${textMuted}`}>
-                Choisis si et comment ton profil (<span className="font-mono">@{username}</span>) est visible par les autres, à l'adresse <span className="font-mono">tempofit.app/?profile={username}</span>.
+                Choisis si et comment ton profil est visible par les autres, à l'adresse <span className="font-mono">tempofit.app/?profile={username}</span>.
               </p>
 
               <div className="space-y-3">
