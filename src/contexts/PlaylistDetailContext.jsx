@@ -81,7 +81,7 @@ const PlaylistDetailContext = createContext(null);
 export function PlaylistDetailProvider({
   currentPlaylist, setCurrentPlaylist, savedPlaylists, setSavedPlaylists,
   favorites, spotifyTrackPool, userStats, checkTrophies,
-  showToast, requestRemoveSavedPlaylist, handleSavePlaylist,
+  showToast, requestRemoveSavedPlaylist, handleSavePlaylist, handleClonePlaylist,
   currentActualData, selectedMetric, setSelectedMetric,
   dataOffset, setDataOffset,
   selectedAnalysisDate, setSelectedAnalysisDate, availableMetrics,
@@ -519,10 +519,30 @@ export function PlaylistDetailProvider({
   // formule partout, jamais 2 sources de vérité qui pourraient diverger.
   const isSaved = !!(currentPlaylist && savedPlaylists.find(p => p.id === currentPlaylist.id));
 
+  // isReadOnly (Feature Sociale — Consultation/Clonage, 01/08) — vrai
+  // UNIQUEMENT pour une playlist ouverte en APERÇU depuis le profil public
+  // de quelqu'un d'autre (voir App.jsx, `handleOpenPublicPlaylist` — pose
+  // `isReadOnly: true` sur l'objet transmis à `setCurrentPlaylist`, la
+  // SEULE source de ce champ dans toute l'app). Distinct de `!isSaved`
+  // seul (qui vaut aussi `true` pour une playlist FRAÎCHEMENT générée ou
+  // ouverte depuis un modèle du catalogue — ni l'une ni l'autre ne
+  // "appartient" à quelqu'un d'autre, juste pas encore ajoutées à Mes
+  // Séances) : la plupart des verrous de lecture seule existants
+  // (renommage, toggle public, glisser-déposer/dupliquer/remplacer un
+  // titre — voir `canEditTracks`, TrackItem.jsx) découlent déjà
+  // naturellement de `isSaved` seul (toujours `false` pour une playlist
+  // étrangère, le visiteur ne l'a par définition jamais dans SA PROPRE
+  // `savedPlaylists`) — `isReadOnly` ne sert donc qu'à UNE seule décision
+  // supplémentaire : afficher "Sauvegarder dans mes séances" (clone, voir
+  // `handleClonePlaylist`) plutôt que le bouton "Ajouter à Mes Séances"
+  // habituel (qui, lui, garderait à tort le même id que l'original).
+  const isReadOnly = !!currentPlaylist?.isReadOnly;
+
   const value = {
     isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
     handleSavePlaylist, handleUnsavePlaylist, isSaved,
     handleTogglePlaylistPublic,
+    handleClonePlaylist, isReadOnly,
     handleRemoveTrack, handleDuplicateTrack, handleReplaceTrack, handleReplaceTrackSameArtist,
     openTrackMenuIndex, setOpenTrackMenuIndex,
     draggedTrackIndex, handleTrackDragStart, handleTrackDragEnter, handleTrackDragEnd,
@@ -559,6 +579,7 @@ const FALLBACK = {
   editedPlaylistName: '', setEditedPlaylistName: () => {}, handleRenamePlaylist: () => {},
   handleSavePlaylist: () => {}, handleUnsavePlaylist: () => {}, isSaved: false,
   handleTogglePlaylistPublic: () => {},
+  handleClonePlaylist: () => {}, isReadOnly: false,
   handleRemoveTrack: () => {}, handleDuplicateTrack: () => {}, handleReplaceTrack: async () => {}, handleReplaceTrackSameArtist: async () => {},
   openTrackMenuIndex: null, setOpenTrackMenuIndex: () => {},
   draggedTrackIndex: null, handleTrackDragStart: () => () => {}, handleTrackDragEnter: () => () => {}, handleTrackDragEnd: () => {},
