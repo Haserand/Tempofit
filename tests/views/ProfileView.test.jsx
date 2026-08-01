@@ -18,12 +18,12 @@ const { mockRpc, mockFrom } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
 }));
 
-vi.mock('../src/supabaseClient.js', () => ({
+vi.mock('../../src/supabaseClient.js', () => ({
   isSupabaseConfigured: true,
   supabase: { rpc: mockRpc, from: mockFrom },
 }));
 
-import ProfileView, { summarizeSessions } from '../src/components/views/ProfileView.jsx';
+import ProfileView, { summarizeSessions } from '../../src/components/views/ProfileView.jsx';
 
 afterEach(() => {
   cleanup();
