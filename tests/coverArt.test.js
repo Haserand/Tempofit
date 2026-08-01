@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildCoverUrl } from '../src/utils/coverArt.js';
+import { buildCoverUrl, buildCoverUrlPng } from '../src/utils/coverArt.js';
 
 describe('buildCoverUrl', () => {
   it('construit une URL DiceBear "shapes" avec le seed encodé', () => {
@@ -27,5 +27,31 @@ describe('buildCoverUrl', () => {
 
   it('ne plante pas sur un seed vide', () => {
     expect(buildCoverUrl('')).toContain('seed=&backgroundColor=');
+  });
+});
+
+describe('buildCoverUrlPng', () => {
+  // Variante ajoutée le 01/08 — voir sa docstring dans coverArt.js : réservée
+  // au pipeline de capture html2canvas (SVG mal supporté, échec silencieux
+  // constaté), jamais utilisée pour l'affichage normal à l'écran.
+
+  it('construit la MÊME URL que buildCoverUrl, sauf le segment de format (png au lieu de svg)', () => {
+    const svgUrl = buildCoverUrl('Ma Session Rock');
+    const pngUrl = buildCoverUrlPng('Ma Session Rock');
+    expect(pngUrl).toBe(svgUrl.replace('/shapes/svg?', '/shapes/png?'));
+  });
+
+  it('est déterministe : même seed = même URL, à chaque appel', () => {
+    expect(buildCoverUrlPng('test')).toBe(buildCoverUrlPng('test'));
+  });
+
+  it('même seed → même image que la version SVG (juste un format différent) : cohérence visuelle garantie', () => {
+    // Le paramètre `seed` (et donc l'image générée par DiceBear) est
+    // identique entre les deux formats — seule la représentation (SVG
+    // vectoriel vs PNG raster) change, jamais le contenu visuel.
+    const seed = 'Séance Été 🔥';
+    const svgSeedParam = buildCoverUrl(seed).split('seed=')[1].split('&')[0];
+    const pngSeedParam = buildCoverUrlPng(seed).split('seed=')[1].split('&')[0];
+    expect(pngSeedParam).toBe(svgSeedParam);
   });
 });
