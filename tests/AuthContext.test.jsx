@@ -16,18 +16,29 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 
-const mockAuth = {
-  signUp: vi.fn(),
-  signInWithPassword: vi.fn(),
-  signOut: vi.fn(() => Promise.resolve()),
-  resetPasswordForEmail: vi.fn(),
-  updateUser: vi.fn(),
-  getSession: vi.fn(() => Promise.resolve({ data: { session: null } })),
-  onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
-};
-const mockRpc = vi.fn(() => Promise.resolve({ data: null, error: null }));
-const mockFunctionsInvoke = vi.fn();
-const mockFrom = vi.fn();
+// `vi.mock()` est hissé (hoisted) tout en haut du fichier par Vitest, AVANT
+// toute autre instruction — y compris de simples `const mockX = ...` placés
+// plus haut dans le CODE SOURCE. Si la factory de vi.mock() référence
+// directement une de ces constantes, elle n'est pas encore initialisée à ce
+// stade (zone morte temporelle) → `ReferenceError: Cannot access 'mockAuth'
+// before initialization`, qui fait planter le CHARGEMENT ENTIER du fichier
+// (0 test collecté, pas juste un test qui échoue — piégé une 1re fois au
+// déploiement). `vi.hoisted()` existe précisément pour ça : son contenu est
+// lui aussi hissé, au même niveau que vi.mock(), donc disponible à temps.
+const { mockAuth, mockRpc, mockFunctionsInvoke, mockFrom } = vi.hoisted(() => ({
+  mockAuth: {
+    signUp: vi.fn(),
+    signInWithPassword: vi.fn(),
+    signOut: vi.fn(() => Promise.resolve()),
+    resetPasswordForEmail: vi.fn(),
+    updateUser: vi.fn(),
+    getSession: vi.fn(() => Promise.resolve({ data: { session: null } })),
+    onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+  },
+  mockRpc: vi.fn(() => Promise.resolve({ data: null, error: null })),
+  mockFunctionsInvoke: vi.fn(),
+  mockFrom: vi.fn(),
+}));
 
 // `isSupabaseConfigured` est une constante figée à l'import (pas une
 // fonction) — la tester à `false` demanderait de réimporter le module
