@@ -19,6 +19,14 @@
  * l'IDENTIQUE pochette que celle déjà vue dans la grille de Découverte —
  * pas besoin de "transmettre" la valeur via un state ou des props, la
  * reproduire suffit.
+ * FUSION (01/08, suite — chantier proposé en fin de session précédente,
+ * "quasi-identiques, seul /svg vs /png change") — `buildCoverUrl` et
+ * `buildCoverUrlPng` restent 2 fonctions PUBLIQUES distinctes (même
+ * signature, même comportement, mêmes noms qu'avant : rien ne change côté
+ * appelants ni côté tests/coverArt.test.js, qui importe les deux noms
+ * explicitement) — seule l'implémentation est maintenant partagée via
+ * `buildCoverUrlForFormat`, pour ne plus avoir 2 copies de la même
+ * construction d'URL (palette + encodage du seed) à maintenir en parallèle.
  */
 
 // Palette volontairement large et variée (12 teintes) — sans elle, DiceBear
@@ -30,11 +38,16 @@ const COVER_BACKGROUND_COLORS = [
   '38bdf8', '818cf8', 'a78bfa', 'e879f9', 'fb7185', '94a3b8',
 ].join(',');
 
-export const buildCoverUrl = (seed) => {
+// Builder interne partagé — NON exporté, `format` toujours fourni par les
+// 2 fonctions publiques ci-dessous, jamais par un appelant externe (qui n'a
+// pas à savoir que ce détail existe).
+const buildCoverUrlForFormat = (seed, format) => {
   // `encodeURIComponent` : le titre peut contenir des espaces/apostrophes
   // ("Powerlifter's Anthem") — doivent être encodés proprement dans l'URL.
-  return `https://api.dicebear.com/10.x/shapes/svg?seed=${encodeURIComponent(seed)}&backgroundColor=${COVER_BACKGROUND_COLORS}`;
+  return `https://api.dicebear.com/10.x/shapes/${format}?seed=${encodeURIComponent(seed)}&backgroundColor=${COVER_BACKGROUND_COLORS}`;
 };
+
+export const buildCoverUrl = (seed) => buildCoverUrlForFormat(seed, 'svg');
 
 /**
  * Variante PNG de buildCoverUrl — RÉSERVÉE au pipeline de capture
@@ -54,6 +67,4 @@ export const buildCoverUrl = (seed) => {
  * permet nativement, un simple changement de segment d'URL) évite le
  * problème à la source, sans conversion côté client.
  */
-export const buildCoverUrlPng = (seed) => {
-  return `https://api.dicebear.com/10.x/shapes/png?seed=${encodeURIComponent(seed)}&backgroundColor=${COVER_BACKGROUND_COLORS}`;
-};
+export const buildCoverUrlPng = (seed) => buildCoverUrlForFormat(seed, 'png');
