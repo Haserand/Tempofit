@@ -222,6 +222,18 @@ declare
   intimate_sessions jsonb;
   result jsonb;
 begin
+  -- ÉVOLUTION "Login Wall" (01/08) — double sécurité, pas redondante avec
+  -- le `revoke`/`grant` en bas de fichier : celui-ci bloque l'appel AVANT
+  -- même qu'il n'atteigne cette fonction (Postgrest refuse la requête au
+  -- niveau du rôle "anon"). CETTE vérification-ci protège contre le cas où
+  -- les droits d'exécution seraient un jour élargis par erreur (ex. un
+  -- futur `grant ... to anon` réintroduit sans y penser) — même un appel
+  -- qui atteindrait la fonction malgré tout se ferait immédiatement
+  -- refouler ici, avant la moindre lecture de `profiles`/`user_data`.
+  if auth.uid() is null then
+    return null;
+  end if;
+
   select user_id, is_profile_public, show_sport_stats, show_intimate_stats, avatar_url
     into target_user_id, is_public, want_sport, want_intimate, target_avatar
   from profiles
@@ -272,4 +284,18 @@ begin
 end;
 $$;
 
-grant execute on function public.get_public_profile_summary(text) to anon, authenticated;
+-- ÉVOLUTION (01/08, retour direct : "je veux que les profils des autres
+-- soient consultables uniquement si tu t'es fait un compte") — un profil
+-- "public" n'est donc plus accessible à N'IMPORTE QUI avec le lien, mais
+-- seulement à un visiteur CONNECTÉ (n'importe quel compte, pas besoin d'un
+-- lien de parenté avec le propriétaire du profil). `anon` retiré du grant :
+-- Postgrest refuse désormais l'appel avec la seule clé "anon" (message
+-- d'erreur générique de permission côté client, voir ProfileView.jsx qui
+-- ne tente même plus l'appel dans ce cas — affiche directement un écran
+-- "connecte-toi" sans gaspiller de round-trip réseau voué à échouer).
+-- Sans ce `revoke` explicite, ré-exécuter ce fichier sur une base où `anon`
+-- avait déjà reçu ce droit (1re version de cette fonction, voir plus haut)
+-- ne l'aurait PAS retiré — `grant` ajoute des droits, ne retire jamais ceux
+-- déjà accordés ailleurs.
+revoke execute on function public.get_public_profile_summary(text) from anon;
+grant execute on function public.get_public_profile_summary(text) to authenticated;
