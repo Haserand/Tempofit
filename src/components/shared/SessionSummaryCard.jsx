@@ -1,4 +1,4 @@
-import { Music2, Clock, Activity, Calendar, MapPin, Gauge } from 'lucide-react';
+import { Music2, Clock, Activity, Heart, Calendar, MapPin, Gauge } from 'lucide-react';
 import { formatDuration } from '../../utils/format';
 import { buildCoverUrl } from '../../utils/coverArt';
 import { getZoneForValue, ATHLETIC_ZONES, getBpmBucketColor, getBpmBucketStart, getBpmBucketLabel } from '../../appConfig';
@@ -165,7 +165,15 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sess
       <div className="p-8 pb-6">
         <div className="flex items-center gap-2 mb-6">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: accent }}>
-            <Activity size={20} color="white" />
+            {/* BUG CORRIGÉ (01/08, suite — retour direct : "tu as changé le
+                texte mais pas le logo") — cette icône restait sur
+                `Activity` (le pouls, logo TempoFit normal) quel que soit le
+                mode ; seul le TEXTE juste à côté ("TempoFit"/"TempoIntime")
+                avait été corrigé au tour précédent. Même motif que
+                Sidebar.jsx (`Heart` rempli en Mode Intime, `Activity`
+                sinon) — repris ici à l'identique, pas une 2e icône
+                inventée pour ce même repère visuel. */}
+            {isNaughtyMode ? <Heart size={20} className="text-white fill-white" /> : <Activity size={20} color="white" />}
           </div>
           {/* BUG CORRIGÉ (01/08, retour direct : "le logo est tj le
               classique et pas TempoIntime quand je suis en mode intime") —
