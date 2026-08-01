@@ -173,7 +173,29 @@ function AppContent({
   // RÉEL de la ligne consultée — pas de raison de le forcer à autre chose
   // ici, seul `handleClonePlaylist` (usePlaylistLibrary.js) le remet à
   // `false` au moment du clonage.
+  //
+  // BUG CORRIGÉ (01/08, relecture globale, retour direct : "je devrais pas
+  // pouvoir sauvegarder ou mettre en public des playlists déjà sauvegardées
+  // ou mises en public") — cette fonction forçait `isReadOnly: true` SANS
+  // JAMAIS vérifier si le visiteur consultait sa PROPRE playlist (via son
+  // propre aperçu de profil, voir `isSelf`, ProfileView.jsx). Résultat :
+  // cliquer sur sa propre playlist depuis son propre profil affichait à
+  // tort le bouton "Sauvegarder dans mes séances" — cloner sa propre
+  // playlist déjà sienne, avec un nouvel id, comme si c'était celle d'un
+  // inconnu. Vérifie maintenant D'ABORD si `row.user_id` correspond au
+  // visiteur connecté : si oui, retrouve la VRAIE copie déjà possédée
+  // (`savedPlaylists`, jamais reconstruite depuis `row.content` — la copie
+  // déjà en mémoire est la source de vérité la plus à jour, pas une lecture
+  // Supabase qui pourrait dater de quelques secondes) et l'ouvre
+  // NORMALEMENT (`isReadOnly` absent = `false`, exactement comme un clic
+  // depuis "Mes Séances") — jamais en lecture seule sur sa propre playlist.
   const handleOpenPublicPlaylist = (row) => {
+    if (user && row.user_id === user.id) {
+      const own = savedPlaylists.find(p => p.id === row.id);
+      setCurrentPlaylist(own || { ...row.content, id: row.id, isPublic: !!row.is_public });
+      changeView('playlist');
+      return;
+    }
     setCurrentPlaylist({ ...row.content, id: row.id, isPublic: !!row.is_public, isReadOnly: true });
     changeView('playlist');
   };
@@ -1619,6 +1641,7 @@ function AppContent({
                 profilePrivacy={profilePrivacy} updatePrivacySettings={updatePrivacySettings}
                 userCount={userCount}
                 isNaughtyMode={isNaughtyMode} showToast={showToast} changeView={changeView}
+                onViewOwnProfile={() => handleViewProfile(username)}
               />
             )}
 
