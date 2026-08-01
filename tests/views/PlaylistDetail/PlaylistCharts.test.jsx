@@ -31,11 +31,11 @@ class ResizeObserverStub {
 global.ResizeObserver = ResizeObserverStub;
 
 const mockUsePlaylistDetail = vi.fn();
-vi.mock('../src/contexts/PlaylistDetailContext.jsx', () => ({
+vi.mock('../../../src/contexts/PlaylistDetailContext.jsx', () => ({
   usePlaylistDetail: () => mockUsePlaylistDetail(),
 }));
 
-vi.mock('../src/musicCatalog.js', () => ({
+vi.mock('../../../src/musicCatalog.js', () => ({
   getGenresForDisplay: vi.fn((g) => [g]),
 }));
 
@@ -70,7 +70,7 @@ vi.mock('recharts', () => ({
   Cell: () => null,
 }));
 
-import PlaylistCharts from '../src/components/views/PlaylistDetail/PlaylistCharts.jsx';
+import PlaylistCharts from '../../../src/components/views/PlaylistDetail/PlaylistCharts.jsx';
 
 afterEach(() => {
   cleanup();
