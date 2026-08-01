@@ -28,15 +28,34 @@ import { formatCompletionDate } from '../../utils/format';
  * `editingCompletion`/`setEditingCompletion` : état d'édition possédé par le parent
  * (App.jsx) et PARTAGÉ avec <TopCompletionDate/> — une seule date éditable à la fois,
  * tous playlists ET tous composants confondus.
+ *
+ * `isReadOnly` (Feature Sociale — Consultation/Clonage, 01/08) — même principe et même
+ * raisonnement EXACTS que TopCompletionDate.jsx (voir sa docstring) : `false` par
+ * défaut, aucun appelant existant n'a besoin de le préciser. Sur une playlist étrangère
+ * en aperçu, chaque date redevient du texte simple — ni bouton "modifier", ni icône
+ * d'import Garmin/Strava, ni croix "retirer" : ces 3 actions écriraient sur
+ * l'HISTOIRE du propriétaire d'origine, jamais sur celle du visiteur.
  */
 export default function CompletionsList({
   playlist, hideUploadForDate = null, skipDates = [],
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate, triggerCSVUpload,
-  theme,
+  theme, isReadOnly = false,
 }) {
   const { inputBg, inputBorder, borderAccentClass, textHighlight } = theme;
   const completions = (playlist.completions || []).filter(iso => !skipDates.includes(iso));
   const dataByDate = playlist.actualDataByDate || {};
+
+  if (isReadOnly) {
+    return (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {completions.map((iso) => (
+          <span key={iso} className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold ${inputBg} border ${inputBorder} ${textHighlight}`}>
+            {formatCompletionDate(iso)}
+          </span>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div onClick={(e) => e.stopPropagation()} className="flex flex-wrap items-center gap-1.5">
