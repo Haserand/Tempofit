@@ -13,7 +13,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import DualRangeSlider from '../src/components/shared/DualRangeSlider.jsx';
+import DualRangeSlider from '../../src/components/shared/DualRangeSlider.jsx';
 
 // Stub global à ce fichier (jsdom n'a pas cette méthode DU TOUT sur son
 // prototype — `vi.spyOn` ne fonctionne que sur une méthode EXISTANTE, donc
