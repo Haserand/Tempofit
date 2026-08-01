@@ -12,8 +12,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import DiscoverView from '../src/components/views/DiscoverView.jsx';
-import { curatedSessions, naughtyCuratedSessions } from '../src/data/curatedSessions.js';
+import DiscoverView from '../../src/components/views/DiscoverView.jsx';
+import { curatedSessions, naughtyCuratedSessions } from '../../src/data/curatedSessions.js';
 
 afterEach(() => {
   cleanup();
