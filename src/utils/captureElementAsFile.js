@@ -74,15 +74,41 @@ async function waitForImagesToLoad(element) {
  * le temps au DOM de re-render avec des données tout juste posées (ex.
  * pochettes résolues juste avant l'appel) avant que `waitForImagesToLoad`
  * ne cherche les <img> à surveiller.
+ *
+ * `timeoutMs` : délai maximum accordé à html2canvas lui-même (pas à
+ * l'ensemble de la fonction — `extraDelayMs`/`waitForImagesToLoad` restent
+ * hors de ce compteur, volontaires et déjà bornés par nature).
+ *
+ * BUG CORRIGÉ (01/08, suite — "toujours rien après 10-15s, aucune erreur
+ * dans la console, juste bloqué") — html2canvas est documenté comme
+ * pouvant rester très lent, voire ne jamais se terminer dans certains
+ * navigateurs/versions, sur des combinaisons CSS précises : coins arrondis
+ * + ombre portée + fond en dégradé + `overflow-hidden` — EXACTEMENT le
+ * profil de SessionSummaryCard.jsx (`rounded-[32px] shadow-2xl
+ * overflow-hidden` sur un fond `linear-gradient`), à `scale: 2.7` en plus.
+ * Contrairement au piège CORS/SVG corrigé juste avant (qui, lui, ÉCHOUAIT
+ * proprement avec une SecurityError, attrapable), CE blocage-là ne lève
+ * jamais d'erreur : la promesse `html2canvas(...)` ne se résout ni ne
+ * rejette simplement jamais. Sans limite de temps explicite, rien
+ * n'empêchait un blocage silencieux permanent — le bouton "Partager"
+ * restait fonctionnel (texte/lien toujours partageables), mais l'aperçu
+ * image n'apparaissait jamais, sans le moindre signal d'erreur pour le
+ * comprendre. `Promise.race` avec un timeout transforme ce blocage muet en
+ * un échec propre et attrapable par l'appelant (déjà prévu : voir
+ * `startBackgroundImageGeneration`, PlaylistDetailView.jsx, qui bascule
+ * `summaryImageStatus` sur `'error'` dans ce cas).
  */
-export async function captureElementAsFile(element, filename, { scale = 2, extraDelayMs = 50 } = {}) {
+export async function captureElementAsFile(element, filename, { scale = 2, extraDelayMs = 50, timeoutMs = 15000 } = {}) {
   if (!element) throw new Error('captureElementAsFile: élément DOM manquant');
 
   if (extraDelayMs > 0) await new Promise(resolve => setTimeout(resolve, extraDelayMs));
   await waitForImagesToLoad(element);
 
   const { default: html2canvas } = await import('html2canvas');
-  const canvas = await html2canvas(element, { scale, backgroundColor: null, useCORS: true });
+  const canvas = await Promise.race([
+    html2canvas(element, { scale, backgroundColor: null, useCORS: true }),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('captureElementAsFile: délai dépassé (html2canvas bloqué ou trop lent)')), timeoutMs)),
+  ]);
 
   const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
   if (!blob) throw new Error('Conversion en image échouée');
