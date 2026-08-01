@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Gauge, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as UserIcon, X, Key, Download, Trash2, AtSign, Lock, Loader2 } from 'lucide-react';
 import ViewHeader from '../shared/ViewHeader';
-import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../viewHeaderLayout';
+import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 import AthleticProfilePanel from './AthleticProfilePanel';
 
 /**
