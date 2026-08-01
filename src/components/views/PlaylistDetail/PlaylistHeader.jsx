@@ -247,6 +247,7 @@ export default function PlaylistHeader({
                     playlist={currentPlaylist} theme={theme}
                     editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
                     editCompletionDate={editCompletionDate}
+                    isReadOnly={isReadOnly}
                   />
                 </p>
               </div>
@@ -262,6 +263,7 @@ export default function PlaylistHeader({
                     editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
                     editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
                     triggerCSVUpload={triggerCSVUpload}
+                    isReadOnly={isReadOnly}
                   />
                 </div>
               )}
