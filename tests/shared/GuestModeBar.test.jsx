@@ -10,7 +10,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import GuestModeBar from '../src/components/shared/GuestModeBar.jsx';
+import GuestModeBar from '../../src/components/shared/GuestModeBar.jsx';
 
 afterEach(() => {
   cleanup();
