@@ -7,7 +7,7 @@ import {
   getActivityEmoji,
   getCadenceUnitLabel,
   getRankStyle,
-} from '../src/appConfig.js';
+} from '../../src/appConfig.js';
 
 describe('getZoneForValue', () => {
   const mockProfile = { zone1: 100, zone2: 130, zone3: 150, zone4: 170 };
