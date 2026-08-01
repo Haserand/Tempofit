@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildCoverUrl, buildCoverUrlPng } from '../src/utils/coverArt.js';
+import { buildCoverUrl, buildCoverUrlPng } from '../../src/utils/coverArt.js';
 
 describe('buildCoverUrl', () => {
   it('construit une URL DiceBear "shapes" avec le seed encodé', () => {
