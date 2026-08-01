@@ -35,3 +35,25 @@ export const buildCoverUrl = (seed) => {
   // ("Powerlifter's Anthem") — doivent être encodés proprement dans l'URL.
   return `https://api.dicebear.com/10.x/shapes/svg?seed=${encodeURIComponent(seed)}&backgroundColor=${COVER_BACKGROUND_COLORS}`;
 };
+
+/**
+ * Variante PNG de buildCoverUrl — RÉSERVÉE au pipeline de capture
+ * html2canvas (voir generateSummaryImageFile, PlaylistDetailView.jsx),
+ * jamais utilisée pour l'affichage normal à l'écran (qui reste sur
+ * buildCoverUrl/SVG ci-dessus : net à toute taille, plus léger — aucune
+ * raison d'y renoncer là où html2canvas n'entre pas en jeu).
+ *
+ * BUG CORRIGÉ (01/08, suite — "la génération s'arrête en moins d'une
+ * seconde, sans la moindre erreur") — au-delà du piège CORS déjà corrigé
+ * (résolution en data URI), html2canvas a un problème plus fondamental et
+ * documenté avec le rendu des <img> pointant vers du SVG, MÊME en data
+ * URI : son support SVG interne est connu pour être incomplet, et peut
+ * échouer silencieusement (aucune exception levée, juste un rendu qui
+ * n'aboutit jamais) plutôt que de lever une erreur propre — exactement
+ * le symptôme observé. Demander directement un PNG à DiceBear (l'API le
+ * permet nativement, un simple changement de segment d'URL) évite le
+ * problème à la source, sans conversion côté client.
+ */
+export const buildCoverUrlPng = (seed) => {
+  return `https://api.dicebear.com/10.x/shapes/png?seed=${encodeURIComponent(seed)}&backgroundColor=${COVER_BACKGROUND_COLORS}`;
+};
