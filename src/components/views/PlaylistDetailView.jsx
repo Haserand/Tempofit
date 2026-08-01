@@ -448,13 +448,34 @@ function PlaylistDetailViewInner({
           défaut, cohérent avec le fait que c'est la vue "bibliothèque" dont
           celle-ci est un zoom. Si un jour un vrai "retour à l'origine" est
           nécessaire, il faudra une pile d'historique dédiée — hors périmètre
-          ici. */}
+          ici.
+
+          BUG CORRIGÉ (01/08, retour direct : "le bouton retour marche pas,
+          ça dépend de la localisation du bouton" — diagnostiqué en
+          confirmant que le clic redevenait fonctionnel une fois la fenêtre
+          rétrécie via les DevTools) — la pastille flottante desktop
+          d'App.jsx ("Header desktop flottant... isScrolled", `hidden md:flex
+          absolute top-0 left-0 right-0 ... z-30 ... pointer-events-auto`)
+          se superposait exactement à ce bouton une fois la page scrollée,
+          sur desktop uniquement (breakpoint `md:`, d'où le clic qui
+          redevenait possible dès que la fenêtre passait sous ce seuil).
+          Cette pastille avait déjà été rendue non cliquable une 1re fois le
+          29/07 pour un souci similaire (lien fantôme superposé à un titre de
+          page `<ViewHeader/>`) — mais `pointer-events-auto` reste posé sur
+          elle pour rester visible/lisible, ce qui suffit à avaler
+          SILENCIEUSEMENT tout clic en dessous, gestionnaire ou pas.
+          PlaylistDetailView.jsx n'utilise pas `<ViewHeader/>` (voir plus
+          haut) et n'avait donc jamais été couvert par ce correctif de 29/07.
+          `relative z-40` place ce bouton AU-DESSUS de la pastille (z-30),
+          sous la Sidebar (z-50) et les modales (z-70) — cohérent avec
+          l'échelle de z-index déjà en place ailleurs dans l'app. */}
       <button
         onClick={() => changeView('playlists')}
-        className="mb-4 text-sm font-medium text-slate-400 hover:text-white transition-colors flex items-center gap-2"
+        className="relative z-40 mb-4 text-sm font-medium text-slate-400 hover:text-white transition-colors flex items-center gap-2"
       >
         ← Retour
       </button>
+
 
       {/* En-tête — extrait dans PlaylistHeader.jsx (chantier découpage,
           suite de TrackList/TrackItem). Le coin supérieur droit global n'a
