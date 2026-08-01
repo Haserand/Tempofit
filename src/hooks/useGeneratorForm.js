@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { STANDARD_GENRES, NAUGHTY_GENRES } from '../musicCatalog';
-import { buildCrescendoSegments, deduceCrescendoBpm } from '../musicEngine';
-import { checkGenreWeightDeviation, equalSplitWeights } from '../genreWeightDeviation';
+import { buildCrescendoSegments, deduceCrescendoBpm } from '../engine/musicEngine';
+import { checkGenreWeightDeviation, equalSplitWeights } from '../engine/genreWeightDeviation';
 
 /**
  * useGeneratorForm — regroupe tout l'état du formulaire du wizard de
@@ -332,7 +332,7 @@ export function useGeneratorForm(isNaughtyMode, athleticProfile) {
     ? "Laisse l'algorithme composer la bande-son idéale pour cette soirée."
     : "Laisse l'algorithme générer la bande-son ultime pour tes objectifs.";
 
-  // equalSplitWeights : extraite dans src/genreWeightDeviation.js (importée
+  // equalSplitWeights : extraite dans src/engine/genreWeightDeviation.js (importée
   // plus haut) pour être testable sans React.
 
   /**
@@ -404,7 +404,7 @@ export function useGeneratorForm(isNaughtyMode, athleticProfile) {
     setSegments(segments.map(s => s.id === segmentId ? { ...s, selectedGenres: undefined } : s));
   };
 
-  // checkGenreWeightDeviation : extraite dans src/genreWeightDeviation.js
+  // checkGenreWeightDeviation : extraite dans src/engine/genreWeightDeviation.js
   // (importée plus haut) pour être testable sans React — voir ce fichier
   // pour le détail (seuil de signalement à 15 points d'écart, etc.).
 
