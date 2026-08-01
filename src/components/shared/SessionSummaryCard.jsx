@@ -57,7 +57,7 @@ import { getZoneForValue, ATHLETIC_ZONES, getBpmBucketColor, getBpmBucketStart, 
  *      à 400px de large) plutôt qu'une simple carte à hauteur libre — voir
  *      plus bas pour le détail.
  */
-export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNaughtyMode = false, getProfileForWorkout = null }) {
+export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sessionCoverUrl = null, isNaughtyMode = false, getProfileForWorkout = null }) {
   if (!playlist) return null;
 
   const tracks = playlist.tracks || [];
@@ -155,7 +155,7 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
   // TemplateCard.jsx (utils/coverArt.js) : `coverUrl` si déjà posé (playlist
   // ouverte depuis Découvrir), sinon calculée depuis le titre (déterministe,
   // toujours la même pochette pour une même playlist).
-  const coverUrl = playlist.coverUrl || buildCoverUrl(playlist.name);
+  const coverUrl = sessionCoverUrl || playlist.coverUrl || buildCoverUrl(playlist.name);
 
   return (
     <div
@@ -176,7 +176,7 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
             bloc titre (comme partout ailleurs dans l'app) pour que le titre
             se tronque proprement plutôt que de repousser la pochette. */}
         <div className="flex items-start gap-4 mb-2">
-          <img src={coverUrl} alt="" className="w-16 h-16 rounded-2xl object-cover shrink-0 shadow-lg" crossOrigin="anonymous" />
+          <img src={coverUrl} alt="" className="w-16 h-16 rounded-2xl object-cover shrink-0 shadow-lg" />
           <div className="min-w-0 flex-1 pt-0.5">
             <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Bilan de séance</p>
             <h1 className="text-white text-2xl font-black leading-tight">{playlist.name}</h1>
@@ -267,7 +267,7 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, isNa
             {topTracks.map((t, i) => (
               <div key={i} className="flex items-center gap-3 bg-white/5 rounded-xl p-2.5 border border-white/10">
                 {topTrackCovers[t.trackId] ? (
-                  <img src={topTrackCovers[t.trackId]} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" crossOrigin="anonymous" />
+                  <img src={topTrackCovers[t.trackId]} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
                 ) : (
                   <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
                     <Music2 size={16} className="text-gray-500" />
