@@ -65,19 +65,45 @@ export function useShare(showToast) {
     openModal('SHARE', data);
   };
 
-  // Copie le texte de partage dans le presse-papier via l'ancienne API
-  // execCommand (fallback compatible même sans HTTPS/contexte sécurisé,
-  // contrairement à navigator.clipboard).
-  const copyToClipboard = () => {
+  // Copie le texte de partage dans le presse-papier — `navigator.clipboard`
+  // (API moderne, fiable) en priorité, avec repli sur l'ancienne API
+  // `execCommand` UNIQUEMENT si `navigator.clipboard` est indisponible
+  // (contexte non sécurisé / navigateur ancien).
+  //
+  // BUG CORRIGÉ (31/07) — cette fonction n'utilisait QUE `execCommand`,
+  // jamais `navigator.clipboard` (pourtant l'API principale utilisée
+  // ailleurs dans le projet, voir SettingsView.jsx/copyRedirectUri), ET
+  // n'appelait le toast de succès qu'à l'intérieur d'un `try` qui ne
+  // vérifiait jamais la valeur de retour d'`execCommand('copy')` — cette
+  // fonction renvoie `false` en cas d'échec SANS lever d'exception dans la
+  // plupart des navigateurs, donc le toast "Lien copié !" s'affichait même
+  // quand rien n'avait réellement été copié.
+  const copyToClipboard = async () => {
     if (!shareData) return;
     const textToCopy = `${shareData.text} ${shareData.url}`;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+        showToast("Lien copié dans le presse-papier !");
+        closeModal();
+        return;
+      } catch (err) {
+        // Repli sur execCommand ci-dessous (ex: permission refusée).
+      }
+    }
+
     const textArea = document.createElement("textarea");
     textArea.value = textToCopy;
     textArea.style.top = "0"; textArea.style.left = "0"; textArea.style.position = "fixed";
     document.body.appendChild(textArea);
     textArea.focus(); textArea.select();
-    try { document.execCommand('copy'); showToast("Lien copié dans le presse-papier !"); } catch (err) {}
+    let succeeded = false;
+    try { succeeded = document.execCommand('copy'); } catch (err) { succeeded = false; }
     document.body.removeChild(textArea);
+
+    if (succeeded) showToast("Lien copié dans le presse-papier !");
+    else showToast("Impossible de copier le lien automatiquement — copie-le manuellement.", 'error');
     closeModal();
   };
 
