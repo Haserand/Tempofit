@@ -354,8 +354,14 @@ describe('PlaylistCharts — camembert "Répartition par style" (genres)', () =>
     expect(screen.queryByText(/^Titres ·/)).not.toBeInTheDocument();
 
     rerender(<PlaylistCharts {...baseProps({ hasDetailFilter: true, trackMatchesDetailFilter, selectedDetailGenre: new Set(['Rock']) })} />);
-    expect(screen.getByText(/Titres · Rock/)).toBeInTheDocument();
-    expect(screen.getByText('Titre A')).toBeInTheDocument();
+    // hasDetailFilter est un état PARTAGÉ entre les 2 camemberts (genre et
+    // BPM) — les 2 panneaux affichent donc légitimement le même rappel
+    // "Titres · Rock" simultanément ici (pas un bug : le camembert BPM n'a
+    // pas de filtre BPM actif, mais reste soumis au même hasDetailFilter
+    // global). D'où getAllByText (2 occurrences attendues) plutôt que
+    // getByText.
+    expect(screen.getAllByText(/Titres · Rock/)).toHaveLength(2);
+    expect(screen.getAllByText('Titre A').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Titre B')).not.toBeInTheDocument();
   });
 });
