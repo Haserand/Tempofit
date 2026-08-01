@@ -10,11 +10,11 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 const mockUseGeneratorContext = vi.fn();
-vi.mock('../src/contexts/GeneratorContext.jsx', () => ({
+vi.mock('../../src/contexts/GeneratorContext.jsx', () => ({
   useGeneratorContext: () => mockUseGeneratorContext(),
 }));
 
-import AthleticProfilePanel from '../src/components/views/AthleticProfilePanel.jsx';
+import AthleticProfilePanel from '../../src/components/views/AthleticProfilePanel.jsx';
 
 afterEach(() => {
   cleanup();
