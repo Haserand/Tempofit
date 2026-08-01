@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { buildCoverUrl } from '../utils/coverArt';
-import { recalculateTimeline } from '../musicEngine';
+import { recalculateTimeline } from '../engine/musicEngine';
 import { useGeneratorContext } from '../contexts/GeneratorContext';
 import { useModalContext } from '../contexts/ModalContext';
 
