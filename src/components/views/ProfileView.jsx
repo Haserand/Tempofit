@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UserX, Loader2, Clock, Gauge, ListMusic, Heart } from 'lucide-react';
+import { UserX, Loader2, Clock, Gauge, ListMusic, Heart, Lock } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../supabaseClient';
 import { formatDuration } from '../../utils/format';
 import { VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
@@ -10,7 +10,7 @@ import { VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
  * `?import=...` — playlistShareCode.js/useShare.js — pas de vraie route
  * `/user/:username` : ce projet n'utilise PAS react-router, voir
  * useNavigation.js, et Vercel n'a aucune règle de réécriture d'URL
- * configurée pour un chemin arbitraire, voir vercel.json — un lien direct
+ * configurée pour un chemin arbitraire, voir vercel.json) — un lien direct
  * vers `/user/pseudo` ouvert à froid (pas depuis l'app) renverrait un 404
  * AVANT même que React n'ait la moindre chance de s'exécuter. Un paramètre
  * de requête, lui, atteint toujours `index.html` normalement.
@@ -18,6 +18,16 @@ import { VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
  * Contrairement aux 8 autres vues listées dans la Sidebar, cette page n'est
  * accessible QUE par lien direct (comme PlaylistDetailView.jsx) — pas de
  * `<ViewHeader/>` ici pour la même raison qu'elle, voir sa propre docstring.
+ *
+ * "Login Wall" (01/08, retour direct : "je veux que les profils des autres
+ * soient consultables uniquement si tu t'es fait un compte") — un visiteur
+ * NON connecté n'atteint jamais la fonction serveur : `user` (reçu en prop,
+ * depuis AuthContext.jsx) est vérifié AVANT tout appel réseau. Double
+ * verrou, pas juste ce garde-fou côté client (contournable en désactivant
+ * le JS) : `get_public_profile_summary` elle-même refuse désormais l'appel
+ * pour la clé "anon" (droits d'exécution retirés) ET vérifie explicitement
+ * `auth.uid() is null` en tout premier — voir supabase-schema.sql pour les
+ * deux mécanismes.
  *
  * Tout le calcul (résolution du profil, vérification de confidentialité,
  * agrégation des statistiques) se fait CÔTÉ SERVEUR, dans la fonction
@@ -56,10 +66,10 @@ export function summarizeSessions(sessions) {
   };
 }
 
-export default function ProfileView({ theme, username, isNaughtyMode, changeView }) {
+export default function ProfileView({ theme, username, isNaughtyMode, changeView, user, openModal }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
 
-  const [status, setStatus] = useState('loading'); // 'loading' | 'not_found' | 'ready'
+  const [status, setStatus] = useState('loading'); // 'loading' | 'login_wall' | 'not_found' | 'ready'
   const [profile, setProfile] = useState(null);
 
   useEffect(() => {
@@ -68,6 +78,14 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
     setProfile(null);
 
     if (!isSupabaseConfigured || !username) { setStatus('not_found'); return; }
+    // Login Wall — vérifié ICI, avant même de construire l'appel réseau :
+    // pas la peine de solliciter Supabase pour un appel qu'on sait déjà
+    // voué à être refusé côté serveur (voir la docstring plus haut, double
+    // verrou). Dépend de `user` dans le tableau de deps ci-dessous : si la
+    // personne se connecte PENDANT qu'elle est sur cet écran verrouillé
+    // (via le bouton "Se connecter" plus bas), le profil se charge alors
+    // automatiquement, sans avoir à recharger la page.
+    if (!user) { setStatus('login_wall'); return; }
 
     (async () => {
       const { data, error } = await supabase.rpc('get_public_profile_summary', { target_username: username });
@@ -78,7 +96,7 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
     })();
 
     return () => { cancelled = true; };
-  }, [username]);
+  }, [username, user]);
 
   // Résumés chiffrés — `null` si la fonction serveur n'a pas renvoyé ce
   // tableau du tout (bascule de confidentialité désactivée côté
@@ -110,6 +128,24 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
       {status === 'loading' && (
         <div className="flex flex-col items-center justify-center text-center py-24 gap-3">
           <Loader2 size={32} className={`animate-spin ${textMuted}`} />
+        </div>
+      )}
+
+      {status === 'login_wall' && (
+        <div className="flex flex-col items-center justify-center text-center py-24 gap-4">
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center ${bgAccentClass} text-white`}>
+            <Lock size={28} />
+          </div>
+          <p className={`font-bold text-xl ${textHighlight}`}>Rejoins la communauté TempoFit</p>
+          <p className={`text-sm max-w-sm ${textMuted}`}>
+            Connecte-toi ou crée un compte pour découvrir les statistiques et les playlists de @{username}.
+          </p>
+          <button
+            onClick={() => openModal('AUTH')}
+            className={`mt-2 px-6 py-3 rounded-xl font-bold text-white shadow-md hover:brightness-110 transition-all ${bgAccentClass}`}
+          >
+            Se connecter / S'inscrire
+          </button>
         </div>
       )}
 
