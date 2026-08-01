@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import SavingRoutineModal from '../src/components/modals/SavingRoutineModal.jsx';
+import SavingRoutineModal from '../../src/components/modals/SavingRoutineModal.jsx';
 
 afterEach(() => {
   cleanup();
