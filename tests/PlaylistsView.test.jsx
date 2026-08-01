@@ -1,245 +1,285 @@
-// @vitest-environment jsdom
-//
-// Test dédié à PlaylistsView.jsx ("Mes Séances") — 0 test jusqu'ici (avant
-// même la Feature Sociale, 01/08). `PlaylistCard.jsx` mocké par un stub
-// léger exposant les props qui nous intéressent ICI (déjà testé en détail
-// dans tests/PlaylistCard.test.jsx — pas la peine de re-tester son rendu
-// interne). `ViewHeader.jsx` laissé réel : composant purement présentatif,
-// aucune dépendance externe compliquée à mocker.
+import { useState } from 'react';
+import { List, Library, Plus, Calendar, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import PlaylistCard from './PlaylistCard';
+import ViewHeader from '../shared/ViewHeader';
+import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import '@testing-library/jest-dom/vitest';
+/**
+ * PlaylistsView — vue "Mes Séances" (nom d'origine restauré le 25/07 : elle
+ * s'était appelée "Bibliothèque" un temps, mais c'est resté le seul endroit
+ * à le dire — le reste de l'app, lui, n'a jamais arrêté d'appeler cette
+ * fonctionnalité "Mes Séances" partout ailleurs : info-bulles,
+ * PlaylistHeader.jsx, StatsView.jsx, description de trophée dans
+ * appConfig.js... Rétabli ici pour que le titre de la page matche enfin la
+ * Sidebar et le reste de l'app, plutôt que l'inverse).
+ *
+ * Fusionne ce qui était avant deux pages séparées ("Mes Playlists" et "Ma
+ * File d'attente", voir passation) suite à un retour direct : une file
+ * séparée n'apportait pas grand-chose de plus qu'un simple ordre + une date
+ * optionnelle directement sur les cartes existantes. Fusionne aussi ce qui
+ * était l'onglet "Historique" (HistoryView.jsx, retiré) : depuis que la
+ * planification/les dates sont intégrées ici, cet écran couvre toute la
+ * ligne de temps d'une séance (à venir → faite), un onglet séparé pour le
+ * passé faisait doublon. 3 sections, dans cet ordre :
+ *
+ * 1. "À planifier" — playlists non terminées SANS date. Réordonnables à la
+ *    main par glisser-déposer (même mécanisme que l'ordre des titres dans
+ *    une playlist, voir PlaylistDetailView) : c'est là qu'on retrouve l'idée
+ *    de "file d'attente", mais sans jamais forcer de date. PAS paginée : le
+ *    glisser-déposer devrait sinon gérer le passage d'une page à l'autre, ce
+ *    qui complexifierait beaucoup ce mécanisme pour un gain limité — c'est
+ *    une file de travail active, généralement courte.
+ * 2. "Planifiées" — playlists non terminées AVEC une date, triées par date
+ *    croissante. La date reste optionnelle et n'est JAMAIS une contrainte
+ *    bloquante — juste une clé de tri en plus de l'ordre manuel ci-dessus.
+ *    Paginée (pas de glisser-déposer ici, donc rien à casser).
+ * 3. "Terminées" — comportement inchangé sinon : triées par complétion la
+ *    plus récente d'abord. Paginée — c'est la section qui grossit le plus
+ *    avec le temps (tout l'historique, maintenant que HistoryView a disparu),
+ *    donc la plus concernée par le risque de scroll infini.
+ *
+ * Le glisser-déposer ne réordonne QUE le sous-ensemble "À planifier" au sein
+ * du tableau `savedPlaylists` complet — les positions des autres playlists
+ * (datées ou terminées) ne bougent jamais quand on réordonne cette section.
+ */
 
-vi.mock('../src/components/views/PlaylistCard.jsx', () => ({
-  default: ({ playlist, onClick, onDelete, onTogglePublic, draggable, isDragging, onDragStart, onDragEnter, onDragEnd, rank }) => (
-    <div
-      data-testid={`card-${playlist.id}`}
-      data-draggable={!!draggable}
-      data-dragging={!!isDragging}
-      data-rank={rank}
-      onClick={onClick}
-      draggable={draggable}
-      onDragStart={onDragStart}
-      onDragEnter={onDragEnter}
-      onDragEnd={onDragEnd}
-    >
-      {playlist.name}
-      <button data-testid={`delete-${playlist.id}`} onClick={(e) => { e.stopPropagation(); onDelete(playlist.id); }}>Supprimer</button>
-      <button data-testid={`toggle-public-${playlist.id}`} onClick={(e) => { e.stopPropagation(); onTogglePublic(playlist.id); }}>Toggle public</button>
-    </div>
-  ),
-}));
+// Nombre de cartes par page pour les sections paginées (Planifiées/Terminées).
+const PAGE_SIZE = 10;
 
-import PlaylistsView from '../src/components/views/PlaylistsView.jsx';
-
-afterEach(() => {
-  cleanup();
-  vi.clearAllMocks();
-});
-
-const mockTheme = {
-  cardBorder: 'mock-border', textHighlight: 'mock-highlight', textMuted: 'mock-muted',
-  textColorClass: 'mock-text-color', bgAccentClass: 'mock-accent-bg',
+// Petit helper de pagination local à cette vue. `page` peut dépasser
+// `totalPages - 1` (ex. après suppression d'items) — on clampe ici plutôt que
+// de risquer une page vide ou hors-limites ; les boutons de la pagination
+// utilisent `safePage` (valeur affichée) pour calculer prev/next, donc rien
+// à resynchroniser dans un useEffect séparé.
+const usePageSlice = (items, page) => {
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const start = safePage * PAGE_SIZE;
+  return { pageItems: items.slice(start, start + PAGE_SIZE), totalPages, safePage };
 };
 
-function makePlaylist(overrides = {}) {
-  return {
-    id: `pl-${Math.random().toString(36).slice(2)}`,
-    name: 'Séance', isNaughty: false, completions: [], plannedDate: null, isPublic: false,
-    ...overrides,
+export default function PlaylistsView({
+  theme, isNaughtyMode, savedPlaylists, setSavedPlaylists, requestRemoveSavedPlaylist, setPlaylistPlannedDate, getRankStyle,
+  setCurrentPlaylist, changeView, renderConfigInfoLine, markPlaylistAsCompleted,
+  editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate, triggerCSVUpload,
+}) {
+  const { cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
+  const [draggedId, setDraggedId] = useState(null);
+  const [plannedPage, setPlannedPage] = useState(0);
+  const [completedPage, setCompletedPage] = useState(0);
+
+  const isCompleted = (p) => p.completions && p.completions.length > 0;
+
+  // Bascule publique/privée INDIVIDUELLE (Feature Sociale — Refonte
+  // Structurale Round 2/2, 01/08) — MÊME principe exact que
+  // `handleTogglePlaylistPublic` de PlaylistDetailContext.jsx (celui-là
+  // agit sur `currentPlaylist`, celui-ci sur n'importe quelle carte de
+  // cette liste par id) : `useSyncedCollection.js` détecte le changement
+  // au prochain rendu et pousse la mise à jour vers Supabase tout seul,
+  // rien de plus à faire ici.
+  const handleTogglePlaylistPublic = (id) => {
+    setSavedPlaylists(savedPlaylists.map(p => p.id === id ? { ...p, isPublic: !p.isPublic } : p));
   };
-}
 
-function baseProps(overrides = {}) {
-  return {
-    theme: mockTheme,
-    isNaughtyMode: false,
-    savedPlaylists: [],
-    setSavedPlaylists: vi.fn(),
-    requestRemoveSavedPlaylist: vi.fn(),
-    setPlaylistPlannedDate: vi.fn(),
-    getRankStyle: vi.fn(() => null),
-    setCurrentPlaylist: vi.fn(),
-    changeView: vi.fn(),
-    renderConfigInfoLine: vi.fn(() => null),
-    markPlaylistAsCompleted: vi.fn(),
-    editingCompletion: null, setEditingCompletion: vi.fn(),
-    editCompletionDate: vi.fn(), removeCompletionDate: vi.fn(), triggerCSVUpload: vi.fn(),
-    ...overrides,
+  // Pare-feu Mode Intime (retour direct : "les vues Mes Séances et Découvrir
+  // mélangent les contenus des deux modes") — TOUT le reste de ce composant
+  // travaille sur `visiblePlaylists`, jamais directement sur `savedPlaylists`
+  // (qui contient les deux modes mélangés) : `!!p.isNaughty` normalise
+  // undefined/false en booléen propre avant comparaison (playlists
+  // anciennes sans ce champ), même garde-fou déjà en place dans
+  // StatsView.jsx pour le même filtre.
+  const visiblePlaylists = savedPlaylists.filter(p => !!p.isNaughty === !!isNaughtyMode);
+
+  const toPlan = visiblePlaylists.filter(p => !isCompleted(p) && !p.plannedDate);
+  const planned = [...visiblePlaylists.filter(p => !isCompleted(p) && p.plannedDate)]
+    .sort((a, b) => a.plannedDate.localeCompare(b.plannedDate));
+  const completedPlaylists = [...visiblePlaylists.filter(isCompleted)].sort((a, b) => {
+    const lastA = a.completions[a.completions.length - 1];
+    const lastB = b.completions[b.completions.length - 1];
+    return lastB.localeCompare(lastA);
+  });
+
+  const { pageItems: plannedPageItems, totalPages: plannedTotalPages, safePage: plannedSafePage } = usePageSlice(planned, plannedPage);
+  const { pageItems: completedPageItems, totalPages: completedTotalPages, safePage: completedSafePage } = usePageSlice(completedPlaylists, completedPage);
+
+  // Classement par nombre d'utilisations, uniquement parmi celles ayant déjà
+  // été faites au moins une fois — sert à la bordure or/argent/bronze.
+  // Calculé sur la liste COMPLÈTE (pas juste la page affichée), sinon le
+  // classement changerait selon la page consultée.
+  const playlistRanks = [...completedPlaylists].sort((a, b) => b.completions.length - a.completions.length).map(p => p.id);
+
+  // Réordonne UNIQUEMENT le sous-ensemble "À planifier" au sein de
+  // `savedPlaylists`, en conservant la position relative de tout le reste
+  // (playlists datées ou terminées) — même principe que le glisser-déposer
+  // des titres dans une playlist (voir handleTrackDragEnter dans App.jsx).
+  // Réordonne UNIQUEMENT le sous-ensemble "À planifier" au sein de
+  // `savedPlaylists`, en conservant la position relative de tout le reste
+  // (playlists datées ou terminées) — même principe que le glisser-déposer
+  // des titres dans une playlist (voir handleTrackDragEnter dans App.jsx).
+  //
+  // BUG CORRIGÉ (01/08, remonté par un échec de build réel — voir logs
+  // Vercel, tests/PlaylistsView.test.jsx) — `cursor++` vivait DANS le
+  // comparateur passé à `.find()` (`prev.find(pp => pp.id ===
+  // reordered[cursor++])`) : `.find()` appelle ce comparateur une fois
+  // par élément qu'il TESTE en interne, pas une fois par itération
+  // EXTERNE de `.map()` — `cursor` avançait donc bien plus vite que prévu
+  // (jusqu'à 3 incréments pour une seule itération de `.map()` sur ce
+  // tableau de 3 éléments), lisant `reordered[cursor]` hors limites
+  // (`undefined`) dès la 3e comparaison. Résultat concret en production :
+  // glisser-déposer une playlist dans "À planifier" remplaçait
+  // SILENCIEUSEMENT des playlists par `undefined` dans `savedPlaylists` —
+  // une vraie perte de données, pas juste un affichage cassé. Corrigé en
+  // séparant complètement les deux opérations : une `Map` construite UNE
+  // FOIS (recherche par id en O(1), aucun `.find()` répété) et `cursor`
+  // incrémenté par une INSTRUCTION à part, hors de tout comparateur —
+  // impossible qu'il avance plus vite que voulu désormais.
+  const reorderToPlan = (draggedPlaylistId, targetPlaylistId) => {
+    setSavedPlaylists(prev => {
+      const inSection = (p) => !isCompleted(p) && !p.plannedDate && !!p.isNaughty === !!isNaughtyMode;
+      const ids = prev.filter(inSection).map(p => p.id);
+      const fromIdx = ids.indexOf(draggedPlaylistId);
+      const toIdx = ids.indexOf(targetPlaylistId);
+      if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return prev;
+      const reordered = [...ids];
+      const [moved] = reordered.splice(fromIdx, 1);
+      reordered.splice(toIdx, 0, moved);
+      const byId = new Map(prev.map(p => [p.id, p]));
+      let cursor = 0;
+      return prev.map(p => {
+        if (!inSection(p)) return p;
+        const nextId = reordered[cursor];
+        cursor += 1;
+        return byId.get(nextId);
+      });
+    });
   };
+
+  const renderCard = (playlist, { draggableSection } = {}) => {
+    const rank = playlistRanks.indexOf(playlist.id);
+    const rankStyle = getRankStyle(rank);
+    return (
+      <PlaylistCard
+        key={playlist.id}
+        theme={theme} isNaughtyMode={isNaughtyMode} playlist={playlist} rankStyle={rankStyle} rank={rank}
+        onClick={() => { setCurrentPlaylist(playlist); changeView('playlist'); }}
+        onDelete={requestRemoveSavedPlaylist}
+        onTogglePublic={handleTogglePlaylistPublic}
+        renderConfigInfoLine={renderConfigInfoLine}
+        editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
+        editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
+        triggerCSVUpload={triggerCSVUpload}
+        markPlaylistAsCompleted={markPlaylistAsCompleted}
+        onSetPlannedDate={setPlaylistPlannedDate}
+        draggable={draggableSection}
+        isDragging={draggableSection && draggedId === playlist.id}
+        onDragStart={draggableSection ? (e) => { setDraggedId(playlist.id); e.dataTransfer.effectAllowed = 'move'; } : undefined}
+        onDragEnter={draggableSection ? (e) => { e.preventDefault(); if (draggedId && draggedId !== playlist.id) reorderToPlan(draggedId, playlist.id); } : undefined}
+        onDragEnd={draggableSection ? () => setDraggedId(null) : undefined}
+      />
+    );
+  };
+
+  // Pagineur compact (Précédent / Page X sur Y / Suivant) — masqué s'il n'y a
+  // qu'une seule page. `page`/`setPage` reçoivent la valeur déjà clampée
+  // (`safePage`), pas l'état brut, pour rester cohérents avec ce qui est
+  // affiché même juste après une suppression qui réduirait le nombre de pages.
+  const renderPager = (page, totalPages, setPage) => totalPages > 1 && (
+    <div className="flex items-center justify-center gap-3 pt-1">
+      <button
+        onClick={() => setPage(Math.max(0, page - 1))}
+        disabled={page === 0}
+        className={`p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed ${textMuted} hover:text-main hover:bg-surface-hover`}
+      >
+        <ChevronLeft size={18} />
+      </button>
+      <span className={`text-xs font-bold ${textMuted}`}>Page {page + 1} / {totalPages}</span>
+      <button
+        onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+        disabled={page >= totalPages - 1}
+        className={`p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed ${textMuted} hover:text-main hover:bg-surface-hover`}
+      >
+        <ChevronRight size={18} />
+      </button>
+    </div>
+  );
+
+  const isEmpty = visiblePlaylists.length === 0;
+
+  return (
+    <div className={`${VIEW_CONTENT_WRAPPER} space-y-10`}>
+      <ViewHeader
+        theme={theme}
+        isNaughtyMode={isNaughtyMode}
+        icon={<Library className={textColorClass} size={VIEW_HEADER_ICON_SIZE} />}
+        title="Mes Séances"
+        subtitle="Retrouve tes playlists générées, planifie tes écoutes et consulte ton historique."
+      />
+
+      {/* Notice "mode invité" RETIRÉE D'ICI (25/07) — vivait en double ici et
+          dans StatsView.jsx, avec deux conditions de déclenchement légèrement
+          différentes, et absente de RoutinesView.jsx alors que la même
+          logique s'y appliquait tout autant (bug remonté par capture :
+          "pourquoi ce message n'apparaît QUE sur certaines pages ?"). Un seul
+          bloc centralisé désormais, dans Sidebar.jsx (persistante sur toutes
+          les vues) — voir son commentaire pour le raisonnement complet. */}
+
+      {isEmpty ? (
+        <div className={`py-16 text-center border-2 border-dashed rounded-2xl ${isNaughtyMode ? 'border-slate-400' : 'border-slate-700'}`}>
+          <List size={48} className={`mx-auto mb-4 ${textMuted}`} />
+          <h3 className={`text-lg font-bold mb-2 ${textHighlight}`}>Aucune playlist sauvegardée</h3>
+          <p className={`text-sm mb-6 max-w-sm mx-auto ${textMuted}`}>Génère une playlist et sauvegarde-la pour la retrouver ici.</p>
+          <button onClick={() => changeView('generator')} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
+            Générer ma première playlist
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* --- À PLANIFIER (pas de date, ordre manuel par glisser-déposer, PAS paginée) --- */}
+          <div className="space-y-4">
+            <h2 className={`text-sm font-bold uppercase tracking-wider ${textMuted}`}>À planifier</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Zone vide "Générer une nouvelle playlist" (retour direct :
+                  "le texte gris clair et le + sont illisibles") — même
+                  schéma slate normalisé que le reste de cette vue. */}
+              {/* Ménage "Centraliser les règles de couleur" (29/07) —
+                  ternaire `isNaughtyMode` retiré, remplacé par les tokens
+                  déjà adaptatifs de useTheme.js (voir RoutinesView.jsx pour
+                  le détail identique). */}
+              <button onClick={() => changeView('generator')} className={`rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 py-10 font-bold transition-colors ${cardBorder} ${textMuted} hover:text-main`}>
+                <Plus size={28} />
+                <span>Générer une nouvelle playlist</span>
+              </button>
+              {toPlan.map(p => renderCard(p, { draggableSection: true }))}
+            </div>
+          </div>
+
+          {/* --- PLANIFIÉES (une date a été choisie, triées par date, paginée) --- */}
+          {planned.length > 0 && (
+            <div className="space-y-4">
+              <h2 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${textMuted}`}>
+                <Calendar size={14} /> Planifiées
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {plannedPageItems.map(p => renderCard(p))}
+              </div>
+              {renderPager(plannedSafePage, plannedTotalPages, setPlannedPage)}
+            </div>
+          )}
+
+          {/* --- TERMINÉES (fusionne l'ancien "Historique", paginée) --- */}
+          {completedPlaylists.length > 0 && (
+            <div className="space-y-4">
+              <h2 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${textMuted}`}>
+                <CheckCircle size={14} /> Terminées
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {completedPageItems.map(p => renderCard(p))}
+              </div>
+              {renderPager(completedSafePage, completedTotalPages, setCompletedPage)}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
-
-describe('PlaylistsView — état vide', () => {
-  it('aucune playlist : affiche l\'état vide avec le bouton "Générer ma première playlist"', () => {
-    render(<PlaylistsView {...baseProps({ savedPlaylists: [] })} />);
-    expect(screen.getByText('Aucune playlist sauvegardée')).toBeInTheDocument();
-
-    const changeView = vi.fn();
-    cleanup();
-    render(<PlaylistsView {...baseProps({ savedPlaylists: [], changeView })} />);
-    fireEvent.click(screen.getByText('Générer ma première playlist'));
-    expect(changeView).toHaveBeenCalledWith('generator');
-  });
-});
-
-describe('PlaylistsView — pare-feu Mode Intime', () => {
-  const sportPl = makePlaylist({ id: 'sport-1', name: 'Séance Sport', isNaughty: false });
-  const intimatePl = makePlaylist({ id: 'intime-1', name: 'Séance Intime', isNaughty: true });
-
-  it('mode Sport : affiche uniquement les playlists isNaughty=false', () => {
-    render(<PlaylistsView {...baseProps({ savedPlaylists: [sportPl, intimatePl], isNaughtyMode: false })} />);
-    expect(screen.getByText('Séance Sport')).toBeInTheDocument();
-    expect(screen.queryByText('Séance Intime')).not.toBeInTheDocument();
-  });
-
-  it('Mode Intime actif : affiche uniquement les playlists isNaughty=true', () => {
-    render(<PlaylistsView {...baseProps({ savedPlaylists: [sportPl, intimatePl], isNaughtyMode: true })} />);
-    expect(screen.getByText('Séance Intime')).toBeInTheDocument();
-    expect(screen.queryByText('Séance Sport')).not.toBeInTheDocument();
-  });
-});
-
-describe('PlaylistsView — répartition dans les 3 sections', () => {
-  it('sans date ni complétion -> "À planifier" ; avec date -> "Planifiées" ; avec complétion -> "Terminées"', () => {
-    const toPlanPl = makePlaylist({ id: 'p1', name: 'Séance libre', plannedDate: null, completions: [] });
-    const plannedPl = makePlaylist({ id: 'p2', name: 'Séance datée', plannedDate: '2026-05-01', completions: [] });
-    const donePl = makePlaylist({ id: 'p3', name: 'Séance faite', completions: ['2026-01-01'] });
-
-    render(<PlaylistsView {...baseProps({ savedPlaylists: [toPlanPl, plannedPl, donePl] })} />);
-
-    // Titres de section — noms de playlists volontairement DIFFÉRENTS des
-    // titres de section eux-mêmes (une playlist nommée littéralement "À
-    // planifier" aurait fait planter `getByText` : 2 éléments correspondants,
-    // le titre de section ET la carte).
-    expect(screen.getByText('À planifier')).toBeInTheDocument();
-    expect(screen.getByText('Planifiées')).toBeInTheDocument();
-    expect(screen.getByText('Terminées')).toBeInTheDocument();
-    expect(screen.getByText('Séance libre')).toBeInTheDocument();
-    expect(screen.getByText('Séance datée')).toBeInTheDocument();
-    expect(screen.getByText('Séance faite')).toBeInTheDocument();
-  });
-
-  it('section "Planifiées" absente s\'il n\'y a aucune playlist datée', () => {
-    render(<PlaylistsView {...baseProps({ savedPlaylists: [makePlaylist({ plannedDate: null, completions: [] })] })} />);
-    expect(screen.queryByText('Planifiées')).not.toBeInTheDocument();
-  });
-
-  it('section "Terminées" absente s\'il n\'y a aucune playlist complétée', () => {
-    render(<PlaylistsView {...baseProps({ savedPlaylists: [makePlaylist({ plannedDate: null, completions: [] })] })} />);
-    expect(screen.queryByText('Terminées')).not.toBeInTheDocument();
-  });
-
-  it('les playlists "Planifiées" sont triées par date croissante', () => {
-    const later = makePlaylist({ id: 'later', name: 'Plus tard', plannedDate: '2026-06-01' });
-    const sooner = makePlaylist({ id: 'sooner', name: 'Plus tôt', plannedDate: '2026-05-01' });
-    const { container } = render(<PlaylistsView {...baseProps({ savedPlaylists: [later, sooner] })} />);
-
-    // Vérifie l'ORDRE des cartes rendues via leur data-testid (encode
-    // directement l'id de la playlist) — plus fiable qu'une reconstruction
-    // du texte affiché, qui inclut aussi les boutons Supprimer/Toggle
-    // intercalés dans le mock de PlaylistCard ci-dessus.
-    const ids = [...container.querySelectorAll('[data-testid^="card-"]')].map(el => el.dataset.testid);
-    expect(ids.indexOf('card-sooner')).toBeLessThan(ids.indexOf('card-later'));
-  });
-});
-
-describe('PlaylistsView — clic sur une carte', () => {
-  it('appelle setCurrentPlaylist(playlist) puis changeView(\'playlist\')', () => {
-    const setCurrentPlaylist = vi.fn();
-    const changeView = vi.fn();
-    const pl = makePlaylist({ id: 'p1', name: 'Ma Séance' });
-    render(<PlaylistsView {...baseProps({ savedPlaylists: [pl], setCurrentPlaylist, changeView })} />);
-
-    fireEvent.click(screen.getByTestId('card-p1'));
-
-    expect(setCurrentPlaylist).toHaveBeenCalledWith(pl);
-    expect(changeView).toHaveBeenCalledWith('playlist');
-  });
-});
-
-describe('PlaylistsView — suppression', () => {
-  it('le clic sur Supprimer appelle requestRemoveSavedPlaylist(id)', () => {
-    const requestRemoveSavedPlaylist = vi.fn();
-    const pl = makePlaylist({ id: 'p1' });
-    render(<PlaylistsView {...baseProps({ savedPlaylists: [pl], requestRemoveSavedPlaylist })} />);
-
-    fireEvent.click(screen.getByTestId('delete-p1'));
-
-    expect(requestRemoveSavedPlaylist).toHaveBeenCalledWith('p1');
-  });
-});
-
-describe('PlaylistsView — bascule publique/privée (Feature Sociale, 01/08)', () => {
-  it('le clic sur "Toggle public" inverse isPublic UNIQUEMENT sur la playlist ciblée, via setSavedPlaylists', () => {
-    const setSavedPlaylists = vi.fn();
-    const target = makePlaylist({ id: 'p1', isPublic: false });
-    const other = makePlaylist({ id: 'p2', isPublic: true });
-    render(<PlaylistsView {...baseProps({ savedPlaylists: [target, other], setSavedPlaylists })} />);
-
-    fireEvent.click(screen.getByTestId('toggle-public-p1'));
-
-    expect(setSavedPlaylists).toHaveBeenCalledTimes(1);
-    // Argument passé : un NOUVEAU tableau, avec SEULEMENT p1 inversé, p2 intact.
-    const updater = setSavedPlaylists.mock.calls[0][0];
-    const result = Array.isArray(updater) ? updater : updater([target, other]);
-    expect(result.find(p => p.id === 'p1').isPublic).toBe(true);
-    expect(result.find(p => p.id === 'p2').isPublic).toBe(true); // inchangé
-  });
-});
-
-describe('PlaylistsView — glisser-déposer (section "À planifier" uniquement)', () => {
-  it('les cartes "À planifier" reçoivent draggable=true, les autres sections non', () => {
-    const toPlanPl = makePlaylist({ id: 'toplan', plannedDate: null, completions: [] });
-    const plannedPl = makePlaylist({ id: 'planned', plannedDate: '2026-05-01', completions: [] });
-    render(<PlaylistsView {...baseProps({ savedPlaylists: [toPlanPl, plannedPl] })} />);
-
-    expect(screen.getByTestId('card-toplan').dataset.draggable).toBe('true');
-    expect(screen.getByTestId('card-planned').dataset.draggable).toBe('false');
-  });
-
-  it('déposer une carte sur une autre réordonne UNIQUEMENT le sous-ensemble "À planifier", sans toucher aux playlists datées/terminées', () => {
-    const setSavedPlaylists = vi.fn();
-    const a = makePlaylist({ id: 'a', plannedDate: null, completions: [] });
-    const b = makePlaylist({ id: 'b', plannedDate: null, completions: [] });
-    const datedUntouched = makePlaylist({ id: 'dated', plannedDate: '2026-05-01', completions: [] });
-    render(<PlaylistsView {...baseProps({ savedPlaylists: [a, b, datedUntouched], setSavedPlaylists })} />);
-
-    // Démarre le glisser sur 'a', dépose sur 'b'.
-    fireEvent.dragStart(screen.getByTestId('card-a'), { dataTransfer: { effectAllowed: '' } });
-    fireEvent.dragEnter(screen.getByTestId('card-b'));
-
-    expect(setSavedPlaylists).toHaveBeenCalled();
-    const updater = setSavedPlaylists.mock.calls[0][0];
-    const result = updater([a, b, datedUntouched]);
-    // 'a' et 'b' ont permuté, 'dated' n'a pas bougé de position ni de contenu.
-    expect(result.map(p => p.id)).toEqual(['b', 'a', 'dated']);
-  });
-});
-
-describe('PlaylistsView — pagination (section "Terminées")', () => {
-  it('pas de pagineur si 10 playlists ou moins', () => {
-    const many = Array.from({ length: 10 }, (_, i) => makePlaylist({ id: `done-${i}`, completions: ['2026-01-01'] }));
-    render(<PlaylistsView {...baseProps({ savedPlaylists: many })} />);
-    expect(screen.queryByText(/Page \d+ \//)).not.toBeInTheDocument();
-  });
-
-  it('pagineur affiché au-delà de 10, "Page 1 / 2", le bouton Précédent est désactivé sur la 1re page', () => {
-    const many = Array.from({ length: 15 }, (_, i) => makePlaylist({ id: `done-${i}`, completions: ['2026-01-01'] }));
-    render(<PlaylistsView {...baseProps({ savedPlaylists: many })} />);
-    expect(screen.getByText('Page 1 / 2')).toBeInTheDocument();
-  });
-
-  it('le bouton Suivant change de page, affiche le reste des playlists', () => {
-    const many = Array.from({ length: 15 }, (_, i) => makePlaylist({ id: `done-${i}`, name: `Séance ${i}`, completions: ['2026-01-01'] }));
-    render(<PlaylistsView {...baseProps({ savedPlaylists: many })} />);
-
-    // 11e-15e séances pas encore visibles sur la page 1.
-    expect(screen.queryByText('Séance 11')).not.toBeInTheDocument();
-
-    const nextButtons = screen.getAllByText('Page 1 / 2')[0].parentElement.querySelectorAll('button');
-    fireEvent.click(nextButtons[1]); // 2e bouton = Suivant
-
-    expect(screen.getByText('Page 2 / 2')).toBeInTheDocument();
-  });
-});
