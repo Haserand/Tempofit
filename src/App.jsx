@@ -1091,7 +1091,7 @@ function AppContent({
     handleSavePlaylist, removeSavedPlaylist, playlistHasHistory, requestRemoveSavedPlaylist, setPlaylistPlannedDate,
   } = usePlaylistLibrary(
     currentPlaylist, setCurrentPlaylist, savedPlaylists, setSavedPlaylists, showToast,
-    openCuratedPlaylist, userStats, checkTrophies,
+    openCuratedPlaylist, userStats, checkTrophies, profilePrivacy?.defaultPlaylistPublic,
   );
 
   // MIGRÉ VERS PlaylistDetailContext (`handleUnsavePlaylist`, même wrapper
