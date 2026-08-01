@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Award, Share2, HelpCircle, Lock } from 'lucide-react';
 import { TROPHIES_DATA, TROPHY_CATEGORIES } from '../../appConfig';
 import ViewHeader from '../shared/ViewHeader';
-import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../viewHeaderLayout';
+import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 
 /**
  * TrophiesView — vue "Mes Trophées" (mur des succès débloqués).
