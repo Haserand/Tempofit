@@ -100,6 +100,7 @@ export default function PlaylistHeader({
     currentPlaylist, isSaved, getProfileForWorkout,
     isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
     handleSavePlaylist, handleUnsavePlaylist, handleTogglePlaylistPublic,
+    handleClonePlaylist, isReadOnly,
   } = usePlaylistDetail();
 
   // BPM moyen réel de la playlist — même formule que SessionSummaryCard.jsx/
@@ -338,7 +339,7 @@ export default function PlaylistHeader({
               une séance déjà verrouillée, pas une des 2 actions "de base"
               toujours disponibles sur cette page. */}
           <div className="flex items-center flex-wrap justify-center md:justify-start gap-3 mt-auto">
-            {isLocked && triggerCSVUpload && (
+            {isLocked && !isReadOnly && triggerCSVUpload && (
               <button
                 onClick={(e) => triggerCSVUpload(e, currentPlaylist, mostRecentCompletionIso)}
               className={`flex items-center gap-2 px-6 py-2 rounded-lg font-black text-sm shrink-0 bg-white text-black shadow-lg transition-transform hover:scale-[1.02] ${hasImportedDataForMostRecent ? '' : 'animate-pulse'}`}
@@ -357,8 +358,26 @@ export default function PlaylistHeader({
             </button>
           )}
 
-          {/* Action principale (1er position) : Ajouter à Mes Séances / Retirer. */}
-          {isSaved ? (
+          {/* Action principale (1er position) : Sauvegarder (clone) si
+              aperçu en lecture seule / Ajouter à Mes Séances / Retirer.
+              `isReadOnly` VÉRIFIÉ EN PREMIER (Feature Sociale —
+              Consultation/Clonage, 01/08) : une playlist étrangère
+              consultée en aperçu a TOUJOURS `isSaved === false` (le
+              visiteur ne l'a par définition jamais dans SA PROPRE
+              `savedPlaylists`), donc tomberait sinon dans la branche
+              "Ajouter à Mes Séances" habituelle — qui, elle, garderait à
+              tort le même id que l'original (voir handleClonePlaylist,
+              usePlaylistLibrary.js, pour le raisonnement complet sur
+              pourquoi ça poserait problème). */}
+          {isReadOnly ? (
+            <button
+              onClick={handleClonePlaylist}
+              title="Sauvegarde une copie personnelle de cette playlist, modifiable, dans 'Mes Séances'."
+              className="flex items-center gap-2 px-5 py-2 rounded-lg font-medium text-sm shrink-0 bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20 transition-colors"
+            >
+              <Save size={16} /> <span>Sauvegarder dans mes séances</span>
+            </button>
+          ) : isSaved ? (
             <button
               onClick={handleUnsavePlaylist}
               title="Retirer cette séance de 'Mes Séances'"
