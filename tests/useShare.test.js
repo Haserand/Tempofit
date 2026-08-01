@@ -12,7 +12,7 @@
 // jamais vérifier si la copie avait réellement fonctionné.
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, cleanup } from '@testing-library/react';
 
 const mockOpenModal = vi.fn();
 const mockCloseModal = vi.fn();
@@ -37,6 +37,14 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // BUG CORRIGÉ (01/08) — `renderHook` monte lui aussi un composant React
+  // caché sous le capot (même mécanisme que `render`) : sans `cleanup()`
+  // explicite ici, ce fichier était le seul du projet à laisser les
+  // instances des tests précédents montées entre 2 tests (piège déjà
+  // documenté, voir passation) — risque réel bien que faible ici (useShare
+  // n'a aucun effet de bord/souscription en cours), gardé pour la cohérence
+  // avec tous les autres fichiers de test du projet.
+  cleanup();
   vi.clearAllMocks();
   vi.unstubAllGlobals();
   delete navigator.clipboard;
