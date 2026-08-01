@@ -167,7 +167,18 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sess
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: accent }}>
             <Activity size={20} color="white" />
           </div>
-          <span className="font-black text-lg tracking-tight" style={{ color: '#ffffff' }}>Tempo<span style={{ color: accent }}>Fit</span></span>
+          {/* BUG CORRIGÉ (01/08, retour direct : "le logo est tj le
+              classique et pas TempoIntime quand je suis en mode intime") —
+              ce texte restait codé en dur sur "TempoFit", jamais branché
+              sur `isNaughtyMode`, contrairement à CE MÊME motif déjà
+              appliqué ailleurs dans l'app (Sidebar.jsx, `document.title`
+              dans App.jsx, et GlobalStatsShareCard.jsx — voir sa propre
+              docstring pour l'incident jumeau du dégradé de fond figé,
+              découvert et corrigé le même jour). Repris ici à l'identique :
+              `accent` (déjà calculé plus haut, rouge normal/rose Mode
+              Intime) réutilisé pour la couleur du texte, pas une 2e
+              variable inventée. */}
+          <span className="font-black text-lg tracking-tight" style={{ color: '#ffffff' }}>Tempo<span style={{ color: accent }}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
         </div>
 
         {/* En-tête : pochette de la séance à côté du titre — retour direct
@@ -284,7 +295,7 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sess
       </div>
 
       <div className="mt-auto px-8 py-4 border-t flex items-center justify-center" style={{ borderColor: 'rgba(255,255,255,0.10)' }}>
-        <p className="text-[11px] font-semibold" style={{ color: '#6b7280' }}>Généré avec TempoFit — l'app qui cale ta musique sur ton effort</p>
+        <p className="text-[11px] font-semibold" style={{ color: '#6b7280' }}>Généré avec {isNaughtyMode ? 'TempoIntime' : 'TempoFit'} — l'app qui cale ta musique sur ton effort</p>
       </div>
     </div>
   );
