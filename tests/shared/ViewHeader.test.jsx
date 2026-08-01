@@ -25,7 +25,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import ViewHeader from '../src/components/shared/ViewHeader.jsx';
+import ViewHeader from '../../src/components/shared/ViewHeader.jsx';
 
 // `cleanup()` après CHAQUE test : démonte le DOM jsdom monté par le test
 // précédent — sans ça, 2 tests qui cherchent le même texte ("Titre",
