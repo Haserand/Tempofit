@@ -8,7 +8,7 @@ import { formatDuration } from '../../utils/format';
 import { captureElementAsFile } from '../../utils/captureElementAsFile';
 import GlobalStatsShareCard from '../shared/GlobalStatsShareCard';
 import ViewHeader from '../shared/ViewHeader';
-import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../viewHeaderLayout';
+import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 
 /**
  * StatsView — vue "Statistiques" ("Wrapped" personnel).
