@@ -73,7 +73,7 @@ export function AuthProvider({ children }) {
 
     (async () => {
       const { data, error } = await supabase.from('profiles')
-        .select('username, avatar_url, is_profile_public, show_sport_stats, show_intimate_stats')
+        .select('username, avatar_url, is_profile_public, show_sport_stats, show_intimate_stats, default_playlist_public')
         .eq('user_id', user.id).maybeSingle();
       if (cancelled) return;
 
@@ -84,6 +84,7 @@ export function AuthProvider({ children }) {
           isProfilePublic: !!data.is_profile_public,
           showSportStats: !!data.show_sport_stats,
           showIntimateStats: !!data.show_intimate_stats,
+          defaultPlaylistPublic: !!data.default_playlist_public,
         });
         setUsernameLoading(false);
         return;
@@ -110,7 +111,7 @@ export function AuthProvider({ children }) {
         setUsernameState(insertError ? null : pendingUsername);
         // Ligne fraîchement créée : les 3 bascules valent forcément `false`
         // (défaut côté base) — inutile de relire, on le sait déjà.
-        setProfilePrivacy(insertError ? null : { avatarUrl: null, isProfilePublic: false, showSportStats: false, showIntimateStats: false });
+        setProfilePrivacy(insertError ? null : { avatarUrl: null, isProfilePublic: false, showSportStats: false, showIntimateStats: false, defaultPlaylistPublic: false });
       } else {
         setUsernameState(null);
         setProfilePrivacy(null);
@@ -315,6 +316,7 @@ export function AuthProvider({ children }) {
         isProfilePublic: fields.is_profile_public ?? prev?.isProfilePublic ?? false,
         showSportStats: fields.show_sport_stats ?? prev?.showSportStats ?? false,
         showIntimateStats: fields.show_intimate_stats ?? prev?.showIntimateStats ?? false,
+        defaultPlaylistPublic: fields.default_playlist_public ?? prev?.defaultPlaylistPublic ?? false,
       }));
       return { error: null };
     } catch (e) {
