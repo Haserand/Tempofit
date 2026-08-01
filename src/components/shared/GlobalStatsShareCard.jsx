@@ -55,8 +55,14 @@ export default function GlobalStatsShareCard({
           sous Tailwind v4) faisait échouer html2canvas ("Attempting to parse
           an unsupported color function oklch"). Dégradé réécrit en style
           inline avec les valeurs hex réelles de ces mêmes couleurs — même
-          rendu visuel, mais un format qu'html2canvas sait lire. */}
-      <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom right, #2563eb, #4f46e5, #7e22ce)' }} />
+          rendu visuel, mais un format qu'html2canvas sait lire.
+          PERSONNALISATION MODE INTIME (01/08, suite — retour direct : "le
+          texte dit déjà TempoIntime mais le fond reste bleu/violet") — même
+          principe que SessionSummaryCard.jsx (accent rose/dégradé sombre
+          dédié) : bleu/indigo/violet en mode normal, rose/rouge sombre en
+          Mode Intime, cohérent avec l'identité visuelle déjà établie
+          ailleurs dans l'app pour ce mode. */}
+      <div className="absolute inset-0" style={{ background: isNaughtyMode ? 'linear-gradient(to bottom right, #be123c, #9f1239, #4c0519)' : 'linear-gradient(to bottom right, #2563eb, #4f46e5, #7e22ce)' }} />
       <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full blur-3xl" style={{ backgroundColor: 'rgba(255,255,255,0.10)' }} />
       <div className="absolute -bottom-20 -left-10 w-64 h-64 rounded-full blur-3xl" style={{ backgroundColor: 'rgba(0,0,0,0.20)' }} />
 
@@ -65,12 +71,12 @@ export default function GlobalStatsShareCard({
           <div className="w-9 h-9 rounded-xl backdrop-blur-sm flex items-center justify-center" style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}>
             <Activity size={20} color="white" />
           </div>
-          <span className="font-black text-lg tracking-tight" style={{ color: '#ffffff' }}>TempoFit</span>
+          <span className="font-black text-lg tracking-tight" style={{ color: '#ffffff' }}>{isNaughtyMode ? 'TempoIntime' : 'TempoFit'}</span>
         </div>
 
         <p className="text-xs font-bold uppercase tracking-[0.2em] mb-1" style={{ color: 'rgba(255,255,255,0.70)' }}>{periodLabel}</p>
         <h1 className="text-3xl font-black leading-tight mb-1" style={{ color: '#ffffff' }}>
-          {userName ? `Le bilan de ${userName}` : 'Mon Bilan TempoFit'}
+          {userName ? `Le bilan de ${userName}` : `Mon Bilan ${isNaughtyMode ? 'TempoIntime' : 'TempoFit'}`}
         </h1>
 
         {!hasAnyData ? (
