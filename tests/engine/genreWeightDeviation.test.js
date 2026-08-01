@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { checkGenreWeightDeviation, equalSplitWeights } from '../src/engine/genreWeightDeviation.js';
+import { checkGenreWeightDeviation, equalSplitWeights } from '../../src/engine/genreWeightDeviation.js';
 
 /**
  * genreWeightDeviation.test.js — sécurise checkGenreWeightDeviation
