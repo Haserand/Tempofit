@@ -8,12 +8,12 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
-vi.mock('../src/musicCatalog.js', () => ({
+vi.mock('../../src/musicCatalog.js', () => ({
   getGenresForDisplay: vi.fn((genre) => [genre]),
   genreDisplayLabel: vi.fn((g) => g),
 }));
 
-import SearchModal from '../src/components/modals/SearchModal.jsx';
+import SearchModal from '../../src/components/modals/SearchModal.jsx';
 
 afterEach(() => {
   cleanup();
