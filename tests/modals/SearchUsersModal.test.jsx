@@ -11,12 +11,12 @@ import '@testing-library/jest-dom/vitest';
 
 const { mockRpc } = vi.hoisted(() => ({ mockRpc: vi.fn() }));
 
-vi.mock('../src/supabaseClient.js', () => ({
+vi.mock('../../src/supabaseClient.js', () => ({
   isSupabaseConfigured: true,
   supabase: { rpc: mockRpc },
 }));
 
-import SearchUsersModal from '../src/components/modals/SearchUsersModal.jsx';
+import SearchUsersModal from '../../src/components/modals/SearchUsersModal.jsx';
 
 beforeEach(() => {
   vi.useFakeTimers();
