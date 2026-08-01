@@ -89,14 +89,17 @@ export function summarizeSessions(sessions) {
 // `playlists`/`routines` (voir supabase-schema.sql) : `item.content` porte
 // l'objet complet (mêmes champs qu'un objet playlist/routine normal côté
 // app, voir useSyncedCollection.js).
-function PublicItemCard({ item, theme }) {
+function PublicItemCard({ item, theme, onClick }) {
   const { cardBg, cardBorder, textHighlight, textMuted } = theme;
   const content = item.content || {};
   const totalMinutes = Math.round((content.totalDuration || 0) / 60);
   const avgBpm = content.config?.bpm ?? null;
 
   return (
-    <div className={`${cardBg} rounded-2xl p-4 border ${cardBorder} shadow-xs`}>
+    <div
+      className={`${cardBg} rounded-2xl p-4 border ${cardBorder} shadow-xs ${onClick ? 'cursor-pointer hover:border-gray-400 transition-colors' : ''}`}
+      onClick={onClick}
+    >
       <div className="flex items-center gap-3 mb-2">
         <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-black/5 dark:bg-white/5 ${textMuted}`}>
           <Music2 size={20} />
@@ -114,7 +117,7 @@ function PublicItemCard({ item, theme }) {
   );
 }
 
-export default function ProfileView({ theme, username, isNaughtyMode, changeView, user, openModal }) {
+export default function ProfileView({ theme, username, isNaughtyMode, changeView, user, openModal, onOpenPlaylist }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
 
   const [status, setStatus] = useState('loading'); // 'loading' | 'login_wall' | 'not_found' | 'ready'
@@ -370,7 +373,18 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
               <p className={`text-sm text-center py-4 ${textMuted}`}>Aucune playlist publique dans ce mode pour le moment.</p>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {visiblePlaylists.map(row => <PublicItemCard key={row.id} item={row} theme={theme} />)}
+                {visiblePlaylists.map(row => (
+                  <PublicItemCard key={row.id} item={row} theme={theme} onClick={() => onOpenPlaylist(row)} />
+                ))}
+                {/* Routines PAS cliquables (contrairement aux playlists
+                    juste au-dessus) — la Consultation/Clonage (01/08) ne
+                    couvre que les playlists (brief explicite : "playlists
+                    publiques"), et il n'existe de toute façon encore
+                    aucun toggle "rendre publique" pour une routine dans
+                    l'app (voir la note plus haut) — en pratique cette
+                    liste reste vide, mais si elle contenait un jour
+                    quelque chose, mieux vaut une carte simplement
+                    informative qu'un clic qui ne mène nulle part. */}
                 {visibleRoutines.map(row => <PublicItemCard key={row.id} item={row} theme={theme} />)}
               </div>
             )}
