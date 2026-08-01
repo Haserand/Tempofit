@@ -1,4 +1,4 @@
-import { Activity, Zap, ListMusic } from 'lucide-react';
+import { Activity, Heart, Zap, ListMusic } from 'lucide-react';
 import { formatDuration } from '../../utils/format';
 
 /**
@@ -67,7 +67,12 @@ export default function GlobalStatsShareCard({
       <div className="relative p-8 pb-6">
         <div className="flex items-center gap-2 mb-8">
           <div className="w-9 h-9 rounded-xl backdrop-blur-sm flex items-center justify-center" style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}>
-            <Activity size={20} color="white" />
+            {/* BUG CORRIGÉ (01/08) — même oubli exact que SessionSummaryCard.jsx
+                (voir sa docstring) : l'icône restait sur `Activity` quel que
+                soit le mode, alors que le texte juste à côté bascule déjà
+                sur "TempoIntime". Repéré ici par analogie, pas par un
+                nouveau signalement séparé — même motif que Sidebar.jsx. */}
+            {isNaughtyMode ? <Heart size={20} className="text-white fill-white" /> : <Activity size={20} color="white" />}
           </div>
           <span className="font-black text-lg tracking-tight" style={{ color: '#ffffff' }}>{isNaughtyMode ? 'TempoIntime' : 'TempoFit'}</span>
         </div>
