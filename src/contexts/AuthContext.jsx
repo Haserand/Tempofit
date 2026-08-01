@@ -300,15 +300,26 @@ export function AuthProvider({ children }) {
   // au-dessus dans `setUsername`, même principe déjà en place ici.
   const updatePrivacySettings = async (fields) => {
     if (!isSupabaseConfigured || !user) return { error: "Non connecté." };
-    const { error } = await supabase.from('profiles').update(fields).eq('user_id', user.id);
-    if (error) return { error: error.message };
-    setProfilePrivacy(prev => ({
-      avatarUrl: prev?.avatarUrl ?? null,
-      isProfilePublic: fields.is_profile_public ?? prev?.isProfilePublic ?? false,
-      showSportStats: fields.show_sport_stats ?? prev?.showSportStats ?? false,
-      showIntimateStats: fields.show_intimate_stats ?? prev?.showIntimateStats ?? false,
-    }));
-    return { error: null };
+    // BUG CORRIGÉ (01/08, suite — "le bouton reste bloqué après un 1er
+    // clic") — try/catch ajouté ici en complément du try/finally côté
+    // SettingsView.jsx (handleTogglePrivacy) : cohérent avec TOUTES les
+    // autres fonctions de ce fichier (signUp/signIn/updateEmail/...),
+    // aucune ne doit jamais laisser une exception s'échapper vers
+    // l'appelant — toujours un `{ error }` renvoyé proprement, même en cas
+    // de panne réseau inattendue.
+    try {
+      const { error } = await supabase.from('profiles').update(fields).eq('user_id', user.id);
+      if (error) return { error: error.message };
+      setProfilePrivacy(prev => ({
+        avatarUrl: prev?.avatarUrl ?? null,
+        isProfilePublic: fields.is_profile_public ?? prev?.isProfilePublic ?? false,
+        showSportStats: fields.show_sport_stats ?? prev?.showSportStats ?? false,
+        showIntimateStats: fields.show_intimate_stats ?? prev?.showIntimateStats ?? false,
+      }));
+      return { error: null };
+    } catch (e) {
+      return { error: e?.message || "Une erreur inattendue est survenue." };
+    }
   };
 
   // Export RGPD (portabilité, Refactor UI, 28/07) — récupère TOUTES les
