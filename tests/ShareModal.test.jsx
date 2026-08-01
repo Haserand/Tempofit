@@ -55,6 +55,19 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  // BUG CORRIGÉ (01/08, suite — passage à isolate:false) — avant, seul le
+  // `beforeEach` ci-dessus réinitialisait `navigator.share`, ce qui
+  // suffisait tant que chaque fichier de test recevait un environnement
+  // jsdom entièrement neuf (comportement par défaut de Vitest). Avec
+  // isolate:false, l'environnement jsdom est désormais RÉUTILISÉ entre
+  // fichiers d'un même worker : sans ce nettoyage ici, `navigator.share`
+  // laissé à un `vi.fn()` par le DERNIER test de CE fichier (voir plus bas,
+  // "avec navigator.share...") pouvait fuiter vers le fichier de test
+  // suivant exécuté dans le même worker — aucun autre fichier ne dépend
+  // aujourd'hui de l'absence de `navigator.share` par défaut, donc aucun
+  // échec observé à ce jour, mais un vrai risque latent pour tout futur
+  // test qui en dépendrait.
+  delete navigator.share;
 });
 
 describe('ShareModal — affichage de base', () => {
