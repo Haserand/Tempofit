@@ -56,7 +56,13 @@ vi.mock('recharts', () => ({
   Pie: ({ data, onClick, children }) => (
     <div data-testid="pie">
       {data.map((entry, i) => (
-        <button key={i} data-testid={`pie-slice-${entry.name}`} onClick={() => onClick(entry)}>{entry.name}</button>
+        // Pas de nom en texte visible ici : la vraie légende (plus bas dans
+        // PlaylistCharts.jsx, de vrais <button> du projet) affiche déjà ce
+        // même texte — le doublon a cassé plusieurs tests au 1er
+        // déploiement (`getByText` ambigu entre ce stub et la légende
+        // réelle). Ce stub n'a besoin d'exposer les données que via
+        // data-testid, jamais en tant que texte visible dupliqué.
+        <button key={i} data-testid={`pie-slice-${entry.name}`} onClick={() => onClick(entry)} />
       ))}
       {children}
     </div>
