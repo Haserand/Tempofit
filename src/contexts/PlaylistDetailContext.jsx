@@ -115,6 +115,24 @@ export function PlaylistDetailProvider({
     setIsEditingPlaylistName(false);
   };
 
+  // Bascule individuelle publique/privée (Feature Sociale — Refonte
+  // Structurale Round 2/2, 01/08) — MÊME schéma exact que
+  // `handleRenamePlaylist` juste au-dessus (pas de recalcul de timeline
+  // nécessaire, contrairement à `applyPlaylistUpdate` utilisée pour les
+  // mutations de titres). Prime sur `default_playlist_public`
+  // (SettingsView.jsx, valeur de DÉPART uniquement) : cette fonction change
+  // `isPublic` sur CETTE playlist précise, à tout moment, indépendamment de
+  // ce réglage global. `useSyncedCollection.js` détecte le changement au
+  // prochain `setSavedPlaylists` (diff par id) et pousse la mise à jour
+  // vers la colonne `is_public` de la table `playlists` automatiquement —
+  // rien de plus à faire ici côté synchro.
+  const handleTogglePlaylistPublic = () => {
+    if (!currentPlaylist) return;
+    const updatedPlaylist = { ...currentPlaylist, isPublic: !currentPlaylist.isPublic };
+    setCurrentPlaylist(updatedPlaylist);
+    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
+  };
+
   // handleSavePlaylist reçue en prop (voir signature du Provider) : sa
   // définition RESTE dans App.jsx, pas ici — contrairement à ce qui était
   // supposé au départ, elle n'est PAS exclusive à cette vue.
@@ -504,6 +522,7 @@ export function PlaylistDetailProvider({
   const value = {
     isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
     handleSavePlaylist, handleUnsavePlaylist, isSaved,
+    handleTogglePlaylistPublic,
     handleRemoveTrack, handleDuplicateTrack, handleReplaceTrack, handleReplaceTrackSameArtist,
     openTrackMenuIndex, setOpenTrackMenuIndex,
     draggedTrackIndex, handleTrackDragStart, handleTrackDragEnter, handleTrackDragEnd,
@@ -539,6 +558,7 @@ const FALLBACK = {
   isEditingPlaylistName: false, setIsEditingPlaylistName: () => {},
   editedPlaylistName: '', setEditedPlaylistName: () => {}, handleRenamePlaylist: () => {},
   handleSavePlaylist: () => {}, handleUnsavePlaylist: () => {}, isSaved: false,
+  handleTogglePlaylistPublic: () => {},
   handleRemoveTrack: () => {}, handleDuplicateTrack: () => {}, handleReplaceTrack: async () => {}, handleReplaceTrackSameArtist: async () => {},
   openTrackMenuIndex: null, setOpenTrackMenuIndex: () => {},
   draggedTrackIndex: null, handleTrackDragStart: () => () => {}, handleTrackDragEnter: () => () => {}, handleTrackDragEnd: () => {},
