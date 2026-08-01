@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fetchInBatches } from '../src/musicEngine.js';
+import { fetchInBatches } from '../src/engine/musicEngine.js';
 
 /**
  * fetchInBatches.test.js — chantier signalé depuis la passation du 26/07,
