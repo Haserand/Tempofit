@@ -54,4 +54,25 @@ describe('GlobalStatsShareCard', () => {
     // juste que ce composant l'utilise bien, pas le détail du format exact.
     expect(screen.getByText(/2h/)).toBeInTheDocument();
   });
+
+  it('Mode Intime : personnalise le texte ("TempoIntime" au lieu de "TempoFit") — sans userName fourni', () => {
+    render(<GlobalStatsShareCard isNaughtyMode={true} />);
+    expect(screen.getByText('TempoIntime')).toBeInTheDocument();
+    expect(screen.getByText('Mon Bilan TempoIntime')).toBeInTheDocument();
+    expect(screen.queryByText('TempoFit', { exact: true })).toBeNull();
+  });
+
+  it('Mode Intime : personnalise aussi le dégradé de fond (rose/rouge sombre, pas le bleu/violet habituel)', () => {
+    // BUG CORRIGÉ (01/08) : le texte disait déjà "TempoIntime" mais le
+    // dégradé de fond restait figé sur le bleu/violet habituel, peu importe
+    // le mode — incohérence repérée et corrigée en même temps.
+    const { container, rerender } = render(<GlobalStatsShareCard isNaughtyMode={false} />);
+    const gradientLayer = container.querySelector('.absolute.inset-0');
+    expect(gradientLayer.style.background).toContain('#2563eb'); // bleu, mode normal
+
+    rerender(<GlobalStatsShareCard isNaughtyMode={true} />);
+    const gradientLayerNaughty = container.querySelector('.absolute.inset-0');
+    expect(gradientLayerNaughty.style.background).toContain('#be123c'); // rose/rouge, Mode Intime
+    expect(gradientLayerNaughty.style.background).not.toContain('#2563eb');
+  });
 });
