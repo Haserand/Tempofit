@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { UserX, Loader2, Clock, Gauge, ListMusic, Heart, Lock, Music2 } from 'lucide-react';
+import { UserX, Loader2, Clock, Gauge, ListMusic, Heart, Lock, Eye } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../supabaseClient';
 import { formatDuration } from '../../utils/format';
+import { buildCoverUrl } from '../../utils/coverArt';
 import { VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 
 /**
@@ -94,6 +95,13 @@ function PublicItemCard({ item, theme, onClick }) {
   const content = item.content || {};
   const totalMinutes = Math.round((content.totalDuration || 0) / 60);
   const avgBpm = content.config?.bpm ?? null;
+  // Pochette RÉELLE (01/08, relecture globale — manquait ici, présente
+  // partout ailleurs dans l'app) — même pattern EXACT que TemplateCard.jsx/
+  // PlaylistCard.jsx : `content.coverUrl` si déjà posé (import CSV/partage),
+  // sinon générée de façon déterministe depuis le nom (utils/coverArt.js,
+  // aucun appel réseau à faire pour la CALCULER, seulement pour charger
+  // l'image elle-même).
+  const coverUrl = content.coverUrl || buildCoverUrl(content.name || 'Séance');
 
   return (
     <div
@@ -101,8 +109,8 @@ function PublicItemCard({ item, theme, onClick }) {
       onClick={onClick}
     >
       <div className="flex items-center gap-3 mb-2">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-black/5 dark:bg-white/5 ${textMuted}`}>
-          <Music2 size={20} />
+        <div className={`w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-black/5 dark:bg-white/5 ${textMuted}`}>
+          <img src={coverUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
         </div>
         <div className="min-w-0">
           <h4 className={`font-bold text-sm truncate ${textHighlight}`}>{content.name || 'Séance'}</h4>
@@ -194,9 +202,21 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
     setItemsLoaded(false);
 
     (async () => {
+      // `.eq('is_public', true)` EXPLICITE (01/08, relecture globale, trouvé
+      // en vérifiant le cas "je consulte mon PROPRE profil") — sans ce
+      // filtre, RLS (voir supabase-schema.sql) laisse passer TOUTES les
+      // lignes d'un propriétaire qui consulte SES PROPRES données
+      // (`auth.uid() = user_id`, la 1re branche du `using(...)`) — ce qui
+      // est le comportement VOULU pour l'app normale (Mes Séances doit
+      // montrer TOUT, public ou privé), mais PAS ici : la vue Profil se
+      // veut un APERÇU de ce qu'un visiteur externe verrait, y compris
+      // pour son propre propriétaire (voir `isSelf`/bannière plus bas) —
+      // sans ce filtre, se visiter soi-même aurait montré ses playlists
+      // PRIVÉES aussi, résultat trompeur et un vrai souci de
+      // confidentialité si l'écran était partagé/projeté.
       const [playlistsResult, routinesResult] = await Promise.all([
-        supabase.from('playlists').select('*').eq('user_id', profile.user_id),
-        supabase.from('routines').select('*').eq('user_id', profile.user_id),
+        supabase.from('playlists').select('*').eq('user_id', profile.user_id).eq('is_public', true),
+        supabase.from('routines').select('*').eq('user_id', profile.user_id).eq('is_public', true),
       ]);
       if (cancelled) return;
 
@@ -243,6 +263,16 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
   const showIntimateBlock = isNaughtyMode && profile?.intimate_sessions !== undefined;
   const showSportBlock = !isNaughtyMode && profile?.sport_sessions !== undefined;
 
+  // isSelf (01/08, relecture globale, retour direct : "j'ai l'impression
+  // que tu as pas imaginé le cas où je visite mon propre profil") — vrai
+  // uniquement quand le VISITEUR connecté est le PROPRIÉTAIRE du profil
+  // consulté. Sert à 2 choses : (1) la bannière "Aperçu de ton profil"
+  // ci-dessous, (2) implicitement, `handleOpenPublicPlaylist` (App.jsx)
+  // fait sa PROPRE vérification équivalente pour éviter de proposer de
+  // cloner/republier une playlist déjà sienne — pas dupliquée ici, ce
+  // composant n'a pas besoin de le savoir pour lui-même.
+  const isSelf = !!(user && profile?.user_id === user.id);
+
   return (
     <div className={`${VIEW_CONTENT_WRAPPER} space-y-6`}>
       <button
@@ -286,6 +316,25 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
 
       {status === 'ready' && profile && (
         <>
+          {/* Bannière "Aperçu de ton profil" (01/08, relecture globale,
+              retour direct de l'utilisateur) — visible UNIQUEMENT quand le
+              visiteur EST le propriétaire (`isSelf`). Rappelle explicitement
+              que cette page montre exactement ce qu'un VISITEUR externe
+              verrait (voir le filtre `is_public=true` explicite plus haut) —
+              sans ce rappel, se voir soi-même sur cette page pourrait
+              laisser croire à tort qu'il s'agit de la vue normale "Mes
+              Séances" plutôt que d'un aperçu délibérément restreint. */}
+          {isSelf && (
+            <div className={`flex items-center gap-3 p-4 rounded-2xl border ${cardBorder} ${cardBg}`}>
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${bgAccentClass} text-white`}>
+                <Eye size={16} />
+              </div>
+              <p className={`text-sm font-medium ${textHighlight}`}>
+                Aperçu de ton profil — c'est exactement ce qu'une personne connectée verrait en visitant ton profil.
+              </p>
+            </div>
+          )}
+
           <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl flex items-center gap-4`}>
             {profile.avatar_url ? (
               <img src={profile.avatar_url} alt="" className="w-16 h-16 rounded-full object-cover shrink-0" />
