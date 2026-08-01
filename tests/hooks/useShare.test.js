@@ -17,7 +17,7 @@ import { renderHook, act, cleanup } from '@testing-library/react';
 const mockOpenModal = vi.fn();
 const mockCloseModal = vi.fn();
 let mockModalState = { activeModal: null, modalData: null };
-vi.mock('../src/contexts/ModalContext.jsx', () => ({
+vi.mock('../../src/contexts/ModalContext.jsx', () => ({
   useModalContext: () => ({
     activeModal: mockModalState.activeModal,
     modalData: mockModalState.modalData,
@@ -26,11 +26,11 @@ vi.mock('../src/contexts/ModalContext.jsx', () => ({
   }),
 }));
 
-vi.mock('../src/utils/playlistShareCode.js', () => ({
+vi.mock('../../src/utils/playlistShareCode.js', () => ({
   encodePlaylistForSharing: vi.fn(() => 'ENCODED123'),
 }));
 
-import { useShare } from '../src/hooks/useShare.js';
+import { useShare } from '../../src/hooks/useShare.js';
 
 beforeEach(() => {
   mockModalState = { activeModal: null, modalData: null };
@@ -105,7 +105,7 @@ describe('useShare — handleShare', () => {
   });
 
   it('si l\'encodage échoue (retourne une valeur falsy) : repli sur l\'URL simple de la page', async () => {
-    const playlistShareCode = await import('../src/utils/playlistShareCode.js');
+    const playlistShareCode = await import('../../src/utils/playlistShareCode.js');
     playlistShareCode.encodePlaylistForSharing.mockReturnValueOnce(null);
     const { result } = renderUseShare();
     act(() => {
