@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useMemo } from 'react';
 import { getZoneForValue, ATHLETIC_ZONES, getBpmBucketColor, getBpmBucketLabel } from '../appConfig';
 import { normalizeGenreForDisplay, genreDisplayLabel } from '../musicCatalog';
-import { getSingleMatchingTrack, findSameArtistReplacement, recalculateTimeline } from '../musicEngine';
+import { getSingleMatchingTrack, findSameArtistReplacement, recalculateTimeline } from '../engine/musicEngine';
 import { useGeneratorContext } from './GeneratorContext';
 import { useAudioPlayer } from './AudioPlayerContext';
 
