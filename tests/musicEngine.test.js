@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deduceCrescendoBpm, buildCrescendoSegments, pickByDurationProximity, recalculateTimeline } from '../src/musicEngine.js';
+import { deduceCrescendoBpm, buildCrescendoSegments, pickByDurationProximity, recalculateTimeline } from '../src/engine/musicEngine.js';
 
 /**
  * musicEngine.test.js — sécurise le cœur du moteur de génération : dérivation
