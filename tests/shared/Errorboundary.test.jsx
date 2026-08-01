@@ -9,7 +9,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import ErrorBoundary from '../src/components/shared/ErrorBoundary.jsx';
+import ErrorBoundary from '../../src/components/shared/ErrorBoundary.jsx';
 
 afterEach(() => {
   cleanup();
