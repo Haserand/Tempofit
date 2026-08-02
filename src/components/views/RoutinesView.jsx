@@ -1,7 +1,9 @@
-import { ListPlus, Plus, Edit3, Trash2, Layers, Info, Loader2, PlaySquare, Globe } from 'lucide-react';
+import { useState } from 'react';
+import { ListPlus, Plus, Edit3, Trash2, Layers, Info, Loader2, PlaySquare, Globe, MessageSquarePlus, Check, X } from 'lucide-react';
 import { useModalContext } from '../../contexts/ModalContext';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
+import { MAX_DESCRIPTION_LENGTH } from '../../appConfig';
 
 /**
  * RoutinesView — vue "Mes Routines" (configurations sauvegardées, relançables en un clic).
@@ -30,6 +32,33 @@ export default function RoutinesView({
   // tout seul, rien de plus à faire ici côté synchro.
   const handleToggleRoutinePublic = (id) => {
     setRoutines(routines.map(r => r.id === id ? { ...r, isPublic: !r.isPublic } : r));
+  };
+
+  // Description libre (Vague 2, Chantier 3 — "description texte libre sur
+  // une playlist/routine publique", 02/08) — MÊME principe local que
+  // `handleToggleRoutinePublic` juste au-dessus (état géré ici via
+  // `setRoutines`, pas via `updateRoutine`/`applyRoutineEditOnce` de
+  // useRoutines.js/useRoutineActions.js) : DÉLIBÉRÉMENT, pas la modale
+  // d'édition existante (`EditRoutineModal.jsx`) — celle-ci force un choix
+  // "cette séance seulement / toujours" qui déclenche une GÉNÉRATION à
+  // chaque sauvegarde (voir `applyRoutineEditOnce`/`applyRoutineEditPermanently`,
+  // useRoutineActions.js) : imposer ce détour pour un simple changement de
+  // texte descriptif aurait été une friction UX sans rapport avec le geste
+  // ("je veux juste écrire une phrase", pas "je veux relancer une séance").
+  // `editingDescriptionId` (pas juste un booléen) : identifie QUELLE carte
+  // est en cours d'édition, une seule à la fois.
+  const [editingDescriptionId, setEditingDescriptionId] = useState(null);
+  const [descriptionDraft, setDescriptionDraft] = useState('');
+
+  const startEditingDescription = (routine) => {
+    setDescriptionDraft(routine.description || '');
+    setEditingDescriptionId(routine.id);
+  };
+
+  const handleSaveRoutineDescription = (id) => {
+    const trimmed = descriptionDraft.trim().slice(0, MAX_DESCRIPTION_LENGTH);
+    setRoutines(routines.map(r => r.id === id ? { ...r, description: trimmed } : r));
+    setEditingDescriptionId(null);
   };
 
   // Triées par nombre de générations manuelles décroissant — les plus utilisées
@@ -138,6 +167,50 @@ export default function RoutinesView({
                 </div>
               </div>
               <div>{renderConfigInfoLine(routine)}</div>
+
+              {/* Description libre (Vague 2, Chantier 3, 02/08) — voir la
+                  docstring de `handleSaveRoutineDescription` plus haut pour
+                  pourquoi c'est géré ICI plutôt que dans
+                  EditRoutineModal.jsx. Visible aussi sur le profil public
+                  (PublicItemCard/PublicRoutinePreviewModal, ProfileView.jsx)
+                  une fois la routine rendue publique — c'est le but de ce
+                  chantier. */}
+              {editingDescriptionId === routine.id ? (
+                <div className="mt-2 space-y-1.5">
+                  <textarea
+                    autoFocus
+                    value={descriptionDraft}
+                    onChange={(e) => setDescriptionDraft(e.target.value.slice(0, MAX_DESCRIPTION_LENGTH))}
+                    onKeyDown={(e) => { if (e.key === 'Escape') setEditingDescriptionId(null); }}
+                    placeholder="Ajoute une description (visible si cette routine devient publique)..."
+                    rows={2}
+                    className={`w-full text-sm rounded-lg px-3 py-2 outline-hidden resize-none border ${inputBg} ${inputBorder} ${textHighlight}`}
+                  />
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs ${textMuted}`}>{descriptionDraft.length}/{MAX_DESCRIPTION_LENGTH}</span>
+                    <div className="flex gap-1">
+                      <button onClick={() => setEditingDescriptionId(null)} className={`p-1.5 rounded-lg ${textMuted} hover:text-main transition-colors`} title="Annuler">
+                        <X size={16} />
+                      </button>
+                      <button onClick={() => handleSaveRoutineDescription(routine.id)} className="p-1.5 rounded-lg text-white bg-emerald-600 hover:bg-emerald-500 transition-colors" title="Enregistrer">
+                        <Check size={16} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : routine.description ? (
+                <div className="mt-2 flex items-start gap-2">
+                  <p className={`text-sm whitespace-pre-line ${textMuted}`}>{routine.description}</p>
+                  <button onClick={() => startEditingDescription(routine)} className={`p-1 rounded-lg shrink-0 ${textMuted} hover:text-main transition-colors`} title="Modifier la description">
+                    <Edit3 size={13} />
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => startEditingDescription(routine)} className={`mt-2 flex items-center gap-1 text-xs font-bold ${textMuted} hover:text-main transition-colors`}>
+                  <MessageSquarePlus size={13} /> Ajouter une description
+                </button>
+              )}
+
               <div className="mt-auto pt-4 border-t border-gray-100 dark:border-gray-800">
                 <div className="flex gap-2 mb-2">
                   <div className={`flex items-center ${inputBg} border ${inputBorder} rounded-xl px-2`} title="Génère plusieurs versions différentes en un clic, pour choisir celle que tu préfères.">
