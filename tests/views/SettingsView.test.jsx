@@ -200,6 +200,40 @@ describe('SettingsView — onglet Mon Compte (Informations & Sécurité)', () =>
     await waitFor(() => expect(screen.getByText('Disponible !')).toBeInTheDocument());
   });
 
+  // Correctif UX — pseudos réservés (02/08) — 0 test jusqu'ici.
+  it('quitter le champ avec un pseudo réservé ("admin_test") : message dédié, SANS appeler checkUsernameAvailable', () => {
+    const checkUsernameAvailable = vi.fn();
+    renderOnAccountTab({ username: null, checkUsernameAvailable });
+
+    fireEvent.change(screen.getByPlaceholderText('alex_runner'), { target: { value: 'admin_test' } });
+    fireEvent.blur(screen.getByPlaceholderText('alex_runner'));
+
+    expect(checkUsernameAvailable).not.toHaveBeenCalled();
+    expect(screen.getByText('Ce pseudo est réservé ou invalide.')).toBeInTheDocument();
+  });
+
+  it('valider le formulaire avec un pseudo réservé, jamais quitté au blur : bloqué quand même, setUsername jamais appelé', () => {
+    const setUsername = vi.fn();
+    renderOnAccountTab({ username: null, setUsername });
+
+    fireEvent.change(screen.getByPlaceholderText('alex_runner'), { target: { value: 'system' } });
+    fireEvent.click(screen.getByText('Valider'));
+
+    expect(setUsername).not.toHaveBeenCalled();
+    expect(screen.getByText('Ce pseudo est réservé ou invalide.')).toBeInTheDocument();
+  });
+
+  it('exception "tempofit_admin" : passe la vérification réservée, appelle bien checkUsernameAvailable', async () => {
+    const checkUsernameAvailable = vi.fn(() => Promise.resolve({ available: true, error: null }));
+    renderOnAccountTab({ username: null, checkUsernameAvailable });
+
+    fireEvent.change(screen.getByPlaceholderText('alex_runner'), { target: { value: 'tempofit_admin' } });
+    fireEvent.blur(screen.getByPlaceholderText('alex_runner'));
+
+    expect(checkUsernameAvailable).toHaveBeenCalledWith('tempofit_admin');
+    await waitFor(() => expect(screen.getByText('Disponible !')).toBeInTheDocument());
+  });
+
   it('valider le formulaire pseudonyme appelle setUsername', async () => {
     const setUsername = vi.fn(() => Promise.resolve({ error: null }));
     renderOnAccountTab({ username: null, setUsername });
