@@ -80,7 +80,17 @@ export function useNavigation(
    * pour une génération classique, c'est au clic sur "Sauvegarder"
    * (PlaylistDetailView, déjà existant) que ça devient permanent.
    */
-  const openCuratedPlaylist = (template) => {
+  // `extraFields` (Feature Sociale "Cold Start", 02/08) — optionnel, `{}`
+  // par défaut : AUCUN appelant existant n'a besoin d'y penser (ouvrir un
+  // template depuis Découvrir normalement reste identique bit à bit).
+  // Ajouté pour le profil vitrine `@tempofit_officiel`
+  // (officialVitrineProfile.js) : ouvrir un template depuis CETTE vitrine
+  // doit produire une playlist en mode lecture seule (`isReadOnly: true`,
+  // voir PlaylistDetailContext.jsx) — plutôt que dupliquer toute la
+  // construction ci-dessous dans App.jsx pour ce seul cas, fusionné ici,
+  // juste avant `recalculateTimeline` (qui préserve tous les champs du
+  // spread, voir musicEngine.js — vérifié avant de s'appuyer dessus).
+  const openCuratedPlaylist = (template, extraFields = {}) => {
     const avgBpm = Math.round(template.tracks.reduce((s, t) => s + (t.bpm || 0), 0) / template.tracks.length) || 120;
     const genres = Array.from(new Set(template.tracks.map(t => t.genre).filter(Boolean)));
 
@@ -146,6 +156,7 @@ export function useNavigation(
       // embarque `Date.now()`) — indispensable pour retrouver le bon
       // template après coup, pas juste au moment de l'ouverture.
       sourceTemplateId: template.id,
+      ...extraFields,
     };
 
     const finalPlaylist = recalculateTimeline(rawPlaylist);
