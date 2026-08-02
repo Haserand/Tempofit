@@ -24,6 +24,8 @@ vi.mock('../../src/supabaseClient.js', () => ({
 }));
 
 import ProfileView, { summarizeSessions } from '../../src/components/views/ProfileView.jsx';
+import { OFFICIAL_VITRINE_USERNAME } from '../../src/data/officialVitrineProfile.js';
+import { curatedSessions, naughtyCuratedSessions } from '../../src/data/curatedSessions.js';
 
 afterEach(() => {
   cleanup();
@@ -265,5 +267,72 @@ describe('ProfileView — blocs de statistiques (Sport/Intime)', () => {
 
     await screen.findByText('@tempofit_admin');
     expect(screen.queryByText('Statistiques sportives')).toBeNull();
+  });
+});
+
+// Feature Sociale "Cold Start" (02/08) — 0 test jusqu'ici, malgré l'enjeu
+// central de cette fonctionnalité : rester accessible à TOUT LE MONDE (y
+// compris non connecté), sans le moindre appel réseau.
+describe('ProfileView — profil vitrine officiel (@tempofit_officiel)', () => {
+  it('accessible SANS connexion — jamais l\'écran Login Wall, jamais d\'appel à supabase.rpc', async () => {
+    render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} />);
+
+    expect(await screen.findByText(`@${OFFICIAL_VITRINE_USERNAME}`)).toBeInTheDocument();
+    expect(screen.queryByText('Rejoins la communauté TempoFit')).toBeNull();
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it('accessible aussi pour un visiteur CONNECTÉ, résultat identique', async () => {
+    render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={{ id: 'un-vrai-visiteur' }} />);
+    expect(await screen.findByText(`@${OFFICIAL_VITRINE_USERNAME}`)).toBeInTheDocument();
+  });
+
+  it('jamais la bannière "Aperçu de ton profil" — cette vitrine n\'est JAMAIS "ton propre profil", quel que soit le visiteur', async () => {
+    render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={{ id: 'un-vrai-visiteur' }} />);
+    await screen.findByText(`@${OFFICIAL_VITRINE_USERNAME}`);
+    expect(screen.queryByText(/Aperçu de ton profil/)).toBeNull();
+  });
+
+  it('statistiques sportives affichées en mode Sport, sans le moindre appel réseau (mockFrom jamais appelé)', async () => {
+    render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} isNaughtyMode={false} />);
+
+    expect(await screen.findByText('Statistiques sportives')).toBeInTheDocument();
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('bascule vers les statistiques Intime en Mode Intime (mêmes règles d\'affichage qu\'un vrai profil)', async () => {
+    render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} isNaughtyMode={true} />);
+    await screen.findByText(`@${OFFICIAL_VITRINE_USERNAME}`);
+    expect(screen.queryByText('Statistiques sportives')).toBeNull();
+  });
+
+  it('grille "Playlists partagées" peuplée directement depuis le catalogue, sans appel réseau', async () => {
+    render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} isNaughtyMode={false} />);
+
+    expect(await screen.findByText(curatedSessions[0].title)).toBeInTheDocument();
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('cloisonnement Sport/Intime respecté dans la grille de la vitrine, exactement comme un vrai profil', async () => {
+    render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} isNaughtyMode={false} />);
+    expect(await screen.findByText(curatedSessions[0].title)).toBeInTheDocument();
+    expect(screen.queryByText(naughtyCuratedSessions[0].title)).toBeNull();
+    cleanup();
+
+    render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} isNaughtyMode={true} />);
+    expect(await screen.findByText(naughtyCuratedSessions[0].title)).toBeInTheDocument();
+    expect(screen.queryByText(curatedSessions[0].title)).toBeNull();
+  });
+
+  it('le clic sur une playlist de la vitrine appelle onOpenPlaylist avec une ligne portant _sourceTemplate (préserve le clonage)', async () => {
+    const onOpenPlaylist = vi.fn();
+    render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} onOpenPlaylist={onOpenPlaylist} />);
+
+    fireEvent.click(await screen.findByText(curatedSessions[0].title));
+
+    expect(onOpenPlaylist).toHaveBeenCalledWith(expect.objectContaining({
+      _sourceTemplate: curatedSessions[0],
+      is_public: true,
+    }));
   });
 });
