@@ -9,15 +9,18 @@ import { buildCoverUrl } from '../utils/coverArt';
  * ProfileView.jsx) pour montrer le potentiel de l'app avant même la
  * création d'un compte.
  *
- * ⚠️ Collision possible, mineure — `tempofit_officiel` est un pseudo au
- * format VALIDE (`^[a-z0-9_]{3,20}$`, voir AuthContext.jsx) : si un jour un
- * vrai utilisateur parvenait à le réserver AVANT que ce court-circuit
- * n'existe (ou si la vérification d'unicité était contournée), son vrai
- * profil deviendrait invisible, masqué par cette vitrine. Risque jugé
- * faible (pseudo clairement de marque, personne ne le choisirait par
- * hasard) mais réel — à traiter séparément si besoin (ex. bloquer ce pseudo
- * précis à l'inscription côté `is_username_available`, supabase-schema.sql)
- * plutôt que dans ce fichier, qui n'a pas la main sur l'inscription.
+ * ✅ Collision avec un vrai compte — RÉSOLUE depuis (relecture globale,
+ * 02/08) : au moment où cette vitrine a été écrite, rien n'empêchait
+ * encore un vrai utilisateur de réserver le pseudo `tempofit_officiel`
+ * lui-même (il matche le format valide `^[a-z0-9_]{3,20}$`). Depuis le
+ * chantier "Correctif UX — pseudos réservés" (voir src/utils/username.js
+ * ET la contrainte SQL `profiles_username_not_reserved`,
+ * supabase-schema.sql), ce pseudo précis est désormais BLOQUÉ des DEUX
+ * côtés (frontend ET base de données) — il contient "tempofit", capté par
+ * le motif réservé, et ne bénéficie pas de l'exception (réservée à
+ * `tempofit_admin` uniquement). Vérifié : `isReservedUsername('tempofit_officiel')`
+ * renvoie bien `true`. Un vrai compte ne peut donc structurellement plus
+ * jamais entrer en collision avec cette vitrine.
  */
 export const OFFICIAL_VITRINE_USERNAME = 'tempofit_officiel';
 
