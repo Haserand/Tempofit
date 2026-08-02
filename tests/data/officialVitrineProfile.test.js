@@ -10,6 +10,19 @@ describe('OFFICIAL_VITRINE_USERNAME', () => {
   it('respecte le format de pseudo valide (mêmes règles que USERNAME_REGEX, utils/username.js)', () => {
     expect(OFFICIAL_VITRINE_USERNAME).toMatch(/^[a-z0-9_]{3,20}$/);
   });
+
+  // Relecture globale (02/08) — verrouille une propriété croisée entre 2
+  // chantiers distincts de cette session : `isReservedUsername` (utils/
+  // username.js, écrit APRÈS ce fichier) bloque désormais ce pseudo précis
+  // à l'inscription — un vrai compte ne peut donc plus jamais entrer en
+  // collision avec cette vitrine (voir la docstring d'officialVitrineProfile.js,
+  // mise à jour en conséquence). Si ce test casse un jour, ça voudrait dire
+  // que quelqu'un pourrait de nouveau réserver ce pseudo — à traiter
+  // immédiatement, pas un simple test qui casse par hasard.
+  it('reste TOUJOURS bloqué par isReservedUsername (utils/username.js) — un vrai compte ne peut jamais le réserver', async () => {
+    const { isReservedUsername } = await import('../../src/utils/username.js');
+    expect(isReservedUsername(OFFICIAL_VITRINE_USERNAME)).toBe(true);
+  });
 });
 
 describe('buildOfficialVitrineProfile', () => {
