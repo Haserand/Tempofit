@@ -184,3 +184,62 @@ describe('RoutinesView', () => {
     expect(screen.getByText('Créée le 01/01/2026')).toBeInTheDocument();
   });
 });
+
+// Vague 2, Chantier 3 — "description texte libre sur une playlist/routine
+// publique" (02/08). Édition inline directement sur la carte (PAS via
+// EditRoutineModal.jsx — voir la docstring de `handleSaveRoutineDescription`
+// dans RoutinesView.jsx : cette modale forcerait un déclenchement de
+// génération à chaque sauvegarde, une friction absurde pour un simple champ
+// texte).
+describe('RoutinesView — description libre', () => {
+  it('affiche une invite "Ajouter une description" quand la routine n\'en a pas', () => {
+    render(<RoutinesView {...baseProps({ routines: [routineC] })} />);
+    expect(screen.getByText('Ajouter une description')).toBeInTheDocument();
+  });
+
+  it('affiche la description existante, avec un bouton pour la modifier', () => {
+    render(<RoutinesView {...baseProps({ routines: [{ ...routineC, description: 'Ma routine du dimanche' }] })} />);
+    expect(screen.getByText('Ma routine du dimanche')).toBeInTheDocument();
+    expect(screen.getByTitle('Modifier la description')).toBeInTheDocument();
+  });
+
+  it('cliquer "Ajouter une description" ouvre un champ, et "Enregistrer" appelle setRoutines avec le texte saisi, SANS jamais appeler executeGeneration', () => {
+    const setRoutines = vi.fn();
+    const executeGeneration = vi.fn();
+    render(<RoutinesView {...baseProps({ routines: [routineC], setRoutines, executeGeneration })} />);
+
+    fireEvent.click(screen.getByText('Ajouter une description'));
+    const textarea = screen.getByPlaceholderText(/Ajoute une description/);
+    fireEvent.change(textarea, { target: { value: '  Séance de récupération active  ' } });
+    fireEvent.click(screen.getByTitle('Enregistrer'));
+
+    expect(setRoutines).toHaveBeenCalledWith([
+      { ...routineC, description: 'Séance de récupération active' },
+    ]);
+    expect(executeGeneration).not.toHaveBeenCalled();
+  });
+
+  it('"Annuler" ferme le champ sans appeler setRoutines', () => {
+    const setRoutines = vi.fn();
+    render(<RoutinesView {...baseProps({ routines: [routineC], setRoutines })} />);
+
+    fireEvent.click(screen.getByText('Ajouter une description'));
+    fireEvent.change(screen.getByPlaceholderText(/Ajoute une description/), { target: { value: 'brouillon jeté' } });
+    fireEvent.click(screen.getByTitle('Annuler'));
+
+    expect(setRoutines).not.toHaveBeenCalled();
+    expect(screen.queryByPlaceholderText(/Ajoute une description/)).toBeNull();
+    expect(screen.getByText('Ajouter une description')).toBeInTheDocument();
+  });
+
+  it('tronque à 280 caractères même si le texte saisi dépasse (défense en profondeur)', () => {
+    const setRoutines = vi.fn();
+    render(<RoutinesView {...baseProps({ routines: [routineC], setRoutines })} />);
+
+    fireEvent.click(screen.getByText('Ajouter une description'));
+    fireEvent.change(screen.getByPlaceholderText(/Ajoute une description/), { target: { value: 'y'.repeat(500) } });
+    fireEvent.click(screen.getByTitle('Enregistrer'));
+
+    expect(setRoutines.mock.calls[0][0][0].description.length).toBe(280);
+  });
+});
