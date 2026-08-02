@@ -89,4 +89,50 @@ describe('TemplateCard', () => {
     expect(onPlayTemplate).toHaveBeenCalledTimes(1);
     expect(onPlayTemplate).toHaveBeenCalledWith(mockTemplate);
   });
+
+  // Feature Sociale "Cold Start" (02/08) — auteur cliquable. 0 test
+  // jusqu'ici.
+  describe('auteur cliquable (profil vitrine)', () => {
+    it('sans onViewOfficialProfile fourni : l\'auteur reste du texte simple, pas de bouton', () => {
+      render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
+      expect(screen.queryByRole('button', { name: 'TempoFit' })).toBeNull();
+      expect(screen.getByText('TempoFit', { selector: 'p' })).toBeInTheDocument();
+    });
+
+    it('template.isOfficial=false : l\'auteur reste du texte simple, MÊME avec onViewOfficialProfile fourni (garde-fou pour du contenu non-officiel futur)', () => {
+      render(
+        <TemplateCard
+          theme={mockTheme} template={{ ...mockTemplate, isOfficial: false }}
+          onPlayTemplate={() => {}} isNaughtyMode={false} onViewOfficialProfile={() => {}}
+        />
+      );
+      expect(screen.queryByRole('button', { name: 'TempoFit' })).toBeNull();
+    });
+
+    it('isOfficial=true ET onViewOfficialProfile fourni : l\'auteur devient un bouton cliquable', () => {
+      render(
+        <TemplateCard
+          theme={mockTheme} template={mockTemplate}
+          onPlayTemplate={() => {}} isNaughtyMode={false} onViewOfficialProfile={() => {}}
+        />
+      );
+      expect(screen.getByRole('button', { name: 'TempoFit' })).toBeInTheDocument();
+    });
+
+    it('le clic sur l\'auteur appelle onViewOfficialProfile, SANS déclencher onPlayTemplate (stopPropagation)', () => {
+      const onPlayTemplate = vi.fn();
+      const onViewOfficialProfile = vi.fn();
+      render(
+        <TemplateCard
+          theme={mockTheme} template={mockTemplate}
+          onPlayTemplate={onPlayTemplate} isNaughtyMode={false} onViewOfficialProfile={onViewOfficialProfile}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'TempoFit' }));
+
+      expect(onViewOfficialProfile).toHaveBeenCalledTimes(1);
+      expect(onPlayTemplate).not.toHaveBeenCalled();
+    });
+  });
 });
