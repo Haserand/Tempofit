@@ -401,5 +401,19 @@ describe('PlaylistHeader', () => {
       expect(screen.queryByText('Publique')).not.toBeInTheDocument();
       expect(screen.queryByText('Rendre publique')).not.toBeInTheDocument();
     });
+
+    // Relecture globale (02/08) — même incohérence trouvée sur 2 AUTRES
+    // boutons (renommer, planifier), tous les 3 corrigés ensemble.
+    it('masque aussi le bouton renommer (crayon) même si isSaved=true', () => {
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isReadOnly: true, isSaved: true }));
+      render(<PlaylistHeader {...baseProps()} />);
+      expect(screen.queryByTitle('Renommer la playlist')).not.toBeInTheDocument();
+    });
+
+    it('masque aussi le bouton "Planifier" même si isSaved=true', () => {
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isReadOnly: true, isSaved: true }));
+      render(<PlaylistHeader {...baseProps()} />);
+      expect(screen.queryByText('Planifier')).not.toBeInTheDocument();
+    });
   });
 });
