@@ -511,32 +511,53 @@ export function PlaylistDetailProvider({
     };
   }, [currentPlaylist, currentActualData, selectedMetric, dataOffset]);
 
-  // isSaved — la playlist courante est-elle déjà dans "Mes Séances" ?
-  // Calculé UNE SEULE FOIS ici (currentPlaylist/savedPlaylists déjà reçus en
-  // props du Provider) plutôt que recalculé indépendamment par chaque
-  // consommateur (PlaylistHeader en avait sa propre copie ; TrackItem/
-  // TrackList en ont besoin maintenant aussi, voir plus bas) — même
-  // formule partout, jamais 2 sources de vérité qui pourraient diverger.
-  const isSaved = !!(currentPlaylist && savedPlaylists.find(p => p.id === currentPlaylist.id));
-
   // isReadOnly (Feature Sociale — Consultation/Clonage, 01/08) — vrai
   // UNIQUEMENT pour une playlist ouverte en APERÇU depuis le profil public
   // de quelqu'un d'autre (voir App.jsx, `handleOpenPublicPlaylist` — pose
   // `isReadOnly: true` sur l'objet transmis à `setCurrentPlaylist`, la
-  // SEULE source de ce champ dans toute l'app). Distinct de `!isSaved`
-  // seul (qui vaut aussi `true` pour une playlist FRAÎCHEMENT générée ou
-  // ouverte depuis un modèle du catalogue — ni l'une ni l'autre ne
-  // "appartient" à quelqu'un d'autre, juste pas encore ajoutées à Mes
-  // Séances) : la plupart des verrous de lecture seule existants
-  // (renommage, toggle public, glisser-déposer/dupliquer/remplacer un
-  // titre — voir `canEditTracks`, TrackItem.jsx) découlent déjà
-  // naturellement de `isSaved` seul (toujours `false` pour une playlist
-  // étrangère, le visiteur ne l'a par définition jamais dans SA PROPRE
-  // `savedPlaylists`) — `isReadOnly` ne sert donc qu'à UNE seule décision
-  // supplémentaire : afficher "Sauvegarder dans mes séances" (clone, voir
-  // `handleClonePlaylist`) plutôt que le bouton "Ajouter à Mes Séances"
-  // habituel (qui, lui, garderait à tort le même id que l'original).
+  // SEULE source de ce champ dans toute l'app). Déclarée AVANT `isSaved` :
+  // elle est désormais utilisée dans son calcul, voir juste en dessous.
   const isReadOnly = !!currentPlaylist?.isReadOnly;
+
+  // isSaved — la playlist courante est-elle déjà dans "Mes Séances" ?
+  // Calculé UNE SEULE FOIS ici (currentPlaylist/savedPlaylists déjà reçus en
+  // props du Provider) plutôt que recalculé indépendamment par chaque
+  // consommateur (PlaylistHeader en avait sa propre copie ; TrackItem/
+  // TrackList/PlaylistCharts en ont besoin aussi, voir plus bas) — même
+  // formule partout, jamais 2 sources de vérité qui pourraient diverger.
+  //
+  // BUG CORRIGÉ (relecture, 02/08) — l'ancienne formule ne comparait QUE
+  // les `id` (`savedPlaylists.find(p => p.id === currentPlaylist.id)`),
+  // sur l'hypothèse (documentée ici même, juste au-dessus dans une version
+  // antérieure) que "isSaved vaut TOUJOURS false pour une playlist
+  // étrangère, le visiteur ne l'a par définition jamais dans SA PROPRE
+  // savedPlaylists". Cette hypothèse est fausse : voir §3.2 de la
+  // passation — la playlist de démonstration par défaut a l'id
+  // `'playlist-example-1'`, IDENTIQUE pour chaque nouveau compte tant que
+  // personne n'a encore sauvegardé sa propre séance. Un visiteur qui n'a
+  // pas encore personnalisé SA PROPRE playlist d'exemple a donc, lui
+  // aussi, une entrée `id === 'playlist-example-1'` dans sa propre
+  // `savedPlaylists` — la comparaison par id seul renvoyait alors `true`
+  // en consultant le profil de quelqu'un d'autre dont la playlist
+  // d'exemple est également encore intacte et publique.
+  // Conséquence réelle, pas juste théorique : `canEditTracks`
+  // (TrackItem.jsx/TrackList.jsx/PlaylistCharts.jsx) se base sur
+  // `isSaved && !isLocked`, SANS revérifier `isReadOnly` séparément
+  // (contrairement à PlaylistHeader.jsx, qui vérifie `isReadOnly` EN
+  // PREMIER pour une autre raison — voir plus bas). Résultat : glisser-
+  // déposer/dupliquer/remplacer/retirer un titre devenait possible sur une
+  // playlist qui aurait dû être strictement en lecture seule — et
+  // `applyPlaylistUpdate` (plus haut dans ce fichier) écrit sa mutation
+  // dans `savedPlaylists` en cherchant par CE MÊME id : le contenu de la
+  // playlist D'AUTRUI aurait alors silencieusement remplacé la propre
+  // playlist d'exemple du visiteur, avant d'être poussé vers Supabase par
+  // `useSyncedCollection` — pas une simple illusion locale, une vraie
+  // perte/corruption de donnée.
+  // Correctif : `isReadOnly` force `isSaved` à `false`, ce qui ferme
+  // l'écart pour les TROIS consommateurs de `canEditTracks` d'un coup,
+  // sans avoir à toucher chacun séparément (même philosophie que le reste
+  // de ce fichier : une seule source de vérité).
+  const isSaved = !isReadOnly && !!(currentPlaylist && savedPlaylists.find(p => p.id === currentPlaylist.id));
 
   const value = {
     isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
