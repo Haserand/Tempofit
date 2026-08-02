@@ -63,6 +63,16 @@ export default function PublicRoutinePreviewModal({ theme, isOpen, onClose, rout
               <span className={`flex items-center gap-1 ${textMuted}`}><Music size={13} /> {genres.map(genreDisplayLabel).join(', ')}</span>
             )}
           </div>
+          {/* Description libre (Vague 2, Chantier 3, 02/08) — texte
+              COMPLET ici (contrairement à `PublicItemCard`, ProfileView.jsx,
+              qui tronque en `line-clamp-2` par manque de place sur une
+              carte de grille) : cette modale a la place, et c'est
+              justement l'endroit où quelqu'un s'attend à pouvoir lire le
+              contexte donné par le propriétaire avant de décider de
+              cloner. */}
+          {content.description && (
+            <p className={`text-sm mt-3 pt-3 border-t whitespace-pre-line ${inputBorder} ${textMuted}`}>{content.description}</p>
+          )}
         </div>
 
         <button
