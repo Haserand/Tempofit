@@ -33,10 +33,12 @@
 //    clé `service_role` — seul un client Supabase construit avec cette clé
 //    (jamais le client "anon") peut appeler cette méthode.
 // 3. Cascade AUTOMATIQUE côté Postgres, aucun code supplémentaire ici :
-//    `user_data.user_id` ET `profiles.user_id` référencent déjà
-//    `auth.users(id) on delete cascade` (voir supabase-schema.sql) — les
-//    données synchronisées ET le pseudonyme disparaissent d'eux-mêmes dès
-//    que la ligne `auth.users` est supprimée.
+//    `user_data.user_id`, `profiles.user_id`, ET, depuis la "Refonte
+//    Structurale" (Feature Sociale, 01/08), `playlists.user_id` /
+//    `routines.user_id` référencent tous `auth.users(id) on delete
+//    cascade` (voir supabase-schema.sql) — données synchronisées (anciens
+//    ET nouveaux formats), pseudonyme, playlists et routines relationnelles
+//    disparaissent d'eux-mêmes dès que la ligne `auth.users` est supprimée.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
