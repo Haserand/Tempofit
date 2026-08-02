@@ -288,6 +288,82 @@ describe('ProfileView — routines partagées', () => {
   });
 });
 
+// Brief "Recherche & filtres sur les profils publics" (02/08) — tests
+// d'INTÉGRATION (le hook lui-même est testé isolément dans
+// tests/hooks/useProfileSearchFilter.test.js). Le cas "item is_intimate
+// glissé dans le tableau source" est le test explicitement demandé par le
+// brief : il ne vérifie PAS une logique du hook (qui n'en a aucune sur
+// is_intimate), mais que ProfileView.jsx continue de lui passer le
+// tableau déjà filtré par mode (`visiblePlaylists`/`visibleRoutines`),
+// même combiné avec une recherche/un filtre actif.
+describe('ProfileView — recherche & filtres', () => {
+  const sportPlaylist = { id: 'pl-sport', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Sortie Running Rapide', workoutType: 'Course à pied', totalDuration: 1200, config: { bpm: 150 }, tracks: [] } };
+  const intimatePlaylist = { id: 'pl-intime', user_id: 'owner-uuid-123', is_public: true, is_intimate: true, content: { name: 'Sortie Running Intime', workoutType: 'Course à pied', totalDuration: 1200, config: { bpm: 150 }, tracks: [] } };
+  const sportRoutine = { id: 'routine-sport', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Mon 10km', workoutType: 'Course à pied', coverIcon: '🏃', targetMode: 'distance', distanceVal: 10, distanceUnit: 'km', bpm: 170, selectedGenres: ['Rock'] } };
+
+  it('la barre de recherche/filtres n\'apparaît PAS si la grille est vide (aucun contenu public)', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ playlists: [], routines: [] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+
+    await screen.findByText('Aucune playlist publique dans ce mode pour le moment.');
+    expect(screen.queryByPlaceholderText(/Rechercher un titre/)).toBeNull();
+  });
+
+  it('la recherche texte filtre la grille combinée (playlists + routines) en temps réel', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ playlists: [sportPlaylist], routines: [sportRoutine] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+
+    await screen.findByText('Sortie Running Rapide');
+    expect(screen.getByText('Mon 10km')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText(/Rechercher un titre/), { target: { value: '10km' } });
+
+    expect(screen.queryByText('Sortie Running Rapide')).toBeNull();
+    expect(screen.getByText('Mon 10km')).toBeInTheDocument();
+  });
+
+  it('cas spécifique du brief : un item is_intimate glissé dans le tableau source n\'apparaît dans AUCUN résultat en mode Sport, recherche vide ou active', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ playlists: [sportPlaylist, intimatePlaylist] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} isNaughtyMode={false} />);
+
+    await screen.findByText('Sortie Running Rapide');
+    expect(screen.queryByText('Sortie Running Intime')).toBeNull();
+
+    fireEvent.change(screen.getByPlaceholderText(/Rechercher un titre/), { target: { value: 'running' } });
+    expect(screen.queryByText('Sortie Running Intime')).toBeNull();
+    expect(screen.getByText('Sortie Running Rapide')).toBeInTheDocument();
+  });
+
+  it('état vide "Aucune séance ne correspond à vos filtres" + réinitialisation quand la recherche ne matche rien', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ playlists: [sportPlaylist] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+
+    await screen.findByText('Sortie Running Rapide');
+    fireEvent.change(screen.getByPlaceholderText(/Rechercher un titre/), { target: { value: 'zzzz-aucun-match' } });
+
+    expect(await screen.findByText('Aucune séance ne correspond à vos filtres.')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Réinitialiser les filtres'));
+    expect(await screen.findByText('Sortie Running Rapide')).toBeInTheDocument();
+  });
+
+  it('déplier les filtres puis choisir "Routines" masque les playlists de la grille combinée', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ playlists: [sportPlaylist], routines: [sportRoutine] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+
+    await screen.findByText('Sortie Running Rapide');
+    fireEvent.click(screen.getByTitle('Plus de filtres'));
+    fireEvent.click(screen.getByRole('button', { name: 'Routines' }));
+
+    expect(screen.queryByText('Sortie Running Rapide')).toBeNull();
+    expect(screen.getByText('Mon 10km')).toBeInTheDocument();
+  });
+});
+
 describe('ProfileView — blocs de statistiques (Sport/Intime)', () => {
   it('affiche le bloc Sport avec les chiffres corrects quand sport_sessions est présent et mode Sport actif', async () => {
     mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
@@ -381,5 +457,35 @@ describe('ProfileView — profil vitrine officiel (@tempofit_officiel)', () => {
       _sourceTemplate: curatedSessions[0],
       is_public: true,
     }));
+  });
+
+  // Chantier annexe (brief "Recherche & filtres sur les profils publics",
+  // 02/08) — la vitrine n'affichait AVANT que des playlists
+  // (`routines: []` codé en dur). `buildOfficialVitrineRoutineRows()`
+  // fournit désormais 3-4 routines fictives, Sport ET Intime confondues
+  // (même principe que les playlists de la vitrine).
+  it('la grille de la vitrine affiche aussi des routines fictives (pas seulement des playlists)', async () => {
+    render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} isNaughtyMode={false} />);
+    expect(await screen.findByText('Mon 5km Quotidien')).toBeInTheDocument();
+  });
+
+  it('cloisonnement Sport/Intime respecté pour les routines de la vitrine aussi', async () => {
+    render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} isNaughtyMode={false} />);
+    expect(await screen.findByText('Mon 5km Quotidien')).toBeInTheDocument();
+    expect(screen.queryByText('Rituel du Soir')).toBeNull();
+    cleanup();
+
+    render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} isNaughtyMode={true} />);
+    expect(await screen.findByText('Rituel du Soir')).toBeInTheDocument();
+    expect(screen.queryByText('Mon 5km Quotidien')).toBeNull();
+  });
+
+  it('le clic sur une routine de la vitrine appelle onOpenRoutine avec la ligne complète', async () => {
+    const onOpenRoutine = vi.fn();
+    render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} onOpenRoutine={onOpenRoutine} />);
+
+    fireEvent.click(await screen.findByText('Mon 5km Quotidien'));
+
+    expect(onOpenRoutine).toHaveBeenCalledWith(expect.objectContaining({ id: 'vitrine-routine-1', is_public: true }));
   });
 });
