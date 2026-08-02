@@ -10,6 +10,16 @@ Ce fichier n'est **pas** un document de passation — les passations (narratives
 
 Objectif explicite : rester **court et pointer vers le code** plutôt que de le paraphraser en détail — moins de texte dupliqué entre ce fichier et les commentaires du code source, moins de risque que les deux divergent avec le temps (voir `CLAUDE-SANDBOX-VERIFICATION.md` pour un exemple concret de commentaire devenu faux, trouvé et corrigé le 02/08).
 
+## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
+
+**Chantier en cours : aucun — prochain chantier à démarrer : Vague 2, Chantier 1 — UI publique des routines.**
+
+Contexte (voir "Décisions actées" plus bas pour le détail complet) : suite à l'arrivée de Running Mode chez Spotify, décision actée le 02/08 de renforcer l'existant plutôt que de pivoter. Ordre de priorité retenu, ce chantier est le premier de la liste : le SQL et les policies RLS existent déjà pour les routines (`is_public`/`is_intimate`, voir `supabase-schema.sql`) — il ne manque que l'intégration frontend. C'est un pur travail d'UI/UX, pas de nouveau schéma.
+
+Pattern à suivre : les **playlists** ont déjà exactement cette fonctionnalité en prod (bascule publique, consultation, clonage — voir `PlaylistHeader.jsx`, `ProfileView.jsx`, `handleOpenPublicPlaylist` dans `App.jsx`). Le chantier routines est, en première approche, la même mécanique transposée à `RoutinesView.jsx`/`useRoutines.js` — pas une nouvelle conception depuis zéro.
+
+**Règle** : dès qu'un chantier démarre, remplacer cette ligne par son nom + son état d'avancement réel (pas juste "en cours" — assez précis pour qu'une session qui n'a pas participé sache où reprendre). Dès qu'il se termine, revenir ici et pointer vers le suivant dans l'ordre de priorité (section "Décisions actées" plus bas). Une session qui termine un chantier sans mettre à jour cette section laisse la suivante repartir à l'aveugle.
+
 ## Contraintes de travail
 
 - **Aucun terminal côté utilisateur** — tout passe par l'interface web de GitHub (créer/éditer des fichiers à la main) ; vérification via un vrai déploiement Vercel (logs collés dans la conversation avec Claude).
