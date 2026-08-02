@@ -113,6 +113,38 @@ describe('RoutinesView', () => {
     expect(setRoutines).toHaveBeenCalledWith([routineA, routineC]);
   });
 
+  // Vague 2, Chantier 1 — UI publique des routines (02/08). Même
+  // convention de test que le bouton Supprimer juste au-dessus : on vérifie
+  // l'appel à `setRoutines`, pas un état interne.
+  it('le clic sur "Rendre cette routine visible..." bascule isPublic à true sur la bonne routine, sans toucher aux autres', () => {
+    const setRoutines = vi.fn();
+    render(<RoutinesView {...baseProps({ setRoutines })} />);
+
+    const toggleButtons = screen.getAllByTitle('Rendre cette routine visible sur ton profil public');
+    fireEvent.click(toggleButtons[0]); // Routine B (1re après tri)
+
+    expect(setRoutines).toHaveBeenCalledWith([
+      routineA,
+      { ...routineB, isPublic: true },
+      routineC,
+    ]);
+  });
+
+  it('une routine déjà publique affiche le bouton "clique pour la rendre privée", et le clic la repasse à false', () => {
+    const setRoutines = vi.fn();
+    const publicRoutineB = { ...routineB, isPublic: true };
+    render(<RoutinesView {...baseProps({ setRoutines, routines: [routineA, publicRoutineB, routineC] })} />);
+
+    const toggleButton = screen.getByTitle('Visible sur ton profil public — clique pour la rendre privée');
+    fireEvent.click(toggleButton);
+
+    expect(setRoutines).toHaveBeenCalledWith([
+      routineA,
+      { ...publicRoutineB, isPublic: false },
+      routineC,
+    ]);
+  });
+
   it('changer le nombre de générations (select) appelle setRoutineBatchCounts en fusionnant avec les compteurs existants', () => {
     const setRoutineBatchCounts = vi.fn();
     render(<RoutinesView {...baseProps({ setRoutineBatchCounts, routineBatchCounts: { a: 3 } })} />);
