@@ -94,9 +94,16 @@ describe('TemplateCard', () => {
   // jusqu'ici.
   describe('auteur cliquable (profil vitrine)', () => {
     it('sans onViewOfficialProfile fourni : l\'auteur reste du texte simple, pas de bouton', () => {
-      render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
+      const { container } = render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
       expect(screen.queryByRole('button', { name: 'TempoFit' })).toBeNull();
-      expect(screen.getByText('TempoFit', { selector: 'p' })).toBeInTheDocument();
+      // Regex (recherche PARTIELLE), pas une chaîne exacte : ce <p> contient
+      // aussi le BPM ("TempoFit • 155 BPM", 2 nœuds de texte distincts) —
+      // `getByText('TempoFit', ...)` avec une chaîne exige que ce soit TOUT
+      // le contenu de l'élément, ce qui n'est pas le cas ici (contrairement
+      // au test "n'affiche AUCUN BPM" juste au-dessus, où le <p> ne contient
+      // QUE "TempoFit" puisque tracks est vide).
+      expect(screen.getByText(/TempoFit/, { selector: 'p' })).toBeInTheDocument();
+      expect(container.querySelector('p button')).toBeNull();
     });
 
     it('template.isOfficial=false : l\'auteur reste du texte simple, MÊME avec onViewOfficialProfile fourni (garde-fou pour du contenu non-officiel futur)', () => {
