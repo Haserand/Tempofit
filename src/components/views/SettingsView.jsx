@@ -3,6 +3,7 @@ import { Gauge, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as Use
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 import AthleticProfilePanel from './AthleticProfilePanel';
+import { USERNAME_REGEX, isReservedUsername, RESERVED_USERNAME_ERROR } from '../../utils/username';
 
 /**
  * SettingsView — vue unifiée "Réglages" (Refactor UX/UI, 28/07, "Sidebar
@@ -85,15 +86,22 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
   // différents (celui-ci a son propre bouton "Valider" et sa propre carte,
   // pas de mode signin/signup à gérer) pour que l'extraction n'apporte pas
   // grand-chose de plus qu'une indirection.
-  const USERNAME_REGEX = /^[a-z0-9_]{3,20}$/;
+  // Correctif UX — pseudos réservés (02/08) — `USERNAME_REGEX` désormais
+  // partagée (src/utils/username.js), plus dupliquée localement : le
+  // raisonnement d'origine ("2 formulaires assez différents pour que
+  // l'extraction n'apporte pas grand-chose") ne tenait de toute façon
+  // que pour LE FORMAT — la vérification des pseudos réservés, elle,
+  // DOIT rester identique partout (AuthModal.jsx compris), sans quoi un
+  // pseudo bloqué à l'inscription pourrait passer ici par erreur.
   const [usernameField, setUsernameFieldValue] = useState('');
-  const [usernameFieldStatus, setUsernameFieldStatus] = useState(null); // null | 'checking' | 'available' | 'taken' | 'invalid'
+  const [usernameFieldStatus, setUsernameFieldStatus] = useState(null); // null | 'checking' | 'available' | 'taken' | 'invalid' | 'reserved'
   const [usernameFieldError, setUsernameFieldError] = useState('');
   const [usernameSubmitting, setUsernameSubmitting] = useState(false);
 
   const handleUsernameFieldBlur = async () => {
     if (!usernameField) { setUsernameFieldStatus(null); return; }
     if (!USERNAME_REGEX.test(usernameField)) { setUsernameFieldStatus('invalid'); return; }
+    if (isReservedUsername(usernameField)) { setUsernameFieldStatus('reserved'); return; }
     setUsernameFieldStatus('checking');
     const { available, error } = await checkUsernameAvailable(usernameField);
     if (error) { setUsernameFieldStatus(null); return; }
@@ -149,6 +157,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
     setUsernameFieldError('');
     if (!usernameField.trim()) { setUsernameFieldError('Choisis un pseudonyme.'); return; }
     if (!USERNAME_REGEX.test(usernameField)) { setUsernameFieldError('3 à 20 caractères : minuscules, chiffres, underscore uniquement.'); return; }
+    if (isReservedUsername(usernameField)) { setUsernameFieldError(RESERVED_USERNAME_ERROR); return; }
     if (usernameFieldStatus === 'taken') { setUsernameFieldError('Ce pseudonyme est déjà pris.'); return; }
     setUsernameSubmitting(true);
     const { error } = await setUsername(usernameField);
@@ -618,7 +627,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                       </div>
                       <form onSubmit={handleUsernameFormSubmit} className="flex items-center gap-2">
                         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border flex-1 min-w-0 ${
-                          usernameFieldStatus === 'taken' || usernameFieldStatus === 'invalid' ? 'border-red-500' :
+                          usernameFieldStatus === 'taken' || usernameFieldStatus === 'invalid' || usernameFieldStatus === 'reserved' ? 'border-red-500' :
                           usernameFieldStatus === 'available' ? 'border-green-500' : inputBorder
                         } ${inputBg}`}>
                           <span className={textMuted}>@</span>
@@ -639,12 +648,13 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                         </button>
                       </form>
                       <p className={`text-xs mt-1.5 ${
-                        usernameFieldStatus === 'taken' || usernameFieldStatus === 'invalid' ? 'text-red-500' :
+                        usernameFieldStatus === 'taken' || usernameFieldStatus === 'invalid' || usernameFieldStatus === 'reserved' ? 'text-red-500' :
                         usernameFieldStatus === 'available' ? 'text-green-500' : textMuted
                       }`}>
                         {usernameFieldError || (
                           usernameFieldStatus === 'taken' ? 'Ce pseudonyme est déjà pris.'
                           : usernameFieldStatus === 'invalid' ? '3 à 20 caractères : minuscules, chiffres, underscore.'
+                          : usernameFieldStatus === 'reserved' ? RESERVED_USERNAME_ERROR
                           : usernameFieldStatus === 'available' ? 'Disponible !'
                           : 'Définitif — impossible à modifier ensuite.'
                         )}
