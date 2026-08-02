@@ -167,6 +167,33 @@ describe('AuthModal — validation du pseudonyme (signup)', () => {
     expect(screen.getByText('3 à 20 caractères : minuscules, chiffres, underscore.')).toBeInTheDocument();
   });
 
+  // Correctif UX — pseudos réservés (02/08) — 0 test jusqu'ici.
+  it('pseudonyme réservé ("admin_test") : affiche le message dédié SANS appeler checkUsernameAvailable', () => {
+    const checkUsernameAvailable = vi.fn();
+    render(<AuthModal {...baseProps({ checkUsernameAvailable })} />);
+    fireEvent.click(screen.getByText("Pas encore de compte ? S'inscrire"));
+
+    const usernameInput = screen.getByPlaceholderText(/pseudonyme/);
+    fireEvent.change(usernameInput, { target: { value: 'admin_test' } });
+    fireEvent.blur(usernameInput);
+
+    expect(checkUsernameAvailable).not.toHaveBeenCalled();
+    expect(screen.getByText('Ce pseudo est réservé ou invalide.')).toBeInTheDocument();
+  });
+
+  it('exception "tempofit_admin" : passe la vérification réservée, appelle bien checkUsernameAvailable', async () => {
+    const checkUsernameAvailable = vi.fn(() => Promise.resolve({ available: true, error: null }));
+    render(<AuthModal {...baseProps({ checkUsernameAvailable })} />);
+    fireEvent.click(screen.getByText("Pas encore de compte ? S'inscrire"));
+
+    const usernameInput = screen.getByPlaceholderText(/pseudonyme/);
+    fireEvent.change(usernameInput, { target: { value: 'tempofit_admin' } });
+    fireEvent.blur(usernameInput);
+
+    expect(checkUsernameAvailable).toHaveBeenCalledWith('tempofit_admin');
+    await waitFor(() => expect(screen.getByText('Disponible !')).toBeInTheDocument());
+  });
+
   it('champ pseudonyme mis en minuscules automatiquement à la saisie', () => {
     render(<AuthModal {...baseProps()} />);
     fireEvent.click(screen.getByText("Pas encore de compte ? S'inscrire"));
@@ -279,6 +306,18 @@ describe('AuthModal — soumission signup', () => {
 
     expect(signUp).not.toHaveBeenCalled();
     expect(screen.getByText(/Pseudonyme invalide/)).toBeInTheDocument();
+  });
+
+  // Correctif UX — pseudos réservés (02/08) — même principe exact que le
+  // test juste au-dessus (format invalide), pour le cas réservé.
+  it('pseudonyme réservé, jamais quitté au blur : bloqué quand même à la soumission', () => {
+    const signUp = vi.fn();
+    render(<AuthModal {...baseProps({ signUp })} />);
+    fillSignupBase({ username: 'system' });
+    fireEvent.click(screen.getByRole('button', { name: /Créer mon compte/ }));
+
+    expect(signUp).not.toHaveBeenCalled();
+    expect(screen.getByText('Ce pseudo est réservé ou invalide.')).toBeInTheDocument();
   });
 
   it('pseudonyme marqué "taken" (via blur) : bloque la soumission même si on retape ensuite sans re-quitter le champ', async () => {
