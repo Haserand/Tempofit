@@ -84,6 +84,35 @@ create table if not exists profiles (
   constraint username_format check (username ~ '^[a-z0-9_]{3,20}$')
 );
 
+-- Correctif UX — pseudos réservés (02/08, retour direct : "qu'est-ce que
+-- je dois écrire dans supabase") — MIROIR EXACT du frontend
+-- (src/utils/username.js, `isReservedUsername`) : même exception
+-- ('tempofit_admin', seul cas autorisé malgré le mot "tempofit" qu'il
+-- contient), même motif (`tempofit` interdit n'importe où, insensible à
+-- la casse — `~*` est l'équivalent Postgres du flag `/i` de JavaScript ;
+-- les mots-clés système interdits uniquement en PRÉFIXE via `^(...)`).
+-- Contrairement à la contrainte de FORMAT ci-dessus (posée directement
+-- dans `create table if not exists`, donc jamais rejouée sur une table
+-- déjà existante) : `alter table` séparé, AVEC `drop constraint if
+-- exists` avant — REJOUABLE sans risque, cohérent avec le reste de ce
+-- fichier.
+--
+-- ⚠️ Si cette table contient DÉJÀ des lignes : `alter table ... add
+-- constraint` vérifie TOUTES les lignes existantes contre la nouvelle
+-- règle — une seule ligne qui la violerait ferait échouer toute la
+-- commande. Avant de l'exécuter, vérifiez qu'aucun pseudo existant ne
+-- serait bloqué (hors 'tempofit_admin', l'exception) :
+--   select username from profiles
+--   where username <> 'tempofit_admin'
+--     and username ~* 'tempofit|^(admin|support|system|modo|staff|root|officiel)';
+-- (devrait renvoyer 0 ligne avant d'exécuter ce qui suit)
+alter table profiles drop constraint if exists profiles_username_not_reserved;
+alter table profiles add constraint profiles_username_not_reserved
+  check (
+    username = 'tempofit_admin'
+    or username !~* 'tempofit|^(admin|support|system|modo|staff|root|officiel)'
+  );
+
 alter table profiles enable row level security;
 
 -- Lecture PUBLIQUE (pas seulement `auth.uid() = user_id`) : nécessaire pour
