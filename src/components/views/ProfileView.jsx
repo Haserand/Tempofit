@@ -678,7 +678,27 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
                     item={item}
                     theme={theme}
                     kind={item.kind}
-                    onClick={() => item.kind === 'routine' ? onOpenRoutine(item) : onOpenPlaylist(item)}
+                    onClick={() => {
+                      // `kind` est une étiquette PUREMENT interne à ce
+                      // composant (posée dans `combinedVisibleItems`, plus
+                      // haut, pour combiner playlists/routines dans une
+                      // seule grille) — jamais un champ réel des tables
+                      // `playlists`/`routines` (supabase-schema.sql).
+                      // BUG CORRIGÉ (02/08, build Vercel réel) : `item`
+                      // était transmis TEL QUEL à `onOpenPlaylist`/
+                      // `onOpenRoutine`, qui reçoivent normalement la ligne
+                      // BRUTE (voir `handleOpenPublicPlaylist`/
+                      // `handleOpenPublicRoutine`, App.jsx) — `kind`
+                      // s'invitait donc dans leur payload sans jamais y
+                      // avoir sa place. Inoffensif en pratique (ces
+                      // fonctions ignorent les champs qu'elles ne lisent
+                      // pas), mais un détail d'implémentation de CE
+                      // composant n'a rien à faire dans un contrat partagé
+                      // avec App.jsx — la ligne repart donc ici exactement
+                      // comme elle est arrivée.
+                      const { kind, ...rawRow } = item;
+                      return kind === 'routine' ? onOpenRoutine(rawRow) : onOpenPlaylist(rawRow);
+                    }}
                   />
                 ))}
               </div>
