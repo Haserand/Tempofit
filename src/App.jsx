@@ -222,6 +222,51 @@ function AppContent({
     changeView('playlist');
   };
 
+  // Ouvre l'aperçu d'une routine PUBLIQUE d'un autre utilisateur (Vague 2,
+  // Chantier 1 — UI publique des routines, 02/08, clic sur une carte de
+  // ProfileView.jsx) — transposition de `handleOpenPublicPlaylist`
+  // ci-dessus, MAIS une routine n'a pas de vue détail dédiée où naviguer en
+  // lecture seule (`RoutinesView.jsx` est une grille de cartes, pas de route
+  // par item) : le clic ouvre donc une modale d'aperçu légère
+  // (PUBLIC_ROUTINE_PREVIEW, voir PublicRoutinePreviewModal.jsx) plutôt
+  // qu'une navigation vers une page qui n'existe pas.
+  //
+  // Même garde-fou EXACT que `handleOpenPublicPlaylist` pour le cas "je
+  // consulte ma PROPRE routine publique depuis mon propre profil" — pas de
+  // clonage de sa propre routine sur elle-même, on va directement à \"Mes
+  // Routines\" à la place, où elle est de toute façon déjà éditable
+  // normalement (pas besoin d'un aperçu en lecture seule de son propre
+  // contenu).
+  const handleOpenPublicRoutine = (row) => {
+    if (user && row.user_id === user.id) {
+      changeView('routines');
+      return;
+    }
+    openModal('PUBLIC_ROUTINE_PREVIEW', row);
+  };
+
+  // Clonage d'une routine publique consultée via PublicRoutinePreviewModal —
+  // MÊME schéma exact que `handleClonePlaylist` (usePlaylistLibrary.js) :
+  // nouvel id généré côté client (jamais celui de la routine d'origine),
+  // `isPublic: false` (on ne republie pas automatiquement une copie chez
+  // soi — cohérent avec la philosophie \"full opt-in\" du README), compteurs
+  // d'utilisation remis à zéro (une copie n'a encore jamais été relancée
+  // par SON nouveau propriétaire).
+  const handleClonePublicRoutine = (row) => {
+    const cloned = {
+      ...row.content,
+      id: `routine-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      isPublic: false,
+      manualGenerations: 0,
+      recentTrackIds: [],
+      createdAt: new Date().toLocaleDateString(),
+    };
+    setRoutines(prev => [cloned, ...prev]);
+    closeModal();
+    changeView('routines');
+    showToast('⚡ Routine clonée dans Mes Routines !');
+  };
+
   // Bascule "vue détaillée" de la page Statistiques — voir plus bas. Volontairement
   // hors du bloc `view === 'stats' && (() => {...})()` : ce bloc ne s'exécute que
   // quand cette vue est active, donc un `useState` dedans violerait les règles des
@@ -1598,7 +1643,7 @@ function AppContent({
             )}
 
             {view === 'profile' && (
-              <ProfileView theme={themeTokens} username={viewingProfileUsername} isNaughtyMode={isNaughtyMode} changeView={changeView} user={user} openModal={openModal} onOpenPlaylist={handleOpenPublicPlaylist} />
+              <ProfileView theme={themeTokens} username={viewingProfileUsername} isNaughtyMode={isNaughtyMode} changeView={changeView} user={user} openModal={openModal} onOpenPlaylist={handleOpenPublicPlaylist} onOpenRoutine={handleOpenPublicRoutine} />
             )}
 
             {view === 'routines' && (
@@ -1858,6 +1903,7 @@ function AppContent({
           onImportSharedPlaylist={importSharedPlaylist}
           resolvePendingNavigation={resolvePendingNavigation}
           removeSavedPlaylist={removeSavedPlaylist}
+          onCloneRoutine={handleClonePublicRoutine}
         />
 
         {/* Conteneur commun (25/07) — empile la notice "mode invité" avec
