@@ -290,8 +290,14 @@ export default function PlaylistHeader({
                   encore sauvegardé (bouton principal "Ajouter à Mes
                   Séances"), le nom affiché est celui du modèle d'origine,
                   pas encore "à soi" ; le renommer ici donnerait l'illusion
-                  d'une sauvegarde qui n'a pas eu lieu. */}
-              {isSaved && (
+                  d'une sauvegarde qui n'a pas eu lieu. `!isReadOnly` ajouté
+                  (relecture globale, 02/08) — même défense en profondeur
+                  que le toggle public/le bouton CSV plus haut : `isSaved`
+                  vaut TOUJOURS `false` pour une vraie playlist étrangère en
+                  pratique, mais ce garde protège contre un futur
+                  changement qui romprait cette hypothèse implicite sans y
+                  penser. */}
+              {isSaved && !isReadOnly && (
                 <button onClick={() => { setEditedPlaylistName(currentPlaylist.name); setIsEditingPlaylistName(true); }} className="p-1.5 rounded-lg text-slate-400 hover:text-white transition-colors shrink-0" title="Renommer la playlist">
                   <Edit3 size={20}/>
                 </button>
@@ -402,8 +408,10 @@ export default function PlaylistHeader({
               dans "Mes Séances" n'a pas de sens). Déplacée ici (retour direct :
               flottait seule au-dessus du titre, cassait son alignement avec
               le sommet de la pochette) — même style que Partager pour rester
-              clairement une action secondaire face à Ajouter/Retirer. */}
-          {isSaved && (
+              clairement une action secondaire face à Ajouter/Retirer.
+              `!isReadOnly` ajouté (relecture globale, 02/08) — même défense
+              en profondeur que le renommage/le toggle public/le bouton CSV. */}
+          {isSaved && !isReadOnly && (
             <label
               onClick={(e) => {
                 // showPicker() force l'ouverture explicitement là où l'API existe
