@@ -52,8 +52,7 @@ dans cet ordre :
    plus à corriger — ne pas inventer des problèmes pour justifier le temps
    passé. Dire explicitement ce qui a été couvert en profondeur vs juste
    survolé (utile pour la session suivante, voir #7).
-7. **Si une décision d'architecture a été touchée**, mettre à jour
-   `README.md` avant de conclure (voir la section précédente).
+7. **Mettre à jour `README.md` avant de conclure** : (a) si une décision d'architecture a été touchée (voir la section précédente) ; (b) **systématiquement si un chantier a démarré, avancé ou terminé** — la section "🚧 État d'avancement" en tête du README doit toujours refléter où en est réellement le projet, sinon une session future repart à l'aveugle en croyant qu'aucun chantier n'est en cours.
 
 ## 1. Validation de syntaxe RÉELLE — `esbuild` (recommandé)
 
