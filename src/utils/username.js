@@ -5,16 +5,17 @@
  * copie de `USERNAME_REGEX`, sans compter celle d'AuthContext.jsx) —
  * source UNIQUE désormais, utilisée partout où un pseudo est saisi.
  *
- * ⚠️ Contexte important, vérifié avant d'écrire ce fichier : AUCUNE
- * contrainte SQL équivalente n'existe côté Supabase (voir
- * supabase-schema.sql — rien de tel n'y a jamais été ajouté, malgré ce que
- * le brief affirmait). Ce fichier n'est donc, pour l'instant, qu'un
- * garde-fou d'EXPÉRIENCE UTILISATEUR (retour instantané, sans aller-retour
- * réseau) — PAS une vraie barrière de sécurité : un appel direct à l'API
- * Supabase (hors de ce frontend) pourrait toujours créer un pseudo
- * "réservé" sans jamais passer par ce fichier. Si une vraie garantie est
- * nécessaire, il faudrait la contrainte SQL correspondante — volontairement
- * pas ajoutée ici, hors du scope frontend demandé.
+ * ⚠️ Mise à jour (02/08, relecture globale) : au moment de l'écriture
+ * initiale de ce fichier, AUCUNE contrainte SQL équivalente n'existait
+ * côté Supabase, malgré ce qu'un brief affirmait à l'époque — vérifié dans
+ * le vrai fichier avant de coder dessus, confirmé absent. Depuis, la
+ * contrainte `profiles_username_not_reserved` a bien été ajoutée
+ * (supabase-schema.sql — même motif, même exception 'tempofit_admin') :
+ * elle constitue la VRAIE garantie, un appel direct à l'API Supabase (hors
+ * de ce frontend) ne peut donc plus créer de pseudo "réservé". Ce fichier
+ * reste néanmoins la couche utile pour un retour instantané côté UX (sans
+ * aller-retour réseau) — la contrainte SQL n'intervient qu'à l'échec de
+ * l'insertion, plus tard et moins agréable pour l'utilisateur.
  *
  * `ADMIN_USERNAME_EXCEPTION` — pseudo unique concerné, en toutes lettres
  * plutôt qu'un pattern : les pseudos étant IMMUABLES une fois posés (voir
