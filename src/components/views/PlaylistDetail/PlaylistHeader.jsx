@@ -369,14 +369,20 @@ export default function PlaylistHeader({
           {/* Action principale (1er position) : Sauvegarder (clone) si
               aperçu en lecture seule / Ajouter à Mes Séances / Retirer.
               `isReadOnly` VÉRIFIÉ EN PREMIER (Feature Sociale —
-              Consultation/Clonage, 01/08) : une playlist étrangère
-              consultée en aperçu a TOUJOURS `isSaved === false` (le
-              visiteur ne l'a par définition jamais dans SA PROPRE
-              `savedPlaylists`), donc tomberait sinon dans la branche
-              "Ajouter à Mes Séances" habituelle — qui, elle, garderait à
-              tort le même id que l'original (voir handleClonePlaylist,
-              usePlaylistLibrary.js, pour le raisonnement complet sur
-              pourquoi ça poserait problème). */}
+              Consultation/Clonage, 01/08) : `isSaved` (PlaylistDetailContext.jsx)
+              vaut désormais TOUJOURS `false` quand `isReadOnly` est vrai —
+              forcé explicitement dans son calcul depuis le correctif du
+              02/08 (voir le commentaire "BUG CORRIGÉ" à sa déclaration :
+              comparer seulement par `id` était insuffisant, la playlist de
+              démonstration par défaut partage le même id sur chaque
+              nouveau compte). Sans ce `isReadOnly` vérifié en premier ici,
+              le cas retomberait de toute façon correctement grâce à ce
+              correctif — mais le garder EN PREMIER reste plus direct que
+              de compter sur une propriété dérivée d'un autre fichier, et
+              évite en plus la branche "Ajouter à Mes Séances" habituelle,
+              qui garderait à tort le même id que l'original (voir
+              handleClonePlaylist, usePlaylistLibrary.js, pour le
+              raisonnement complet sur pourquoi ça poserait problème). */}
           {isReadOnly ? (
             <button
               onClick={handleClonePlaylist}
