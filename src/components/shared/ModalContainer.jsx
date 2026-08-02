@@ -3,6 +3,7 @@ import AuthModal from '../modals/AuthModal';
 import ImportSharedPlaylistModal from '../modals/ImportSharedPlaylistModal';
 import PendingNavigationModal from '../modals/PendingNavigationModal';
 import PendingUnsaveModal from '../modals/PendingUnsaveModal';
+import PublicRoutinePreviewModal from '../modals/PublicRoutinePreviewModal';
 
 /**
  * ModalContainer — regroupe le rendu des modales migrées vers ModalContext
@@ -13,6 +14,12 @@ import PendingUnsaveModal from '../modals/PendingUnsaveModal';
  * attendait déjà avant cette migration (`preview`, `pendingNavigation`,
  * `pendingUnsavePlaylist`...) — aucune modale n'a eu besoin de changer sa
  * propre logique interne au-delà de `setX(null)` → `onClose()`.
+ *
+ * `PublicRoutinePreviewModal` (Vague 2, Chantier 1 — UI publique des
+ * routines, 02/08) rejoint ce groupe directement : `modalData` porte la
+ * LIGNE brute `routines` consultée (voir handleOpenPublicRoutine, App.jsx),
+ * `onClone` déclenche le clonage puis ferme elle-même via `closeModal`
+ * (même schéma qu'`onImportSharedPlaylist` ci-dessous).
  *
  * `Share`, `Search`, `EditRoutine` et `SavingRoutine` sont ÉGALEMENT migrées
  * vers ModalContext depuis (toujours 25/07), mais rendues ailleurs qu'ici :
@@ -27,7 +34,7 @@ import PendingUnsaveModal from '../modals/PendingUnsaveModal';
  */
 export default function ModalContainer({
   theme, signUp, signIn, resetPassword, checkUsernameAvailable, showToast,
-  onImportSharedPlaylist, resolvePendingNavigation, removeSavedPlaylist,
+  onImportSharedPlaylist, resolvePendingNavigation, removeSavedPlaylist, onCloneRoutine,
 }) {
   const { activeModal, modalData, closeModal } = useModalContext();
 
@@ -55,6 +62,12 @@ export default function ModalContainer({
         theme={theme}
         pendingUnsavePlaylist={activeModal === 'PENDING_UNSAVE' ? modalData : null}
         onClose={closeModal} removeSavedPlaylist={removeSavedPlaylist}
+      />
+
+      <PublicRoutinePreviewModal
+        theme={theme}
+        isOpen={activeModal === 'PUBLIC_ROUTINE_PREVIEW'} onClose={closeModal}
+        routine={modalData} onClone={onCloneRoutine}
       />
     </>
   );
