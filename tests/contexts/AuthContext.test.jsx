@@ -163,6 +163,27 @@ describe('AuthContext — signUp', () => {
     expect(mockAuth.signUp).not.toHaveBeenCalled();
   });
 
+  // Correctif UX — pseudos réservés (02/08) — 0 test jusqu'ici. Dernier
+  // rempart AVANT tout appel réseau (voir AuthContext.jsx) — un formulaire
+  // n'est pas la seule porte d'entrée possible vers cette fonction.
+  it('pseudonyme réservé ("system") : erreur dédiée, aucun appel réseau', async () => {
+    const { result } = renderAuth();
+    let outcome;
+    await act(async () => { outcome = await result.current.signUp('a@b.com', 'pw123456', 'system'); });
+    expect(outcome.error).toBe('Ce pseudo est réservé ou invalide.');
+    expect(mockAuth.signUp).not.toHaveBeenCalled();
+  });
+
+  it('exception "tempofit_admin" : passe la vérification réservée, atteint bien l\'appel réseau', async () => {
+    mockUsernameAvailability({ data: true, error: null });
+    mockAuth.signUp.mockResolvedValue({ data: { session: null, user: { id: 'u1' } }, error: null });
+    const { result } = renderAuth();
+    let outcome;
+    await act(async () => { outcome = await result.current.signUp('a@b.com', 'pw123456', 'tempofit_admin'); });
+    expect(outcome.error).toBeNull();
+    expect(mockAuth.signUp).toHaveBeenCalled();
+  });
+
   it('pseudonyme déjà pris : erreur, signUp Supabase jamais appelé', async () => {
     mockUsernameAvailability({ data: false, error: null });
     const { result } = renderAuth();
@@ -225,6 +246,18 @@ describe('AuthContext — setUsername', () => {
     let outcome;
     await act(async () => { outcome = await result.current.setUsername('ab'); });
     expect(outcome.error).toContain('3 à 20 caractères');
+  });
+
+  // Correctif UX — pseudos réservés (02/08) — 0 test jusqu'ici.
+  it('pseudonyme réservé ("root") : erreur dédiée, aucun appel réseau', async () => {
+    mockAuth.getSession.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
+    mockFrom.mockReturnValue(makeBuilder({ maybeSingleResult: { data: null, error: null } }));
+    const { result } = renderAuth();
+    await waitFor(() => expect(result.current.user).toEqual({ id: 'u1' }));
+
+    let outcome;
+    await act(async () => { outcome = await result.current.setUsername('root'); });
+    expect(outcome.error).toBe('Ce pseudo est réservé ou invalide.');
   });
 
   it('collision au moment de l\'insertion (code 23505) : message dédié', async () => {
