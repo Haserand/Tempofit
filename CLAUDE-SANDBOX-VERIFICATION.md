@@ -54,6 +54,11 @@ dans cet ordre :
    survolé (utile pour la session suivante, voir #7).
 7. **Mettre à jour `README.md` avant de conclure** : (a) si une décision d'architecture a été touchée (voir la section précédente) ; (b) **systématiquement si un chantier a démarré, avancé ou terminé** — la section "🚧 État d'avancement" en tête du README doit toujours refléter où en est réellement le projet, sinon une session future repart à l'aveugle en croyant qu'aucun chantier n'est en cours.
 
+### Habitude de travail : toujours indiquer le chemin repo complet de chaque fichier livré
+Conséquence directe du workflow "aucun terminal côté utilisateur, tout passe par l'interface web de GitHub" (voir plus haut) : l'utilisateur doit lui-même recréer/retrouver l'arborescence à la main pour chaque fichier livré, sans avoir à le demander à chaque fois (trouvé en session le 02/08, chantier "UI publique des routines" — un nouveau composant livré sans son chemin de destination). Concrètement, à chaque lot de fichiers livrés en fin de session (ou en cours de session, dès qu'un fichier est prêt) :
+- Donner le **chemin complet depuis la racine du repo** pour CHAQUE fichier (ex. `src/components/modals/PublicRoutinePreviewModal.jsx`, pas juste le nom du fichier) — un tableau récapitulatif à la fin de la réponse est le format le plus lisible pour l'utilisateur qui doit ensuite naviguer/créer ces chemins dans GitHub.
+- Distinguer explicitement **fichier nouveau** (l'utilisateur doit le CRÉER via "Add file" dans GitHub, dossier par dossier si besoin) vs **fichier existant modifié** (l'utilisateur l'ouvre et remplace son contenu) — les deux actions sont différentes côté interface GitHub, une confusion fait perdre du temps à l'utilisateur.
+
 ### Habitude de travail : second avis avec Gemini sur les décisions stratégiques/produit
 L'utilisateur consulte régulièrement Gemini en parallèle de Claude, typiquement pour challenger une décision stratégique ou produit importante (positionnement, priorisation, architecture de confidentialité...) — pas pour l'implémentation de code. Concrètement, ça prend la forme d'un aller-retour : Claude propose une analyse, l'utilisateur la soumet à Gemini (souvent via un document préparé par Claude à cet effet), puis colle la réponse de Gemini dans la conversation pour que Claude réagisse.
 
