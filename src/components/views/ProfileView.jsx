@@ -173,7 +173,7 @@ function PublicItemCard({ item, theme, onClick, kind = 'playlist' }) {
 }
 
 export default function ProfileView({ theme, username, isNaughtyMode, changeView, user, openModal, onOpenPlaylist, onOpenRoutine }) {
-  const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
+  const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass, inputBg, inputBorder } = theme;
 
   const [status, setStatus] = useState('loading'); // 'loading' | 'login_wall' | 'not_found' | 'ready'
   const [profile, setProfile] = useState(null);
