@@ -7,6 +7,54 @@ l'utilisateur travaille exclusivement via l'interface web de GitHub (pas de
 terminal local pour lui non plus — voir les documents de passation pour le
 contexte complet de ce workflow).
 
+## 0. Instructions de session (à lire en tout premier)
+
+### Tenir `README.md` à jour
+`README.md` (racine du dépôt) est la référence stable de l'architecture du
+projet — contrairement aux documents de passation (narratifs, une par
+session, jetables une fois lus), il doit rester vrai en continu. **Toute
+session qui ajoute ou change une décision d'architecture durable** (nouvelle
+table, nouvelle contrainte, un "pourquoi X plutôt que Y" qui resservira dans
+3 mois) **doit mettre à jour `README.md` avant de considérer la session
+terminée** — pas seulement le documenter dans la passation de fin de
+session. Une passation qui décrit une décision d'architecture sans que
+`README.md` en parle est une passation incomplète.
+
+### "Check-up complet" — ce que ça veut dire concrètement ici
+Quand l'utilisateur demande un check-up complet du code (demande récurrente
+en début de conversation, avec ou sans plus de précision), procéder ainsi,
+dans cet ordre :
+
+1. **Lire `README.md` en premier** — contexte d'architecture avant de juger
+   quoi que ce soit "suspect".
+2. **Vérifier les affirmations d'un éventuel document de passation fourni**
+   contre le vrai code avant de les prendre pour acquises (voir §7 des
+   passations passées — plusieurs briefs affirmaient à tort qu'une
+   contrainte ou une architecture existait déjà).
+3. **Utiliser les outils de ce fichier** (§1-4 ci-dessous) plutôt que de se
+   fier uniquement à une lecture visuelle — la validation de syntaxe réelle
+   (§1) et la résolution d'imports (§2) sont peu coûteuses et évitent de
+   rater des erreurs mécaniques pendant que l'attention se porte sur la
+   logique.
+4. **Corriger directement les problèmes clairs et bornés** (bug logique
+   isolé, commentaire devenu faux, garde-fou manquant identique à un
+   correctif déjà fait ailleurs) plutôt que de se contenter de les
+   signaler — cohérent avec la préférence déjà établie de corriger les
+   micro-ajustements sans attendre d'y être invité. Pour un changement plus
+   large ou risqué (refonte, dépendance nouvelle, décision de produit), le
+   signaler et proposer plutôt que d'imposer.
+5. **Ajouter un test de régression pour tout bug réel corrigé**, sauf
+   décision explicitement assumée de ne pas le faire (voir la section Tests
+   de `README.md` pour un exemple déjà accepté : `PlaylistDetailContext.jsx`
+   n'a pas de couverture exhaustive du Provider, coût de mock jugé trop
+   élevé pour ce qui restait de logique triviale).
+6. **Donner un avis global honnête à la fin**, y compris s'il n'y a rien de
+   plus à corriger — ne pas inventer des problèmes pour justifier le temps
+   passé. Dire explicitement ce qui a été couvert en profondeur vs juste
+   survolé (utile pour la session suivante, voir #7).
+7. **Si une décision d'architecture a été touchée**, mettre à jour
+   `README.md` avant de conclure (voir la section précédente).
+
 ## 1. Validation de syntaxe RÉELLE — `esbuild` (recommandé)
 
 Un vrai parseur JS/JSX est **déjà présent** dans le bac à sable Claude, caché
