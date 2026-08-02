@@ -36,6 +36,7 @@ const mockTheme = {
   cardBg: 'mock-card-bg', cardBorder: 'mock-border',
   textHighlight: 'mock-highlight', textMuted: 'mock-muted',
   textColorClass: 'mock-text-color', bgAccentClass: 'mock-accent-bg',
+  inputBg: 'mock-input-bg', inputBorder: 'mock-input-border',
 };
 
 // Builder chaînable minimal — `.select()`/`.eq()` renvoient l'objet
