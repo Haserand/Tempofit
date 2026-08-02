@@ -126,3 +126,72 @@ export function buildOfficialVitrinePlaylistRows() {
     ...naughtyCuratedSessions.map(t => templateToVitrineRow(t, true)),
   ];
 }
+
+// Routines fictives de la vitrine (brief "Recherche & filtres sur les
+// profils publics", chantier annexe, 02/08) — PAS de conversion depuis un
+// template existant comme `templateToVitrineRow` ci-dessus :
+// `curatedSessions.js` ne contient que des PLAYLISTS (vraies pistes + BPM),
+// aucune routine n'existe dans le catalogue statique. Écrites à la main,
+// dans la forme RÉELLE lue par `PublicItemCard`/`useProfileSearchFilter`
+// (ProfileView.jsx) pour une routine — vérifiée dans le code actuel, pas
+// devinée : `name`/`coverIcon`/`workoutType`/`bpm`/`selectedGenres`, une
+// CIBLE plutôt qu'un résultat généré (`targetMode: 'distance'|'time'` +
+// `distanceVal`/`distanceUnit` OU `hours`/`minutes`) — jamais
+// `content.tracks`/`content.totalDuration`, qui n'existent que pour une
+// playlist déjà générée.
+//
+// Genres ADAPTÉS aux valeurs canoniques réelles du catalogue
+// (`musicCatalog.js`, `STANDARD_GENRES`/`NAUGHTY_GENRES`/`EXTRA_GENRES`) —
+// le brief proposait "Hip-Hop"/"Lo-fi"/"Électro", qui n'existent PAS tels
+// quels dans ce projet : remplacés par leurs équivalents réels les plus
+// proches ("Rap", pas de mood lo-fi disponible donc retiré, "Electro" sans
+// accent — c'est la clé interne réelle, `genreDisplayLabel` ne la
+// retraduit pas). "Rituel du Soir" (intime) utilise "R&B Sensuel", la
+// variante du genre réservée au Mode Intime (`NAUGHTY_GENRES`), pas "R&B"
+// tout court (catalogue Sport).
+const FAKE_VITRINE_ROUTINES = [
+  {
+    id: 'vitrine-routine-1', is_public: true, is_intimate: false,
+    content: {
+      name: 'Mon 5km Quotidien', coverIcon: '🏃', workoutType: 'Course à pied',
+      targetMode: 'distance', distanceVal: 5, distanceUnit: 'km',
+      bpm: 160, selectedGenres: ['Métal', 'Rock'],
+    },
+  },
+  {
+    id: 'vitrine-routine-2', is_public: true, is_intimate: false,
+    content: {
+      name: 'Sortie Longue Weekend', coverIcon: '🚴', workoutType: 'Cyclisme',
+      targetMode: 'time', hours: 1, minutes: 30,
+      bpm: 130, selectedGenres: ['Electro', 'Pop'],
+    },
+  },
+  {
+    id: 'vitrine-routine-3', is_public: true, is_intimate: false,
+    content: {
+      name: 'HIIT Express', coverIcon: '🔥', workoutType: 'Fractionné',
+      targetMode: 'time', hours: 0, minutes: 20, isIntervalMode: true, isCrescendoMode: false,
+      bpm: 175, selectedGenres: ['Rap', 'Electro'],
+    },
+  },
+  {
+    id: 'vitrine-routine-4', is_public: true, is_intimate: true,
+    content: {
+      name: 'Rituel du Soir', coverIcon: '🌙', workoutType: 'Ambiance',
+      targetMode: 'time', hours: 0, minutes: 25,
+      bpm: 90, selectedGenres: ['R&B Sensuel'],
+    },
+  },
+];
+
+/**
+ * Toutes les "routines partagées" de la vitrine — même principe EXACT que
+ * `buildOfficialVitrinePlaylistRows` juste au-dessus (Sport ET Intime
+ * confondus, le filtrage par mode déjà existant dans ProfileView.jsx
+ * s'applique sans modification) : la seule différence est qu'il n'y a pas
+ * de conversion à faire, `FAKE_VITRINE_ROUTINES` est déjà dans la forme
+ * finale attendue.
+ */
+export function buildOfficialVitrineRoutineRows() {
+  return FAKE_VITRINE_ROUTINES;
+}
