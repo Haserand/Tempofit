@@ -3,6 +3,7 @@ import { UserX, Loader2, Clock, Gauge, ListMusic, Heart, Lock, Eye } from 'lucid
 import { supabase, isSupabaseConfigured } from '../../supabaseClient';
 import { formatDuration } from '../../utils/format';
 import { buildCoverUrl } from '../../utils/coverArt';
+import { OFFICIAL_VITRINE_USERNAME, buildOfficialVitrineProfile, buildOfficialVitrinePlaylistRows } from '../../data/officialVitrineProfile';
 import { VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 
 /**
@@ -56,6 +57,14 @@ import { VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
  * tout le filtrage nécessaire (Login Wall + profil public du propriétaire
  * + `is_public` de la ligne elle-même) — voir le 2e `useEffect` plus bas
  * pour le détail.
+ *
+ * Profil vitrine "@tempofit_officiel" (Feature Sociale "Cold Start", 02/08,
+ * voir data/officialVitrineProfile.js) — CAS SPÉCIAL, court-circuité tout
+ * en tête des 2 `useEffect` ci-dessous, AVANT même le Login Wall : jamais
+ * stocké en base, entièrement reconstruit côté client, accessible à
+ * n'importe qui (y compris non connecté) pour montrer le potentiel de
+ * l'app avant même la création d'un compte. Voir ce fichier pour le
+ * raisonnement complet.
  */
 
 // Agrège une liste de séances `{ totalDuration, bpm }` (déjà filtrée/
@@ -143,6 +152,20 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
     setStatus('loading');
     setProfile(null);
 
+    // Profil vitrine "@tempofit_officiel" (Feature Sociale "Cold Start",
+    // 02/08) — VÉRIFIÉ EN TOUT PREMIER, avant même `isSupabaseConfigured`/
+    // le Login Wall ci-dessous : contrairement à un vrai profil, celui-ci
+    // doit rester accessible à TOUT LE MONDE, y compris un visiteur NON
+    // connecté (voire sans Supabase configuré du tout) — l'objectif même
+    // de cette vitrine ("inspirer les nouveaux utilisateurs", brief) serait
+    // manqué si elle exigeait justement ce qu'un nouvel utilisateur n'a pas
+    // encore : un compte. Entièrement synchrone, aucun appel réseau.
+    if (username === OFFICIAL_VITRINE_USERNAME) {
+      setProfile(buildOfficialVitrineProfile());
+      setStatus('ready');
+      return;
+    }
+
     if (!isSupabaseConfigured || !username) { setStatus('not_found'); return; }
     // Login Wall — vérifié ICI, avant même de construire l'appel réseau :
     // pas la peine de solliciter Supabase pour un appel qu'on sait déjà
@@ -196,7 +219,24 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
   // un tableau déjà en mémoire est instantané, aucun aller-retour réseau
   // nécessaire pour ce cas précis.
   useEffect(() => {
-    if (status !== 'ready' || !profile?.user_id) { setItemsLoaded(false); return; }
+    if (status !== 'ready') { setItemsLoaded(false); return; }
+
+    // Vitrine — playlists injectées directement depuis le catalogue
+    // (data/curatedSessions.js), jamais depuis Supabase (`profile.user_id`
+    // vaut `null` pour ce profil mocké, ne déclencherait de toute façon
+    // jamais le vrai fetch ci-dessous — mais mieux vaut un court-circuit
+    // explicite qu'un `itemsLoaded` qui resterait bloqué à `false` pour
+    // toujours faute de condition remplie). Catalogue Sport ET Intime
+    // CONFONDUS ici aussi (voir buildOfficialVitrinePlaylistRows) — le
+    // filtrage par mode reste le même code EXISTANT juste en dessous
+    // (`visiblePlaylists`), aucune duplication de cette logique.
+    if (username === OFFICIAL_VITRINE_USERNAME) {
+      setPublicItems({ playlists: buildOfficialVitrinePlaylistRows(), routines: [] });
+      setItemsLoaded(true);
+      return;
+    }
+
+    if (!profile?.user_id) { setItemsLoaded(false); return; }
 
     let cancelled = false;
     setItemsLoaded(false);
@@ -235,7 +275,7 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
     })();
 
     return () => { cancelled = true; };
-  }, [status, profile?.user_id]);
+  }, [status, profile?.user_id, username]);
 
   // Cloisonnement contextuel (brief, tâche 2) — même règle EXACTE que les
   // blocs de stats plus haut : `!!` normalise `is_intimate` (colonne
