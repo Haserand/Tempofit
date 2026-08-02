@@ -40,7 +40,7 @@ import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHe
  * sections partiellement vides (si la recherche ne matche que certaines
  * catégories).
  */
-export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode, user, openModal }) {
+export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode, user, openModal, onViewOfficialProfile }) {
   const { textHighlight, textMuted, cardBg, cardBorder, inputBg, inputBorder, bgAccentClass } = theme;
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -141,7 +141,7 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode, use
         filteredSessions.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
             {filteredSessions.map(template => (
-              <TemplateCard key={template.id} theme={theme} template={template} onPlayTemplate={onPlayTemplate} isNaughtyMode={isNaughtyMode} />
+              <TemplateCard key={template.id} theme={theme} template={template} onPlayTemplate={onPlayTemplate} isNaughtyMode={isNaughtyMode} onViewOfficialProfile={onViewOfficialProfile} />
             ))}
           </div>
         ) : (
@@ -171,7 +171,7 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode, use
                 serait un vrai bug, pas une amélioration visuelle. */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
               {activeSessions.filter(t => t.category === category).slice(0, 5).map(template => (
-                <TemplateCard key={template.id} theme={theme} template={template} onPlayTemplate={onPlayTemplate} isNaughtyMode={isNaughtyMode} />
+                <TemplateCard key={template.id} theme={theme} template={template} onPlayTemplate={onPlayTemplate} isNaughtyMode={isNaughtyMode} onViewOfficialProfile={onViewOfficialProfile} />
               ))}
             </div>
           </div>
