@@ -1,4 +1,4 @@
-import { ListPlus, Plus, Edit3, Trash2, Layers, Info, Loader2, PlaySquare } from 'lucide-react';
+import { ListPlus, Plus, Edit3, Trash2, Layers, Info, Loader2, PlaySquare, Globe } from 'lucide-react';
 import { useModalContext } from '../../contexts/ModalContext';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
@@ -19,6 +19,18 @@ export default function RoutinesView({
 }) {
   const { openModal } = useModalContext();
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass, inputBg, inputBorder } = theme;
+
+  // Bascule publique/privée INDIVIDUELLE (Vague 2, Chantier 1 — UI publique
+  // des routines, 02/08) — MÊME principe exact que `handleTogglePlaylistPublic`
+  // de PlaylistsView.jsx (celui-là agit sur `savedPlaylists`, celui-ci sur
+  // `routines`) : le SQL/RLS existait déjà (`routines.is_public`, voir
+  // supabase-schema.sql), il ne manquait que ce déclencheur UI.
+  // `useSyncedCollection.js` détecte le changement au prochain rendu et
+  // pousse la mise à jour vers la colonne `is_public` de la table `routines`
+  // tout seul, rien de plus à faire ici côté synchro.
+  const handleToggleRoutinePublic = (id) => {
+    setRoutines(routines.map(r => r.id === id ? { ...r, isPublic: !r.isPublic } : r));
+  };
 
   // Triées par nombre de générations manuelles décroissant — les plus utilisées
   // remontent en premier. À égalité, ordre inchangé.
@@ -101,6 +113,22 @@ export default function RoutinesView({
                       </div>
                     )
                   })()}
+                  {/* Bascule publique/privée — même bouton (icône seule)
+                      qu'une carte de PlaylistCard.jsx : toujours visible
+                      quand déjà publique (statut persistant à signaler),
+                      révélée au survol du groupe sinon, cohérent avec
+                      Éditer/Supprimer juste à côté. */}
+                  <button
+                    onClick={() => handleToggleRoutinePublic(routine.id)}
+                    title={routine.isPublic ? "Visible sur ton profil public — clique pour la rendre privée" : "Rendre cette routine visible sur ton profil public"}
+                    className={`p-2 rounded-lg transition-colors ${
+                      routine.isPublic
+                        ? 'text-emerald-500 hover:text-emerald-600'
+                        : 'text-gray-400 hover:text-emerald-500 opacity-0 group-hover:opacity-100'
+                    }`}
+                  >
+                    <Globe size={16} />
+                  </button>
                   <button onClick={() => { setEditingRoutine({ ...routine }); openModal('EDIT_ROUTINE'); }} className={`p-2 rounded-lg text-gray-400 hover:text-blue-500 transition-colors`} title="Éditer cette routine">
                     <Edit3 size={16} />
                   </button>
