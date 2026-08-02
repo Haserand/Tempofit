@@ -77,6 +77,7 @@ const baseProps = {
   changeView: () => {},
   openModal: () => {},
   onOpenPlaylist: () => {},
+  onOpenRoutine: () => {},
 };
 
 const mockProfileData = {
@@ -238,6 +239,52 @@ describe('ProfileView — cloisonnement Sport/Intime des playlists partagées', 
     fireEvent.click(await screen.findByText('Sortie running'));
 
     expect(onOpenPlaylist).toHaveBeenCalledWith(publicPlaylists[0]);
+  });
+});
+
+// Vague 2, Chantier 1 — UI publique des routines (02/08). `content` d'une
+// routine a une forme DIFFÉRENTE de celle d'une playlist (voir la
+// docstring de `PublicItemCard`, ProfileView.jsx) : `bpm` à la racine (pas
+// `config.bpm`), pas de `totalDuration` (rien n'a encore été généré), une
+// distance/durée CIBLE (`targetMode`/`distanceVal`/`distanceUnit` ou
+// `hours`/`minutes`) plutôt qu'un total réel.
+describe('ProfileView — routines partagées', () => {
+  const publicRoutines = [
+    {
+      id: 'routine-sport', user_id: 'owner-uuid-123', is_public: true, is_intimate: false,
+      content: { name: 'Mon 10km Rapide', coverIcon: '🏃‍♀️', workoutType: 'Course à pied', targetMode: 'distance', distanceVal: 10, distanceUnit: 'km', bpm: 170, isIntervalMode: false },
+    },
+  ];
+
+  it('affiche la distance cible et le BPM d\'une routine (pas totalDuration/config.bpm, qui n\'existent pas sur une routine)', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ routines: publicRoutines });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+
+    expect(await screen.findByText('Mon 10km Rapide')).toBeInTheDocument();
+    expect(screen.getByText('10 km')).toBeInTheDocument();
+    expect(screen.getByText('170 BPM')).toBeInTheDocument();
+  });
+
+  it('le clic sur une carte de routine appelle onOpenRoutine avec la ligne complète', async () => {
+    const onOpenRoutine = vi.fn();
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ routines: publicRoutines });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} onOpenRoutine={onOpenRoutine} />);
+
+    fireEvent.click(await screen.findByText('Mon 10km Rapide'));
+
+    expect(onOpenRoutine).toHaveBeenCalledWith(publicRoutines[0]);
+  });
+
+  it('cloisonnement Sport/Intime respecté pour les routines, comme pour les playlists', async () => {
+    const intimateRoutine = { id: 'routine-intime', user_id: 'owner-uuid-123', is_public: true, is_intimate: true, content: { name: 'Routine Intime', coverIcon: '🍑', workoutType: 'Cardio', targetMode: 'distance', distanceVal: 3, distanceUnit: 'km', bpm: 120 } };
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ routines: [...publicRoutines, intimateRoutine] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} isNaughtyMode={false} />);
+
+    expect(await screen.findByText('Mon 10km Rapide')).toBeInTheDocument();
+    expect(screen.queryByText('Routine Intime')).toBeNull();
   });
 });
 
