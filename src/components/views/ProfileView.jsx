@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UserX, Loader2, Clock, Gauge, ListMusic, Heart, Lock, Eye } from 'lucide-react';
+import { UserX, Loader2, Clock, Gauge, ListMusic, Heart, Lock, Eye, Zap } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../supabaseClient';
 import { formatDuration } from '../../utils/format';
 import { buildCoverUrl } from '../../utils/coverArt';
@@ -99,18 +99,43 @@ export function summarizeSessions(sessions) {
 // `playlists`/`routines` (voir supabase-schema.sql) : `item.content` porte
 // l'objet complet (mêmes champs qu'un objet playlist/routine normal côté
 // app, voir useSyncedCollection.js).
-function PublicItemCard({ item, theme, onClick }) {
+// `kind` distingue playlist ('playlist', par défaut) et routine ('routine')
+// — Vague 2, Chantier 1 (UI publique des routines, 02/08). Les deux tables
+// (`playlists`/`routines`) partagent la même structure de LIGNE
+// (id/user_id/content/is_public/is_intimate, voir supabase-schema.sql),
+// mais PAS la même forme de `content` : une playlist déjà générée porte de
+// vrais titres + `totalDuration` + `config.bpm` (calculés une fois pour
+// toutes à la génération), tandis qu'une routine n'est qu'une CONFIG
+// jamais encore lancée — `bpm` à la racine (pas de `config`), pas de
+// `totalDuration` (rien n'a encore été généré), pas de `coverUrl` (une
+// routine n'a jamais de vraie pochette, seulement l'emoji `coverIcon`
+// choisi par son propriétaire, même affichage que RoutinesView.jsx).
+// AVANT ce chantier, cette carte utilisait aveuglément les champs
+// playlist pour les deux — `avgBpm`/`totalMinutes` restaient donc
+// silencieusement vides pour une routine (bug jamais visible tant
+// qu'aucune routine n'était publique, voir la note plus bas sur
+// `visibleRoutines`).
+function PublicItemCard({ item, theme, onClick, kind = 'playlist' }) {
   const { cardBg, cardBorder, textHighlight, textMuted } = theme;
   const content = item.content || {};
-  const totalMinutes = Math.round((content.totalDuration || 0) / 60);
-  const avgBpm = content.config?.bpm ?? null;
+  const isRoutine = kind === 'routine';
+
+  const totalMinutes = !isRoutine ? Math.round((content.totalDuration || 0) / 60) : null;
+  const avgBpm = isRoutine ? (content.bpm ?? null) : (content.config?.bpm ?? null);
+  const distanceOrDuration = isRoutine
+    ? (content.targetMode === 'distance' ? `${content.distanceVal} ${content.distanceUnit}` : `${content.hours || 0}h ${content.minutes || 0}m`)
+    : null;
+  const phaseLabel = isRoutine && content.isIntervalMode ? (content.isCrescendoMode ? 'Crescendo' : 'Fractionné') : null;
+
   // Pochette RÉELLE (01/08, relecture globale — manquait ici, présente
   // partout ailleurs dans l'app) — même pattern EXACT que TemplateCard.jsx/
   // PlaylistCard.jsx : `content.coverUrl` si déjà posé (import CSV/partage),
   // sinon générée de façon déterministe depuis le nom (utils/coverArt.js,
   // aucun appel réseau à faire pour la CALCULER, seulement pour charger
-  // l'image elle-même).
-  const coverUrl = content.coverUrl || buildCoverUrl(content.name || 'Séance');
+  // l'image elle-même). Uniquement pour les PLAYLISTS — une routine
+  // affiche son médaillon emoji à la place (voir plus bas), jamais cette
+  // pochette générée qui suggérerait à tort qu'une vraie séance existe.
+  const coverUrl = !isRoutine ? (content.coverUrl || buildCoverUrl(content.name || 'Séance')) : null;
 
   return (
     <div
@@ -118,23 +143,35 @@ function PublicItemCard({ item, theme, onClick }) {
       onClick={onClick}
     >
       <div className="flex items-center gap-3 mb-2">
-        <div className={`w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-black/5 dark:bg-white/5 ${textMuted}`}>
-          <img src={coverUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
-        </div>
+        {isRoutine ? (
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 bg-black/5 dark:bg-white/5`}>
+            {content.coverIcon || '⚡'}
+          </div>
+        ) : (
+          <div className={`w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-black/5 dark:bg-white/5 ${textMuted}`}>
+            <img src={coverUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+          </div>
+        )}
         <div className="min-w-0">
           <h4 className={`font-bold text-sm truncate ${textHighlight}`}>{content.name || 'Séance'}</h4>
           {content.workoutType && <p className={`text-xs truncate ${textMuted}`}>{content.workoutType}</p>}
         </div>
       </div>
       <div className={`flex items-center gap-3 text-xs ${textMuted}`}>
-        {totalMinutes > 0 && <span className="flex items-center gap-1"><Clock size={12}/>{totalMinutes} min</span>}
-        {avgBpm != null && <span className="flex items-center gap-1"><Gauge size={12}/>{avgBpm} BPM</span>}
+        {isRoutine
+          ? distanceOrDuration && <span className="flex items-center gap-1"><Clock size={12}/>{distanceOrDuration}</span>
+          : totalMinutes > 0 && <span className="flex items-center gap-1"><Clock size={12}/>{totalMinutes} min</span>
+        }
+        {phaseLabel
+          ? <span className="flex items-center gap-1"><Zap size={12}/>{phaseLabel}</span>
+          : avgBpm != null && <span className="flex items-center gap-1"><Gauge size={12}/>{avgBpm} BPM</span>
+        }
       </div>
     </div>
   );
 }
 
-export default function ProfileView({ theme, username, isNaughtyMode, changeView, user, openModal, onOpenPlaylist }) {
+export default function ProfileView({ theme, username, isNaughtyMode, changeView, user, openModal, onOpenPlaylist, onOpenRoutine }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
 
   const [status, setStatus] = useState('loading'); // 'loading' | 'login_wall' | 'not_found' | 'ready'
@@ -438,20 +475,16 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
           )}
 
           {/* Playlists/routines partagées (Feature Sociale — Refonte
-              Structurale Round 2/2, 01/08) — indépendant des 2 blocs de
-              stats ci-dessus (pas de garde `showSportBlock`/
-              `showIntimateBlock` ici) : la confidentialité d'une playlist
-              individuelle est un consentement SÉPARÉ (`playlists.is_public`
-              + le réglage global `is_profile_public`, voir
+              Structurale Round 2/2, 01/08 ; routines cliquables/clonables
+              depuis Vague 2, Chantier 1 — UI publique des routines, 02/08)
+              — indépendant des 2 blocs de stats ci-dessus (pas de garde
+              `showSportBlock`/`showIntimateBlock` ici) : la confidentialité
+              d'une playlist/routine individuelle est un consentement
+              SÉPARÉ (`playlists.is_public`/`routines.is_public` + le
+              réglage global `is_profile_public`, voir
               supabase-schema.sql), jamais lié aux bascules
               `show_sport_stats`/`show_intimate_stats` qui, elles, ne
-              concernent que les CHIFFRES agrégés plus haut. Les routines
-              sont récupérées/affichées elles aussi (brief, tâche 1) mais
-              resteront très probablement TOUJOURS vides en pratique pour
-              l'instant : aucun toggle "rendre publique" n'existe encore
-              pour une routine dans l'app (contrairement aux playlists,
-              voir PlaylistHeader.jsx/PlaylistCard.jsx) — prêt pour une
-              future fonctionnalité, pas branché aujourd'hui. */}
+              concernent que les CHIFFRES agrégés plus haut. */}
           <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
             <h3 className={`font-bold text-lg mb-4 ${textHighlight}`}>Playlists partagées</h3>
             {!itemsLoaded ? (
@@ -465,16 +498,18 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
                 {visiblePlaylists.map(row => (
                   <PublicItemCard key={row.id} item={row} theme={theme} onClick={() => onOpenPlaylist(row)} />
                 ))}
-                {/* Routines PAS cliquables (contrairement aux playlists
-                    juste au-dessus) — la Consultation/Clonage (01/08) ne
-                    couvre que les playlists (brief explicite : "playlists
-                    publiques"), et il n'existe de toute façon encore
-                    aucun toggle "rendre publique" pour une routine dans
-                    l'app (voir la note plus haut) — en pratique cette
-                    liste reste vide, mais si elle contenait un jour
-                    quelque chose, mieux vaut une carte simplement
-                    informative qu'un clic qui ne mène nulle part. */}
-                {visibleRoutines.map(row => <PublicItemCard key={row.id} item={row} theme={theme} />)}
+                {/* Routines cliquables (Vague 2, Chantier 1 — UI publique
+                    des routines, 02/08) — ouvre PublicRoutinePreviewModal
+                    (App.jsx, `handleOpenPublicRoutine`) plutôt qu'une
+                    navigation directe : contrairement à une playlist, une
+                    routine n'a pas de vue détail dédiée à afficher en
+                    lecture seule. `kind="routine"` pour que la carte lise
+                    les bons champs de `content` (voir la docstring de
+                    PublicItemCard plus haut — forme différente de celle
+                    d'une playlist). */}
+                {visibleRoutines.map(row => (
+                  <PublicItemCard key={row.id} item={row} theme={theme} kind="routine" onClick={() => onOpenRoutine(row)} />
+                ))}
               </div>
             )}
           </div>
