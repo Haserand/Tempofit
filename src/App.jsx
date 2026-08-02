@@ -88,6 +88,7 @@ import GuestModeBar from './components/shared/GuestModeBar';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 import SavingRoutineModal from './components/modals/SavingRoutineModal';
 import ShareModal from './components/modals/ShareModal';
+import { OFFICIAL_VITRINE_USERNAME } from './data/officialVitrineProfile';
 import SearchUsersModal from './components/modals/SearchUsersModal';
 import { useAuthContext } from './contexts/AuthContext';
 import { ModalProvider, useModalContext } from './contexts/ModalContext';
@@ -190,6 +191,27 @@ function AppContent({
   // NORMALEMENT (`isReadOnly` absent = `false`, exactement comme un clic
   // depuis "Mes Séances") — jamais en lecture seule sur sa propre playlist.
   const handleOpenPublicPlaylist = (row) => {
+    // Profil vitrine "@tempofit_officiel" (Feature Sociale "Cold Start",
+    // 02/08) — VÉRIFIÉ EN PREMIER : `row._sourceTemplate` n'existe QUE sur
+    // les lignes construites par officialVitrineProfile.js
+    // (templateToVitrineRow), jamais sur une vraie ligne `playlists`.
+    // `row.content` d'un template vitrine est volontairement MINIMAL
+    // (name/workoutType/totalDuration/config.bpm/coverUrl seulement, voir
+    // ce fichier) — PAS de vrais `tracks` dedans (ils n'existent nulle
+    // part en base pour un simple modèle du catalogue). Le raccourci
+    // habituel `{...row.content, id: row.id, ...}` produirait donc une
+    // playlist SANS titres, cassant la lecture/le détail. `openCuratedPlaylist`
+    // (déjà utilisée par Découvrir pour ouvrir un template normalement,
+    // voir useNavigation.js) fait la VRAIE reconstruction complète —
+    // `{isReadOnly: true, isPublic: true}` fusionnés dedans (2e paramètre,
+    // ajouté pour ce cas précis) pour obtenir exactement le même
+    // comportement de "playlist étrangère en aperçu" qu'une vraie playlist
+    // publique (bouton "Sauvegarder dans mes séances", pas d'édition
+    // possible — voir PlaylistDetailContext.jsx).
+    if (row._sourceTemplate) {
+      openCuratedPlaylist(row._sourceTemplate, { isReadOnly: true, isPublic: true });
+      return;
+    }
     if (user && row.user_id === user.id) {
       const own = savedPlaylists.find(p => p.id === row.id);
       setCurrentPlaylist(own || { ...row.content, id: row.id, isPublic: !!row.is_public });
@@ -1572,7 +1594,7 @@ function AppContent({
             )}
 
             {view === 'discover' && (
-              <DiscoverView theme={themeTokens} onPlayTemplate={openCuratedPlaylist} isNaughtyMode={isNaughtyMode} user={user} openModal={openModal} />
+              <DiscoverView theme={themeTokens} onPlayTemplate={openCuratedPlaylist} isNaughtyMode={isNaughtyMode} user={user} openModal={openModal} onViewOfficialProfile={() => handleViewProfile(OFFICIAL_VITRINE_USERNAME)} />
             )}
 
             {view === 'profile' && (
