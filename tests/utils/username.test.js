@@ -31,7 +31,6 @@ describe('isReservedUsername', () => {
   it('insensible à la casse', () => {
     expect(isReservedUsername('TempoFit')).toBe(true);
     expect(isReservedUsername('ADMIN_test')).toBe(true);
-    expect(isReservedUsername('TEMPOFIT_ADMIN')).toBe(false); // exception, insensible à la casse aussi ? -> voir test suivant
   });
 
   it('l\'exception admin est sensible à la casse (comparaison stricte ===, pas insensible)', () => {
