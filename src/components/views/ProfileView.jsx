@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
-import { UserX, Loader2, Clock, Gauge, ListMusic, Heart, Lock, Eye, Zap } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { UserX, Loader2, Clock, Gauge, ListMusic, Heart, Lock, Eye, Zap, Search, SlidersHorizontal, ChevronDown, X, SearchX } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../supabaseClient';
 import { formatDuration } from '../../utils/format';
 import { buildCoverUrl } from '../../utils/coverArt';
-import { OFFICIAL_VITRINE_USERNAME, buildOfficialVitrineProfile, buildOfficialVitrinePlaylistRows } from '../../data/officialVitrineProfile';
+import { OFFICIAL_VITRINE_USERNAME, buildOfficialVitrineProfile, buildOfficialVitrinePlaylistRows, buildOfficialVitrineRoutineRows } from '../../data/officialVitrineProfile';
+import { useProfileSearchFilter } from '../../hooks/useProfileSearchFilter';
 import { VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 
 /**
@@ -183,6 +184,12 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
   // vide un court instant avant que la vraie réponse n'arrive.
   const [publicItems, setPublicItems] = useState({ playlists: [], routines: [] });
   const [itemsLoaded, setItemsLoaded] = useState(false);
+  // Barre de filtres pliable sur mobile (brief "Recherche & filtres sur
+  // les profils publics", 02/08, ergonomie point 6) — repliée par défaut :
+  // la recherche texte seule (toujours visible) couvre déjà le cas d'usage
+  // le plus courant, les filtres avancés sont une option, pas une étape
+  // obligatoire.
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -264,11 +271,14 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
     // jamais le vrai fetch ci-dessous — mais mieux vaut un court-circuit
     // explicite qu'un `itemsLoaded` qui resterait bloqué à `false` pour
     // toujours faute de condition remplie). Catalogue Sport ET Intime
-    // CONFONDUS ici aussi (voir buildOfficialVitrinePlaylistRows) — le
-    // filtrage par mode reste le même code EXISTANT juste en dessous
-    // (`visiblePlaylists`), aucune duplication de cette logique.
+    // CONFONDUS ici aussi, pour les playlists ET pour les routines (voir
+    // buildOfficialVitrinePlaylistRows/buildOfficialVitrineRoutineRows,
+    // ajoutée le 02/08 — chantier "Recherche & filtres sur les profils
+    // publics", annexe) — le filtrage par mode reste le même code EXISTANT
+    // juste en dessous (`visiblePlaylists`/`visibleRoutines`), aucune
+    // duplication de cette logique.
     if (username === OFFICIAL_VITRINE_USERNAME) {
-      setPublicItems({ playlists: buildOfficialVitrinePlaylistRows(), routines: [] });
+      setPublicItems({ playlists: buildOfficialVitrinePlaylistRows(), routines: buildOfficialVitrineRoutineRows() });
       setItemsLoaded(true);
       return;
     }
@@ -319,8 +329,42 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
   // Postgres, toujours un vrai booléen, mais `!!` reste une garde peu
   // coûteuse et cohérente avec le reste du fichier) avant comparaison à
   // `isNaughtyMode`.
-  const visiblePlaylists = publicItems.playlists.filter(row => !!row.is_intimate === !!isNaughtyMode);
-  const visibleRoutines = publicItems.routines.filter(row => !!row.is_intimate === !!isNaughtyMode);
+  const visiblePlaylists = useMemo(
+    () => publicItems.playlists.filter(row => !!row.is_intimate === !!isNaughtyMode),
+    [publicItems.playlists, isNaughtyMode]
+  );
+  const visibleRoutines = useMemo(
+    () => publicItems.routines.filter(row => !!row.is_intimate === !!isNaughtyMode),
+    [publicItems.routines, isNaughtyMode]
+  );
+
+  // Recherche & filtres (brief "Recherche & filtres sur les profils
+  // publics", 02/08) — grille COMBINÉE, pas d'onglets Playlists/Routines
+  // séparés (voir la docstring plus haut) : `kind` posé ICI, au moment de
+  // combiner les deux tableaux — ni `playlists` ni `routines`
+  // (supabase-schema.sql) n'ont de colonne équivalente en base, ce n'est
+  // qu'une étiquette d'affichage locale à ce composant.
+  //
+  // `useMemo` en cascade (`visiblePlaylists`/`visibleRoutines` ci-dessus
+  // ET `combinedVisibleItems` ici) : sans ça, une NOUVELLE référence de
+  // tableau serait produite à CHAQUE rendu (y compris ceux déclenchés par
+  // une frappe dans le champ de recherche lui-même), invalidant le
+  // `useMemo` interne de `useProfileSearchFilter` pour rien à chaque
+  // caractère tapé.
+  const combinedVisibleItems = useMemo(() => [
+    ...visiblePlaylists.map(row => ({ ...row, kind: 'playlist' })),
+    ...visibleRoutines.map(row => ({ ...row, kind: 'routine' })),
+  ], [visiblePlaylists, visibleRoutines]);
+
+  const {
+    searchText, setSearchText,
+    durationFilter, setDurationFilter,
+    sportFilter, setSportFilter,
+    genreFilter, setGenreFilter,
+    typeFilter, setTypeFilter,
+    availableSports, availableGenres,
+    filteredItems, hasActiveFilters, resetFilters,
+  } = useProfileSearchFilter(combinedVisibleItems);
 
   // Résumés chiffrés — `null` si la fonction serveur n'a pas renvoyé ce
   // tableau du tout (bascule de confidentialité désactivée côté
@@ -487,28 +531,155 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
               concernent que les CHIFFRES agrégés plus haut. */}
           <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
             <h3 className={`font-bold text-lg mb-4 ${textHighlight}`}>Playlists partagées</h3>
+
+            {/* Recherche & filtres (brief "Recherche & filtres sur les
+                profils publics", 02/08) — affichés dès qu'il y a au moins
+                un item à filtrer (`combinedVisibleItems.length > 0`) :
+                inutile de montrer une barre de recherche/filtres sur une
+                grille vide, elle n'aurait jamais rien à faire. Champ de
+                recherche TOUJOURS visible ; le reste (type/sport/genre/
+                durée) est derrière `filtersExpanded` — repliable, cohérent
+                avec l'ergonomie "compacte, pliable sur mobile" du brief. */}
+            {itemsLoaded && combinedVisibleItems.length > 0 && (
+              <div className="mb-4 space-y-3">
+                <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border ${inputBorder} ${inputBg}`}>
+                  <Search size={18} className={textMuted} />
+                  <input
+                    type="text"
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    placeholder="Rechercher un titre, un sport, un style..."
+                    className={`flex-1 bg-transparent outline-hidden text-sm ${textHighlight}`}
+                  />
+                  <button
+                    onClick={() => setFiltersExpanded(v => !v)}
+                    className={`flex items-center gap-1 text-xs font-bold shrink-0 ${filtersExpanded ? textColorClass : textMuted} hover:text-main transition-colors`}
+                    title={filtersExpanded ? "Masquer les filtres" : "Plus de filtres"}
+                  >
+                    <SlidersHorizontal size={15} />
+                    <ChevronDown size={14} className={`transition-transform ${filtersExpanded ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
+
+                {filtersExpanded && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Type — 3 valeurs fixes (contrairement à
+                        sport/genre, générées dynamiquement plus bas) :
+                        pilules, même pattern que les catégories de
+                        DiscoverView.jsx. Remplace les onglets Playlists/
+                        Routines écartés du scope (brief) — même
+                        dimension de filtre que les autres, pas une
+                        bascule structurelle séparée. */}
+                    {[
+                      { value: 'all', label: 'Toutes' },
+                      { value: 'playlist', label: 'Playlists' },
+                      { value: 'routine', label: 'Routines' },
+                    ].map(opt => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setTypeFilter(opt.value)}
+                        className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${typeFilter === opt.value ? `${bgAccentClass} text-white` : `border ${cardBorder} ${textMuted} hover:text-main`}`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+
+                    {/* Sport/genre/durée — dropdowns natifs, valeurs
+                        générées DYNAMIQUEMENT à partir des items
+                        réellement affichés (brief, points 4/5) — jamais
+                        une liste figée qui listerait des sports/genres
+                        absents de ce profil précis. */}
+                    {availableSports.length > 0 && (
+                      <select
+                        value={sportFilter}
+                        onChange={(e) => setSportFilter(e.target.value)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold border ${cardBorder} ${inputBg} ${textMuted} outline-hidden cursor-pointer`}
+                      >
+                        <option value="all">Tous les sports</option>
+                        {availableSports.map(sport => <option key={sport} value={sport}>{sport}</option>)}
+                      </select>
+                    )}
+
+                    {availableGenres.length > 0 && (
+                      <select
+                        value={genreFilter}
+                        onChange={(e) => setGenreFilter(e.target.value)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold border ${cardBorder} ${inputBg} ${textMuted} outline-hidden cursor-pointer`}
+                      >
+                        <option value="all">Tous les genres</option>
+                        {availableGenres.map(genre => <option key={genre} value={genre}>{genre}</option>)}
+                      </select>
+                    )}
+
+                    {/* Durée — UNIQUEMENT significative pour une playlist
+                        générée (`totalDuration`) ou une routine ciblant
+                        une DURÉE (`targetMode: 'time'`) : voir
+                        useProfileSearchFilter.js. Toujours affiché (pas
+                        de garde conditionnelle ici) — sélectionner une
+                        tranche exclut simplement de ses résultats les
+                        items où la durée n'a pas de sens (ex. une routine
+                        en mode distance), plutôt que de faire disparaître
+                        le contrôle lui-même. */}
+                    <select
+                      value={durationFilter}
+                      onChange={(e) => setDurationFilter(e.target.value)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold border ${cardBorder} ${inputBg} ${textMuted} outline-hidden cursor-pointer`}
+                    >
+                      <option value="all">Toutes durées</option>
+                      <option value="short">Moins de 30 min</option>
+                      <option value="medium">30-60 min</option>
+                      <option value="long">Plus de 60 min</option>
+                    </select>
+
+                    {hasActiveFilters && (
+                      <button
+                        onClick={resetFilters}
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold ${textMuted} hover:text-red-500 transition-colors`}
+                      >
+                        <X size={13} /> Réinitialiser
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {!itemsLoaded ? (
               <div className="flex justify-center py-8">
                 <Loader2 size={24} className={`animate-spin ${textMuted}`} />
               </div>
-            ) : (visiblePlaylists.length === 0 && visibleRoutines.length === 0) ? (
+            ) : combinedVisibleItems.length === 0 ? (
               <p className={`text-sm text-center py-4 ${textMuted}`}>Aucune playlist publique dans ce mode pour le moment.</p>
+            ) : filteredItems.length === 0 ? (
+              // État vide DISTINCT de "aucun contenu public du tout" —
+              // brief, section Ergonomie : un profil peut avoir du contenu
+              // public, juste rien qui corresponde aux filtres actifs.
+              <div className="text-center py-8">
+                <SearchX size={28} className={`mx-auto mb-2 ${textMuted}`} />
+                <p className={`text-sm mb-3 ${textMuted}`}>Aucune séance ne correspond à vos filtres.</p>
+                <button onClick={resetFilters} className={`text-xs font-bold ${textColorClass} hover:underline`}>
+                  Réinitialiser les filtres
+                </button>
+              </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {visiblePlaylists.map(row => (
-                  <PublicItemCard key={row.id} item={row} theme={theme} onClick={() => onOpenPlaylist(row)} />
-                ))}
                 {/* Routines cliquables (Vague 2, Chantier 1 — UI publique
                     des routines, 02/08) — ouvre PublicRoutinePreviewModal
                     (App.jsx, `handleOpenPublicRoutine`) plutôt qu'une
                     navigation directe : contrairement à une playlist, une
                     routine n'a pas de vue détail dédiée à afficher en
-                    lecture seule. `kind="routine"` pour que la carte lise
-                    les bons champs de `content` (voir la docstring de
-                    PublicItemCard plus haut — forme différente de celle
-                    d'une playlist). */}
-                {visibleRoutines.map(row => (
-                  <PublicItemCard key={row.id} item={row} theme={theme} kind="routine" onClick={() => onOpenRoutine(row)} />
+                    lecture seule. `item.kind` (posé au moment de combiner
+                    les 2 tableaux, voir `combinedVisibleItems` plus haut)
+                    détermine à la fois le rendu de la carte et le bon
+                    gestionnaire de clic. */}
+                {filteredItems.map(item => (
+                  <PublicItemCard
+                    key={item.id}
+                    item={item}
+                    theme={theme}
+                    kind={item.kind}
+                    onClick={() => item.kind === 'routine' ? onOpenRoutine(item) : onOpenPlaylist(item)}
+                  />
                 ))}
               </div>
             )}
