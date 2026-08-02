@@ -101,4 +101,21 @@ describe('PublicRoutinePreviewModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Fermer' }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  // Vague 2, Chantier 3 — "description texte libre sur une playlist/routine
+  // publique" (02/08).
+  it('affiche la description complète quand elle existe', () => {
+    const routineWithDescription = { ...mockRoutine, content: { ...mockRoutine.content, description: 'Idéale le dimanche matin, avant le café.' } };
+    render(
+      <PublicRoutinePreviewModal theme={mockTheme} isOpen={true} onClose={() => {}} routine={routineWithDescription} onClone={() => {}} />
+    );
+    expect(screen.getByText('Idéale le dimanche matin, avant le café.')).toBeInTheDocument();
+  });
+
+  it('n\'affiche rien de particulier quand il n\'y a pas de description', () => {
+    render(
+      <PublicRoutinePreviewModal theme={mockTheme} isOpen={true} onClose={() => {}} routine={mockRoutine} onClone={() => {}} />
+    );
+    expect(screen.getByText('Mon 10km Rapide')).toBeInTheDocument();
+  });
 });
