@@ -86,6 +86,14 @@ export function useProfileSearchFilter(items) {
       kind: row.kind || 'playlist',
       name: (content.name || '').toLowerCase(),
       workoutType: content.workoutType || '',
+      // Description libre (Vague 2, Chantier 3, 02/08) — n'existait pas
+      // encore au moment où ce hook a été écrit (voir le brief d'origine,
+      // point "Retiré du scope v1" : "aucun de ces deux champs n'existe
+      // dans le modèle de données actuel... à réintégrer dans une v2 une
+      // fois ce champ construit"). Commun aux deux `kind` (simple texte
+      // libre, pas de divergence de forme comme genre/durée), pas besoin
+      // d'extraction adaptative.
+      description: (content.description || '').toLowerCase(),
       genres: extractGenres(row),
       durationMinutes: extractDurationMinutes(row),
     };
@@ -108,6 +116,7 @@ export function useProfileSearchFilter(items) {
         if (text) {
           const matchesText = e.name.includes(text)
             || e.workoutType.toLowerCase().includes(text)
+            || e.description.includes(text)
             || e.genres.some(g => g.toLowerCase().includes(text));
           if (!matchesText) return false;
         }
