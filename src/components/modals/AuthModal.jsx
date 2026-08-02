@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, User, Mail, Lock, Loader2, Eye, EyeOff, ArrowLeft, CheckCircle, AtSign } from 'lucide-react';
+import { USERNAME_REGEX, isReservedUsername, RESERVED_USERNAME_ERROR } from '../../utils/username';
 
 /**
  * AuthModal — connexion/inscription par e-mail + mot de passe (voir la
@@ -60,12 +61,17 @@ export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, sig
   // en cours de vérification), affichée juste sous le champ lui-même plutôt
   // que mélangée au message d'erreur générique du formulaire en bas.
   const [username, setUsernameField] = useState('');
-  const [usernameStatus, setUsernameStatus] = useState(null); // null | 'checking' | 'available' | 'taken' | 'invalid'
-  const USERNAME_REGEX = /^[a-z0-9_]{3,20}$/;
+  const [usernameStatus, setUsernameStatus] = useState(null); // null | 'checking' | 'available' | 'taken' | 'invalid' | 'reserved'
 
   const handleUsernameBlur = async () => {
     if (!username) { setUsernameStatus(null); return; }
     if (!USERNAME_REGEX.test(username)) { setUsernameStatus('invalid'); return; }
+    // Correctif UX — pseudos réservés (02/08) — vérifié APRÈS le format
+    // (pas la peine de dire "réservé" à un pseudo déjà trop court/avec des
+    // caractères invalides) mais AVANT l'appel réseau de disponibilité
+    // (`checkUsernameAvailable`) — inutile de solliciter Supabase pour un
+    // pseudo qu'on sait déjà voué au refus, purement côté client.
+    if (isReservedUsername(username)) { setUsernameStatus('reserved'); return; }
     setUsernameStatus('checking');
     const { available, error } = await checkUsernameAvailable(username);
     if (error) { setUsernameStatus(null); return; }
@@ -150,6 +156,7 @@ export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, sig
     if (mode === 'signup') {
       if (!username.trim()) { setErrorMsg('Choisis un pseudonyme.'); return; }
       if (!USERNAME_REGEX.test(username)) { setErrorMsg('Pseudonyme invalide : 3 à 20 caractères, minuscules/chiffres/underscore uniquement.'); return; }
+      if (isReservedUsername(username)) { setErrorMsg(RESERVED_USERNAME_ERROR); return; }
       if (usernameStatus === 'taken') { setErrorMsg('Ce pseudonyme est déjà pris.'); return; }
     }
     setSubmitting(true);
@@ -253,7 +260,7 @@ export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, sig
               {mode === 'signup' && (
                 <div>
                   <div className={`flex items-center gap-2 px-4 py-3 rounded-xl border ${
-                    usernameStatus === 'taken' || usernameStatus === 'invalid' ? 'border-red-500' :
+                    usernameStatus === 'taken' || usernameStatus === 'invalid' || usernameStatus === 'reserved' ? 'border-red-500' :
                     usernameStatus === 'available' ? 'border-green-500' : inputBorder
                   } ${inputBg}`}>
                     <AtSign size={18} className={textMuted}/>
@@ -267,11 +274,12 @@ export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, sig
                     {usernameStatus === 'checking' && <Loader2 size={16} className={`animate-spin ${textMuted}`}/>}
                   </div>
                   <p className={`text-xs mt-1 ${
-                    usernameStatus === 'taken' || usernameStatus === 'invalid' ? 'text-red-500' :
+                    usernameStatus === 'taken' || usernameStatus === 'invalid' || usernameStatus === 'reserved' ? 'text-red-500' :
                     usernameStatus === 'available' ? 'text-green-500' : textMuted
                   }`}>
                     {usernameStatus === 'taken' ? 'Ce pseudonyme est déjà pris.'
                       : usernameStatus === 'invalid' ? '3 à 20 caractères : minuscules, chiffres, underscore.'
+                      : usernameStatus === 'reserved' ? RESERVED_USERNAME_ERROR
                       : usernameStatus === 'available' ? 'Disponible !'
                       : 'Définitif — impossible à modifier ensuite. 3-20 caractères, minuscules/chiffres/_.'}
                   </p>
