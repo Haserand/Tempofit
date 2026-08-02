@@ -39,7 +39,7 @@
 // de ce que ces contextes exposent ailleurs dans l'app.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 vi.mock('../../src/contexts/GeneratorContext.jsx', () => ({
@@ -118,6 +118,56 @@ function renderWithProvider(currentPlaylist, savedPlaylists) {
   );
 }
 
+// Variante instrumentée (setters capturés via vi.fn(), pas des no-op) —
+// nécessaire pour le chantier "description libre" ci-dessous : contrairement
+// à isSaved/isReadOnly (valeurs DÉRIVÉES, pas de setter à vérifier), on doit
+// pouvoir observer CE AVEC QUOI `setCurrentPlaylist`/`setSavedPlaylists` sont
+// appelés après `handleEditPlaylistDescription`.
+function renderWithProviderCapturing(currentPlaylist, savedPlaylists, { setCurrentPlaylist = vi.fn(), setSavedPlaylists = vi.fn() } = {}) {
+  render(
+    <PlaylistDetailProvider
+      currentPlaylist={currentPlaylist}
+      setCurrentPlaylist={setCurrentPlaylist}
+      savedPlaylists={savedPlaylists}
+      setSavedPlaylists={setSavedPlaylists}
+      favorites={{ tracks: [], artists: [] }}
+      spotifyTrackPool={[]}
+      userStats={{}}
+      checkTrophies={() => {}}
+      showToast={() => {}}
+      requestRemoveSavedPlaylist={() => {}}
+      handleSavePlaylist={() => {}}
+      handleClonePlaylist={() => {}}
+      currentActualData={null}
+      selectedMetric="heartRate"
+      setSelectedMetric={() => {}}
+      dataOffset={0}
+      setDataOffset={() => {}}
+      selectedAnalysisDate={null}
+      setSelectedAnalysisDate={() => {}}
+      availableMetrics={[]}
+    >
+      <DescriptionProbe />
+    </PlaylistDetailProvider>
+  );
+}
+
+// Sonde dédiée à la description libre — DÉLIBÉRÉMENT séparée de `Probe`
+// (isSaved/isReadOnly) plutôt que de tout fusionner en une seule sonde
+// fourre-tout : chaque describe ci-dessous ne rend que ce dont il a besoin,
+// cohérent avec le principe déjà énoncé en tête de fichier (scope volontairement
+// restreint, pas une couverture exhaustive du Provider).
+function DescriptionProbe() {
+  const { editedPlaylistDescription, setEditedPlaylistDescription, handleEditPlaylistDescription, isEditingPlaylistDescription } = usePlaylistDetail();
+  return (
+    <div>
+      <span data-testid="editing-state">{String(isEditingPlaylistDescription)}</span>
+      <input data-testid="draft-input" value={editedPlaylistDescription} onChange={(e) => setEditedPlaylistDescription(e.target.value)} />
+      <button onClick={handleEditPlaylistDescription}>save-description</button>
+    </div>
+  );
+}
+
 describe('PlaylistDetailContext — isSaved / isReadOnly', () => {
   it('isSaved=true quand la playlist courante est bien dans savedPlaylists et n\'est PAS en lecture seule', () => {
     const playlist = makePlaylist();
@@ -162,5 +212,52 @@ describe('PlaylistDetailContext — isSaved / isReadOnly', () => {
     // qui aurait dû rester strictement en lecture seule.
     expect(probe.dataset.saved).toBe('false');
     expect(probe.dataset.readonly).toBe('true');
+  });
+});
+
+// Vague 2, Chantier 3 — "description texte libre sur une playlist/routine
+// publique" (02/08). Contrairement à isSaved/isReadOnly (valeurs dérivées),
+// on vérifie ici que `handleEditPlaylistDescription` appelle bien LES DEUX
+// setters (`setCurrentPlaylist` ET `setSavedPlaylists`) — même schéma exact
+// que `handleRenamePlaylist`, jamais testé isolément non plus jusqu'ici,
+// mais le principe est identique donc une régression sur l'un couvrirait
+// probablement l'autre.
+describe('PlaylistDetailContext — description libre (handleEditPlaylistDescription)', () => {
+  it('met à jour currentPlaylist ET savedPlaylists avec la description éditée, en la découpant sur les espaces superflus', () => {
+    const setCurrentPlaylist = vi.fn();
+    const setSavedPlaylists = vi.fn();
+    const playlist = makePlaylist({ description: '' });
+    renderWithProviderCapturing(playlist, [playlist], { setCurrentPlaylist, setSavedPlaylists });
+
+    fireEvent.change(screen.getByTestId('draft-input'), { target: { value: '  Ma nouvelle description  ' } });
+    fireEvent.click(screen.getByText('save-description'));
+
+    expect(setCurrentPlaylist).toHaveBeenCalledWith(expect.objectContaining({ description: 'Ma nouvelle description' }));
+    expect(setSavedPlaylists).toHaveBeenCalledWith([expect.objectContaining({ description: 'Ma nouvelle description' })]);
+  });
+
+  it('accepte une description VIDE (contrairement au nom, effacer la description est un état valide)', () => {
+    const setCurrentPlaylist = vi.fn();
+    const setSavedPlaylists = vi.fn();
+    const playlist = makePlaylist({ description: 'Une description déjà présente' });
+    renderWithProviderCapturing(playlist, [playlist], { setCurrentPlaylist, setSavedPlaylists });
+
+    fireEvent.change(screen.getByTestId('draft-input'), { target: { value: '' } });
+    fireEvent.click(screen.getByText('save-description'));
+
+    expect(setCurrentPlaylist).toHaveBeenCalledWith(expect.objectContaining({ description: '' }));
+  });
+
+  it('tronque à MAX_DESCRIPTION_LENGTH même si le texte fourni est plus long (défense en profondeur, pas juste le `maxLength` du textarea)', () => {
+    const setCurrentPlaylist = vi.fn();
+    const playlist = makePlaylist({ description: '' });
+    renderWithProviderCapturing(playlist, [playlist], { setCurrentPlaylist });
+
+    const tooLong = 'x'.repeat(500);
+    fireEvent.change(screen.getByTestId('draft-input'), { target: { value: tooLong } });
+    fireEvent.click(screen.getByText('save-description'));
+
+    const calledWith = setCurrentPlaylist.mock.calls[0][0];
+    expect(calledWith.description.length).toBe(280);
   });
 });
