@@ -10,7 +10,7 @@
 // côté catalogue lui-même (ex. une catégorie soudain vide).
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import DiscoverView from '../../src/components/views/DiscoverView.jsx';
 import { curatedSessions, naughtyCuratedSessions } from '../../src/data/curatedSessions.js';
@@ -44,6 +44,7 @@ function baseProps(overrides = {}) {
     isNaughtyMode: false,
     user: null,
     openModal: vi.fn(),
+    onViewOfficialProfile: vi.fn(),
     ...overrides,
   };
 }
@@ -230,5 +231,26 @@ describe('DiscoverView — clic sur une carte', () => {
     fireEvent.click(screen.getByText(knownTemplate.title));
 
     expect(onPlayTemplate).toHaveBeenCalledWith(knownTemplate);
+  });
+});
+
+// Feature Sociale "Cold Start" (02/08) — 0 test jusqu'ici pour cette
+// transmission de prop précise.
+describe('DiscoverView — auteur cliquable (transmission de onViewOfficialProfile)', () => {
+  it('le clic sur l\'auteur d\'un template appelle onViewOfficialProfile, PAS onPlayTemplate', () => {
+    const onViewOfficialProfile = vi.fn();
+    const onPlayTemplate = vi.fn();
+    render(<DiscoverView {...baseProps({ onViewOfficialProfile, onPlayTemplate })} />);
+
+    // TOUS les templates du catalogue partagent le même texte d'auteur
+    // ("TempoFit Officiel") — `getByRole` seul, sans les cibler d'abord,
+    // trouverait plusieurs boutons à la fois et planterait. `within(...)`
+    // restreint la recherche à LA carte précise de `knownTemplate`, repérée
+    // par son titre UNIQUE ("Midnight Runner 160").
+    const card = screen.getByText(knownTemplate.title).closest('.group');
+    fireEvent.click(within(card).getByRole('button', { name: knownTemplate.author }));
+
+    expect(onViewOfficialProfile).toHaveBeenCalledTimes(1);
+    expect(onPlayTemplate).not.toHaveBeenCalled();
   });
 });
