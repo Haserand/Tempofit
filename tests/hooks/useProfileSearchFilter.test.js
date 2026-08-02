@@ -83,6 +83,18 @@ describe('useProfileSearchFilter', () => {
     expect(result.current.filteredItems).toEqual([routineDistance]);
   });
 
+  // Vague 2, Chantier 3 — "description texte libre sur une playlist/routine
+  // publique" (02/08). Champ COMMUN aux deux `kind` (texte libre, pas de
+  // divergence de forme comme genre/durée) — pas d'extraction adaptative
+  // nécessaire, contrairement au test des genres juste au-dessus.
+  it('recherche textuelle sur content.description, insensible à la casse', () => {
+    const playlistWithDescription = { ...playlistA, content: { ...playlistA.content, description: 'Une sortie tranquille pour bien RÉCUPÉRER après une grosse semaine.' } };
+    const { result } = renderFilter([playlistWithDescription, playlistB]);
+    act(() => result.current.setSearchText('récupérer'));
+    expect(result.current.filteredItems).toEqual([playlistWithDescription]);
+  });
+
+
   it('filtre par type (kind) : "routine" n\'affiche que les routines', () => {
     const { result } = renderFilter([playlistA, routineDistance, routineTime]);
     act(() => result.current.setTypeFilter('routine'));
