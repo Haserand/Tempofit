@@ -356,10 +356,13 @@ export function AuthProvider({ children }) {
   // `auth.admin.deleteUser` — jamais possible depuis ce client avec la
   // seule clé "anon" (voir supabaseClient.js).
   // Cascade AUTOMATIQUE côté Postgres, rien à faire ici en plus :
-  // `user_data.user_id` ET `profiles.user_id` référencent déjà
-  // `auth.users(id) on delete cascade` (voir supabase-schema.sql) — les
-  // données synchronisées ET le pseudonyme disparaissent d'eux-mêmes dès
-  // que la fonction supprime la ligne `auth.users`.
+  // `user_data.user_id`, `profiles.user_id`, ET (depuis la "Refonte
+  // Structurale", Feature Sociale 01/08) `playlists.user_id` /
+  // `routines.user_id` référencent tous déjà `auth.users(id) on delete
+  // cascade` (voir supabase-schema.sql) — toutes les données synchronisées,
+  // le pseudonyme, les playlists et les routines relationnelles
+  // disparaissent d'eux-mêmes dès que la fonction supprime la ligne
+  // `auth.users`.
   const deleteAccount = async () => {
     if (!isSupabaseConfigured || !user) return { error: "Non connecté." };
 
