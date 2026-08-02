@@ -337,6 +337,19 @@ const RANK_STYLES = [
 ];
 const getRankStyle = (rank) => (rank >= 0 && rank < 3) ? RANK_STYLES[rank] : null;
 
+// Description libre sur une playlist/routine (Vague 2, Chantier 3, 02/08) —
+// limite PARTAGÉE entre l'édition (PlaylistDetailContext.jsx,
+// RoutinesView.jsx — `maxLength` du `<textarea>` ET garde défensive côté
+// handler) et l'affichage (PublicItemCard/PublicRoutinePreviewModal,
+// ProfileView.jsx — pas de vraie troncature nécessaire côté affichage
+// public tant que la limite est déjà respectée à la source, mais une
+// seule constante évite que les deux bouts dérivent l'un de l'autre si
+// cette valeur change un jour). Choisie arbitrairement (aucune contrainte
+// technique de stockage : `content` est un `jsonb` sans limite de
+// longueur pratique) — assez pour une vraie phrase de contexte, pas assez
+// pour transformer une carte compacte en mur de texte.
+const MAX_DESCRIPTION_LENGTH = 280;
+
 export {
   TROPHIES_DATA,
   TROPHY_CATEGORIES,
@@ -358,5 +371,6 @@ export {
   getBpmBucketStart,
   getBpmBucketLabel,
   getActivityEmoji,
-  getRankStyle
+  getRankStyle,
+  MAX_DESCRIPTION_LENGTH
 };
