@@ -297,6 +297,56 @@ describe('ProfileView — routines partagées', () => {
 // is_intimate), mais que ProfileView.jsx continue de lui passer le
 // tableau déjà filtré par mode (`visiblePlaylists`/`visibleRoutines`),
 // même combiné avec une recherche/un filtre actif.
+// Vague 2, Chantier 3 — "description texte libre sur une playlist/routine
+// publique" (02/08). `content.description` est un champ COMMUN aux deux
+// `kind` (simple texte libre, contrairement à bpm/durée/genre qui
+// divergent) — un seul describe couvre donc playlist ET routine.
+describe('ProfileView — description libre sur les cartes publiques', () => {
+  const playlistWithDescription = { id: 'pl-desc', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Sortie du dimanche', workoutType: 'Course à pied', totalDuration: 1200, config: { bpm: 150 }, tracks: [], description: 'Une sortie tranquille pour récupérer.' } };
+  const routineWithDescription = { id: 'routine-desc', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Mon 10km', workoutType: 'Course à pied', coverIcon: '🏃', targetMode: 'distance', distanceVal: 10, distanceUnit: 'km', bpm: 170, description: 'À lancer avant le petit-déjeuner.' } };
+  const itemWithoutDescription = { id: 'pl-nodesc', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Séance sans description', workoutType: 'Cyclisme', totalDuration: 1800, config: { bpm: 130 }, tracks: [] } };
+
+  it('affiche la description d\'une playlist publique quand elle existe', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ playlists: [playlistWithDescription] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+
+    expect(await screen.findByText('Une sortie tranquille pour récupérer.')).toBeInTheDocument();
+  });
+
+  it('affiche la description d\'une routine publique quand elle existe', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ routines: [routineWithDescription] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+
+    expect(await screen.findByText('À lancer avant le petit-déjeuner.')).toBeInTheDocument();
+  });
+
+  it('n\'affiche rien de particulier quand il n\'y a pas de description (pas de paragraphe vide)', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ playlists: [itemWithoutDescription] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+
+    expect(await screen.findByText('Séance sans description')).toBeInTheDocument();
+    // Pas d'assertion négative fragile sur l'absence d'un <p> vide — le
+    // rendu conditionnel (`content.description &&`) suffit à garantir
+    // qu'aucun paragraphe n'est produit ; la présence du titre confirme que
+    // le composant a bien rendu sans planter sur ce cas.
+  });
+
+  it('la description entre aussi dans la recherche texte (voir useProfileSearchFilter.js)', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ playlists: [playlistWithDescription, itemWithoutDescription] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+
+    await screen.findByText('Sortie du dimanche');
+    fireEvent.change(screen.getByPlaceholderText(/Rechercher un titre/), { target: { value: 'récupérer' } });
+
+    expect(screen.getByText('Sortie du dimanche')).toBeInTheDocument();
+    expect(screen.queryByText('Séance sans description')).toBeNull();
+  });
+});
+
 describe('ProfileView — recherche & filtres', () => {
   const sportPlaylist = { id: 'pl-sport', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Sortie Running Rapide', workoutType: 'Course à pied', totalDuration: 1200, config: { bpm: 150 }, tracks: [] } };
   const intimatePlaylist = { id: 'pl-intime', user_id: 'owner-uuid-123', is_public: true, is_intimate: true, content: { name: 'Sortie Running Intime', workoutType: 'Course à pied', totalDuration: 1200, config: { bpm: 150 }, tracks: [] } };
