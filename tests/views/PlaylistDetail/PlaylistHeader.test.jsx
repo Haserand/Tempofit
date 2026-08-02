@@ -21,6 +21,7 @@ vi.mock('../../../src/appConfig.js', () => ({
   getZoneForValue: vi.fn(() => null),
   getBpmBucketColor: vi.fn(() => '#123456'),
   getBpmBucketStart: vi.fn((bpm) => Math.floor(bpm / 20) * 20),
+  MAX_DESCRIPTION_LENGTH: 280,
 }));
 
 vi.mock('../../../src/musicCatalog.js', () => ({
@@ -74,6 +75,11 @@ function makeContextValue(overrides = {}) {
     editedPlaylistName: '',
     setEditedPlaylistName: vi.fn(),
     handleRenamePlaylist: vi.fn(),
+    isEditingPlaylistDescription: false,
+    setIsEditingPlaylistDescription: vi.fn(),
+    editedPlaylistDescription: '',
+    setEditedPlaylistDescription: vi.fn(),
+    handleEditPlaylistDescription: vi.fn(),
     handleSavePlaylist: vi.fn(),
     handleUnsavePlaylist: vi.fn(),
     handleTogglePlaylistPublic: vi.fn(),
@@ -195,6 +201,60 @@ describe('PlaylistHeader', () => {
 
     fireEvent.keyDown(input, { key: 'Escape' });
     expect(setIsEditingPlaylistName).toHaveBeenCalledWith(false);
+  });
+
+  // Vague 2, Chantier 3 — "description texte libre sur une playlist/routine
+  // publique" (02/08). Même schéma exact que les tests "renommer" juste
+  // au-dessus, transposé à la description.
+  it('description : invite "+ Ajouter une description" affichée quand isSaved=true et aucune description', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: true, currentPlaylist: makePlaylist({ description: undefined }) }));
+    render(<PlaylistHeader {...baseProps()} />);
+    expect(screen.getByText('+ Ajouter une description')).toBeInTheDocument();
+  });
+
+  it('description : pas d\'invite "Ajouter" quand isSaved=false (playlist étrangère non sauvegardée)', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: false, currentPlaylist: makePlaylist({ description: undefined }) }));
+    render(<PlaylistHeader {...baseProps()} />);
+    expect(screen.queryByText('+ Ajouter une description')).not.toBeInTheDocument();
+  });
+
+  it('description : affichée en lecture seule pour un VISITEUR (isReadOnly), sans bouton de modification', () => {
+    mockUsePlaylistDetail.mockReturnValue(
+      makeContextValue({ isSaved: false, isReadOnly: true, currentPlaylist: makePlaylist({ description: 'Une belle séance pour bien commencer la semaine' }) })
+    );
+    render(<PlaylistHeader {...baseProps()} />);
+    expect(screen.getByText('Une belle séance pour bien commencer la semaine')).toBeInTheDocument();
+    expect(screen.queryByTitle('Modifier la description')).not.toBeInTheDocument();
+  });
+
+  it('description : cliquer le crayon préremplit le brouillon et ouvre l\'édition', () => {
+    const setEditedPlaylistDescription = vi.fn();
+    const setIsEditingPlaylistDescription = vi.fn();
+    mockUsePlaylistDetail.mockReturnValue(
+      makeContextValue({ isSaved: true, currentPlaylist: makePlaylist({ description: 'Description existante' }), setEditedPlaylistDescription, setIsEditingPlaylistDescription })
+    );
+    render(<PlaylistHeader {...baseProps()} />);
+
+    fireEvent.click(screen.getByTitle('Modifier la description'));
+
+    expect(setEditedPlaylistDescription).toHaveBeenCalledWith('Description existante');
+    expect(setIsEditingPlaylistDescription).toHaveBeenCalledWith(true);
+  });
+
+  it('description : en édition, "Enregistrer" appelle handleEditPlaylistDescription, "Annuler" ferme sans l\'appeler', () => {
+    const handleEditPlaylistDescription = vi.fn();
+    const setIsEditingPlaylistDescription = vi.fn();
+    mockUsePlaylistDetail.mockReturnValue(
+      makeContextValue({ isEditingPlaylistDescription: true, editedPlaylistDescription: 'Brouillon', handleEditPlaylistDescription, setIsEditingPlaylistDescription })
+    );
+    render(<PlaylistHeader {...baseProps()} />);
+
+    fireEvent.click(screen.getByText('Annuler'));
+    expect(setIsEditingPlaylistDescription).toHaveBeenCalledWith(false);
+    expect(handleEditPlaylistDescription).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('Enregistrer'));
+    expect(handleEditPlaylistDescription).toHaveBeenCalled();
   });
 
   it('genres : affiche cfg.selectedGenres (via genreDisplayLabel) en priorité sur les genres réels des titres', () => {
