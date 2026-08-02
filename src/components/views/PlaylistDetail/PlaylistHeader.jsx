@@ -6,7 +6,7 @@ import {
 import { getGenresForDisplay, genreDisplayLabel } from '../../../musicCatalog';
 import { formatDuration } from '../../../utils/format';
 import { buildCoverUrl } from '../../../utils/coverArt';
-import { getActivityEmoji, getZoneForValue, getBpmBucketColor, getBpmBucketStart } from '../../../appConfig';
+import { getActivityEmoji, getZoneForValue, getBpmBucketColor, getBpmBucketStart, MAX_DESCRIPTION_LENGTH } from '../../../appConfig';
 import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
 import TopCompletionDate from '../../shared/TopCompletionDate';
 import CompletionsList from '../../shared/CompletionsList';
@@ -99,6 +99,7 @@ export default function PlaylistHeader({
   const {
     currentPlaylist, isSaved, getProfileForWorkout,
     isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
+    isEditingPlaylistDescription, setIsEditingPlaylistDescription, editedPlaylistDescription, setEditedPlaylistDescription, handleEditPlaylistDescription,
     handleSavePlaylist, handleUnsavePlaylist, handleTogglePlaylistPublic,
     handleClonePlaylist, isReadOnly,
   } = usePlaylistDetail();
@@ -303,6 +304,55 @@ export default function PlaylistHeader({
                 </button>
               )}
             </h2>
+          )}
+
+          {/* Description libre (Vague 2, Chantier 3 — "description texte
+              libre sur une playlist/routine publique", 02/08) — MÊME
+              schéma exact que le nom éditable juste au-dessus (édition
+              inline, `isSaved && !isReadOnly` pour l'affordance d'édition),
+              à 2 différences : une `<textarea>` (texte plus long possible)
+              plutôt qu'un `<input>`, et un état "pas encore de description"
+              affiché comme une invite discrète plutôt qu'absent — une
+              playlist SANS nom n'aurait aucun sens (le nom est donc
+              toujours affiché, jamais cette 3e branche), une playlist SANS
+              description est le cas de départ normal. Rendue même pour un
+              visiteur (`isReadOnly`) : c'est justement le but de ce
+              chantier — que la description soit visible sur le profil
+              public, pas seulement pour le propriétaire. */}
+          {isEditingPlaylistDescription ? (
+            <div className="w-full space-y-1.5">
+              <textarea
+                autoFocus
+                value={editedPlaylistDescription}
+                onChange={e => setEditedPlaylistDescription(e.target.value.slice(0, MAX_DESCRIPTION_LENGTH))}
+                onKeyDown={(e) => { if (e.key === 'Escape') setIsEditingPlaylistDescription(false); }}
+                placeholder="Ajoute une description (visible si cette playlist devient publique)..."
+                rows={2}
+                className="w-full text-sm bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 outline-hidden text-slate-200 resize-none"
+              />
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-500">{editedPlaylistDescription.length}/{MAX_DESCRIPTION_LENGTH}</span>
+                <div className="flex gap-2">
+                  <button onClick={() => setIsEditingPlaylistDescription(false)} className="px-3 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition-colors">Annuler</button>
+                  <button onClick={handleEditPlaylistDescription} className="px-3 py-1 rounded-lg text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 transition-colors">Enregistrer</button>
+                </div>
+              </div>
+            </div>
+          ) : currentPlaylist.description ? (
+            <div className="flex items-start gap-2 text-sm text-slate-300 max-w-lg">
+              <p className="whitespace-pre-line">{currentPlaylist.description}</p>
+              {isSaved && !isReadOnly && (
+                <button onClick={() => { setEditedPlaylistDescription(currentPlaylist.description || ''); setIsEditingPlaylistDescription(true); }} className="p-1 rounded-lg text-slate-500 hover:text-white transition-colors shrink-0" title="Modifier la description">
+                  <Edit3 size={14}/>
+                </button>
+              )}
+            </div>
+          ) : (
+            isSaved && !isReadOnly && (
+              <button onClick={() => { setEditedPlaylistDescription(''); setIsEditingPlaylistDescription(true); }} className="text-xs font-bold text-slate-500 hover:text-slate-300 transition-colors">
+                + Ajouter une description
+              </button>
+            )
           )}
 
           {/* Ligne d'infos de la playlist SEULES — icônes + `text-slate-300`
