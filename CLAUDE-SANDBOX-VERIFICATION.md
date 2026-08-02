@@ -100,6 +100,59 @@ Bien plus fiable que compter les accolades/parenthèses à la main (voir §2) :
 une ~27aine (essentiellement à cause des apostrophes françaises dans le
 texte JSX, qui perturbent une détection naïve des chaînes de caractères).
 
+⚠️ **Angle mort trouvé le 02/08** (chantier "Recherche & filtres sur les
+profils publics", passé en build Vercel réel avant d'être détecté) :
+`esbuild` valide la SYNTAXE, pas les RÉFÉRENCES — `inputBorder`/`inputBg`
+utilisés dans `ProfileView.jsx` sans jamais être destructurés de `theme`
+(variable syntaxiquement valide, juste jamais déclarée dans le scope) sont
+passés par `esbuild` sans un seul avertissement, plantant uniquement à
+l'exécution réelle (`ReferenceError: inputBorder is not defined`, 21 tests
+en échec). Voir §1bis juste en dessous pour l'outil qui AURAIT attrapé ça.
+
+## 1bis. Détection de variables non déclarées — `tsc --checkJs` (complète esbuild, ne le remplace pas)
+
+`typescript` est installé globalement dans le bac à sable (`tsc`, pour
+d'autres besoins, sans lien avec ce projet — même situation qu'esbuild via
+`tsx`). `--checkJs` sur un fichier `.jsx`/`.js` fait remonter les
+identifiants utilisés sans être déclarés dans leur scope (`TS2304`/
+`TS2552`) — exactement la classe de bug qu'esbuild ne voit PAS (voir
+l'angle mort ci-dessus). Aucun vrai `node_modules` installé dans ce bac à
+sable : `tsc` échoue à résoudre les packages externes (`react`,
+`lucide-react`...), ce qui génère du bruit (`TS2307`) à ignorer — mais suit
+correctement les imports RELATIFS locaux (`../../contexts/...`), donc reste
+fiable pour ce diagnostic précis. Toujours filtrer sur `TS2304`/`TS2552`
+uniquement, jamais lire la sortie brute :
+
+```bash
+TSC=/home/claude/.npm-global/lib/node_modules/typescript/bin/tsc
+
+# Un seul fichier :
+$TSC --allowJs --checkJs --noEmit --jsx react-jsx --target es2020 \
+  --moduleResolution bundler --skipLibCheck chemin/vers/fichier.jsx \
+  2>&1 | grep -E "TS2304|TS2552"
+
+# Tout le projet, ne remonte que les VRAIES variables non déclarées :
+for f in $(find src -name "*.jsx" -o -name "*.js" | grep -v node_modules); do
+  out=$($TSC --allowJs --checkJs --noEmit --jsx react-jsx --target es2020 \
+    --moduleResolution bundler --skipLibCheck "$f" 2>&1 | grep -E "TS2304|TS2552")
+  if [ -n "$out" ]; then echo "=== $f ==="; echo "$out"; fi
+done
+```
+
+À lancer systématiquement en plus d'esbuild dès qu'un fichier `.jsx`/`.js`
+est créé ou modifié — les deux outils sont COMPLÉMENTAIRES (syntaxe vs
+références), ni l'un ni l'autre ne remplace l'exécution réelle du build
+Vercel (voir §5).
+
+⚠️ Faux positif connu, sans rapport avec ce diagnostic : quelques fichiers
+de test (`useShare.test.js`, `PlaylistDetailView.test.jsx`,
+`SettingsView.test.jsx`) utilisent `global` (l'objet global Node, légitime
+sous Vitest) — `tsc` le signale en `TS2304` faute de `@types/node`
+installé (même cause que le bruit `TS2307` sur `react`/`lucide-react` :
+aucun vrai `node_modules` dans ce bac à sable). Un `TS2304` sur `global`
+précisément est donc à ignorer ; sur n'importe quel autre identifiant, à
+prendre au sérieux.
+
 ## 2. Résolution mécanique des imports relatifs
 
 ```python
