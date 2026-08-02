@@ -168,6 +168,19 @@ function PublicItemCard({ item, theme, onClick, kind = 'playlist' }) {
           : avgBpm != null && <span className="flex items-center gap-1"><Gauge size={12}/>{avgBpm} BPM</span>
         }
       </div>
+      {/* Description libre (Vague 2, Chantier 3 — "description texte libre
+          sur une playlist/routine publique", 02/08) — champ COMMUN aux
+          deux formes de `content` (contrairement à bpm/durée/genre plus
+          haut, qui divergent selon `kind` — voir la docstring en tête de
+          ce composant) : `description` est un simple texte libre, jamais
+          généré, donc pas de branchement `isRoutine` nécessaire ici.
+          `line-clamp-2` : une carte de grille reste compacte même pour une
+          description proche de `MAX_DESCRIPTION_LENGTH` — le texte complet
+          reste consultable dans la modale d'aperçu (PublicRoutinePreviewModal.jsx)
+          ou la vue détail (PlaylistHeader.jsx) pour qui clique la carte. */}
+      {content.description && (
+        <p className={`text-xs mt-2 line-clamp-2 ${textMuted}`}>{content.description}</p>
+      )}
     </div>
   );
 }
