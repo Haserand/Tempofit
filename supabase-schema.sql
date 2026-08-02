@@ -106,6 +106,13 @@ create table if not exists profiles (
 --   where username <> 'tempofit_admin'
 --     and username ~* 'tempofit|^(admin|support|system|modo|staff|root|officiel)';
 -- (devrait renvoyer 0 ligne avant d'exécuter ce qui suit)
+-- Doublon trouvé en production (02/08, jamais posé par CE fichier — reste
+-- de l'exécution d'un SQL équivalent généré ailleurs, avant celui-ci) :
+-- `prevent_reserved_usernames`, logiquement identique à
+-- `profiles_username_not_reserved` ci-dessous (même exception
+-- 'tempofit_admin', même motif écrit différemment mais équivalent) —
+-- retirée pour qu'une seule contrainte fasse foi, celle-ci.
+alter table profiles drop constraint if exists prevent_reserved_usernames;
 alter table profiles drop constraint if exists profiles_username_not_reserved;
 alter table profiles add constraint profiles_username_not_reserved
   check (
