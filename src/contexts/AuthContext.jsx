@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../supabaseClient';
+import { USERNAME_REGEX, isReservedUsername, RESERVED_USERNAME_ERROR } from '../utils/username';
 
 /**
  * AuthContext — session utilisateur Supabase (email/mot de passe pour
@@ -145,12 +146,12 @@ export function AuthProvider({ children }) {
     return { available: data === true, error: null };
   };
 
-  // Regex PARTAGÉE avec AuthModal.jsx/SettingsView.jsx (voir leur propre
-  // validation) — revérifiée ici en dernier rempart avant tout appel
+  // Regex + vérification des pseudos réservés désormais PARTAGÉES
+  // (src/utils/username.js, Correctif UX 02/08) avec AuthModal.jsx/
+  // SettingsView.jsx — revérifiées ici en dernier rempart avant tout appel
   // réseau, un utilisateur ne devrait jamais atteindre ce point avec un
-  // format invalide, mais un formulaire n'est pas la seule porte d'entrée
-  // possible vers ces fonctions.
-  const USERNAME_REGEX = /^[a-z0-9_]{3,20}$/;
+  // format invalide ou un pseudo réservé, mais un formulaire n'est pas la
+  // seule porte d'entrée possible vers ces fonctions.
 
   // Définition du pseudonyme pour un compte EXISTANT sans pseudonyme
   // (comptes créés avant cette fonctionnalité — voir le brief,
@@ -162,6 +163,7 @@ export function AuthProvider({ children }) {
     if (!isSupabaseConfigured || !user) return { error: "Non connecté." };
     if (username) return { error: "Un pseudonyme est déjà défini pour ce compte — il ne peut pas être changé." };
     if (!USERNAME_REGEX.test(candidate)) return { error: "3 à 20 caractères : minuscules, chiffres et underscore uniquement." };
+    if (isReservedUsername(candidate)) return { error: RESERVED_USERNAME_ERROR };
 
     const { available, error: checkError } = await checkUsernameAvailable(candidate);
     if (checkError) return { error: checkError };
@@ -187,6 +189,7 @@ export function AuthProvider({ children }) {
     if (!USERNAME_REGEX.test(usernameCandidate || '')) {
       return { error: "Pseudonyme invalide : 3 à 20 caractères, minuscules/chiffres/underscore uniquement." };
     }
+    if (isReservedUsername(usernameCandidate)) return { error: RESERVED_USERNAME_ERROR };
     const { available, error: checkError } = await checkUsernameAvailable(usernameCandidate);
     if (checkError) return { error: checkError };
     if (!available) return { error: "Ce pseudonyme est déjà pris." };
