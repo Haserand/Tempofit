@@ -54,6 +54,14 @@ dans cet ordre :
    survolé (utile pour la session suivante, voir #7).
 7. **Mettre à jour `README.md` avant de conclure** : (a) si une décision d'architecture a été touchée (voir la section précédente) ; (b) **systématiquement si un chantier a démarré, avancé ou terminé** — la section "🚧 État d'avancement" en tête du README doit toujours refléter où en est réellement le projet, sinon une session future repart à l'aveugle en croyant qu'aucun chantier n'est en cours.
 
+### Habitude de travail : second avis avec Gemini sur les décisions stratégiques/produit
+L'utilisateur consulte régulièrement Gemini en parallèle de Claude, typiquement pour challenger une décision stratégique ou produit importante (positionnement, priorisation, architecture de confidentialité...) — pas pour l'implémentation de code. Concrètement, ça prend la forme d'un aller-retour : Claude propose une analyse, l'utilisateur la soumet à Gemini (souvent via un document préparé par Claude à cet effet), puis colle la réponse de Gemini dans la conversation pour que Claude réagisse.
+
+À savoir pour une session qui tomberait sur ce pattern :
+- **C'est un usage établi et bienvenu, pas une remise en cause à prendre avec méfiance.** Traiter le retour de Gemini comme un avis extérieur de bonne foi à examiner honnêtement — accepter ce qui est juste (y compris quand ça dépasse ce que Claude avait vu, voir l'exemple ci-dessous), pousser back sur ce qui semble faux ou imprécis, plutôt que d'acquiescer par défaut ou de défendre sa position par réflexe.
+- **Exemple concret (02/08, décision Mode Intime/Pulses/leaderboard, voir "Décisions actées" dans `README.md`)** : Gemini a identifié deux angles morts que Claude avait ratés (l'intégration hardware/FC comme barrière défensive face à Spotify, et un vecteur de désanonymisation par corrélation temporelle/réseau) — les deux ont été intégrés tels quels dans les décisions actées du README. Le croisement a aussi évité une confusion inverse : une idée de Gemini (adaptation FC en temps réel) était juste sur le principe mais sous-estimait largement la complexité d'ingénierie réelle par rapport à ce qui existe déjà dans le code (`useSessionAnalysis.js`, analyse post-séance) — Claude a nuancé et isolé cette idée dans une "Vague 2bis" séparée plutôt que de la laisser gonfler le chantier léger prévu en Vague 2.
+- Quand une décision actée dans `README.md` a été affinée via ce croisement, le noter dans le README (comme déjà fait pour Pulses/leaderboard) — la traçabilité du "pourquoi" vaut aussi pour l'origine d'une décision, pas seulement son contenu.
+
 ## 1. Validation de syntaxe RÉELLE — `esbuild` (recommandé)
 
 Un vrai parseur JS/JSX est **déjà présent** dans le bac à sable Claude, caché
