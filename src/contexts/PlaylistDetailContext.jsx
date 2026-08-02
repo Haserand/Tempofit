@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useMemo } from 'react';
-import { getZoneForValue, ATHLETIC_ZONES, getBpmBucketColor, getBpmBucketLabel } from '../appConfig';
+import { getZoneForValue, ATHLETIC_ZONES, getBpmBucketColor, getBpmBucketLabel, MAX_DESCRIPTION_LENGTH } from '../appConfig';
 import { normalizeGenreForDisplay, genreDisplayLabel } from '../musicCatalog';
 import { getSingleMatchingTrack, findSameArtistReplacement, recalculateTimeline } from '../engine/musicEngine';
 import { useGeneratorContext } from './GeneratorContext';
@@ -131,6 +131,27 @@ export function PlaylistDetailProvider({
     const updatedPlaylist = { ...currentPlaylist, isPublic: !currentPlaylist.isPublic };
     setCurrentPlaylist(updatedPlaylist);
     setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
+  };
+
+  // --- Description libre (Vague 2, Chantier 3 — "description texte libre
+  // sur une playlist/routine publique", 02/08) — même schéma exact que
+  // `handleRenamePlaylist` ci-dessus, à une différence près : une
+  // description VIDE est un état valide (on peut vouloir l'effacer), donc
+  // pas de garde `if (!trimmed) return` comme pour le nom (une playlist
+  // sans nom n'aurait aucun sens, une playlist sans description si).
+  // `MAX_DESCRIPTION_LENGTH` appliqué ici aussi (pas seulement via
+  // `maxLength` côté `<textarea>`, qui est un garde-fou UI seulement) —
+  // défense en profondeur si jamais un futur appelant contourne le champ.
+  const [isEditingPlaylistDescription, setIsEditingPlaylistDescription] = useState(false);
+  const [editedPlaylistDescription, setEditedPlaylistDescription] = useState('');
+
+  const handleEditPlaylistDescription = () => {
+    if (!currentPlaylist) return;
+    const trimmed = editedPlaylistDescription.trim().slice(0, MAX_DESCRIPTION_LENGTH);
+    const updatedPlaylist = { ...currentPlaylist, description: trimmed };
+    setCurrentPlaylist(updatedPlaylist);
+    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
+    setIsEditingPlaylistDescription(false);
   };
 
   // handleSavePlaylist reçue en prop (voir signature du Provider) : sa
@@ -561,6 +582,7 @@ export function PlaylistDetailProvider({
 
   const value = {
     isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
+    isEditingPlaylistDescription, setIsEditingPlaylistDescription, editedPlaylistDescription, setEditedPlaylistDescription, handleEditPlaylistDescription,
     handleSavePlaylist, handleUnsavePlaylist, isSaved,
     handleTogglePlaylistPublic,
     handleClonePlaylist, isReadOnly,
@@ -598,6 +620,8 @@ export function PlaylistDetailProvider({
 const FALLBACK = {
   isEditingPlaylistName: false, setIsEditingPlaylistName: () => {},
   editedPlaylistName: '', setEditedPlaylistName: () => {}, handleRenamePlaylist: () => {},
+  isEditingPlaylistDescription: false, setIsEditingPlaylistDescription: () => {},
+  editedPlaylistDescription: '', setEditedPlaylistDescription: () => {}, handleEditPlaylistDescription: () => {},
   handleSavePlaylist: () => {}, handleUnsavePlaylist: () => {}, isSaved: false,
   handleTogglePlaylistPublic: () => {},
   handleClonePlaylist: () => {}, isReadOnly: false,
