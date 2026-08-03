@@ -230,6 +230,29 @@ purement MÉCANIQUE et MANUELLE :
   fichier reste NON vérifié tant que l'utilisateur n'a pas confirmé
   explicitement avoir exécuté le script et testé les requêtes suggérées.
 
+## 4ter. Écrire un premier fichier de test pour un composant existant — vérifier les VRAIS types de props par défaut, jamais deviner
+
+Trouvé le 02/08 (1er fichier de test de `StatsView.jsx`, chantier "compteur
+de clonages") : `esbuild`/`tsc --checkJs` ne peuvent PAS attraper une
+mauvaise supposition sur le TYPE d'une prop stubée dans un test — un stub
+`selectedStatsGenre: null` passe la vérification syntaxique/de références
+sans problème, mais plante à l'EXÉCUTION réelle si le composant appelle
+`.size` dessus (`TypeError: Cannot read properties of null`) parce que la
+vraie valeur par défaut, dans le composant appelant (`App.jsx`), est
+`new Set()` — jamais `null`. Ni esbuild ni tsc (sans les vrais types du
+projet, absents ici) ne peuvent détecter ce genre d'incompatibilité de
+forme.
+
+**Règle** : en écrivant un PREMIER fichier de test pour un composant qui
+n'en avait pas encore, ne jamais deviner le type par défaut d'une prop
+d'après son nom (`selectedStatsGenre` "sonne" comme si `null` était un état
+initial raisonnable — ce n'est pas le cas ici). Toujours `grep` la vraie
+déclaration `useState(...)` dans le composant PARENT qui la fournit (ici
+`App.jsx`, `<StatsView selectedStatsGenre={selectedStatsGenre} ...>`) avant
+d'écrire le stub — un aller-retour de plus à la lecture du code, mais qui
+évite un aller-retour de build Vercel complet (60+ secondes) pour une
+faute qui se serait vue en 10 secondes de `grep`.
+
 ## 5. Ce que ces outils NE remplacent PAS
 
 Aucun de ces scripts n'exécute réellement `vitest` — une affirmation
