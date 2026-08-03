@@ -122,10 +122,10 @@ export function PlaylistDetailProvider({
       // réinitialisé : `!currentPlaylist.isModifiedSinceClone` évite de
       // réécrire `true` en `true` à chaque renommage supplémentaire, sans
       // conséquence fonctionnelle mais plus clair à lire. Seulement si
-      // `originUserId` existe : une création originale (jamais clonée)
-      // n'a pas cette distinction à faire, elle reste juste "une
-      // playlist", ni Clone ni Enfant.
-      ...(currentPlaylist.originUserId && !currentPlaylist.isModifiedSinceClone ? { isModifiedSinceClone: true } : {}),
+      // `parentUserId` existe (refonte 03/08, voir supabase-schema.sql) :
+      // une création originale (jamais clonée) n'a pas cette distinction à
+      // faire, elle reste juste "une playlist", ni Clone ni Enfant.
+      ...(currentPlaylist.parentUserId && !currentPlaylist.isModifiedSinceClone ? { isModifiedSinceClone: true } : {}),
     };
     setCurrentPlaylist(updatedPlaylist);
     setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
@@ -143,60 +143,21 @@ export function PlaylistDetailProvider({
   // prochain `setSavedPlaylists` (diff par id) et pousse la mise à jour
   // vers la colonne `is_public` de la table `playlists` automatiquement —
   // rien de plus à faire ici côté synchro.
+  // ⚠️ SIMPLIFIÉ (03/08, refonte lignée serveur, voir supabase-schema.sql)
+  // — cette fonction appelait auparavant `increment_playlist_clone_count`/
+  // `increment_template_clone_count` pour créditer l'origine à la
+  // republication (`willClaimOriginCredit`/`originCreditClaimed`). Retiré :
+  // à la relecture, ce mécanisme s'est révélé être du CODE MORT dans tous
+  // les cas réels — le clonage crédite déjà l'origine INCONDITIONNELLEMENT
+  // (que la copie reste privée ou non), donc la clé du `clone_ledger` pour
+  // cette cible est TOUJOURS déjà prise par le temps où une republication
+  // ultérieure tenterait le même appel (bloquée par construction, jamais
+  // un vrai 2e crédit). Voir supabase-schema.sql pour le détail complet.
   const handleTogglePlaylistPublic = () => {
     if (!currentPlaylist) return;
-    const turningOn = !currentPlaylist.isPublic;
-
-    // Anti-abus "toggle spam" (02/08, retour direct : "si un mec fait
-    // public → privé → public → privé en boucle sur sa propre copie, ça
-    // ne doit pas réincrémenter le compteur de l'origine à chaque fois") —
-    // `originCreditClaimed` : posé à `true` la toute PREMIÈRE fois que
-    // cette copie contribue au compteur de son origine, jamais réinitialisé
-    // ensuite (ni ici, ni à la republication suivante, ni même en
-    // repassant privée). Un seul crédit "j'ai republié cette copie" par
-    // copie, pour toute sa durée de vie — indépendant du nombre de fois
-    // où elle bascule public/privé après coup.
-    const willClaimOriginCredit = turningOn && !!currentPlaylist.originUserId && !currentPlaylist.originCreditClaimed;
-    const willClaimTemplateCredit = turningOn && !!currentPlaylist.sourceTemplateId && !currentPlaylist.originCreditClaimed;
-
-    const updatedPlaylist = {
-      ...currentPlaylist,
-      isPublic: turningOn,
-      ...((willClaimOriginCredit || willClaimTemplateCredit) ? { originCreditClaimed: true } : {}),
-    };
+    const updatedPlaylist = { ...currentPlaylist, isPublic: !currentPlaylist.isPublic };
     setCurrentPlaylist(updatedPlaylist);
     setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
-
-    // Alimente le compteur de clonages de l'ORIGINE (02/08, retour direct :
-    // "si je mets en public ma séance depuis un clone, ça alimente aussi
-    // le compteur de clonage de ce dernier") — UNIQUEMENT quand on RENDS
-    // publique une playlist qui est elle-même issue d'une lignée de
-    // clonage (`originId`/`originUserId` posés par `handleClonePlaylist`,
-    // usePlaylistLibrary.js) ET que ce crédit n'a encore JAMAIS été
-    // réclamé (`willClaimOriginCredit`/`willClaimTemplateCredit`
-    // ci-dessus) : republier sa propre copie contribue à la portée du
-    // créateur d'origine, pas juste le geste de clonage lui-même — mais
-    // une seule fois, pas à chaque bascule répétée. Jamais au moment de
-    // RENDRE PRIVÉE (`turningOn` vérifié en premier) — cacher une copie
-    // n'annule pas le clonage déjà comptabilisé à l'époque, on ne
-    // "décompte" jamais. Fire-and-forget, même raisonnement que
-    // handleClonePlaylist : un compteur de vanité qui rate une fois ne
-    // justifie pas une erreur visible sur une bascule qui, du point de
-    // vue de l'utilisateur, a déjà pleinement réussi localement.
-    if (willClaimOriginCredit) {
-      supabase.rpc('increment_playlist_clone_count', {
-        target_id: updatedPlaylist.originId,
-        target_user_id: updatedPlaylist.originUserId,
-      }).then(({ error }) => {
-        if (error) console.error('[PlaylistDetailContext] increment_playlist_clone_count (republication) a échoué :', error);
-      });
-    } else if (willClaimTemplateCredit) {
-      supabase.rpc('increment_template_clone_count', {
-        target_template_id: updatedPlaylist.sourceTemplateId,
-      }).then(({ error }) => {
-        if (error) console.error('[PlaylistDetailContext] increment_template_clone_count (republication) a échoué :', error);
-      });
-    }
   };
 
   // --- Description libre (Vague 2, Chantier 3 — "description texte libre
@@ -219,7 +180,7 @@ export function PlaylistDetailProvider({
       description: trimmed,
       // "Clone" vs "Enfant" — même règle que handleRenamePlaylist
       // ci-dessus, voir sa docstring pour le raisonnement complet.
-      ...(currentPlaylist.originUserId && !currentPlaylist.isModifiedSinceClone ? { isModifiedSinceClone: true } : {}),
+      ...(currentPlaylist.parentUserId && !currentPlaylist.isModifiedSinceClone ? { isModifiedSinceClone: true } : {}),
     };
     setCurrentPlaylist(updatedPlaylist);
     setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
