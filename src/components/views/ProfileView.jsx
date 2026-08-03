@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { UserX, Loader2, Clock, Gauge, ListMusic, Heart, Lock, Eye, Zap, Search, SlidersHorizontal, ChevronDown, X, SearchX } from 'lucide-react';
+import { UserX, Loader2, Clock, Gauge, ListMusic, Heart, Lock, Eye, Zap, Search, SlidersHorizontal, ChevronDown, X, SearchX, Copy } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../supabaseClient';
 import { formatDuration } from '../../utils/format';
 import { buildCoverUrl } from '../../utils/coverArt';
@@ -167,6 +167,19 @@ function PublicItemCard({ item, theme, onClick, kind = 'playlist' }) {
           ? <span className="flex items-center gap-1"><Zap size={12}/>{phaseLabel}</span>
           : avgBpm != null && <span className="flex items-center gap-1"><Gauge size={12}/>{avgBpm} BPM</span>
         }
+        {/* Compteur de clonages (02/08) — `item.clone_count` est une VRAIE
+            colonne de la ligne `playlists`/`routines` (pas un champ de
+            `content`, contrairement à tout le reste affiché ici : voir
+            supabase-schema.sql pour pourquoi — un compteur incrémenté par
+            n'importe qui doit être atomique, ce qu'une colonne réelle
+            garantit et un blob jsonb réécrit entièrement à chaque fois
+            ne garantirait pas). `> 0` seulement : "0 clonage" n'apporte
+            rien à afficher, un compteur vide n'est pas une information. */}
+        {item.clone_count > 0 && (
+          <span className="flex items-center gap-1" title="Nombre de fois où cette playlist/routine a été clonée">
+            <Copy size={12}/>{item.clone_count}
+          </span>
+        )}
       </div>
       {/* Description libre (Vague 2, Chantier 3 — "description texte libre
           sur une playlist/routine publique", 02/08) — champ COMMUN aux
@@ -369,6 +382,20 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
     ...visibleRoutines.map(row => ({ ...row, kind: 'routine' })),
   ], [visiblePlaylists, visibleRoutines]);
 
+  // Total de clonages reçus (02/08) — calculé côté CLIENT à partir de ce
+  // qui est DÉJÀ chargé (`combinedVisibleItems`), pas une nouvelle requête
+  // Supabase : `visiblePlaylists`/`visibleRoutines` viennent d'un
+  // `select('*')` frais à chaque visite de ce profil (voir plus haut),
+  // `clone_count` y est donc déjà présent et à jour sans rien faire de
+  // plus. Toujours dans le mode affiché (Sport OU Intime, jamais les
+  // deux mélangés — `combinedVisibleItems` est déjà filtré par mode via
+  // `visiblePlaylists`/`visibleRoutines`), cohérent avec la séparation
+  // stricte Sport/Intime appliquée partout ailleurs dans ce composant.
+  const totalCloneCount = useMemo(
+    () => combinedVisibleItems.reduce((sum, item) => sum + (item.clone_count || 0), 0),
+    [combinedVisibleItems]
+  );
+
   const {
     searchText, setSearchText,
     durationFilter, setDurationFilter,
@@ -543,7 +570,17 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
               `show_sport_stats`/`show_intimate_stats` qui, elles, ne
               concernent que les CHIFFRES agrégés plus haut. */}
           <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
-            <h3 className={`font-bold text-lg mb-4 ${textHighlight}`}>Playlists partagées</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`font-bold text-lg ${textHighlight}`}>Playlists partagées</h3>
+              {/* Total de clonages reçus — seulement si > 0 (même
+                  raisonnement que le badge par item, voir PublicItemCard :
+                  "0 clonage" n'est pas une information à mettre en avant). */}
+              {totalCloneCount > 0 && (
+                <span className={`flex items-center gap-1.5 text-sm font-bold ${textMuted}`} title="Total des clonages reçus sur tes playlists/routines publiques, dans ce mode">
+                  <Copy size={14}/> {totalCloneCount} clonage{totalCloneCount > 1 ? 's' : ''} reçu{totalCloneCount > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
 
             {/* Recherche & filtres (brief "Recherche & filtres sur les
                 profils publics", 02/08) — affichés dès qu'il y a au moins
