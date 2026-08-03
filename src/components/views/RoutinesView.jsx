@@ -32,10 +32,21 @@ export default function RoutinesView({
   // pousse la mise à jour vers la colonne `is_public` de la table `routines`
   // tout seul, rien de plus à faire ici côté synchro.
   const handleToggleRoutinePublic = (id) => {
+    let willClaimOriginCredit = false;
     let updated = null;
     setRoutines(routines.map(r => {
       if (r.id !== id) return r;
-      updated = { ...r, isPublic: !r.isPublic };
+      const turningOn = !r.isPublic;
+      // Anti-abus "toggle spam" (02/08) — MÊME garde que
+      // PlaylistDetailContext.jsx/PlaylistsView.jsx, voir leur docstring
+      // pour le raisonnement complet : `originCreditClaimed` n'est jamais
+      // réclamé 2 fois pour la même copie.
+      willClaimOriginCredit = turningOn && !!r.originUserId && !r.originCreditClaimed;
+      updated = {
+        ...r,
+        isPublic: turningOn,
+        ...(willClaimOriginCredit ? { originCreditClaimed: true } : {}),
+      };
       return updated;
     }));
 
@@ -46,9 +57,10 @@ export default function RoutinesView({
     // PlaylistsView.jsx, voir leur docstring pour le raisonnement
     // complet) : `originId`/`originUserId` posés par
     // `handleClonePublicRoutine` (App.jsx) au moment du clonage. Jamais au
-    // moment de RENDRE PRIVÉE (`updated.isPublic` vérifié) — on ne
-    // "décompte" jamais un clonage déjà comptabilisé.
-    if (updated?.isPublic && updated.originUserId) {
+    // moment de RENDRE PRIVÉE, ni une 2e fois pour la même copie
+    // (`willClaimOriginCredit`) — on ne "décompte" jamais un clonage déjà
+    // comptabilisé, et on ne le recompte jamais non plus.
+    if (willClaimOriginCredit) {
       supabase.rpc('increment_routine_clone_count', {
         target_id: updated.originId,
         target_user_id: updated.originUserId,
@@ -81,7 +93,18 @@ export default function RoutinesView({
 
   const handleSaveRoutineDescription = (id) => {
     const trimmed = descriptionDraft.trim().slice(0, MAX_DESCRIPTION_LENGTH);
-    setRoutines(routines.map(r => r.id === id ? { ...r, description: trimmed } : r));
+    setRoutines(routines.map(r => {
+      if (r.id !== id) return r;
+      return {
+        ...r,
+        description: trimmed,
+        // "Clone" vs "Enfant" (02/08) — MÊME règle que
+        // handleRenamePlaylist/handleEditPlaylistDescription
+        // (PlaylistDetailContext.jsx, voir leur docstring pour le
+        // raisonnement complet), transposée aux routines.
+        ...(r.originUserId && !r.isModifiedSinceClone ? { isModifiedSinceClone: true } : {}),
+      };
+    }));
     setEditingDescriptionId(null);
   };
 
