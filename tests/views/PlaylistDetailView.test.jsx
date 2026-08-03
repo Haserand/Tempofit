@@ -1,415 +1,394 @@
 // @vitest-environment jsdom
 //
-// Test dédié à PlaylistDetailContext.jsx — le Provider n'avait jusqu'ici
-// AUCUN test à son propre niveau (voir la passation du 02/08, §5 : monter
-// réellement ce Provider exige de mocker GeneratorContext + AudioPlayerContext
-// + le moteur de recalcul de timeline, jugé trop coûteux pour ce qui restait
-// alors une poignée de lignes triviales). Ajouté ici, DÉLIBÉRÉMENT SCOPÉ à
-// UNE seule chose : `isSaved`/`isReadOnly`, PAS une couverture exhaustive de
-// tout le Provider (drag-and-drop, graphique BPM, distributions...) — ces
-// derniers restent indirectement couverts via TrackItem.test.jsx/
-// PlaylistHeader.test.jsx/PlaylistCharts.test.jsx, qui mockent ce contexte
-// plutôt que de le faire tourner pour de vrai.
+// Palier 3 (29/07, 10/11) — PlaylistDetailView. `PlaylistDetailContext` est
+// mocké EN INTÉGRALITÉ (à la fois `PlaylistDetailProvider`, réduit à un
+// simple passe-plat qui rend ses enfants, ET `usePlaylistDetail()`) — la
+// vraie logique du Provider (drag-and-drop, mutations de titres, calculs de
+// graphique...) est hors périmètre de CE test et déjà couverte ailleurs
+// (TrackItem/TrackList/PlaylistHeader la consomment déjà via ce même
+// contexte). `PlaylistHeader`/`PlaylistCharts`/`TrackList`/
+// `SessionSummaryCard` sont mockés par des stubs légers : chacun a déjà (ou
+// aura, pour PlaylistCharts, Palier 4) son propre fichier de test — ici, on
+// vérifie seulement qu'ils REÇOIVENT les bonnes props.
 //
-// RAISON DE CE TEST (relecture du 02/08, APRÈS la passation ci-dessus) —
-// BUG RÉEL CORRIGÉ : `isSaved` comparait autrefois `currentPlaylist.id`
-// UNIQUEMENT à `savedPlaylists` (par `id`, jamais par `user_id`), sur
-// l'hypothèse qu'une playlist étrangère consultée en aperçu (`isReadOnly`)
-// ne peut PAS se retrouver dans la bibliothèque du visiteur. Cette
-// hypothèse est fausse : la playlist de démonstration par défaut a l'id
-// `'playlist-example-1'`, IDENTIQUE pour chaque nouveau compte tant que
-// personne n'a encore sauvegardé sa propre séance (voir §3.2 de la
-// passation) — un visiteur qui n'a pas encore personnalisé SA PROPRE
-// playlist d'exemple a donc, lui aussi, une entrée à ce même id. Sans
-// `isReadOnly` pris en compte, `isSaved` remontait `true` à tort, ce qui
-// aurait rendu `canEditTracks` (TrackItem.jsx/TrackList.jsx/
-// PlaylistCharts.jsx, tous basés sur `isSaved && !isLocked`) vrai sur une
-// playlist censée être strictement en lecture seule — et une mutation de
-// titre dans cet état aurait silencieusement écrasé la PROPRE playlist
-// d'exemple du visiteur avec le contenu de celle d'autrui (voir
-// `applyPlaylistUpdate`, qui écrit par id dans `savedPlaylists`), avant
-// synchronisation vers Supabase par `useSyncedCollection`. Correctif :
-// `isSaved = !isReadOnly && !!(...)`.
-//
-// GeneratorContext/AudioPlayerContext mockés à l'identique du pattern déjà
-// établi (voir AthleticProfilePanel.test.jsx pour GeneratorContext seul) —
-// seuls les champs RÉELLEMENT lus par PlaylistDetailContext.jsx sont
-// fournis (`isNaughtyMode`/`getProfileForWorkout` ; `togglePreview`/
-// `playingPreviewId`/`resolveAndPlay`/`resolvingTrackId`), pas la totalité
-// de ce que ces contextes exposent ailleurs dans l'app.
+// Décision prise avec l'utilisateur avant d'écrire ce fichier : pas de
+// découpage supplémentaire de PlaylistDetailView.jsx (594 lignes, déjà
+// réduit depuis 1656 par un chantier précédent — TrackList/TrackItem/
+// PlaylistHeader/PlaylistCharts déjà extraits). Ce qui reste est de la vraie
+// orchestration (état de filtre partagé, génération d'image, avance
+// automatique) plus un seul bloc isolable (tableau CSV brut, ~40 lignes,
+// aucune logique complexe à en extraire) — un découpage de plus aurait
+// déplacé la complexité sans la réduire.
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
-vi.mock('../../src/contexts/GeneratorContext.jsx', () => ({
-  useGeneratorContext: () => ({
-    isNaughtyMode: false,
-    getProfileForWorkout: vi.fn(() => null),
-  }),
+const mockUsePlaylistDetail = vi.fn();
+vi.mock('../../src/contexts/PlaylistDetailContext.jsx', () => ({
+  PlaylistDetailProvider: ({ children }) => <>{children}</>,
+  usePlaylistDetail: () => mockUsePlaylistDetail(),
 }));
 
-vi.mock('../../src/contexts/AudioPlayerContext.jsx', () => ({
-  useAudioPlayer: () => ({
-    togglePreview: vi.fn(),
-    playingPreviewId: null,
-    resolveAndPlay: vi.fn(),
-    resolvingTrackId: null,
-  }),
+vi.mock('../../src/components/views/PlaylistDetail/PlaylistHeader.jsx', () => ({
+  default: ({ isLocked, onShare, resolveAndTogglePreview, getNextTrackForAutoAdvance }) => (
+    <div data-testid="playlist-header-mock" data-locked={String(isLocked)}>
+      <button onClick={onShare}>trigger-share</button>
+      <button onClick={() => resolveAndTogglePreview({ id: 't1', preview: 'has-preview' }, getNextTrackForAutoAdvance)}>
+        trigger-resolve-with-preview
+      </button>
+      <button onClick={() => resolveAndTogglePreview({ id: 't2', preview: null }, getNextTrackForAutoAdvance)}>
+        trigger-resolve-without-preview
+      </button>
+      <button onClick={() => window.__lastNextTrack = getNextTrackForAutoAdvance({ id: 't1' })}>
+        trigger-get-next-track
+      </button>
+    </div>
+  ),
 }));
 
-// Compteur de clonages HONNÊTE (02/08) — `handleTogglePlaylistPublic`
-// appelle désormais `supabase.rpc(...)` quand on republie une copie issue
-// d'une chaîne de clonage. Jamais mocké avant dans ce fichier (pas besoin
-// jusqu'ici).
-const mockRpc = vi.fn();
-vi.mock('../../src/supabaseClient.js', () => ({
-  supabase: { rpc: (...args) => mockRpc(...args) },
+vi.mock('../../src/components/views/PlaylistDetail/PlaylistCharts.jsx', () => ({
+  default: ({ isLocked, hasDetailFilter }) => (
+    <div data-testid="playlist-charts-mock" data-locked={String(isLocked)} data-has-filter={String(hasDetailFilter)} />
+  ),
 }));
 
-import { PlaylistDetailProvider, usePlaylistDetail } from '../../src/contexts/PlaylistDetailContext.jsx';
+vi.mock('../../src/components/views/PlaylistDetail/TrackList.jsx', () => ({
+  default: ({ isLocked, hasDetailFilter, trackMatchesDetailFilter }) => (
+    <div
+      data-testid="track-list-mock"
+      data-locked={String(isLocked)}
+      data-has-filter={String(hasDetailFilter)}
+      data-matches-first-track={String(trackMatchesDetailFilter ? trackMatchesDetailFilter({ genre: 'Rock', artist: 'X', title: 'Y', bpm: 140 }) : null)}
+    />
+  ),
+}));
+
+vi.mock('../../src/components/shared/SessionSummaryCard.jsx', () => ({
+  default: () => <div data-testid="session-summary-card-mock" />,
+}));
+
+vi.mock('../../src/utils/captureElementAsFile.js', () => ({
+  captureElementAsFile: vi.fn(() => Promise.resolve(new File(['x'], 'bilan.png'))),
+  fetchImageAsDataUri: vi.fn(() => Promise.resolve('data:image/png;base64,mock')),
+}));
+
+vi.mock('../../src/engine/musicEngine.js', () => ({
+  deezerFetch: vi.fn(() => Promise.resolve({ data: { album: { cover_medium: 'https://cover.jpg' } } })),
+}));
+
+vi.mock('../../src/appConfig.js', () => ({
+  getCadenceUnitLabel: vi.fn(() => 'PPM'),
+  getZoneForValue: vi.fn(() => null),
+  getBpmBucketLabel: vi.fn(() => '140-159'),
+}));
+
+vi.mock('../../src/musicCatalog.js', () => ({
+  genreDisplayLabel: vi.fn((g) => g),
+  normalizeGenreForDisplay: vi.fn((g) => g),
+}));
+
+import PlaylistDetailView from '../../src/components/views/PlaylistDetailView.jsx';
+
+beforeEach(() => {
+  global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+  global.URL.revokeObjectURL = vi.fn();
+});
 
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
 
-// Playlist minimale valide — `tracks: []` suffit, tous les `useMemo` du
-// Provider gèrent déjà explicitement une liste de titres vide (vérifié en
-// lisant chaque calcul concerné avant d'écrire ce test : unifiedChartData,
-// bpmDistributionData, genreDistributionData retournent tous `[]`/neutre
-// sans planter sur ce cas).
+const mockTheme = { cardBg: 'mock-card-bg', cardBorder: 'mock-border', textHighlight: 'mock-highlight', textMuted: 'mock-muted', textColorClass: 'mock-text-color' };
+
+const trackA = { id: 't1', trackId: 'deezer-1', title: 'Titre A', artist: 'Artiste A', bpm: 140, preview: 'url-a' };
+const trackB = { id: 't2', trackId: 'fav-2', title: 'Titre B', artist: 'Artiste B', bpm: 150, preview: null };
+
 function makePlaylist(overrides = {}) {
+  return { id: 'pl1', workoutType: 'Course à pied', tracks: [trackA, trackB], completions: [], config: {}, ...overrides };
+}
+
+function makeContextValue(overrides = {}) {
   return {
-    id: 'playlist-example-1',
-    name: 'Ma séance',
-    tracks: [],
-    workoutType: 'Course à pied',
-    config: {},
+    isNaughtyMode: false,
+    getProfileForWorkout: vi.fn(() => ({ isConfigured: false })),
+    currentActualData: null,
+    togglePreview: vi.fn(),
+    resolveAndPlay: vi.fn(() => Promise.resolve(null)),
+    setSelectedSegmentIdx: vi.fn(),
     ...overrides,
   };
 }
 
-// Sonde minimale — expose isSaved/isReadOnly en attributs `data-*` plutôt
-// que du texte brut, pour éviter toute ambiguïté `getByText` (voir le piège
-// documenté dans la passation, §4 — chaînes composites).
-function Probe() {
-  const { isSaved, isReadOnly } = usePlaylistDetail();
-  return <div data-testid="probe" data-saved={String(isSaved)} data-readonly={String(isReadOnly)} />;
+function baseProps(overrides = {}) {
+  return {
+    currentPlaylist: makePlaylist(),
+    setCurrentPlaylist: vi.fn(),
+    savedPlaylists: [],
+    setSavedPlaylists: vi.fn(),
+    favorites: { tracks: [], artists: [] },
+    spotifyTrackPool: [],
+    userStats: {},
+    checkTrophies: vi.fn(),
+    showToast: vi.fn(),
+    requestRemoveSavedPlaylist: vi.fn(),
+    handleSavePlaylist: vi.fn(),
+    currentActualData: null,
+    selectedMetric: 'cadence',
+    setSelectedMetric: vi.fn(),
+    dataOffset: 0,
+    setDataOffset: vi.fn(),
+    selectedAnalysisDate: null,
+    setSelectedAnalysisDate: vi.fn(),
+    availableMetrics: [],
+    theme: mockTheme,
+    colorMode: 'light',
+    handleShare: vi.fn(),
+    summaryImageStatus: 'idle',
+    setSummaryImageStatus: vi.fn(),
+    summaryImageFile: null,
+    setSummaryImageFile: vi.fn(),
+    summaryImagePreviewUrl: null,
+    setSummaryImagePreviewUrl: vi.fn(),
+    includeSummaryImage: true,
+    setIncludeSummaryImage: vi.fn(),
+    toggleTrackFavorite: vi.fn(),
+    toggleArtistFavorite: vi.fn(),
+    setIsBpmSearchMode: vi.fn(),
+    setPlaylistPlannedDate: vi.fn(),
+    editingCompletion: null,
+    setEditingCompletion: vi.fn(),
+    editCompletionDate: vi.fn(),
+    removeCompletionDate: vi.fn(),
+    getRankStyle: vi.fn(() => null),
+    triggerCSVUpload: vi.fn(),
+    changeView: vi.fn(),
+    ...overrides,
+  };
 }
 
-function renderWithProvider(currentPlaylist, savedPlaylists) {
-  render(
-    <PlaylistDetailProvider
-      currentPlaylist={currentPlaylist}
-      setCurrentPlaylist={() => {}}
-      savedPlaylists={savedPlaylists}
-      setSavedPlaylists={() => {}}
-      favorites={{ tracks: [], artists: [] }}
-      spotifyTrackPool={[]}
-      userStats={{}}
-      checkTrophies={() => {}}
-      showToast={() => {}}
-      requestRemoveSavedPlaylist={() => {}}
-      handleSavePlaylist={() => {}}
-      handleClonePlaylist={() => {}}
-      currentActualData={null}
-      selectedMetric="heartRate"
-      setSelectedMetric={() => {}}
-      dataOffset={0}
-      setDataOffset={() => {}}
-      selectedAnalysisDate={null}
-      setSelectedAnalysisDate={() => {}}
-      availableMetrics={[]}
-    >
-      <Probe />
-    </PlaylistDetailProvider>
-  );
-}
-
-// Variante instrumentée (setters capturés via vi.fn(), pas des no-op) —
-// nécessaire pour le chantier "description libre" ci-dessous : contrairement
-// à isSaved/isReadOnly (valeurs DÉRIVÉES, pas de setter à vérifier), on doit
-// pouvoir observer CE AVEC QUOI `setCurrentPlaylist`/`setSavedPlaylists` sont
-// appelés après `handleEditPlaylistDescription`.
-function renderWithProviderCapturing(currentPlaylist, savedPlaylists, { setCurrentPlaylist = vi.fn(), setSavedPlaylists = vi.fn() } = {}) {
-  render(
-    <PlaylistDetailProvider
-      currentPlaylist={currentPlaylist}
-      setCurrentPlaylist={setCurrentPlaylist}
-      savedPlaylists={savedPlaylists}
-      setSavedPlaylists={setSavedPlaylists}
-      favorites={{ tracks: [], artists: [] }}
-      spotifyTrackPool={[]}
-      userStats={{}}
-      checkTrophies={() => {}}
-      showToast={() => {}}
-      requestRemoveSavedPlaylist={() => {}}
-      handleSavePlaylist={() => {}}
-      handleClonePlaylist={() => {}}
-      currentActualData={null}
-      selectedMetric="heartRate"
-      setSelectedMetric={() => {}}
-      dataOffset={0}
-      setDataOffset={() => {}}
-      selectedAnalysisDate={null}
-      setSelectedAnalysisDate={() => {}}
-      availableMetrics={[]}
-    >
-      <DescriptionProbe />
-    </PlaylistDetailProvider>
-  );
-}
-
-// Sonde dédiée à la description libre — DÉLIBÉRÉMENT séparée de `Probe`
-// (isSaved/isReadOnly) plutôt que de tout fusionner en une seule sonde
-// fourre-tout : chaque describe ci-dessous ne rend que ce dont il a besoin,
-// cohérent avec le principe déjà énoncé en tête de fichier (scope volontairement
-// restreint, pas une couverture exhaustive du Provider).
-function DescriptionProbe() {
-  const { editedPlaylistDescription, setEditedPlaylistDescription, handleEditPlaylistDescription, isEditingPlaylistDescription } = usePlaylistDetail();
-  return (
-    <div>
-      <span data-testid="editing-state">{String(isEditingPlaylistDescription)}</span>
-      <input data-testid="draft-input" value={editedPlaylistDescription} onChange={(e) => setEditedPlaylistDescription(e.target.value)} />
-      <button onClick={handleEditPlaylistDescription}>save-description</button>
-    </div>
-  );
-}
-
-describe('PlaylistDetailContext — isSaved / isReadOnly', () => {
-  it('isSaved=true quand la playlist courante est bien dans savedPlaylists et n\'est PAS en lecture seule', () => {
-    const playlist = makePlaylist();
-    renderWithProvider(playlist, [playlist]);
-    const probe = screen.getByTestId('probe');
-    expect(probe.dataset.saved).toBe('true');
-    expect(probe.dataset.readonly).toBe('false');
+describe('PlaylistDetailView', () => {
+  it('isLocked=false sans complétion : transmis à PlaylistHeader/PlaylistCharts/TrackList', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue());
+    render(<PlaylistDetailView {...baseProps({ currentPlaylist: makePlaylist({ completions: [] }) })} />);
+    expect(screen.getByTestId('playlist-header-mock')).toHaveAttribute('data-locked', 'false');
+    expect(screen.getByTestId('playlist-charts-mock')).toHaveAttribute('data-locked', 'false');
+    expect(screen.getByTestId('track-list-mock')).toHaveAttribute('data-locked', 'false');
   });
 
-  it('isSaved=false pour une playlist tout juste générée, jamais encore sauvegardée (id absent de savedPlaylists)', () => {
-    const playlist = makePlaylist({ id: 'brand-new-not-saved' });
-    renderWithProvider(playlist, []);
-    const probe = screen.getByTestId('probe');
-    expect(probe.dataset.saved).toBe('false');
-    expect(probe.dataset.readonly).toBe('false');
+  it('isLocked=true dès qu\'au moins une complétion existe', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue());
+    render(<PlaylistDetailView {...baseProps({ currentPlaylist: makePlaylist({ completions: ['2026-01-01'] }) })} />);
+    expect(screen.getByTestId('playlist-header-mock')).toHaveAttribute('data-locked', 'true');
   });
 
-  it('isReadOnly=true reflète bien currentPlaylist.isReadOnly (posé par handleOpenPublicPlaylist, App.jsx)', () => {
-    const playlist = makePlaylist({ isReadOnly: true });
-    renderWithProvider(playlist, []);
-    const probe = screen.getByTestId('probe');
-    expect(probe.dataset.readonly).toBe('true');
+  it('le bouton "← Retour" appelle changeView("playlists")', () => {
+    const changeView = vi.fn();
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue());
+    render(<PlaylistDetailView {...baseProps({ changeView })} />);
+    fireEvent.click(screen.getByText('← Retour'));
+    expect(changeView).toHaveBeenCalledWith('playlists');
   });
 
-  // ─── RÉGRESSION — le bug réel corrigé le 02/08 ──────────────────────────
-  it('BUG CORRIGÉ : isSaved=false même si l\'id de la playlist étrangère (en lecture seule) collisionne avec la propre playlist d\'exemple du visiteur', () => {
-    // Reproduit exactement le scénario de la passation : le visiteur a
-    // encore SA PROPRE playlist d'exemple, intacte, à l'id
-    // 'playlist-example-1' dans sa bibliothèque...
-    const ownUnmodifiedDemoPlaylist = makePlaylist({ id: 'playlist-example-1', name: 'Ma séance à moi' });
-    // ...et consulte AUSSI, en aperçu lecture seule, la playlist de
-    // quelqu'un d'autre qui a EXACTEMENT le même id (même situation :
-    // playlist d'exemple jamais renommée côté propriétaire).
-    const foreignReadOnlyPlaylist = makePlaylist({ id: 'playlist-example-1', name: 'Séance de quelqu\'un d\'autre', isReadOnly: true });
+  it('cliquer sur "Partager" (via PlaylistHeader) déclenche la génération d\'image ET handleShare', async () => {
+    const handleShare = vi.fn();
+    const setSummaryImageStatus = vi.fn();
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue());
+    render(<PlaylistDetailView {...baseProps({ handleShare, setSummaryImageStatus, summaryImageStatus: 'idle' })} />);
 
-    renderWithProvider(foreignReadOnlyPlaylist, [ownUnmodifiedDemoPlaylist]);
+    fireEvent.click(screen.getByText('trigger-share'));
 
-    const probe = screen.getByTestId('probe');
-    // AVANT LE CORRECTIF : cette assertion aurait échoué — `isSaved`
-    // valait `true` ici (comparaison par id seul, sans tenir compte
-    // d'isReadOnly), ouvrant la voie à canEditTracks=true sur une playlist
-    // qui aurait dû rester strictement en lecture seule.
-    expect(probe.dataset.saved).toBe('false');
-    expect(probe.dataset.readonly).toBe('true');
+    expect(handleShare).toHaveBeenCalledWith('playlist', expect.objectContaining({ id: 'pl1' }));
+    await waitFor(() => expect(setSummaryImageStatus).toHaveBeenCalledWith('loading'));
+    await waitFor(() => expect(setSummaryImageStatus).toHaveBeenCalledWith('ready'));
+  });
+
+  it('ne relance pas la génération d\'image si déjà "loading" ou "ready"', () => {
+    const setSummaryImageStatus = vi.fn();
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue());
+    render(<PlaylistDetailView {...baseProps({ setSummaryImageStatus, summaryImageStatus: 'ready' })} />);
+    // L'effet de reset (currentPlaylist.id) se déclenche AUSSI au tout 1er
+    // montage (undefined → l'id réel) — on vide les appels d'abord pour
+    // n'observer que ceux causés par le clic ci-dessous, pas celui du montage.
+    setSummaryImageStatus.mockClear();
+
+    fireEvent.click(screen.getByText('trigger-share'));
+
+    expect(setSummaryImageStatus).not.toHaveBeenCalled();
+  });
+
+  it('changer de playlist réinitialise l\'état de l\'image de bilan (et révoque l\'ancienne URL si présente)', () => {
+    const setSummaryImageStatus = vi.fn();
+    const setSummaryImageFile = vi.fn();
+    const setIncludeSummaryImage = vi.fn();
+    const setSummaryImagePreviewUrl = vi.fn();
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue());
+    const { rerender } = render(
+      <PlaylistDetailView
+        {...baseProps({
+          currentPlaylist: makePlaylist({ id: 'pl1' }),
+          setSummaryImageStatus, setSummaryImageFile, setIncludeSummaryImage, setSummaryImagePreviewUrl,
+        })}
+      />
+    );
+    vi.clearAllMocks();
+    global.URL.revokeObjectURL = vi.fn();
+
+    rerender(
+      <PlaylistDetailView
+        {...baseProps({
+          currentPlaylist: makePlaylist({ id: 'pl2' }),
+          setSummaryImageStatus, setSummaryImageFile, setIncludeSummaryImage, setSummaryImagePreviewUrl,
+        })}
+      />
+    );
+
+    expect(setSummaryImageStatus).toHaveBeenCalledWith('idle');
+    expect(setSummaryImageFile).toHaveBeenCalledWith(null);
+    expect(setIncludeSummaryImage).toHaveBeenCalledWith(true);
+    expect(setSummaryImagePreviewUrl).toHaveBeenCalledWith(expect.any(Function));
+    const updater = setSummaryImagePreviewUrl.mock.calls[0][0];
+    expect(updater('blob:previous-url')).toBeNull();
+    expect(global.URL.revokeObjectURL).toHaveBeenCalledWith('blob:previous-url');
+  });
+
+  it('tableau CSV brut : absent sans currentActualData, présent et repliable sinon', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({ currentActualData: null }));
+    const { rerender } = render(<PlaylistDetailView {...baseProps({ currentActualData: null })} />);
+    expect(screen.queryByText(/Données brutes importées/)).not.toBeInTheDocument();
+
+    mockUsePlaylistDetail.mockReturnValue(
+      makeContextValue({ currentActualData: [{ timeSec: 30, cadenceReelle: 170, heartRate: 140, circuit: 1 }] })
+    );
+    rerender(<PlaylistDetailView {...baseProps({ currentActualData: [{ timeSec: 30, cadenceReelle: 170, heartRate: 140, circuit: 1 }] })} />);
+    expect(screen.getByText(/Données brutes importées \(1 points\)/)).toBeInTheDocument();
+    expect(screen.queryByText('170')).not.toBeInTheDocument(); // replié par défaut
+
+    fireEvent.click(screen.getByText(/Données brutes importées/));
+    expect(screen.getByText('170')).toBeInTheDocument();
+  });
+
+  it('filtre croisé genre/BPM : hasDetailFilter=false par défaut, transmis à TrackList et PlaylistCharts', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue());
+    render(<PlaylistDetailView {...baseProps()} />);
+    expect(screen.getByTestId('track-list-mock')).toHaveAttribute('data-has-filter', 'false');
+    expect(screen.getByTestId('playlist-charts-mock')).toHaveAttribute('data-has-filter', 'false');
+  });
+
+  it('getNextTrackForAutoAdvance : trouve le prochain titre exploitable (saute ceux sans preview) et met à jour setSelectedSegmentIdx', () => {
+    const setSelectedSegmentIdx = vi.fn();
+    const t1 = { id: 't1', preview: 'p1' };
+    const t2 = { id: 't2', preview: null };
+    const t3 = { id: 't3', preview: 'p3' };
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({ setSelectedSegmentIdx }));
+    render(<PlaylistDetailView {...baseProps({ currentPlaylist: makePlaylist({ tracks: [t1, t2, t3] }) })} />);
+
+    fireEvent.click(screen.getByText('trigger-get-next-track'));
+
+    expect(window.__lastNextTrack).toEqual(t3);
+    expect(setSelectedSegmentIdx).toHaveBeenCalledWith(2);
+  });
+
+  it('getNextTrackForAutoAdvance : renvoie null si aucun titre de la playlist n\'a de preview', () => {
+    const setSelectedSegmentIdx = vi.fn();
+    const t1 = { id: 't1', preview: null };
+    const t2 = { id: 't2', preview: null };
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({ setSelectedSegmentIdx }));
+    render(<PlaylistDetailView {...baseProps({ currentPlaylist: makePlaylist({ tracks: [t1, t2] }) })} />);
+
+    fireEvent.click(screen.getByText('trigger-get-next-track'));
+
+    expect(window.__lastNextTrack).toBeNull();
+    expect(setSelectedSegmentIdx).not.toHaveBeenCalled();
+  });
+
+  it('resolveAndTogglePreview : titre avec preview appelle togglePreview directement (pas resolveAndPlay)', () => {
+    const togglePreview = vi.fn();
+    const resolveAndPlay = vi.fn();
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({ togglePreview, resolveAndPlay }));
+    render(<PlaylistDetailView {...baseProps()} />);
+
+    fireEvent.click(screen.getByText('trigger-resolve-with-preview'));
+
+    expect(togglePreview).toHaveBeenCalled();
+    expect(resolveAndPlay).not.toHaveBeenCalled();
+  });
+
+  it('resolveAndTogglePreview : titre sans preview appelle resolveAndPlay puis remplace ce titre (par id) dans currentPlaylist', async () => {
+    const resolvedTrack = { id: 't2', preview: 'resolved-url', trackId: 'deezer-99' };
+    const resolveAndPlay = vi.fn(() => Promise.resolve(resolvedTrack));
+    const setCurrentPlaylist = vi.fn();
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({ resolveAndPlay }));
+    render(<PlaylistDetailView {...baseProps({ setCurrentPlaylist })} />);
+
+    fireEvent.click(screen.getByText('trigger-resolve-without-preview'));
+    await waitFor(() => expect(setCurrentPlaylist).toHaveBeenCalled());
+
+    const updater = setCurrentPlaylist.mock.calls[0][0];
+    const result = updater({ tracks: [trackA, trackB] });
+    expect(result.tracks).toEqual([trackA, resolvedTrack]);
   });
 });
 
-// Vague 2, Chantier 3 — "description texte libre sur une playlist/routine
-// publique" (02/08). Contrairement à isSaved/isReadOnly (valeurs dérivées),
-// on vérifie ici que `handleEditPlaylistDescription` appelle bien LES DEUX
-// setters (`setCurrentPlaylist` ET `setSavedPlaylists`) — même schéma exact
-// que `handleRenamePlaylist`, jamais testé isolément non plus jusqu'ici,
-// mais le principe est identique donc une régression sur l'un couvrirait
-// probablement l'autre.
-describe('PlaylistDetailContext — description libre (handleEditPlaylistDescription)', () => {
-  it('met à jour currentPlaylist ET savedPlaylists avec la description éditée, en la découpant sur les espaces superflus', () => {
-    const setCurrentPlaylist = vi.fn();
-    const setSavedPlaylists = vi.fn();
-    const playlist = makePlaylist({ description: '' });
-    renderWithProviderCapturing(playlist, [playlist], { setCurrentPlaylist, setSavedPlaylists });
+describe('PlaylistDetailView — génération d\'image, résolution des pochettes en data URI (01/08)', () => {
+  // Test de non-régression pour le plantage réel signalé le 01/08 (voir
+  // captureElementAsFile.js/fetchImageAsDataUri) : jsdom n'a pas de vrai
+  // moteur de canvas ni de notion de CORS/"tainting", donc impossible de
+  // PROUVER ici qu'une vraie SecurityError ne se produira plus dans un
+  // navigateur — ce qu'on peut vérifier, c'est que le nouveau chemin de
+  // code (résolution en data URI AVANT la capture) est bien câblé comme
+  // prévu, ce qui est le cœur du correctif.
 
-    fireEvent.change(screen.getByTestId('draft-input'), { target: { value: '  Ma nouvelle description  ' } });
-    fireEvent.click(screen.getByText('save-description'));
+  it('résout la pochette de séance en data URI (fetchImageAsDataUri), même sans coverUrl déjà posé', async () => {
+    const captureUtils = await import('../../src/utils/captureElementAsFile.js');
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue());
+    render(<PlaylistDetailView {...baseProps({ currentPlaylist: makePlaylist({ name: 'Ma Séance', coverUrl: null }) })} />);
 
-    expect(setCurrentPlaylist).toHaveBeenCalledWith(expect.objectContaining({ description: 'Ma nouvelle description' }));
-    expect(setSavedPlaylists).toHaveBeenCalledWith([expect.objectContaining({ description: 'Ma nouvelle description' })]);
+    fireEvent.click(screen.getByText('trigger-share'));
+
+    // Pochette de séance TOUJOURS régénérée via buildCoverUrlPng(name) (01/08,
+    // suite) — peu importe que currentPlaylist.coverUrl soit posé ou non,
+    // les deux proviennent de la même fonction déterministe seed→image.
+    // Format PNG explicitement vérifié : c'est justement le format SVG
+    // (utilisé avant ce correctif) qui causait l'échec silencieux
+    // d'html2canvas — un htmlcanvas qui recevrait encore du SVG ici
+    // signalerait une régression.
+    await waitFor(() => expect(captureUtils.fetchImageAsDataUri).toHaveBeenCalledWith(expect.stringMatching(/dicebear\.com\/10\.x\/shapes\/png\?/)));
   });
 
-  it('accepte une description VIDE (contrairement au nom, effacer la description est un état valide)', () => {
-    const setCurrentPlaylist = vi.fn();
-    const setSavedPlaylists = vi.fn();
-    const playlist = makePlaylist({ description: 'Une description déjà présente' });
-    renderWithProviderCapturing(playlist, [playlist], { setCurrentPlaylist, setSavedPlaylists });
+  it('résout UNIQUEMENT les pochettes des titres sourcés Deezer (pas les favoris/Spotify sans trackId "deezer-")', async () => {
+    const captureUtils = await import('../../src/utils/captureElementAsFile.js');
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue());
+    render(<PlaylistDetailView {...baseProps()} />); // trackA = deezer-1, trackB = fav-2 (voir fixtures en tête de fichier)
 
-    fireEvent.change(screen.getByTestId('draft-input'), { target: { value: '' } });
-    fireEvent.click(screen.getByText('save-description'));
+    fireEvent.click(screen.getByText('trigger-share'));
 
-    expect(setCurrentPlaylist).toHaveBeenCalledWith(expect.objectContaining({ description: '' }));
+    await waitFor(() => expect(captureUtils.fetchImageAsDataUri).toHaveBeenCalledWith('https://cover.jpg')); // cover_medium mocké de deezerFetch
+    // trackB (fav-2) n'a pas de trackId Deezer exploitable : jamais interrogé.
+    expect(captureUtils.fetchImageAsDataUri.mock.calls.filter(c => c[0] === 'https://cover.jpg')).toHaveLength(1);
   });
 
-  it('tronque à MAX_DESCRIPTION_LENGTH même si le texte fourni est plus long (défense en profondeur, pas juste le `maxLength` du textarea)', () => {
-    const setCurrentPlaylist = vi.fn();
-    const playlist = makePlaylist({ description: '' });
-    renderWithProviderCapturing(playlist, [playlist], { setCurrentPlaylist });
+  it('si la résolution d\'une pochette échoue (renvoie null) : la génération continue quand même, jusqu\'à "ready"', async () => {
+    const captureUtils = await import('../../src/utils/captureElementAsFile.js');
+    captureUtils.fetchImageAsDataUri.mockResolvedValue(null); // simule un échec réseau/CORS pour TOUTES les pochettes de ce test
+    const setSummaryImageStatus = vi.fn();
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue());
+    render(<PlaylistDetailView {...baseProps({ setSummaryImageStatus, summaryImageStatus: 'idle' })} />);
 
-    const tooLong = 'x'.repeat(500);
-    fireEvent.change(screen.getByTestId('draft-input'), { target: { value: tooLong } });
-    fireEvent.click(screen.getByText('save-description'));
+    fireEvent.click(screen.getByText('trigger-share'));
 
-    const calledWith = setCurrentPlaylist.mock.calls[0][0];
-    expect(calledWith.description.length).toBe(280);
-  });
+    // Le plantage d'origine venait justement d'une pochette qui faisait
+    // échouer TOUTE la capture — la garantie centrale de ce correctif est
+    // qu'un échec de résolution d'UNE pochette (renvoyant proprement
+    // `null`, jamais une exception) n'empêche plus la génération
+    // d'aboutir : la capture elle-même (mockée séparément) n'a besoin
+    // d'aucune de ces données pour réussir.
+    await waitFor(() => expect(setSummaryImageStatus).toHaveBeenCalledWith('ready'));
 
-  // "Clone" vs "Enfant" (02/08, discussion produit : la lignée ne se
-  // rompt jamais, mais l'étiquette affichée change dès la 1re
-  // modification — booléen simple, jamais un seuil arbitraire).
-  it('éditer la description d\'une copie CLONÉE (originUserId présent) pose isModifiedSinceClone à true', () => {
-    const setCurrentPlaylist = vi.fn();
-    const clonedPlaylist = makePlaylist({ description: '', originId: 'pl-A', originUserId: 'user-A', isModifiedSinceClone: false });
-    renderWithProviderCapturing(clonedPlaylist, [clonedPlaylist], { setCurrentPlaylist });
-
-    fireEvent.change(screen.getByTestId('draft-input'), { target: { value: 'Ma propre description' } });
-    fireEvent.click(screen.getByText('save-description'));
-
-    expect(setCurrentPlaylist).toHaveBeenCalledWith(expect.objectContaining({ isModifiedSinceClone: true }));
-  });
-
-  it('éditer la description d\'une playlist SANS origine (jamais clonée) ne pose PAS isModifiedSinceClone — rien à marquer', () => {
-    const setCurrentPlaylist = vi.fn();
-    const ownPlaylist = makePlaylist({ description: '' });
-    renderWithProviderCapturing(ownPlaylist, [ownPlaylist], { setCurrentPlaylist });
-
-    fireEvent.change(screen.getByTestId('draft-input'), { target: { value: 'Ma description' } });
-    fireEvent.click(screen.getByText('save-description'));
-
-    expect(setCurrentPlaylist.mock.calls[0][0].isModifiedSinceClone).toBeUndefined();
-  });
-});
-
-// Sonde dédiée à la bascule publique/privée — MÊME schéma que
-// DescriptionProbe ci-dessus.
-function TogglePublicProbe() {
-  const { handleTogglePlaylistPublic } = usePlaylistDetail();
-  return <button onClick={handleTogglePlaylistPublic}>toggle-public</button>;
-}
-
-function renderWithProviderForTogglePublic(currentPlaylist, savedPlaylists, { setCurrentPlaylist = vi.fn(), setSavedPlaylists = vi.fn() } = {}) {
-  return render(
-    <PlaylistDetailProvider
-      currentPlaylist={currentPlaylist}
-      setCurrentPlaylist={setCurrentPlaylist}
-      savedPlaylists={savedPlaylists}
-      setSavedPlaylists={setSavedPlaylists}
-      favorites={{ tracks: [], artists: [] }}
-      spotifyTrackPool={[]}
-      userStats={{}}
-      checkTrophies={() => {}}
-      showToast={() => {}}
-      requestRemoveSavedPlaylist={() => {}}
-      handleSavePlaylist={() => {}}
-      handleClonePlaylist={() => {}}
-      currentActualData={null}
-      selectedMetric="heartRate"
-      setSelectedMetric={() => {}}
-      dataOffset={0}
-      setDataOffset={() => {}}
-      selectedAnalysisDate={null}
-      setSelectedAnalysisDate={() => {}}
-      availableMetrics={[]}
-    >
-      <TogglePublicProbe />
-    </PlaylistDetailProvider>
-  );
-}
-
-// Compteur de clonages HONNÊTE (02/08, retour direct : "si je mets en
-// public ma séance depuis un clone, ça alimente aussi le compteur de
-// clonage de ce dernier") — voir la docstring de
-// `handleTogglePlaylistPublic` dans PlaylistDetailContext.jsx.
-describe('PlaylistDetailContext — republication d\'un clone alimente le compteur de l\'origine', () => {
-  it('rendre publique une copie issue d\'une chaîne de clonage appelle increment_playlist_clone_count ciblant l\'ORIGINE', () => {
-    mockRpc.mockResolvedValue({ error: null });
-    const clonedPlaylist = makePlaylist({ isPublic: false, originId: 'pl-B-original', originUserId: 'user-B' });
-    renderWithProviderForTogglePublic(clonedPlaylist, [clonedPlaylist]);
-
-    fireEvent.click(screen.getByText('toggle-public'));
-
-    expect(mockRpc).toHaveBeenCalledWith('increment_playlist_clone_count', {
-      target_id: 'pl-B-original',
-      target_user_id: 'user-B',
-    });
-  });
-
-  it('rendre PRIVÉE (l\'inverse) n\'appelle JAMAIS la RPC — on ne décompte pas un clonage déjà comptabilisé', () => {
-    const clonedPlaylist = makePlaylist({ isPublic: true, originId: 'pl-B-original', originUserId: 'user-B' });
-    renderWithProviderForTogglePublic(clonedPlaylist, [clonedPlaylist]);
-
-    fireEvent.click(screen.getByText('toggle-public'));
-
-    expect(mockRpc).not.toHaveBeenCalled();
-  });
-
-  it('rendre publique une playlist SANS origine (jamais clonée) n\'appelle aucune RPC', () => {
-    const ownPlaylist = makePlaylist({ isPublic: false });
-    renderWithProviderForTogglePublic(ownPlaylist, [ownPlaylist]);
-
-    fireEvent.click(screen.getByText('toggle-public'));
-
-    expect(mockRpc).not.toHaveBeenCalled();
-  });
-
-  it('rendre publique une playlist issue d\'un TEMPLATE (sourceTemplateId, pas de vrai clonage) appelle increment_template_clone_count', () => {
-    mockRpc.mockResolvedValue({ error: null });
-    const templatePlaylist = makePlaylist({ isPublic: false, sourceTemplateId: 'tpl-cardio' });
-    renderWithProviderForTogglePublic(templatePlaylist, [templatePlaylist]);
-
-    fireEvent.click(screen.getByText('toggle-public'));
-
-    expect(mockRpc).toHaveBeenCalledWith('increment_template_clone_count', { target_template_id: 'tpl-cardio' });
-  });
-});
-
-// Anti-abus "toggle spam" (02/08, retour direct : "si un mec fait public →
-// privé → public → privé en boucle sur sa propre copie, ça ne doit pas
-// réincrémenter le compteur de l'origine à chaque fois"). Chaque étape
-// simule séparément ce que l'état RÉEL serait après l'étape précédente
-// (`originCreditClaimed` posé par le handler lui-même) — cohérent avec le
-// reste de ce fichier (voir les tests "cloisonnement" plus haut, même
-// convention render/cleanup/render).
-describe('PlaylistDetailContext — anti-abus : le crédit à l\'origine n\'est réclamé QU\'UNE SEULE FOIS par copie', () => {
-  it('1re republication : appelle la RPC ET pose originCreditClaimed sur la copie mise à jour', () => {
-    mockRpc.mockResolvedValue({ error: null });
-    const setSavedPlaylists = vi.fn();
-    const clonedPlaylist = makePlaylist({ isPublic: false, originId: 'pl-A-original', originUserId: 'user-A' });
-    renderWithProviderForTogglePublic(clonedPlaylist, [clonedPlaylist], { setSavedPlaylists });
-
-    fireEvent.click(screen.getByText('toggle-public'));
-
-    expect(mockRpc).toHaveBeenCalledTimes(1);
-    const updated = setSavedPlaylists.mock.calls[0][0][0];
-    expect(updated.originCreditClaimed).toBe(true);
-  });
-
-  it('2e republication (après un passage privé) : originCreditClaimed déjà à true → AUCUN nouvel appel RPC', () => {
-    mockRpc.mockResolvedValue({ error: null });
-    // Simule l'état APRÈS la 1re republication + un repassage privé —
-    // `originCreditClaimed: true` déjà posé, comme le ferait vraiment
-    // l'app suite au test précédent.
-    const alreadyClaimedPlaylist = makePlaylist({ isPublic: false, originId: 'pl-A-original', originUserId: 'user-A', originCreditClaimed: true });
-    renderWithProviderForTogglePublic(alreadyClaimedPlaylist, [alreadyClaimedPlaylist]);
-
-    fireEvent.click(screen.getByText('toggle-public')); // repasse publique, 2e fois
-
-    expect(mockRpc).not.toHaveBeenCalled();
+    // Restaure le comportement par défaut — vi.clearAllMocks() (afterEach
+    // global) n'efface pas un mockResolvedValue déjà posé, seulement les
+    // appels enregistrés.
+    captureUtils.fetchImageAsDataUri.mockResolvedValue('data:image/png;base64,mock');
   });
 });
