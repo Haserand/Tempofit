@@ -158,19 +158,22 @@ function PublicItemCard({ item, theme, onClick, kind = 'playlist' }) {
           {content.workoutType && <p className={`text-xs truncate ${textMuted}`}>{content.workoutType}</p>}
         </div>
       </div>
-      {/* Badge "Clone"/"Enfant" (02/08, discussion produit) — UNIQUEMENT si
-          `content.originUserId` existe (cet item fait partie d'une lignée
-          de clonage, sinon rien à signaler : une création originale n'est
-          ni Clone ni Enfant). "Clone" = copie fidèle, jamais modifiée
-          depuis (`isModifiedSinceClone` toujours `false`) ; "Enfant" = au
-          moins une modification depuis (renommage, description...),
-          PEU IMPORTE l'ampleur — la lignée ne se rompt JAMAIS (le
-          compteur de l'origine reste alimenté dans les deux cas), seule
-          l'ÉTIQUETTE affichée change, pour rester honnête sur "copie
-          fidèle" vs "dérivée". Modèle volontairement simple : un booléen,
-          jamais un seuil de "modification substantielle" (arbitraire et
-          lui-même contournable). */}
-      {content.originUserId && (
+      {/* Badge "Clone"/"Enfant" (02/08, discussion produit ; refonte
+          03/08 — voir supabase-schema.sql) — UNIQUEMENT si
+          `item.parent_user_id` existe (VRAIE colonne, jamais `content` :
+          cet item fait partie d'une lignée de clonage, sinon rien à
+          signaler, une création originale n'est ni Clone ni Enfant).
+          "Clone" = copie fidèle, jamais modifiée depuis
+          (`isModifiedSinceClone` toujours `false`, cosmétique seulement —
+          reste dans `content`, un mauvais affichage de badge n'a jamais
+          d'impact sur le compteur lui-même) ; "Enfant" = au moins une
+          modification depuis (renommage, description...), PEU IMPORTE
+          l'ampleur — la lignée ne se rompt JAMAIS, seule l'ÉTIQUETTE
+          affichée change, pour rester honnête sur "copie fidèle" vs
+          "dérivée". Modèle volontairement simple : un booléen, jamais un
+          seuil de "modification substantielle" (arbitraire et lui-même
+          contournable). */}
+      {item.parent_user_id && (
         <span className={`inline-block text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded mb-1 ${textMuted} bg-black/5 dark:bg-white/10`}>
           {content.isModifiedSinceClone ? 'Enfant' : 'Clone'}
         </span>
