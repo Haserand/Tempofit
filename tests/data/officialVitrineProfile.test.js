@@ -131,13 +131,25 @@ describe('buildOfficialVitrinePlaylistRows', () => {
     expect(rows.every(r => typeof r.content.description === 'string' && r.content.description.length > 0)).toBe(true);
   });
 
-  it('clone_count est un nombre positif, déterministe (2 appels de suite renvoient exactement la même valeur pour le même template)', () => {
-    const rows2 = buildOfficialVitrinePlaylistRows();
-    rows.forEach((row, i) => {
-      expect(typeof row.clone_count).toBe('number');
-      expect(row.clone_count).toBeGreaterThan(0);
-      expect(rows2[i].clone_count).toBe(row.clone_count);
-    });
+  // ⚠️ RÉÉCRIT le 02/08 (2e retour direct : "je veux que ce compteur soit
+  // honnête, 0 par défaut") — ces tests attendaient un nombre positif
+  // déterministe (`fakeCloneCountForId`, RETIRÉE) ; `clone_count` dépend
+  // maintenant de `realCloneCounts`, fourni par l'appelant (ProfileView.jsx),
+  // JAMAIS calculé en interne.
+  it('clone_count vaut 0 par défaut (aucun realCloneCounts fourni) — jamais un nombre inventé', () => {
+    expect(rows.every(r => r.clone_count === 0)).toBe(true);
+  });
+
+  it('clone_count reflète EXACTEMENT realCloneCounts quand fourni, 0 pour un template absent de la map', () => {
+    const template = curatedSessions[0];
+    const otherTemplate = curatedSessions[1];
+    const rowsWithCounts = buildOfficialVitrinePlaylistRows({ [template.id]: 7 });
+
+    const rowWithCount = rowsWithCounts.find(r => r._sourceTemplate.id === template.id);
+    const rowWithoutCount = rowsWithCounts.find(r => r._sourceTemplate.id === otherTemplate.id);
+
+    expect(rowWithCount.clone_count).toBe(7);
+    expect(rowWithoutCount.clone_count).toBe(0);
   });
 });
 
@@ -162,8 +174,20 @@ describe('buildOfficialVitrineRoutineRows', () => {
     expect(routineRows.every(r => typeof r.content.description === 'string' && r.content.description.length > 0)).toBe(true);
   });
 
-  it('chaque routine a un clone_count positif', () => {
-    expect(routineRows.every(r => typeof r.clone_count === 'number' && r.clone_count > 0)).toBe(true);
+  // ⚠️ RÉÉCRIT le 02/08 (même retour direct que ci-dessus) — `clone_count`
+  // dépend maintenant de `realCloneCounts`, JAMAIS une valeur fixe câblée
+  // en dur (34/19/51/12, retirées).
+  it('clone_count vaut 0 par défaut (aucun realCloneCounts fourni)', () => {
+    expect(routineRows.every(r => r.clone_count === 0)).toBe(true);
+  });
+
+  it('clone_count reflète EXACTEMENT realCloneCounts quand fourni, 0 pour une routine absente de la map', () => {
+    const routineRowsWithCounts = buildOfficialVitrineRoutineRows({ 'vitrine-routine-1': 42 });
+    const withCount = routineRowsWithCounts.find(r => r.id === 'vitrine-routine-1');
+    const withoutCount = routineRowsWithCounts.find(r => r.id === 'vitrine-routine-2');
+
+    expect(withCount.clone_count).toBe(42);
+    expect(withoutCount.clone_count).toBe(0);
   });
 
   it('chaque routine a une cible cohérente avec la forme réelle attendue par PublicItemCard/PublicRoutinePreviewModal (targetMode distance ou time, jamais totalDuration/tracks)', () => {
