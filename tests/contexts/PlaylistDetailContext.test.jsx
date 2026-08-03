@@ -58,6 +58,15 @@ vi.mock('../../src/contexts/AudioPlayerContext.jsx', () => ({
   }),
 }));
 
+// Compteur de clonages HONNÊTE (02/08) — `handleTogglePlaylistPublic`
+// appelle désormais `supabase.rpc(...)` quand on republie une copie issue
+// d'une chaîne de clonage. Jamais mocké avant dans ce fichier (pas besoin
+// jusqu'ici).
+const mockRpc = vi.fn();
+vi.mock('../../src/supabaseClient.js', () => ({
+  supabase: { rpc: (...args) => mockRpc(...args) },
+}));
+
 import { PlaylistDetailProvider, usePlaylistDetail } from '../../src/contexts/PlaylistDetailContext.jsx';
 
 afterEach(() => {
@@ -259,5 +268,88 @@ describe('PlaylistDetailContext — description libre (handleEditPlaylistDescrip
 
     const calledWith = setCurrentPlaylist.mock.calls[0][0];
     expect(calledWith.description.length).toBe(280);
+  });
+});
+
+// Sonde dédiée à la bascule publique/privée — MÊME schéma que
+// DescriptionProbe ci-dessus.
+function TogglePublicProbe() {
+  const { handleTogglePlaylistPublic } = usePlaylistDetail();
+  return <button onClick={handleTogglePlaylistPublic}>toggle-public</button>;
+}
+
+function renderWithProviderForTogglePublic(currentPlaylist, savedPlaylists, { setCurrentPlaylist = vi.fn(), setSavedPlaylists = vi.fn() } = {}) {
+  render(
+    <PlaylistDetailProvider
+      currentPlaylist={currentPlaylist}
+      setCurrentPlaylist={setCurrentPlaylist}
+      savedPlaylists={savedPlaylists}
+      setSavedPlaylists={setSavedPlaylists}
+      favorites={{ tracks: [], artists: [] }}
+      spotifyTrackPool={[]}
+      userStats={{}}
+      checkTrophies={() => {}}
+      showToast={() => {}}
+      requestRemoveSavedPlaylist={() => {}}
+      handleSavePlaylist={() => {}}
+      handleClonePlaylist={() => {}}
+      currentActualData={null}
+      selectedMetric="heartRate"
+      setSelectedMetric={() => {}}
+      dataOffset={0}
+      setDataOffset={() => {}}
+      selectedAnalysisDate={null}
+      setSelectedAnalysisDate={() => {}}
+      availableMetrics={[]}
+    >
+      <TogglePublicProbe />
+    </PlaylistDetailProvider>
+  );
+}
+
+// Compteur de clonages HONNÊTE (02/08, retour direct : "si je mets en
+// public ma séance depuis un clone, ça alimente aussi le compteur de
+// clonage de ce dernier") — voir la docstring de
+// `handleTogglePlaylistPublic` dans PlaylistDetailContext.jsx.
+describe('PlaylistDetailContext — republication d\'un clone alimente le compteur de l\'origine', () => {
+  it('rendre publique une copie issue d\'une chaîne de clonage appelle increment_playlist_clone_count ciblant l\'ORIGINE', () => {
+    mockRpc.mockResolvedValue({ error: null });
+    const clonedPlaylist = makePlaylist({ isPublic: false, originId: 'pl-B-original', originUserId: 'user-B' });
+    renderWithProviderForTogglePublic(clonedPlaylist, [clonedPlaylist]);
+
+    fireEvent.click(screen.getByText('toggle-public'));
+
+    expect(mockRpc).toHaveBeenCalledWith('increment_playlist_clone_count', {
+      target_id: 'pl-B-original',
+      target_user_id: 'user-B',
+    });
+  });
+
+  it('rendre PRIVÉE (l\'inverse) n\'appelle JAMAIS la RPC — on ne décompte pas un clonage déjà comptabilisé', () => {
+    const clonedPlaylist = makePlaylist({ isPublic: true, originId: 'pl-B-original', originUserId: 'user-B' });
+    renderWithProviderForTogglePublic(clonedPlaylist, [clonedPlaylist]);
+
+    fireEvent.click(screen.getByText('toggle-public'));
+
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it('rendre publique une playlist SANS origine (jamais clonée) n\'appelle aucune RPC', () => {
+    const ownPlaylist = makePlaylist({ isPublic: false });
+    renderWithProviderForTogglePublic(ownPlaylist, [ownPlaylist]);
+
+    fireEvent.click(screen.getByText('toggle-public'));
+
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it('rendre publique une playlist issue d\'un TEMPLATE (sourceTemplateId, pas de vrai clonage) appelle increment_template_clone_count', () => {
+    mockRpc.mockResolvedValue({ error: null });
+    const templatePlaylist = makePlaylist({ isPublic: false, sourceTemplateId: 'tpl-cardio' });
+    renderWithProviderForTogglePublic(templatePlaylist, [templatePlaylist]);
+
+    fireEvent.click(screen.getByText('toggle-public'));
+
+    expect(mockRpc).toHaveBeenCalledWith('increment_template_clone_count', { target_template_id: 'tpl-cardio' });
   });
 });
