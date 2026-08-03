@@ -9,14 +9,47 @@
 // bénéfice, et un test sur données réelles attrape aussi une régression
 // côté catalogue lui-même (ex. une catégorie soudain vide).
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { render, screen, fireEvent, cleanup, within, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+
+// Compteur de clonages RÉELS (02/08) — DiscoverView.jsx appelle désormais
+// `supabase.from('template_clone_counts')` au montage. Ce fichier ne
+// mockait jamais `supabase` jusqu'ici (jamais eu besoin) — indispensable
+// maintenant : sans ce mock, un test tournant dans un environnement où les
+// variables d'env Supabase sont réellement configurées (ex. le build
+// Vercel, qui les a pour la vraie app) ferait un VRAI appel réseau pendant
+// les tests.
+const mockFrom = vi.fn();
+vi.mock('../../src/supabaseClient.js', () => ({
+  supabase: { from: (...args) => mockFrom(...args) },
+  isSupabaseConfigured: true,
+}));
+
 import DiscoverView from '../../src/components/views/DiscoverView.jsx';
 import { curatedSessions, naughtyCuratedSessions } from '../../src/data/curatedSessions.js';
 
+function makeQueryBuilder(resolvedValue) {
+  const builder = {
+    select: vi.fn(() => builder),
+    then: (resolve) => Promise.resolve(resolvedValue).then(resolve),
+  };
+  return builder;
+}
+
 afterEach(() => {
   cleanup();
+  vi.clearAllMocks();
+});
+
+// Repli par défaut SÛR pour tous les tests qui ne s'intéressent PAS au
+// compteur de clonages (l'immense majorité de ce fichier, déjà écrite
+// avant ce chantier) — sans lui, `mockFrom` renverrait `undefined` par
+// défaut, et `.select(...)` planterait sur `undefined` pour CHAQUE test
+// existant, pas seulement ceux qui touchent réellement à cette
+// fonctionnalité.
+beforeEach(() => {
+  mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
 });
 
 const mockTheme = {
@@ -252,5 +285,34 @@ describe('DiscoverView — auteur cliquable (transmission de onViewOfficialProfi
 
     expect(onViewOfficialProfile).toHaveBeenCalledTimes(1);
     expect(onPlayTemplate).not.toHaveBeenCalled();
+  });
+});
+
+// Compteur de clonages RÉELS (02/08, retour direct : "je veux que chaque
+// playlist en Découvrir ait au minimum une indication du nombre de
+// clonage... honnête, 0 par défaut"). MÊME table que la vitrine
+// (`template_clone_counts`) — voir sa docstring, supabase-schema.sql.
+describe('DiscoverView — compteurs de clonage réels', () => {
+  it('interroge template_clone_counts au montage', async () => {
+    render(<DiscoverView {...baseProps()} />);
+    await waitFor(() => expect(mockFrom).toHaveBeenCalledWith('template_clone_counts'));
+  });
+
+  it('transmet le bon nombre à la carte du template concerné, 0 pour les autres', async () => {
+    mockFrom.mockImplementation(() => makeQueryBuilder({
+      data: [{ template_id: knownTemplate.id, clone_count: 9 }],
+      error: null,
+    }));
+    render(<DiscoverView {...baseProps()} />);
+
+    const card = await screen.findByText(knownTemplate.title).then(el => el.closest('.group'));
+    expect(await within(card).findByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('9');
+  });
+
+  it('en cas d\'erreur réseau, les cartes restent à 0 sans planter', async () => {
+    mockFrom.mockImplementation(() => makeQueryBuilder({ data: null, error: { message: 'boom' } }));
+    render(<DiscoverView {...baseProps()} />);
+
+    expect(await screen.findByText(knownTemplate.title)).toBeInTheDocument();
   });
 });
