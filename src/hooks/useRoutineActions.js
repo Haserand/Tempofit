@@ -101,8 +101,21 @@ export function useRoutineActions(
    */
   const applyRoutineEditPermanently = () => {
     if (!editingRoutine) return;
-    updateRoutine(editingRoutine);
-    executeGeneration({ ...editingRoutine, workoutName: editingRoutine.customActivity || editingRoutine.workoutType, routineName: editingRoutine.name }, 1, editingRoutine.id);
+    // "Clone" vs "Enfant" (02/08) — MÊME règle que
+    // handleRenamePlaylist/handleEditPlaylistDescription
+    // (PlaylistDetailContext.jsx, voir leur docstring pour le
+    // raisonnement complet), transposée aux routines. UNIQUEMENT ici
+    // (`applyRoutineEditPermanently`, "Toujours pour cette routine") —
+    // PAS dans `applyRoutineEditOnce` juste au-dessus ("Cette séance
+    // seulement") : ce bouton-là ne modifie JAMAIS la routine sauvegardée
+    // (`editingRoutine` est jeté sans jamais toucher `routines`), donc
+    // rien à marquer comme modifié.
+    const finalRoutine = {
+      ...editingRoutine,
+      ...(editingRoutine.originUserId && !editingRoutine.isModifiedSinceClone ? { isModifiedSinceClone: true } : {}),
+    };
+    updateRoutine(finalRoutine);
+    executeGeneration({ ...finalRoutine, workoutName: finalRoutine.customActivity || finalRoutine.workoutType, routineName: finalRoutine.name }, 1, finalRoutine.id);
     showToast("Routine mise à jour pour toutes les prochaines séances.");
     closeModal();
     setEditingRoutine(null);
