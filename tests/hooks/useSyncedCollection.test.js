@@ -100,7 +100,7 @@ describe('useSyncedCollection — pull initial à la connexion', () => {
     const { result } = renderHook(() => useSyncedCollection('key1', 'playlists', () => [{ id: 'local-invite' }]));
 
     await waitFor(() => {
-      expect(result.current[0]).toEqual([{ id: 'srv-1', name: 'Depuis le serveur' }]);
+      expect(result.current[0]).toEqual([{ id: 'srv-1', name: 'Depuis le serveur', parentId: null, parentUserId: null }]);
     });
   });
 
@@ -115,7 +115,7 @@ describe('useSyncedCollection — pull initial à la connexion', () => {
     await waitFor(() => expect(insertBuilder.insert).toHaveBeenCalled());
 
     expect(insertBuilder.insert).toHaveBeenCalledWith([
-      { id: 'local-invite', user_id: 'user-uuid-1', content: { id: 'local-invite', name: 'Séance invité', isPublic: false, isNaughty: false }, is_public: false, is_intimate: false },
+      { id: 'local-invite', user_id: 'user-uuid-1', content: { id: 'local-invite', name: 'Séance invité', isPublic: false, isNaughty: false }, is_public: false, is_intimate: false, parent_id: null, parent_user_id: null },
     ]);
     // L'état local reste affiché tel quel — rien n'a été écrasé.
     expect(result.current[0]).toEqual([{ id: 'local-invite', name: 'Séance invité', isPublic: false, isNaughty: false }]);
@@ -175,9 +175,9 @@ describe('useSyncedCollection — pull initial à la connexion', () => {
   // quel scénario précis est protégé ici, sans avoir à déduire le lien
   // avec un flag qui n'existe même plus.
   it('un setState juste APRÈS un pull qui a remplacé l\'état (serveur non vide à la connexion) synchronise normalement, PAS sauté', async () => {
-    const initial = [{ id: 'depuis-serveur', name: 'Déjà en base' }];
+    const initial = [{ id: 'depuis-serveur', name: 'Déjà en base', parentId: null, parentUserId: null }];
     mockFrom.mockReturnValueOnce(makeBuilder({
-      data: initial.map(item => ({ id: item.id, user_id: 'user-uuid-1', content: item, is_public: false, is_intimate: false })),
+      data: initial.map(item => ({ id: item.id, user_id: 'user-uuid-1', content: { id: item.id, name: item.name }, is_public: false, is_intimate: false })),
       error: null,
     }));
     setAuth(loggedInUser);
@@ -214,7 +214,7 @@ describe('useSyncedCollection — diff de setState (insert/update/delete individ
     return items.map(item => ({ id: item.id, user_id: userId, content: item, is_public: !!item.isPublic, is_intimate: !!item.isNaughty }));
   }
 
-  it('ajout d\'un élément : appelle .insert() avec la ligne construite via itemToRow', async () => {
+  it('ajout d\'un élément : appelle .insert() avec la ligne construite via itemToInsertRow', async () => {
     mockFrom.mockReturnValueOnce(makeBuilder({ data: serverRowsFor([]), error: null }));
     const { result } = renderHook(() => useSyncedCollection('key1', 'playlists', () => []));
     await waitFor(() => expect(mockFrom).toHaveBeenCalledTimes(1));
@@ -230,12 +230,12 @@ describe('useSyncedCollection — diff de setState (insert/update/delete individ
     expect(insertBuilder.insert).toHaveBeenCalledWith({
       id: 'nouvelle-1', user_id: 'user-uuid-1',
       content: { id: 'nouvelle-1', name: 'Ma séance', isPublic: true, isNaughty: false },
-      is_public: true, is_intimate: false,
+      is_public: true, is_intimate: false, parent_id: null, parent_user_id: null,
     });
   });
 
   it('suppression d\'un élément : appelle .delete().eq(\'id\',...).eq(\'user_id\',...)', async () => {
-    const initial = [{ id: 'a-supprimer' }];
+    const initial = [{ id: 'a-supprimer', parentId: null, parentUserId: null }];
     mockFrom.mockReturnValueOnce(makeBuilder({ data: serverRowsFor(initial), error: null }));
     const { result } = renderHook(() => useSyncedCollection('key1', 'playlists', () => initial));
     await waitFor(() => expect(mockFrom).toHaveBeenCalledTimes(1));
@@ -252,7 +252,7 @@ describe('useSyncedCollection — diff de setState (insert/update/delete individ
   });
 
   it('modification d\'un élément EXISTANT (même id, contenu différent) : appelle .update(), pas .insert()', async () => {
-    const initial = [{ id: 'x', name: 'Ancien nom' }];
+    const initial = [{ id: 'x', name: 'Ancien nom', parentId: null, parentUserId: null }];
     mockFrom.mockReturnValueOnce(makeBuilder({ data: serverRowsFor(initial), error: null }));
     const { result } = renderHook(() => useSyncedCollection('key1', 'playlists', () => initial));
     await waitFor(() => expect(mockFrom).toHaveBeenCalledTimes(1));
@@ -269,7 +269,7 @@ describe('useSyncedCollection — diff de setState (insert/update/delete individ
   });
 
   it('élément INCHANGÉ (même id, contenu strictement identique) : n\'appelle NI insert NI update NI delete', async () => {
-    const initial = [{ id: 'x', name: 'Toujours pareil' }];
+    const initial = [{ id: 'x', name: 'Toujours pareil', parentId: null, parentUserId: null }];
     mockFrom.mockReturnValueOnce(makeBuilder({ data: serverRowsFor(initial), error: null }));
     const { result } = renderHook(() => useSyncedCollection('key1', 'playlists', () => initial));
     await waitFor(() => expect(mockFrom).toHaveBeenCalledTimes(1));
@@ -278,8 +278,10 @@ describe('useSyncedCollection — diff de setState (insert/update/delete individ
     mockFrom.mockClear();
 
     // Nouveau tableau, mais avec un objet STRICTEMENT identique (même
-    // valeurs) — le diff compare par JSON.stringify, pas par référence.
-    act(() => { result.current[1]([{ id: 'x', name: 'Toujours pareil' }]); });
+    // valeurs, y compris parentId/parentUserId — le diff compare par
+    // JSON.stringify, pas par référence, donc l'objet doit reproduire
+    // EXACTEMENT ce que `rowToItem` a produit après le pull).
+    act(() => { result.current[1]([{ id: 'x', name: 'Toujours pareil', parentId: null, parentUserId: null }]); });
 
     // Laisse le temps à un éventuel appel non désiré de se produire avant
     // de vérifier son absence.
@@ -287,7 +289,7 @@ describe('useSyncedCollection — diff de setState (insert/update/delete individ
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
-  it('itemToRow : is_public reflète item.isPublic, is_intimate reflète item.isNaughty (pas l\'inverse, pas un autre champ)', async () => {
+  it('itemToInsertRow : is_public reflète item.isPublic, is_intimate reflète item.isNaughty (pas l\'inverse, pas un autre champ)', async () => {
     mockFrom.mockReturnValueOnce(makeBuilder({ data: serverRowsFor([]), error: null }));
     const { result } = renderHook(() => useSyncedCollection('key1', 'playlists', () => []));
     await waitFor(() => expect(mockFrom).toHaveBeenCalledTimes(1));
@@ -323,7 +325,7 @@ describe('useSyncedCollection — diff de setState (insert/update/delete individ
 
   it('erreur Supabase sur une suppression : journalise l\'erreur, ne fait pas planter le hook', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const initial = [{ id: 'a' }];
+    const initial = [{ id: 'a', parentId: null, parentUserId: null }];
     mockFrom.mockReturnValueOnce(makeBuilder({ data: serverRowsFor(initial), error: null }));
     const { result } = renderHook(() => useSyncedCollection('key1', 'playlists', () => initial));
     await waitFor(() => expect(mockFrom).toHaveBeenCalledTimes(1));
