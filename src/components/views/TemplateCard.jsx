@@ -1,6 +1,5 @@
 import { Play, Music2, Copy } from 'lucide-react';
 import { buildCoverUrl } from '../../utils/coverArt';
-import { fakeCloneCountForId } from '../../data/curatedSessions';
 
 /**
  * TemplateCard — carte d'une playlist ensemencée (voir data/curatedSessions.js),
@@ -58,14 +57,25 @@ import { fakeCloneCountForId } from '../../data/curatedSessions';
  * "Midnight Runner 160" qui l'indique déjà dans son nom).
  *
  * RETOUR DIRECT (7e passe, 02/08, "chaque playlist en Découvrir devrait au
- * minimum avoir une indication du nombre de clonages") — compteur FICTIF
- * (`fakeCloneCountForId`, curatedSessions.js), PARTAGÉ avec
- * `officialVitrineProfile.js` : le MÊME template affiche donc le même
- * nombre ici et sur le profil vitrine `@tempofit_officiel`, jamais 2
- * valeurs différentes pour la même playlist selon l'écran consulté. Pas
- * de vraie colonne `clone_count` à lire ici (un template n'a jamais de
- * ligne `playlists` réelle en base) — voir sa docstring pour le
- * raisonnement complet.
+ * minimum avoir une indication du nombre de clonages") — compteur affiché
+ * ici, PARTAGÉ avec `officialVitrineProfile.js` (même template = même
+ * nombre, quel que soit l'écran consulté).
+ *
+ * ⚠️ CORRIGÉ (02/08, 2e retour direct : "je veux que ce compteur soit
+ * honnête, 0 par défaut") — n'est PLUS calculé ici en interne
+ * (`fakeCloneCountForId`, RETIRÉE de curatedSessions.js, "ambitieux mais
+ * faux"). `cloneCount` est maintenant une PROP fournie par
+ * `DiscoverView.jsx`, qui la récupère depuis la vraie table
+ * `template_clone_counts` (supabase-schema.sql). Ce compteur ne
+ * s'incrémente QUE quand quelqu'un clique "Cloner" sur la vitrine
+ * `@tempofit_officiel` (`PublicRoutinePreviewModal`/`handleClonePlaylist`
+ * pour les playlists) — PAS en cliquant "Utiliser ce modèle" ici : ce
+ * geste génère sa PROPRE nouvelle séance, ce n'est pas "copier le contenu
+ * de quelqu'un" au sens où ce compteur l'entend ailleurs dans l'app
+ * (playlists/routines RÉELLES). Conséquence assumée : ce nombre reste
+ * probablement bas pour la plupart des templates (Découvrir, le chemin le
+ * plus emprunté, ne l'incrémente jamais) — c'est le prix d'un compteur
+ * honnête plutôt qu'un gonflé artificiellement.
  *
  * RETOUR DIRECT (8e passe, 02/08, "mets les descriptions aussi, pour voir
  * à quoi ça ressemble visuellement — même texte de base partout si ça
@@ -83,7 +93,7 @@ import { fakeCloneCountForId } from '../../data/curatedSessions';
 
 const PLACEHOLDER_DESCRIPTION = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
 
-export default function TemplateCard({ theme, template, onPlayTemplate, isNaughtyMode, onViewOfficialProfile }) {
+export default function TemplateCard({ theme, template, onPlayTemplate, isNaughtyMode, onViewOfficialProfile, cloneCount = 0 }) {
   const { textHighlight, textMuted, bgAccentClass } = theme;
 
   // Calculée depuis les vrais titres plutôt que stockée en dur dans
@@ -103,11 +113,6 @@ export default function TemplateCard({ theme, template, onPlayTemplate, isNaught
   // quelle par App.jsx, `openCuratedPlaylist`, pour que la pochette
   // persiste sur la fiche détail de la playlist — voir ce fichier).
   const coverUrl = buildCoverUrl(template.title);
-
-  // Compteur de clonages FICTIF (02/08) — voir la docstring en tête de
-  // fichier, "RETOUR DIRECT (7e passe)" : partagé avec
-  // officialVitrineProfile.js, jamais recalculé différemment ici.
-  const cloneCount = fakeCloneCountForId(template.id);
 
   return (
     <div className="group cursor-pointer select-none" onClick={() => onPlayTemplate(template)}>
