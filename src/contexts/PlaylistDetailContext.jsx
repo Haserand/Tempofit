@@ -4,6 +4,7 @@ import { normalizeGenreForDisplay, genreDisplayLabel } from '../musicCatalog';
 import { getSingleMatchingTrack, findSameArtistReplacement, recalculateTimeline } from '../engine/musicEngine';
 import { useGeneratorContext } from './GeneratorContext';
 import { useAudioPlayer } from './AudioPlayerContext';
+import { supabase } from '../supabaseClient';
 
 /**
  * PlaylistDetailContext.jsx — chantier "God Component", phase 1/2 pour
@@ -128,9 +129,38 @@ export function PlaylistDetailProvider({
   // rien de plus à faire ici côté synchro.
   const handleTogglePlaylistPublic = () => {
     if (!currentPlaylist) return;
-    const updatedPlaylist = { ...currentPlaylist, isPublic: !currentPlaylist.isPublic };
+    const turningOn = !currentPlaylist.isPublic;
+    const updatedPlaylist = { ...currentPlaylist, isPublic: turningOn };
     setCurrentPlaylist(updatedPlaylist);
     setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
+
+    // Alimente le compteur de clonages de l'ORIGINE (02/08, retour direct :
+    // "si je mets en public ma séance depuis un clone, ça alimente aussi
+    // le compteur de clonage de ce dernier") — UNIQUEMENT quand on RENDS
+    // publique une playlist qui est elle-même issue d'une lignée de
+    // clonage (`originId`/`originUserId` posés par `handleClonePlaylist`,
+    // usePlaylistLibrary.js) : republier sa propre copie contribue à la
+    // portée du créateur d'origine, pas juste le geste de clonage
+    // lui-même. Jamais au moment de RENDRE PRIVÉE (`turningOn` vérifié en
+    // premier) — cacher une copie n'annule pas le clonage déjà comptabilisé
+    // à l'époque, on ne "décompte" jamais. Fire-and-forget, même
+    // raisonnement que handleClonePlaylist : un compteur de vanité qui
+    // rate une fois ne justifie pas une erreur visible sur une bascule qui,
+    // du point de vue de l'utilisateur, a déjà pleinement réussi localement.
+    if (turningOn && updatedPlaylist.originUserId) {
+      supabase.rpc('increment_playlist_clone_count', {
+        target_id: updatedPlaylist.originId,
+        target_user_id: updatedPlaylist.originUserId,
+      }).then(({ error }) => {
+        if (error) console.error('[PlaylistDetailContext] increment_playlist_clone_count (republication) a échoué :', error);
+      });
+    } else if (turningOn && updatedPlaylist.sourceTemplateId) {
+      supabase.rpc('increment_template_clone_count', {
+        target_template_id: updatedPlaylist.sourceTemplateId,
+      }).then(({ error }) => {
+        if (error) console.error('[PlaylistDetailContext] increment_template_clone_count (republication) a échoué :', error);
+      });
+    }
   };
 
   // --- Description libre (Vague 2, Chantier 3 — "description texte libre
