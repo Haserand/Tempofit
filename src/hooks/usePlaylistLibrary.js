@@ -77,6 +77,25 @@ export function usePlaylistLibrary(
    */
   const handleClonePlaylist = () => {
     if (!currentPlaylist) return;
+
+    // Traçabilité de lignée (02/08, retour direct : "ce n'est pas juste le
+    // clic sur Cloner qui alimente le compteur — si A clone B, puis C
+    // clone la copie d'A, ça doit compter pour B, pas pour A. Quand
+    // j'ouvre une playlist à quelqu'un, je suis dans une playlist générée
+    // par cette personne.") — `originId`/`originUserId` identifient le
+    // VRAI créateur d'origine, PAS le maillon immédiatement précédent
+    // (`currentPlaylist` lui-même). Repli sur `currentPlaylist.id`/
+    // `.user_id` si absents : `currentPlaylist` n'a jamais encore été
+    // cloné auparavant, c'est donc LUI l'origine de la chaîne — dans ce
+    // cas précis, "l'origine" et "le parent direct" sont la même chose.
+    // Une fois posés sur `cloned` ci-dessous (spread `...currentPlaylist`
+    // les propage déjà, mais explicités ici pour ne JAMAIS dépendre
+    // silencieusement de cet ordre), ils continueront à être transmis
+    // automatiquement à tout clonage ultérieur de CETTE copie, aussi loin
+    // que la chaîne s'étende.
+    const originId = currentPlaylist.originId || currentPlaylist.id;
+    const originUserId = currentPlaylist.originUserId || currentPlaylist.user_id;
+
     const cloned = {
       ...currentPlaylist,
       id: `pl-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -87,6 +106,13 @@ export function usePlaylistLibrary(
       actualDataByDate: {},
       plannedDate: null,
       createdAt: new Date().toLocaleDateString(),
+      // Ne conserver l'origine que si elle pointe vers un VRAI utilisateur
+      // (`originUserId` défini) — sinon (playlist issue d'un template de
+      // la vitrine, `sourceTemplateId` déjà propagé par le spread
+      // ci-dessus et suffisant pour cette traçabilité-là) ces 2 champs
+      // resteraient `undefined`, jamais une fausse chaîne pointant vers
+      // personne.
+      ...(originUserId ? { originId, originUserId } : {}),
     };
     setSavedPlaylists([cloned, ...savedPlaylists]);
     // Bascule IMMÉDIATEMENT sur la copie (brief, UX : "redirige
@@ -97,23 +123,36 @@ export function usePlaylistLibrary(
     setCurrentPlaylist(cloned);
     showToast("🎵 Playlist clonée dans Mes Séances !");
 
-    // Compteur de clonages (02/08) — `currentPlaylist.user_id` n'existe
-    // QUE pour une vraie playlist étrangère chargée depuis Supabase (voir
-    // `handleOpenPublicPlaylist`, App.jsx) ; absent pour un template de la
-    // vitrine `@tempofit_officiel` (jamais un vrai propriétaire en base,
-    // rien à incrémenter) — ce garde suffit, pas besoin de distinguer
-    // explicitement les deux cas. Fire-and-forget : ne bloque jamais le
-    // clonage lui-même (déjà effectif localement juste au-dessus) si le
-    // réseau est indisponible ou l'appel échoue — seulement journalisé,
-    // jamais remonté à l'utilisateur (un compteur de vanité qui rate une
-    // fois ne justifie pas une erreur visible sur une action qui, du point
-    // de vue de l'utilisateur, a déjà pleinement réussi).
-    if (currentPlaylist.user_id) {
+    // Compteur de clonages RÉEL (02/08) — cible désormais TOUJOURS
+    // l'ORIGINE de la chaîne (`originId`/`originUserId` calculés
+    // ci-dessus), jamais `currentPlaylist.id`/`.user_id` directement : un
+    // clonage à 3 maillons de distance de l'auteur d'origine doit quand
+    // même incrémenter SON compteur à lui, pas celui d'un intermédiaire.
+    // `currentPlaylist.sourceTemplateId` (absent de `originUserId`,
+    // playlist de la vitrine `@tempofit_officiel`) reste géré séparément,
+    // sur la table DÉDIÉE `template_clone_counts` — les deux mécanismes
+    // sont volontairement PARALLÈLES, jamais mélangés (voir la docstring
+    // de `templateToVitrineRow`, officialVitrineProfile.js : un template
+    // n'est pas "quelqu'un", suivre sa popularité est une question
+    // différente du suivi de lignée entre VRAIS comptes). Fire-and-forget
+    // dans les deux cas : ne bloque jamais le clonage lui-même (déjà
+    // effectif localement juste au-dessus) si le réseau est indisponible
+    // ou l'appel échoue — seulement journalisé, jamais remonté à
+    // l'utilisateur (un compteur de vanité qui rate une fois ne justifie
+    // pas une erreur visible sur une action qui, du point de vue de
+    // l'utilisateur, a déjà pleinement réussi).
+    if (originUserId) {
       supabase.rpc('increment_playlist_clone_count', {
-        target_id: currentPlaylist.id,
-        target_user_id: currentPlaylist.user_id,
+        target_id: originId,
+        target_user_id: originUserId,
       }).then(({ error }) => {
         if (error) console.error('[usePlaylistLibrary] increment_playlist_clone_count a échoué :', error);
+      });
+    } else if (currentPlaylist.sourceTemplateId) {
+      supabase.rpc('increment_template_clone_count', {
+        target_template_id: currentPlaylist.sourceTemplateId,
+      }).then(({ error }) => {
+        if (error) console.error('[usePlaylistLibrary] increment_template_clone_count a échoué :', error);
       });
     }
   };
