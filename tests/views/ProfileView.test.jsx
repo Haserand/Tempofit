@@ -301,6 +301,71 @@ describe('ProfileView — routines partagées', () => {
 // publique" (02/08). `content.description` est un champ COMMUN aux deux
 // `kind` (simple texte libre, contrairement à bpm/durée/genre qui
 // divergent) — un seul describe couvre donc playlist ET routine.
+// Vague 2, Chantier "compteur de sauvegardes/clonages" (02/08).
+// `clone_count` est une VRAIE colonne de la ligne (pas un champ de
+// `content`, contrairement à `description`) — arrive automatiquement via
+// le `select('*')` déjà en place, rien de neuf à mocker côté requête.
+describe('ProfileView — compteur de clonages', () => {
+  const playlistWithClones = { id: 'pl-clones', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, clone_count: 12, content: { name: 'Sortie populaire', workoutType: 'Course à pied', totalDuration: 1200, config: { bpm: 150 }, tracks: [] } };
+  const playlistWithoutClones = { id: 'pl-no-clones', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, clone_count: 0, content: { name: 'Sortie discrète', workoutType: 'Course à pied', totalDuration: 1200, config: { bpm: 150 }, tracks: [] } };
+  const routineWithClones = { id: 'routine-clones', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, clone_count: 3, content: { name: 'Mon 10km', workoutType: 'Course à pied', coverIcon: '🏃', targetMode: 'distance', distanceVal: 10, distanceUnit: 'km', bpm: 170 } };
+
+  it('affiche le badge de clonages sur une carte quand clone_count > 0', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ playlists: [playlistWithClones] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+
+    await screen.findByText('Sortie populaire');
+    expect(screen.getByText('12')).toBeInTheDocument();
+  });
+
+  it('n\'affiche PAS de badge quand clone_count vaut 0 (pas d\'information à mettre en avant)', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ playlists: [playlistWithoutClones] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+
+    await screen.findByText('Sortie discrète');
+    expect(screen.queryByText('0')).toBeNull();
+  });
+
+  it('affiche le total agrégé (playlists + routines confondues) au-dessus de la grille', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ playlists: [playlistWithClones], routines: [routineWithClones] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+
+    expect(await screen.findByText('15 clonages reçus')).toBeInTheDocument();
+  });
+
+  it('accord singulier/pluriel correct pour un seul clonage', async () => {
+    const singlePlaylist = { ...playlistWithClones, clone_count: 1 };
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ playlists: [singlePlaylist] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+
+    expect(await screen.findByText('1 clonage reçu')).toBeInTheDocument();
+  });
+
+  it('total ABSENT quand la somme vaut 0 (aucun item avec des clonages)', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ playlists: [playlistWithoutClones] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+
+    await screen.findByText('Sortie discrète');
+    expect(screen.queryByText(/clonages? reçus?/)).toBeNull();
+  });
+
+  it('le total ne mélange JAMAIS Sport et Intime — seulement le mode actuellement affiché', async () => {
+    const intimatePlaylistWithClones = { id: 'pl-intime-clones', user_id: 'owner-uuid-123', is_public: true, is_intimate: true, clone_count: 99, content: { name: 'Séance Intime', workoutType: 'Cardio', totalDuration: 1200, config: { bpm: 150 }, tracks: [] } };
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ playlists: [playlistWithClones, intimatePlaylistWithClones] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} isNaughtyMode={false} />);
+
+    // Mode Sport actif : seul le total de la playlist Sport (12) doit
+    // apparaître, jamais 111 (12 + 99, qui mélangerait les deux modes).
+    expect(await screen.findByText('12 clonages reçus')).toBeInTheDocument();
+  });
+});
+
 describe('ProfileView — description libre sur les cartes publiques', () => {
   const playlistWithDescription = { id: 'pl-desc', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Sortie du dimanche', workoutType: 'Course à pied', totalDuration: 1200, config: { bpm: 150 }, tracks: [], description: 'Une sortie tranquille pour récupérer.' } };
   const routineWithDescription = { id: 'routine-desc', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Mon 10km', workoutType: 'Course à pied', coverIcon: '🏃', targetMode: 'distance', distanceVal: 10, distanceUnit: 'km', bpm: 170, description: 'À lancer avant le petit-déjeuner.' } };
