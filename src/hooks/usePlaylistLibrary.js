@@ -78,24 +78,17 @@ export function usePlaylistLibrary(
   const handleClonePlaylist = () => {
     if (!currentPlaylist) return;
 
-    // Traçabilité de lignée (02/08, retour direct : "quand j'ouvre une
-    // playlist à quelqu'un, je suis dans une playlist générée par cette
-    // personne — et si A clone B, puis C clone la copie de B, ça doit
-    // compter pour A ET pour B, pas seulement pour A") — `originId`/
-    // `originUserId` identifient le VRAI créateur d'origine (racine de la
-    // chaîne), PAS le maillon immédiatement précédent (`currentPlaylist`
-    // lui-même) — les deux comptent, voir l'incrémentation plus bas.
-    // Repli sur `currentPlaylist.id`/`.user_id` si absents :
-    // `currentPlaylist` n'a jamais encore été cloné auparavant, c'est donc
-    // LUI l'origine de la chaîne — dans ce cas précis, "l'origine" et "le
-    // parent direct" sont la même chose (un seul incrément sera envoyé,
-    // voir plus bas). Une fois posés sur `cloned` ci-dessous (le spread
-    // `...currentPlaylist` les propage déjà, mais explicités ici pour ne
-    // JAMAIS dépendre silencieusement de cet ordre), ils continueront à
-    // être transmis automatiquement à tout clonage ultérieur de CETTE
-    // copie, aussi loin que la chaîne s'étende.
-    const originId = currentPlaylist.originId || currentPlaylist.id;
-    const originUserId = currentPlaylist.originUserId || currentPlaylist.user_id;
+    // Traçabilité de lignée — REFONTE (03/08, voir supabase-schema.sql
+    // pour le raisonnement complet) : le client ne pose plus que le
+    // maillon IMMÉDIAT (`parentId`/`parentUserId` — `currentPlaylist.id`/
+    // `.user_id`, lus directement, RIEN à dériver ni à faire remonter
+    // depuis une éventuelle lignée précédente). Reconstituer la racine de
+    // la chaîne (pour créditer A même quand C clone la copie de B) est
+    // désormais la responsabilité de Postgres (`resolve_playlist_origin`,
+    // appelée EN INTERNE par `increment_playlist_clone_count` plus bas) —
+    // plus rien à calculer ni à propager ici.
+    const parentId = currentPlaylist.id;
+    const parentUserId = currentPlaylist.user_id;
 
     const cloned = {
       ...currentPlaylist,
@@ -107,22 +100,22 @@ export function usePlaylistLibrary(
       actualDataByDate: {},
       plannedDate: null,
       createdAt: new Date().toLocaleDateString(),
-      // Ne conserver l'origine que si elle pointe vers un VRAI utilisateur
-      // (`originUserId` défini) — sinon (playlist issue d'un template de
+      // Ne conserver le lien que s'il pointe vers un VRAI utilisateur
+      // (`parentUserId` défini) — sinon (playlist issue d'un template de
       // la vitrine, `sourceTemplateId` déjà propagé par le spread
       // ci-dessus et suffisant pour cette traçabilité-là) ces 2 champs
-      // resteraient `undefined`, jamais une fausse chaîne pointant vers
+      // resteraient `undefined`, jamais un faux lien pointant vers
       // personne. `isModifiedSinceClone: false` ("Clone", pas encore
       // "Enfant" — une copie fraîche est identique à sa source, voir
       // handleRenamePlaylist/handleEditPlaylistDescription pour où ce
-      // booléen passe à `true`) et `originCreditClaimed: false` (n'a pas
-      // encore republié cette copie, voir handleTogglePlaylistPublic)
-      // posés EXPLICITEMENT ici (le spread `...currentPlaylist` pourrait
-      // sinon transmettre par erreur les valeurs de la copie précédente
-      // dans la chaîne — chaque NOUVELLE copie démarre sa propre vie
-      // "jamais republiée, jamais modifiée", même si son parent l'était
-      // déjà).
-      ...(originUserId ? { originId, originUserId, isModifiedSinceClone: false, originCreditClaimed: false } : {}),
+      // booléen passe à `true`) posé EXPLICITEMENT ici (le spread
+      // `...currentPlaylist` pourrait sinon transmettre par erreur la
+      // valeur de la copie précédente dans la chaîne — chaque NOUVELLE
+      // copie démarre sa propre vie "jamais modifiée", même si son parent
+      // l'était déjà). Plus de `originCreditClaimed` (retiré, voir
+      // supabase-schema.sql — le mécanisme qu'il gardait était du code
+      // mort).
+      ...(parentUserId ? { parentId, parentUserId, isModifiedSinceClone: false } : {}),
     };
     setSavedPlaylists([cloned, ...savedPlaylists]);
     // Bascule IMMÉDIATEMENT sur la copie (brief, UX : "redirige
@@ -133,19 +126,12 @@ export function usePlaylistLibrary(
     setCurrentPlaylist(cloned);
     showToast("🎵 Playlist clonée dans Mes Séances !");
 
-    // Compteur de clonages RÉEL (02/08, corrigé une 2e fois le même jour —
-    // retour direct : "si A fait une playlist, que B la clone, et que C
-    // clone la copie de B, ça doit augmenter le compteur de A ET de B") —
-    // DEUX incréments distincts, pas un seul :
-    //   1. Le MAILLON IMMÉDIAT (`currentPlaylist` lui-même) — B vient de se
-    //      faire cloner PAR C, un événement réel qui lui appartient.
-    //   2. L'ORIGINE (`originId`/`originUserId`) — le contenu d'A vient
-    //      d'être réutilisé une fois de plus, même indirectement.
-    // Ces 2 cibles sont IDENTIQUES quand `currentPlaylist` n'a jamais été
-    // cloné avant (B clone A directement : maillon immédiat = origine =
-    // A) — dans ce cas, un seul incrément réel est envoyé (`originUserId
-    // !== currentPlaylist.user_id` évite explicitement le doublon, jamais
-    // 2 appels pour le même événement).
+    // Compteur de clonages RÉEL — REFONTE (03/08) : UN SEUL appel RPC
+    // désormais (au lieu de 2 avant) — `increment_playlist_clone_count`
+    // crédite maintenant, EN INTERNE côté serveur, à la fois le maillon
+    // immédiat (`currentPlaylist`) ET l'origine réelle de la chaîne
+    // (résolue par `resolve_playlist_origin`, jamais calculée ici). Le
+    // client indique juste ce qu'il vient RÉELLEMENT de cloner.
     //
     // `currentPlaylist.sourceTemplateId` (playlist de la vitrine
     // `@tempofit_officiel`, sans vrai propriétaire) reste géré séparément,
@@ -163,17 +149,8 @@ export function usePlaylistLibrary(
         target_id: currentPlaylist.id,
         target_user_id: currentPlaylist.user_id,
       }).then(({ error }) => {
-        if (error) console.error('[usePlaylistLibrary] increment_playlist_clone_count (maillon immédiat) a échoué :', error);
+        if (error) console.error('[usePlaylistLibrary] increment_playlist_clone_count a échoué :', error);
       });
-
-      if (originUserId && originUserId !== currentPlaylist.user_id) {
-        supabase.rpc('increment_playlist_clone_count', {
-          target_id: originId,
-          target_user_id: originUserId,
-        }).then(({ error }) => {
-          if (error) console.error('[usePlaylistLibrary] increment_playlist_clone_count (origine) a échoué :', error);
-        });
-      }
     } else if (currentPlaylist.sourceTemplateId) {
       supabase.rpc('increment_template_clone_count', {
         target_template_id: currentPlaylist.sourceTemplateId,
