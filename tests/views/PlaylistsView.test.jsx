@@ -206,7 +206,7 @@ describe('PlaylistsView — bascule publique/privée (Feature Sociale, 01/08)', 
     const result = Array.isArray(updater) ? updater : updater([target]);
     expect(result.find(p => p.id === 'p1').isPublic).toBe(true);
   });
-
+});
 
 describe('PlaylistsView — glisser-déposer (section "À planifier" uniquement)', () => {
   it('les cartes "À planifier" reçoivent draggable=true, les autres sections non', () => {
