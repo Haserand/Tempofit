@@ -136,7 +136,7 @@ export function useSyncedCollection(storageKey, tableName, initialValue) {
           setStateInternal(data.map(rowToItem));
         } else if (stateRef.current.length > 0) {
           const { error: insertError } = await supabase.from(tableName).insert(
-            stateRef.current.map(item => itemToRow(item, user.id))
+            stateRef.current.map(item => itemToInsertRow(item, user.id))
           );
           if (insertError) {
             console.error(`useSyncedCollection(${tableName}) — poussée initiale échouée :`, insertError);
@@ -183,7 +183,7 @@ export function useSyncedCollection(storageKey, tableName, initialValue) {
 
         nextById.forEach((item, id) => {
           if (!prevById.has(id)) {
-            supabase.from(tableName).insert(itemToRow(item, uid))
+            supabase.from(tableName).insert(itemToInsertRow(item, uid))
               .then(({ error }) => {
                 if (error) console.error(`useSyncedCollection(${tableName}) — insertion échouée :`, error);
               });
@@ -195,10 +195,18 @@ export function useSyncedCollection(storageKey, tableName, initialValue) {
         // routines d'un seul utilisateur, jamais des milliers de lignes),
         // et évite d'avoir à maintenir une liste de champs "à surveiller"
         // qui se désynchroniserait du modèle de données au fil du temps.
+        //
+        // `itemToUpdateRow` (PAS `itemToInsertRow`) — refonte du 03/08,
+        // traçabilité de lignée : `parent_id`/`parent_user_id` ne doivent
+        // JAMAIS être réécrits après la création (voir leur docstring,
+        // supabase-schema.sql). Le trigger `lock_parent_lineage` protège
+        // déjà ça côté serveur quoi qu'on envoie, mais ne PAS les inclure
+        // ici évite même d'essayer — défense en profondeur, 2 couches
+        // indépendantes plutôt qu'une seule.
         nextById.forEach((item, id) => {
           const old = prevById.get(id);
           if (old && JSON.stringify(old) !== JSON.stringify(item)) {
-            supabase.from(tableName).update(itemToRow(item, uid)).eq('id', id).eq('user_id', uid)
+            supabase.from(tableName).update(itemToUpdateRow(item, uid)).eq('id', id).eq('user_id', uid)
               .then(({ error }) => {
                 if (error) console.error(`useSyncedCollection(${tableName}) — mise à jour échouée :`, error);
               });
@@ -213,19 +221,60 @@ export function useSyncedCollection(storageKey, tableName, initialValue) {
   return [state, setState];
 }
 
-function itemToRow(item, userId) {
+// `itemToInsertRow`/`itemToUpdateRow` — refonte du 03/08 (traçabilité de
+// lignée résolue côté serveur, voir supabase-schema.sql) : DEUX fonctions
+// séparées où il n'y en avait qu'une avant, précisément parce que
+// `parent_id`/`parent_user_id` ne doivent transiter QUE dans le sens
+// insertion. `itemToUpdateRow` les omet entièrement, jamais par erreur ni
+// par un futur copier-coller distrait — la seule façon d'envoyer ces 2
+// colonnes vers Supabase passe par `itemToInsertRow`, appelée UNIQUEMENT
+// au moment de la création d'une ligne (voir les 2 appels plus haut).
+function itemToInsertRow(item, userId) {
   return {
     id: item.id,
     user_id: userId,
     content: item,
     is_public: !!item.isPublic,
     is_intimate: !!item.isNaughty,
+    // Posés UNE SEULE FOIS ici, jamais recopiés dans itemToUpdateRow —
+    // `item.parentId`/`item.parentUserId` sont mirroirés dans `content`
+    // (comme `isPublic`/`isNaughty` le sont déjà) pour un usage cosmétique
+    // côté client (badge Clone/Enfant), mais c'est CETTE colonne réelle,
+    // posée ici et protégée par le trigger `lock_parent_lineage`, qui sert
+    // de source de vérité pour la marche récursive côté serveur — jamais
+    // le contenu JSONB.
+    parent_id: item.parentId || null,
+    parent_user_id: item.parentUserId || null,
+  };
+}
+
+function itemToUpdateRow(item, userId) {
+  return {
+    id: item.id,
+    user_id: userId,
+    content: item,
+    is_public: !!item.isPublic,
+    is_intimate: !!item.isNaughty,
+    // `parent_id`/`parent_user_id` volontairement ABSENTS ici — voir la
+    // docstring de `itemToInsertRow` juste au-dessus.
   };
 }
 
 function rowToItem(row) {
   // `content` porte déjà l'objet complet (y compris son propre `id`,
-  // identique à `row.id` par construction — voir `itemToRow`) — spread
-  // suffit, rien à fusionner manuellement champ par champ.
-  return row.content;
+  // identique à `row.id` par construction) — spread suffit pour tout le
+  // reste, mais `parent_id`/`parent_user_id` (colonnes réelles, jamais
+  // dans `content` par construction côté serveur) doivent être rapatriés
+  // explicitement ici pour que le badge Clone/Enfant fonctionne aussi
+  // depuis SA PROPRE collection (Mes Séances/Mes Routines) — `content`
+  // seul ne les contient que s'ils y ont été mirroirés à l'insertion (voir
+  // `itemToInsertRow`), ce qui est déjà le cas pour une ligne créée par ce
+  // client, mais pas garanti pour une ligne migrée depuis l'ancien blob
+  // `user_data` (voir la migration, supabase-schema.sql) — la colonne
+  // réelle reste donc la source la plus fiable, y compris ici.
+  return {
+    ...row.content,
+    parentId: row.parent_id || row.content.parentId || null,
+    parentUserId: row.parent_user_id || row.content.parentUserId || null,
+  };
 }
