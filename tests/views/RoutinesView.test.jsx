@@ -15,6 +15,14 @@ vi.mock('../../src/contexts/ModalContext.jsx', () => ({
   useModalContext: () => ({ openModal: mockOpenModal, activeModal: null, modalData: null, closeModal: vi.fn() }),
 }));
 
+// Compteur de clonages HONNÊTE (02/08) — `handleToggleRoutinePublic`
+// appelle désormais `supabase.rpc(...)` quand on republie une copie issue
+// d'une chaîne de clonage. Jamais mocké avant ici (pas besoin jusqu'ici).
+const mockRpc = vi.fn();
+vi.mock('../../src/supabaseClient.js', () => ({
+  supabase: { rpc: (...args) => mockRpc(...args) },
+}));
+
 import RoutinesView from '../../src/components/views/RoutinesView.jsx';
 
 afterEach(() => {
@@ -128,6 +136,44 @@ describe('RoutinesView', () => {
       { ...routineB, isPublic: true },
       routineC,
     ]);
+  });
+
+  // Compteur de clonages HONNÊTE (02/08, retour direct : "si je mets en
+  // public ma séance depuis un clone, ça alimente aussi le compteur de
+  // clonage de ce dernier") — MÊME logique que côté playlists
+  // (PlaylistDetailContext.jsx/PlaylistsView.jsx), transposée aux
+  // routines.
+  describe('republication d\'un clone alimente le compteur de l\'origine', () => {
+    it('rendre publique une copie issue d\'une chaîne de clonage appelle increment_routine_clone_count ciblant l\'ORIGINE', () => {
+      mockRpc.mockResolvedValue({ error: null });
+      const clonedRoutine = { id: 'c1', name: 'Copie clonée', manualGenerations: 0, workoutType: 'Course à pied', isPublic: false, originId: 'routine-B-original', originUserId: 'user-B' };
+      render(<RoutinesView {...baseProps({ routines: [clonedRoutine] })} />);
+
+      fireEvent.click(screen.getByTitle('Rendre cette routine visible sur ton profil public'));
+
+      expect(mockRpc).toHaveBeenCalledWith('increment_routine_clone_count', {
+        target_id: 'routine-B-original',
+        target_user_id: 'user-B',
+      });
+    });
+
+    it('rendre PRIVÉE n\'appelle jamais la RPC', () => {
+      const clonedRoutine = { id: 'c1', name: 'Copie clonée', manualGenerations: 0, workoutType: 'Course à pied', isPublic: true, originId: 'routine-B-original', originUserId: 'user-B' };
+      render(<RoutinesView {...baseProps({ routines: [clonedRoutine] })} />);
+
+      fireEvent.click(screen.getByTitle('Visible sur ton profil public — clique pour la rendre privée'));
+
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it('rendre publique une routine sans origine (jamais clonée) n\'appelle aucune RPC', () => {
+      const ownRoutine = { id: 'r1', name: 'Ma routine', manualGenerations: 0, workoutType: 'Course à pied', isPublic: false };
+      render(<RoutinesView {...baseProps({ routines: [ownRoutine] })} />);
+
+      fireEvent.click(screen.getByTitle('Rendre cette routine visible sur ton profil public'));
+
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
   });
 
   it('une routine déjà publique affiche le bouton "clique pour la rendre privée", et le clic la repasse à false', () => {
