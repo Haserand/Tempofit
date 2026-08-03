@@ -3,6 +3,7 @@ import {
   OFFICIAL_VITRINE_USERNAME,
   buildOfficialVitrineProfile,
   buildOfficialVitrinePlaylistRows,
+  buildOfficialVitrineRoutineRows,
 } from '../../src/data/officialVitrineProfile.js';
 import { curatedSessions, naughtyCuratedSessions } from '../../src/data/curatedSessions.js';
 
@@ -113,5 +114,68 @@ describe('buildOfficialVitrinePlaylistRows', () => {
 
   it('content.coverUrl est renseignée (pochette calculée, jamais vide)', () => {
     expect(rows.every(r => typeof r.content.coverUrl === 'string' && r.content.coverUrl.length > 0)).toBe(true);
+  });
+
+  // Correctif (02/08, retour direct : "la vitrine ne montre pas toutes
+  // les fonctionnalités") — `content.tracks` manquait depuis le début,
+  // rendant la recherche/le filtre par genre (useProfileSearchFilter.js)
+  // silencieusement inopérants sur TOUTE playlist de la vitrine (0 genre
+  // extrait, jamais une erreur visible).
+  it('content.tracks est présent et correspond aux vrais titres du template (nécessaire pour l\'extraction de genre, useProfileSearchFilter.js)', () => {
+    const template = curatedSessions[0];
+    const row = rows.find(r => r._sourceTemplate.id === template.id);
+    expect(row.content.tracks).toBe(template.tracks);
+  });
+
+  it('content.description est renseignée sur toutes les lignes (catalogue par catégorie)', () => {
+    expect(rows.every(r => typeof r.content.description === 'string' && r.content.description.length > 0)).toBe(true);
+  });
+
+  it('clone_count est un nombre positif, déterministe (2 appels de suite renvoient exactement la même valeur pour le même template)', () => {
+    const rows2 = buildOfficialVitrinePlaylistRows();
+    rows.forEach((row, i) => {
+      expect(typeof row.clone_count).toBe('number');
+      expect(row.clone_count).toBeGreaterThan(0);
+      expect(rows2[i].clone_count).toBe(row.clone_count);
+    });
+  });
+});
+
+// Jusqu'ici jamais testée dans ce fichier (chantier "Recherche & filtres
+// sur les profils publics", 02/08 — annexe "Routines fictives pour le
+// profil vitrine officiel"). Rattrapé en même temps que le correctif
+// description/clone_count (même retour direct).
+describe('buildOfficialVitrineRoutineRows', () => {
+  const routineRows = buildOfficialVitrineRoutineRows();
+
+  it('renvoie plusieurs routines fictives, Sport ET Intime confondues', () => {
+    expect(routineRows.length).toBeGreaterThanOrEqual(3);
+    expect(routineRows.some(r => !r.is_intimate)).toBe(true);
+    expect(routineRows.some(r => r.is_intimate)).toBe(true);
+  });
+
+  it('is_public vaut TOUJOURS true, sur toutes les lignes', () => {
+    expect(routineRows.every(r => r.is_public === true)).toBe(true);
+  });
+
+  it('chaque routine a un content.description non vide', () => {
+    expect(routineRows.every(r => typeof r.content.description === 'string' && r.content.description.length > 0)).toBe(true);
+  });
+
+  it('chaque routine a un clone_count positif', () => {
+    expect(routineRows.every(r => typeof r.clone_count === 'number' && r.clone_count > 0)).toBe(true);
+  });
+
+  it('chaque routine a une cible cohérente avec la forme réelle attendue par PublicItemCard/PublicRoutinePreviewModal (targetMode distance ou time, jamais totalDuration/tracks)', () => {
+    routineRows.forEach(row => {
+      expect(['distance', 'time']).toContain(row.content.targetMode);
+      expect(row.content.totalDuration).toBeUndefined();
+      expect(row.content.tracks).toBeUndefined();
+    });
+  });
+
+  it('déterministe — 2 appels de suite renvoient exactement le même tableau (pas de variation aléatoire)', () => {
+    const routineRows2 = buildOfficialVitrineRoutineRows();
+    expect(routineRows2).toEqual(routineRows);
   });
 });
