@@ -185,6 +185,51 @@ grep -nE "(hover|focus|dark|active|disabled):['\"\`]\s*\+" <fichiers>
 grep -nE "(hover|focus|dark|active|disabled):\$\{" <fichiers>
 ```
 
+## 4bis. Vérification de `supabase-schema.sql` — aucun Postgres réel disponible
+
+Trouvé le 02/08 (chantier fondations SQL de la persona intime — le premier
+à toucher ce fichier depuis que ce protocole existe) : **aucun outil de ce
+bac à sable ne peut exécuter ou valider réellement du SQL** — pas de
+Postgres installé, pas d'accès réseau vers Supabase, `sqlparse` (Python)
+indisponible sans réseau pour l'installer. La vérification reste donc
+purement MÉCANIQUE et MANUELLE :
+
+- Delimiteurs `$$` en nombre pair sur tout le fichier (`grep -c '\$\$'
+  supabase-schema.sql`) — chaque fonction en ouvre puis ferme exactement
+  une paire ; un total impair signale à coup sûr une fonction mal fermée.
+- Parenthèses/crochets équilibrés sur le bloc ajouté (compter manuellement
+  ou via un petit script Python `text.count('(') == text.count(')')`) —
+  nécessaire mais pas suffisant (un déséquilibre prouve une erreur, un
+  équilibre ne prouve rien d'autre que "au moins pas CETTE catégorie
+  d'erreur").
+- Toute constante numérique utilisée pour indexer un tableau SQL (ex. `%
+  20` pour piocher dans un `array[...]` de 20 éléments) doit être
+  recomptée EXPLICITEMENT contre la vraie longueur du tableau — un
+  décalage silencieux ne produit pas une erreur SQL, juste un `NULL`
+  discret en sortie.
+- Préférer systématiquement une fonction Postgres NATIVE et bien connue
+  (`hashtext()`, `gen_random_uuid()`, `md5()`) à un idiome plus exotique
+  (ex. cast `('x' || ...)::bit(32)::int` pour convertir un hex en entier —
+  syntaxe réellement valide mais invérifiable ici avec certitude) —
+  choisir la fonction dont la signature est connue sans le moindre doute,
+  plutôt que la plus élégante.
+- Respecter la convention DÉJÀ établie dans ce fichier (voir son en-tête) :
+  `create table if not exists` / `create or replace function` sont
+  idempotents nativement, mais `create policy` ne l'est PAS — toujours le
+  faire précéder d'un `drop policy if exists` avec le nom EXACT, sous
+  peine de casser la ré-exécutabilité complète du fichier (`ERROR: 42710`
+  dès la 2e exécution).
+- Toujours ajouter, en commentaire juste avant toute nouvelle fonction, une
+  requête `select` prête à copier-coller dans l'éditeur SQL Supabase —
+  c'est la SEULE vérification qui compte réellement, et elle ne peut être
+  faite que par l'utilisateur, jamais par Claude dans ce bac à sable.
+- Le premier build Vercel après un changement de `supabase-schema.sql` ne
+  suffit PAS à valider le SQL lui-même (Vercel ne l'exécute jamais — ce
+  fichier est copié-collé à la main par l'utilisateur dans Supabase,
+  totalement hors du pipeline de build) : un chantier SQL qui touche ce
+  fichier reste NON vérifié tant que l'utilisateur n'a pas confirmé
+  explicitement avoir exécuté le script et testé les requêtes suggérées.
+
 ## 5. Ce que ces outils NE remplacent PAS
 
 Aucun de ces scripts n'exécute réellement `vitest` — une affirmation
