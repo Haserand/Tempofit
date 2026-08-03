@@ -4,7 +4,6 @@ import { useModalContext } from '../../contexts/ModalContext';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 import { MAX_DESCRIPTION_LENGTH } from '../../appConfig';
-import { supabase } from '../../supabaseClient';
 
 /**
  * RoutinesView — vue "Mes Routines" (configurations sauvegardées, relançables en un clic).
@@ -31,43 +30,13 @@ export default function RoutinesView({
   // `useSyncedCollection.js` détecte le changement au prochain rendu et
   // pousse la mise à jour vers la colonne `is_public` de la table `routines`
   // tout seul, rien de plus à faire ici côté synchro.
+  // ⚠️ SIMPLIFIÉ (03/08, refonte lignée serveur) — voir la docstring de
+  // `handleTogglePlaylistPublic` (PlaylistDetailContext.jsx) pour le
+  // raisonnement complet : le crédit de republication vers l'origine
+  // était du code mort (déjà bloqué par le `clone_ledger`, systématiquement
+  // réclamé au moment du clonage lui-même) — retiré.
   const handleToggleRoutinePublic = (id) => {
-    let willClaimOriginCredit = false;
-    let updated = null;
-    setRoutines(routines.map(r => {
-      if (r.id !== id) return r;
-      const turningOn = !r.isPublic;
-      // Anti-abus "toggle spam" (02/08) — MÊME garde que
-      // PlaylistDetailContext.jsx/PlaylistsView.jsx, voir leur docstring
-      // pour le raisonnement complet : `originCreditClaimed` n'est jamais
-      // réclamé 2 fois pour la même copie.
-      willClaimOriginCredit = turningOn && !!r.originUserId && !r.originCreditClaimed;
-      updated = {
-        ...r,
-        isPublic: turningOn,
-        ...(willClaimOriginCredit ? { originCreditClaimed: true } : {}),
-      };
-      return updated;
-    }));
-
-    // Alimente le compteur de clonages de l'ORIGINE (02/08, retour direct :
-    // "si je mets en public ma séance depuis un clone, ça alimente aussi
-    // le compteur de clonage de ce dernier") — MÊME logique que
-    // handleTogglePlaylistPublic (PlaylistDetailContext.jsx/
-    // PlaylistsView.jsx, voir leur docstring pour le raisonnement
-    // complet) : `originId`/`originUserId` posés par
-    // `handleClonePublicRoutine` (App.jsx) au moment du clonage. Jamais au
-    // moment de RENDRE PRIVÉE, ni une 2e fois pour la même copie
-    // (`willClaimOriginCredit`) — on ne "décompte" jamais un clonage déjà
-    // comptabilisé, et on ne le recompte jamais non plus.
-    if (willClaimOriginCredit) {
-      supabase.rpc('increment_routine_clone_count', {
-        target_id: updated.originId,
-        target_user_id: updated.originUserId,
-      }).then(({ error }) => {
-        if (error) console.error('[RoutinesView] increment_routine_clone_count (republication) a échoué :', error);
-      });
-    }
+    setRoutines(routines.map(r => r.id === id ? { ...r, isPublic: !r.isPublic } : r));
   };
 
   // Description libre (Vague 2, Chantier 3 — "description texte libre sur
@@ -102,7 +71,7 @@ export default function RoutinesView({
         // handleRenamePlaylist/handleEditPlaylistDescription
         // (PlaylistDetailContext.jsx, voir leur docstring pour le
         // raisonnement complet), transposée aux routines.
-        ...(r.originUserId && !r.isModifiedSinceClone ? { isModifiedSinceClone: true } : {}),
+        ...(r.parentUserId && !r.isModifiedSinceClone ? { isModifiedSinceClone: true } : {}),
       };
     }));
     setEditingDescriptionId(null);
