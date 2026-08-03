@@ -112,8 +112,17 @@ export function usePlaylistLibrary(
       // la vitrine, `sourceTemplateId` déjà propagé par le spread
       // ci-dessus et suffisant pour cette traçabilité-là) ces 2 champs
       // resteraient `undefined`, jamais une fausse chaîne pointant vers
-      // personne.
-      ...(originUserId ? { originId, originUserId } : {}),
+      // personne. `isModifiedSinceClone: false` ("Clone", pas encore
+      // "Enfant" — une copie fraîche est identique à sa source, voir
+      // handleRenamePlaylist/handleEditPlaylistDescription pour où ce
+      // booléen passe à `true`) et `originCreditClaimed: false` (n'a pas
+      // encore republié cette copie, voir handleTogglePlaylistPublic)
+      // posés EXPLICITEMENT ici (le spread `...currentPlaylist` pourrait
+      // sinon transmettre par erreur les valeurs de la copie précédente
+      // dans la chaîne — chaque NOUVELLE copie démarre sa propre vie
+      // "jamais republiée, jamais modifiée", même si son parent l'était
+      // déjà).
+      ...(originUserId ? { originId, originUserId, isModifiedSinceClone: false, originCreditClaimed: false } : {}),
     };
     setSavedPlaylists([cloned, ...savedPlaylists]);
     // Bascule IMMÉDIATEMENT sur la copie (brief, UX : "redirige
