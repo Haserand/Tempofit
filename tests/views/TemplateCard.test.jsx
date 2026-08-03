@@ -8,7 +8,6 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import TemplateCard from '../../src/components/views/TemplateCard.jsx';
-import { fakeCloneCountForId } from '../../src/data/curatedSessions.js';
 
 afterEach(() => {
   cleanup();
@@ -145,32 +144,19 @@ describe('TemplateCard', () => {
     });
   });
 
-  // Retour direct (02/08) : "chaque playlist en Découvrir devrait au
-  // minimum avoir une indication du nombre de clonages". Compteur FICTIF,
-  // PARTAGÉ avec officialVitrineProfile.js (voir sa docstring,
-  // curatedSessions.js) — jamais recalculé différemment ici.
-  describe('compteur de clonages (fictif, partagé avec la vitrine)', () => {
-    it('affiche le nombre renvoyé par fakeCloneCountForId(template.id)', () => {
-      render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
-      const expected = fakeCloneCountForId(mockTemplate.id);
-      expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent(String(expected));
+  // ⚠️ RÉÉCRIT le 02/08 (2e retour direct : "je veux que ce compteur soit
+  // honnête, 0 par défaut") — `cloneCount` est maintenant une PROP fournie
+  // par DiscoverView.jsx (vraie table `template_clone_counts`), plus un
+  // calcul interne (`fakeCloneCountForId`, RETIRÉE).
+  describe('compteur de clonages (prop réelle, fournie par DiscoverView.jsx)', () => {
+    it('affiche la valeur de la prop cloneCount telle quelle', () => {
+      render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} cloneCount={7} />);
+      expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('7');
     });
 
-    it('est déterministe — 2 rendus du même template affichent EXACTEMENT le même nombre', () => {
-      const { unmount } = render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
-      const firstText = screen.getByTitle('Nombre de fois où cette playlist a été clonée').textContent;
-      unmount();
-
+    it('affiche 0 par défaut si cloneCount est omis — jamais un nombre inventé', () => {
       render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
-      const secondText = screen.getByTitle('Nombre de fois où cette playlist a été clonée').textContent;
-
-      expect(secondText).toBe(firstText);
-    });
-
-    it('ne plante pas si template.id est absent (garde défensive de fakeCloneCountForId)', () => {
-      const templateSansId = { ...mockTemplate, id: undefined };
-      render(<TemplateCard theme={mockTheme} template={templateSansId} onPlayTemplate={() => {}} isNaughtyMode={false} />);
-      expect(screen.getByText('Cardio Blast')).toBeInTheDocument();
+      expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('0');
     });
   });
 
