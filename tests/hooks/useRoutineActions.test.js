@@ -45,8 +45,8 @@ function renderActions(editingRoutine, overrides = {}) {
 }
 
 describe('useRoutineActions — applyRoutineEditPermanently, flag "Clone" vs "Enfant"', () => {
-  it('pose isModifiedSinceClone à true sur une routine CLONÉE (originUserId présent), jamais modifiée avant', () => {
-    const clonedRoutine = { id: 'r1', name: 'Copie clonée', originId: 'routine-A', originUserId: 'user-A', isModifiedSinceClone: false };
+  it('pose isModifiedSinceClone à true sur une routine CLONÉE (parentUserId présent), jamais modifiée avant', () => {
+    const clonedRoutine = { id: 'r1', name: 'Copie clonée', parentId: 'routine-A', parentUserId: 'user-A', isModifiedSinceClone: false };
     const { result, updateRoutine } = renderActions(clonedRoutine);
 
     result.current.applyRoutineEditPermanently();
@@ -64,7 +64,7 @@ describe('useRoutineActions — applyRoutineEditPermanently, flag "Clone" vs "En
   });
 
   it('ne touche pas à isModifiedSinceClone s\'il est déjà à true (pas de régression, mais pas de recalcul non plus)', () => {
-    const alreadyModified = { id: 'r1', name: 'Déjà Enfant', originId: 'routine-A', originUserId: 'user-A', isModifiedSinceClone: true };
+    const alreadyModified = { id: 'r1', name: 'Déjà Enfant', parentId: 'routine-A', parentUserId: 'user-A', isModifiedSinceClone: true };
     const { result, updateRoutine } = renderActions(alreadyModified);
 
     result.current.applyRoutineEditPermanently();
@@ -73,7 +73,7 @@ describe('useRoutineActions — applyRoutineEditPermanently, flag "Clone" vs "En
   });
 
   it('applyRoutineEditOnce ("cette séance seulement") n\'appelle JAMAIS updateRoutine — rien à marquer, la routine sauvegardée n\'est jamais touchée', () => {
-    const clonedRoutine = { id: 'r1', name: 'Copie clonée', originId: 'routine-A', originUserId: 'user-A', isModifiedSinceClone: false };
+    const clonedRoutine = { id: 'r1', name: 'Copie clonée', parentId: 'routine-A', parentUserId: 'user-A', isModifiedSinceClone: false };
     const { result, updateRoutine } = renderActions(clonedRoutine, { executeGeneration: vi.fn() });
 
     result.current.applyRoutineEditOnce();
