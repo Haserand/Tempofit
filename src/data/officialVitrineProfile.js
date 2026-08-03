@@ -1,4 +1,4 @@
-import { curatedSessions, naughtyCuratedSessions } from './curatedSessions';
+import { curatedSessions, naughtyCuratedSessions, CATEGORY_DESCRIPTIONS } from './curatedSessions';
 import { buildCoverUrl } from '../utils/coverArt';
 
 /**
@@ -110,7 +110,15 @@ export function buildOfficialVitrineProfile() {
 // `description`/`clone_count` (même chantier de correctif, retour direct
 // initial) — AJOUTÉS ici pour que la vitrine démontre RÉELLEMENT ces 2
 // fonctionnalités à un visiteur non connecté, pas seulement les
-// stats/genres/BPM déjà en place.
+// stats/genres/BPM déjà en place. `CATEGORY_DESCRIPTIONS` déplacée dans
+// curatedSessions.js (02/08, retour direct : "on ne peut pas avoir une
+// description sur la carte Découvrir et rien du tout en ouvrant la
+// playlist — il faut une synchronisation partout dans l'app") — PARTAGÉE
+// désormais avec `TemplateCard.jsx` (Découvrir) ET
+// `openCuratedPlaylist` (useNavigation.js, reconstruit la playlist réelle
+// à l'ouverture) : les 3 endroits où la description d'un template peut
+// s'afficher lisent maintenant la MÊME source, plus de version "Lorem
+// ipsum" isolée ni de vue détail vide.
 //
 // ⚠️ `clone_count` — CORRIGÉ une 2e fois le même jour (retour direct :
 // "je veux que ce compteur soit honnête, 0 par défaut") : n'est PLUS un
@@ -122,14 +130,6 @@ export function buildOfficialVitrineProfile() {
 // nombre inventé). C'est ProfileView.jsx (branche vitrine) qui récupère
 // cette map et la transmet à `buildOfficialVitrinePlaylistRows` — cette
 // fonction elle-même reste pure, aucun appel réseau ici.
-const CATEGORY_DESCRIPTIONS = {
-  'Cardio Express': "Une session courte et intense, pensée pour un cardio efficace même avec un emploi du temps chargé.",
-  'Endurance Fondamentale': "Un rythme régulier pour construire ton endurance de fond, séance après séance.",
-  'Force & Renfo': "De quoi accompagner une séance de renforcement musculaire, sans jamais casser le rythme.",
-  'Race Day / Performance': "La sélection pensée pour le jour J — quand chaque BPM compte.",
-  'Récupération & Flow': "Un tempo plus doux, pour une séance de récupération active, sans se presser.",
-  'Rythmes Sensuels': "Une ambiance plus intime, pensée pour un moment à part.",
-};
 
 function templateToVitrineRow(template, isIntimate, realCloneCounts) {
   const totalDuration = template.tracks.reduce((s, t) => s + (t.duration || 0), 0);
