@@ -715,42 +715,140 @@ alter table playlists add column if not exists clone_count integer not null defa
 alter table routines add column if not exists clone_count integer not null default 0;
 
 -- ─────────────────────────────────────────────────────────────────────────
--- ÉVOLUTION (02/08) — anti-abus "cloner puis supprimer sa copie en
--- boucle" (retour direct, discussion approfondie : "si un mec clone ma
--- playlist puis la supprime, ça compte pour combien de clonages ?" —
--- conclusion : le crédit doit être acquis UNE SEULE FOIS par (personne,
--- cible), PERMANENT, qui survit à la suppression locale de la copie).
+-- ÉVOLUTION (03/08) — REFONTE : traçabilité de lignée résolue CÔTÉ SERVEUR
+-- (remplace le mécanisme du 02/08 où `originId`/`originUserId` étaient
+-- calculés et PROPAGÉS par le client à chaque clonage, via le spread
+-- `...currentPlaylist`). Retour direct, après relecture : cette
+-- propagation client était fragile PAR CONSTRUCTION — un futur code qui
+-- reconstruirait l'objet à la main sans ces 2 champs, ou un bug de
+-- spread, aurait cassé la lignée SILENCIEUSEMENT (aucune erreur, juste
+-- `originUserId` qui redevient `undefined` à partir de ce maillon,
+-- indétectable sans audit manuel).
 --
--- `originCreditClaimed` (client, chantier précédent) protégeait déjà
--- contre le "toggle spam" (public→privé→public en boucle SANS jamais
--- supprimer) — mais rien ne protégeait contre supprimer la copie locale
--- PUIS recloner : la copie disparue repart de zéro côté client, sans
--- aucune mémoire de "j'ai déjà été crédité une fois pour cette cible
--- précise". Un flag posé sur la copie elle-même ne peut structurellement
--- PAS survivre à la suppression de cette copie — il fallait une mémoire
--- SERVEUR, indépendante de ce que le client garde ou jette.
+-- Nouveau principe : le client ne porte plus JAMAIS la chaîne entière. Il
+-- pose UNE SEULE FOIS, à l'INSERTION de la copie, le lien vers le SEUL
+-- maillon immédiat (`parent_id`/`parent_user_id` — pas la racine) — une
+-- valeur triviale à renseigner correctement (c'est littéralement `id`/
+-- `user_id` de l'objet qu'on est en train de cloner, lu directement, rien
+-- à dériver). Reconstituer la racine de la chaîne devient la
+-- responsabilité de POSTGRES, via une marche récursive
+-- (`resolve_playlist_origin`/`resolve_routine_origin` ci-dessous) — appelée
+-- en interne par les fonctions d'incrément, jamais par le client
+-- directement. Une lignée mal reconstruite par un futur bug client change
+-- au pire un badge d'affichage (voir plus bas), mais ne peut plus jamais
+-- fausser le compteur lui-même : celui-ci ne fait plus confiance qu'à ce
+-- que Postgres lit dans SES PROPRES colonnes.
+--
+-- `parent_id`/`parent_user_id` : colonnes RÉELLES (pas `content` jsonb),
+-- MÊME raisonnement que `clone_count` (voir plus haut) — mais avec une
+-- exigence supplémentaire, l'IMMUTABILITÉ après la création (voir le
+-- trigger juste en dessous) : si ces colonnes pouvaient être réécrites
+-- par une mise à jour ultérieure (`useSyncedCollection.js` réécrit toutes
+-- les colonnes qu'on lui donne à chaque `update`), un bug qui perdrait ces
+-- 2 champs côté client au fil d'un futur spread écraserait alors la
+-- valeur DÉJÀ CORRECTE en base avec du `null` — exactement le problème
+-- qu'on cherche à éliminer, déplacé d'un cran. Le trigger empêche ça
+-- STRUCTURELLEMENT, quel que soit le code client, présent ou futur.
+alter table playlists add column if not exists parent_id text;
+alter table playlists add column if not exists parent_user_id uuid references auth.users(id) on delete set null;
+alter table routines add column if not exists parent_id text;
+alter table routines add column if not exists parent_user_id uuid references auth.users(id) on delete set null;
+
+-- Trigger d'immutabilité — une fois posé (à l'insertion), `parent_id`/
+-- `parent_user_id` ne peuvent plus JAMAIS changer, quelle que soit la
+-- requête `update` envoyée ensuite (même un `update` qui les omettrait
+-- simplement laisserait déjà la valeur intacte — ce trigger protège
+-- contre le cas OPPOSÉ, un `update` qui enverrait explicitement `null` ou
+-- une autre valeur par erreur). `security definer` non nécessaire ici
+-- (un trigger `before update` s'exécute dans le contexte de la requête
+-- qui le déclenche, pas besoin d'élever ses privilèges).
+create or replace function public._lock_parent_lineage()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.parent_id := old.parent_id;
+  new.parent_user_id := old.parent_user_id;
+  return new;
+end;
+$$;
+
+drop trigger if exists lock_parent_lineage on playlists;
+create trigger lock_parent_lineage
+  before update on playlists
+  for each row execute function public._lock_parent_lineage();
+
+drop trigger if exists lock_parent_lineage on routines;
+create trigger lock_parent_lineage
+  before update on routines
+  for each row execute function public._lock_parent_lineage();
+
+-- Marche récursive — remonte `parent_id`/`parent_user_id` de proche en
+-- proche jusqu'à la racine (la ligne dont `parent_id is null`, jamais
+-- clonée elle-même). `limit 50` — garde-fou défensif contre un cycle
+-- accidentel (structurellement impossible en usage normal : `parent_id`
+-- pointe toujours vers une ligne qui existait déjà AVANT celle-ci au
+-- moment de l'insertion, donc aucun cycle ne peut se former sans
+-- corruption manuelle des données) — mieux vaut une racine tronquée
+-- qu'une requête qui ne rend jamais la main. Renvoie la ligne de départ
+-- elle-même si elle n'a pas de parent (elle EST sa propre origine).
+create or replace function public.resolve_playlist_origin(start_id text, start_user_id uuid)
+returns table(origin_id text, origin_user_id uuid)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  with recursive chain as (
+    select p.id, p.user_id, p.parent_id, p.parent_user_id, 0 as depth
+    from playlists p
+    where p.id = start_id and p.user_id = start_user_id
+    union all
+    select p.id, p.user_id, p.parent_id, p.parent_user_id, chain.depth + 1
+    from playlists p
+    join chain on p.id = chain.parent_id and p.user_id = chain.parent_user_id
+    where chain.depth < 50
+  )
+  select id, user_id from chain order by depth desc limit 1;
+$$;
+
+create or replace function public.resolve_routine_origin(start_id text, start_user_id uuid)
+returns table(origin_id text, origin_user_id uuid)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  with recursive chain as (
+    select r.id, r.user_id, r.parent_id, r.parent_user_id, 0 as depth
+    from routines r
+    where r.id = start_id and r.user_id = start_user_id
+    union all
+    select r.id, r.user_id, r.parent_id, r.parent_user_id, chain.depth + 1
+    from routines r
+    join chain on r.id = chain.parent_id and r.user_id = chain.parent_user_id
+    where chain.depth < 50
+  )
+  select id, user_id from chain order by depth desc limit 1;
+$$;
+
+revoke execute on function public.resolve_playlist_origin(text, uuid) from anon, authenticated;
+revoke execute on function public.resolve_routine_origin(text, uuid) from anon, authenticated;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- Anti-abus "cloner puis supprimer sa copie en boucle" (02/08, INCHANGÉ
+-- dans son principe — voir la discussion d'origine ci-dessous) : le crédit
+-- doit être acquis UNE SEULE FOIS par (personne, cible), PERMANENT, qui
+-- survit à la suppression locale de la copie.
 --
 -- `clone_ledger` : une ligne = "CE compte a déjà obtenu un crédit de
--- clonage pour CETTE cible précise, un jour" — JAMAIS supprimée (pas de
--- politique de nettoyage, la mémoire doit être permanente pour tenir sa
--- promesse). `target_key` (texte unique, PAS une paire `(id, user_id)`
--- séparée) : réutilisé pour les 3 types de cibles (playlist RÉELLE,
--- routine RÉELLE, template de la vitrine/Découvrir) sans avoir besoin de
--- 3 schémas de clé différents — `target_id || ':' || target_user_id`
--- pour une playlist/routine réelle, `'template:' || template_id` pour un
--- template (préfixe distinct, aucun risque de collision avec un vrai id
--- de playlist/routine). PAS de colonne `target_user_id uuid` séparée
--- (nullable) : un `NULL` dans une contrainte unique Postgres n'est
--- JAMAIS considéré égal à un autre `NULL` (2 lignes avec `NULL` ne se
--- bloquent jamais mutuellement) — un template n'a pas de "propriétaire",
--- ça aurait cassé le anti-abus spécifiquement pour ce cas. `target_key`
--- (toujours non-null, jamais vide) évite ce piège structurellement.
---
--- Aucune policy de lecture/écriture côté client, sur AUCUNE opération —
--- cette table n'est JAMAIS interrogée directement, seulement consultée en
--- interne par les 3 fonctions `increment_*_clone_count` ci-dessous
--- (toutes `security definer`, qui contournent RLS pour leurs propres
--- lectures/écritures internes).
+-- clonage pour CETTE cible précise, un jour" — JAMAIS supprimée. `target_key`
+-- (texte unique) réutilisé pour les 3 types de cibles (playlist RÉELLE,
+-- routine RÉELLE, template de la vitrine/Découvrir) : `target_id || ':' ||
+-- target_user_id` pour une playlist/routine réelle, `'template:' ||
+-- template_id` pour un template. Aucune policy de lecture/écriture côté
+-- client — jamais interrogée directement, seulement en interne par les
+-- fonctions `security definer` ci-dessous.
 create table if not exists clone_ledger (
   cloner_user_id uuid not null references auth.users(id) on delete cascade,
   target_key text not null,
@@ -760,33 +858,46 @@ create table if not exists clone_ledger (
 
 alter table clone_ledger enable row level security;
 
--- ⚠️ Piège DÉJÀ rencontré une fois sur ce projet (voir
--- PlaylistDetailContext.jsx, calcul de `isSaved` avant correction) et
--- qui s'applique ICI À L'IDENTIQUE : la clé primaire de `playlists`/
--- `routines` est COMPOSITE `(id, user_id)`, JAMAIS `id` seul — 2 comptes
--- différents peuvent légitimement partager le même id (la playlist démo
--- d'un compte invité, par exemple). Cibler l'incrément par `target_id`
--- SEUL incrémenterait potentiellement le clone_count d'une playlist
--- appartenant à la MAUVAISE personne si un autre utilisateur possède une
--- ligne avec le même id — `target_user_id` est donc un paramètre
--- OBLIGATOIRE de ces deux fonctions, jamais une simplification "optionnelle".
+-- Aide interne partagée par les 3 fonctions d'incrément ci-dessous — MÊME
+-- idiome Postgres qu'avant (`insert ... on conflict do nothing` + `FOUND`),
+-- juste factorisé une fois plutôt que répété 3 fois. `security definer`
+-- : s'exécute dans le contexte du propriétaire de la fonction, pas de
+-- l'appelant — nécessaire puisqu'aucune policy cliente n'existe sur
+-- `clone_ledger`.
+create or replace function public._claim_ledger_credit(ledger_key text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into clone_ledger (cloner_user_id, target_key)
+  values (auth.uid(), ledger_key)
+  on conflict (cloner_user_id, target_key) do nothing;
+  return found;
+end;
+$$;
+
+revoke execute on function public._claim_ledger_credit(text) from anon, authenticated;
+
+-- Fonction appelée par le client au moment du clonage OU de la
+-- consultation d'une playlist publique dont on clone directement le
+-- maillon `target_id`/`target_user_id` (celui qu'on vient RÉELLEMENT de
+-- cloner, jamais une valeur calculée côté client au-delà de ça — voir
+-- `usePlaylistLibrary.js`, `handleClonePlaylist`, un seul appel désormais,
+-- plus de 2e appel séparé pour l'origine).
 --
--- Garde-fou anti-abus : `target_user_id = auth.uid()` bloque
--- l'auto-incrémentation (cloner virtuellement son propre contenu pour
--- gonfler son propre compteur). ⚠️ CORRIGÉ (02/08, retour direct
--- approfondi — voir `clone_ledger` ci-dessus pour le raisonnement
--- complet) : consulte maintenant ce registre PERMANENT AVANT
--- d'incrémenter quoi que ce soit — un compte qui a déjà obtenu un crédit
--- pour CETTE cible précise un jour ne peut plus jamais en obtenir un 2e,
--- même après avoir supprimé sa copie locale et reclonée. `insert ... on
--- conflict do nothing` + `if not found` : idiome standard Postgres pour
--- "insérer seulement si cette clé n'existe pas encore, et savoir si
--- l'insertion a vraiment eu lieu" — `FOUND` vaut `false` si la ligne
--- existait déjà (conflit silencieux), auquel cas la fonction s'arrête là,
--- AVANT l'incrément réel.
+-- ⚠️ REFONTE (03/08) — cette fonction crédite maintenant DEUX choses en
+-- interne, dans le MÊME appel : (1) le maillon immédiat (`target_id`/
+-- `target_user_id`, si ce n'est pas soi-même) ET (2) l'origine RÉELLE de
+-- la chaîne, RÉSOLUE ici via `resolve_playlist_origin` (jamais reçue du
+-- client) — si elle diffère du maillon immédiat ET qu'elle n'appartient
+-- pas non plus à l'appelant. Le client n'a donc plus JAMAIS à savoir ou
+-- calculer qui est "l'origine" — il indique juste ce qu'il vient de
+-- cloner, Postgres remonte la chaîne lui-même.
 --
 -- À VALIDER dans l'éditeur SQL Supabase avant de s'y fier en prod (même
--- réserve que les fonctions précédentes) :
+-- réserve que les fonctions précédentes, `auth.uid()` y vaut `null`) :
 --   select clone_count from playlists where id = '...' and user_id = '...'; -- avant
 --   select public.increment_playlist_clone_count('...', '...'::uuid);
 --   select clone_count from playlists where id = '...' and user_id = '...'; -- après, doit avoir +1
@@ -799,25 +910,33 @@ security definer
 set search_path = public
 as $$
 declare
-  ledger_key text;
+  origin record;
 begin
-  if auth.uid() is null or target_user_id = auth.uid() then
+  if auth.uid() is null then
     return;
   end if;
 
-  ledger_key := target_id || ':' || target_user_id::text;
-
-  insert into clone_ledger (cloner_user_id, target_key)
-  values (auth.uid(), ledger_key)
-  on conflict (cloner_user_id, target_key) do nothing;
-
-  if not found then
-    return; -- crédit déjà obtenu pour cette cible précise, un jour — jamais recompté
+  if target_user_id is distinct from auth.uid() then
+    if public._claim_ledger_credit(target_id || ':' || target_user_id::text) then
+      update playlists
+      set clone_count = clone_count + 1
+      where id = target_id and user_id = target_user_id and is_public = true;
+    end if;
   end if;
 
-  update playlists
-  set clone_count = clone_count + 1
-  where id = target_id and user_id = target_user_id and is_public = true;
+  select o.origin_id, o.origin_user_id into origin
+  from public.resolve_playlist_origin(target_id, target_user_id) o;
+
+  if origin.origin_user_id is not null
+     and origin.origin_user_id is distinct from auth.uid()
+     and (origin.origin_id, origin.origin_user_id) is distinct from (target_id, target_user_id)
+  then
+    if public._claim_ledger_credit(origin.origin_id || ':' || origin.origin_user_id::text) then
+      update playlists
+      set clone_count = clone_count + 1
+      where id = origin.origin_id and user_id = origin.origin_user_id and is_public = true;
+    end if;
+  end if;
 end;
 $$;
 
@@ -826,7 +945,7 @@ grant execute on function public.increment_playlist_clone_count(text, uuid) to a
 
 -- Même fonction, même raisonnement, pour les routines — voir la
 -- docstring de `increment_playlist_clone_count` juste au-dessus pour le
--- détail complet du registre anti-abus `clone_ledger`.
+-- détail complet.
 create or replace function public.increment_routine_clone_count(target_id text, target_user_id uuid)
 returns void
 language plpgsql
@@ -834,30 +953,52 @@ security definer
 set search_path = public
 as $$
 declare
-  ledger_key text;
+  origin record;
 begin
-  if auth.uid() is null or target_user_id = auth.uid() then
+  if auth.uid() is null then
     return;
   end if;
 
-  ledger_key := target_id || ':' || target_user_id::text;
-
-  insert into clone_ledger (cloner_user_id, target_key)
-  values (auth.uid(), ledger_key)
-  on conflict (cloner_user_id, target_key) do nothing;
-
-  if not found then
-    return;
+  if target_user_id is distinct from auth.uid() then
+    if public._claim_ledger_credit(target_id || ':' || target_user_id::text) then
+      update routines
+      set clone_count = clone_count + 1
+      where id = target_id and user_id = target_user_id and is_public = true;
+    end if;
   end if;
 
-  update routines
-  set clone_count = clone_count + 1
-  where id = target_id and user_id = target_user_id and is_public = true;
+  select o.origin_id, o.origin_user_id into origin
+  from public.resolve_routine_origin(target_id, target_user_id) o;
+
+  if origin.origin_user_id is not null
+     and origin.origin_user_id is distinct from auth.uid()
+     and (origin.origin_id, origin.origin_user_id) is distinct from (target_id, target_user_id)
+  then
+    if public._claim_ledger_credit(origin.origin_id || ':' || origin.origin_user_id::text) then
+      update routines
+      set clone_count = clone_count + 1
+      where id = origin.origin_id and user_id = origin.origin_user_id and is_public = true;
+    end if;
+  end if;
 end;
 $$;
 
 revoke execute on function public.increment_routine_clone_count(text, uuid) from anon;
 grant execute on function public.increment_routine_clone_count(text, uuid) to authenticated;
+
+-- ⚠️ SUPPRIMÉ (03/08) — le mécanisme "republier une copie alimente
+-- aussi le compteur de son origine" (`willClaimOriginCredit`/
+-- `originCreditClaimed`, dupliqué sur 3 fichiers : `PlaylistDetailContext.jsx`/
+-- `PlaylistsView.jsx`/`RoutinesView.jsx`) s'est révélé, à la relecture,
+-- être du CODE MORT dans tous les cas réels : le clonage crédite déjà
+-- l'origine INCONDITIONNELLEMENT (que la copie reste privée ou non), donc
+-- la clé du ledger pour cette cible est TOUJOURS déjà prise par le temps
+-- où une republication ultérieure tenterait le même appel — bloquée par
+-- construction, jamais un vrai 2e crédit. Retiré plutôt que reproduit à
+-- l'identique dans cette refonte : ça règle aussi, en même temps, le point
+-- ouvert "logique de republication dupliquée entre 3 fichiers" (plus rien
+-- de significatif à dupliquer). `originCreditClaimed` disparaît avec —
+-- plus aucun appelant ne le lit.
 
 -- ─────────────────────────────────────────────────────────────────────────
 -- ÉVOLUTION (02/08) — compteur de clonages HONNÊTE pour le catalogue de
@@ -934,20 +1075,17 @@ language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-  ledger_key text;
 begin
   if auth.uid() is null then
     return;
   end if;
 
-  ledger_key := 'template:' || target_template_id;
-
-  insert into clone_ledger (cloner_user_id, target_key)
-  values (auth.uid(), ledger_key)
-  on conflict (cloner_user_id, target_key) do nothing;
-
-  if not found then
+  -- MÊME aide partagée que `increment_playlist_clone_count`/
+  -- `increment_routine_clone_count` (refonte du 03/08) — auparavant un
+  -- `insert ... on conflict do nothing` + `if not found` répété ici en 3e
+  -- exemplaire, désormais factorisé une seule fois (`_claim_ledger_credit`,
+  -- voir sa définition plus haut).
+  if not public._claim_ledger_credit('template:' || target_template_id) then
     return;
   end if;
 
