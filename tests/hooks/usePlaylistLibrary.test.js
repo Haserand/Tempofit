@@ -56,13 +56,104 @@ describe('usePlaylistLibrary — compteur de clonages (handleClonePlaylist)', ()
     });
   });
 
-  it('un template de la vitrine (sans user_id) n\'appelle PAS la RPC — rien à incrémenter, aucun vrai propriétaire en base', () => {
-    const vitrineTemplate = { id: 'curated-1', name: 'Cardio Express', isReadOnly: true }; // pas de user_id
-    const result = renderLibrary(vitrineTemplate);
+  // ⚠️ RENOMMÉ le 02/08 (compteur de clonages HONNÊTE pour les templates) —
+  // ce fixture ne pose pas `sourceTemplateId`, donc n'appelle toujours pas
+  // la RPC playlist — mais un VRAI template de la vitrine EN A un
+  // (`openCuratedPlaylist`, useNavigation.js), et appelle DÉSORMAIS
+  // `increment_template_clone_count` à la place (voir le test suivant).
+  // Ce test-ci couvre le cas où NI `user_id` NI `sourceTemplateId` ne sont
+  // présents — un cas limite, pas le cas réel de la vitrine.
+  it('sans user_id NI sourceTemplateId, n\'appelle aucune RPC — rien à cibler', () => {
+    const orphanPlaylist = { id: 'pl-orphan', name: 'Sans origine identifiable', isReadOnly: true };
+    const result = renderLibrary(orphanPlaylist);
 
     result.current.handleClonePlaylist();
 
     expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it('un VRAI template de la vitrine (sourceTemplateId, sans user_id) appelle increment_template_clone_count — compteur honnête, pas increment_playlist_clone_count', () => {
+    mockRpc.mockResolvedValue({ error: null });
+    const vitrineTemplate = { id: 'pl-curated-tpl-cardio-123-456', sourceTemplateId: 'tpl-cardio', name: 'Cardio Express', isReadOnly: true };
+    const result = renderLibrary(vitrineTemplate);
+
+    result.current.handleClonePlaylist();
+
+    expect(mockRpc).toHaveBeenCalledWith('increment_template_clone_count', { target_template_id: 'tpl-cardio' });
+    expect(mockRpc).not.toHaveBeenCalledWith('increment_playlist_clone_count', expect.anything());
+  });
+
+  // Traçabilité de lignée (02/08, retour direct : "si A clone B, puis C
+  // clone la copie d'A, ça doit compter pour B, pas pour A").
+  describe('chaîne de clonage (originId/originUserId)', () => {
+    it('un 1er clonage (jamais cloné avant) pose originId/originUserId = SOI-MÊME sur la copie', () => {
+      const setSavedPlaylists = vi.fn();
+      const foreignPlaylist = { id: 'pl-A-original', user_id: 'user-A', name: 'Playlist de A', isReadOnly: true };
+      const result = renderLibrary(foreignPlaylist, { setSavedPlaylists });
+
+      result.current.handleClonePlaylist();
+
+      const cloned = setSavedPlaylists.mock.calls[0][0][0];
+      expect(cloned.originId).toBe('pl-A-original');
+      expect(cloned.originUserId).toBe('user-A');
+    });
+
+    it('B clonant la playlist de A (jamais clonée avant) : un SEUL incrément réel (origine = maillon immédiat, jamais compté 2 fois)', () => {
+      mockRpc.mockResolvedValue({ error: null });
+      const playlistOfA = { id: 'pl-A-original', user_id: 'user-A', name: 'Playlist de A', isReadOnly: true };
+      const result = renderLibrary(playlistOfA);
+
+      result.current.handleClonePlaylist();
+
+      expect(mockRpc).toHaveBeenCalledTimes(1);
+      expect(mockRpc).toHaveBeenCalledWith('increment_playlist_clone_count', {
+        target_id: 'pl-A-original',
+        target_user_id: 'user-A',
+      });
+    });
+
+    // Retour direct (02/08) : "si A fait une playlist, B la clone, et C
+    // clone la copie de B, ça doit augmenter le compteur de A ET de B" —
+    // scénario exact : `copyOfB` est la copie que B a obtenue en clonant
+    // A (donc `user_id: 'user-B'`, `originId`/`originUserId` pointant
+    // vers A) ; C clone MAINTENANT cette copie.
+    it('C clonant la copie de B (elle-même clonée de A) incrémente A ET B — 2 appels distincts', () => {
+      mockRpc.mockResolvedValue({ error: null });
+      const copyOfB = {
+        id: 'pl-B-copy', user_id: 'user-B', originId: 'pl-A-original', originUserId: 'user-A',
+        name: 'Copie de B (elle-même clonée de A)', isReadOnly: true,
+      };
+      const result = renderLibrary(copyOfB);
+
+      result.current.handleClonePlaylist();
+
+      expect(mockRpc).toHaveBeenCalledTimes(2);
+      // Maillon immédiat : B vient de se faire cloner par C.
+      expect(mockRpc).toHaveBeenCalledWith('increment_playlist_clone_count', {
+        target_id: 'pl-B-copy',
+        target_user_id: 'user-B',
+      });
+      // Origine : le contenu d'A vient d'être réutilisé une fois de plus.
+      expect(mockRpc).toHaveBeenCalledWith('increment_playlist_clone_count', {
+        target_id: 'pl-A-original',
+        target_user_id: 'user-A',
+      });
+    });
+
+    it('la copie de C hérite de la MÊME origine (A) que la copie de B — la chaîne ne s\'arrête jamais à un maillon intermédiaire', () => {
+      const setSavedPlaylists = vi.fn();
+      const copyOfB = {
+        id: 'pl-B-copy', user_id: 'user-B', originId: 'pl-A-original', originUserId: 'user-A',
+        name: 'Copie de B', isReadOnly: true,
+      };
+      const result = renderLibrary(copyOfB, { setSavedPlaylists });
+
+      result.current.handleClonePlaylist();
+
+      const clonedByC = setSavedPlaylists.mock.calls[0][0][0];
+      expect(clonedByC.originId).toBe('pl-A-original');
+      expect(clonedByC.originUserId).toBe('user-A');
+    });
   });
 
   it('le clonage local reste effectif même si la RPC échoue (fire-and-forget, jamais bloquant)', () => {
