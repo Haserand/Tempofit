@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Gauge, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as UserIcon, X, Key, Download, Trash2, AtSign, Lock, Loader2, Eye, Heart } from 'lucide-react';
+import { Gauge, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as UserIcon, X, Key, Download, Trash2, AtSign, Lock, Loader2, Eye, Heart, Sparkles } from 'lucide-react';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 import AthleticProfilePanel from './AthleticProfilePanel';
 import { USERNAME_REGEX, isReservedUsername, RESERVED_USERNAME_ERROR } from '../../utils/username';
+import { supabase } from '../../supabaseClient';
 
 /**
  * SettingsView — vue unifiée "Réglages" (Refactor UX/UI, 28/07, "Sidebar
@@ -118,6 +119,45 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
   // dans l'app — pas la peine d'empiler plusieurs erreurs indépendantes ici).
   const [privacySavingKey, setPrivacySavingKey] = useState(null);
   const [privacyError, setPrivacyError] = useState('');
+
+  // Ma persona intime (chantier "Pulses/Leaderboard", fondations posées le
+  // 02/08, voir README + supabase-schema.sql) — PREMIÈRE UI à appeler
+  // réellement `get_or_create_intimate_persona()` (jusqu'ici vérifiée
+  // seulement via l'éditeur SQL Supabase, jamais par une vraie session
+  // authentifiée). Volontairement PAS d'appel automatique au montage/à
+  // l'ouverture de cet onglet, même si la RPC est idempotente et peu
+  // coûteuse : le README est explicite, Mode Intime = "fermé par défaut,
+  // l'utilisateur peut CHOISIR de partager" — un `useEffect` qui
+  // déclencherait la création silencieusement dès l'arrivée sur cette page
+  // contredirait cet opt-in, même si la ligne créée reste inerte (aucune
+  // policy de lecture publique sur `intimate_personas`, RIEN n'est
+  // réellement exposé tant qu'aucun futur classement ne lit cette table).
+  // Conséquence acceptée : si l'utilisateur quitte puis revient sur cette
+  // page, `intimatePersona` repart à `null` et il doit recliquer — la RPC
+  // renverra alors la MÊME persona (jamais une nouvelle, voir sa docstring
+  // SQL), donc aucune perte de données, juste un clic de plus par session.
+  const [intimatePersona, setIntimatePersona] = useState(null); // { intimate_id, pseudonym } | null
+  const [personaLoading, setPersonaLoading] = useState(false);
+  const [personaError, setPersonaError] = useState(false);
+
+  const handleGenerateIntimatePersona = async () => {
+    setPersonaLoading(true);
+    setPersonaError(false);
+    try {
+      const { data, error } = await supabase.rpc('get_or_create_intimate_persona');
+      if (error || !data) {
+        console.error('[SettingsView] get_or_create_intimate_persona a renvoyé une erreur :', error);
+        setPersonaError(true);
+      } else {
+        setIntimatePersona(data);
+      }
+    } catch (e) {
+      console.error('[SettingsView] get_or_create_intimate_persona a levé une exception :', e);
+      setPersonaError(true);
+    } finally {
+      setPersonaLoading(false);
+    }
+  };
 
   const handleTogglePrivacy = async (field, currentValue) => {
     setPrivacySavingKey(field);
@@ -523,6 +563,38 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                     >
                       <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${profilePrivacy?.showIntimateStats ? 'translate-x-6' : ''}`} />
                     </button>
+                  </div>
+                )}
+
+                {/* Ma persona intime — PAS gaté sur `isProfilePublic`
+                    (contrairement aux 2 blocs juste au-dessus) :
+                    volontairement indépendant du profil public, cohérent
+                    avec le README ("les pulses reçus sur du contenu
+                    intime restent possibles même sans opt-in au
+                    leaderboard, envoi anonyme indépendant du choix
+                    d'apparaître classé") — avoir un pseudonyme stable ne
+                    présuppose pas d'avoir rendu quoi que ce soit d'autre
+                    public. */}
+                {isNaughtyMode && (
+                  <div className={`p-4 rounded-2xl border ${inputBorder} ${inputBg}`}>
+                    <h4 className={`font-bold ${textHighlight} flex items-center gap-1.5`}><Sparkles size={14} className="text-rose-500"/> Ma persona intime</h4>
+                    <p className={`text-xs mt-0.5 mb-3 ${textMuted}`}>
+                      Un pseudonyme stable et anonyme, jamais dérivé de ton pseudo réel — pensé pour un futur classement Mode Intime. Rien n'est public pour l'instant : le générer ne le montre qu'à toi.
+                    </p>
+                    {intimatePersona ? (
+                      <p className="text-sm font-bold text-rose-500">Tu apparaîtrais sous : {intimatePersona.pseudonym}</p>
+                    ) : (
+                      <button
+                        onClick={handleGenerateIntimatePersona}
+                        disabled={personaLoading}
+                        className="px-4 py-2 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-60 bg-rose-600 hover:bg-rose-500"
+                      >
+                        {personaLoading ? 'Génération...' : 'Découvrir mon pseudonyme'}
+                      </button>
+                    )}
+                    {personaError && (
+                      <p className="text-xs mt-2 text-red-500">Une erreur est survenue, réessaie dans un instant.</p>
+                    )}
                   </div>
                 )}
 
