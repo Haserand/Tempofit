@@ -158,6 +158,23 @@ function PublicItemCard({ item, theme, onClick, kind = 'playlist' }) {
           {content.workoutType && <p className={`text-xs truncate ${textMuted}`}>{content.workoutType}</p>}
         </div>
       </div>
+      {/* Badge "Clone"/"Enfant" (02/08, discussion produit) — UNIQUEMENT si
+          `content.originUserId` existe (cet item fait partie d'une lignée
+          de clonage, sinon rien à signaler : une création originale n'est
+          ni Clone ni Enfant). "Clone" = copie fidèle, jamais modifiée
+          depuis (`isModifiedSinceClone` toujours `false`) ; "Enfant" = au
+          moins une modification depuis (renommage, description...),
+          PEU IMPORTE l'ampleur — la lignée ne se rompt JAMAIS (le
+          compteur de l'origine reste alimenté dans les deux cas), seule
+          l'ÉTIQUETTE affichée change, pour rester honnête sur "copie
+          fidèle" vs "dérivée". Modèle volontairement simple : un booléen,
+          jamais un seuil de "modification substantielle" (arbitraire et
+          lui-même contournable). */}
+      {content.originUserId && (
+        <span className={`inline-block text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded mb-1 ${textMuted} bg-black/5 dark:bg-white/10`}>
+          {content.isModifiedSinceClone ? 'Enfant' : 'Clone'}
+        </span>
+      )}
       <div className={`flex items-center gap-3 text-xs ${textMuted}`}>
         {isRoutine
           ? distanceOrDuration && <span className="flex items-center gap-1"><Clock size={12}/>{distanceOrDuration}</span>
