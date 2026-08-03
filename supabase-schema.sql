@@ -714,6 +714,52 @@ grant execute on function public.get_or_create_intimate_persona() to authenticat
 alter table playlists add column if not exists clone_count integer not null default 0;
 alter table routines add column if not exists clone_count integer not null default 0;
 
+-- ─────────────────────────────────────────────────────────────────────────
+-- ÉVOLUTION (02/08) — anti-abus "cloner puis supprimer sa copie en
+-- boucle" (retour direct, discussion approfondie : "si un mec clone ma
+-- playlist puis la supprime, ça compte pour combien de clonages ?" —
+-- conclusion : le crédit doit être acquis UNE SEULE FOIS par (personne,
+-- cible), PERMANENT, qui survit à la suppression locale de la copie).
+--
+-- `originCreditClaimed` (client, chantier précédent) protégeait déjà
+-- contre le "toggle spam" (public→privé→public en boucle SANS jamais
+-- supprimer) — mais rien ne protégeait contre supprimer la copie locale
+-- PUIS recloner : la copie disparue repart de zéro côté client, sans
+-- aucune mémoire de "j'ai déjà été crédité une fois pour cette cible
+-- précise". Un flag posé sur la copie elle-même ne peut structurellement
+-- PAS survivre à la suppression de cette copie — il fallait une mémoire
+-- SERVEUR, indépendante de ce que le client garde ou jette.
+--
+-- `clone_ledger` : une ligne = "CE compte a déjà obtenu un crédit de
+-- clonage pour CETTE cible précise, un jour" — JAMAIS supprimée (pas de
+-- politique de nettoyage, la mémoire doit être permanente pour tenir sa
+-- promesse). `target_key` (texte unique, PAS une paire `(id, user_id)`
+-- séparée) : réutilisé pour les 3 types de cibles (playlist RÉELLE,
+-- routine RÉELLE, template de la vitrine/Découvrir) sans avoir besoin de
+-- 3 schémas de clé différents — `target_id || ':' || target_user_id`
+-- pour une playlist/routine réelle, `'template:' || template_id` pour un
+-- template (préfixe distinct, aucun risque de collision avec un vrai id
+-- de playlist/routine). PAS de colonne `target_user_id uuid` séparée
+-- (nullable) : un `NULL` dans une contrainte unique Postgres n'est
+-- JAMAIS considéré égal à un autre `NULL` (2 lignes avec `NULL` ne se
+-- bloquent jamais mutuellement) — un template n'a pas de "propriétaire",
+-- ça aurait cassé le anti-abus spécifiquement pour ce cas. `target_key`
+-- (toujours non-null, jamais vide) évite ce piège structurellement.
+--
+-- Aucune policy de lecture/écriture côté client, sur AUCUNE opération —
+-- cette table n'est JAMAIS interrogée directement, seulement consultée en
+-- interne par les 3 fonctions `increment_*_clone_count` ci-dessous
+-- (toutes `security definer`, qui contournent RLS pour leurs propres
+-- lectures/écritures internes).
+create table if not exists clone_ledger (
+  cloner_user_id uuid not null references auth.users(id) on delete cascade,
+  target_key text not null,
+  created_at timestamptz not null default now(),
+  primary key (cloner_user_id, target_key)
+);
+
+alter table clone_ledger enable row level security;
+
 -- ⚠️ Piège DÉJÀ rencontré une fois sur ce projet (voir
 -- PlaylistDetailContext.jsx, calcul de `isSaved` avant correction) et
 -- qui s'applique ICI À L'IDENTIQUE : la clé primaire de `playlists`/
@@ -727,27 +773,46 @@ alter table routines add column if not exists clone_count integer not null defau
 --
 -- Garde-fou anti-abus : `target_user_id = auth.uid()` bloque
 -- l'auto-incrémentation (cloner virtuellement son propre contenu pour
--- gonfler son propre compteur) — mais AUCUNE protection contre un compte
--- authentifié qui appellerait cette fonction en boucle sur le contenu de
--- quelqu'un D'AUTRE sans jamais vraiment cloner (pas de vérification que
--- l'appelant possède réellement une copie). Accepté pour cette v1 : c'est
--- une métrique indicative, pas un système anti-fraude — à revisiter
--- seulement si un abus réel est constaté en usage.
+-- gonfler son propre compteur). ⚠️ CORRIGÉ (02/08, retour direct
+-- approfondi — voir `clone_ledger` ci-dessus pour le raisonnement
+-- complet) : consulte maintenant ce registre PERMANENT AVANT
+-- d'incrémenter quoi que ce soit — un compte qui a déjà obtenu un crédit
+-- pour CETTE cible précise un jour ne peut plus jamais en obtenir un 2e,
+-- même après avoir supprimé sa copie locale et reclonée. `insert ... on
+-- conflict do nothing` + `if not found` : idiome standard Postgres pour
+-- "insérer seulement si cette clé n'existe pas encore, et savoir si
+-- l'insertion a vraiment eu lieu" — `FOUND` vaut `false` si la ligne
+-- existait déjà (conflit silencieux), auquel cas la fonction s'arrête là,
+-- AVANT l'incrément réel.
 --
 -- À VALIDER dans l'éditeur SQL Supabase avant de s'y fier en prod (même
 -- réserve que les fonctions précédentes) :
 --   select clone_count from playlists where id = '...' and user_id = '...'; -- avant
 --   select public.increment_playlist_clone_count('...', '...'::uuid);
 --   select clone_count from playlists where id = '...' and user_id = '...'; -- après, doit avoir +1
+--   select public.increment_playlist_clone_count('...', '...'::uuid); -- 2e appel, MÊME cloner/cible
+--   select clone_count from playlists where id = '...' and user_id = '...'; -- doit être IDENTIQUE au précédent, pas +2
 create or replace function public.increment_playlist_clone_count(target_id text, target_user_id uuid)
 returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  ledger_key text;
 begin
   if auth.uid() is null or target_user_id = auth.uid() then
     return;
+  end if;
+
+  ledger_key := target_id || ':' || target_user_id::text;
+
+  insert into clone_ledger (cloner_user_id, target_key)
+  values (auth.uid(), ledger_key)
+  on conflict (cloner_user_id, target_key) do nothing;
+
+  if not found then
+    return; -- crédit déjà obtenu pour cette cible précise, un jour — jamais recompté
   end if;
 
   update playlists
@@ -759,15 +824,29 @@ $$;
 revoke execute on function public.increment_playlist_clone_count(text, uuid) from anon;
 grant execute on function public.increment_playlist_clone_count(text, uuid) to authenticated;
 
--- Même fonction, même raisonnement, pour les routines.
+-- Même fonction, même raisonnement, pour les routines — voir la
+-- docstring de `increment_playlist_clone_count` juste au-dessus pour le
+-- détail complet du registre anti-abus `clone_ledger`.
 create or replace function public.increment_routine_clone_count(target_id text, target_user_id uuid)
 returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  ledger_key text;
 begin
   if auth.uid() is null or target_user_id = auth.uid() then
+    return;
+  end if;
+
+  ledger_key := target_id || ':' || target_user_id::text;
+
+  insert into clone_ledger (cloner_user_id, target_key)
+  values (auth.uid(), ledger_key)
+  on conflict (cloner_user_id, target_key) do nothing;
+
+  if not found then
     return;
   end if;
 
@@ -823,33 +902,52 @@ create policy "Tout le monde peut lire les compteurs de clonage des templates"
 -- Pas de policy insert/update côté client — uniquement via la RPC
 -- ci-dessous (security definer).
 
--- RPC dédiée — MÊME garde que `increment_playlist_clone_count`/
--- `increment_routine_clone_count` (`auth.uid() is null` bloque un
--- visiteur non connecté, cohérent : un clonage en mode invité n'incrémente
--- déjà aucun des 2 compteurs "réels" non plus, pas de nouvelle
--- incohérence introduite ici). PAS de garde anti-auto-incrémentation ici
--- (contrairement aux 2 fonctions ci-dessus) : un template n'a pas de
--- "propriétaire" au sens `user_id` — n'importe quel compte authentifié
--- qui clone légitimement un template incrémente le compteur, il n'y a
--- personne à protéger d'un auto-clonage.
+-- RPC dédiée — MÊME garde `auth.uid() is null` que les 2 fonctions
+-- précédentes. PAS de garde anti-auto-incrémentation ici (contrairement
+-- aux 2 fonctions ci-dessus) : un template n'a pas de "propriétaire" au
+-- sens `user_id` — n'importe quel compte authentifié qui clone
+-- légitimement un template incrémente le compteur, il n'y a personne à
+-- protéger d'un auto-clonage.
+--
+-- ⚠️ CORRIGÉ (02/08, retour direct approfondi) — consulte désormais
+-- `clone_ledger` (voir sa docstring, juste après `alter table routines
+-- add column...` plus haut, pour le raisonnement complet de l'anti-abus
+-- "cloner-supprimer-recloner") AVANT d'incrémenter : `'template:' || ...`
+-- préfixe la clé pour ne jamais entrer en collision avec une clé
+-- playlist/routine réelle (`target_id || ':' || target_user_id`) dans le
+-- même registre partagé.
 --
 -- `on conflict ... do update` : la 1re incrémentation d'un template crée
 -- sa ligne (`clone_count` démarre à 1, jamais 0 — le insert ne se
 -- déclenche qu'au moment d'un VRAI clonage), les suivantes l'incrémentent
--- normalement.
+-- normalement — mais seulement si le registre confirme un NOUVEAU crédit.
 --
 -- À VALIDER dans l'éditeur SQL Supabase avant de s'y fier en prod :
 --   select clone_count from template_clone_counts where template_id = 'tpl-test'; -- doit ne renvoyer AUCUNE ligne avant le 1er clonage
 --   select public.increment_template_clone_count('tpl-test');
 --   select clone_count from template_clone_counts where template_id = 'tpl-test'; -- doit valoir 1
+--   select public.increment_template_clone_count('tpl-test'); -- 2e appel, MÊME compte
+--   select clone_count from template_clone_counts where template_id = 'tpl-test'; -- doit rester à 1, pas 2
 create or replace function public.increment_template_clone_count(target_template_id text)
 returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  ledger_key text;
 begin
   if auth.uid() is null then
+    return;
+  end if;
+
+  ledger_key := 'template:' || target_template_id;
+
+  insert into clone_ledger (cloner_user_id, target_key)
+  values (auth.uid(), ledger_key)
+  on conflict (cloner_user_id, target_key) do nothing;
+
+  if not found then
     return;
   end if;
 
