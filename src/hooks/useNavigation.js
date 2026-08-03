@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { buildCoverUrl } from '../utils/coverArt';
 import { recalculateTimeline } from '../engine/musicEngine';
+import { CATEGORY_DESCRIPTIONS } from '../data/curatedSessions';
 import { useGeneratorContext } from '../contexts/GeneratorContext';
 import { useModalContext } from '../contexts/ModalContext';
 
@@ -145,6 +146,17 @@ export function useNavigation(
       coverIcon: '🎧', createdAt: new Date().toLocaleDateString(),
       status: 'pending', actualDataByDate: {},
       config: { workoutName: template.workoutType, targetMode: 'time', bpm: avgBpm, selectedGenres: genres.length ? genres : ['Autre'] },
+      // Description (02/08, retour direct : "on ne peut pas avoir une
+      // description sur la carte Découvrir et rien du tout en ouvrant la
+      // playlist — il faut une synchronisation partout dans l'app") —
+      // MANQUAIT ici depuis le début (cette fonction reconstruit la
+      // playlist depuis zéro à partir du template, `content.description`
+      // n'existait dans AUCUNE des données sources). `CATEGORY_DESCRIPTIONS`
+      // (curatedSessions.js) — MÊME source que `TemplateCard.jsx`
+      // (Découvrir) et `templateToVitrineRow` (officialVitrineProfile.js,
+      // vitrine) : les 3 endroits où cette description peut s'afficher
+      // lisent maintenant la même chose.
+      description: CATEGORY_DESCRIPTIONS[template.category],
       // Trace de l'origine (retour direct : "je devrais revenir à la
       // playlist telle que j'ai cliqué dessus au départ" après un
       // renommage/édition suivi d'un retrait de "Mes Séances") — permet à
