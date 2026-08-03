@@ -15,14 +15,6 @@ vi.mock('../../src/contexts/ModalContext.jsx', () => ({
   useModalContext: () => ({ openModal: mockOpenModal, activeModal: null, modalData: null, closeModal: vi.fn() }),
 }));
 
-// Compteur de clonages HONNÊTE (02/08) — `handleToggleRoutinePublic`
-// appelle désormais `supabase.rpc(...)` quand on republie une copie issue
-// d'une chaîne de clonage. Jamais mocké avant ici (pas besoin jusqu'ici).
-const mockRpc = vi.fn();
-vi.mock('../../src/supabaseClient.js', () => ({
-  supabase: { rpc: (...args) => mockRpc(...args) },
-}));
-
 import RoutinesView from '../../src/components/views/RoutinesView.jsx';
 
 afterEach(() => {
@@ -138,66 +130,23 @@ describe('RoutinesView', () => {
     ]);
   });
 
-  // Compteur de clonages HONNÊTE (02/08, retour direct : "si je mets en
-  // public ma séance depuis un clone, ça alimente aussi le compteur de
-  // clonage de ce dernier") — MÊME logique que côté playlists
-  // (PlaylistDetailContext.jsx/PlaylistsView.jsx), transposée aux
-  // routines.
-  describe('republication d\'un clone alimente le compteur de l\'origine', () => {
-    it('rendre publique une copie issue d\'une chaîne de clonage appelle increment_routine_clone_count ciblant l\'ORIGINE', () => {
-      mockRpc.mockResolvedValue({ error: null });
-      const clonedRoutine = { id: 'c1', name: 'Copie clonée', manualGenerations: 0, workoutType: 'Course à pied', isPublic: false, originId: 'routine-B-original', originUserId: 'user-B' };
-      render(<RoutinesView {...baseProps({ routines: [clonedRoutine] })} />);
+  // ⚠️ SIMPLIFIÉ (03/08, refonte lignée serveur, voir supabase-schema.sql)
+  // — le mécanisme "republier une copie alimente le compteur de l'origine"
+  // a été retiré (code mort : la clé du `clone_ledger` était toujours déjà
+  // prise au moment du clonage lui-même — voir la docstring de
+  // `handleTogglePlaylistPublic`, PlaylistDetailContext.jsx, pour le
+  // détail complet). Ce composant n'importe même plus `supabase` — la
+  // bascule est un simple flip local, avec ou sans lignée de clonage.
+  it('rendre publique une copie issue d\'une chaîne de clonage reste un simple flip local — plus de crédit à réclamer', () => {
+    const setRoutines = vi.fn();
+    const clonedRoutine = { id: 'r1', name: 'Copie clonée', manualGenerations: 0, workoutType: 'Course à pied', isPublic: false, parentId: 'routine-A', parentUserId: 'user-A' };
+    render(<RoutinesView {...baseProps({ routines: [clonedRoutine], setRoutines })} />);
 
-      fireEvent.click(screen.getByTitle('Rendre cette routine visible sur ton profil public'));
+    fireEvent.click(screen.getByTitle('Rendre cette routine visible sur ton profil public'));
 
-      expect(mockRpc).toHaveBeenCalledWith('increment_routine_clone_count', {
-        target_id: 'routine-B-original',
-        target_user_id: 'user-B',
-      });
-    });
-
-    it('rendre PRIVÉE n\'appelle jamais la RPC', () => {
-      const clonedRoutine = { id: 'c1', name: 'Copie clonée', manualGenerations: 0, workoutType: 'Course à pied', isPublic: true, originId: 'routine-B-original', originUserId: 'user-B' };
-      render(<RoutinesView {...baseProps({ routines: [clonedRoutine] })} />);
-
-      fireEvent.click(screen.getByTitle('Visible sur ton profil public — clique pour la rendre privée'));
-
-      expect(mockRpc).not.toHaveBeenCalled();
-    });
-
-    it('rendre publique une routine sans origine (jamais clonée) n\'appelle aucune RPC', () => {
-      const ownRoutine = { id: 'r1', name: 'Ma routine', manualGenerations: 0, workoutType: 'Course à pied', isPublic: false };
-      render(<RoutinesView {...baseProps({ routines: [ownRoutine] })} />);
-
-      fireEvent.click(screen.getByTitle('Rendre cette routine visible sur ton profil public'));
-
-      expect(mockRpc).not.toHaveBeenCalled();
-    });
-
-    // Anti-abus "toggle spam" (02/08) — MÊME garde que côté playlists,
-    // voir leur docstring pour le raisonnement complet.
-    it('anti-abus : originCreditClaimed déjà à true → une 2e republication n\'appelle AUCUNE RPC', () => {
-      mockRpc.mockResolvedValue({ error: null });
-      const alreadyClaimed = { id: 'r1', name: 'Copie clonée', manualGenerations: 0, workoutType: 'Course à pied', isPublic: false, originId: 'routine-A', originUserId: 'user-A', originCreditClaimed: true };
-      render(<RoutinesView {...baseProps({ routines: [alreadyClaimed] })} />);
-
-      fireEvent.click(screen.getByTitle('Rendre cette routine visible sur ton profil public'));
-
-      expect(mockRpc).not.toHaveBeenCalled();
-    });
-
-    it('1re republication pose originCreditClaimed à true sur la routine mise à jour', () => {
-      mockRpc.mockResolvedValue({ error: null });
-      const setRoutines = vi.fn();
-      const clonedRoutine = { id: 'r1', name: 'Copie clonée', manualGenerations: 0, workoutType: 'Course à pied', isPublic: false, originId: 'routine-A', originUserId: 'user-A' };
-      render(<RoutinesView {...baseProps({ routines: [clonedRoutine], setRoutines })} />);
-
-      fireEvent.click(screen.getByTitle('Rendre cette routine visible sur ton profil public'));
-
-      expect(setRoutines).toHaveBeenCalledWith([{ ...clonedRoutine, isPublic: true, originCreditClaimed: true }]);
-    });
+    expect(setRoutines).toHaveBeenCalledWith([{ ...clonedRoutine, isPublic: true }]);
   });
+
 
   it('une routine déjà publique affiche le bouton "clique pour la rendre privée", et le clic la repasse à false', () => {
     const setRoutines = vi.fn();
@@ -315,9 +264,9 @@ describe('RoutinesView — description libre', () => {
   // "Clone" vs "Enfant" (02/08) — MÊME règle que côté playlists
   // (PlaylistDetailContext.jsx, voir sa docstring pour le raisonnement
   // complet), transposée aux routines.
-  it('éditer la description d\'une routine CLONÉE (originUserId présent) pose isModifiedSinceClone à true', () => {
+  it('éditer la description d\'une routine CLONÉE (parentUserId présent) pose isModifiedSinceClone à true', () => {
     const setRoutines = vi.fn();
-    const clonedRoutine = { ...routineC, originId: 'routine-A', originUserId: 'user-A', isModifiedSinceClone: false };
+    const clonedRoutine = { ...routineC, parentId: 'routine-A', parentUserId: 'user-A', isModifiedSinceClone: false };
     render(<RoutinesView {...baseProps({ routines: [clonedRoutine], setRoutines })} />);
 
     fireEvent.click(screen.getByText('Ajouter une description'));
