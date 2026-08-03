@@ -4,6 +4,7 @@ import { useModalContext } from '../../contexts/ModalContext';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 import { MAX_DESCRIPTION_LENGTH } from '../../appConfig';
+import { supabase } from '../../supabaseClient';
 
 /**
  * RoutinesView — vue "Mes Routines" (configurations sauvegardées, relançables en un clic).
@@ -31,7 +32,30 @@ export default function RoutinesView({
   // pousse la mise à jour vers la colonne `is_public` de la table `routines`
   // tout seul, rien de plus à faire ici côté synchro.
   const handleToggleRoutinePublic = (id) => {
-    setRoutines(routines.map(r => r.id === id ? { ...r, isPublic: !r.isPublic } : r));
+    let updated = null;
+    setRoutines(routines.map(r => {
+      if (r.id !== id) return r;
+      updated = { ...r, isPublic: !r.isPublic };
+      return updated;
+    }));
+
+    // Alimente le compteur de clonages de l'ORIGINE (02/08, retour direct :
+    // "si je mets en public ma séance depuis un clone, ça alimente aussi
+    // le compteur de clonage de ce dernier") — MÊME logique que
+    // handleTogglePlaylistPublic (PlaylistDetailContext.jsx/
+    // PlaylistsView.jsx, voir leur docstring pour le raisonnement
+    // complet) : `originId`/`originUserId` posés par
+    // `handleClonePublicRoutine` (App.jsx) au moment du clonage. Jamais au
+    // moment de RENDRE PRIVÉE (`updated.isPublic` vérifié) — on ne
+    // "décompte" jamais un clonage déjà comptabilisé.
+    if (updated?.isPublic && updated.originUserId) {
+      supabase.rpc('increment_routine_clone_count', {
+        target_id: updated.originId,
+        target_user_id: updated.originUserId,
+      }).then(({ error }) => {
+        if (error) console.error('[RoutinesView] increment_routine_clone_count (republication) a échoué :', error);
+      });
+    }
   };
 
   // Description libre (Vague 2, Chantier 3 — "description texte libre sur
