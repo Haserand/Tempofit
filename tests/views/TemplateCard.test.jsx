@@ -8,6 +8,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import TemplateCard from '../../src/components/views/TemplateCard.jsx';
+import { CATEGORY_DESCRIPTIONS, curatedSessions, naughtyCuratedSessions } from '../../src/data/curatedSessions.js';
 
 afterEach(() => {
   cleanup();
@@ -24,6 +25,7 @@ const mockTemplate = {
   title: 'Cardio Blast',
   author: 'TempoFit',
   workoutType: 'Course à pied',
+  category: 'Cardio Express',
   isOfficial: true,
   tracks: [
     { duration: 180, bpm: 150 },
@@ -160,15 +162,38 @@ describe('TemplateCard', () => {
     });
   });
 
-  // Retour direct (02/08, 2e passe : "mets les descriptions aussi, pour
-  // voir à quoi ça ressemble — même texte de base partout si ça économise
-  // des tokens"). PLACEHOLDER volontaire, pas une vraie description par
-  // template — voir la docstring en tête de TemplateCard.jsx.
-  it('affiche le texte de remplissage (placeholder) sur toutes les cartes, identique quel que soit le template', () => {
-    const { rerender } = render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
-    expect(screen.getByText(/Lorem ipsum dolor sit amet/)).toBeInTheDocument();
+  // Retour direct (02/08, 9e passe : "on ne peut pas avoir une description
+  // sur la carte Découvrir et rien du tout en ouvrant la playlist — il
+  // faut une synchronisation partout dans l'app") — remplace le texte de
+  // remplissage Lorem ipsum d'une passe précédente par la VRAIE source
+  // partagée (`CATEGORY_DESCRIPTIONS`, curatedSessions.js), la même que
+  // la vitrine ET la playlist réellement ouverte.
+  it('affiche la description de la CATÉGORIE du template (source partagée avec la vitrine et l\'ouverture réelle de la playlist)', () => {
+    render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
+    expect(screen.getByText(CATEGORY_DESCRIPTIONS['Cardio Express'])).toBeInTheDocument();
+  });
 
-    rerender(<TemplateCard theme={mockTheme} template={{ ...mockTemplate, id: 'autre-template', title: 'Autre Titre' }} onPlayTemplate={() => {}} isNaughtyMode={false} />);
-    expect(screen.getByText(/Lorem ipsum dolor sit amet/)).toBeInTheDocument();
+  it('2 templates de catégories DIFFÉRENTES affichent 2 descriptions différentes', () => {
+    const { rerender } = render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
+    expect(screen.getByText(CATEGORY_DESCRIPTIONS['Cardio Express'])).toBeInTheDocument();
+
+    const otherCategoryTemplate = { ...mockTemplate, id: 'autre-template', title: 'Autre Titre', category: 'Récupération & Flow' };
+    rerender(<TemplateCard theme={mockTheme} template={otherCategoryTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
+    expect(screen.getByText(CATEGORY_DESCRIPTIONS['Récupération & Flow'])).toBeInTheDocument();
+  });
+});
+
+// Garde-fou (02/08) — chaque catégorie RÉELLEMENT utilisée dans
+// curatedSessions.js doit avoir une entrée dans CATEGORY_DESCRIPTIONS,
+// sinon `TemplateCard.jsx` afficherait silencieusement rien du tout
+// (`undefined` ne lève pas d'erreur en JSX) pour toute nouvelle catégorie
+// ajoutée sans que la source partagée ne soit mise à jour en même temps.
+describe('TemplateCard — CATEGORY_DESCRIPTIONS couvre bien toutes les catégories réelles', () => {
+  it('toutes les catégories de curatedSessions/naughtyCuratedSessions ont une description non vide', () => {
+    const allCategories = new Set([...curatedSessions, ...naughtyCuratedSessions].map(t => t.category));
+    allCategories.forEach(category => {
+      expect(typeof CATEGORY_DESCRIPTIONS[category]).toBe('string');
+      expect(CATEGORY_DESCRIPTIONS[category].length).toBeGreaterThan(0);
+    });
   });
 });
