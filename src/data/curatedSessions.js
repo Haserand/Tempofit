@@ -690,3 +690,30 @@ export const naughtyCuratedSessions = [
 // (`increment_template_clone_count`) — voir ProfileView.jsx (vitrine) et
 // DiscoverView.jsx/TemplateCard.jsx (catalogue), qui récupèrent désormais
 // les vrais totaux au lieu d'appeler cette fonction.
+
+// Description PAR CATÉGORIE (02/08, retour direct : "on ne peut pas avoir
+// une description sur la carte Découvrir et rien du tout en ouvrant la
+// playlist — il faut une synchronisation partout dans l'app") — DÉPLACÉE
+// ici depuis `officialVitrineProfile.js` (où elle vivait seule au départ,
+// utilisée uniquement pour les cartes de la vitrine) pour être PARTAGÉE
+// avec les 2 autres endroits où la description d'un template peut
+// s'afficher : `TemplateCard.jsx` (cartes de Découvrir — remplace le
+// texte de remplissage Lorem ipsum posé en attendant de vraies
+// descriptions par template) et `openCuratedPlaylist`
+// (useNavigation.js — reconstruit la playlist réelle à l'ouverture,
+// n'avait ELLE-MÊME jamais eu de description du tout, d'où
+// l'incohérence signalée). Une seule source, 3 lectures — plus de
+// version qui diverge des 2 autres.
+//
+// PAS encore de vraies descriptions PAR TEMPLATE (l'utilisateur prévoit de
+// réécrire ces templates en profondeur prochainement, voir README.md) —
+// ce repli par catégorie reste un pis-aller réel mais générique, pas la
+// version finale.
+export const CATEGORY_DESCRIPTIONS = {
+  'Cardio Express': "Une session courte et intense, pensée pour un cardio efficace même avec un emploi du temps chargé.",
+  'Endurance Fondamentale': "Un rythme régulier pour construire ton endurance de fond, séance après séance.",
+  'Force & Renfo': "De quoi accompagner une séance de renforcement musculaire, sans jamais casser le rythme.",
+  'Race Day / Performance': "La sélection pensée pour le jour J — quand chaque BPM compte.",
+  'Récupération & Flow': "Un tempo plus doux, pour une séance de récupération active, sans se presser.",
+  'Rythmes Sensuels': "Une ambiance plus intime, pensée pour un moment à part.",
+};
