@@ -1,5 +1,6 @@
 import { curatedSessions, naughtyCuratedSessions } from '../data/curatedSessions';
 import { useModalContext } from '../contexts/ModalContext';
+import { supabase } from '../supabaseClient';
 
 /**
  * usePlaylistLibrary — regroupe les actions de gestion de "Mes Séances" :
@@ -95,6 +96,26 @@ export function usePlaylistLibrary(
     // reste sur la même vue détail, seul l'objet affiché change).
     setCurrentPlaylist(cloned);
     showToast("🎵 Playlist clonée dans Mes Séances !");
+
+    // Compteur de clonages (02/08) — `currentPlaylist.user_id` n'existe
+    // QUE pour une vraie playlist étrangère chargée depuis Supabase (voir
+    // `handleOpenPublicPlaylist`, App.jsx) ; absent pour un template de la
+    // vitrine `@tempofit_officiel` (jamais un vrai propriétaire en base,
+    // rien à incrémenter) — ce garde suffit, pas besoin de distinguer
+    // explicitement les deux cas. Fire-and-forget : ne bloque jamais le
+    // clonage lui-même (déjà effectif localement juste au-dessus) si le
+    // réseau est indisponible ou l'appel échoue — seulement journalisé,
+    // jamais remonté à l'utilisateur (un compteur de vanité qui rate une
+    // fois ne justifie pas une erreur visible sur une action qui, du point
+    // de vue de l'utilisateur, a déjà pleinement réussi).
+    if (currentPlaylist.user_id) {
+      supabase.rpc('increment_playlist_clone_count', {
+        target_id: currentPlaylist.id,
+        target_user_id: currentPlaylist.user_id,
+      }).then(({ error }) => {
+        if (error) console.error('[usePlaylistLibrary] increment_playlist_clone_count a échoué :', error);
+      });
+    }
   };
 
   /**
