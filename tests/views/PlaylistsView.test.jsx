@@ -11,6 +11,15 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
+// Compteur de clonages HONNÊTE (02/08) — `handleTogglePlaylistPublic`
+// (local à ce fichier) appelle désormais `supabase.rpc(...)` quand on
+// republie une copie issue d'une chaîne de clonage. Jamais mocké avant ici
+// (pas besoin jusqu'ici).
+const mockRpc = vi.fn();
+vi.mock('../../src/supabaseClient.js', () => ({
+  supabase: { rpc: (...args) => mockRpc(...args) },
+}));
+
 vi.mock('../../src/components/views/PlaylistCard.jsx', () => ({
   default: ({ playlist, onClick, onDelete, onTogglePublic, draggable, isDragging, onDragStart, onDragEnter, onDragEnd, rank }) => (
     <div
@@ -185,6 +194,41 @@ describe('PlaylistsView — bascule publique/privée (Feature Sociale, 01/08)', 
     const result = Array.isArray(updater) ? updater : updater([target, other]);
     expect(result.find(p => p.id === 'p1').isPublic).toBe(true);
     expect(result.find(p => p.id === 'p2').isPublic).toBe(true); // inchangé
+  });
+
+  // Compteur de clonages HONNÊTE (02/08, retour direct : "si je mets en
+  // public ma séance depuis un clone, ça alimente aussi le compteur de
+  // clonage de ce dernier") — MÊME logique que PlaylistDetailContext.jsx,
+  // voir sa docstring pour le raisonnement complet.
+  it('rendre publique une copie issue d\'une chaîne de clonage appelle increment_playlist_clone_count ciblant l\'ORIGINE', () => {
+    mockRpc.mockResolvedValue({ error: null });
+    const target = makePlaylist({ id: 'p1', isPublic: false, originId: 'pl-B-original', originUserId: 'user-B' });
+    render(<PlaylistsView {...baseProps({ savedPlaylists: [target] })} />);
+
+    fireEvent.click(screen.getByTestId('toggle-public-p1'));
+
+    expect(mockRpc).toHaveBeenCalledWith('increment_playlist_clone_count', {
+      target_id: 'pl-B-original',
+      target_user_id: 'user-B',
+    });
+  });
+
+  it('rendre PRIVÉE n\'appelle jamais la RPC', () => {
+    const target = makePlaylist({ id: 'p1', isPublic: true, originId: 'pl-B-original', originUserId: 'user-B' });
+    render(<PlaylistsView {...baseProps({ savedPlaylists: [target] })} />);
+
+    fireEvent.click(screen.getByTestId('toggle-public-p1'));
+
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it('rendre publique une playlist sans origine (jamais clonée) n\'appelle aucune RPC', () => {
+    const target = makePlaylist({ id: 'p1', isPublic: false });
+    render(<PlaylistsView {...baseProps({ savedPlaylists: [target] })} />);
+
+    fireEvent.click(screen.getByTestId('toggle-public-p1'));
+
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 });
 
