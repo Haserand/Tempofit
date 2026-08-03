@@ -682,3 +682,39 @@ export const naughtyCuratedSessions = [
     ],
   },
 ];
+
+// Compteur de clonages FICTIF pour un template du catalogue (02/08,
+// retour direct : "chaque playlist en Découvrir devrait au minimum avoir
+// une indication du nombre de clonages") — un template statique n'a
+// jamais de vraie ligne `playlists` en base (voir supabase-schema.sql,
+// `clone_count` n'existe que sur du contenu réellement possédé par un
+// compte), donc rien à incrémenter ici : ce nombre est purement pour
+// donner un signal de popularité crédible à un catalogue qui, sinon,
+// afficherait "0" partout — même logique qu'`officialVitrineProfile.js`
+// ("ambitieux mais volontairement faux").
+//
+// PARTAGÉ entre `officialVitrineProfile.js` (playlists de la vitrine
+// `@tempofit_officiel`, qui proviennent de CE catalogue) et
+// `TemplateCard.jsx` (cartes de "Découvrir", qui affichent CES MÊMES
+// templates) — un seul et même calcul, importé aux deux endroits :
+// sans ça, le MÊME template afficherait 2 nombres différents selon
+// l'écran consulté, ce qui aurait semblé être un vrai bug de
+// synchronisation aux yeux d'un visiteur qui les compare.
+//
+// Déterministe (hash de chaîne simple, pas cryptographique) — jamais
+// `Math.random()` : un rendu de plus ne doit jamais afficher un nombre
+// différent du précédent pour le même template.
+export function fakeCloneCountForId(id) {
+  // Garde défensive (02/08, trouvée en écrivant les tests de
+  // TemplateCard.jsx : son ancien fixture de test n'avait jamais eu besoin
+  // d'un `id` avant cette fonction, `undefined.length` aurait fait planter
+  // TOUTE la carte pour un détail sans rapport avec ce qu'elle testait
+  // réellement). Un vrai template de ce catalogue a TOUJOURS un `id`
+  // (chaque entrée en définit un) — ce repli ne devrait jamais s'activer
+  // en usage réel, seulement protéger contre un futur appelant/fixture qui
+  // l'omettrait par erreur.
+  if (typeof id !== 'string' || id.length === 0) return 8;
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) % 997;
+  return 8 + (hash % 65); // entre 8 et 72, jamais 0 (toujours "ambitieux")
+}
