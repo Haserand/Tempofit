@@ -695,6 +695,92 @@ revoke execute on function public.get_or_create_intimate_persona() from anon;
 grant execute on function public.get_or_create_intimate_persona() to authenticated;
 
 -- ─────────────────────────────────────────────────────────────────────────
+-- ÉVOLUTION (02/08) — compteur de clonages (point 4 de l'ordre de priorité,
+-- README) : combien de fois une playlist/routine PUBLIQUE a été clonée par
+-- quelqu'un d'autre. Volontairement PAR ITEM seulement — pas de classement
+-- agrégé par créateur (ce serait le "Leaderboard" du chantier Pulses, pas
+-- celui-ci), donc AUCUN lien avec `intimate_personas` : un simple total
+-- affiché sur une carte ne révèle jamais qui a cloné quoi, juste combien
+-- de fois — pas besoin d'anonymiser un nombre.
+--
+-- Colonnes ajoutées à `playlists`/`routines` (pas dans `content` jsonb,
+-- contrairement à `description` plus haut) : ce total doit être
+-- INCRÉMENTABLE de façon atomique par n'importe quel visiteur qui clone —
+-- si c'était dans `content`, incrémenter forcerait à relire tout le jsonb,
+-- le modifier, le réécrire en entier côté client (risque de race condition
+-- entre 2 clonages simultanés : le 2e écraserait l'incrément du 1er). Une
+-- vraie colonne + `set clone_count = clone_count + 1` DANS LA MÊME requête
+-- SQL est atomique par construction, aucune race condition possible.
+alter table playlists add column if not exists clone_count integer not null default 0;
+alter table routines add column if not exists clone_count integer not null default 0;
+
+-- ⚠️ Piège DÉJÀ rencontré une fois sur ce projet (voir
+-- PlaylistDetailContext.jsx, calcul de `isSaved` avant correction) et
+-- qui s'applique ICI À L'IDENTIQUE : la clé primaire de `playlists`/
+-- `routines` est COMPOSITE `(id, user_id)`, JAMAIS `id` seul — 2 comptes
+-- différents peuvent légitimement partager le même id (la playlist démo
+-- d'un compte invité, par exemple). Cibler l'incrément par `target_id`
+-- SEUL incrémenterait potentiellement le clone_count d'une playlist
+-- appartenant à la MAUVAISE personne si un autre utilisateur possède une
+-- ligne avec le même id — `target_user_id` est donc un paramètre
+-- OBLIGATOIRE de ces deux fonctions, jamais une simplification "optionnelle".
+--
+-- Garde-fou anti-abus : `target_user_id = auth.uid()` bloque
+-- l'auto-incrémentation (cloner virtuellement son propre contenu pour
+-- gonfler son propre compteur) — mais AUCUNE protection contre un compte
+-- authentifié qui appellerait cette fonction en boucle sur le contenu de
+-- quelqu'un D'AUTRE sans jamais vraiment cloner (pas de vérification que
+-- l'appelant possède réellement une copie). Accepté pour cette v1 : c'est
+-- une métrique indicative, pas un système anti-fraude — à revisiter
+-- seulement si un abus réel est constaté en usage.
+--
+-- À VALIDER dans l'éditeur SQL Supabase avant de s'y fier en prod (même
+-- réserve que les fonctions précédentes) :
+--   select clone_count from playlists where id = '...' and user_id = '...'; -- avant
+--   select public.increment_playlist_clone_count('...', '...'::uuid);
+--   select clone_count from playlists where id = '...' and user_id = '...'; -- après, doit avoir +1
+create or replace function public.increment_playlist_clone_count(target_id text, target_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null or target_user_id = auth.uid() then
+    return;
+  end if;
+
+  update playlists
+  set clone_count = clone_count + 1
+  where id = target_id and user_id = target_user_id and is_public = true;
+end;
+$$;
+
+revoke execute on function public.increment_playlist_clone_count(text, uuid) from anon;
+grant execute on function public.increment_playlist_clone_count(text, uuid) to authenticated;
+
+-- Même fonction, même raisonnement, pour les routines.
+create or replace function public.increment_routine_clone_count(target_id text, target_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null or target_user_id = auth.uid() then
+    return;
+  end if;
+
+  update routines
+  set clone_count = clone_count + 1
+  where id = target_id and user_id = target_user_id and is_public = true;
+end;
+$$;
+
+revoke execute on function public.increment_routine_clone_count(text, uuid) from anon;
+grant execute on function public.increment_routine_clone_count(text, uuid) to authenticated;
+
+-- ─────────────────────────────────────────────────────────────────────────
 -- MIGRATION — copie chaque ÉLÉMENT du blob JSON `user_data` (clés
 -- 'savedPlaylists'/'routines', un tableau par utilisateur) vers UNE LIGNE
 -- de la table relationnelle correspondante. `jsonb_array_elements` déplie
