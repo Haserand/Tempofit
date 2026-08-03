@@ -379,12 +379,13 @@ describe('ProfileView — compteur de clonages', () => {
   });
 });
 
-// "Clone" vs "Enfant" (02/08, discussion produit) — badge affiché
-// UNIQUEMENT quand content.originUserId existe (fait partie d'une lignée
-// de clonage) ; sinon aucun badge (création originale).
+// "Clone" vs "Enfant" (02/08, discussion produit ; refonte 03/08 — voir
+// supabase-schema.sql) — badge affiché UNIQUEMENT quand `parent_user_id`
+// (VRAIE colonne, pas `content`) existe (fait partie d'une lignée de
+// clonage) ; sinon aucun badge (création originale).
 describe('ProfileView — badge "Clone"/"Enfant" (lignée de clonage)', () => {
-  const clonedNeverModified = { id: 'pl-clone', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Copie fidèle', workoutType: 'Course à pied', totalDuration: 1200, config: { bpm: 150 }, tracks: [], originUserId: 'user-A', isModifiedSinceClone: false } };
-  const clonedThenModified = { id: 'pl-enfant', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Copie modifiée', workoutType: 'Course à pied', totalDuration: 1200, config: { bpm: 150 }, tracks: [], originUserId: 'user-A', isModifiedSinceClone: true } };
+  const clonedNeverModified = { id: 'pl-clone', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, parent_user_id: 'user-A', content: { name: 'Copie fidèle', workoutType: 'Course à pied', totalDuration: 1200, config: { bpm: 150 }, tracks: [], isModifiedSinceClone: false } };
+  const clonedThenModified = { id: 'pl-enfant', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, parent_user_id: 'user-A', content: { name: 'Copie modifiée', workoutType: 'Course à pied', totalDuration: 1200, config: { bpm: 150 }, tracks: [], isModifiedSinceClone: true } };
   const originalCreation = { id: 'pl-original', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Création originale', workoutType: 'Course à pied', totalDuration: 1200, config: { bpm: 150 }, tracks: [] } };
 
   it('affiche "Clone" pour une copie jamais modifiée depuis le clonage', async () => {
