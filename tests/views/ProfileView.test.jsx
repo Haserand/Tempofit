@@ -379,6 +379,43 @@ describe('ProfileView — compteur de clonages', () => {
   });
 });
 
+// "Clone" vs "Enfant" (02/08, discussion produit) — badge affiché
+// UNIQUEMENT quand content.originUserId existe (fait partie d'une lignée
+// de clonage) ; sinon aucun badge (création originale).
+describe('ProfileView — badge "Clone"/"Enfant" (lignée de clonage)', () => {
+  const clonedNeverModified = { id: 'pl-clone', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Copie fidèle', workoutType: 'Course à pied', totalDuration: 1200, config: { bpm: 150 }, tracks: [], originUserId: 'user-A', isModifiedSinceClone: false } };
+  const clonedThenModified = { id: 'pl-enfant', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Copie modifiée', workoutType: 'Course à pied', totalDuration: 1200, config: { bpm: 150 }, tracks: [], originUserId: 'user-A', isModifiedSinceClone: true } };
+  const originalCreation = { id: 'pl-original', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Création originale', workoutType: 'Course à pied', totalDuration: 1200, config: { bpm: 150 }, tracks: [] } };
+
+  it('affiche "Clone" pour une copie jamais modifiée depuis le clonage', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ playlists: [clonedNeverModified] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+
+    await screen.findByText('Copie fidèle');
+    expect(screen.getByText('Clone')).toBeInTheDocument();
+  });
+
+  it('affiche "Enfant" pour une copie modifiée depuis le clonage', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ playlists: [clonedThenModified] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+
+    await screen.findByText('Copie modifiée');
+    expect(screen.getByText('Enfant')).toBeInTheDocument();
+  });
+
+  it('n\'affiche AUCUN badge pour une création originale (jamais clonée)', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ playlists: [originalCreation] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+
+    await screen.findByText('Création originale');
+    expect(screen.queryByText('Clone')).toBeNull();
+    expect(screen.queryByText('Enfant')).toBeNull();
+  });
+});
+
 describe('ProfileView — description libre sur les cartes publiques', () => {
   const playlistWithDescription = { id: 'pl-desc', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Sortie du dimanche', workoutType: 'Course à pied', totalDuration: 1200, config: { bpm: 150 }, tracks: [], description: 'Une sortie tranquille pour récupérer.' } };
   const routineWithDescription = { id: 'routine-desc', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Mon 10km', workoutType: 'Course à pied', coverIcon: '🏃', targetMode: 'distance', distanceVal: 10, distanceUnit: 'km', bpm: 170, description: 'À lancer avant le petit-déjeuner.' } };
