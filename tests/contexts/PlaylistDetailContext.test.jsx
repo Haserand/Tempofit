@@ -269,6 +269,31 @@ describe('PlaylistDetailContext — description libre (handleEditPlaylistDescrip
     const calledWith = setCurrentPlaylist.mock.calls[0][0];
     expect(calledWith.description.length).toBe(280);
   });
+
+  // "Clone" vs "Enfant" (02/08, discussion produit : la lignée ne se
+  // rompt jamais, mais l'étiquette affichée change dès la 1re
+  // modification — booléen simple, jamais un seuil arbitraire).
+  it('éditer la description d\'une copie CLONÉE (originUserId présent) pose isModifiedSinceClone à true', () => {
+    const setCurrentPlaylist = vi.fn();
+    const clonedPlaylist = makePlaylist({ description: '', originId: 'pl-A', originUserId: 'user-A', isModifiedSinceClone: false });
+    renderWithProviderCapturing(clonedPlaylist, [clonedPlaylist], { setCurrentPlaylist });
+
+    fireEvent.change(screen.getByTestId('draft-input'), { target: { value: 'Ma propre description' } });
+    fireEvent.click(screen.getByText('save-description'));
+
+    expect(setCurrentPlaylist).toHaveBeenCalledWith(expect.objectContaining({ isModifiedSinceClone: true }));
+  });
+
+  it('éditer la description d\'une playlist SANS origine (jamais clonée) ne pose PAS isModifiedSinceClone — rien à marquer', () => {
+    const setCurrentPlaylist = vi.fn();
+    const ownPlaylist = makePlaylist({ description: '' });
+    renderWithProviderCapturing(ownPlaylist, [ownPlaylist], { setCurrentPlaylist });
+
+    fireEvent.change(screen.getByTestId('draft-input'), { target: { value: 'Ma description' } });
+    fireEvent.click(screen.getByText('save-description'));
+
+    expect(setCurrentPlaylist.mock.calls[0][0].isModifiedSinceClone).toBeUndefined();
+  });
 });
 
 // Sonde dédiée à la bascule publique/privée — MÊME schéma que
@@ -279,7 +304,7 @@ function TogglePublicProbe() {
 }
 
 function renderWithProviderForTogglePublic(currentPlaylist, savedPlaylists, { setCurrentPlaylist = vi.fn(), setSavedPlaylists = vi.fn() } = {}) {
-  render(
+  return render(
     <PlaylistDetailProvider
       currentPlaylist={currentPlaylist}
       setCurrentPlaylist={setCurrentPlaylist}
@@ -351,5 +376,40 @@ describe('PlaylistDetailContext — republication d\'un clone alimente le compte
     fireEvent.click(screen.getByText('toggle-public'));
 
     expect(mockRpc).toHaveBeenCalledWith('increment_template_clone_count', { target_template_id: 'tpl-cardio' });
+  });
+});
+
+// Anti-abus "toggle spam" (02/08, retour direct : "si un mec fait public →
+// privé → public → privé en boucle sur sa propre copie, ça ne doit pas
+// réincrémenter le compteur de l'origine à chaque fois"). Chaque étape
+// simule séparément ce que l'état RÉEL serait après l'étape précédente
+// (`originCreditClaimed` posé par le handler lui-même) — cohérent avec le
+// reste de ce fichier (voir les tests "cloisonnement" plus haut, même
+// convention render/cleanup/render).
+describe('PlaylistDetailContext — anti-abus : le crédit à l\'origine n\'est réclamé QU\'UNE SEULE FOIS par copie', () => {
+  it('1re republication : appelle la RPC ET pose originCreditClaimed sur la copie mise à jour', () => {
+    mockRpc.mockResolvedValue({ error: null });
+    const setSavedPlaylists = vi.fn();
+    const clonedPlaylist = makePlaylist({ isPublic: false, originId: 'pl-A-original', originUserId: 'user-A' });
+    renderWithProviderForTogglePublic(clonedPlaylist, [clonedPlaylist], { setSavedPlaylists });
+
+    fireEvent.click(screen.getByText('toggle-public'));
+
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+    const updated = setSavedPlaylists.mock.calls[0][0][0];
+    expect(updated.originCreditClaimed).toBe(true);
+  });
+
+  it('2e republication (après un passage privé) : originCreditClaimed déjà à true → AUCUN nouvel appel RPC', () => {
+    mockRpc.mockResolvedValue({ error: null });
+    // Simule l'état APRÈS la 1re republication + un repassage privé —
+    // `originCreditClaimed: true` déjà posé, comme le ferait vraiment
+    // l'app suite au test précédent.
+    const alreadyClaimedPlaylist = makePlaylist({ isPublic: false, originId: 'pl-A-original', originUserId: 'user-A', originCreditClaimed: true });
+    renderWithProviderForTogglePublic(alreadyClaimedPlaylist, [alreadyClaimedPlaylist]);
+
+    fireEvent.click(screen.getByText('toggle-public')); // repasse publique, 2e fois
+
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 });
