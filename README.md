@@ -12,7 +12,7 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-**Chantier en cours : "Compteur de sauvegardes/clonages" (02/08) — implémenté, EN ATTENTE de confirmation par le build Vercel + un vrai clonage en conditions réelles.** Prochain chantier une fois confirmé : retour à l'ordre de priorité normal (Vague 2, Chantier 2 — renforcement post-hoc, moteur BPM/structuration + analyse post-séance, `useSessionAnalysis.js`).
+**Chantier en cours : "Compteur de sauvegardes/clonages" (02/08) — implémenté, SQL exécuté avec succès dans Supabase. EN ATTENTE d'un build Vercel vert (1er essai a échoué sur un bug de test, corrigé — voir `CLAUDE-SANDBOX-VERIFICATION.md` §4ter) + d'un vrai clonage en conditions réelles pour confirmation complète.** Prochain chantier une fois confirmé : retour à l'ordre de priorité normal (Vague 2, Chantier 2 — renforcement post-hoc, moteur BPM/structuration + analyse post-séance, `useSessionAnalysis.js`).
 
 ⚠️ **Requiert une action manuelle Supabase avant que quoi que ce soit ne fonctionne** — voir `supabase-schema.sql` : nouvelle colonne `clone_count` (`playlists`/`routines`) + 2 fonctions d'incrément (`increment_playlist_clone_count`/`increment_routine_clone_count`).
 
