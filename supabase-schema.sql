@@ -781,6 +781,88 @@ revoke execute on function public.increment_routine_clone_count(text, uuid) from
 grant execute on function public.increment_routine_clone_count(text, uuid) to authenticated;
 
 -- ─────────────────────────────────────────────────────────────────────────
+-- ÉVOLUTION (02/08) — compteur de clonages HONNÊTE pour le catalogue de
+-- templates (data/curatedSessions.js — vitrine `@tempofit_officiel` ET
+-- "Découvrir") : retour direct, "je veux que ce compteur soit honnête, 0
+-- par défaut, jamais un chiffre inventé". `template_clone_counts` REMPLACE
+-- l'ancien `fakeCloneCountForId` (curatedSessions.js) et les valeurs
+-- fixes de `FAKE_VITRINE_ROUTINES` (officialVitrineProfile.js) — les deux
+-- deviennent obsolètes et sont retirés côté client.
+--
+-- Table SÉPARÉE de `playlists`/`routines` : un template n'a JAMAIS de
+-- vraie ligne dans ces 2 tables (voir templateToVitrineRow/
+-- FAKE_VITRINE_ROUTINES) — rien à réutiliser des colonnes `clone_count`
+-- déjà posées dessus. `template_id` sert de clé pour les DEUX catalogues
+-- à la fois (templates `curatedSessions.js`, ex. `tpl-...`/`ntpl-...`, ET
+-- routines fictives de la vitrine, ex. `vitrine-routine-1`) — aucun
+-- risque de collision entre les deux espaces de noms (préfixes distincts),
+-- pas besoin de 2 tables séparées pour une différence purement
+-- cosmétique.
+--
+-- Lecture PUBLIQUE (`using (true)`, ni `auth.uid()` ni policy par
+-- propriétaire) — volontaire : la vitrine est accessible aux visiteurs
+-- NON connectés (voir le Login Wall plus haut, contourné exprès pour
+-- cette page), et cette donnée n'a de toute façon rien de sensible (un
+-- simple total public, jamais lié à un utilisateur précis). Aucune ligne
+-- n'existe tant qu'un premier clonage n'a pas eu lieu — un template
+-- jamais cloné n'a AUCUNE ligne ici, le client doit replier sur 0
+-- lui-même (`realCloneCounts[id] || 0`), jamais supposer qu'une absence
+-- de ligne signifie une erreur.
+create table if not exists template_clone_counts (
+  template_id text primary key,
+  clone_count integer not null default 0
+);
+
+alter table template_clone_counts enable row level security;
+
+drop policy if exists "Tout le monde peut lire les compteurs de clonage des templates" on template_clone_counts;
+create policy "Tout le monde peut lire les compteurs de clonage des templates"
+  on template_clone_counts for select
+  using (true);
+
+-- Pas de policy insert/update côté client — uniquement via la RPC
+-- ci-dessous (security definer).
+
+-- RPC dédiée — MÊME garde que `increment_playlist_clone_count`/
+-- `increment_routine_clone_count` (`auth.uid() is null` bloque un
+-- visiteur non connecté, cohérent : un clonage en mode invité n'incrémente
+-- déjà aucun des 2 compteurs "réels" non plus, pas de nouvelle
+-- incohérence introduite ici). PAS de garde anti-auto-incrémentation ici
+-- (contrairement aux 2 fonctions ci-dessus) : un template n'a pas de
+-- "propriétaire" au sens `user_id` — n'importe quel compte authentifié
+-- qui clone légitimement un template incrémente le compteur, il n'y a
+-- personne à protéger d'un auto-clonage.
+--
+-- `on conflict ... do update` : la 1re incrémentation d'un template crée
+-- sa ligne (`clone_count` démarre à 1, jamais 0 — le insert ne se
+-- déclenche qu'au moment d'un VRAI clonage), les suivantes l'incrémentent
+-- normalement.
+--
+-- À VALIDER dans l'éditeur SQL Supabase avant de s'y fier en prod :
+--   select clone_count from template_clone_counts where template_id = 'tpl-test'; -- doit ne renvoyer AUCUNE ligne avant le 1er clonage
+--   select public.increment_template_clone_count('tpl-test');
+--   select clone_count from template_clone_counts where template_id = 'tpl-test'; -- doit valoir 1
+create or replace function public.increment_template_clone_count(target_template_id text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    return;
+  end if;
+
+  insert into template_clone_counts (template_id, clone_count)
+  values (target_template_id, 1)
+  on conflict (template_id) do update set clone_count = template_clone_counts.clone_count + 1;
+end;
+$$;
+
+revoke execute on function public.increment_template_clone_count(text) from anon;
+grant execute on function public.increment_template_clone_count(text) to authenticated;
+
+-- ─────────────────────────────────────────────────────────────────────────
 -- MIGRATION — copie chaque ÉLÉMENT du blob JSON `user_data` (clés
 -- 'savedPlaylists'/'routines', un tableau par utilisateur) vers UNE LIGNE
 -- de la table relationnelle correspondante. `jsonb_array_elements` déplie
