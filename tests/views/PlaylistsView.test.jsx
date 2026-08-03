@@ -11,15 +11,6 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
-// Compteur de clonages HONNÊTE (02/08) — `handleTogglePlaylistPublic`
-// (local à ce fichier) appelle désormais `supabase.rpc(...)` quand on
-// republie une copie issue d'une chaîne de clonage. Jamais mocké avant ici
-// (pas besoin jusqu'ici).
-const mockRpc = vi.fn();
-vi.mock('../../src/supabaseClient.js', () => ({
-  supabase: { rpc: (...args) => mockRpc(...args) },
-}));
-
 vi.mock('../../src/components/views/PlaylistCard.jsx', () => ({
   default: ({ playlist, onClick, onDelete, onTogglePublic, draggable, isDragging, onDragStart, onDragEnter, onDragEnd, rank }) => (
     <div
@@ -196,67 +187,26 @@ describe('PlaylistsView — bascule publique/privée (Feature Sociale, 01/08)', 
     expect(result.find(p => p.id === 'p2').isPublic).toBe(true); // inchangé
   });
 
-  // Compteur de clonages HONNÊTE (02/08, retour direct : "si je mets en
-  // public ma séance depuis un clone, ça alimente aussi le compteur de
-  // clonage de ce dernier") — MÊME logique que PlaylistDetailContext.jsx,
-  // voir sa docstring pour le raisonnement complet.
-  it('rendre publique une copie issue d\'une chaîne de clonage appelle increment_playlist_clone_count ciblant l\'ORIGINE', () => {
-    mockRpc.mockResolvedValue({ error: null });
-    const target = makePlaylist({ id: 'p1', isPublic: false, originId: 'pl-B-original', originUserId: 'user-B' });
-    render(<PlaylistsView {...baseProps({ savedPlaylists: [target] })} />);
-
-    fireEvent.click(screen.getByTestId('toggle-public-p1'));
-
-    expect(mockRpc).toHaveBeenCalledWith('increment_playlist_clone_count', {
-      target_id: 'pl-B-original',
-      target_user_id: 'user-B',
-    });
-  });
-
-  it('rendre PRIVÉE n\'appelle jamais la RPC', () => {
-    const target = makePlaylist({ id: 'p1', isPublic: true, originId: 'pl-B-original', originUserId: 'user-B' });
-    render(<PlaylistsView {...baseProps({ savedPlaylists: [target] })} />);
-
-    fireEvent.click(screen.getByTestId('toggle-public-p1'));
-
-    expect(mockRpc).not.toHaveBeenCalled();
-  });
-
-  it('rendre publique une playlist sans origine (jamais clonée) n\'appelle aucune RPC', () => {
-    const target = makePlaylist({ id: 'p1', isPublic: false });
-    render(<PlaylistsView {...baseProps({ savedPlaylists: [target] })} />);
-
-    fireEvent.click(screen.getByTestId('toggle-public-p1'));
-
-    expect(mockRpc).not.toHaveBeenCalled();
-  });
-
-  // Anti-abus "toggle spam" (02/08) — MÊME garde que
-  // PlaylistDetailContext.jsx (voir sa docstring pour le raisonnement
-  // complet), transposée à la bascule de liste.
-  it('anti-abus : originCreditClaimed déjà à true → une 2e republication n\'appelle AUCUNE RPC', () => {
-    mockRpc.mockResolvedValue({ error: null });
-    const alreadyClaimed = makePlaylist({ id: 'p1', isPublic: false, originId: 'pl-A', originUserId: 'user-A', originCreditClaimed: true });
-    render(<PlaylistsView {...baseProps({ savedPlaylists: [alreadyClaimed] })} />);
-
-    fireEvent.click(screen.getByTestId('toggle-public-p1'));
-
-    expect(mockRpc).not.toHaveBeenCalled();
-  });
-
-  it('1re republication pose originCreditClaimed à true sur la copie mise à jour', () => {
-    mockRpc.mockResolvedValue({ error: null });
+  // ⚠️ SIMPLIFIÉ (03/08, refonte lignée serveur, voir supabase-schema.sql)
+  // — le mécanisme "republier une copie alimente le compteur de son
+  // origine" a été retiré (code mort : la clé du `clone_ledger` était
+  // toujours déjà prise au moment du clonage lui-même, avant même toute
+  // republication — voir la docstring de `handleTogglePlaylistPublic`,
+  // PlaylistDetailContext.jsx, pour le détail complet). Ce composant
+  // n'importe même plus `supabase` désormais — la bascule publique/privée
+  // est un simple flip local, avec ou sans lignée de clonage.
+  it('rendre publique une copie issue d\'une chaîne de clonage reste un simple flip local — plus de crédit à réclamer', () => {
     const setSavedPlaylists = vi.fn();
-    const target = makePlaylist({ id: 'p1', isPublic: false, originId: 'pl-A', originUserId: 'user-A' });
+    const target = makePlaylist({ id: 'p1', isPublic: false, parentId: 'pl-B-original', parentUserId: 'user-B' });
     render(<PlaylistsView {...baseProps({ savedPlaylists: [target], setSavedPlaylists })} />);
 
     fireEvent.click(screen.getByTestId('toggle-public-p1'));
 
     const updater = setSavedPlaylists.mock.calls[0][0];
     const result = Array.isArray(updater) ? updater : updater([target]);
-    expect(result.find(p => p.id === 'p1').originCreditClaimed).toBe(true);
+    expect(result.find(p => p.id === 'p1').isPublic).toBe(true);
   });
-});
+
 
 describe('PlaylistsView — glisser-déposer (section "À planifier" uniquement)', () => {
   it('les cartes "À planifier" reçoivent draggable=true, les autres sections non', () => {
