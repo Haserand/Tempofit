@@ -112,7 +112,7 @@ export function useRoutineActions(
     // rien à marquer comme modifié.
     const finalRoutine = {
       ...editingRoutine,
-      ...(editingRoutine.originUserId && !editingRoutine.isModifiedSinceClone ? { isModifiedSinceClone: true } : {}),
+      ...(editingRoutine.parentUserId && !editingRoutine.isModifiedSinceClone ? { isModifiedSinceClone: true } : {}),
     };
     updateRoutine(finalRoutine);
     executeGeneration({ ...finalRoutine, workoutName: finalRoutine.customActivity || finalRoutine.workoutType, routineName: finalRoutine.name }, 1, finalRoutine.id);
