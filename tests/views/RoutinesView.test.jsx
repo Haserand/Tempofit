@@ -174,6 +174,29 @@ describe('RoutinesView', () => {
 
       expect(mockRpc).not.toHaveBeenCalled();
     });
+
+    // Anti-abus "toggle spam" (02/08) — MÊME garde que côté playlists,
+    // voir leur docstring pour le raisonnement complet.
+    it('anti-abus : originCreditClaimed déjà à true → une 2e republication n\'appelle AUCUNE RPC', () => {
+      mockRpc.mockResolvedValue({ error: null });
+      const alreadyClaimed = { id: 'r1', name: 'Copie clonée', manualGenerations: 0, workoutType: 'Course à pied', isPublic: false, originId: 'routine-A', originUserId: 'user-A', originCreditClaimed: true };
+      render(<RoutinesView {...baseProps({ routines: [alreadyClaimed] })} />);
+
+      fireEvent.click(screen.getByTitle('Rendre cette routine visible sur ton profil public'));
+
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it('1re republication pose originCreditClaimed à true sur la routine mise à jour', () => {
+      mockRpc.mockResolvedValue({ error: null });
+      const setRoutines = vi.fn();
+      const clonedRoutine = { id: 'r1', name: 'Copie clonée', manualGenerations: 0, workoutType: 'Course à pied', isPublic: false, originId: 'routine-A', originUserId: 'user-A' };
+      render(<RoutinesView {...baseProps({ routines: [clonedRoutine], setRoutines })} />);
+
+      fireEvent.click(screen.getByTitle('Rendre cette routine visible sur ton profil public'));
+
+      expect(setRoutines).toHaveBeenCalledWith([{ ...clonedRoutine, isPublic: true, originCreditClaimed: true }]);
+    });
   });
 
   it('une routine déjà publique affiche le bouton "clique pour la rendre privée", et le clic la repasse à false', () => {
@@ -287,5 +310,22 @@ describe('RoutinesView — description libre', () => {
     fireEvent.click(screen.getByTitle('Enregistrer'));
 
     expect(setRoutines.mock.calls[0][0][0].description.length).toBe(280);
+  });
+
+  // "Clone" vs "Enfant" (02/08) — MÊME règle que côté playlists
+  // (PlaylistDetailContext.jsx, voir sa docstring pour le raisonnement
+  // complet), transposée aux routines.
+  it('éditer la description d\'une routine CLONÉE (originUserId présent) pose isModifiedSinceClone à true', () => {
+    const setRoutines = vi.fn();
+    const clonedRoutine = { ...routineC, originId: 'routine-A', originUserId: 'user-A', isModifiedSinceClone: false };
+    render(<RoutinesView {...baseProps({ routines: [clonedRoutine], setRoutines })} />);
+
+    fireEvent.click(screen.getByText('Ajouter une description'));
+    fireEvent.change(screen.getByPlaceholderText(/Ajoute une description/), { target: { value: 'Ma propre touche' } });
+    fireEvent.click(screen.getByTitle('Enregistrer'));
+
+    expect(setRoutines).toHaveBeenCalledWith([
+      expect.objectContaining({ isModifiedSinceClone: true }),
+    ]);
   });
 });
