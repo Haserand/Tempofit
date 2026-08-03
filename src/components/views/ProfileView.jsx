@@ -298,15 +298,41 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
     // explicite qu'un `itemsLoaded` qui resterait bloqué à `false` pour
     // toujours faute de condition remplie). Catalogue Sport ET Intime
     // CONFONDUS ici aussi, pour les playlists ET pour les routines (voir
-    // buildOfficialVitrinePlaylistRows/buildOfficialVitrineRoutineRows,
-    // ajoutée le 02/08 — chantier "Recherche & filtres sur les profils
-    // publics", annexe) — le filtrage par mode reste le même code EXISTANT
-    // juste en dessous (`visiblePlaylists`/`visibleRoutines`), aucune
-    // duplication de cette logique.
+    // buildOfficialVitrinePlaylistRows/buildOfficialVitrineRoutineRows) —
+    // le filtrage par mode reste le même code EXISTANT juste en dessous
+    // (`visiblePlaylists`/`visibleRoutines`), aucune duplication de cette
+    // logique.
+    //
+    // ⚠️ Devenu ASYNCHRONE le 02/08 (retour direct : "je veux que le
+    // compteur de clonage soit honnête, 0 par défaut") — auparavant
+    // entièrement synchrone (nombres "ambitieux mais faux",
+    // `fakeCloneCountForId`, RETIRÉE). Récupère maintenant les VRAIS
+    // totaux (`template_clone_counts`, supabase-schema.sql — table
+    // PUBLIQUE en lecture, accessible même sans compte, cohérent avec le
+    // reste de cette vitrine) avant de construire les lignes — `cancelled`
+    // local à cette branche (distinct de celui plus bas, propre au chemin
+    // "vrai profil") : si le visiteur navigue ailleurs pendant ce court
+    // fetch, `setPublicItems` ne s'exécute jamais sur un composant démonté.
     if (username === OFFICIAL_VITRINE_USERNAME) {
-      setPublicItems({ playlists: buildOfficialVitrinePlaylistRows(), routines: buildOfficialVitrineRoutineRows() });
-      setItemsLoaded(true);
-      return;
+      let cancelled = false;
+      (async () => {
+        let realCloneCounts = {};
+        if (isSupabaseConfigured) {
+          const { data, error } = await supabase.from('template_clone_counts').select('template_id, clone_count');
+          if (error) {
+            console.error('[ProfileView] échec de la récupération des compteurs de clonage réels (vitrine) :', error);
+          } else if (data) {
+            realCloneCounts = Object.fromEntries(data.map(row => [row.template_id, row.clone_count]));
+          }
+        }
+        if (cancelled) return;
+        setPublicItems({
+          playlists: buildOfficialVitrinePlaylistRows(realCloneCounts),
+          routines: buildOfficialVitrineRoutineRows(realCloneCounts),
+        });
+        setItemsLoaded(true);
+      })();
+      return () => { cancelled = true; };
     }
 
     if (!profile?.user_id) { setItemsLoaded(false); return; }
