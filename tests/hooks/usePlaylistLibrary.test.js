@@ -98,6 +98,26 @@ describe('usePlaylistLibrary — compteur de clonages (handleClonePlaylist)', ()
       expect(cloned.originUserId).toBe('user-A');
     });
 
+    // Anti-abus "toggle spam" + "Clone" vs "Enfant" (02/08) — une copie
+    // FRAÎCHE démarre toujours "jamais republiée, jamais modifiée", même
+    // si l'objet source (`currentPlaylist`) portait déjà ces champs à
+    // `true` (un parent republié/modifié ne doit jamais "contaminer" sa
+    // descendance — chaque copie a sa PROPRE vie).
+    it('une copie fraîche démarre toujours avec isModifiedSinceClone=false et originCreditClaimed=false, même si le parent les avait à true', () => {
+      const setSavedPlaylists = vi.fn();
+      const alreadyModifiedParent = {
+        id: 'pl-B-copy', user_id: 'user-B', name: 'Copie déjà modifiée de B',
+        isReadOnly: true, isModifiedSinceClone: true, originCreditClaimed: true,
+      };
+      const result = renderLibrary(alreadyModifiedParent, { setSavedPlaylists });
+
+      result.current.handleClonePlaylist();
+
+      const cloned = setSavedPlaylists.mock.calls[0][0][0];
+      expect(cloned.isModifiedSinceClone).toBe(false);
+      expect(cloned.originCreditClaimed).toBe(false);
+    });
+
     it('B clonant la playlist de A (jamais clonée avant) : un SEUL incrément réel (origine = maillon immédiat, jamais compté 2 fois)', () => {
       mockRpc.mockResolvedValue({ error: null });
       const playlistOfA = { id: 'pl-A-original', user_id: 'user-A', name: 'Playlist de A', isReadOnly: true };
