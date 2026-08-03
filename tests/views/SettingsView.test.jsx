@@ -22,6 +22,12 @@ vi.mock('../../src/components/views/AthleticProfilePanel.jsx', () => ({
   default: () => <div data-testid="athletic-profile-panel-mock">AthleticProfilePanel (mock)</div>,
 }));
 
+const mockRpc = vi.fn();
+vi.mock('../../src/supabaseClient.js', () => ({
+  supabase: { rpc: (...args) => mockRpc(...args) },
+  isSupabaseConfigured: true,
+}));
+
 import SettingsView from '../../src/components/views/SettingsView.jsx';
 
 beforeEach(() => {
@@ -426,6 +432,57 @@ describe('SettingsView — Confidentialité & Profil Public', () => {
       fireEvent.click(screen.getByText('Voir l\'aperçu de mon profil public'));
 
       expect(onViewOwnProfile).toHaveBeenCalled();
+    });
+  });
+
+  // Chantier "Pulses/Leaderboard", 1re UI branchée sur
+  // get_or_create_intimate_persona() (fondations SQL posées le 02/08,
+  // voir README + supabase-schema.sql). PAS gaté sur isProfilePublic
+  // (contrairement aux 4 bascules ci-dessus) — voir la docstring dans
+  // SettingsView.jsx pour le raisonnement.
+  describe('Ma persona intime', () => {
+    it('absente en mode Sport (isNaughtyMode=false), quel que soit isProfilePublic', () => {
+      renderOnAccountTab({ profilePrivacy: { isProfilePublic: true }, isNaughtyMode: false });
+      expect(screen.queryByText('Ma persona intime')).not.toBeInTheDocument();
+    });
+
+    it('visible en Mode Intime MÊME si isProfilePublic=false (indépendant du profil public)', () => {
+      renderOnAccountTab({ profilePrivacy: { isProfilePublic: false }, isNaughtyMode: true });
+      expect(screen.getByText('Ma persona intime')).toBeInTheDocument();
+      expect(screen.getByText('Découvrir mon pseudonyme')).toBeInTheDocument();
+    });
+
+    it('le clic appelle supabase.rpc(\'get_or_create_intimate_persona\') et affiche le pseudonyme renvoyé', async () => {
+      mockRpc.mockResolvedValue({ data: { intimate_id: 'abc-123', pseudonym: 'Marée Mystère' }, error: null });
+      renderOnAccountTab({ profilePrivacy: { isProfilePublic: false }, isNaughtyMode: true });
+
+      fireEvent.click(screen.getByText('Découvrir mon pseudonyme'));
+
+      expect(mockRpc).toHaveBeenCalledWith('get_or_create_intimate_persona');
+      expect(await screen.findByText('Tu apparaîtrais sous : Marée Mystère')).toBeInTheDocument();
+      // Le bouton disparaît une fois la persona affichée — plus besoin de
+      // recliquer pour la voir tant que le composant reste monté.
+      expect(screen.queryByText('Découvrir mon pseudonyme')).not.toBeInTheDocument();
+    });
+
+    it('affiche un message d\'erreur si la RPC renvoie une erreur, sans planter', async () => {
+      mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } });
+      renderOnAccountTab({ profilePrivacy: { isProfilePublic: false }, isNaughtyMode: true });
+
+      fireEvent.click(screen.getByText('Découvrir mon pseudonyme'));
+
+      expect(await screen.findByText('Une erreur est survenue, réessaie dans un instant.')).toBeInTheDocument();
+      // Le bouton reste disponible pour réessayer.
+      expect(screen.getByText('Découvrir mon pseudonyme')).toBeInTheDocument();
+    });
+
+    it('affiche un message d\'erreur si la RPC lève une exception (panne réseau)', async () => {
+      mockRpc.mockRejectedValue(new Error('network down'));
+      renderOnAccountTab({ profilePrivacy: { isProfilePublic: false }, isNaughtyMode: true });
+
+      fireEvent.click(screen.getByText('Découvrir mon pseudonyme'));
+
+      expect(await screen.findByText('Une erreur est survenue, réessaie dans un instant.')).toBeInTheDocument();
     });
   });
 });
