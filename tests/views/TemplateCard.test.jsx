@@ -8,6 +8,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import TemplateCard from '../../src/components/views/TemplateCard.jsx';
+import { fakeCloneCountForId } from '../../src/data/curatedSessions.js';
 
 afterEach(() => {
   cleanup();
@@ -20,6 +21,7 @@ const mockTheme = {
 };
 
 const mockTemplate = {
+  id: 'tpl-cardio-blast-mock',
   title: 'Cardio Blast',
   author: 'TempoFit',
   workoutType: 'Course à pied',
@@ -141,5 +143,46 @@ describe('TemplateCard', () => {
       expect(onViewOfficialProfile).toHaveBeenCalledTimes(1);
       expect(onPlayTemplate).not.toHaveBeenCalled();
     });
+  });
+
+  // Retour direct (02/08) : "chaque playlist en Découvrir devrait au
+  // minimum avoir une indication du nombre de clonages". Compteur FICTIF,
+  // PARTAGÉ avec officialVitrineProfile.js (voir sa docstring,
+  // curatedSessions.js) — jamais recalculé différemment ici.
+  describe('compteur de clonages (fictif, partagé avec la vitrine)', () => {
+    it('affiche le nombre renvoyé par fakeCloneCountForId(template.id)', () => {
+      render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
+      const expected = fakeCloneCountForId(mockTemplate.id);
+      expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent(String(expected));
+    });
+
+    it('est déterministe — 2 rendus du même template affichent EXACTEMENT le même nombre', () => {
+      const { unmount } = render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
+      const firstText = screen.getByTitle('Nombre de fois où cette playlist a été clonée').textContent;
+      unmount();
+
+      render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
+      const secondText = screen.getByTitle('Nombre de fois où cette playlist a été clonée').textContent;
+
+      expect(secondText).toBe(firstText);
+    });
+
+    it('ne plante pas si template.id est absent (garde défensive de fakeCloneCountForId)', () => {
+      const templateSansId = { ...mockTemplate, id: undefined };
+      render(<TemplateCard theme={mockTheme} template={templateSansId} onPlayTemplate={() => {}} isNaughtyMode={false} />);
+      expect(screen.getByText('Cardio Blast')).toBeInTheDocument();
+    });
+  });
+
+  // Retour direct (02/08, 2e passe : "mets les descriptions aussi, pour
+  // voir à quoi ça ressemble — même texte de base partout si ça économise
+  // des tokens"). PLACEHOLDER volontaire, pas une vraie description par
+  // template — voir la docstring en tête de TemplateCard.jsx.
+  it('affiche le texte de remplissage (placeholder) sur toutes les cartes, identique quel que soit le template', () => {
+    const { rerender } = render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
+    expect(screen.getByText(/Lorem ipsum dolor sit amet/)).toBeInTheDocument();
+
+    rerender(<TemplateCard theme={mockTheme} template={{ ...mockTemplate, id: 'autre-template', title: 'Autre Titre' }} onPlayTemplate={() => {}} isNaughtyMode={false} />);
+    expect(screen.getByText(/Lorem ipsum dolor sit amet/)).toBeInTheDocument();
   });
 });
