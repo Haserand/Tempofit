@@ -12,7 +12,66 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-**Chantier en cours : "Compteur de sauvegardes/clonages" (02/08) — build Vercel VERT confirmé. SQL de l'anti-abus (`clone_ledger`) exécuté avec succès dans Supabase, mais le comportement réel (incrément + anti-abus) reste NON vérifié — voir plus bas.** Prochain chantier une fois la vérification en conditions réelles faite : retour à l'ordre de priorité normal (Vague 2, Chantier 2 — renforcement post-hoc, moteur BPM/structuration + analyse post-séance, `useSessionAnalysis.js`). **Voir aussi `PASSATION.md`** (nouveau, 02/08) — résumé chronologique de toute cette session de dev, pour une future conversation qui reprendrait ce fil sans tout ce contexte.
+⚠️ **REFONTE (03/08) — traçabilité de lignée désormais résolue CÔTÉ
+SERVEUR, remplace le mécanisme du 02/08 décrit plus bas (`originId`/
+`originUserId` propagés par le client).** Ce mécanisme s'est révélé
+fragile PAR CONSTRUCTION (un futur bug de spread client aurait pu casser
+la lignée silencieusement) — voir `supabase-schema.sql` pour le détail
+complet. **Tout ce qui, dans les paragraphes ci-dessous, mentionne
+`originId`/`originUserId`/`originCreditClaimed`/`willClaimOriginCredit`/
+`willClaimTemplateCredit` décrit l'ANCIENNE architecture, gardé comme
+récit historique — ne plus s'y fier comme référence technique actuelle.**
+
+Ce qui change concrètement :
+- Le client ne pose plus que le maillon IMMÉDIAT (`parentId`/
+  `parentUserId` — triviaux, `id`/`user_id` de l'objet cloné, lus
+  directement, rien à dériver) et fait **UN SEUL appel RPC** au clonage
+  (`increment_playlist_clone_count`/`increment_routine_clone_count`).
+- Postgres résout lui-même l'origine réelle de la chaîne, EN INTERNE,
+  via une marche récursive (`resolve_playlist_origin`/
+  `resolve_routine_origin`, `WITH RECURSIVE` sur `parent_id`/
+  `parent_user_id`) — plus rien à calculer ni propager côté client.
+- `parent_id`/`parent_user_id` : colonnes RÉELLES, **immuables après
+  l'insertion** — protégées par un trigger SQL (`lock_parent_lineage`)
+  ET par `useSyncedCollection.js` (`itemToInsertRow`/`itemToUpdateRow`
+  séparées, ces 2 champs ne transitent JAMAIS dans un `update`). Deux
+  couches indépendantes, une seule aurait suffi mais coûtait peu de plus.
+- Le mécanisme "republier une copie alimente le compteur de son origine"
+  (`originCreditClaimed`, dupliqué sur 3 fichiers) est **retiré
+  entièrement** — retracé, il s'est avéré être du CODE MORT dans tous les
+  cas réels : le clonage crédite déjà l'origine inconditionnellement, donc
+  la clé du `clone_ledger` était toujours déjà prise avant qu'une
+  republication ne tente le même appel. Ça résout au passage le point
+  ouvert "logique de republication dupliquée entre 3 fichiers" (plus rien
+  à dupliquer). `handleTogglePlaylistPublic`/`handleToggleRoutinePublic`
+  sont redevenus de simples flips locaux, sans aucun appel réseau.
+- Badge "Clone"/"Enfant" (`ProfileView.jsx`) : lit désormais la vraie
+  colonne `parent_user_id` plutôt que `content.originUserId` — même
+  raisonnement de robustesse, moins de surface pour un futur bug
+  d'affichage (`isModifiedSinceClone` reste cosmétique dans `content`,
+  aucun changement là).
+- Tests mis à jour en conséquence : `usePlaylistLibrary.test.js`,
+  `useRoutineActions.test.js`, `PlaylistsView.test.jsx`,
+  `RoutinesView.test.jsx`, `ProfileView.test.jsx`,
+  `PlaylistDetailContext.test.jsx`.
+
+⚠️ **Nouveau SQL à exécuter manuellement dans Supabase avant que quoi que
+ce soit ne fonctionne** (voir `supabase-schema.sql`) : colonnes
+`parent_id`/`parent_user_id` (playlists/routines), trigger
+`lock_parent_lineage`, fonctions `resolve_playlist_origin`/
+`resolve_routine_origin`, `_claim_ledger_credit`, et les 3 fonctions
+d'incrément réécrites. **Non vérifié en conditions réelles** — même
+limite que d'habitude (`auth.uid()` vaut `null` dans l'éditeur SQL
+Supabase, voir `CLAUDE-SANDBOX-VERIFICATION.md` §4bis) : la vérification
+réelle (clic sur "Cloner" dans l'app déployée, avec une vraie session)
+reste à faire, comme pour le chantier précédent.
+
+**Chantier en cours : "Compteur de sauvegardes/clonages" — build Vercel pas encore reconfirmé depuis la refonte du 03/08 ci-dessus.** Prochain chantier une fois la vérification en conditions réelles faite : retour à l'ordre de priorité normal (Vague 2, Chantier 2 — renforcement post-hoc, moteur BPM/structuration + analyse post-séance, `useSessionAnalysis.js`). **Voir aussi `PASSATION.md`** — résumé chronologique de toute cette session de dev, pour une future conversation qui reprendrait ce fil sans tout ce contexte.
+
+---
+
+**Historique (02/08) — ANCIENNE architecture, remplacée le 03/08 ci-dessus, gardée pour le récit :**
+
 
 ⚠️ **Tentative de vérification manuelle via l'éditeur SQL Supabase — retombée sur la même limite connue** (comme `get_or_create_intimate_persona()` avant elle) : `increment_playlist_clone_count(...)` appelée directement dans l'éditeur SQL s'exécute sans erreur mais `auth.uid()` y vaut `null` (pas de session utilisateur réelle), donc la fonction retourne dès sa 1re ligne — **aucun incrément, ni de `clone_count`, ni du nouveau `clone_ledger`, n'a pu être observé de cette façon**. Confirmé par test : `clone_count` reste à `0` sur `playlist-example-1` après 2 appels directs. Ce n'est PAS un bug — la fonction se comporte exactement comme prévu, elle bloque un appelant non authentifié — mais ça veut dire que **ni l'incrément de base, ni le nouvel anti-abus `clone_ledger`, n'ont encore été vérifiés en conditions réelles** (avec une vraie session connectée, via un vrai clic sur "Cloner" dans l'app déployée). Parcours de vérification suggéré, à faire dans l'app : cloner une playlist publique → vérifier `clone_count` +1 sur le profil de son auteur → supprimer sa copie locale → recloner la même playlist → vérifier que `clone_count` reste identique (pas +2, c'est le vrai test de l'anti-abus).
 
