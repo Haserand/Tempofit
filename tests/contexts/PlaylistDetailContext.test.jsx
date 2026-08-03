@@ -273,9 +273,9 @@ describe('PlaylistDetailContext — description libre (handleEditPlaylistDescrip
   // "Clone" vs "Enfant" (02/08, discussion produit : la lignée ne se
   // rompt jamais, mais l'étiquette affichée change dès la 1re
   // modification — booléen simple, jamais un seuil arbitraire).
-  it('éditer la description d\'une copie CLONÉE (originUserId présent) pose isModifiedSinceClone à true', () => {
+  it('éditer la description d\'une copie CLONÉE (parentUserId présent) pose isModifiedSinceClone à true', () => {
     const setCurrentPlaylist = vi.fn();
-    const clonedPlaylist = makePlaylist({ description: '', originId: 'pl-A', originUserId: 'user-A', isModifiedSinceClone: false });
+    const clonedPlaylist = makePlaylist({ description: '', parentId: 'pl-A', parentUserId: 'user-A', isModifiedSinceClone: false });
     renderWithProviderCapturing(clonedPlaylist, [clonedPlaylist], { setCurrentPlaylist });
 
     fireEvent.change(screen.getByTestId('draft-input'), { target: { value: 'Ma propre description' } });
@@ -332,26 +332,20 @@ function renderWithProviderForTogglePublic(currentPlaylist, savedPlaylists, { se
   );
 }
 
-// Compteur de clonages HONNÊTE (02/08, retour direct : "si je mets en
-// public ma séance depuis un clone, ça alimente aussi le compteur de
-// clonage de ce dernier") — voir la docstring de
-// `handleTogglePlaylistPublic` dans PlaylistDetailContext.jsx.
-describe('PlaylistDetailContext — republication d\'un clone alimente le compteur de l\'origine', () => {
-  it('rendre publique une copie issue d\'une chaîne de clonage appelle increment_playlist_clone_count ciblant l\'ORIGINE', () => {
-    mockRpc.mockResolvedValue({ error: null });
-    const clonedPlaylist = makePlaylist({ isPublic: false, originId: 'pl-B-original', originUserId: 'user-B' });
-    renderWithProviderForTogglePublic(clonedPlaylist, [clonedPlaylist]);
-
-    fireEvent.click(screen.getByText('toggle-public'));
-
-    expect(mockRpc).toHaveBeenCalledWith('increment_playlist_clone_count', {
-      target_id: 'pl-B-original',
-      target_user_id: 'user-B',
-    });
-  });
-
-  it('rendre PRIVÉE (l\'inverse) n\'appelle JAMAIS la RPC — on ne décompte pas un clonage déjà comptabilisé', () => {
-    const clonedPlaylist = makePlaylist({ isPublic: true, originId: 'pl-B-original', originUserId: 'user-B' });
+// ⚠️ SIMPLIFIÉ (03/08, refonte lignée serveur, voir supabase-schema.sql) —
+// le mécanisme "republier une copie alimente le compteur de son origine"
+// (`willClaimOriginCredit`/`originCreditClaimed`) a été retiré : à la
+// relecture, c'était du CODE MORT dans tous les cas réels — le clonage
+// crédite déjà l'origine INCONDITIONNELLEMENT (que la copie reste privée
+// ou non, voir `handleClonePlaylist`, usePlaylistLibrary.js), donc la clé
+// du `clone_ledger` pour cette cible est TOUJOURS déjà prise par le temps
+// où une republication ultérieure tenterait le même appel — bloquée par
+// construction, jamais un vrai 2e crédit. `handleTogglePlaylistPublic`
+// n'appelle donc plus AUCUNE RPC désormais, qu'il y ait une lignée de
+// clonage/un template ou non.
+describe('PlaylistDetailContext — handleTogglePlaylistPublic (simple flip, plus de crédit à réclamer)', () => {
+  it('rendre publique une copie issue d\'une chaîne de clonage n\'appelle plus aucune RPC', () => {
+    const clonedPlaylist = makePlaylist({ isPublic: false, parentId: 'pl-B-original', parentUserId: 'user-B' });
     renderWithProviderForTogglePublic(clonedPlaylist, [clonedPlaylist]);
 
     fireEvent.click(screen.getByText('toggle-public'));
@@ -359,57 +353,23 @@ describe('PlaylistDetailContext — republication d\'un clone alimente le compte
     expect(mockRpc).not.toHaveBeenCalled();
   });
 
-  it('rendre publique une playlist SANS origine (jamais clonée) n\'appelle aucune RPC', () => {
-    const ownPlaylist = makePlaylist({ isPublic: false });
-    renderWithProviderForTogglePublic(ownPlaylist, [ownPlaylist]);
-
-    fireEvent.click(screen.getByText('toggle-public'));
-
-    expect(mockRpc).not.toHaveBeenCalled();
-  });
-
-  it('rendre publique une playlist issue d\'un TEMPLATE (sourceTemplateId, pas de vrai clonage) appelle increment_template_clone_count', () => {
-    mockRpc.mockResolvedValue({ error: null });
+  it('rendre publique une playlist issue d\'un TEMPLATE (sourceTemplateId) n\'appelle plus aucune RPC non plus', () => {
     const templatePlaylist = makePlaylist({ isPublic: false, sourceTemplateId: 'tpl-cardio' });
     renderWithProviderForTogglePublic(templatePlaylist, [templatePlaylist]);
 
     fireEvent.click(screen.getByText('toggle-public'));
 
-    expect(mockRpc).toHaveBeenCalledWith('increment_template_clone_count', { target_template_id: 'tpl-cardio' });
+    expect(mockRpc).not.toHaveBeenCalled();
   });
-});
 
-// Anti-abus "toggle spam" (02/08, retour direct : "si un mec fait public →
-// privé → public → privé en boucle sur sa propre copie, ça ne doit pas
-// réincrémenter le compteur de l'origine à chaque fois"). Chaque étape
-// simule séparément ce que l'état RÉEL serait après l'étape précédente
-// (`originCreditClaimed` posé par le handler lui-même) — cohérent avec le
-// reste de ce fichier (voir les tests "cloisonnement" plus haut, même
-// convention render/cleanup/render).
-describe('PlaylistDetailContext — anti-abus : le crédit à l\'origine n\'est réclamé QU\'UNE SEULE FOIS par copie', () => {
-  it('1re republication : appelle la RPC ET pose originCreditClaimed sur la copie mise à jour', () => {
-    mockRpc.mockResolvedValue({ error: null });
+  it('la bascule reste un simple flip local de isPublic, peu importe la lignée', () => {
     const setSavedPlaylists = vi.fn();
-    const clonedPlaylist = makePlaylist({ isPublic: false, originId: 'pl-A-original', originUserId: 'user-A' });
+    const clonedPlaylist = makePlaylist({ isPublic: false, parentId: 'pl-A-original', parentUserId: 'user-A' });
     renderWithProviderForTogglePublic(clonedPlaylist, [clonedPlaylist], { setSavedPlaylists });
 
     fireEvent.click(screen.getByText('toggle-public'));
 
-    expect(mockRpc).toHaveBeenCalledTimes(1);
     const updated = setSavedPlaylists.mock.calls[0][0][0];
-    expect(updated.originCreditClaimed).toBe(true);
-  });
-
-  it('2e republication (après un passage privé) : originCreditClaimed déjà à true → AUCUN nouvel appel RPC', () => {
-    mockRpc.mockResolvedValue({ error: null });
-    // Simule l'état APRÈS la 1re republication + un repassage privé —
-    // `originCreditClaimed: true` déjà posé, comme le ferait vraiment
-    // l'app suite au test précédent.
-    const alreadyClaimedPlaylist = makePlaylist({ isPublic: false, originId: 'pl-A-original', originUserId: 'user-A', originCreditClaimed: true });
-    renderWithProviderForTogglePublic(alreadyClaimedPlaylist, [alreadyClaimedPlaylist]);
-
-    fireEvent.click(screen.getByText('toggle-public')); // repasse publique, 2e fois
-
-    expect(mockRpc).not.toHaveBeenCalled();
+    expect(updated.isPublic).toBe(true);
   });
 });
