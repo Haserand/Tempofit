@@ -3,6 +3,7 @@ import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, 
 import { genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getRankStyle } from './appConfig';
 import { VIEW_HEADER_TOP_PADDING } from './layout/viewHeaderLayout';
+import { supabase } from './supabaseClient';
 
 // =====================================================================================
 // CONSTANTES GLOBALES & CONFIGURATION
@@ -218,7 +219,15 @@ function AppContent({
       changeView('playlist');
       return;
     }
-    setCurrentPlaylist({ ...row.content, id: row.id, isPublic: !!row.is_public, isReadOnly: true });
+    // `user_id: row.user_id` conservé ici (compteur de clonages, 02/08) —
+    // nécessaire pour incrémenter le bon `clone_count` au clonage
+    // (`handleClonePlaylist`, usePlaylistLibrary.js) : la clé primaire de
+    // `playlists` est COMPOSITE `(id, user_id)`, jamais `id` seul (2
+    // comptes différents peuvent légitimement partager le même id, voir
+    // la playlist démo évoquée dans PlaylistDetailContext.jsx) — cibler
+    // l'incrément par `id` seul risquerait exactement la même collision
+    // déjà corrigée une fois sur ce projet.
+    setCurrentPlaylist({ ...row.content, id: row.id, user_id: row.user_id, isPublic: !!row.is_public, isReadOnly: true });
     changeView('playlist');
   };
 
@@ -265,6 +274,23 @@ function AppContent({
     closeModal();
     changeView('routines');
     showToast('⚡ Routine clonée dans Mes Routines !');
+
+    // Compteur de clonages (02/08) — MÊME garde que
+    // handleClonePlaylist (usePlaylistLibrary.js) : `row.user_id` est
+    // absent sur les routines fictives de la vitrine
+    // `@tempofit_officiel` (`FAKE_VITRINE_ROUTINES`,
+    // officialVitrineProfile.js — jamais un vrai propriétaire en base),
+    // ce garde suffit à les exclure sans les distinguer explicitement.
+    // Fire-and-forget, jamais bloquant/visible en cas d'échec — même
+    // raisonnement que côté playlists.
+    if (row.user_id) {
+      supabase.rpc('increment_routine_clone_count', {
+        target_id: row.id,
+        target_user_id: row.user_id,
+      }).then(({ error }) => {
+        if (error) console.error('[App] increment_routine_clone_count a échoué :', error);
+      });
+    }
   };
 
   // Bascule "vue détaillée" de la page Statistiques — voir plus bas. Volontairement
@@ -1694,6 +1720,7 @@ function AppContent({
                 showAdvancedStats={showAdvancedStats} setShowAdvancedStats={setShowAdvancedStats}
                 expandedDetailGenre={expandedDetailGenre} setExpandedDetailGenre={setExpandedDetailGenre}
                 expandedDetailArtist={expandedDetailArtist} setExpandedDetailArtist={setExpandedDetailArtist}
+                user={user}
               />
             )}
 
