@@ -91,8 +91,46 @@ export function buildOfficialVitrineProfile() {
 // uniquement par `handleOpenPublicPlaylist` (App.jsx) pour savoir
 // qu'il faut ouvrir ce résultat via `openCuratedPlaylist` (reconstruction
 // COMPLÈTE avec les vrais titres) plutôt que le raccourci habituel
-// `{...row.content, ...}` — un template n'a pas de vrais `tracks`
-// pré-calculés dans `content`, contrairement à une vraie playlist.
+// `{...row.content, ...}`.
+//
+// ⚠️ CORRIGÉ (02/08, retour direct : "la vitrine ne montre pas toutes les
+// fonctionnalités") — `content.tracks` MANQUAIT ici depuis le début (voir
+// l'ancienne version de ce commentaire, qui le justifiait comme un choix
+// volontaire "un template n'a pas de vrais tracks pré-calculés dans
+// content"). C'était vrai au moment où ce fichier a été écrit, mais le
+// chantier "Recherche & filtres sur les profils publics" (`useProfileSearchFilter.js`)
+// est arrivé APRÈS et extrait les genres d'une playlist via
+// `content.tracks` — sans ce champ, TOUTE playlist de la vitrine
+// remontait 0 genre, invisible pour le filtre genre ET la recherche
+// textuelle sur les genres, silencieusement (`extractGenres` replie sur
+// `[]` sans jamais planter). `template.tracks` est déjà disponible juste
+// au-dessus (utilisé pour `totalDuration`/`avgBpm`) — l'ajouter à
+// `content` ne coûte rien de plus à calculer, juste à exposer.
+//
+// `description`/`clone_count` (même chantier de correctif) — AJOUTÉS ici
+// pour que la vitrine démontre RÉELLEMENT ces 2 fonctionnalités à un
+// visiteur non connecté, pas seulement les stats/genres/BPM déjà en
+// place. Même philosophie que `FAKE_SPORT_SESSIONS`/`FAKE_INTIMATE_SESSIONS`
+// plus haut : "ambitieux mais volontairement faux", déterministe (jamais
+// `Math.random()` — un rendu de plus ne doit jamais afficher un nombre
+// différent du précédent). `fakeCloneCountForId` : hash de chaîne simple,
+// pas cryptographique, juste assez pour une variété visuelle stable
+// d'un template à l'autre.
+const CATEGORY_DESCRIPTIONS = {
+  'Cardio Express': "Une session courte et intense, pensée pour un cardio efficace même avec un emploi du temps chargé.",
+  'Endurance Fondamentale': "Un rythme régulier pour construire ton endurance de fond, séance après séance.",
+  'Force & Renfo': "De quoi accompagner une séance de renforcement musculaire, sans jamais casser le rythme.",
+  'Race Day / Performance': "La sélection pensée pour le jour J — quand chaque BPM compte.",
+  'Récupération & Flow': "Un tempo plus doux, pour une séance de récupération active, sans se presser.",
+  'Rythmes Sensuels': "Une ambiance plus intime, pensée pour un moment à part.",
+};
+
+function fakeCloneCountForId(id) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) % 997;
+  return 8 + (hash % 65); // entre 8 et 72, jamais 0 (toujours "ambitieux")
+}
+
 function templateToVitrineRow(template, isIntimate) {
   const totalDuration = template.tracks.reduce((s, t) => s + (t.duration || 0), 0);
   const avgBpm = template.tracks.length > 0
@@ -102,12 +140,15 @@ function templateToVitrineRow(template, isIntimate) {
     id: `vitrine-${template.id}`,
     is_public: true,
     is_intimate: isIntimate,
+    clone_count: fakeCloneCountForId(template.id),
     content: {
       name: template.title,
       workoutType: template.workoutType,
       totalDuration,
       config: { bpm: avgBpm },
       coverUrl: buildCoverUrl(template.title),
+      tracks: template.tracks,
+      description: CATEGORY_DESCRIPTIONS[template.category] || undefined,
     },
     _sourceTemplate: template,
   };
@@ -149,37 +190,48 @@ export function buildOfficialVitrinePlaylistRows() {
 // retraduit pas). "Rituel du Soir" (intime) utilise "R&B Sensuel", la
 // variante du genre réservée au Mode Intime (`NAUGHTY_GENRES`), pas "R&B"
 // tout court (catalogue Sport).
+// ⚠️ CORRIGÉ (02/08, même retour direct que templateToVitrineRow plus
+// haut) — `description`/`clone_count` manquaient ici aussi : ces routines
+// ont été écrites avant que ces 2 fonctionnalités n'existent (voir les
+// dates des chantiers respectifs), jamais mises à jour depuis. Valeurs
+// FIXES (pas de `fakeCloneCountForId` ici, contrairement aux playlists) —
+// seulement 4 routines, une variation à la main reste lisible et évite
+// d'introduire un hash pour un si petit nombre d'entrées.
 const FAKE_VITRINE_ROUTINES = [
   {
-    id: 'vitrine-routine-1', is_public: true, is_intimate: false,
+    id: 'vitrine-routine-1', is_public: true, is_intimate: false, clone_count: 34,
     content: {
       name: 'Mon 5km Quotidien', coverIcon: '🏃', workoutType: 'Course à pied',
       targetMode: 'distance', distanceVal: 5, distanceUnit: 'km',
       bpm: 160, selectedGenres: ['Métal', 'Rock'],
+      description: "Le rituel du matin, tous les jours ou presque — de quoi enchaîner sans réfléchir à la playlist.",
     },
   },
   {
-    id: 'vitrine-routine-2', is_public: true, is_intimate: false,
+    id: 'vitrine-routine-2', is_public: true, is_intimate: false, clone_count: 19,
     content: {
       name: 'Sortie Longue Weekend', coverIcon: '🚴', workoutType: 'Cyclisme',
       targetMode: 'time', hours: 1, minutes: 30,
       bpm: 130, selectedGenres: ['Electro', 'Pop'],
+      description: "1h30 sur les routes, un tempo qui tient la distance sans jamais lasser.",
     },
   },
   {
-    id: 'vitrine-routine-3', is_public: true, is_intimate: false,
+    id: 'vitrine-routine-3', is_public: true, is_intimate: false, clone_count: 51,
     content: {
       name: 'HIIT Express', coverIcon: '🔥', workoutType: 'Fractionné',
       targetMode: 'time', hours: 0, minutes: 20, isIntervalMode: true, isCrescendoMode: false,
       bpm: 175, selectedGenres: ['Rap', 'Electro'],
+      description: "20 minutes, aucun temps mort — pour les jours où le temps manque mais pas l'envie.",
     },
   },
   {
-    id: 'vitrine-routine-4', is_public: true, is_intimate: true,
+    id: 'vitrine-routine-4', is_public: true, is_intimate: true, clone_count: 12,
     content: {
       name: 'Rituel du Soir', coverIcon: '🌙', workoutType: 'Ambiance',
       targetMode: 'time', hours: 0, minutes: 25,
       bpm: 90, selectedGenres: ['R&B Sensuel'],
+      description: "Un moment rien qu'à soi, en douceur, pour clore la journée autrement.",
     },
   },
 ];
