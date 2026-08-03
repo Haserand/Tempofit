@@ -53,6 +53,7 @@ dans cet ordre :
    passé. Dire explicitement ce qui a été couvert en profondeur vs juste
    survolé (utile pour la session suivante, voir #7).
 7. **Mettre à jour `README.md` avant de conclure** : (a) si une décision d'architecture a été touchée (voir la section précédente) ; (b) **systématiquement si un chantier a démarré, avancé ou terminé** — la section "🚧 État d'avancement" en tête du README doit toujours refléter où en est réellement le projet, sinon une session future repart à l'aveugle en croyant qu'aucun chantier n'est en cours.
+8. **Tenir `PASSATION.md` à jour (créé le 02/08)** — un résumé CHRONOLOGIQUE et NARRATIF de la session en cours, distinct du README (qui documente l'ÉTAT technique actuel, pas le RÉCIT de comment on y est arrivé). Utile pour une future conversation qui reprendrait ce fil après que celui-ci soit devenu trop long pour rester dans le même historique — se relire soi-même y est plus rapide que de reconstituer le fil depuis des dizaines d'échanges. Mettre à jour à la fin de CHAQUE chantier terminé dans la même session, pas seulement une fois à la toute fin (le risque d'oubli grandit avec la longueur de la conversation).
 
 ### Habitude de travail : toujours indiquer le chemin repo complet de chaque fichier livré
 Conséquence directe du workflow "aucun terminal côté utilisateur, tout passe par l'interface web de GitHub" (voir plus haut) : l'utilisateur doit lui-même recréer/retrouver l'arborescence à la main pour chaque fichier livré, sans avoir à le demander à chaque fois (trouvé en session le 02/08, chantier "UI publique des routines" — un nouveau composant livré sans son chemin de destination). Concrètement, à chaque lot de fichiers livrés en fin de session (ou en cours de session, dès qu'un fichier est prêt) :
@@ -229,6 +230,23 @@ purement MÉCANIQUE et MANUELLE :
   totalement hors du pipeline de build) : un chantier SQL qui touche ce
   fichier reste NON vérifié tant que l'utilisateur n'a pas confirmé
   explicitement avoir exécuté le script et testé les requêtes suggérées.
+- ⚠️ **`auth.uid()` vaut TOUJOURS `null` dans l'éditeur SQL Supabase** —
+  aucune fonction qui en dépend (`if auth.uid() is null then return; end
+  if;`, garde quasi systématique sur toute RPC touchant à un compte
+  utilisateur) ne peut être vérifiée de cette façon, même en copiant-collant
+  la requête suggérée exactement. Confirmé À RÉPÉTITION sur ce projet
+  (`get_or_create_intimate_persona()`, puis `increment_playlist_clone_count`/
+  `clone_ledger`) — un appel direct dans l'éditeur s'exécute SANS ERREUR
+  (rien à corriger côté SQL), mais ne fait STRICTEMENT rien, silencieusement,
+  dès sa 1re ligne. **Prévenir l'utilisateur de cette limite AVANT de lui
+  faire lancer une longue séquence de requêtes de test** sur ce genre de
+  fonction — pas seulement en aparté après plusieurs tours d'aller-retour
+  (voir la session du 02/08, chantier "compteur de clonages" : 6 échanges
+  d'images/requêtes avant d'arriver à cette conclusion, alors que la
+  réserve était déjà connue et documentée pour `get_or_create_intimate_persona()`
+  quelques chantiers plus tôt — aurait dû être répétée d'emblée). La SEULE
+  vérification valable pour ce type de fonction est un vrai geste dans
+  l'app déployée, avec une vraie session authentifiée.
 
 ## 4quater. Supprimer un fichier côté sandbox ≠ le supprimer côté repo de l'utilisateur
 
