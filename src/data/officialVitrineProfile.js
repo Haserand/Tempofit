@@ -1,4 +1,4 @@
-import { curatedSessions, naughtyCuratedSessions } from './curatedSessions';
+import { curatedSessions, naughtyCuratedSessions, fakeCloneCountForId } from './curatedSessions';
 import { buildCoverUrl } from '../utils/coverArt';
 
 /**
@@ -113,9 +113,11 @@ export function buildOfficialVitrineProfile() {
 // place. Même philosophie que `FAKE_SPORT_SESSIONS`/`FAKE_INTIMATE_SESSIONS`
 // plus haut : "ambitieux mais volontairement faux", déterministe (jamais
 // `Math.random()` — un rendu de plus ne doit jamais afficher un nombre
-// différent du précédent). `fakeCloneCountForId` : hash de chaîne simple,
-// pas cryptographique, juste assez pour une variété visuelle stable
-// d'un template à l'autre.
+// différent du précédent). `fakeCloneCountForId` : importée de
+// curatedSessions.js (PAS redéfinie ici) — voir sa docstring là-bas :
+// partagée avec `TemplateCard.jsx` (Découvrir), pour qu'un même template
+// affiche TOUJOURS le même nombre, qu'on le consulte depuis Découvrir ou
+// depuis cette vitrine.
 const CATEGORY_DESCRIPTIONS = {
   'Cardio Express': "Une session courte et intense, pensée pour un cardio efficace même avec un emploi du temps chargé.",
   'Endurance Fondamentale': "Un rythme régulier pour construire ton endurance de fond, séance après séance.",
@@ -124,12 +126,6 @@ const CATEGORY_DESCRIPTIONS = {
   'Récupération & Flow': "Un tempo plus doux, pour une séance de récupération active, sans se presser.",
   'Rythmes Sensuels': "Une ambiance plus intime, pensée pour un moment à part.",
 };
-
-function fakeCloneCountForId(id) {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) % 997;
-  return 8 + (hash % 65); // entre 8 et 72, jamais 0 (toujours "ambitieux")
-}
 
 function templateToVitrineRow(template, isIntimate) {
   const totalDuration = template.tracks.reduce((s, t) => s + (t.duration || 0), 0);
