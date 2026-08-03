@@ -3,6 +3,7 @@ import { List, Library, Plus, Calendar, CheckCircle, ChevronLeft, ChevronRight }
 import PlaylistCard from './PlaylistCard';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
+import { supabase } from '../../supabaseClient';
 
 /**
  * PlaylistsView — vue "Mes Séances" (nom d'origine restauré le 25/07 : elle
@@ -78,7 +79,33 @@ export default function PlaylistsView({
   // au prochain rendu et pousse la mise à jour vers Supabase tout seul,
   // rien de plus à faire ici.
   const handleTogglePlaylistPublic = (id) => {
-    setSavedPlaylists(savedPlaylists.map(p => p.id === id ? { ...p, isPublic: !p.isPublic } : p));
+    let updatedPlaylist = null;
+    setSavedPlaylists(savedPlaylists.map(p => {
+      if (p.id !== id) return p;
+      updatedPlaylist = { ...p, isPublic: !p.isPublic };
+      return updatedPlaylist;
+    }));
+
+    // MÊME logique de lignée que `handleTogglePlaylistPublic`
+    // (PlaylistDetailContext.jsx, voir sa docstring pour le raisonnement
+    // complet) — dupliquée ici plutôt que factorisée : ces 2 fonctions
+    // opèrent sur des données différentes (`currentPlaylist` unique vs
+    // n'importe quelle carte de cette liste par `id`), une factorisation
+    // aurait ajouté un niveau d'indirection pour 2 fonctions déjà courtes.
+    if (updatedPlaylist?.isPublic && updatedPlaylist.originUserId) {
+      supabase.rpc('increment_playlist_clone_count', {
+        target_id: updatedPlaylist.originId,
+        target_user_id: updatedPlaylist.originUserId,
+      }).then(({ error }) => {
+        if (error) console.error('[PlaylistsView] increment_playlist_clone_count (republication) a échoué :', error);
+      });
+    } else if (updatedPlaylist?.isPublic && updatedPlaylist.sourceTemplateId) {
+      supabase.rpc('increment_template_clone_count', {
+        target_template_id: updatedPlaylist.sourceTemplateId,
+      }).then(({ error }) => {
+        if (error) console.error('[PlaylistsView] increment_template_clone_count (republication) a échoué :', error);
+      });
+    }
   };
 
   // Pare-feu Mode Intime (retour direct : "les vues Mes Séances et Découvrir
