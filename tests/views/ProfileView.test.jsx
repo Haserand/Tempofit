@@ -7,7 +7,7 @@
 // Sport/Intime. `supabase` (supabaseClient.js) entièrement mocké — pas de
 // vrai réseau.
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
@@ -30,6 +30,19 @@ import { curatedSessions, naughtyCuratedSessions } from '../../src/data/curatedS
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+});
+
+// Repli SÛR pour les tests qui n'appellent jamais `setupTableMocks()`
+// (notamment la vitrine, ci-dessous) — indispensable depuis que
+// ProfileView.jsx interroge AUSSI `template_clone_counts` pour cette
+// branche (compteur de clonages honnête, 02/08) : sans lui, `mockFrom()`
+// renverrait `undefined` (aucune implémentation par défaut), et
+// `.select(...)` planterait dessus. `setupTableMocks()`, quand un test
+// l'appelle explicitement, REMPLACE cette implémentation par une plus
+// spécifique — ce repli n'est qu'un filet de sécurité, jamais la source
+// de vérité d'un test précis.
+beforeEach(() => {
+  mockFrom.mockImplementation(() => makeTableBuilder({ data: [], error: null }));
 });
 
 const mockTheme = {
@@ -532,11 +545,19 @@ describe('ProfileView — profil vitrine officiel (@tempofit_officiel)', () => {
     expect(screen.queryByText(/Aperçu de ton profil/)).toBeNull();
   });
 
-  it('statistiques sportives affichées en mode Sport, sans le moindre appel réseau (mockFrom jamais appelé)', async () => {
+  it('statistiques sportives affichées en mode Sport, sans appel réseau POUR LES STATS elles-mêmes (mockRpc jamais appelé)', async () => {
     render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} isNaughtyMode={false} />);
 
     expect(await screen.findByText('Statistiques sportives')).toBeInTheDocument();
-    expect(mockFrom).not.toHaveBeenCalled();
+    // ⚠️ RENOMMÉ le 02/08 (compteur de clonages honnête) — `mockFrom` EST
+    // désormais appelé une fois pour la vitrine (`template_clone_counts`,
+    // voir ProfileView.jsx), donc l'ancienne assertion "mockFrom jamais
+    // appelé" n'est plus vraie. Ce qui reste vrai et vérifié ici : les
+    // STATISTIQUES elles-mêmes (fausses par construction,
+    // `buildOfficialVitrineProfile()`) ne déclenchent toujours AUCUN appel
+    // réseau — seule la grille de playlists/routines en déclenche un,
+    // couvert séparément ci-dessous.
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 
   it('bascule vers les statistiques Intime en Mode Intime (mêmes règles d\'affichage qu\'un vrai profil)', async () => {
@@ -545,11 +566,43 @@ describe('ProfileView — profil vitrine officiel (@tempofit_officiel)', () => {
     expect(screen.queryByText('Statistiques sportives')).toBeNull();
   });
 
-  it('grille "Playlists partagées" peuplée directement depuis le catalogue, sans appel réseau', async () => {
+  it('grille "Playlists partagées" peuplée directement depuis le catalogue (contenu lui-même statique, PAS chargé depuis Supabase)', async () => {
     render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} isNaughtyMode={false} />);
 
     expect(await screen.findByText(curatedSessions[0].title)).toBeInTheDocument();
-    expect(mockFrom).not.toHaveBeenCalled();
+    // ⚠️ RENOMMÉ le 02/08 (compteur de clonages honnête) — voir le test
+    // précédent : `mockFrom` EST désormais appelé (`template_clone_counts`),
+    // ce n'est plus "sans appel réseau". Ce qui reste vrai : le CONTENU
+    // (titres/BPM/durées) vient de `data/curatedSessions.js`, jamais d'une
+    // requête `playlists`/`routines` — vérifié en confirmant qu'aucun
+    // appel `mockFrom` ne cible CES tables précises pour la vitrine.
+    expect(mockFrom).not.toHaveBeenCalledWith('playlists');
+    expect(mockFrom).not.toHaveBeenCalledWith('routines');
+  });
+
+  // Compteur de clonages HONNÊTE (02/08, retour direct : "0 par défaut si
+  // jamais y en a 0, 1 si jamais y en a un etc") — voir la docstring de la
+  // branche vitrine, ProfileView.jsx.
+  it('récupère les VRAIS compteurs de clonage (template_clone_counts) et les applique aux cartes de la vitrine', async () => {
+    mockFrom.mockImplementation((table) => {
+      if (table === 'template_clone_counts') {
+        return makeTableBuilder({ data: [{ template_id: curatedSessions[0].id, clone_count: 5 }], error: null });
+      }
+      return makeTableBuilder({ data: [], error: null });
+    });
+    render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} isNaughtyMode={false} />);
+
+    await screen.findByText(curatedSessions[0].title);
+    expect(mockFrom).toHaveBeenCalledWith('template_clone_counts');
+    expect(screen.getByText('5')).toBeInTheDocument();
+  });
+
+  it('un template jamais cloné (absent de template_clone_counts) reste à 0, jamais un nombre inventé', async () => {
+    render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} isNaughtyMode={false} />);
+    await screen.findByText(curatedSessions[0].title);
+    // Aucun badge de clonage affiché du tout — `PublicItemCard` masque le
+    // badge quand `clone_count` vaut 0 (voir sa docstring, ProfileView.jsx).
+    expect(screen.queryByTitle('Nombre de fois où cette playlist/routine a été clonée')).toBeNull();
   });
 
   it('cloisonnement Sport/Intime respecté dans la grille de la vitrine, exactement comme un vrai profil', async () => {
