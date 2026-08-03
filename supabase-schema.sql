@@ -528,6 +528,173 @@ create index if not exists routines_user_id_idx on routines (user_id);
 create index if not exists routines_public_idx on routines (user_id) where is_public = true;
 
 -- ─────────────────────────────────────────────────────────────────────────
+-- ÉVOLUTION (02/08) — fondations SQL du chantier "Pulses/Leaderboard"
+-- (README, "Décisions actées, pas encore implémentées") : SEULEMENT la
+-- persona intime (table + génération de pseudonyme + RPC dédiée) —
+-- AUCUN pulse, AUCUN leaderboard construit ici. Rien de visible pour
+-- l'utilisateur tant qu'un futur chantier ne branche pas une UI dessus ;
+-- l'objectif de cette passe est uniquement de poser une fondation sûre,
+-- conforme aux règles déjà tranchées dans le README (à relire avant de
+-- construire quoi que ce soit par-dessus).
+--
+-- Pourquoi une table SÉPARÉE plutôt qu'une colonne sur `profiles` : les
+-- règles du README exigent que le pseudonyme intime ne soit "jamais joint
+-- dans une requête publique" — une colonne sur `profiles` (déjà lue par
+-- `get_public_profile_summary`/`search_public_profiles`) rendrait cette
+-- séparation fragile (un futur `select *` sur `profiles` l'exposerait par
+-- accident). Une table à part, sans AUCUNE policy de lecture publique
+-- (voir plus bas), rend cette fuite structurellement impossible plutôt que
+-- juste "à ne pas oublier de filtrer".
+create table if not exists intimate_personas (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  -- `intimate_id` : l'identifiant STABLE exposé un jour publiquement (via
+  -- la RPC ci-dessous, jamais directement) — généré par Postgres
+  -- (`gen_random_uuid()`), AUCUN lien mathématique avec `user_id` ou le
+  -- pseudo réel. C'est le "seed" du pseudonyme généré plus bas : en le
+  -- faisant dépendre de CETTE valeur (et jamais du username), on garantit
+  -- structurellement l'indépendance exigée par le README, plutôt que de
+  -- compter sur la discipline du code applicatif pour ne jamais mélanger
+  -- les deux.
+  intimate_id uuid not null default gen_random_uuid() unique,
+  pseudonym text not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id)
+);
+
+alter table intimate_personas enable row level security;
+
+-- Politique de lecture UNIQUE, volontairement restreinte au propriétaire —
+-- PAS de policy publique ici, à la différence de `profiles`/`playlists`/
+-- `routines` (qui ont toutes une policy "select public"). Une future
+-- fonctionnalité de classement intime devra passer par une RPC dédiée
+-- (security definer, comme `get_or_create_intimate_persona` ci-dessous),
+-- jamais par un accès direct élargi à cette table.
+drop policy if exists "Un utilisateur lit uniquement sa propre persona intime" on intimate_personas;
+create policy "Un utilisateur lit uniquement sa propre persona intime"
+  on intimate_personas for select
+  using (auth.uid() = user_id);
+
+-- Pas de policy insert/update/delete cote client, VOLONTAIREMENT : la
+-- création passe exclusivement par `get_or_create_intimate_persona`
+-- (security definer, contourne RLS en interne) — jamais un insert direct
+-- depuis le client, qui pourrait sinon tenter de poser son propre
+-- `intimate_id`/`pseudonym` au lieu de les laisser générer côté serveur.
+
+-- Génération du pseudonyme — déterministe à partir de `seed` (toujours
+-- `intimate_id`, jamais `user_id` ni le username réel, voir plus haut) :
+-- même seed ⇒ même pseudonyme, systématiquement (stable dans le temps,
+-- conforme au README : "pas généré à la volée à chaque partage").
+-- VOLONTAIREMENT en SQL plutôt qu'en JS côté client : le seed ne doit
+-- JAMAIS être choisi ou influencé par le client (un client qui pourrait
+-- fournir son propre seed pourrait, par erreur ou malveillance, en
+-- choisir un dérivé de son username, recréant exactement le pattern
+-- reconnaissable que cette règle interdit) — en gardant toute la chaîne
+-- (génération du seed ET du pseudonyme) côté serveur, ce risque n'existe
+-- structurellement pas.
+--
+-- `hashtext(seed::text || ':adj')` / `'... || ':noun'` : 2 hash
+-- INDÉPENDANTS du même seed (suffixe différent) pour piocher séparément un
+-- adjectif et un nom, plutôt qu'un seul hash découpé en deux (aurait
+-- corrélé les deux choix entre eux de façon prévisible). `hashtext()` est
+-- une fonction Postgres NATIVE (utilisée en interne pour les index de
+-- hachage) — préférée à une manipulation manuelle de `md5()`/conversion
+-- bit-à-entier : signature stable et déjà connue, pas de dépendance à un
+-- idiome plus difficile à vérifier sans accès direct à un vrai Postgres.
+-- `abs(...)` : `hashtext()` renvoie un entier SIGNÉ (peut être négatif) ;
+-- sans `abs()`, `%` renverrait un indice ≤ 0 et l'accès au tableau
+-- (1-indexé) échouerait silencieusement (NULL plutôt qu'une erreur), pas
+-- immédiatement visible en test.
+--
+-- 20 × 20 = 400 combinaisons — suffisant pour ne pas se répéter à chaque
+-- pseudonyme généré, mais PAS conçu pour éliminer toute collision entre
+-- utilisateurs à grande échelle (2 personnes pourraient un jour partager
+-- le même pseudonyme affiché). Ce n'est PAS un problème de sécurité : deux
+-- personas affichant "Loup Discret" restent deux `intimate_id` distincts,
+-- jamais confondus par le système, seulement par un lecteur humain — à
+-- surveiller si le nombre d'utilisateurs en Mode Intime grandit beaucoup,
+-- mais pas une raison de complexifier cette v1 par anticipation.
+--
+-- VALIDÉ dans l'éditeur SQL Supabase le 02/08 : le seed nul
+-- ('00000000-0000-0000-0000-000000000000'::uuid) renvoie systématiquement
+-- "Marée Mystère" — confirmé stable sur plusieurs appels d'affilée (pas
+-- une seule exécution isolée). Requêtes de vérification laissées ci-dessous
+-- pour qu'une future session/un futur seed puisse revalider de la même
+-- façon après toute modification de cette fonction :
+--   select public.generate_intimate_pseudonym(gen_random_uuid());
+--   select public.generate_intimate_pseudonym('00000000-0000-0000-0000-000000000000'::uuid); -- doit toujours renvoyer "Marée Mystère"
+create or replace function public.generate_intimate_pseudonym(seed uuid)
+returns text
+language sql
+immutable
+as $$
+  select
+    (array['Loup','Renard','Faucon','Lynx','Orque','Corbeau','Puma','Aigle','Ours','Cerf',
+           'Héron','Panthère','Iris','Étoile','Comète','Brume','Marée','Éclipse','Aurore','Tonnerre']
+    )[1 + abs(hashtext(seed::text || ':adj') % 20)]
+    || ' ' ||
+    (array['Discret','Silencieux','Nocturne','Furtif','Libre','Sauvage','Errant','Voilé','Insaisissable','Anonyme',
+           'Caché','Lointain','Vagabond','Secret','Indompté','Flottant','Nébuleux','Invisible','Fugace','Mystère']
+    )[1 + abs(hashtext(seed::text || ':noun') % 20)];
+$$;
+
+-- Point d'entrée UNIQUE pour obtenir/créer SA PROPRE persona intime —
+-- `security definer` : contourne RLS en interne (nécessaire pour l'insert
+-- initial, la policy ci-dessus n'autorise que la lecture), mais
+-- `auth.uid()` reste la SEULE source de vérité sur l'appelant — jamais un
+-- paramètre transmis par le client, donc structurellement impossible de
+-- demander/lire la persona de quelqu'un d'autre via cette fonction.
+--
+-- Ne renvoie JAMAIS `user_id` dans le résultat (règle du README,
+-- garde-fou anti-corrélation réseau : un visiteur inspectant l'onglet
+-- Network ne doit jamais pouvoir faire le lien) — uniquement
+-- `intimate_id`/`pseudonym`, les deux seules valeurs qu'une future UI a
+-- besoin d'afficher/manipuler.
+--
+-- Idempotente : un 2e appel pour le même utilisateur renvoie la persona
+-- déjà créée (jamais une nouvelle), conforme à "pseudonyme STABLE" du
+-- README — pas de possibilité d'en régénérer un autre en rappelant la
+-- fonction plusieurs fois.
+create or replace function public.get_or_create_intimate_persona()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  existing intimate_personas%rowtype;
+  new_intimate_id uuid;
+  new_pseudonym text;
+begin
+  if auth.uid() is null then
+    return null;
+  end if;
+
+  select * into existing from intimate_personas where user_id = auth.uid();
+
+  if found then
+    return jsonb_build_object('intimate_id', existing.intimate_id, 'pseudonym', existing.pseudonym);
+  end if;
+
+  new_intimate_id := gen_random_uuid();
+  new_pseudonym := public.generate_intimate_pseudonym(new_intimate_id);
+
+  insert into intimate_personas (user_id, intimate_id, pseudonym)
+  values (auth.uid(), new_intimate_id, new_pseudonym);
+
+  return jsonb_build_object('intimate_id', new_intimate_id, 'pseudonym', new_pseudonym);
+end;
+$$;
+
+-- Même schéma de verrou que `get_public_profile_summary`/
+-- `search_public_profiles` (voir plus haut) : `anon` ne doit jamais pouvoir
+-- appeler cette fonction (elle créerait/lirait une persona pour
+-- `auth.uid() is null`, qui échoue déjà en interne, mais autant fermer la
+-- porte au niveau du rôle directement, sans compter uniquement sur ce
+-- garde-fou interne).
+revoke execute on function public.get_or_create_intimate_persona() from anon;
+grant execute on function public.get_or_create_intimate_persona() to authenticated;
+
+-- ─────────────────────────────────────────────────────────────────────────
 -- MIGRATION — copie chaque ÉLÉMENT du blob JSON `user_data` (clés
 -- 'savedPlaylists'/'routines', un tableau par utilisateur) vers UNE LIGNE
 -- de la table relationnelle correspondante. `jsonb_array_elements` déplie
