@@ -83,10 +83,17 @@ describe('usePlaylistLibrary — compteur de clonages (handleClonePlaylist)', ()
     expect(mockRpc).not.toHaveBeenCalledWith('increment_playlist_clone_count', expect.anything());
   });
 
-  // Traçabilité de lignée (02/08, retour direct : "si A clone B, puis C
-  // clone la copie d'A, ça doit compter pour B, pas pour A").
-  describe('chaîne de clonage (originId/originUserId)', () => {
-    it('un 1er clonage (jamais cloné avant) pose originId/originUserId = SOI-MÊME sur la copie', () => {
+  // Traçabilité de lignée — REFONTE (03/08, voir supabase-schema.sql) :
+  // le client ne calcule/porte plus la chaîne entière (`originId`/
+  // `originUserId`, retirés) — il pose seulement `parentId`/`parentUserId`
+  // (le maillon IMMÉDIAT, trivialement correct — `currentPlaylist.id`/
+  // `.user_id` lus directement) et fait TOUJOURS UN SEUL appel RPC. La
+  // résolution de l'origine réelle de la chaîne (`resolve_playlist_origin`,
+  // marche récursive) vit désormais côté Postgres — hors de portée d'un
+  // test unitaire ici (aucun vrai Postgres dans ce bac à sable), c'est
+  // précisément ce que la vérification en conditions réelles doit couvrir.
+  describe('chaîne de clonage (parentId/parentUserId)', () => {
+    it('pose parentId/parentUserId = le maillon qu\'on vient de cloner, jamais une valeur dérivée', () => {
       const setSavedPlaylists = vi.fn();
       const foreignPlaylist = { id: 'pl-A-original', user_id: 'user-A', name: 'Playlist de A', isReadOnly: true };
       const result = renderLibrary(foreignPlaylist, { setSavedPlaylists });
@@ -94,20 +101,19 @@ describe('usePlaylistLibrary — compteur de clonages (handleClonePlaylist)', ()
       result.current.handleClonePlaylist();
 
       const cloned = setSavedPlaylists.mock.calls[0][0][0];
-      expect(cloned.originId).toBe('pl-A-original');
-      expect(cloned.originUserId).toBe('user-A');
+      expect(cloned.parentId).toBe('pl-A-original');
+      expect(cloned.parentUserId).toBe('user-A');
     });
 
-    // Anti-abus "toggle spam" + "Clone" vs "Enfant" (02/08) — une copie
-    // FRAÎCHE démarre toujours "jamais republiée, jamais modifiée", même
-    // si l'objet source (`currentPlaylist`) portait déjà ces champs à
-    // `true` (un parent republié/modifié ne doit jamais "contaminer" sa
-    // descendance — chaque copie a sa PROPRE vie).
-    it('une copie fraîche démarre toujours avec isModifiedSinceClone=false et originCreditClaimed=false, même si le parent les avait à true', () => {
+    // "Clone" vs "Enfant" (02/08) — une copie FRAÎCHE démarre toujours
+    // "jamais modifiée", même si l'objet source (`currentPlaylist`)
+    // portait déjà `isModifiedSinceClone: true` (un parent modifié ne doit
+    // jamais "contaminer" sa descendance — chaque copie a sa PROPRE vie).
+    it('une copie fraîche démarre toujours avec isModifiedSinceClone=false, même si le parent l\'avait à true', () => {
       const setSavedPlaylists = vi.fn();
       const alreadyModifiedParent = {
         id: 'pl-B-copy', user_id: 'user-B', name: 'Copie déjà modifiée de B',
-        isReadOnly: true, isModifiedSinceClone: true, originCreditClaimed: true,
+        isReadOnly: true, isModifiedSinceClone: true,
       };
       const result = renderLibrary(alreadyModifiedParent, { setSavedPlaylists });
 
@@ -115,55 +121,35 @@ describe('usePlaylistLibrary — compteur de clonages (handleClonePlaylist)', ()
 
       const cloned = setSavedPlaylists.mock.calls[0][0][0];
       expect(cloned.isModifiedSinceClone).toBe(false);
-      expect(cloned.originCreditClaimed).toBe(false);
-    });
-
-    it('B clonant la playlist de A (jamais clonée avant) : un SEUL incrément réel (origine = maillon immédiat, jamais compté 2 fois)', () => {
-      mockRpc.mockResolvedValue({ error: null });
-      const playlistOfA = { id: 'pl-A-original', user_id: 'user-A', name: 'Playlist de A', isReadOnly: true };
-      const result = renderLibrary(playlistOfA);
-
-      result.current.handleClonePlaylist();
-
-      expect(mockRpc).toHaveBeenCalledTimes(1);
-      expect(mockRpc).toHaveBeenCalledWith('increment_playlist_clone_count', {
-        target_id: 'pl-A-original',
-        target_user_id: 'user-A',
-      });
     });
 
     // Retour direct (02/08) : "si A fait une playlist, B la clone, et C
     // clone la copie de B, ça doit augmenter le compteur de A ET de B" —
-    // scénario exact : `copyOfB` est la copie que B a obtenue en clonant
-    // A (donc `user_id: 'user-B'`, `originId`/`originUserId` pointant
-    // vers A) ; C clone MAINTENANT cette copie.
-    it('C clonant la copie de B (elle-même clonée de A) incrémente A ET B — 2 appels distincts', () => {
+    // avec la refonte, C ne fait plus qu'UN SEUL appel (ciblant B, le
+    // maillon immédiat) — c'est `increment_playlist_clone_count`
+    // elle-même, côté serveur, qui remonte ensuite jusqu'à A via
+    // `resolve_playlist_origin` et la crédite aussi, en interne.
+    it('C clonant la copie de B (elle-même clonée de A) ne fait qu\'UN appel RPC, ciblant B — la résolution de A est désormais interne à la fonction SQL', () => {
       mockRpc.mockResolvedValue({ error: null });
       const copyOfB = {
-        id: 'pl-B-copy', user_id: 'user-B', originId: 'pl-A-original', originUserId: 'user-A',
+        id: 'pl-B-copy', user_id: 'user-B', parentId: 'pl-A-original', parentUserId: 'user-A',
         name: 'Copie de B (elle-même clonée de A)', isReadOnly: true,
       };
       const result = renderLibrary(copyOfB);
 
       result.current.handleClonePlaylist();
 
-      expect(mockRpc).toHaveBeenCalledTimes(2);
-      // Maillon immédiat : B vient de se faire cloner par C.
+      expect(mockRpc).toHaveBeenCalledTimes(1);
       expect(mockRpc).toHaveBeenCalledWith('increment_playlist_clone_count', {
         target_id: 'pl-B-copy',
         target_user_id: 'user-B',
       });
-      // Origine : le contenu d'A vient d'être réutilisé une fois de plus.
-      expect(mockRpc).toHaveBeenCalledWith('increment_playlist_clone_count', {
-        target_id: 'pl-A-original',
-        target_user_id: 'user-A',
-      });
     });
 
-    it('la copie de C hérite de la MÊME origine (A) que la copie de B — la chaîne ne s\'arrête jamais à un maillon intermédiaire', () => {
+    it('la copie de C ne porte que son parent DIRECT (B), jamais la racine (A) — plus rien à propager plus loin que le maillon immédiat', () => {
       const setSavedPlaylists = vi.fn();
       const copyOfB = {
-        id: 'pl-B-copy', user_id: 'user-B', originId: 'pl-A-original', originUserId: 'user-A',
+        id: 'pl-B-copy', user_id: 'user-B', parentId: 'pl-A-original', parentUserId: 'user-A',
         name: 'Copie de B', isReadOnly: true,
       };
       const result = renderLibrary(copyOfB, { setSavedPlaylists });
@@ -171,8 +157,8 @@ describe('usePlaylistLibrary — compteur de clonages (handleClonePlaylist)', ()
       result.current.handleClonePlaylist();
 
       const clonedByC = setSavedPlaylists.mock.calls[0][0][0];
-      expect(clonedByC.originId).toBe('pl-A-original');
-      expect(clonedByC.originUserId).toBe('user-A');
+      expect(clonedByC.parentId).toBe('pl-B-copy');
+      expect(clonedByC.parentUserId).toBe('user-B');
     });
   });
 
