@@ -262,17 +262,15 @@ function AppContent({
   // d'utilisation remis à zéro (une copie n'a encore jamais été relancée
   // par SON nouveau propriétaire).
   const handleClonePublicRoutine = (row) => {
-    // Traçabilité de lignée (02/08, même raisonnement que
+    // Traçabilité de lignée — REFONTE (03/08, même raisonnement que
     // handleClonePlaylist, usePlaylistLibrary.js — voir sa docstring pour
-    // le détail complet) — `row.content.originId`/`.originUserId` (PAS
-    // `row.originId` directement : contrairement à `currentPlaylist` pour
-    // une playlist, `row` ici est la ligne BRUTE Supabase, tous les champs
-    // personnalisés d'une routine vivent DANS `content`, jamais au niveau
-    // racine de la ligne — voir useSyncedCollection.js). Repli sur
-    // `row.id`/`row.user_id` si absents : cette routine n'a jamais encore
-    // été clonée, elle est donc elle-même l'origine de la chaîne.
-    const originId = row.content.originId || row.id;
-    const originUserId = row.content.originUserId || row.user_id;
+    // le détail complet) : ne pose plus que le maillon IMMÉDIAT
+    // (`parentId`/`parentUserId` — `row.id`/`row.user_id`, lus
+    // directement, RIEN à dériver). `row` ici est la ligne BRUTE Supabase
+    // (contrairement à `currentPlaylist` côté playlists, déjà aplatie) —
+    // voir useSyncedCollection.js pour cette différence de forme.
+    const parentId = row.id;
+    const parentUserId = row.user_id;
 
     const cloned = {
       ...row.content,
@@ -281,53 +279,40 @@ function AppContent({
       manualGenerations: 0,
       recentTrackIds: [],
       createdAt: new Date().toLocaleDateString(),
-      // Ne conserver l'origine que si elle pointe vers un VRAI utilisateur
-      // — sinon (routine fictive de la vitrine, `originUserId` toujours
-      // absent) ces 2 champs resteraient `undefined`, jamais une fausse
-      // chaîne pointant vers personne.
-      // `isModifiedSinceClone: false`/`originCreditClaimed: false` — MÊME
+      // Ne conserver le lien que s'il pointe vers un VRAI utilisateur —
+      // sinon (routine fictive de la vitrine, `parentUserId` toujours
+      // absent) ces 2 champs resteraient `undefined`, jamais un faux lien
+      // pointant vers personne. `isModifiedSinceClone: false` — MÊME
       // raisonnement que handleClonePlaylist (usePlaylistLibrary.js), voir
-      // sa docstring pour le détail complet : posés EXPLICITEMENT plutôt
-      // que laissés au spread `...row.content`, pour que chaque NOUVELLE
-      // copie démarre sa propre vie "jamais republiée, jamais modifiée",
-      // même si son parent l'était déjà.
-      ...(originUserId ? { originId, originUserId, isModifiedSinceClone: false, originCreditClaimed: false } : {}),
+      // sa docstring pour le détail complet. Plus de
+      // `originCreditClaimed` (retiré, voir supabase-schema.sql — le
+      // mécanisme qu'il gardait était du code mort).
+      ...(parentUserId ? { parentId, parentUserId, isModifiedSinceClone: false } : {}),
     };
     setRoutines(prev => [cloned, ...prev]);
     closeModal();
     changeView('routines');
     showToast('⚡ Routine clonée dans Mes Routines !');
 
-    // Compteur de clonages RÉEL (02/08, corrigé une 2e fois le même jour —
-    // MÊME correctif que handleClonePlaylist, usePlaylistLibrary.js, voir
-    // sa docstring pour le raisonnement complet) — DEUX incréments
-    // distincts quand la chaîne fait plus d'un maillon : le PROPRIÉTAIRE
-    // IMMÉDIAT de `row` (`row.user_id` — vient de se faire cloner) ET
-    // l'ORIGINE de la chaîne (`originId`/`originUserId`, si différente).
-    // Identiques (un seul incrément réel envoyé) quand `row` n'a jamais
-    // été clonée avant. Routine fictive de la vitrine (`row.user_id`
-    // absent) : `row.id` sert de clé dans `template_clone_counts` — une
-    // routine fictive n'a pas de `sourceTemplateId` équivalent aux
-    // playlists, elle EST déjà son propre "template" (id fixe,
-    // `vitrine-routine-1` etc.). Fire-and-forget dans tous les cas,
-    // jamais bloquant/visible en cas d'échec — même raisonnement que côté
-    // playlists.
+    // Compteur de clonages RÉEL — REFONTE (03/08) : UN SEUL appel RPC
+    // désormais (au lieu de 2 avant), MÊME raisonnement que
+    // handleClonePlaylist (usePlaylistLibrary.js) — `increment_routine_
+    // clone_count` crédite maintenant, EN INTERNE côté serveur, à la fois
+    // le maillon immédiat ET l'origine réelle de la chaîne (résolue par
+    // `resolve_routine_origin`, jamais calculée ici). Routine fictive de
+    // la vitrine (`row.user_id` absent) : `row.id` sert toujours de clé
+    // dans `template_clone_counts` — une routine fictive n'a pas de
+    // `sourceTemplateId` équivalent aux playlists, elle EST déjà son
+    // propre "template" (id fixe, `vitrine-routine-1` etc.).
+    // Fire-and-forget dans tous les cas, jamais bloquant/visible en cas
+    // d'échec — même raisonnement que côté playlists.
     if (row.user_id) {
       supabase.rpc('increment_routine_clone_count', {
         target_id: row.id,
         target_user_id: row.user_id,
       }).then(({ error }) => {
-        if (error) console.error('[App] increment_routine_clone_count (maillon immédiat) a échoué :', error);
+        if (error) console.error('[App] increment_routine_clone_count a échoué :', error);
       });
-
-      if (originUserId && originUserId !== row.user_id) {
-        supabase.rpc('increment_routine_clone_count', {
-          target_id: originId,
-          target_user_id: originUserId,
-        }).then(({ error }) => {
-          if (error) console.error('[App] increment_routine_clone_count (origine) a échoué :', error);
-        });
-      }
     } else {
       supabase.rpc('increment_template_clone_count', {
         target_template_id: row.id,
