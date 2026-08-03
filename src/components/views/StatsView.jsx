@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Activity, Upload, ChevronUp, ChevronDown, ChevronRight, Gauge, Share2, Loader2 } from 'lucide-react';
+import { Activity, Upload, ChevronUp, ChevronDown, ChevronRight, Gauge, Share2, Loader2, Copy } from 'lucide-react';
 import { ATHLETIC_ZONES, getZoneForValue, DISTRIBUTION_COLORS, getBpmBucketColor, getBpmBucketLabel } from '../../appConfig';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import { NAUGHTY_WORKOUT_LABELS } from '../../appConfig';
@@ -9,6 +9,7 @@ import { captureElementAsFile } from '../../utils/captureElementAsFile';
 import GlobalStatsShareCard from '../shared/GlobalStatsShareCard';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
+import { supabase } from '../../supabaseClient';
 
 /**
  * StatsView — vue "Statistiques" ("Wrapped" personnel).
@@ -35,8 +36,51 @@ export default function StatsView({
   showAdvancedStats, setShowAdvancedStats,
   expandedDetailGenre, setExpandedDetailGenre,
   expandedDetailArtist, setExpandedDetailArtist,
+  user,
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
+
+  // Clonages reçus (compteur, 02/08) — FRAÎCHEMENT récupéré via une requête
+  // dédiée à chaque changement de `statsMode`/`user`, PAS depuis
+  // `savedPlaylists` (cache local synchronisé via useSyncedCollection.js,
+  // qui ne synchronise que `content`/`is_public`/`is_intimate` — jamais un
+  // compteur qui change à cause de QUELQU'UN D'AUTRE clonant ce contenu :
+  // afficher ce total depuis le cache local le laisserait périmé jusqu'à
+  // la prochaine reconnexion complète, trompeur pour un stat censé
+  // refléter "combien de fois AUJOURD'HUI"). Somme calculée CÔTÉ CLIENT
+  // sur 2 requêtes (`playlists`/`routines`, tables séparées) plutôt qu'une
+  // fonction RPC dédiée : ce total n'a besoin d'aucune logique serveur
+  // (pas de filtrage de confidentialité à faire — on lit SES PROPRES
+  // lignes, RLS l'autorise déjà nativement), une simple somme suffit.
+  const [receivedCloneCount, setReceivedCloneCount] = useState(0);
+  const [cloneCountLoading, setCloneCountLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setReceivedCloneCount(0);
+      return;
+    }
+    let cancelled = false;
+    setCloneCountLoading(true);
+    const isIntimateMode = statsMode === 'naughty';
+    Promise.all([
+      supabase.from('playlists').select('clone_count').eq('user_id', user.id).eq('is_public', true).eq('is_intimate', isIntimateMode),
+      supabase.from('routines').select('clone_count').eq('user_id', user.id).eq('is_public', true).eq('is_intimate', isIntimateMode),
+    ]).then(([playlistsRes, routinesRes]) => {
+      if (cancelled) return;
+      if (playlistsRes.error || routinesRes.error) {
+        console.error('[StatsView] échec de la récupération des clonages reçus :', playlistsRes.error || routinesRes.error);
+        setReceivedCloneCount(0);
+        return;
+      }
+      const total = [...(playlistsRes.data || []), ...(routinesRes.data || [])]
+        .reduce((sum, row) => sum + (row.clone_count || 0), 0);
+      setReceivedCloneCount(total);
+    }).finally(() => {
+      if (!cancelled) setCloneCountLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [user, statsMode]);
 
   // --- Bilan Global (export image, "Spotify Wrapped") ---
   // Carte rendue hors écran en permanence, capturée via captureElementAsFile
@@ -719,6 +763,31 @@ export default function StatsView({
               <div className={`text-xs font-bold uppercase tracking-wide mt-1 ${textMuted}`}>Styles différents</div>
             </div>
           </div>
+
+          {/* Clonages reçus (02/08) — séparé de la grille "Gros chiffres"
+              juste au-dessus (pas une 5e case dans la grille 4 colonnes) :
+              cette donnée vient d'une requête réseau dédiée (voir le
+              useEffect en tête de fichier), avec ses propres états de
+              chargement/absence, tandis que la grille ci-dessus est
+              calculée de façon synchrone depuis `savedPlaylists` déjà en
+              mémoire — mélanger les deux aurait rendu le "0 état" de l'une
+              ambigu avec le chargement de l'autre. Repli silencieux total
+              (ni chargement ni case vide) si `receivedCloneCount` vaut 0 :
+              cohérent avec le badge par item et le total du profil public
+              (PublicItemCard/ProfileView.jsx) — un compteur à 0 n'est pas
+              une information à mettre en avant. */}
+          {(cloneCountLoading || receivedCloneCount > 0) && (
+            <div className={`mt-4 ${cardBg} rounded-2xl p-4 border ${cardBorder} flex items-center justify-between`}>
+              <div className="flex items-center gap-2">
+                <Copy size={18} className={textColorClass} />
+                <span className={`text-sm font-bold ${textHighlight}`}>Clonages reçus sur tes playlists/routines publiques</span>
+              </div>
+              {cloneCountLoading
+                ? <Loader2 size={18} className={`animate-spin ${textMuted}`} />
+                : <span className={`text-2xl font-black ${textHighlight}`}>{receivedCloneCount}</span>
+              }
+            </div>
+          )}
 
           {/* Donnée réelle importée (cadence/FC Garmin-Strava) — avant, une simple
               ligne de texte ("X imports...") apparaissait seulement s'il y en avait
