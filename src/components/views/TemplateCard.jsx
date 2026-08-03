@@ -1,5 +1,6 @@
-import { Play, Music2 } from 'lucide-react';
+import { Play, Music2, Copy } from 'lucide-react';
 import { buildCoverUrl } from '../../utils/coverArt';
+import { fakeCloneCountForId } from '../../data/curatedSessions';
 
 /**
  * TemplateCard — carte d'une playlist ensemencée (voir data/curatedSessions.js),
@@ -55,7 +56,32 @@ import { buildCoverUrl } from '../../utils/coverArt';
  * celle activité/durée juste en dessous — repère utile pour distinguer des
  * modèles au titre peu explicite (ex. "Turbo Cardio", contrairement à
  * "Midnight Runner 160" qui l'indique déjà dans son nom).
+ *
+ * RETOUR DIRECT (7e passe, 02/08, "chaque playlist en Découvrir devrait au
+ * minimum avoir une indication du nombre de clonages") — compteur FICTIF
+ * (`fakeCloneCountForId`, curatedSessions.js), PARTAGÉ avec
+ * `officialVitrineProfile.js` : le MÊME template affiche donc le même
+ * nombre ici et sur le profil vitrine `@tempofit_officiel`, jamais 2
+ * valeurs différentes pour la même playlist selon l'écran consulté. Pas
+ * de vraie colonne `clone_count` à lire ici (un template n'a jamais de
+ * ligne `playlists` réelle en base) — voir sa docstring pour le
+ * raisonnement complet.
+ *
+ * RETOUR DIRECT (8e passe, 02/08, "mets les descriptions aussi, pour voir
+ * à quoi ça ressemble visuellement — même texte de base partout si ça
+ * économise des tokens") — `PLACEHOLDER_DESCRIPTION` : un SEUL texte de
+ * remplissage (Lorem ipsum), IDENTIQUE sur toutes les cartes, PAS une
+ * vraie description par template. `curatedSessions.js` n'a encore aucun
+ * champ `description` — l'utilisateur prévoit de réécrire ces templates
+ * en profondeur prochainement, générer 30 textes différents maintenant
+ * serait jeté à la 1re réécriture. Une fois le nouveau contenu de
+ * curatedSessions.js acté (voir README.md, "État d'avancement") :
+ * remplacer par un vrai champ `description` par template, exactement
+ * comme `content.description` sur une playlist/routine réelle
+ * (PublicItemCard.jsx/PlaylistHeader.jsx).
  */
+
+const PLACEHOLDER_DESCRIPTION = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
 
 export default function TemplateCard({ theme, template, onPlayTemplate, isNaughtyMode, onViewOfficialProfile }) {
   const { textHighlight, textMuted, bgAccentClass } = theme;
@@ -77,6 +103,11 @@ export default function TemplateCard({ theme, template, onPlayTemplate, isNaught
   // quelle par App.jsx, `openCuratedPlaylist`, pour que la pochette
   // persiste sur la fiche détail de la playlist — voir ce fichier).
   const coverUrl = buildCoverUrl(template.title);
+
+  // Compteur de clonages FICTIF (02/08) — voir la docstring en tête de
+  // fichier, "RETOUR DIRECT (7e passe)" : partagé avec
+  // officialVitrineProfile.js, jamais recalculé différemment ici.
+  const cloneCount = fakeCloneCountForId(template.id);
 
   return (
     <div className="group cursor-pointer select-none" onClick={() => onPlayTemplate(template)}>
@@ -151,7 +182,23 @@ export default function TemplateCard({ theme, template, onPlayTemplate, isNaught
             du problème signalé en Mode Intime). `textMuted` seul (voir la
             correction du token --color-muted dans index.css) suffit
             largement à distinguer cette ligne du titre au-dessus. */}
-        <p className={`text-xs truncate ${textMuted} ${isNaughtyMode ? 'dark:text-white' : ''}`}>{template.workoutType} • {totalMinutes} min</p>
+        <div className={`flex items-center gap-1 text-xs truncate ${textMuted} ${isNaughtyMode ? 'dark:text-white' : ''}`}>
+          <span className="truncate">{template.workoutType} • {totalMinutes} min</span>
+          {/* Compteur de clonages (02/08) — `shrink-0` : ne doit jamais
+              être celui des deux qui se fait tronquer par le `truncate`
+              du texte à sa gauche, un nombre coupé au milieu serait pire
+              qu'un titre d'activité tronqué. */}
+          <span className="flex items-center gap-0.5 shrink-0" title="Nombre de fois où cette playlist a été clonée">
+            <Copy size={11} />{cloneCount}
+          </span>
+        </div>
+        {/* Description PLACEHOLDER (8e passe, 02/08) — voir la docstring en
+            tête de fichier : même texte partout, aperçu visuel seulement,
+            pas le contenu final. `line-clamp-2`, même convention que
+            PublicItemCard (ProfileView.jsx) pour une vraie playlist/routine. */}
+        <p className={`text-xs mt-1 line-clamp-2 ${textMuted} ${isNaughtyMode ? 'dark:text-white' : ''}`}>
+          {PLACEHOLDER_DESCRIPTION}
+        </p>
       </div>
     </div>
   );
