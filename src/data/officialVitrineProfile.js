@@ -1,4 +1,4 @@
-import { curatedSessions, naughtyCuratedSessions, fakeCloneCountForId } from './curatedSessions';
+import { curatedSessions, naughtyCuratedSessions } from './curatedSessions';
 import { buildCoverUrl } from '../utils/coverArt';
 
 /**
@@ -107,17 +107,21 @@ export function buildOfficialVitrineProfile() {
 // au-dessus (utilisé pour `totalDuration`/`avgBpm`) — l'ajouter à
 // `content` ne coûte rien de plus à calculer, juste à exposer.
 //
-// `description`/`clone_count` (même chantier de correctif) — AJOUTÉS ici
-// pour que la vitrine démontre RÉELLEMENT ces 2 fonctionnalités à un
-// visiteur non connecté, pas seulement les stats/genres/BPM déjà en
-// place. Même philosophie que `FAKE_SPORT_SESSIONS`/`FAKE_INTIMATE_SESSIONS`
-// plus haut : "ambitieux mais volontairement faux", déterministe (jamais
-// `Math.random()` — un rendu de plus ne doit jamais afficher un nombre
-// différent du précédent). `fakeCloneCountForId` : importée de
-// curatedSessions.js (PAS redéfinie ici) — voir sa docstring là-bas :
-// partagée avec `TemplateCard.jsx` (Découvrir), pour qu'un même template
-// affiche TOUJOURS le même nombre, qu'on le consulte depuis Découvrir ou
-// depuis cette vitrine.
+// `description`/`clone_count` (même chantier de correctif, retour direct
+// initial) — AJOUTÉS ici pour que la vitrine démontre RÉELLEMENT ces 2
+// fonctionnalités à un visiteur non connecté, pas seulement les
+// stats/genres/BPM déjà en place.
+//
+// ⚠️ `clone_count` — CORRIGÉ une 2e fois le même jour (retour direct :
+// "je veux que ce compteur soit honnête, 0 par défaut") : n'est PLUS un
+// nombre "ambitieux mais faux" (`fakeCloneCountForId`, RETIRÉE de
+// curatedSessions.js) — `templateToVitrineRow` reçoit maintenant
+// `realCloneCounts` (une map `{ template_id: count }`, construite depuis
+// la VRAIE table `template_clone_counts`, voir supabase-schema.sql) et
+// replie sur `0` pour tout template jamais cloné (`|| 0`, JAMAIS un
+// nombre inventé). C'est ProfileView.jsx (branche vitrine) qui récupère
+// cette map et la transmet à `buildOfficialVitrinePlaylistRows` — cette
+// fonction elle-même reste pure, aucun appel réseau ici.
 const CATEGORY_DESCRIPTIONS = {
   'Cardio Express': "Une session courte et intense, pensée pour un cardio efficace même avec un emploi du temps chargé.",
   'Endurance Fondamentale': "Un rythme régulier pour construire ton endurance de fond, séance après séance.",
@@ -127,7 +131,7 @@ const CATEGORY_DESCRIPTIONS = {
   'Rythmes Sensuels': "Une ambiance plus intime, pensée pour un moment à part.",
 };
 
-function templateToVitrineRow(template, isIntimate) {
+function templateToVitrineRow(template, isIntimate, realCloneCounts) {
   const totalDuration = template.tracks.reduce((s, t) => s + (t.duration || 0), 0);
   const avgBpm = template.tracks.length > 0
     ? Math.round(template.tracks.reduce((s, t) => s + (t.bpm || 0), 0) / template.tracks.length)
@@ -136,7 +140,7 @@ function templateToVitrineRow(template, isIntimate) {
     id: `vitrine-${template.id}`,
     is_public: true,
     is_intimate: isIntimate,
-    clone_count: fakeCloneCountForId(template.id),
+    clone_count: realCloneCounts[template.id] || 0,
     content: {
       name: template.title,
       workoutType: template.workoutType,
@@ -156,11 +160,19 @@ function templateToVitrineRow(template, isIntimate) {
  * les stats) : le filtrage par mode (`visiblePlaylists`, ProfileView.jsx,
  * `row.is_intimate === isNaughtyMode`) est du code EXISTANT, déjà
  * correct — pas besoin de le dupliquer ni de le contourner ici.
+ *
+ * `realCloneCounts` (map `{ template_id: count }`, 02/08) — À FOURNIR par
+ * l'appelant (ProfileView.jsx), récupérée depuis la vraie table
+ * `template_clone_counts` (supabase-schema.sql) juste avant d'appeler
+ * cette fonction. Repli sur `{}` (tout à 0) si omis — permet de continuer
+ * à appeler cette fonction sans argument dans un contexte où la vraie
+ * donnée n'a pas encore été chargée (ex. premier rendu, le temps du
+ * fetch), plutôt que de planter.
  */
-export function buildOfficialVitrinePlaylistRows() {
+export function buildOfficialVitrinePlaylistRows(realCloneCounts = {}) {
   return [
-    ...curatedSessions.map(t => templateToVitrineRow(t, false)),
-    ...naughtyCuratedSessions.map(t => templateToVitrineRow(t, true)),
+    ...curatedSessions.map(t => templateToVitrineRow(t, false, realCloneCounts)),
+    ...naughtyCuratedSessions.map(t => templateToVitrineRow(t, true, realCloneCounts)),
   ];
 }
 
@@ -187,15 +199,19 @@ export function buildOfficialVitrinePlaylistRows() {
 // variante du genre réservée au Mode Intime (`NAUGHTY_GENRES`), pas "R&B"
 // tout court (catalogue Sport).
 // ⚠️ CORRIGÉ (02/08, même retour direct que templateToVitrineRow plus
-// haut) — `description`/`clone_count` manquaient ici aussi : ces routines
-// ont été écrites avant que ces 2 fonctionnalités n'existent (voir les
-// dates des chantiers respectifs), jamais mises à jour depuis. Valeurs
-// FIXES (pas de `fakeCloneCountForId` ici, contrairement aux playlists) —
-// seulement 4 routines, une variation à la main reste lisible et évite
-// d'introduire un hash pour un si petit nombre d'entrées.
+// haut) — `description` manquait ici aussi : ces routines ont été
+// écrites avant que cette fonctionnalité n'existe, jamais mise à jour
+// depuis.
+//
+// ⚠️ `clone_count` — retiré d'ici une 2e fois le même jour (retour direct :
+// "je veux que ce compteur soit honnête, 0 par défaut") : les valeurs
+// fixes posées plus tôt (34/19/51/12) étaient le même genre de nombre
+// "ambitieux mais faux" que `fakeCloneCountForId` pour les playlists —
+// remplacées par un vrai lookup dans `buildOfficialVitrineRoutineRows`
+// ci-dessous, alimenté par la vraie table `template_clone_counts`.
 const FAKE_VITRINE_ROUTINES = [
   {
-    id: 'vitrine-routine-1', is_public: true, is_intimate: false, clone_count: 34,
+    id: 'vitrine-routine-1', is_public: true, is_intimate: false,
     content: {
       name: 'Mon 5km Quotidien', coverIcon: '🏃', workoutType: 'Course à pied',
       targetMode: 'distance', distanceVal: 5, distanceUnit: 'km',
@@ -204,7 +220,7 @@ const FAKE_VITRINE_ROUTINES = [
     },
   },
   {
-    id: 'vitrine-routine-2', is_public: true, is_intimate: false, clone_count: 19,
+    id: 'vitrine-routine-2', is_public: true, is_intimate: false,
     content: {
       name: 'Sortie Longue Weekend', coverIcon: '🚴', workoutType: 'Cyclisme',
       targetMode: 'time', hours: 1, minutes: 30,
@@ -213,7 +229,7 @@ const FAKE_VITRINE_ROUTINES = [
     },
   },
   {
-    id: 'vitrine-routine-3', is_public: true, is_intimate: false, clone_count: 51,
+    id: 'vitrine-routine-3', is_public: true, is_intimate: false,
     content: {
       name: 'HIIT Express', coverIcon: '🔥', workoutType: 'Fractionné',
       targetMode: 'time', hours: 0, minutes: 20, isIntervalMode: true, isCrescendoMode: false,
@@ -222,7 +238,7 @@ const FAKE_VITRINE_ROUTINES = [
     },
   },
   {
-    id: 'vitrine-routine-4', is_public: true, is_intimate: true, clone_count: 12,
+    id: 'vitrine-routine-4', is_public: true, is_intimate: true,
     content: {
       name: 'Rituel du Soir', coverIcon: '🌙', workoutType: 'Ambiance',
       targetMode: 'time', hours: 0, minutes: 25,
@@ -238,8 +254,10 @@ const FAKE_VITRINE_ROUTINES = [
  * confondus, le filtrage par mode déjà existant dans ProfileView.jsx
  * s'applique sans modification) : la seule différence est qu'il n'y a pas
  * de conversion à faire, `FAKE_VITRINE_ROUTINES` est déjà dans la forme
- * finale attendue.
+ * finale attendue — SAUF `clone_count`, ajouté ici à la volée depuis
+ * `realCloneCounts` (même contrat que `buildOfficialVitrinePlaylistRows` :
+ * map `{ id: count }`, repli sur `{}`/`0` si omis).
  */
-export function buildOfficialVitrineRoutineRows() {
-  return FAKE_VITRINE_ROUTINES;
+export function buildOfficialVitrineRoutineRows(realCloneCounts = {}) {
+  return FAKE_VITRINE_ROUTINES.map(r => ({ ...r, clone_count: realCloneCounts[r.id] || 0 }));
 }
