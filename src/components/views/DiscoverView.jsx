@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Compass, Search, SearchX, Users } from 'lucide-react';
 import { curatedSessions, naughtyCuratedSessions } from '../../data/curatedSessions';
 import TemplateCard from './TemplateCard';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
+import { supabase, isSupabaseConfigured } from '../../supabaseClient';
 
 /**
  * DiscoverView — bibliothèque de modèles de séances ensemencés (voir
@@ -45,6 +46,35 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode, use
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('Toutes');
+
+  // Compteurs de clonages RÉELS (02/08, retour direct : "je veux que
+  // chaque playlist en Découvrir ait au minimum une indication du nombre
+  // de clonage... honnête, 0 par défaut") — table PUBLIQUE en lecture
+  // (`template_clone_counts`, supabase-schema.sql), MÊME source que la
+  // vitrine `@tempofit_officiel` (officialVitrineProfile.js) : un
+  // template affiche donc TOUJOURS le même nombre ici et là-bas. Ce
+  // compteur ne s'incrémente QUE via le clonage depuis la vitrine (voir
+  // la docstring de TemplateCard.jsx) — "Utiliser ce modèle" ici
+  // n'incrémente rien, ce chiffre reste donc souvent bas, ce qui est
+  // honnête plutôt qu'un problème. Un seul fetch au montage (table petite,
+  // ~30 templates + 4 routines fictives — pas la peine de re-fetch à
+  // chaque changement de recherche/catégorie, purement des filtres locaux
+  // qui ne changent jamais ce total).
+  const [realCloneCounts, setRealCloneCounts] = useState({});
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let cancelled = false;
+    supabase.from('template_clone_counts').select('template_id, clone_count').then(({ data, error }) => {
+      if (cancelled) return;
+      if (error) {
+        console.error('[DiscoverView] échec de la récupération des compteurs de clonage réels :', error);
+        return;
+      }
+      if (data) setRealCloneCounts(Object.fromEntries(data.map(row => [row.template_id, row.clone_count])));
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // Pare-feu Mode Intime (retour direct : "Découvrir mélange les contenus
   // des deux modes") — UN SEUL catalogue actif à la fois, choisi ici et
@@ -141,7 +171,7 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode, use
         filteredSessions.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
             {filteredSessions.map(template => (
-              <TemplateCard key={template.id} theme={theme} template={template} onPlayTemplate={onPlayTemplate} isNaughtyMode={isNaughtyMode} onViewOfficialProfile={onViewOfficialProfile} />
+              <TemplateCard key={template.id} theme={theme} template={template} onPlayTemplate={onPlayTemplate} isNaughtyMode={isNaughtyMode} onViewOfficialProfile={onViewOfficialProfile} cloneCount={realCloneCounts[template.id] || 0} />
             ))}
           </div>
         ) : (
@@ -171,7 +201,7 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode, use
                 serait un vrai bug, pas une amélioration visuelle. */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
               {activeSessions.filter(t => t.category === category).slice(0, 5).map(template => (
-                <TemplateCard key={template.id} theme={theme} template={template} onPlayTemplate={onPlayTemplate} isNaughtyMode={isNaughtyMode} onViewOfficialProfile={onViewOfficialProfile} />
+                <TemplateCard key={template.id} theme={theme} template={template} onPlayTemplate={onPlayTemplate} isNaughtyMode={isNaughtyMode} onViewOfficialProfile={onViewOfficialProfile} cloneCount={realCloneCounts[template.id] || 0} />
               ))}
             </div>
           </div>
