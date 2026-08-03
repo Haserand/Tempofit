@@ -285,7 +285,13 @@ function AppContent({
       // — sinon (routine fictive de la vitrine, `originUserId` toujours
       // absent) ces 2 champs resteraient `undefined`, jamais une fausse
       // chaîne pointant vers personne.
-      ...(originUserId ? { originId, originUserId } : {}),
+      // `isModifiedSinceClone: false`/`originCreditClaimed: false` — MÊME
+      // raisonnement que handleClonePlaylist (usePlaylistLibrary.js), voir
+      // sa docstring pour le détail complet : posés EXPLICITEMENT plutôt
+      // que laissés au spread `...row.content`, pour que chaque NOUVELLE
+      // copie démarre sa propre vie "jamais republiée, jamais modifiée",
+      // même si son parent l'était déjà.
+      ...(originUserId ? { originId, originUserId, isModifiedSinceClone: false, originCreditClaimed: false } : {}),
     };
     setRoutines(prev => [cloned, ...prev]);
     closeModal();
