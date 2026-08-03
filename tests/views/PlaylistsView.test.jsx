@@ -230,6 +230,32 @@ describe('PlaylistsView — bascule publique/privée (Feature Sociale, 01/08)', 
 
     expect(mockRpc).not.toHaveBeenCalled();
   });
+
+  // Anti-abus "toggle spam" (02/08) — MÊME garde que
+  // PlaylistDetailContext.jsx (voir sa docstring pour le raisonnement
+  // complet), transposée à la bascule de liste.
+  it('anti-abus : originCreditClaimed déjà à true → une 2e republication n\'appelle AUCUNE RPC', () => {
+    mockRpc.mockResolvedValue({ error: null });
+    const alreadyClaimed = makePlaylist({ id: 'p1', isPublic: false, originId: 'pl-A', originUserId: 'user-A', originCreditClaimed: true });
+    render(<PlaylistsView {...baseProps({ savedPlaylists: [alreadyClaimed] })} />);
+
+    fireEvent.click(screen.getByTestId('toggle-public-p1'));
+
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it('1re republication pose originCreditClaimed à true sur la copie mise à jour', () => {
+    mockRpc.mockResolvedValue({ error: null });
+    const setSavedPlaylists = vi.fn();
+    const target = makePlaylist({ id: 'p1', isPublic: false, originId: 'pl-A', originUserId: 'user-A' });
+    render(<PlaylistsView {...baseProps({ savedPlaylists: [target], setSavedPlaylists })} />);
+
+    fireEvent.click(screen.getByTestId('toggle-public-p1'));
+
+    const updater = setSavedPlaylists.mock.calls[0][0];
+    const result = Array.isArray(updater) ? updater : updater([target]);
+    expect(result.find(p => p.id === 'p1').originCreditClaimed).toBe(true);
+  });
 });
 
 describe('PlaylistsView — glisser-déposer (section "À planifier" uniquement)', () => {
