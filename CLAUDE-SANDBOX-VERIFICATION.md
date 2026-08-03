@@ -230,6 +230,25 @@ purement MÉCANIQUE et MANUELLE :
   fichier reste NON vérifié tant que l'utilisateur n'a pas confirmé
   explicitement avoir exécuté le script et testé les requêtes suggérées.
 
+## 4quater. Supprimer un fichier côté sandbox ≠ le supprimer côté repo de l'utilisateur
+
+Trouvé le 02/08 (chantier "compteur de clonage honnête", `fakeCloneCountForId`
+retirée de `curatedSessions.js`) : `bash_tool` peut supprimer un fichier dans
+CE bac à sable (`rm ...`), mais l'utilisateur, lui, ne voit et n'applique QUE
+ce qui est explicitement livré via `present_files` — un fichier supprimé
+côté sandbox reste tel quel sur son repo GitHub tant que Claude ne le lui dit
+PAS explicitement. `tests/data/curatedSessions.test.js` (testant uniquement
+cette fonction retirée) a ainsi continué à planter le build Vercel pendant
+plusieurs tours, invisible dans les sweeps esbuild/tsc de ce bac à sable
+puisqu'il n'y existait déjà plus.
+
+**Règle** : dès qu'un fichier est supprimé (ou qu'une fonction/un export est
+retiré et qu'un fichier de test ne teste plus QUE cette chose), lister
+EXPLICITEMENT dans la réponse à l'utilisateur les fichiers à supprimer
+côté GitHub — un chemin par ligne, aussi visible que le tableau des fichiers
+à pousser. Ne jamais supposer qu'un `rm` local suffit à répercuter la
+suppression chez l'utilisateur.
+
 ## 4ter. Écrire un premier fichier de test pour un composant existant — vérifier les VRAIS types de props par défaut, jamais deviner
 
 Trouvé le 02/08 (1er fichier de test de `StatsView.jsx`, chantier "compteur
