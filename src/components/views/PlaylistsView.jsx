@@ -3,7 +3,6 @@ import { List, Library, Plus, Calendar, CheckCircle, ChevronLeft, ChevronRight }
 import PlaylistCard from './PlaylistCard';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
-import { supabase } from '../../supabaseClient';
 
 /**
  * PlaylistsView — vue "Mes Séances" (nom d'origine restauré le 25/07 : elle
@@ -78,46 +77,14 @@ export default function PlaylistsView({
   // cette liste par id) : `useSyncedCollection.js` détecte le changement
   // au prochain rendu et pousse la mise à jour vers Supabase tout seul,
   // rien de plus à faire ici.
+  // ⚠️ SIMPLIFIÉ (03/08, refonte lignée serveur) — voir la docstring de
+  // `handleTogglePlaylistPublic` (PlaylistDetailContext.jsx) pour le
+  // raisonnement complet : le crédit de republication vers l'origine
+  // était du code mort (déjà bloqué par le `clone_ledger`, systématiquement
+  // réclamé au moment du clonage lui-même) — retiré, plus rien à dupliquer
+  // entre les 2 implémentations.
   const handleTogglePlaylistPublic = (id) => {
-    let willClaimOriginCredit = false;
-    let willClaimTemplateCredit = false;
-    let updatedPlaylist = null;
-    setSavedPlaylists(savedPlaylists.map(p => {
-      if (p.id !== id) return p;
-      const turningOn = !p.isPublic;
-      // MÊME anti-abus "toggle spam" que PlaylistDetailContext.jsx — voir
-      // sa docstring pour le raisonnement complet : `originCreditClaimed`
-      // n'est jamais réclamé 2 fois pour la même copie.
-      willClaimOriginCredit = turningOn && !!p.originUserId && !p.originCreditClaimed;
-      willClaimTemplateCredit = turningOn && !!p.sourceTemplateId && !p.originCreditClaimed;
-      updatedPlaylist = {
-        ...p,
-        isPublic: turningOn,
-        ...((willClaimOriginCredit || willClaimTemplateCredit) ? { originCreditClaimed: true } : {}),
-      };
-      return updatedPlaylist;
-    }));
-
-    // MÊME logique de lignée que `handleTogglePlaylistPublic`
-    // (PlaylistDetailContext.jsx, voir sa docstring pour le raisonnement
-    // complet) — dupliquée ici plutôt que factorisée : ces 2 fonctions
-    // opèrent sur des données différentes (`currentPlaylist` unique vs
-    // n'importe quelle carte de cette liste par `id`), une factorisation
-    // aurait ajouté un niveau d'indirection pour 2 fonctions déjà courtes.
-    if (willClaimOriginCredit) {
-      supabase.rpc('increment_playlist_clone_count', {
-        target_id: updatedPlaylist.originId,
-        target_user_id: updatedPlaylist.originUserId,
-      }).then(({ error }) => {
-        if (error) console.error('[PlaylistsView] increment_playlist_clone_count (republication) a échoué :', error);
-      });
-    } else if (willClaimTemplateCredit) {
-      supabase.rpc('increment_template_clone_count', {
-        target_template_id: updatedPlaylist.sourceTemplateId,
-      }).then(({ error }) => {
-        if (error) console.error('[PlaylistsView] increment_template_clone_count (republication) a échoué :', error);
-      });
-    }
+    setSavedPlaylists(savedPlaylists.map(p => p.id === id ? { ...p, isPublic: !p.isPublic } : p));
   };
 
   // Pare-feu Mode Intime (retour direct : "les vues Mes Séances et Découvrir
