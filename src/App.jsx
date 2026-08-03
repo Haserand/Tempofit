@@ -262,6 +262,18 @@ function AppContent({
   // d'utilisation remis à zéro (une copie n'a encore jamais été relancée
   // par SON nouveau propriétaire).
   const handleClonePublicRoutine = (row) => {
+    // Traçabilité de lignée (02/08, même raisonnement que
+    // handleClonePlaylist, usePlaylistLibrary.js — voir sa docstring pour
+    // le détail complet) — `row.content.originId`/`.originUserId` (PAS
+    // `row.originId` directement : contrairement à `currentPlaylist` pour
+    // une playlist, `row` ici est la ligne BRUTE Supabase, tous les champs
+    // personnalisés d'une routine vivent DANS `content`, jamais au niveau
+    // racine de la ligne — voir useSyncedCollection.js). Repli sur
+    // `row.id`/`row.user_id` si absents : cette routine n'a jamais encore
+    // été clonée, elle est donc elle-même l'origine de la chaîne.
+    const originId = row.content.originId || row.id;
+    const originUserId = row.content.originUserId || row.user_id;
+
     const cloned = {
       ...row.content,
       id: `routine-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -269,26 +281,52 @@ function AppContent({
       manualGenerations: 0,
       recentTrackIds: [],
       createdAt: new Date().toLocaleDateString(),
+      // Ne conserver l'origine que si elle pointe vers un VRAI utilisateur
+      // — sinon (routine fictive de la vitrine, `originUserId` toujours
+      // absent) ces 2 champs resteraient `undefined`, jamais une fausse
+      // chaîne pointant vers personne.
+      ...(originUserId ? { originId, originUserId } : {}),
     };
     setRoutines(prev => [cloned, ...prev]);
     closeModal();
     changeView('routines');
     showToast('⚡ Routine clonée dans Mes Routines !');
 
-    // Compteur de clonages (02/08) — MÊME garde que
-    // handleClonePlaylist (usePlaylistLibrary.js) : `row.user_id` est
-    // absent sur les routines fictives de la vitrine
-    // `@tempofit_officiel` (`FAKE_VITRINE_ROUTINES`,
-    // officialVitrineProfile.js — jamais un vrai propriétaire en base),
-    // ce garde suffit à les exclure sans les distinguer explicitement.
-    // Fire-and-forget, jamais bloquant/visible en cas d'échec — même
-    // raisonnement que côté playlists.
+    // Compteur de clonages RÉEL (02/08, corrigé une 2e fois le même jour —
+    // MÊME correctif que handleClonePlaylist, usePlaylistLibrary.js, voir
+    // sa docstring pour le raisonnement complet) — DEUX incréments
+    // distincts quand la chaîne fait plus d'un maillon : le PROPRIÉTAIRE
+    // IMMÉDIAT de `row` (`row.user_id` — vient de se faire cloner) ET
+    // l'ORIGINE de la chaîne (`originId`/`originUserId`, si différente).
+    // Identiques (un seul incrément réel envoyé) quand `row` n'a jamais
+    // été clonée avant. Routine fictive de la vitrine (`row.user_id`
+    // absent) : `row.id` sert de clé dans `template_clone_counts` — une
+    // routine fictive n'a pas de `sourceTemplateId` équivalent aux
+    // playlists, elle EST déjà son propre "template" (id fixe,
+    // `vitrine-routine-1` etc.). Fire-and-forget dans tous les cas,
+    // jamais bloquant/visible en cas d'échec — même raisonnement que côté
+    // playlists.
     if (row.user_id) {
       supabase.rpc('increment_routine_clone_count', {
         target_id: row.id,
         target_user_id: row.user_id,
       }).then(({ error }) => {
-        if (error) console.error('[App] increment_routine_clone_count a échoué :', error);
+        if (error) console.error('[App] increment_routine_clone_count (maillon immédiat) a échoué :', error);
+      });
+
+      if (originUserId && originUserId !== row.user_id) {
+        supabase.rpc('increment_routine_clone_count', {
+          target_id: originId,
+          target_user_id: originUserId,
+        }).then(({ error }) => {
+          if (error) console.error('[App] increment_routine_clone_count (origine) a échoué :', error);
+        });
+      }
+    } else {
+      supabase.rpc('increment_template_clone_count', {
+        target_template_id: row.id,
+      }).then(({ error }) => {
+        if (error) console.error('[App] increment_template_clone_count a échoué :', error);
       });
     }
   };
