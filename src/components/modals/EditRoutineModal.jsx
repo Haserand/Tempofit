@@ -1,4 +1,5 @@
 import { Edit3, X, ChevronUp, ChevronDown } from 'lucide-react';
+import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import { NAUGHTY_GENRES, STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, genreDisplayLabel } from '../../musicCatalog';
 import { getZoneForValue } from '../../appConfig';
 import { syncClampedInput } from '../../utils/numberInput';
@@ -39,7 +40,7 @@ export default function EditRoutineModal({
             <Edit3 className={textColorClass}/>
             <span>Éditer la routine</span>
           </h3>
-          <button onClick={close} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
+          <button onClick={close} className={`p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors ${ICON_BUTTON_ROUNDING} hover:bg-surface-hover`}><X size={20}/></button>
         </div>
 
         <div className="flex-1 overflow-y-auto no-scrollbar space-y-5 pr-1">
