@@ -1,4 +1,5 @@
 import { X } from 'lucide-react';
+import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import { useGeneratorContext } from '../../contexts/GeneratorContext';
 
 /**
@@ -49,7 +50,7 @@ export default function CustomActivityModal({ theme, userStats, checkTrophies })
       <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl transform transition-all border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-6">
           <h3 className={"text-2xl font-bold " + textHighlight}>Activité personnalisée</h3>
-          <button onClick={() => setIsCustomActivityModalOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
+          <button onClick={() => setIsCustomActivityModalOpen(false)} className={`p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors ${ICON_BUTTON_ROUNDING} hover:bg-surface-hover`}><X size={20}/></button>
         </div>
         <input
           type="text" value={tempCustomActivity} onChange={e => setTempCustomActivity(e.target.value)}
