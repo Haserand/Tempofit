@@ -9,6 +9,7 @@ import { captureElementAsFile } from '../../utils/captureElementAsFile';
 import GlobalStatsShareCard from '../shared/GlobalStatsShareCard';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
+import { INLINE_NAV_LINK_CLASS } from '../../layout/inlineLinkLayout';
 import { supabase } from '../../supabaseClient';
 
 /**
@@ -925,7 +926,7 @@ export default function StatsView({
                 <p className={`text-sm ${textMuted}`}>
                   Tu n'as encore importé aucune donnée réelle (cadence ou fréquence cardiaque). Depuis le détail d'une séance <span className={`font-semibold ${textHighlight}`}>terminée</span> dans "Mes Séances", tu peux importer un export CSV Garmin ou Strava pour comparer ce que tu as vraiment fait au rythme visé — ça vaut le coup d'essayer au moins une fois.
                 </p>
-                <button onClick={() => changeView('playlists')} className={`mt-3 text-sm font-bold underline ${textColorClass}`}>
+                <button onClick={() => changeView('playlists')} className={`mt-3 text-sm ${INLINE_NAV_LINK_CLASS} ${textColorClass}`}>
                   Aller à Mes Séances →
                 </button>
               </div>
@@ -967,7 +968,7 @@ export default function StatsView({
                     Ton profil est visible publiquement. Regarde exactement ce qu'un visiteur externe y voit — playlists/routines partagées, et tes statistiques si tu as choisi de les afficher.
                   </p>
                   {onViewOwnProfile && (
-                    <button onClick={onViewOwnProfile} className={`mt-3 text-sm font-bold underline ${textColorClass}`}>
+                    <button onClick={onViewOwnProfile} className={`mt-3 text-sm ${INLINE_NAV_LINK_CLASS} ${textColorClass}`}>
                       Voir l'aperçu de mon profil public →
                     </button>
                   )}
@@ -979,7 +980,7 @@ export default function StatsView({
                     Pour l'instant, personne ne peut voir ton profil, tes séances partagées ou tes statistiques. Tu peux choisir ce que tu rends visible depuis Réglages, quand tu veux.
                   </p>
                   {onManageProfilePrivacy && (
-                    <button onClick={onManageProfilePrivacy} className={`mt-3 text-sm font-bold underline ${textColorClass}`}>
+                    <button onClick={onManageProfilePrivacy} className={`mt-3 text-sm ${INLINE_NAV_LINK_CLASS} ${textColorClass}`}>
                       Gérer ma visibilité →
                     </button>
                   )}
@@ -1358,7 +1359,7 @@ export default function StatsView({
                       <div>
                         <p className={`text-sm font-bold ${textHighlight}`}>Vois aussi tes séances par zone d'effort</p>
                         <p className={`text-xs ${textMuted}`}>Configure ton Profil Athlétique (BPM cibles par zone) pour voir cette répartition entre Récupération, Endurance, Seuil et Vitesse.</p>
-                        <button onClick={() => changeView('generator')} className={`mt-1 text-xs font-bold underline ${textColorClass}`}>
+                        <button onClick={() => changeView('generator')} className={`mt-1 text-xs ${INLINE_NAV_LINK_CLASS} ${textColorClass}`}>
                           Configurer mon Profil Athlétique →
                         </button>
                       </div>
