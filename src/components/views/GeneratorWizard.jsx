@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Activity, Heart, Clock, Footprints, ListPlus, MapPin, SlidersHorizontal, Music, Trash2, Plus,
-  Target, Loader2, Zap, BookmarkPlus, Info, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Flame,
+  Target, Loader2, Zap, BookmarkPlus, Info, ChevronLeft, ChevronRight, ChevronDown, Flame,
   TrendingUp, Gauge,
 } from 'lucide-react';
 import { STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, genreDisplayLabel } from '../../musicCatalog';
 import { formatDuration } from '../../utils/format';
 import { syncClampedInput } from '../../utils/numberInput';
 import DualRangeSlider from '../shared/DualRangeSlider';
+import TargetModeInputs from './TargetModeInputs';
 import {
   WORKOUT_TYPES, NAUGHTY_WORKOUT_ORDER, NAUGHTY_WORKOUT_ICONS, NAUGHTY_WORKOUT_LABELS,
   WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, ATHLETIC_ZONES, getZoneForValue,
@@ -403,64 +404,17 @@ export default function GeneratorWizard({
                     </div>
                   </div>
 
-                  {targetMode === 'distance' ? (
-                    <div className="space-y-4 mt-8">
-                      <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
-                        <MapPin className={textColorClass} size={24} /> <span>Objectif & Allure</span>
-                      </label>
-                      <div className="flex flex-col sm:flex-row gap-4">
-                        <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center pl-4 pr-2 py-4 justify-between`}>
-                          <input type="number" min="0" step="0.1" value={distanceVal} onChange={(e) => setDistanceVal(e.target.value)} className={`bg-transparent w-full text-2xl font-bold ${textHighlight} outline-hidden`} />
-                          <select value={distanceUnit} onChange={(e)=>setDistanceUnit(e.target.value)} className={`font-bold text-lg ${textMuted} bg-transparent outline-hidden cursor-pointer`}>
-                            <option value="km">Km</option><option value="mi">Miles</option>
-                          </select>
-                        </div>
-                        <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-4 justify-between`}>
-                          <span className={`text-sm font-bold ${textMuted} mr-2`}>Allure:</span>
-                          <div className="flex items-center">
-                            <input type="number" min="1" max="15" value={paceMin} onChange={(e) => setPaceMin(syncClampedInput(e, { min: 1, max: 15 }))} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-hidden text-right`} />
-                            <span className={`${textHighlight} mx-1 font-bold text-xl`}>:</span>
-                            <input type="number" min="0" max="59" value={paceSec} onChange={(e) => setPaceSec(syncClampedInput(e, { min: 0, max: 59 }))} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-hidden [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
-                            <div className="flex flex-col mr-1">
-                              <button type="button" onClick={() => setPaceSec(s => { const v = (parseInt(s) || 0) + 1; return v > 59 ? 0 : v; })} className={`${textMuted} hover:text-main`}>
-                                <ChevronUp size={12} />
-                              </button>
-                              <button type="button" onClick={() => setPaceSec(s => { const v = (parseInt(s) || 0) - 1; return v < 0 ? 59 : v; })} className={`${textMuted} hover:text-main`}>
-                                <ChevronDown size={12} />
-                              </button>
-                            </div>
-                            <span className={`text-sm font-bold ${textMuted} ml-1`}>/{distanceUnit}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4 mt-8">
-                      <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
-                        <Clock className={textColorClass} size={24} /> <span>Durée de la session</span>
-                      </label>
-                      <div className="flex space-x-4">
-                        <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-6 py-4`}>
-                          <input type="number" min="0" max="12" value={hours} onChange={(e) => setHours(syncClampedInput(e, { min: 0, max: 12 }))} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-hidden`} />
-                          <span className={`font-bold text-lg ${textMuted}`}>Heures</span>
-                        </div>
-                        <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-6 py-4`}>
-                          {/* Flèches personnalisées plutôt que le spinner natif : un input
-                              number natif s'arrête à 59 (ou 0) au lieu de boucler. */}
-                          <input type="number" min="0" max="59" value={minutes} onChange={(e) => setMinutes(syncClampedInput(e, { min: 0, max: 59 }))} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-hidden [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
-                          <span className={`font-bold text-lg ${textMuted} mr-2`}>Min</span>
-                          <div className="flex flex-col">
-                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) + 1; return v > 59 ? 0 : v; })} className={`p-0.5 rounded-sm ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}>
-                              <ChevronUp size={16} />
-                            </button>
-                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) - 1; return v < 0 ? 59 : v; })} className={`p-0.5 rounded-sm ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}>
-                              <ChevronDown size={16} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  {/* Extrait dans TargetModeInputs.jsx (03/08, check-up dette
+                      technique) — était dupliqué mot pour mot ici ET à
+                      l'étape 3 juste plus bas. Voir sa docstring pour le
+                      raisonnement complet. */}
+                  <TargetModeInputs
+                    targetMode={targetMode} theme={theme}
+                    distanceVal={distanceVal} setDistanceVal={setDistanceVal}
+                    distanceUnit={distanceUnit} setDistanceUnit={setDistanceUnit}
+                    paceMin={paceMin} setPaceMin={setPaceMin} paceSec={paceSec} setPaceSec={setPaceSec}
+                    hours={hours} setHours={setHours} minutes={minutes} setMinutes={setMinutes}
+                  />
                 </>
               )}
 
@@ -577,62 +531,16 @@ export default function GeneratorWizard({
                     {renderZoneQuickPicks(bpm, (zoneBpm) => setBpmManual(zoneBpm))}
                   </div>
 
-                  {targetMode === 'distance' ? (
-                    <div className="space-y-4 mt-8">
-                      <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
-                        <MapPin className={textColorClass} size={24} /> <span>Objectif & Allure</span>
-                      </label>
-                      <div className="flex flex-col sm:flex-row gap-4">
-                        <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center pl-4 pr-2 py-4 justify-between`}>
-                          <input type="number" min="0" step="0.1" value={distanceVal} onChange={(e) => setDistanceVal(e.target.value)} className={`bg-transparent w-full text-2xl font-bold ${textHighlight} outline-hidden`} />
-                          <select value={distanceUnit} onChange={(e)=>setDistanceUnit(e.target.value)} className={`font-bold text-lg ${textMuted} bg-transparent outline-hidden cursor-pointer`}>
-                            <option value="km">Km</option><option value="mi">Miles</option>
-                          </select>
-                        </div>
-                        <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-4 justify-between`}>
-                          <span className={`text-sm font-bold ${textMuted} mr-2`}>Allure:</span>
-                          <div className="flex items-center">
-                            <input type="number" min="1" max="15" value={paceMin} onChange={(e) => setPaceMin(syncClampedInput(e, { min: 1, max: 15 }))} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-hidden text-right`} />
-                            <span className={`${textHighlight} mx-1 font-bold text-xl`}>:</span>
-                            <input type="number" min="0" max="59" value={paceSec} onChange={(e) => setPaceSec(syncClampedInput(e, { min: 0, max: 59 }))} className={`bg-transparent w-10 text-2xl font-bold ${textHighlight} outline-hidden [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
-                            <div className="flex flex-col mr-1">
-                              <button type="button" onClick={() => setPaceSec(s => { const v = (parseInt(s) || 0) + 1; return v > 59 ? 0 : v; })} className={`${textMuted} hover:text-main`}>
-                                <ChevronUp size={12} />
-                              </button>
-                              <button type="button" onClick={() => setPaceSec(s => { const v = (parseInt(s) || 0) - 1; return v < 0 ? 59 : v; })} className={`${textMuted} hover:text-main`}>
-                                <ChevronDown size={12} />
-                              </button>
-                            </div>
-                            <span className={`text-sm font-bold ${textMuted} ml-1`}>/{distanceUnit}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4 mt-8">
-                      <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
-                        <Clock className={textColorClass} size={24} /> <span>Durée de la session</span>
-                      </label>
-                      <div className="flex space-x-4">
-                        <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-6 py-4`}>
-                          <input type="number" min="0" max="12" value={hours} onChange={(e) => setHours(syncClampedInput(e, { min: 0, max: 12 }))} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-hidden`} />
-                          <span className={`font-bold text-lg ${textMuted}`}>Heures</span>
-                        </div>
-                        <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-6 py-4`}>
-                          <input type="number" min="0" max="59" value={minutes} onChange={(e) => setMinutes(syncClampedInput(e, { min: 0, max: 59 }))} className={`bg-transparent w-full text-3xl font-black ${textHighlight} outline-hidden [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
-                          <span className={`font-bold text-lg ${textMuted} mr-2`}>Min</span>
-                          <div className="flex flex-col">
-                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) + 1; return v > 59 ? 0 : v; })} className={`p-0.5 rounded-sm ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}>
-                              <ChevronUp size={16} />
-                            </button>
-                            <button type="button" onClick={() => setMinutes(m => { const v = (parseInt(m) || 0) - 1; return v < 0 ? 59 : v; })} className={`p-0.5 rounded-sm ${textMuted} hover:text-main hover:bg-black/5 dark:hover:bg-white/10`}>
-                              <ChevronDown size={16} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  {/* Extrait dans TargetModeInputs.jsx (03/08, check-up dette
+                      technique) — voir sa docstring, et l'étape 2 plus haut
+                      où le même composant est utilisé. */}
+                  <TargetModeInputs
+                    targetMode={targetMode} theme={theme}
+                    distanceVal={distanceVal} setDistanceVal={setDistanceVal}
+                    distanceUnit={distanceUnit} setDistanceUnit={setDistanceUnit}
+                    paceMin={paceMin} setPaceMin={setPaceMin} paceSec={paceSec} setPaceSec={setPaceSec}
+                    hours={hours} setHours={setHours} minutes={minutes} setMinutes={setMinutes}
+                  />
 
                   {isCrescendoMode && (
                     <div className="space-y-6 mt-6">
