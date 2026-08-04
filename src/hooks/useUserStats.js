@@ -100,5 +100,32 @@ export function useUserStats(showToast, user) {
     }
   };
 
-  return { userStats, setUserStats, checkTrophies };
+  // Badge de notification "vu/pas vu" (03/08, retour direct, capture
+  // d'écran : "quand j'ai ouvert la partie trophées, l'icône doit devenir
+  // grise... et les notifications '5' doit être retiré, sinon on pollue
+  // visuellement") — AVANT ce chantier, le badge (Sidebar.jsx) affichait
+  // INCONDITIONNELLEMENT `unlockedTrophies.length` dès qu'au moins un
+  // trophée était débloqué, POUR TOUJOURS, même après consultation. Un
+  // 2e morceau d'état persistant (`trophiesSeenCount`, PAS lié au compte,
+  // même raisonnement que `unlockedTrophies` — voir la docstring de ce
+  // hook plus haut) retient combien de trophées avaient déjà été VUS la
+  // dernière fois que la page Trophées a été ouverte. Tant que
+  // `unlockedTrophies.length > trophiesSeenCount`, il reste des trophées
+  // "nouveaux, jamais montrés" → badge doré + nombre. `markTrophiesSeen()`
+  // (appelée par `TrophiesView` à l'ouverture, voir sa docstring) remet
+  // les compteurs à égalité → badge disparaît, icône redevient grise.
+  //
+  // Pas un simple booléen "vu/pas vu" : un COMPTEUR, pour survivre
+  // correctement à un 2e déblocage APRÈS une 1re consultation (ex. : 5
+  // trophées vus → `trophiesSeenCount = 5` → un 6e se débloque plus tard
+  // → `6 > 5`, badge réapparaît avec juste "1", pas "6" — cohérent avec un
+  // vrai badge de notification "nouveau depuis la dernière visite", pas
+  // juste "y a-t-il eu un jour un trophée").
+  const [trophiesSeenCount, setTrophiesSeenCount] = usePersistentState('trophiesSeenCount', () => 0);
+
+  const unseenTrophyCount = Math.max(0, userStats.unlockedTrophies.length - trophiesSeenCount);
+
+  const markTrophiesSeen = () => setTrophiesSeenCount(userStats.unlockedTrophies.length);
+
+  return { userStats, setUserStats, checkTrophies, unseenTrophyCount, markTrophiesSeen };
 }
