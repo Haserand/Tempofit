@@ -16,7 +16,7 @@
 // fonctionnalité testée (html2canvas, canvas non fiable sous jsdom).
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 class ResizeObserverStub {
@@ -163,5 +163,74 @@ describe('StatsView — clonages reçus', () => {
 
     rerender(<StatsView {...baseProps({ statsMode: 'naughty' })} />);
     await waitFor(() => expect(mockFrom).toHaveBeenCalledWith('playlists'));
+  });
+});
+
+// Vue publique du profil (03/08, retour direct : "la page statistiques
+// devrait permettre d'accéder à une vue publique de notre profil, avec un
+// message incitant à gérer ses options de visibilité si rien n'est
+// activé"). `mockFrom` neutralisé sur `{ data: [], error: null }` dans
+// tout ce describe — hors scope (compteur de clonages, describe
+// précédent), juste là pour que le composant ne plante pas sur son propre
+// fetch.
+describe('StatsView — vue publique du profil', () => {
+  it('profil PUBLIC : affiche "Vue publique de ton profil" + le lien appelle onViewOwnProfile', async () => {
+    mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
+    const onViewOwnProfile = vi.fn();
+    render(<StatsView {...baseProps({
+      username: 'alex', profilePrivacy: { isProfilePublic: true }, onViewOwnProfile,
+    })} />);
+
+    expect(await screen.findByText('Vue publique de ton profil')).toBeInTheDocument();
+    expect(screen.queryByText('Ton profil n\'est pas encore public')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Voir l\'aperçu de mon profil public →'));
+    expect(onViewOwnProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('profil PAS public : affiche "Ton profil n\'est pas encore public" + le lien appelle onManageProfilePrivacy', async () => {
+    mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
+    const onManageProfilePrivacy = vi.fn();
+    render(<StatsView {...baseProps({
+      username: 'alex', profilePrivacy: { isProfilePublic: false }, onManageProfilePrivacy,
+    })} />);
+
+    expect(await screen.findByText('Ton profil n\'est pas encore public')).toBeInTheDocument();
+    expect(screen.queryByText('Vue publique de ton profil')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Gérer ma visibilité →'));
+    expect(onManageProfilePrivacy).toHaveBeenCalledTimes(1);
+  });
+
+  // `profilePrivacy` absent/`null` (pas encore chargé) — MÊME état que
+  // "pas public" (repli sûr, jamais un lien vers un profil qui refuserait
+  // l'accès), pas un 3e état distinct.
+  it('profilePrivacy absent (pas encore chargé) : traité comme "pas public", jamais comme "public"', async () => {
+    mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
+    render(<StatsView {...baseProps({ username: 'alex', profilePrivacy: null })} />);
+
+    expect(await screen.findByText('Ton profil n\'est pas encore public')).toBeInTheDocument();
+  });
+
+  it('SANS username défini : le bloc entier reste absent, peu importe profilePrivacy', async () => {
+    mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
+    render(<StatsView {...baseProps({ username: null, profilePrivacy: { isProfilePublic: true } })} />);
+
+    await waitFor(() => expect(mockFrom).toHaveBeenCalled());
+    expect(screen.queryByText('Vue publique de ton profil')).not.toBeInTheDocument();
+    expect(screen.queryByText('Ton profil n\'est pas encore public')).not.toBeInTheDocument();
+  });
+
+  // Jamais en Mode Intime (03/08, discussion : "le mauvais endroit pour ce
+  // rappel, pas le bon message au bon moment") — même si le profil est
+  // déjà public.
+  it('en Mode Intime (statsMode="naughty") : le bloc reste absent, même profil public', async () => {
+    mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
+    render(<StatsView {...baseProps({
+      statsMode: 'naughty', username: 'alex', profilePrivacy: { isProfilePublic: true },
+    })} />);
+
+    await waitFor(() => expect(mockFrom).toHaveBeenCalled());
+    expect(screen.queryByText('Vue publique de ton profil')).not.toBeInTheDocument();
   });
 });
