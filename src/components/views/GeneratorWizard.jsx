@@ -494,7 +494,35 @@ export default function GeneratorWizard({
 
           {/* ETAPE 3 : REGLAGES DU RYTHME (BPM simple/distance/temps, ou découpage HIIT) */}
           {wizardStep === 3 && (
-            <div ref={step3ScrollRef} className="space-y-8 h-[300px] overflow-y-auto no-scrollbar pb-10">
+            <div
+              ref={step3ScrollRef}
+              className={`space-y-8 no-scrollbar pb-10 ${
+                (isCrescendoMode || isIntervalMode) ? 'h-[300px] overflow-y-auto' : ''
+              }`}
+            >
+              {/* ⚠️ Hauteur `h-[300px]` désormais CONDITIONNELLE (04/08, retour
+                  direct : "quelques pixels de scroll résiduel à l'étape 3,
+                  gagnables en vue connectée") — jusque-là fixe et identique
+                  pour les 3 sous-modes, alors que leur contenu diffère
+                  radicalement : Crescendo (double slider + liste de segments)
+                  et Fractionné (liste de segments AJOUTÉS À LA MAIN par
+                  l'utilisateur, donc potentiellement longue et non bornée)
+                  ont réellement besoin d'une zone scrollable dédiée — mais
+                  Effort Constant (slider BPM + durée, contenu court et FIXE,
+                  jamais de liste) héritait quand même de cette même réserve
+                  de 300px, en pure perte. Résultat concret : en Constant,
+                  cette boîte pouvait dépasser légèrement le contenu réel
+                  qu'elle affichait, ce qui pouvait suffire à faire déborder
+                  la page entière de quelques px sur un viewport serré (le
+                  cas montré en capture). Constant garde `pb-10` mais perd
+                  `h-[300px]`/`overflow-y-auto` : son contenu suit sa hauteur
+                  naturelle dans le flux de `<main>`, sans zone de scroll
+                  interne dédiée — cohérent avec le fait que ce contenu ne
+                  varie jamais en longueur (pas de liste), pas besoin d'y
+                  réserver une hauteur "au cas où". `showScrollHint`
+                  (ci-dessus) continue de fonctionner sans changement : sans
+                  overflow réel (`scrollHeight === clientHeight` en Constant),
+                  il reste simplement à `false` — rien à garder en plus. */}
 
               {(!isIntervalMode || isCrescendoMode) ? (
                 <>
