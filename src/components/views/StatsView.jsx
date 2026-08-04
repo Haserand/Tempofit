@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Activity, Upload, ChevronUp, ChevronDown, ChevronRight, Gauge, Share2, Loader2, Copy, Eye } from 'lucide-react';
 import { ATHLETIC_ZONES, getZoneForValue, DISTRIBUTION_COLORS, getBpmBucketColor, getBpmBucketLabel } from '../../appConfig';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
@@ -146,6 +146,40 @@ export default function StatsView({
   // Seules les playlists du mode consulté nourrissent tout ce qui suit —
   // `!!p.isNaughty` normalise undefined/false en un booléen propre avant comparaison
   // (playlists anciennes sans champ).
+  // ─────────────────────────────────────────────────────────────────────
+  // Optimisation perf (03/08, check-up dette technique — voir
+  // PASSATION.md) : cette agrégation (boucle imbriquée playlists ×
+  // complétions × titres) recalculait TOUT depuis zéro à CHAQUE rendu de
+  // StatsView, même pour un re-rendu déclenché par un état totalement
+  // sans rapport (déplier un artiste, changer d'onglet de graphique...).
+  // Documenté comme dette assumée au moment de l'extraction depuis
+  // App.jsx (voir la docstring en tête de fichier, "pas de useMemo ajouté
+  // ici pour ne pas changer le comportement en même temps que la
+  // structure"). Enveloppé maintenant dans un seul `useMemo` — les
+  // dérivations "légères" en aval (genreBreakdown, topArtists, timeline...
+  // de simples `Object.entries(...).sort()` sur des agrégats déjà petits,
+  // quelques dizaines de genres/artistes tout au plus) restent EN DEHORS
+  // de ce memo, volontairement : assez bon marché pour ne pas justifier le
+  // risque de les inclure dans ce périmètre déjà large.
+  //
+  // Dépendances réelles de tout ce bloc (vérifiées par lecture directe,
+  // pas devinées) : `savedPlaylists`/`statsMode` (via `playlistsForStats`)
+  // et `getProfileForWorkout`/`getProfileForWorkoutOrDefault` (classement
+  // par zone/synchro). Les autres identifiants utilisés à l'intérieur
+  // (`ATHLETIC_ZONES`, `getZoneForValue`, `NAUGHTY_WORKOUT_LABELS`,
+  // `normalizeGenreForDisplay`...) sont des imports au niveau module —
+  // des références stables qui ne changent jamais d'un rendu à l'autre,
+  // volontairement absentes du tableau de dépendances (inutile de le
+  // faire réagir à quelque chose qui ne varie jamais).
+  //
+  // ⚠️ `nowForZones` (capturé UNE FOIS par calcul du memo, pas à chaque
+  // rendu) : un cas limite négligeable en pratique (garder cette page
+  // ouverte pile au passage de minuit le dernier jour d'un mois) fait que
+  // "ce mois-ci" pourrait rester basé sur l'ancien mois jusqu'au prochain
+  // changement de dépendance — accepté comme compromis, un cas déjà
+  // extrêmement rare avant ce chantier aussi (la fraîcheur de `new Date()`
+  // n'a jamais été le sujet ici).
+  const statsAggregation = useMemo(() => {
   const playlistsForStats = savedPlaylists.filter(p => !!p.isNaughty === (statsMode === 'naughty'));
 
   // Séances avec données réelles importées (Garmin/Strava) — voir la nouvelle
@@ -423,6 +457,34 @@ export default function StatsView({
       }
     });
   });
+    return {
+      playlistsForStats, playlistsWithRealData, genreSeconds, genreSessions, totalSessions, totalSeconds,
+      bpmSum, bpmCount, bpmTargetCounts, sessionsByMonth, artistCounts, trackCounts,
+      activitySeconds, activitySessions, artistActivityCounts, artistBpmSum, artistBpmCount, trackBpmSum,
+      trackBpmCount, trackActivityCounts, artistTrackCounts, allSessions, weekdayCounts, uniqueDays,
+      bpmBuckets, bpmBucketLabel, genreArtistCounts, genreTrackCounts, genreBpmBuckets, bpmBucketArtistCounts,
+      bpmBucketTrackCounts, bpmBucketGenreCounts, genreActivityCounts, zoneSeconds, zoneSecondsThisMonth, zoneSecondsByActivity,
+      zoneSecondsByMonth, syncTracksByActivity, nowForZones, classifyIntoZone, trackGenreLabel, allTrackOccurrences,
+    };
+  }, [savedPlaylists, statsMode, getProfileForWorkout, getProfileForWorkoutOrDefault]);
+
+  // Déstructuré immédiatement — le reste du fichier (calculs légers en
+  // aval + JSX) continue de référencer ces mêmes NOMS qu'avant, sans rien
+  // changer d'autre : seule LA FAÇON dont ils sont calculés change, pas
+  // comment ils sont consommés. Un nom oublié ici serait détecté par
+  // `tsc --checkJs` (TS2304, "Cannot find name") au premier endroit où il
+  // serait utilisé plus loin dans le fichier — filet de sécurité
+  // mécanique vérifié avant livraison, pas une simple relecture visuelle.
+  const {
+    playlistsForStats, playlistsWithRealData, genreSeconds, genreSessions, totalSessions, totalSeconds,
+    bpmSum, bpmCount, bpmTargetCounts, sessionsByMonth, artistCounts, trackCounts,
+    activitySeconds, activitySessions, artistActivityCounts, artistBpmSum, artistBpmCount, trackBpmSum,
+    trackBpmCount, trackActivityCounts, artistTrackCounts, allSessions, weekdayCounts, uniqueDays,
+    bpmBuckets, bpmBucketLabel, genreArtistCounts, genreTrackCounts, genreBpmBuckets, bpmBucketArtistCounts,
+    bpmBucketTrackCounts, bpmBucketGenreCounts, genreActivityCounts, zoneSeconds, zoneSecondsThisMonth, zoneSecondsByActivity,
+    zoneSecondsByMonth, syncTracksByActivity, nowForZones, classifyIntoZone, trackGenreLabel, allTrackOccurrences,
+  } = statsAggregation;
+
 
   const genreBreakdown = Object.entries(genreSeconds)
     .map(([genre, seconds]) => ({ genre, seconds, sessions: genreSessions[genre] }))
