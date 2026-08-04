@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isTargetValueValid, snapDistanceOnBlur } from '../../src/utils/targetValidation.js';
+import { isTargetValueValid, snapDistanceOnBlur, isSegmentValid, areSegmentsValid, snapSegmentBpmOnBlur, snapSegmentDurationOnBlur } from '../../src/utils/targetValidation.js';
 
 /**
  * targetValidation.test.js — tests pour isTargetValueValid.
@@ -98,5 +98,64 @@ describe('snapDistanceOnBlur', () => {
   it('laisse une valeur déjà valide INCHANGÉE (pas de reformatage superflu)', () => {
     expect(snapDistanceOnBlur('5.5')).toBe('5.5');
     expect(snapDistanceOnBlur('0.1')).toBe('0.1');
+  });
+});
+
+// 04/08, 3e retour direct sur ce même chantier : "ce comportement minimal
+// est-il celui généralisé dans toute l'app ? il le faudrait" — les
+// segments du mode Fractionné souffraient du même défaut que distanceVal/
+// hours/minutes avant leur propre correctif (voir la docstring de
+// isSegmentValid dans targetValidation.js).
+describe('isSegmentValid / areSegmentsValid', () => {
+  it('refuse un segment avec bpm=0', () => {
+    expect(isSegmentValid({ bpm: 0, durationValue: 5 }, 'time')).toBe(false);
+  });
+
+  it('refuse un segment avec durationValue=0 (mode temps)', () => {
+    expect(isSegmentValid({ bpm: 150, durationValue: 0 }, 'time')).toBe(false);
+  });
+
+  it('refuse un segment avec durationValue sous 0.1 (mode distance)', () => {
+    expect(isSegmentValid({ bpm: 150, durationValue: 0.05 }, 'distance')).toBe(false);
+  });
+
+  it('accepte un segment valide', () => {
+    expect(isSegmentValid({ bpm: 150, durationValue: 5 }, 'time')).toBe(true);
+    expect(isSegmentValid({ bpm: 150, durationValue: 0.1 }, 'distance')).toBe(true);
+  });
+
+  it('areSegmentsValid refuse un tableau vide (aucune portion n\'a de sens)', () => {
+    expect(areSegmentsValid([], 'time')).toBe(false);
+  });
+
+  it('areSegmentsValid refuse dès qu\'UN SEUL segment est invalide parmi plusieurs', () => {
+    const segments = [{ bpm: 150, durationValue: 5 }, { bpm: 0, durationValue: 3 }];
+    expect(areSegmentsValid(segments, 'time')).toBe(false);
+  });
+
+  it('areSegmentsValid accepte quand TOUS les segments sont valides', () => {
+    const segments = [{ bpm: 150, durationValue: 5 }, { bpm: 160, durationValue: 3 }];
+    expect(areSegmentsValid(segments, 'time')).toBe(true);
+  });
+});
+
+describe('snapSegmentBpmOnBlur / snapSegmentDurationOnBlur', () => {
+  it('remonte un BPM à 0 vers le plancher (1)', () => {
+    expect(snapSegmentBpmOnBlur(0)).toBe('1');
+    expect(snapSegmentBpmOnBlur('')).toBe('1');
+  });
+
+  it('laisse un BPM déjà valide inchangé', () => {
+    expect(snapSegmentBpmOnBlur('150')).toBe('150');
+  });
+
+  it('remonte une durée à 0 vers le plancher, selon le mode', () => {
+    expect(snapSegmentDurationOnBlur(0, 'distance')).toBe('0.1');
+    expect(snapSegmentDurationOnBlur(0, 'time')).toBe('1');
+  });
+
+  it('laisse une durée déjà valide inchangée', () => {
+    expect(snapSegmentDurationOnBlur('5.5', 'distance')).toBe('5.5');
+    expect(snapSegmentDurationOnBlur('10', 'time')).toBe('10');
   });
 });
