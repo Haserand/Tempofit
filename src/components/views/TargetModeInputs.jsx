@@ -1,5 +1,6 @@
 import { Clock, Footprints, MapPin, ChevronUp, ChevronDown } from 'lucide-react';
 import { syncClampedInput } from '../../utils/numberInput';
+import { isTargetValueValid, snapDistanceOnBlur } from '../../utils/targetValidation';
 
 /**
  * TargetModeInputs — bloc "Objectif & Allure" (mode distance) OU "Durée de
@@ -40,7 +41,24 @@ export default function TargetModeInputs({
       </label>
       <div className="flex flex-col sm:flex-row gap-4">
         <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center pl-4 pr-2 py-4 justify-between`}>
-          <input type="number" min="0" step="0.1" value={distanceVal} onChange={(e) => setDistanceVal(e.target.value)} className={`bg-transparent w-full text-2xl font-bold ${textHighlight} outline-hidden`} />
+          {/* `min="0.1"` (04/08, retour direct : "je veux que la valeur
+              minimale disponible soit 0,1... que l'internaute ne puisse
+              jamais mettre 0") — bloque les FLÈCHES natives du spinner sous
+              0,1 (`min`/`max` HTML pilotent bien ça, contrairement à la
+              saisie clavier — voir numberInput.js). Ne bloque PAS la frappe
+              clavier elle-même (taper "0" reste possible, c'est un passage
+              obligé pour composer "0.5" au clavier) — `onBlur` ci-dessous
+              rattrape ce cas au moment de quitter le champ. Les 3 couches
+              cumulées (spinner bloqué + blur qui corrige + bouton
+              désactivé, voir targetValidation.js) rendent 0 impossible à
+              UTILISER, seulement visible de façon transitoire pendant la
+              frappe. */}
+          <input
+            type="number" min="0.1" step="0.1" value={distanceVal}
+            onChange={(e) => setDistanceVal(e.target.value)}
+            onBlur={(e) => setDistanceVal(snapDistanceOnBlur(e.target.value))}
+            className={`bg-transparent w-full text-2xl font-bold ${textHighlight} outline-hidden`}
+          />
           <select value={distanceUnit} onChange={(e)=>setDistanceUnit(e.target.value)} className={`font-bold text-lg ${textMuted} bg-transparent outline-hidden cursor-pointer`}>
             <option value="km">Km</option><option value="mi">Miles</option>
           </select>
@@ -63,6 +81,15 @@ export default function TargetModeInputs({
           </div>
         </div>
       </div>
+      {/* ⚠️ NOUVEAU (04/08, retour direct — capture d'écran EditRoutineModal.jsx :
+          "je ne trouve pas ça normal de pouvoir générer une routine avec une
+          valeur de 0 km") : indice visuel en plus du bouton "Suivant"
+          désactivé (GeneratorWizard.jsx) — un bouton désactivé seul, sans
+          explication visible sans survol, laisse deviner pourquoi. Voir
+          targetValidation.js pour le raisonnement complet. */}
+      {!isTargetValueValid({ targetMode: 'distance', distanceVal }) && (
+        <p className="text-xs font-bold text-red-500">Renseigne une distance supérieure à 0.</p>
+      )}
     </div>
   ) : (
     <div className="space-y-4 mt-8">
@@ -89,6 +116,9 @@ export default function TargetModeInputs({
           </div>
         </div>
       </div>
+      {!isTargetValueValid({ targetMode: 'time', hours, minutes }) && (
+        <p className="text-xs font-bold text-red-500">Renseigne une durée supérieure à 0.</p>
+      )}
     </div>
   );
 }
