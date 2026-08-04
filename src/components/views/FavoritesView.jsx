@@ -1,5 +1,5 @@
 import { Star, Heart, Play, Pause, Loader2, X, Plus, User, Target, Search, Info } from 'lucide-react';
-import { getGenreLocalDepthWarning, getGenresForDisplay, genreDisplayLabel, EXTRA_GENRES } from '../../musicCatalog';
+import { getGenreLocalDepthWarning, getGenresForDisplay, genreDisplayLabel, EXTRA_GENRES, GENRE_SEARCH_DEPTH_HINT } from '../../musicCatalog';
 import { useModalContext } from '../../contexts/ModalContext';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
@@ -261,11 +261,10 @@ export default function FavoritesView({
                       ne plus nommer explicitement WEAK_DEEZER_KEYWORD_GENRES,
                       qui n'est qu'une liste de convenance interne, pas une
                       couverture exhaustive de "tout ce qui peut être lent".
-                      ⚠️ RACCOURCI (04/08, même raccourci que GeneratorWizard.jsx —
-                      retour direct : "la phrase doit tenir en une seule ligne",
-                      trouvé dupliqué ici après coup, pas repéré au premier passage
-                      dans le wizard). 147 → 70 caractères, même sens. */}
-                  <span>Un genre moins courant peut rendre la génération un peu plus longue.</span>
+                      ⚠️ EXTRAIT dans GENRE_SEARCH_DEPTH_HINT (musicCatalog.js, 04/08)
+                      — voir sa docstring pour l'historique complet (duplication
+                      trouvée après une correction faite seulement côté wizard). */}
+                  <span>{GENRE_SEARCH_DEPTH_HINT}</span>
                 </p>
               )}
             </div>
