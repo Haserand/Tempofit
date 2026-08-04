@@ -369,6 +369,26 @@ function AppContent({
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef(null);
 
+  // Onglet initial de SettingsView (03/08, "cliquer sur mon compte" depuis
+  // le dropdown avatar) — `null` = comportement par défaut inchangé
+  // (bouton "Réglages" de la Sidebar, `handleOpenSettings` plus bas).
+  // Posé juste avant CHAQUE `changeView('settings')`, jamais laissé à une
+  // valeur périmée d'une visite précédente (voir la docstring de
+  // `initialTab`, SettingsView.jsx, pour pourquoi ça reste fiable malgré
+  // un `useState` simple ici plutôt qu'un state plus élaboré).
+  const [settingsInitialTab, setSettingsInitialTab] = useState(null);
+
+  // Point d'entrée UNIQUE vers "Réglages" pour la Sidebar (garde le
+  // comportement par défaut — jamais 'account' forcé) — la Sidebar
+  // continue de recevoir `changeView` pour tous ses autres boutons, mais
+  // celui-ci a besoin en plus de réinitialiser `settingsInitialTab` avant
+  // d'y naviguer, sinon un onglet 'account' resté posé par une visite
+  // précédente via le dropdown avatar s'appliquerait à tort ici aussi.
+  const handleOpenSettings = () => {
+    setSettingsInitialTab(null);
+    changeView('settings');
+  };
+
   useEffect(() => {
     if (!isUserMenuOpen) return;
     const handleClickOutside = (e) => {
@@ -1476,6 +1496,7 @@ function AppContent({
           textHighlight={textHighlight} textColorClass={textColorClass} textMuted={textMuted}
           isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen}
           changeView={changeView} view={view}
+          onOpenSettings={handleOpenSettings}
           favorites={favorites}
           user={user} userStats={userStats}
           guestBarVisible={isGuestBarVisible}
@@ -1555,7 +1576,18 @@ function AppContent({
                 dropdown (voir `isUserMenuOpen`/`userMenuRef` plus haut)
                 avec l'e-mail du compte + "Se déconnecter". Réglages reste
                 accessible via son propre bouton dans la Sidebar — ce menu-
-                ci n'a pas besoin de dupliquer ce lien. */}
+                ci n'a pas besoin de dupliquer ce lien.
+                ⚠️ MIS À JOUR (03/08) — le paragraphe ci-dessus décrit
+                l'état du 28/07, plus tout à fait exact : le bloc pseudo/
+                e-mail EN TÊTE du dropdown est désormais lui-même cliquable
+                et ouvre Réglages directement sur l'onglet "Mon Compte"
+                (`setSettingsInitialTab('account')` juste avant
+                `changeView('settings')`, voir le bloc plus bas). Décision
+                délibérée de garder l'ouverture du dropdown lui-même au
+                CLIC sur l'avatar (pas au survol) — un menu au survol n'a
+                pas d'équivalent sur mobile/tactile. Le reste du paragraphe
+                (Réglages accessible via la Sidebar, "Rechercher un
+                profil"/"Se déconnecter" inchangés) reste vrai. */}
             {/* top-offset RECALCULÉ (Refactor UI "ligne de flottaison",
                 29/07, 8e itération, retour direct : "le bouton thème doit
                 être parfaitement aligné avec le bouton de connexion") —
@@ -1589,7 +1621,26 @@ function AppContent({
 
                     {isUserMenuOpen && (
                       <div className={`absolute right-0 mt-2 w-60 rounded-xl border ${cardBorder} ${cardBg} shadow-xl z-50 overflow-hidden`}>
-                        <div className="px-4 py-3">
+                        {/* Bloc pseudo/e-mail CLIQUABLE (03/08, retour
+                            direct : "cliquer sur mon compte devrait ouvrir
+                            mes réglages dans la partie mon compte") —
+                            avant, ce bloc était du texte statique, un vrai
+                            "clic mort" à l'endroit le plus intuitif pour y
+                            aller. Choix délibéré, discuté avec
+                            l'utilisateur, de GARDER le menu déroulant
+                            au CLIC sur l'avatar (pas au survol) : un menu
+                            au survol n'a pas d'équivalent sur mobile/tactile
+                            (pas de `:hover`), ce serait casser l'accès sur
+                            une bonne partie des visiteurs de l'app. Le clic
+                            sur l'avatar reste donc identique à avant — seul
+                            CE bloc, à l'intérieur du menu déjà ouvert,
+                            devient un lien, pattern standard (GitHub,
+                            Slack...) : avatar → menu → son propre nom en
+                            tête → réglages du compte. */}
+                        <button
+                          onClick={() => { setIsUserMenuOpen(false); setSettingsInitialTab('account'); changeView('settings'); }}
+                          className="w-full text-left px-4 py-3 hover:bg-surface-hover transition-colors cursor-pointer"
+                        >
                           {/* Pseudonyme en gras + e-mail en texte secondaire
                               juste en dessous (Feature, 28/07) — remplace
                               l'ancien "Connecté en tant que [email]" : le
@@ -1608,7 +1659,7 @@ function AppContent({
                               <p className={`text-sm font-bold truncate ${textHighlight}`}>{user.email}</p>
                             </>
                           )}
-                        </div>
+                        </button>
                         <div className={`border-t ${cardBorder} my-0`} />
                         {/* Rechercher un profil (Feature Sociale —
                             Navigation, 01/08, retour direct : "je la veux
@@ -1765,6 +1816,7 @@ function AppContent({
                 userCount={userCount}
                 isNaughtyMode={isNaughtyMode} showToast={showToast} changeView={changeView}
                 onViewOwnProfile={() => handleViewProfile(username)}
+                initialTab={settingsInitialTab}
               />
             )}
 
