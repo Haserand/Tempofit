@@ -43,7 +43,7 @@ const baseProps = {
   view: 'generator',
   favorites: { useFavorites: false, artists: [] },
   user: null,
-  userStats: { unlockedTrophies: [] },
+  unseenTrophyCount: 0,
   guestBarVisible: false,
   playerBarVisible: false,
   toggleNaughtyMode: () => {},
@@ -89,28 +89,39 @@ describe('Sidebar', () => {
   });
 
   it('affiche le bouton Trophées quand un utilisateur est connecté', () => {
-    render(<Sidebar {...baseProps} user={{ id: 'abc' }} userStats={{ unlockedTrophies: [] }} />);
+    render(<Sidebar {...baseProps} user={{ id: 'abc' }} />);
     expect(screen.getByTitle('Trophées')).toBeInTheDocument();
   });
 
-  it('affiche le badge du nombre de trophées débloqués quand il y en a', () => {
+  it('affiche le badge du nombre de trophées NON VUS quand il y en a', () => {
     // `getByTitle`, pas `getByRole('button', {name: 'Trophées'})` : dès
     // qu'un badge numérique apparaît ("3"), ce texte VISIBLE devient le nom
     // accessible calculé du bouton (priorité sur `title`) — `getByTitle`
     // cible l'attribut HTML directement, insensible à ce détail.
-    render(
-      <Sidebar
-        {...baseProps}
-        user={{ id: 'abc' }}
-        userStats={{ unlockedTrophies: ['premiere-seance', 'dix-seances', 'un-mois'] }}
-      />
-    );
+    render(<Sidebar {...baseProps} user={{ id: 'abc' }} unseenTrophyCount={3} />);
     expect(screen.getByTitle('Trophées')).toHaveTextContent('3');
+  });
+
+  // `unseenTrophyCount` (PAS `userStats.unlockedTrophies.length`, 03/08,
+  // retour direct, capture d'écran : "quand j'ai ouvert la partie
+  // trophées, l'icône doit devenir grise... et les notifications '5' doit
+  // être retiré") — la logique "vu/pas vu" elle-même vit dans
+  // useUserStats.js (`markTrophiesSeen`), Sidebar.jsx ne fait qu'afficher
+  // le nombre qu'on lui donne. Ce test verrouille le cas qui a motivé le
+  // changement : des trophées débloqués DEPUIS LONGTEMPS (donc déjà vus,
+  // `unseenTrophyCount` retombé à 0) ne doivent PLUS jamais colorer
+  // l'icône ni afficher de badge, quel que soit le nombre total débloqué
+  // par ailleurs.
+  it('icône grise, AUCUN badge, quand unseenTrophyCount vaut 0 — même avec des trophées débloqués (déjà vus)', () => {
+    render(<Sidebar {...baseProps} user={{ id: 'abc' }} unseenTrophyCount={0} />);
+    const trophyButton = screen.getByTitle('Trophées');
+    expect(trophyButton).not.toHaveTextContent(/\d/);
+    expect(trophyButton.className).not.toMatch(/text-yellow-500/);
   });
 
   it('le clic sur "Trophées" appelle changeView(\'trophies\')', () => {
     const changeView = vi.fn();
-    render(<Sidebar {...baseProps} user={{ id: 'abc' }} userStats={{ unlockedTrophies: [] }} changeView={changeView} />);
+    render(<Sidebar {...baseProps} user={{ id: 'abc' }} changeView={changeView} />);
 
     fireEvent.click(screen.getByTitle('Trophées'));
 
