@@ -22,6 +22,10 @@ vi.mock('../../src/musicCatalog.js', () => ({
   getGenresForDisplay: vi.fn((genre) => [genre]),
   genreDisplayLabel: vi.fn((genre) => genre),
   EXTRA_GENRES: ['Techno', 'Jazz'],
+  // 04/08 — GENRE_SEARCH_DEPTH_HINT extraite ici (constante partagée avec
+  // GeneratorWizard.jsx, voir sa docstring dans musicCatalog.js). Mock
+  // statique, pas un vi.fn() : c'est une simple chaîne dans le vrai module.
+  GENRE_SEARCH_DEPTH_HINT: 'mock genre search depth hint',
 }));
 
 import FavoritesView from '../../src/components/views/FavoritesView.jsx';
