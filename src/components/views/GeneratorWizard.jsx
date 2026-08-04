@@ -15,6 +15,7 @@ import {
 } from '../../appConfig';
 import { useGeneratorContext } from '../../contexts/GeneratorContext';
 import { useModalContext } from '../../contexts/ModalContext';
+import { INLINE_NAV_LINK_CLASS } from '../../layout/inlineLinkLayout';
 
 /**
  * GeneratorWizard — le wizard de génération en 4 étapes ("Sculpte ta
@@ -1036,18 +1037,27 @@ export default function GeneratorWizard({
               // unifié en un seul span ("Configurer mes zones BPM →" plutôt
               // que "Profil : Ajuster mes zones BPM" + "Configure →" séparé)
               // — la flèche colle directement au texte (espace simple, plus
-              // de `ml-2` qui l'écartait artificiellement). `hover:opacity-80`
-              // (repris du bouton "Se connecter" de GuestModeBar.jsx, même
-              // logique) remplace `hover:text-main` : cohérent avec le fait
-              // que ce libellé est maintenant intégralement en accent, pas
-              // juste sa 2e moitié — `hover:text-main` n'aurait plus eu de
-              // sens sur un texte déjà accent par défaut.
+              // de `ml-2` qui l'écartait artificiellement).
+              // ⚠️ ALIGNÉ SUR LA CONVENTION (04/08, même jour, retour direct :
+              // "j'aimerais bien utiliser la même flèche et souligner mon
+              // texte configurer BPM, comme pour synchroniser mes comptes")
+              // — la refonte ci-dessus avait involontairement introduit un
+              // style DIFFÉRENT (icône `Gauge`, pas de soulignement par
+              // défaut) de la convention déjà en place ailleurs dans l'app
+              // pour ce type de lien ("Synchroniser mes comptes →" dans
+              // FavoritesView.jsx, "Aller à Mes Séances →"/"Voir l'aperçu de
+              // mon profil public →"/"Gérer ma visibilité →"/"Configurer mon
+              // Profil Athlétique →" dans StatsView.jsx) — toutes en
+              // `font-bold underline`, AUCUNE icône. Icône retirée,
+              // `INLINE_NAV_LINK_CLASS` (layout/inlineLinkLayout.js, nouveau
+              // ce même jour) appliquée ici comme partout ailleurs — voir sa
+              // docstring pour l'audit complet et la règle pour un futur
+              // lien de ce type.
               <button
                 onClick={() => changeView('settings')} disabled={isGenerating}
-                className={`flex items-center gap-2 text-sm font-semibold ${textColorClass} hover:opacity-80 hover:underline transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
+                className={`text-sm ${INLINE_NAV_LINK_CLASS} ${textColorClass} hover:opacity-80 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
               >
-                <Gauge className="w-4 h-4 shrink-0"/>
-                <span>Configurer mes zones BPM →</span>
+                Configurer mes zones BPM →
               </button>
             ) : <div/>}
             <button onClick={() => setWizardStep(wizardStep + 1)} className={`px-8 py-3 rounded-xl font-bold flex items-center space-x-2 text-white shadow-md transition-colors ${isNaughtyMode ?
