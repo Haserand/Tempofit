@@ -94,3 +94,52 @@ export function snapDistanceOnBlur(distanceVal) {
   if (Number.isFinite(val) && val >= MIN_VALID_DISTANCE) return distanceVal;
   return String(MIN_VALID_DISTANCE);
 }
+
+/**
+ * Validation des SEGMENTS du mode Fractionné/Crescendo (GeneratorWizard.jsx
+ * étape 3, `segments[]`) — même défaut structurel que `distanceVal`/`hours`/
+ * `minutes` avant ce chantier, trouvé en généralisant le correctif plutôt
+ * qu'en le laissant scope-limité (04/08, retour direct : "ce comportement
+ * minimal est-il celui généralisé dans toute l'app ? il le faudrait").
+ * `segment.bpm`/`segment.durationValue` étaient éditables avec
+ * `parseInt(...) || 0`/`parseFloat(...) || 0` — un champ vidé ou à 0
+ * retombait silencieusement à 0, sans aucun garde-fou, exactement le même
+ * trou que `distanceVal` avant son propre correctif.
+ * MIN_VALID_BPM = 1 : un plancher volontairement minimal (pas les bornes
+ * 40-220/80-220 du slider BPM principal) — ce chantier corrige "jamais
+ * zéro", pas une refonte complète des bornes BPM par segment, hors scope
+ * de la demande initiale.
+ */
+const MIN_VALID_BPM = 1;
+
+export function isSegmentValid(segment, targetMode) {
+  const bpm = parseInt(segment?.bpm, 10);
+  const bpmValid = Number.isFinite(bpm) && bpm >= MIN_VALID_BPM;
+  const duration = parseFloat(segment?.durationValue);
+  const durationValid = targetMode === 'distance'
+    ? Number.isFinite(duration) && duration >= MIN_VALID_DISTANCE
+    : Number.isFinite(duration) && duration > 0;
+  return bpmValid && durationValid;
+}
+
+export function areSegmentsValid(segments, targetMode) {
+  return Array.isArray(segments) && segments.length > 0 && segments.every(s => isSegmentValid(s, targetMode));
+}
+
+/** Pendant de snapDistanceOnBlur pour le BPM d'un segment — mêmes raisons. */
+export function snapSegmentBpmOnBlur(bpmVal) {
+  const val = parseInt(bpmVal, 10);
+  if (Number.isFinite(val) && val >= MIN_VALID_BPM) return String(val);
+  return String(MIN_VALID_BPM);
+}
+
+/** Pendant de snapDistanceOnBlur pour la durée/distance d'un segment. */
+export function snapSegmentDurationOnBlur(durationVal, targetMode) {
+  const val = parseFloat(durationVal);
+  if (targetMode === 'distance') {
+    if (Number.isFinite(val) && val >= MIN_VALID_DISTANCE) return durationVal;
+    return String(MIN_VALID_DISTANCE);
+  }
+  if (Number.isFinite(val) && val > 0) return durationVal;
+  return '1';
+}
