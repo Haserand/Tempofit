@@ -20,6 +20,32 @@
  * habituel (ballade, featuring...) — le risque existe mais reste marginal
  * comparé à celui qu'on corrigeait avant (classification Deezer peu fiable au
  * niveau du titre, qui touchait une bien plus grande proportion des résultats).
+ *
+ * ⚠️ TENTATIVE ABANDONNÉE (03/08, check-up optimisation — retour direct
+ * suite à une suggestion de Gemini : "mettre les données musicales côté
+ * Supabase plutôt que dans le code ?") — avant de conclure "pas Supabase,
+ * mais peut-être un `import()` dynamique pour retirer ces ~28 Ko du bundle
+ * principal", vraiment tenté et annulé. Raison du blocage, pour ne pas
+ * retenter la même chose sans relire ceci : `ARTIST_CATALOG` sert à DEUX
+ * usages très différents —
+ *   1. Recherche de secours pendant la génération (musicEngine.js,
+ *      searchEngine.js) — usage async, candidat plausible au chargement
+ *      paresseux, RAS de ce côté.
+ *   2. Deux fonctions DE CE FICHIER (`getGenreLocalDepthWarning` — l'info-
+ *      bulle "peu d'artistes de secours" sur les pastilles de genre à
+ *      l'étape 4 du wizard, l'écran le plus visité de l'app — et la
+ *      désambiguïsation K-pop/Musique asiatique pour l'affichage des
+ *      étiquettes de genre) l'utilisent de façon SYNCHRONE, en plein rendu
+ *      React (`title={getGenreLocalDepthWarning(genre) || undefined}` dans
+ *      une `.map()` de JSX) — une fonction de rendu ne peut pas faire
+ *      `await`, donc le rendre asynchrone aurait cassé ces 2 mécanismes.
+ * Compromis envisagé (extraire seulement les COMPTAGES par genre pour
+ * l'info-bulle, garder les vrais noms uniquement pour l'usage async) —
+ * écarté aussi : la désambiguïsation K-pop/J-pop a, elle, réellement besoin
+ * des vrais noms d'artistes en synchrone, pas juste d'un compte. Aurait
+ * réglé la moitié du problème pour 2 sources de données à garder
+ * synchronisées en échange — pas un bon rapport risque/bénéfice.
+ * Conclusion : les ~28 Ko restent dans le bundle principal, DÉLIBÉRÉMENT.
  */
 
 const ARTIST_CATALOG = {
