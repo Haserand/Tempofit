@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { usePersistentState } from './usePersistentState';
 import {
   isCadenceIntentEligible,
@@ -315,7 +315,7 @@ export function useAthleticProfile() {
    * `custom`, sinon profil vide. Renvoie toujours un objet exploitable,
    * jamais `null`/`undefined` — à l'appelant de vérifier `isConfigured`.
    */
-  const getProfileForWorkout = (workoutTypeOrName, customActivityName = '') => {
+  const getProfileForWorkout = useCallback((workoutTypeOrName, customActivityName = '') => {
     const nameToMatch = (workoutTypeOrName === 'Autre' && customActivityName && customActivityName.trim())
       ? customActivityName.trim()
       : workoutTypeOrName;
@@ -323,7 +323,20 @@ export function useAthleticProfile() {
     const normalized = (nameToMatch || '').trim().toLowerCase();
     const match = athleticProfile.custom.find(c => c.name.trim().toLowerCase() === normalized);
     return match || emptyProfile();
-  };
+    // `useCallback` (03/08, check-up perf — voir StatsView.jsx, la 1re
+    // consommatrice qui en avait vraiment besoin) : SANS ça, cette fonction
+    // était RECRÉÉE à chaque rendu du composant propriétaire de ce hook —
+    // une nouvelle référence à chaque fois, même quand `athleticProfile`
+    // n'avait pas changé. N'importe quel `useMemo`/`useEffect` en aval qui
+    // la prend en dépendance (ex. `statsAggregation`, StatsView.jsx)
+    // recalculait alors à CHAQUE rendu du parent, pas seulement quand le
+    // profil changeait vraiment — la mémoïsation en aval restait
+    // techniquement correcte, mais son bénéfice réel était largement
+    // annulé par cette instabilité en amont. Seule dépendance réelle :
+    // `athleticProfile` (state de ce hook) — `emptyProfile` est une
+    // fonction pure sans état, définie une seule fois plus haut dans ce
+    // fichier, jamais recréée entre les rendus (voir sa propre définition).
+  }, [athleticProfile]);
 
   // RETOUR DIRECT ("si je n'ai pas validé de profil mais fait des séances
   // normalement, je devrais avoir des stats — ce sera juste celles par
@@ -339,14 +352,19 @@ export function useAthleticProfile() {
   // useGeneratorForm.js, ou l'export image `SessionSummaryCard.jsx`, partagé
   // publiquement — ceux-là continuent d'utiliser `getProfileForWorkout` tel
   // quel, sans repli).
-  const getProfileForWorkoutOrDefault = (workoutTypeOrName, customActivityName = '') => {
+  const getProfileForWorkoutOrDefault = useCallback((workoutTypeOrName, customActivityName = '') => {
     const profile = getProfileForWorkout(workoutTypeOrName, customActivityName);
     if (profile.isConfigured) return profile;
     const nameToMatch = (workoutTypeOrName === 'Autre' && customActivityName && customActivityName.trim())
       ? '__custom__'
       : workoutTypeOrName;
     return buildDefaultPreviewProfile(nameToMatch);
-  };
+    // `useCallback` (03/08) — même raisonnement que `getProfileForWorkout`
+    // juste au-dessus, voir sa docstring. Dépend de `getProfileForWorkout`
+    // (maintenant stable elle-même) — PAS de `buildDefaultPreviewProfile`,
+    // importée au niveau module (ligne 8), jamais recréée entre les
+    // rendus.
+  }, [getProfileForWorkout]);
 
   const resetAthleticProfile = () => setAthleticProfile({
     activities: { 'Course à pied': emptyProfile(), 'Cyclisme': emptyProfile() },
