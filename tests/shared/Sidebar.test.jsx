@@ -39,6 +39,7 @@ const baseProps = {
   isMobileMenuOpen: false,
   setIsMobileMenuOpen: () => {},
   changeView: () => {},
+  onOpenSettings: () => {},
   view: 'generator',
   favorites: { useFavorites: false, artists: [] },
   user: null,
@@ -64,6 +65,22 @@ describe('Sidebar', () => {
     fireEvent.click(screen.getByTitle("Retour à l'accueil"));
 
     expect(changeView).toHaveBeenCalledWith('generator');
+  });
+
+  // `onOpenSettings` (03/08, PAS `changeView('settings')` direct) — voir sa
+  // docstring, App.jsx : le bouton Réglages appelle un handler dédié qui
+  // réinitialise l'onglet de départ de SettingsView AVANT de naviguer,
+  // pour ne jamais hériter d'un onglet "Mon Compte" resté posé par une
+  // visite précédente via le menu déroulant avatar.
+  it('le clic sur "Réglages" appelle onOpenSettings (pas changeView directement)', () => {
+    const onOpenSettings = vi.fn();
+    const changeView = vi.fn();
+    render(<Sidebar {...baseProps} onOpenSettings={onOpenSettings} changeView={changeView} />);
+
+    fireEvent.click(screen.getByText('Réglages'));
+
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+    expect(changeView).not.toHaveBeenCalled();
   });
 
   it('masque le bouton Trophées quand aucun utilisateur n\'est connecté (user=null)', () => {
