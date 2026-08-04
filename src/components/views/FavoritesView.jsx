@@ -260,8 +260,12 @@ export default function FavoritesView({
                   {/* Retour direct (même reformulation que GeneratorView.jsx) :
                       ne plus nommer explicitement WEAK_DEEZER_KEYWORD_GENRES,
                       qui n'est qu'une liste de convenance interne, pas une
-                      couverture exhaustive de "tout ce qui peut être lent". */}
-                  <span>Les genres les moins courants dans le catalogue peuvent demander une recherche plus approfondie : la génération prend alors un peu plus de temps.</span>
+                      couverture exhaustive de "tout ce qui peut être lent".
+                      ⚠️ RACCOURCI (04/08, même raccourci que GeneratorWizard.jsx —
+                      retour direct : "la phrase doit tenir en une seule ligne",
+                      trouvé dupliqué ici après coup, pas repéré au premier passage
+                      dans le wizard). 147 → 70 caractères, même sens. */}
+                  <span>Un genre moins courant peut rendre la génération un peu plus longue.</span>
                 </p>
               )}
             </div>
