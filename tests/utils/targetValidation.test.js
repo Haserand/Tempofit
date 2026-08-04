@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isTargetValueValid } from '../../src/utils/targetValidation.js';
+import { isTargetValueValid, snapDistanceOnBlur } from '../../src/utils/targetValidation.js';
 
 /**
  * targetValidation.test.js — tests pour isTargetValueValid.
@@ -66,5 +66,37 @@ describe('isTargetValueValid — mode time (heures/minutes)', () => {
 
   it('accepte une combinaison des deux', () => {
     expect(isTargetValueValid({ targetMode: 'time', hours: 1, minutes: 30 })).toBe(true);
+  });
+});
+
+// 04/08, 3e retour direct sur ce même chantier (capture annotée) : "je
+// pensais qu'on avait dit qu'on ne pouvait pas sélectionner moins que
+// 0,1 ?" — le blocage à l'action existait déjà, il manquait la correction
+// automatique du champ lui-même au moment de le quitter.
+describe('snapDistanceOnBlur', () => {
+  it('remonte 0 à 0.1', () => {
+    expect(snapDistanceOnBlur(0)).toBe('0.1');
+    expect(snapDistanceOnBlur('0')).toBe('0.1');
+  });
+
+  it('remonte un champ vidé à 0.1', () => {
+    expect(snapDistanceOnBlur('')).toBe('0.1');
+  });
+
+  it('remonte une valeur négative à 0.1', () => {
+    expect(snapDistanceOnBlur('-5')).toBe('0.1');
+  });
+
+  it('remonte une valeur sous le seuil (mais positive) à 0.1', () => {
+    expect(snapDistanceOnBlur('0.05')).toBe('0.1');
+  });
+
+  it('remonte une valeur non numérique à 0.1', () => {
+    expect(snapDistanceOnBlur('abc')).toBe('0.1');
+  });
+
+  it('laisse une valeur déjà valide INCHANGÉE (pas de reformatage superflu)', () => {
+    expect(snapDistanceOnBlur('5.5')).toBe('5.5');
+    expect(snapDistanceOnBlur('0.1')).toBe('0.1');
   });
 });
