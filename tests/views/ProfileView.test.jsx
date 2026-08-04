@@ -84,6 +84,16 @@ function setupTableMocks({ playlists = [], routines = [] } = {}) {
   return { playlistsEqCalls, routinesEqCalls };
 }
 
+// Onglets Playlists/Routines (03/08, refonte — voir la docstring
+// `activeProfileTab`, ProfileView.jsx) — l'onglet Playlists est actif par
+// défaut, donc tout test qui vérifie le contenu de l'onglet Routines doit
+// d'abord cliquer dessus (sinon la grille sous les yeux du test est celle
+// de Playlists, vide ou non). Aide partagée plutôt que répétée dans
+// chaque test.
+async function switchToRoutinesTab() {
+  fireEvent.click(await screen.findByRole('tab', { name: /Routines/ }));
+}
+
 const baseProps = {
   theme: mockTheme,
   username: 'tempofit_admin',
@@ -274,6 +284,7 @@ describe('ProfileView — routines partagées', () => {
     mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
     setupTableMocks({ routines: publicRoutines });
     render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+    await switchToRoutinesTab();
 
     expect(await screen.findByText('Mon 10km Rapide')).toBeInTheDocument();
     expect(screen.getByText('10 km')).toBeInTheDocument();
@@ -285,6 +296,7 @@ describe('ProfileView — routines partagées', () => {
     mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
     setupTableMocks({ routines: publicRoutines });
     render(<ProfileView {...baseProps} user={{ id: 'visitor' }} onOpenRoutine={onOpenRoutine} />);
+    await switchToRoutinesTab();
 
     fireEvent.click(await screen.findByText('Mon 10km Rapide'));
 
@@ -296,6 +308,7 @@ describe('ProfileView — routines partagées', () => {
     mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
     setupTableMocks({ routines: [...publicRoutines, intimateRoutine] });
     render(<ProfileView {...baseProps} user={{ id: 'visitor' }} isNaughtyMode={false} />);
+    await switchToRoutinesTab();
 
     expect(await screen.findByText('Mon 10km Rapide')).toBeInTheDocument();
     expect(screen.queryByText('Routine Intime')).toBeNull();
@@ -434,6 +447,7 @@ describe('ProfileView — description libre sur les cartes publiques', () => {
     mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
     setupTableMocks({ routines: [routineWithDescription] });
     render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+    await switchToRoutinesTab();
 
     expect(await screen.findByText('À lancer avant le petit-déjeuner.')).toBeInTheDocument();
   });
@@ -477,18 +491,27 @@ describe('ProfileView — recherche & filtres', () => {
     expect(screen.queryByPlaceholderText(/Rechercher un titre/)).toBeNull();
   });
 
-  it('la recherche texte filtre la grille combinée (playlists + routines) en temps réel', async () => {
+  it('la recherche texte reste PARTAGÉE en changeant d\'onglet (Playlists → Routines)', async () => {
     mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
     setupTableMocks({ playlists: [sportPlaylist], routines: [sportRoutine] });
     render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
 
+    // Onglet Playlists (par défaut) : la routine n'est PAS visible ici,
+    // même si elle matcherait la recherche — c'est tout le principe des
+    // onglets (03/08, retour direct : les routines étaient noyées dans une
+    // grille combinée).
     await screen.findByText('Sortie Running Rapide');
-    expect(screen.getByText('Mon 10km')).toBeInTheDocument();
+    expect(screen.queryByText('Mon 10km')).toBeNull();
 
     fireEvent.change(screen.getByPlaceholderText(/Rechercher un titre/), { target: { value: '10km' } });
 
-    expect(screen.queryByText('Sortie Running Rapide')).toBeNull();
-    expect(screen.getByText('Mon 10km')).toBeInTheDocument();
+    // Aucune playlist ne matche "10km" → état vide sur l'onglet Playlists.
+    expect(await screen.findByText('Aucune séance ne correspond à vos filtres.')).toBeInTheDocument();
+
+    // La recherche reste active en changeant d'onglet (état PARTAGÉ,
+    // voir useProfileSearchFilter.js) — la routine "Mon 10km" matche.
+    await switchToRoutinesTab();
+    expect(await screen.findByText('Mon 10km')).toBeInTheDocument();
   });
 
   it('cas spécifique du brief : un item is_intimate glissé dans le tableau source n\'apparaît dans AUCUN résultat en mode Sport, recherche vide ou active', async () => {
@@ -517,14 +540,15 @@ describe('ProfileView — recherche & filtres', () => {
     expect(await screen.findByText('Sortie Running Rapide')).toBeInTheDocument();
   });
 
-  it('déplier les filtres puis choisir "Routines" masque les playlists de la grille combinée', async () => {
+  it('cliquer l\'onglet "Routines" masque les playlists — plus besoin de déplier les filtres (c\'était l\'ancien comportement, retiré)', async () => {
     mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
     setupTableMocks({ playlists: [sportPlaylist], routines: [sportRoutine] });
     render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
 
     await screen.findByText('Sortie Running Rapide');
-    fireEvent.click(screen.getByTitle('Plus de filtres'));
-    fireEvent.click(screen.getByRole('button', { name: 'Routines' }));
+    expect(screen.queryByText('Mon 10km')).toBeNull();
+
+    await switchToRoutinesTab();
 
     expect(screen.queryByText('Sortie Running Rapide')).toBeNull();
     expect(screen.getByText('Mon 10km')).toBeInTheDocument();
@@ -673,16 +697,19 @@ describe('ProfileView — profil vitrine officiel (@tempofit_officiel)', () => {
   // (même principe que les playlists de la vitrine).
   it('la grille de la vitrine affiche aussi des routines fictives (pas seulement des playlists)', async () => {
     render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} isNaughtyMode={false} />);
+    await switchToRoutinesTab();
     expect(await screen.findByText('Mon 5km Quotidien')).toBeInTheDocument();
   });
 
   it('cloisonnement Sport/Intime respecté pour les routines de la vitrine aussi', async () => {
     render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} isNaughtyMode={false} />);
+    await switchToRoutinesTab();
     expect(await screen.findByText('Mon 5km Quotidien')).toBeInTheDocument();
     expect(screen.queryByText('Rituel du Soir')).toBeNull();
     cleanup();
 
     render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} isNaughtyMode={true} />);
+    await switchToRoutinesTab();
     expect(await screen.findByText('Rituel du Soir')).toBeInTheDocument();
     expect(screen.queryByText('Mon 5km Quotidien')).toBeNull();
   });
@@ -690,6 +717,7 @@ describe('ProfileView — profil vitrine officiel (@tempofit_officiel)', () => {
   it('le clic sur une routine de la vitrine appelle onOpenRoutine avec la ligne complète', async () => {
     const onOpenRoutine = vi.fn();
     render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} onOpenRoutine={onOpenRoutine} />);
+    await switchToRoutinesTab();
 
     fireEvent.click(await screen.findByText('Mon 5km Quotidien'));
 
