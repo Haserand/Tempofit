@@ -60,6 +60,7 @@ export default function Sidebar({
   cardBorder, cardBorderStrong, bgAccentClass, isNaughtyMode, textHighlight, textColorClass, textMuted,
   isMobileMenuOpen, setIsMobileMenuOpen,
   changeView, view,
+  onOpenSettings,
   favorites,
   user, userStats,
   guestBarVisible, playerBarVisible,
@@ -432,7 +433,12 @@ export default function Sidebar({
               texte respire un peu plus qu'avant SANS déborder. Disposition
               (`flex flex-col items-center justify-center gap-1`) toujours
               INCHANGÉE — seule cette valeur de padding a bougé. */}
-          <button onClick={() => changeView('settings')} className={`w-full flex items-center space-x-3 ${SIDEBAR_FOOTER_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${textMuted} hover:bg-surface-hover hover:text-main`}>
+          {/* `onOpenSettings` (03/08, PAS `changeView('settings')` direct) —
+              voir sa docstring, App.jsx : réinitialise l'onglet de départ de
+              SettingsView avant d'y naviguer, pour ne jamais hériter d'un
+              `'account'` posé par une visite précédente via le dropdown
+              avatar (App.jsx, "cliquer sur mon compte"). */}
+          <button onClick={onOpenSettings} className={`w-full flex items-center space-x-3 ${SIDEBAR_FOOTER_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${textMuted} hover:bg-surface-hover hover:text-main`}>
             <Settings size={18} className={textColorClass} />
             <span className="font-bold text-sm">Réglages</span>
           </button>
