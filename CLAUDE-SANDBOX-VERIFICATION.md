@@ -335,6 +335,10 @@ pendant plusieurs chantiers avant d'être remarqué).
    se fait en le disant explicitement dans la réponse à l'utilisateur, pas
    en laissant le silence trancher.
 
+## 4sexies. Modifier un texte visible par l'utilisateur — `grep` le repo entier AVANT, jamais seulement le fichier où le retour a été fait
+Trouvé le 04/08 (retour direct : "cette phrase se trouve aussi dans l'onglet favoris, tu as pensé à la modifier ?") : un message d'info sur les genres musicaux ("les genres les moins courants...") avait été raccourci dans `GeneratorWizard.jsx` sur demande explicite ("la phrase doit tenir en une seule ligne") — sans vérifier s'il existait ailleurs. Il était dupliqué mot pour mot dans `FavoritesView.jsx` (les deux fichiers le documentaient déjà comme volontairement synchronisés — "même reformulation que GeneratorView.jsx" — un commentaire qui aurait dû être le signal à suivre). Racine du problème : une capture d'écran ou un retour direct montre TOUJOURS un seul endroit précis de l'app, jamais "tous les endroits où ce texte apparaît" — rien dans l'énoncé de la demande n'indique qu'une copie existe ailleurs.
+Règle : avant de modifier un texte utilisateur (libellé, message d'aide, tooltip, texte de bouton...), `grep` une portion suffisamment distinctive du texte ACTUEL sur tout `src/` (pas juste le fichier concerné par le retour) — même réflexe que pour un changement de comportement (voir §4quinquies sur `officialVitrineProfile.js`, même famille de bug : une correction locale qui laisse une copie non synchronisée ailleurs). Si `grep` remonte plusieurs fichiers, appliquer le même changement partout dans la même passe, pas fichier par fichier au fil des retours de l'utilisateur.
+
 ## 5. Ce que ces outils NE remplacent PAS
 
 Aucun de ces scripts n'exécute réellement `vitest` — une affirmation
