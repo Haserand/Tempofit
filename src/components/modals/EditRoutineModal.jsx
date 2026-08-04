@@ -3,6 +3,7 @@ import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import { NAUGHTY_GENRES, STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, genreDisplayLabel } from '../../musicCatalog';
 import { getZoneForValue } from '../../appConfig';
 import { syncClampedInput } from '../../utils/numberInput';
+import { isTargetValueValid, snapDistanceOnBlur } from '../../utils/targetValidation';
 import DualRangeSlider from '../shared/DualRangeSlider';
 
 /**
@@ -31,6 +32,18 @@ export default function EditRoutineModal({
   if (!isEditRoutineModalOpen || !editingRoutine) return null;
 
   const close = () => { onClose(); setEditingRoutine(null); };
+
+  // ⚠️ NOUVEAU (04/08, retour direct, capture d'écran : "je ne trouve pas ça
+  // normal de pouvoir générer une routine avec une valeur de 0 km") — voir
+  // targetValidation.js pour le raisonnement complet. `editingRoutine`
+  // garanti non-null ici (guard juste au-dessus), donc lecture directe de
+  // ses champs sans optional chaining.
+  const isTargetInvalid = !isTargetValueValid({
+    targetMode: editingRoutine.targetMode,
+    distanceVal: editingRoutine.distanceVal,
+    hours: editingRoutine.hours,
+    minutes: editingRoutine.minutes,
+  });
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" onClick={close}>
@@ -64,7 +77,16 @@ export default function EditRoutineModal({
 
           {editingRoutine.targetMode === 'distance' ? (
             <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-3 justify-between`}>
-              <input type="number" min="0" step="0.1" value={editingRoutine.distanceVal} onChange={e => setEditingRoutine({...editingRoutine, distanceVal: e.target.value})} className={`bg-transparent w-full font-bold outline-hidden ${textHighlight}`} />
+              {/* `min="0.1"` + `onBlur` — même raisonnement que
+                  TargetModeInputs.jsx (GeneratorWizard.jsx), voir sa
+                  docstring pour le détail complet (04/08, retour direct :
+                  "je veux que la valeur minimale disponible soit 0,1"). */}
+              <input
+                type="number" min="0.1" step="0.1" value={editingRoutine.distanceVal}
+                onChange={e => setEditingRoutine({...editingRoutine, distanceVal: e.target.value})}
+                onBlur={e => setEditingRoutine(r => ({...r, distanceVal: snapDistanceOnBlur(e.target.value)}))}
+                className={`bg-transparent w-full font-bold outline-hidden ${textHighlight}`}
+              />
               <span className={`text-sm font-bold ${textMuted}`}>{editingRoutine.distanceUnit}</span>
             </div>
           ) : (
@@ -86,6 +108,14 @@ export default function EditRoutineModal({
                 </div>
               </div>
             </div>
+          )}
+          {/* Voir isTargetInvalid ci-dessus — même raisonnement que
+              TargetModeInputs.jsx (GeneratorWizard.jsx), indice visuel en
+              plus des boutons de sauvegarde désactivés plus bas. */}
+          {isTargetInvalid && (
+            <p className="text-xs font-bold text-red-500 -mt-3">
+              {editingRoutine.targetMode === 'distance' ? 'Renseigne une distance supérieure à 0.' : 'Renseigne une durée supérieure à 0.'}
+            </p>
           )}
 
           <div>
@@ -219,10 +249,20 @@ export default function EditRoutineModal({
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 pt-6 mt-2 border-t border-gray-100 dark:border-gray-800">
-          <button onClick={applyRoutineEditOnce} className={`flex-1 py-3.5 rounded-xl font-bold border-2 ${cardBorder} ${textHighlight} hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors`}>
+          <button
+            onClick={applyRoutineEditOnce}
+            disabled={isTargetInvalid}
+            title={isTargetInvalid ? 'Corrige la distance/durée avant de continuer.' : undefined}
+            className={`flex-1 py-3.5 rounded-xl font-bold border-2 ${cardBorder} ${textHighlight} hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent`}
+          >
             Cette séance seulement
           </button>
-          <button onClick={applyRoutineEditPermanently} className={`flex-1 py-3.5 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
+          <button
+            onClick={applyRoutineEditPermanently}
+            disabled={isTargetInvalid}
+            title={isTargetInvalid ? 'Corrige la distance/durée avant de continuer.' : undefined}
+            className={`flex-1 py-3.5 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100`}
+          >
             Toujours pour cette routine
           </button>
         </div>
