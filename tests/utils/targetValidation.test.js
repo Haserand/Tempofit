@@ -28,6 +28,19 @@ describe('isTargetValueValid — mode distance', () => {
     expect(isTargetValueValid({ targetMode: 'distance', distanceVal: 0.1 })).toBe(true);
   });
 
+  // 04/08, 2e retour direct (même jour) : "je pense que le comportement
+  // attendu c'est que je puisse pas aller en dessous de 0,1 km" — seuil
+  // resserré de `> 0` à `>= 0.1`, cohérent avec le `step="0.1"` déjà
+  // affiché sur le champ.
+  it('refuse une valeur strictement positive mais sous le seuil de 0.1 (BUG CORRIGÉ, seuil resserré)', () => {
+    expect(isTargetValueValid({ targetMode: 'distance', distanceVal: 0.05 })).toBe(false);
+    expect(isTargetValueValid({ targetMode: 'distance', distanceVal: '0.01' })).toBe(false);
+  });
+
+  it('accepte exactement le seuil (0.1), ni plus strict ni plus permissif', () => {
+    expect(isTargetValueValid({ targetMode: 'distance', distanceVal: '0.1' })).toBe(true);
+  });
+
   it('refuse une valeur non numérique', () => {
     expect(isTargetValueValid({ targetMode: 'distance', distanceVal: 'abc' })).toBe(false);
   });
