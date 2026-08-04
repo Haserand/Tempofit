@@ -57,6 +57,18 @@ mériter sa propre section) :**
   docstring pour le raisonnement produit complet) : bouton X → confirmation
   inline dans la même barre → si confirmé, disparaît jusqu'au prochain
   rechargement de page.
+  ⚠️ **04/08, retour direct — 2 bugs corrigés, jamais vérifiés en conditions
+  réelles jusque-là** : (1) l'état "masqué" vivait en `useState` LOCAL au
+  composant, invisible du spacer de `<main>` et de `Sidebar.jsx`
+  (`guestBarVisible`) — fermer la barre ne libérait donc jamais l'espace
+  réservé ailleurs. Remonté dans `AppContent` (`isGuestBarDismissed`),
+  `GuestModeBar` ne fait plus que déclencher `onDismiss()`. (2) le spacer
+  dédié à cette barre (`App.jsx`) était resté à `h-10` (40px) depuis
+  l'ancien design 1-ligne du 28/07, jamais mis à jour quand la barre est
+  passée à 72px le 29/07 — corrigé en `h-[72px]`. Exigence produit
+  clarifiée à cette occasion : scroll acceptable/attendu tant que la barre
+  est visible (elle prend de la place), zéro scroll résiduel une fois
+  masquée.
 - **`GeneratorWizard.jsx` — `min-h-[450px]` retiré** de la carte du wizard
   (partagé par les 4 étapes, poussait le bouton "Suivant" en bas d'une
   hauteur fixe même sur l'étape 1, la plus courte — un vrai espace mort,
