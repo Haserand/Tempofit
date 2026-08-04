@@ -1176,7 +1176,16 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
     const favoritesPool = availablePool.filter(t => !t._deezerId && !t._isLocalDB);
     const deezerDirectPool = availablePool.filter(t => t._deezerId && titleConflictFree(t) && effectiveGenres.some(g => isDirectGenreMatch(t.genre, g)));
     const localPoolMatches = availablePool.filter(t => t._isLocalDB && titleConflictFree(t) && !t._genreMismatch);
-    const equivalencePool = availablePool.filter(t => t._deezerId && titleConflictFree(t) && !deezerDirectPool.includes(t) && effectiveGenres.some(g => genreRoughlyMatches(t.genre, g)));
+    // Optimisation (03/08, check-up perf) — `deezerDirectPool.includes(t)`
+    // (recherche linéaire, O(m)) remplacé par `deezerDirectPoolSet.has(t)`
+    // (O(1)) : cette boucle `while` tourne une fois par titre sélectionné,
+    // et CE filtre en particulier était le seul des 4 à re-scanner un
+    // tableau dérivé À L'INTÉRIEUR de son propre filtre — équivalence
+    // stricte de comportement (`Set` construit sur les MÊMES références
+    // d'objets que `deezerDirectPool`, donc `.has(t)` teste exactement la
+    // même égalité par référence que `.includes(t)` faisait).
+    const deezerDirectPoolSet = new Set(deezerDirectPool);
+    const equivalencePool = availablePool.filter(t => t._deezerId && titleConflictFree(t) && !deezerDirectPoolSet.has(t) && effectiveGenres.some(g => genreRoughlyMatches(t.genre, g)));
 
     let searchPool, matchLevel;
     if (favoritesPool.length > 0) { searchPool = favoritesPool; matchLevel = 'favoris'; }
