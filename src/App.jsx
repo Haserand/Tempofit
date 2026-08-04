@@ -3,6 +3,7 @@ import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, 
 import { genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getRankStyle } from './appConfig';
 import { VIEW_HEADER_TOP_PADDING } from './layout/viewHeaderLayout';
+import { ICON_BUTTON_ROUNDING } from './layout/iconButtonLayout';
 import { supabase } from './supabaseClient';
 
 // =====================================================================================
@@ -1478,7 +1479,7 @@ function AppContent({
             <button
               onClick={cancelGeneration}
               title="Annuler la génération"
-              className={`shrink-0 p-1 rounded-full ${textMuted} hover:text-red-500 hover:bg-red-500/10 transition-colors`}
+              className={`shrink-0 p-1 ${ICON_BUTTON_ROUNDING} ${textMuted} hover:text-red-500 hover:bg-red-500/10 transition-colors`}
             >
               <X size={16} />
             </button>
@@ -1517,7 +1518,7 @@ function AppContent({
         <div className="flex-1 flex flex-col relative w-full">
           {/* Header mobile (bouton burger + logo) */}
           <header className={`md:hidden flex items-center p-4 bg-surface border-b ${cardBorder} z-30`}>
-            <button onClick={() => setIsMobileMenuOpen(true)} className={`p-2 mr-3 ${textMuted} hover:text-main bg-surface-hover rounded-lg`}><Menu size={20} /></button>
+            <button onClick={() => setIsMobileMenuOpen(true)} className={`p-2 mr-3 ${textMuted} hover:text-main bg-surface-hover ${ICON_BUTTON_ROUNDING}`}><Menu size={20} /></button>
             <button onClick={() => changeView('generator')} title="Retour à l'accueil" className="flex items-center space-x-2 cursor-pointer">
               <span className={`font-bold text-lg tracking-tight ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
             </button>
@@ -1618,7 +1619,7 @@ function AppContent({
                     <button
                       onClick={() => setIsUserMenuOpen((v) => !v)}
                       title={username ? `@${username}` : user.email}
-                      className="w-11 h-11 rounded-full shadow-lg border hover:scale-110 transition-transform flex items-center justify-center bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-500 border-green-200 dark:border-green-700/50 font-bold cursor-pointer"
+                      className={`w-11 h-11 ${ICON_BUTTON_ROUNDING} shadow-lg border hover:scale-110 transition-transform flex items-center justify-center bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-500 border-green-200 dark:border-green-700/50 font-bold cursor-pointer`}
                     >
                       {/* Initiale du PSEUDONYME plutôt que de l'e-mail
                           (Feature, 28/07, "identifiant public") — repli sur
@@ -1711,7 +1712,7 @@ function AppContent({
                   <button
                     onClick={() => openModal('AUTH')}
                     title="Se connecter"
-                    className={`p-2 rounded-full transition-colors duration-200 ${textMuted} hover:bg-surface-hover hover:text-main`}
+                    className={`p-2 ${ICON_BUTTON_ROUNDING} transition-colors duration-200 ${textMuted} hover:bg-surface-hover hover:text-main`}
                   >
                     <UserIcon size={20} strokeWidth={2} />
                   </button>
