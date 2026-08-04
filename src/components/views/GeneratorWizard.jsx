@@ -868,8 +868,13 @@ export default function GeneratorWizard({
                         promesse de couverture exhaustive de "tout ce qui peut être
                         lent" — un genre absent de cette liste précise pourrait très
                         bien l'être aussi selon le catalogue Deezer du moment. Reformulé
-                        pour ne plus rien nommer explicitement. */}
-                    <span>Les genres les moins courants dans le catalogue peuvent demander une recherche plus approfondie : la génération prend alors un peu plus de temps.</span>
+                        pour ne plus rien nommer explicitement.
+                        ⚠️ RACCOURCI (04/08, retour direct : "la phrase doit tenir en
+                        une seule ligne") — l'ancienne formulation faisait 147
+                        caractères, systématiquement sur 2 lignes à `text-sm` quelle
+                        que soit la largeur de la carte. Ramené à 70 caractères, même
+                        sens (vague à dessein, cf. ci-dessus), juste plus court. */}
+                    <span>Un genre moins courant peut rendre la génération un peu plus longue.</span>
                   </p>
                 )}
 
