@@ -66,29 +66,35 @@ import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
  * existe pour rappeler qu'un compte invité n'est sauvegardé que sur CET
  * appareil — une fermeture définitive ferait courir un vrai risque produit
  * (l'invité l'oublie, perd ses données un jour sans comprendre pourquoi,
- * cache vidé ou changement d'appareil). `dismissed`/`confirmingDismiss`
- * sont donc de simples `useState` LOCAUX à ce composant : ce composant
- * reste MONTÉ en permanence tant qu'un invité a des données (jamais
- * démonté en changeant de vue, voir App.jsx — il vit dans le conteneur fixe
- * du bas, hors du switch `{view === ...}`), donc cet état survit à la
- * navigation entre vues MAIS revient à `false` à chaque vrai rechargement
- * de page — exactement le comportement "le temps de cette visite,
- * pas plus" recherché, sans code de persistance à écrire.
+ * cache vidé ou changement d'appareil).
+ * ⚠️ REMONTÉ (04/08, retour direct : "je dois pouvoir scroll QUAND la barre
+ * est visible, et ne plus avoir à scroller une fois qu'elle est masquée")
+ * — la décision finale "masqué ou non" (`isVisible`/`onDismiss`) vit
+ * maintenant dans AppContent (App.jsx), PAS ici : un `useState` strictement
+ * local à ce composant ne pouvait être lu ni par le spacer du contenu
+ * principal, ni par Sidebar.jsx (`guestBarVisible`) — fermer la barre ne
+ * libérait donc jamais l'espace qu'elle réservait ailleurs. Le comportement
+ * "session-only" (repli à zéro à chaque vrai rechargement) reste identique
+ * — c'est toujours un simple `useState`, juste possédé un cran plus haut
+ * (voir `isGuestBarDismissed`, App.jsx). Seul `confirmingDismiss` reste un
+ * état LOCAL à ce composant : un pur détail d'affichage interne (quel
+ * contenu montrer DANS la barre), personne d'autre n'en a besoin.
  * Confirmation intermédiaire (`confirmingDismiss`) plutôt qu'un clic direct
  * sur le X : le contenu de LA MÊME barre (pas une modale séparée — le
  * message est court, une modale aurait été disproportionnée pour ce texte)
  * bascule sur un rappel explicite du risque + 2 boutons ("Masquer quand
  * même" / "Annuler"), pour qu'une fermeture accidentelle ne prive jamais
- * silencieusement l'utilisateur de ce rappel de sécurité.
+ * silencieusement l'utilisateur de ce rappel de sécurité. "Masquer quand
+ * même" appelle `onDismiss()` (remonté au parent) plutôt que de mettre à
+ * jour un état local.
  */
-export default function GuestModeBar({ theme, isVisible, openModal }) {
+export default function GuestModeBar({ theme, isVisible, openModal, onDismiss = () => {} }) {
   const { cardBg, cardBorderStrong, textMuted, textColorClass } = theme;
-  // Session-only : voir la docstring "Fermeture SESSION-ONLY" plus haut —
-  // aucun des deux ne persiste, un rechargement de page les remet à zéro.
-  const [dismissed, setDismissed] = useState(false);
+  // `confirmingDismiss` : voir la docstring "Fermeture SESSION-ONLY" plus
+  // haut — seul état encore local à ce composant depuis le 04/08.
   const [confirmingDismiss, setConfirmingDismiss] = useState(false);
 
-  if (!isVisible || dismissed) return null;
+  if (!isVisible) return null;
 
   return (
     // h-[72px] (64→72, +8px, Refactor UI "aération footer/GuestBar", 29/07,
@@ -109,7 +115,7 @@ export default function GuestModeBar({ theme, isVisible, openModal }) {
             Tes données resteront sauvegardées uniquement sur cet appareil — ce rappel reviendra à ta prochaine visite.
           </span>
           <button
-            onClick={() => setDismissed(true)}
+            onClick={onDismiss}
             className={`shrink-0 text-sm font-bold ${textColorClass} hover:opacity-80 transition-colors`}
           >
             Masquer quand même
