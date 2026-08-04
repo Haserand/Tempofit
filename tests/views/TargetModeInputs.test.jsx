@@ -121,3 +121,67 @@ describe('TargetModeInputs — mode "distance"', () => {
     expect(screen.getByText('Objectif & Allure').closest('label')).toHaveClass('mock-highlight');
   });
 });
+
+// 04/08, retour direct (capture d'écran EditRoutineModal.jsx) : "je ne
+// trouve pas ça normal de pouvoir générer une routine avec une valeur de
+// 0 km" — voir targetValidation.js pour le raisonnement complet.
+describe('TargetModeInputs — indice de validation (BUG CORRIGÉ, cible à 0)', () => {
+  it('affiche un avertissement quand distanceVal vaut 0', () => {
+    render(<TargetModeInputs {...baseProps({ targetMode: 'distance', distanceVal: 0 })} />);
+    expect(screen.getByText('Renseigne une distance supérieure à 0.')).toBeInTheDocument();
+  });
+
+  it('n\'affiche rien quand distanceVal est positif', () => {
+    render(<TargetModeInputs {...baseProps({ targetMode: 'distance', distanceVal: 5 })} />);
+    expect(screen.queryByText('Renseigne une distance supérieure à 0.')).toBeNull();
+  });
+
+  it('affiche un avertissement quand heures ET minutes valent 0', () => {
+    render(<TargetModeInputs {...baseProps({ targetMode: 'time', hours: 0, minutes: 0 })} />);
+    expect(screen.getByText('Renseigne une durée supérieure à 0.')).toBeInTheDocument();
+  });
+
+  it('n\'affiche rien dès que minutes > 0, même avec heures à 0', () => {
+    render(<TargetModeInputs {...baseProps({ targetMode: 'time', hours: 0, minutes: 45 })} />);
+    expect(screen.queryByText('Renseigne une durée supérieure à 0.')).toBeNull();
+  });
+});
+
+// 04/08, 3e retour direct sur ce même chantier (capture annotée) : "je
+// pensais qu'on avait dit qu'on ne pouvait pas sélectionner moins que
+// 0,1 ?" — voir snapDistanceOnBlur (targetValidation.js) pour le
+// raisonnement complet (pourquoi `onBlur`, pas `onChange`).
+describe('TargetModeInputs — correction automatique au blur (BUG CORRIGÉ)', () => {
+  it('quitter le champ distance à 0 le remonte à 0.1', () => {
+    const setDistanceVal = vi.fn();
+    const { container } = render(<TargetModeInputs {...baseProps({ targetMode: 'distance', distanceVal: 0, setDistanceVal })} />);
+
+    const distanceInput = container.querySelector('input[step="0.1"]');
+    fireEvent.blur(distanceInput, { target: { value: '0' } });
+
+    expect(setDistanceVal).toHaveBeenCalledWith('0.1');
+  });
+
+  it('quitter le champ distance avec une valeur déjà valide ne le modifie pas', () => {
+    const setDistanceVal = vi.fn();
+    const { container } = render(<TargetModeInputs {...baseProps({ targetMode: 'distance', distanceVal: 5, setDistanceVal })} />);
+
+    const distanceInput = container.querySelector('input[step="0.1"]');
+    fireEvent.blur(distanceInput, { target: { value: '5' } });
+
+    expect(setDistanceVal).toHaveBeenCalledWith('5');
+  });
+
+  it('la frappe elle-même (onChange) n\'est jamais corrigée, seul le blur l\'est', () => {
+    const setDistanceVal = vi.fn();
+    const { container } = render(<TargetModeInputs {...baseProps({ targetMode: 'distance', distanceVal: 5, setDistanceVal })} />);
+
+    const distanceInput = container.querySelector('input[step="0.1"]');
+    fireEvent.change(distanceInput, { target: { value: '0' } });
+
+    // onChange doit transmettre "0" tel quel, sans correction — la
+    // correction n'intervient QUE dans le handler onBlur, testé séparément
+    // ci-dessus.
+    expect(setDistanceVal).toHaveBeenCalledWith('0');
+  });
+});
