@@ -29,6 +29,14 @@ import { supabase } from '../../supabaseClient';
  * dont il a besoin (voir sa propre docstring) — ce composant-ci ne fait que
  * le monter/démonter selon l'onglet actif, sans dupliquer son state.
  *
+ * `initialTab` (03/08, retour direct : "cliquer sur mon compte devrait
+ * ouvrir mes réglages dans la partie 'mon compte'") — 2e point d'entrée
+ * vers cette vue, DEPUIS le menu déroulant avatar (App.jsx, bloc pseudo/
+ * e-mail du dropdown, désormais cliquable) plutôt que le bouton "Réglages"
+ * habituel de la Sidebar. Les 2 partagent le même `changeView('settings')`
+ * — seul ce prop distingue les deux (posé juste avant par l'appelant,
+ * `null` pour la Sidebar = comportement par défaut inchangé).
+ *
  * Garde-fou Mode Intime (reproduit ici, retiré de App.jsx où il vivait
  * avant sous forme de useEffect global sur `showAthleticProfile`) : le
  * Profil Athlétique configure des zones de BPM par activité SPORTIVE
@@ -41,14 +49,22 @@ import { supabase } from '../../supabaseClient';
  * automatiquement vers `music` si le Mode Intime s'active PENDANT que
  * l'onglet Profil est déjà ouvert.
  */
-export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, userCount, isNaughtyMode, showToast, changeView, username, usernameLoading, checkUsernameAvailable, setUsername, profilePrivacy, updatePrivacySettings, onViewOwnProfile }) {
+export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, userCount, isNaughtyMode, showToast, changeView, username, usernameLoading, checkUsernameAvailable, setUsername, profilePrivacy, updatePrivacySettings, onViewOwnProfile, initialTab = null }) {
   const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg, textColorClass, borderAccentClass } = theme;
 
-  // Onglet actif — jamais 'profile' par défaut en Mode Intime (voir garde-
-  // fou dans la docstring) : l'initialisation lazy (fonction passée à
-  // useState) évite un flash "Profil Athlétique" visible une frame avant
-  // que l'effet de sécurité ci-dessous ne le referme.
-  const [activeTab, setActiveTab] = useState(() => (isNaughtyMode ? 'music' : 'profile'));
+  // Onglet actif — `initialTab` (03/08, "cliquer sur mon compte" depuis le
+  // menu déroulant avatar) prend le dessus sur le repli par défaut quand
+  // il est fourni, mais SEULEMENT à L'INITIALISATION (fonction passée à
+  // `useState`, jamais relue après) : ce composant est démonté/remonté à
+  // chaque changement de vue (`{view === 'settings' && <SettingsView .../>}`,
+  // App.jsx — pas de `key` ni de state persistant), donc `initialTab` est
+  // systématiquement relu à la valeur EXACTE que l'appelant vient de poser
+  // juste avant `changeView('settings')`, jamais une valeur périmée d'une
+  // visite précédente. Jamais 'profile' par défaut en Mode Intime (voir
+  // garde-fou plus bas) — l'initialisation lazy évite un flash "Profil
+  // Athlétique" visible une frame avant que l'effet de sécurité ne le
+  // referme.
+  const [activeTab, setActiveTab] = useState(() => initialTab || (isNaughtyMode ? 'music' : 'profile'));
 
   useEffect(() => {
     if (isNaughtyMode && activeTab === 'profile') setActiveTab('music');
