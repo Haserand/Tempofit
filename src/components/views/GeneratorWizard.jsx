@@ -4,7 +4,7 @@ import {
   Target, Loader2, Zap, BookmarkPlus, Info, ChevronLeft, ChevronRight, ChevronDown, Flame,
   TrendingUp, Gauge,
 } from 'lucide-react';
-import { STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, genreDisplayLabel } from '../../musicCatalog';
+import { STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, genreDisplayLabel, GENRE_SEARCH_DEPTH_HINT } from '../../musicCatalog';
 import { formatDuration } from '../../utils/format';
 import { syncClampedInput } from '../../utils/numberInput';
 import DualRangeSlider from '../shared/DualRangeSlider';
@@ -869,12 +869,11 @@ export default function GeneratorWizard({
                         lent" — un genre absent de cette liste précise pourrait très
                         bien l'être aussi selon le catalogue Deezer du moment. Reformulé
                         pour ne plus rien nommer explicitement.
-                        ⚠️ RACCOURCI (04/08, retour direct : "la phrase doit tenir en
-                        une seule ligne") — l'ancienne formulation faisait 147
-                        caractères, systématiquement sur 2 lignes à `text-sm` quelle
-                        que soit la largeur de la carte. Ramené à 70 caractères, même
-                        sens (vague à dessein, cf. ci-dessus), juste plus court. */}
-                    <span>Un genre moins courant peut rendre la génération un peu plus longue.</span>
+                        ⚠️ EXTRAIT dans GENRE_SEARCH_DEPTH_HINT (musicCatalog.js, 04/08)
+                        — dupliqué mot pour mot dans FavoritesView.jsx, une correction
+                        de formulation ici avait raté cette 2e copie. Voir sa docstring
+                        pour l'historique complet. */}
+                    <span>{GENRE_SEARCH_DEPTH_HINT}</span>
                   </p>
                 )}
 
