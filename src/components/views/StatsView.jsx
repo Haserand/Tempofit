@@ -792,7 +792,7 @@ export default function StatsView({
           useTheme.js (`cardBorder`/`textMuted`, voir RoutinesView.jsx/
           PlaylistsView.jsx pour le même ménage). */}
       {totalSessions === 0 ? (
-        // ⚠️ `min-h-[500px]` + centrage vertical AJOUTÉS (04/08, retour direct
+        // ⚠️ `min-h-[415px]` + centrage vertical AJOUTÉS (04/08, retour direct
         // "pur détail esthétique... que la taille vide de la partie
         // Statistiques fasse la même taille que la page 1/3 du générateur") :
         // l'en-tête ("Statistiques"/"Sculpte ta séance") est déjà IDENTIQUE
@@ -801,16 +801,23 @@ export default function StatsView({
         // différait en hauteur, celle-ci suivant son contenu (`py-16` +
         // icône + titre + texte + bouton) au lieu d'une hauteur comparable à
         // la carte du wizard (barre de progression + grille 2×2 des 4
-        // activités + pied de page, étape 1). 500px = estimation raisonnée
-        // (accolée à la structure réelle du wizard : padding de carte,
-        // barre de progression, grille de boutons, pied de page) mais PAS
-        // mesurée dans un vrai navigateur (aucun disponible dans ce bac à
-        // sable) — première valeur à ajuster si l'écart persiste après
-        // déploiement, `flex items-center justify-center` gardant le
-        // contenu centré quelle que soit la valeur finale. `py-16` gardé
-        // comme plancher si jamais min-h ne suffisait pas sur un très petit
-        // écran (texte qui s'étend sur plus de lignes qu'attendu, etc.).
-        <div className={`min-h-[500px] flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-2xl ${cardBorder}`}>
+        // activités + pied de page, étape 1). Historique des passes : 500px
+        // (estimation de départ) → 465px (-35, retour direct "trop gros,
+        // retire 35 pixels pour voir") → 415px (-50, retour direct "pour moi
+        // c'est comme si y avait aucune différence, enlève en 50" — écart
+        // 500→465 visuellement imperceptible pour l'utilisateur, donc pas de
+        // raison de repasser par des paliers aussi fins). Reste une
+        // estimation, pas mesurée dans un vrai navigateur (aucun disponible
+        // dans ce bac à sable) — prochaine valeur à ajuster si l'écart
+        // persiste après déploiement. `flex items-center justify-center`
+        // garde le contenu centré quelle que soit la valeur finale. `py-16`
+        // gardé comme plancher si jamais min-h ne suffisait pas sur un très
+        // petit écran (texte qui s'étend sur plus de lignes qu'attendu,
+        // etc.) — ⚠️ à surveiller : si `py-16` + le contenu (icône + titre +
+        // texte + bouton) dépassent déjà 415px à eux seuls, le `min-h`
+        // devient inopérant (le contenu domine) — c'est un signe si de
+        // nouvelles réductions restent sans effet visible.
+        <div className={`min-h-[415px] flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-2xl ${cardBorder}`}>
           <Activity size={48} className={`mx-auto mb-4 ${textMuted}`} />
           <h3 className="text-lg font-bold mb-2 text-white">Rien à montrer pour l'instant</h3>
           <p className={`text-sm mb-6 max-w-sm mx-auto line-clamp-1 ${textMuted}`}>
