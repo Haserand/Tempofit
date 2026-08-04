@@ -262,7 +262,7 @@ export default function GeneratorWizard({
             {/* Barre de progression du wizard (4 pastilles). `mb-6` (PAS
                 `mb-8`) — 03/08, voir la docstring de `<main>` (App.jsx)
                 pour le raisonnement complet de ce chantier en 4 parties. */}
-            <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100 dark:border-gray-800">
+            <div className="flex justify-between items-center mb-6 pb-3 border-b border-gray-100 dark:border-gray-800">
               <div className="flex space-x-2">
                 {[1, 2, 3, 4].map(s => (
                   <div key={s} className={`h-2.5 w-8 sm:w-12 rounded-full transition-colors duration-300 ${wizardStep >= s ? bgAccentClass : 'bg-gray-200 dark:bg-gray-700'}`}/>
@@ -288,7 +288,12 @@ export default function GeneratorWizard({
                 {isNaughtyMode ? <Heart className={textColorClass} size={24} /> : <Activity className={textColorClass} size={24} />}
                 <span>{isNaughtyMode ? "De quoi as-tu envie aujourd'hui ?" : "Qu'est-ce qu'on fait aujourd'hui ?"}</span>
               </label>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
+                {/* `gap-3` (PAS `gap-4`) — 03/08, 3e passe (retour direct :
+                    "il reste un chouïa"). Dernier levier sûr annoncé au
+                    tour précédent — voir la docstring de `<main>` (App.jsx)
+                    pour l'historique complet de ce chantier en plusieurs
+                    petites passes. */}
                 {(isNaughtyMode ? NAUGHTY_WORKOUT_ORDER.map(id => WORKOUT_TYPES.find(t => t.id === id)) : WORKOUT_TYPES).map(type => {
                   const Icon = isNaughtyMode ? NAUGHTY_WORKOUT_ICONS[type.id] : type.icon;
                   const isSelected = workoutType === type.id;
