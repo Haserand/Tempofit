@@ -1,4 +1,5 @@
 import { X, Music2, Clock, Activity, Download } from 'lucide-react';
+import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import { formatDuration } from '../../utils/format';
 
 /**
@@ -29,7 +30,7 @@ export default function ImportSharedPlaylistModal({ theme, isOpen, onClose, prev
             <Download className={textColorClass}/>
             <span>Playlist partagée</span>
           </h3>
-          <button onClick={onClose} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
+          <button onClick={onClose} className={`p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors ${ICON_BUTTON_ROUNDING} hover:bg-surface-hover`}><X size={20}/></button>
         </div>
         <p className={`text-sm mb-4 ${textMuted}`}>Quelqu'un t'a partagé cette séance TempoFit — tu peux l'ajouter à tes propres Séances avant de la lancer.</p>
 
