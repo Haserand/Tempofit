@@ -1,6 +1,7 @@
 import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, ListPlus, Compass, Sun, Moon } from 'lucide-react';
 import { MINI_PLAYER_BAR_HEIGHT_PX, GUEST_MODE_BAR_HEIGHT_PX } from '../../layout/bottomBarLayout';
 import { VIEW_HEADER_TOP_PADDING } from '../../layout/viewHeaderLayout';
+import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import {
   SIDEBAR_LINK_PADDING, SIDEBAR_LINK_GAP, SIDEBAR_SECTION_TITLE_MARGIN,
   SIDEBAR_SEPARATOR_MARGIN, SIDEBAR_SCROLL_PADDING, SIDEBAR_FOOTER_LINK_PADDING,
@@ -237,7 +238,7 @@ export default function Sidebar({
            <button
              onClick={toggleTheme}
              title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
-             className={`p-2 rounded-lg transition-colors ${textMuted} hover:bg-surface-hover hover:text-main`}
+             className={`p-2 ${ICON_BUTTON_ROUNDING} transition-colors ${textMuted} hover:bg-surface-hover hover:text-main`}
            >
              {theme === 'dark' ? <Sun size={20} strokeWidth={2} /> : <Moon size={20} strokeWidth={2} />}
            </button>
@@ -461,12 +462,14 @@ export default function Sidebar({
                 page (budget strict, `creditRowHeight`, voir la docstring du
                 conteneur juste au-dessus) — `py-1.5` partagé avec Réglages
                 pour que les 2 boutons s'alignent exactement à la même
-                hauteur. */}
+                hauteur. `ICON_BUTTON_ROUNDING` (PAS `rounded-xl` comme
+                Réglages juste à côté) — icône seule sans libellé, voir
+                iconButtonLayout.js pour la règle complète. */}
             {user && (
               <button
                 onClick={() => changeView('trophies')}
                 title="Trophées"
-                className={`relative shrink-0 px-2.5 py-1.5 rounded-xl transition-colors ${
+                className={`relative shrink-0 px-2.5 py-1.5 ${ICON_BUTTON_ROUNDING} transition-colors ${
                   userStats.unlockedTrophies.length > 0
                     ? 'text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
                     : `${textMuted} hover:bg-surface-hover hover:text-main`
