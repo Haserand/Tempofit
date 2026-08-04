@@ -16,6 +16,30 @@
  * `''`, ou même une valeur négative tapée à la main) passait donc intégralement
  * jusqu'au moteur de génération.
  *
+ * ⚠️ ÉLARGI (04/08, même jour, 2e retour direct — capture d'écran de
+ * RoutinesView.jsx : une routine SAUVEGARDÉE avec 0 km, créée AVANT ce
+ * correctif, se générait encore sans blocage) : le premier passage n'avait
+ * couvert que les 2 points d'ENTRÉE de la valeur (le wizard, la modale
+ * d'édition) — pas le bouton "Générer" directement posé sur une carte de
+ * routine déjà sauvegardée (`RoutinesView.jsx`), qui appelle
+ * `executeGeneration` sur les valeurs STOCKÉES sans repasser par aucun
+ * formulaire, donc sans jamais croiser la validation ajoutée. Une routine
+ * mal enregistrée (par ce bug ou tout autre moyen, ex. edited via l'API
+ * Supabase directement) restait donc généralement bloquée en boucle sans
+ * qu'aucun signal ne l'indique. Leçon : valider à la SOURCE (formulaires)
+ * ne suffit pas pour des données qui persistent et se relisent ailleurs
+ * sans repasser par ce même formulaire — il faut aussi valider au moment de
+ * CONSOMMER la donnée stockée, pas seulement au moment de l'écrire.
+ * Seuil distance resserré à `>= 0.1` (au lieu de `> 0`) au même retour
+ * ("je pense que le comportement attendu c'est que je puisse pas aller en
+ * dessous de 0,1 km") — cohérent avec le `step="0.1"` déjà affiché sur le
+ * champ, plutôt qu'un seuil théorique (0.01, 0.001...) sans réalité
+ * physique pour une séance de course/vélo. Volontairement le MÊME seuil
+ * en km ET en miles (pas de conversion selon l'unité) : 0.1 mi (~160 m) et
+ * 0.1 km (100 m) sont du même ordre de grandeur, et une distinction par
+ * unité ajouterait de la complexité sans bénéfice réel perceptible pour une
+ * séance de sport.
+ *
  * Choix délibéré : PAS de `clampNumericInput`/`syncClampedInput`
  * (numberInput.js) ici — ces helpers sont entiers uniquement (`parseInt`,
  * `.replace(/[^0-9]/g, '')`), ils casseraient la saisie décimale de la
@@ -31,10 +55,12 @@
  * source de données différente et mériterait sa propre validation séparée,
  * pas traitée dans ce chantier.
  */
+const MIN_VALID_DISTANCE = 0.1;
+
 export function isTargetValueValid({ targetMode, distanceVal, hours, minutes }) {
   if (targetMode === 'distance') {
     const val = parseFloat(distanceVal);
-    return Number.isFinite(val) && val > 0;
+    return Number.isFinite(val) && val >= MIN_VALID_DISTANCE;
   }
   // targetMode === 'time'
   const h = parseInt(hours, 10) || 0;
