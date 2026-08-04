@@ -290,6 +290,49 @@ d'écrire le stub — un aller-retour de plus à la lecture du code, mais qui
 évite un aller-retour de build Vercel complet (60+ secondes) pour une
 faute qui se serait vue en 10 secondes de `grep`.
 
+## 4quinquies. `ProfileView.jsx` — tout changement doit être vérifié CONTRE la vitrine (`@tempofit_officiel`), pas seulement contre un vrai profil
+
+Trouvé/formalisé le 03/08 (chantier "onglets Playlists/Routines" — retour
+direct de l'utilisateur : "tu modifies pas la page du compte test vitrine
+officiel ?"). `ProfileView.jsx` est le MÊME composant pour un vrai profil
+Supabase et pour la vitrine `@tempofit_officiel` — seule la SOURCE des
+données change (Supabase pour un vrai profil, `officialVitrineProfile.js`
+pour la vitrine, entièrement fabriqué à la main, aucune vraie ligne). Un
+changement de rendu/interaction s'applique donc automatiquement aux deux —
+mais "s'applique automatiquement au rendu" ne veut PAS dire "vérifié
+automatiquement" : les données de la vitrine sont fabriquées à part,
+peuvent silencieusement diverger de la forme réelle d'une ligne Supabase
+(voir le point 8 du chantier 02/08, README.md — `officialVitrineProfile.js`
+était resté désynchronisé de `content.tracks`/`description`/`clone_count`
+pendant plusieurs chantiers avant d'être remarqué).
+
+**Règle, 3 points concrets à vérifier à CHAQUE changement dans
+`ProfileView.jsx`** (ou dans un hook qu'il utilise, ex.
+`useProfileSearchFilter.js`) :
+
+1. **Impact sur les tests** — si le changement touche le rendu/l'interaction
+   (nouvel onglet, nouvelle section, nouveau filtre...), le describe
+   "profil vitrine officiel" de `ProfileView.test.jsx` doit avoir AU MOINS
+   un test qui exerce ce changement, pas seulement les describes "vrai
+   profil". Un composant partagé avec 0 test vitrine sur un nouveau
+   comportement est un trou de couverture, même si le composant "devrait"
+   marcher pareil pour les deux — l'exemple du 02/08 ci-dessus montre que
+   "devrait" n'est pas une garantie en pratique.
+2. Tout nouveau champ `content` consommé par la grille publique (recherche,
+   filtres, badges, affichage de carte) doit avoir son équivalent dans
+   `officialVitrineProfile.js` (`buildOfficialVitrineProfile()` pour les
+   playlists, `buildOfficialVitrineRoutineRows()` pour les routines) —
+   règle déjà actée au README (chantier 02/08, point 8), reformulée ici
+   pour être RELUE en tout premier, pas seulement documentée après coup.
+3. Toute nouvelle colonne RÉELLE (hors `content` — `clone_count`,
+   `parent_user_id`, `is_public`...) lue directement sur une ligne doit
+   être vérifiée contre les lignes fabriquées de la vitrine : soit présente
+   avec une valeur plausible, soit absente DÉLIBÉRÉMENT (ex. `parent_user_id`
+   n'a pas de sens pour une playlist vitrine qui n'a jamais été clonée
+   depuis un vrai compte — absence correcte, pas un oubli). Le distinguo
+   se fait en le disant explicitement dans la réponse à l'utilisateur, pas
+   en laissant le silence trancher.
+
 ## 5. Ce que ces outils NE remplacent PAS
 
 Aucun de ces scripts n'exécute réellement `vitest` — une affirmation
