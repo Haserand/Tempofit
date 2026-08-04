@@ -1,4 +1,5 @@
 import { X, Share2, MessageCircle, ExternalLink, Copy, Loader2, Download } from 'lucide-react';
+import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 
 /**
  * ShareModal — partage d'une playlist/routine (lien copié, réseaux sociaux,
@@ -72,7 +73,7 @@ export default function ShareModal({
             <Share2 className={textColorClass}/>
             <span>Partager</span>
           </h3>
-          <button onClick={() => onClose()} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20}/></button>
+          <button onClick={() => onClose()} className={`p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors ${ICON_BUTTON_ROUNDING} hover:bg-surface-hover`}><X size={20}/></button>
         </div>
         <div className={`p-4 rounded-xl mb-4 text-sm ${inputBg} border ${inputBorder} ${textHighlight}`}>
           {shareData.text}
@@ -94,7 +95,7 @@ export default function ShareModal({
             <button
               onClick={() => setIncludeSummaryImage(false)}
               title="Retirer le bilan visuel"
-              className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center shadow-md hover:bg-red-500 transition-colors"
+              className={`absolute -top-2 -right-2 w-6 h-6 ${ICON_BUTTON_ROUNDING} bg-gray-900 text-white flex items-center justify-center shadow-md hover:bg-red-500 transition-colors`}
             >
               <X size={14}/>
             </button>
