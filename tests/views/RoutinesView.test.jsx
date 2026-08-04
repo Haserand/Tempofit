@@ -33,9 +33,19 @@ const mockTheme = {
   inputBorder: 'mock-input-border',
 };
 
-const routineA = { id: 'a', name: 'Routine A', manualGenerations: 2, workoutType: 'Course à pied' };
-const routineB = { id: 'b', name: 'Routine B', manualGenerations: 5, workoutType: 'Cyclisme' };
-const routineC = { id: 'c', name: 'Routine C', manualGenerations: 0, workoutType: 'Yoga' };
+// `targetMode`/`distanceVal`/`hours`/`minutes` ajoutés (04/08, avec la
+// validation de cible — voir targetValidation.js) : une VRAIE routine en a
+// TOUJOURS (handleSaveRoutine, useRoutineActions.js, les positionne
+// systématiquement depuis useGeneratorContext()) — ces fixtures étaient
+// jusque-là incomplètes par rapport à la vraie forme de l'objet, ce qui
+// n'avait jamais posé de problème tant que rien ne lisait ces champs. Avec
+// la validation, les laisser `undefined` ferait échouer isTargetValueValid
+// silencieusement (targetMode absent → branche "temps" par défaut → 0+0 →
+// invalide) et désactiverait "Générer" pour ces 3 routines par accident —
+// pas le comportement réel d'une routine sauvegardée normalement.
+const routineA = { id: 'a', name: 'Routine A', manualGenerations: 2, workoutType: 'Course à pied', targetMode: 'distance', distanceVal: 5, distanceUnit: 'km' };
+const routineB = { id: 'b', name: 'Routine B', manualGenerations: 5, workoutType: 'Cyclisme', targetMode: 'distance', distanceVal: 20, distanceUnit: 'km' };
+const routineC = { id: 'c', name: 'Routine C', manualGenerations: 0, workoutType: 'Yoga', targetMode: 'time', hours: 0, minutes: 45 };
 
 function baseProps(overrides = {}) {
   return {
@@ -185,6 +195,41 @@ describe('RoutinesView', () => {
       3,
       'b'
     );
+  });
+
+  // 04/08, 2e retour direct (capture d'écran) : "je viens de réussir à
+  // générer une routine à 0km" — une routine SAUVEGARDÉE avec une cible
+  // invalide (créée avant le 1er correctif de ce chantier, ou par tout
+  // autre moyen) se générait encore sans blocage : ce bouton consomme
+  // directement les valeurs stockées, sans jamais repasser par les
+  // formulaires déjà validés (wizard, EditRoutineModal). Voir
+  // targetValidation.js ("ÉLARGI") pour le raisonnement complet.
+  it('BUG CORRIGÉ : le bouton "Générer" est désactivé pour une routine sauvegardée avec distanceVal=0', () => {
+    const executeGeneration = vi.fn();
+    const badRoutine = { ...routineA, distanceVal: 0 };
+    render(<RoutinesView {...baseProps({ routines: [badRoutine], executeGeneration })} />);
+
+    fireEvent.click(screen.getByText('Générer'));
+
+    expect(executeGeneration).not.toHaveBeenCalled();
+    expect(screen.getByText('Générer').closest('button')).toBeDisabled();
+  });
+
+  it('affiche un avertissement visible sur la carte d\'une routine à cible invalide', () => {
+    const badRoutine = { ...routineA, distanceVal: 0 };
+    render(<RoutinesView {...baseProps({ routines: [badRoutine] })} />);
+    expect(screen.getByText(/Distance invalide/)).toBeInTheDocument();
+  });
+
+  it('le mode Fractionné (isIntervalMode) reste hors scope — pas de blocage même à distanceVal=0', () => {
+    const executeGeneration = vi.fn();
+    const intervalRoutine = { ...routineA, distanceVal: 0, isIntervalMode: true };
+    render(<RoutinesView {...baseProps({ routines: [intervalRoutine], executeGeneration })} />);
+
+    fireEvent.click(screen.getByText('Générer'));
+
+    expect(executeGeneration).toHaveBeenCalled();
+    expect(screen.queryByText(/Distance invalide/)).toBeNull();
   });
 
   it('les boutons "Générer" sont désactivés quand isGenerating=true', () => {
