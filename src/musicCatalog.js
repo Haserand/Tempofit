@@ -200,6 +200,28 @@ const WEAK_DEEZER_KEYWORD_GENRES = ['K-pop', 'Musique asiatique', 'Bandes origin
 const GENRES_NEEDING_DEEP_CATALOG_SEARCH = [...WEAK_DEEZER_KEYWORD_GENRES, 'Métal'];
 
 /**
+ * Texte d'info affiché sur le panneau "+ Plus de genres", à la fois dans
+ * GeneratorWizard.jsx (étape 4) et FavoritesView.jsx (recherche par genre) —
+ * ⚠️ EXTRAIT ICI (04/08, retour direct : "cette phrase se trouve aussi dans
+ * l'onglet favoris, tu as pensé à la modifier ?") suite à une correction
+ * ("la phrase doit tenir en une seule ligne") appliquée dans le wizard SANS
+ * vérifier qu'une copie existait ailleurs — les deux fichiers documentaient
+ * déjà cette duplication comme volontaire ("même reformulation que
+ * GeneratorView.jsx") mais rien ne la synchronisait mécaniquement, juste la
+ * discipline de repasser dans les deux fichiers à chaque changement. Une
+ * SEULE constante, importée aux deux endroits, rend une resynchronisation
+ * manuelle future structurellement impossible à oublier — voir §4sexies de
+ * CLAUDE-SANDBOX-VERIFICATION.md pour le grep de vérification qui a trouvé
+ * cette duplication, gardé comme filet pour tout AUTRE texte dupliqué qui ne
+ * vivrait pas encore dans un fichier partagé comme celui-ci.
+ * Reste volontairement vague (pas de liste de genres nommée) — même
+ * raisonnement que `WEAK_DEEZER_KEYWORD_GENRES` juste au-dessus : ce n'est
+ * qu'une liste de convenance interne, pas une promesse de couverture
+ * exhaustive de "tout ce qui peut être lent".
+ */
+const GENRE_SEARCH_DEPTH_HINT = 'Un genre moins courant peut rendre la génération un peu plus longue.';
+
+/**
  * Avertissement sur la profondeur du CATALOGUE D'ARTISTES pour un genre donné —
  * affiché en infobulle sur les sélecteurs de genre. Porte sur le nombre
  * d'artistes représentatifs listés, pas sur le nombre de titres (qui dépend
@@ -642,6 +664,7 @@ export {
   DEEZER_GENRE_KEYWORDS,
   WEAK_DEEZER_KEYWORD_GENRES,
   GENRES_NEEDING_DEEP_CATALOG_SEARCH,
+  GENRE_SEARCH_DEPTH_HINT,
   getGenreLocalDepthWarning,
   GENRE_EQUIVALENCE_GROUPS,
   isDirectGenreMatch,
