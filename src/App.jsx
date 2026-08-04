@@ -1563,7 +1563,22 @@ function AppContent({
               `viewHeaderLayout.js` (`VIEW_HEADER_TOP_PADDING`), partagée
               avec le côté haut du bloc logo de la Sidebar — un futur
               ajustement se fait à un seul endroit, plus jamais aux 2. */}
-          <main id="main-scroll-area" className={`relative flex-1 overflow-y-auto ${VIEW_HEADER_TOP_PADDING} px-4 sm:px-8 pb-4 sm:pb-8 no-scrollbar`}>
+          {/* `sm:pb-6` (PAS `sm:pb-8`) — 03/08, retour direct, capture d'écran :
+              "c'est la même page au même moment, que je peux continuer à
+              scroll" — la refonte `min-h-[450px]` (GeneratorWizard.jsx)
+              réglait l'espace mort À L'INTÉRIEUR de la carte, mais pas ce
+              padding de bas de page, une source DIFFÉRENTE des quelques
+              pixels de trop. Réduit ici avec les 3 autres petites marges
+              identifiées à cette occasion (GeneratorView.jsx `space-y-8`→
+              `space-y-6`, GeneratorWizard.jsx barre de progression `mb-8`→
+              `mb-6` et pied de page `pt-8`→`pt-6`) plutôt qu'un seul gros
+              changement au même endroit — chacune contribue modestement
+              (8px), le cumul devrait couvrir "quelques pixels" sans rendre
+              une seule zone visuellement resserrée à elle seule. Best-effort
+              documenté : sans navigateur réel dans cet environnement, la
+              valeur exacte qui suffit ne peut être confirmée qu'en
+              conditions réelles (voir CLAUDE-SANDBOX-VERIFICATION.md). */}
+          <main id="main-scroll-area" className={`relative flex-1 overflow-y-auto ${VIEW_HEADER_TOP_PADDING} px-4 sm:px-8 pb-4 sm:pb-6 no-scrollbar`}>
 
             {/* Bloc connexion — Polish UX (28/07, "icône standard haut-
                 droite") : remplace le bouton pilule "Se connecter" (texte +
