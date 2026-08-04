@@ -221,15 +221,46 @@ describe('RoutinesView', () => {
     expect(screen.getByText(/Distance invalide/)).toBeInTheDocument();
   });
 
-  it('le mode Fractionné (isIntervalMode) reste hors scope — pas de blocage même à distanceVal=0', () => {
+  // 04/08, 3e retour direct sur ce même chantier : "ce comportement minimal
+  // est-il celui généralisé dans toute l'app ? il le faudrait" — le mode
+  // Fractionné n'est PLUS exclu (contrairement à la 1re passe) : ses
+  // segments sont désormais validés eux aussi (isSegmentValid/
+  // areSegmentsValid, targetValidation.js).
+  it('BUG CORRIGÉ (généralisation) : une routine Fractionné avec un segment à bpm=0 est bloquée', () => {
     const executeGeneration = vi.fn();
-    const intervalRoutine = { ...routineA, distanceVal: 0, isIntervalMode: true };
+    const intervalRoutine = {
+      ...routineA, isIntervalMode: true, targetMode: 'distance',
+      segments: [{ id: 's1', bpm: 0, durationValue: 5 }],
+    };
+    render(<RoutinesView {...baseProps({ routines: [intervalRoutine], executeGeneration })} />);
+
+    fireEvent.click(screen.getByText('Générer'));
+
+    expect(executeGeneration).not.toHaveBeenCalled();
+    expect(screen.getByText(/Portion\(s\) invalide\(s\)/)).toBeInTheDocument();
+  });
+
+  it('le message d\'une routine Fractionné invalide ne renvoie PAS vers l\'icône crayon (EditRoutineModal.jsx n\'édite pas les segments)', () => {
+    const intervalRoutine = {
+      ...routineA, isIntervalMode: true, targetMode: 'distance',
+      segments: [{ id: 's1', bpm: 150, durationValue: 0 }],
+    };
+    render(<RoutinesView {...baseProps({ routines: [intervalRoutine] })} />);
+    expect(screen.getByText(/Nouvelle séance/)).toBeInTheDocument();
+  });
+
+  it('une routine Fractionné dont TOUS les segments sont valides génère normalement', () => {
+    const executeGeneration = vi.fn();
+    const intervalRoutine = {
+      ...routineA, isIntervalMode: true, targetMode: 'time',
+      segments: [{ id: 's1', bpm: 150, durationValue: 5 }, { id: 's2', bpm: 160, durationValue: 3 }],
+    };
     render(<RoutinesView {...baseProps({ routines: [intervalRoutine], executeGeneration })} />);
 
     fireEvent.click(screen.getByText('Générer'));
 
     expect(executeGeneration).toHaveBeenCalled();
-    expect(screen.queryByText(/Distance invalide/)).toBeNull();
+    expect(screen.queryByText(/Portion\(s\) invalide\(s\)/)).toBeNull();
   });
 
   it('les boutons "Générer" sont désactivés quand isGenerating=true', () => {
