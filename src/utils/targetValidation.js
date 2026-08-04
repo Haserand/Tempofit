@@ -67,3 +67,30 @@ export function isTargetValueValid({ targetMode, distanceVal, hours, minutes }) 
   const m = parseInt(minutes, 10) || 0;
   return (h * 60 + m) > 0;
 }
+
+/**
+ * snapDistanceOnBlur — à utiliser dans l'`onBlur` du champ distance (PAS
+ * `onChange`, voir la docstring de isTargetValueValid ci-dessus pour
+ * pourquoi rien ne doit être corrigé pendant la frappe elle-même).
+ *
+ * BUG CORRIGÉ (04/08, 3e retour direct sur ce même chantier, capture
+ * annotée — "je pensais qu'on avait dit qu'on ne pouvait pas sélectionner
+ * moins que 0,1 ?") : le blocage à l'ACTION (bouton désactivé + message)
+ * fonctionnait déjà, mais le CHAMP restait affiché à 0 indéfiniment tant
+ * que l'utilisateur ne le corrigeait pas lui-même à la main — aucun signal
+ * actif ne le ramenait vers une valeur valide une fois la saisie terminée.
+ * `onBlur` (perte de focus, donc "j'ai fini d'éditer ce champ pour
+ * l'instant") est le moment sûr pour corriger : ça ne peut jamais
+ * interrompre une frappe en cours (contrairement à `onChange`, qui aurait
+ * pu, par exemple, remonter "0" à "0.1" AVANT que l'utilisateur ait eu la
+ * chance de taper le "." et le "5" de "0.5").
+ *
+ * Renvoie la valeur INCHANGÉE si déjà valide (`>= MIN_VALID_DISTANCE`) —
+ * ne fait rien dans le cas courant, uniquement un filet pour le cas
+ * invalide (0, vide, négatif, texte).
+ */
+export function snapDistanceOnBlur(distanceVal) {
+  const val = parseFloat(distanceVal);
+  if (Number.isFinite(val) && val >= MIN_VALID_DISTANCE) return distanceVal;
+  return String(MIN_VALID_DISTANCE);
+}
