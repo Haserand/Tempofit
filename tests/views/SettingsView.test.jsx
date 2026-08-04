@@ -122,6 +122,20 @@ describe('SettingsView — onglets', () => {
     expect(screen.getByText('Comptes connectés')).toBeInTheDocument();
     expect(screen.queryByText('Mon Compte')).not.toBeInTheDocument();
   });
+
+  // `initialTab` (03/08, retour direct : "cliquer sur mon compte devrait
+  // ouvrir mes réglages dans la partie mon compte") — 2e point d'entrée
+  // vers cette vue, voir sa docstring dans le composant source.
+  it('initialTab="account" ouvre directement sur "Mon Compte", sans avoir à cliquer l\'onglet', () => {
+    render(<SettingsView {...baseProps({ user: loggedInUser, initialTab: 'account' })} />);
+    expect(screen.getByText('Informations & Sécurité')).toBeInTheDocument();
+  });
+
+  it('initialTab absent (undefined/null) préserve le comportement par défaut inchangé — "Profil Athlétique" en mode normal', () => {
+    render(<SettingsView {...baseProps({ user: loggedInUser })} />);
+    expect(screen.getByTestId('athletic-profile-panel-mock')).toBeInTheDocument();
+    expect(screen.queryByText('Informations & Sécurité')).not.toBeInTheDocument();
+  });
 });
 
 describe('SettingsView — onglet Services Musicaux (Spotify)', () => {
