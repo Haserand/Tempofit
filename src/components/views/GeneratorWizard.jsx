@@ -256,8 +256,20 @@ export default function GeneratorWizard({
               (vérifié : les seuls `absolute` du fichier sont positionnés
               relativement à leur propre parent local — badge/toggle sur
               une carte d'activité, tooltip sur le bouton "Créer routine" —
-              jamais par rapport à CETTE carte englobante). */}
-          <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl relative overflow-hidden flex flex-col ${isGenerating ? 'opacity-60 pointer-events-none select-none' : ''}`}>
+              jamais par rapport à CETTE carte englobante).
+              `p-5 md:p-6` (PAS `p-6 md:p-8`) — 03/08, 4e passe (retour
+              direct : "je vois bien tout, mais je peux encore scroll, je
+              veux retirer cette possibilité") — le plus gros levier resté
+              intact jusqu'ici : ce padding s'applique en HAUT et en BAS de
+              LA CARTE ENTIÈRE, contrairement aux espacements internes déjà
+              réduits aux passes précédentes (barre de progression, étape 1,
+              pied de page) — sur desktop (`md:`), le passage de 32px à
+              24px de chaque côté retire à lui seul 16px de hauteur totale,
+              plus que n'importe laquelle des réductions précédentes prise
+              isolément. Toujours pas de `min-h`/hauteur fixe réintroduite
+              (voir plus haut) — cette valeur est un simple padding, pas une
+              contrainte de taille. */}
+          <div className={`${cardBg} rounded-3xl p-5 md:p-6 border ${cardBorder} shadow-xl relative overflow-hidden flex flex-col ${isGenerating ? 'opacity-60 pointer-events-none select-none' : ''}`}>
 
             {/* Barre de progression du wizard (4 pastilles). `mb-6` (PAS
                 `mb-8`) — 03/08, voir la docstring de `<main>` (App.jsx)
