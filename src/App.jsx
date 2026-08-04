@@ -4,6 +4,7 @@ import { genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getRankStyle } from './appConfig';
 import { VIEW_HEADER_TOP_PADDING } from './layout/viewHeaderLayout';
 import { ICON_BUTTON_ROUNDING } from './layout/iconButtonLayout';
+import { MINI_PLAYER_BAR_HEIGHT_PX, GUEST_MODE_BAR_HEIGHT_PX } from './layout/bottomBarLayout';
 import { supabase } from './supabaseClient';
 
 // =====================================================================================
@@ -1767,6 +1768,7 @@ function AppContent({
                 setResultsContextLabel={setResultsContextLabel} setNoUsableResultsHint={setNoUsableResultsHint}
                 searchTracksByBpm={searchTracksByBpm}
                 executeGeneration={executeGeneration} isGenerating={isGenerating}
+                isGuestBarVisible={isGuestBarVisible}
               />
             )}
 
