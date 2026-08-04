@@ -69,18 +69,25 @@ describe('GuestModeBar', () => {
 
 // Fermeture SESSION-ONLY (03/08, retour direct : "option pour supprimer/
 // fermer la guest mode bar" — voir la docstring complète du composant
-// source pour le raisonnement produit derrière ce choix). `dismissed`/
-// `confirmingDismiss` sont de simples `useState` locaux — pas de
-// persistance à mocker ici, un nouveau `render()` (= un nouveau montage,
-// comme un vrai rechargement de page) suffit à observer le repli à zéro.
+// source pour le raisonnement produit derrière ce choix).
+// ⚠️ REMONTÉ (04/08) : la décision finale "masqué ou non" (`isVisible`)
+// vient maintenant du PARENT (App.jsx, `isGuestBarDismissed`) — ce composant
+// ne fait plus que l'appeler via `onDismiss()`. Donc ici on ne peut plus
+// observer "la barre disparaît toute seule après clic" (ce serait tester le
+// comportement du parent, absent de ce fichier) : on observe que
+// `onDismiss` est bien appelé, puis on SIMULE la réaction du parent via
+// `rerender(... isVisible={false})` — exactement ce qu'App.jsx ferait en
+// vrai. Seul `confirmingDismiss` (l'affichage intermédiaire) reste un état
+// interne à ce composant, testable sans mock.
 describe('GuestModeBar — fermeture session-only avec confirmation', () => {
   it('affiche un bouton pour masquer le rappel, à côté de "Se connecter"', () => {
     render(<GuestModeBar theme={mockTheme} isVisible={true} openModal={() => {}} />);
     expect(screen.getByTitle('Masquer ce rappel pour cette visite')).toBeInTheDocument();
   });
 
-  it('cliquer le bouton de fermeture affiche une confirmation AVANT de masquer quoi que ce soit', () => {
-    render(<GuestModeBar theme={mockTheme} isVisible={true} openModal={() => {}} />);
+  it('cliquer le bouton de fermeture affiche une confirmation AVANT d\'appeler onDismiss', () => {
+    const onDismiss = vi.fn();
+    render(<GuestModeBar theme={mockTheme} isVisible={true} openModal={() => {}} onDismiss={onDismiss} />);
 
     fireEvent.click(screen.getByTitle('Masquer ce rappel pour cette visite'));
 
@@ -90,35 +97,57 @@ describe('GuestModeBar — fermeture session-only avec confirmation', () => {
     expect(screen.getByText(/resteront sauvegardées uniquement sur cet appareil/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Masquer quand même' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Annuler' })).toBeInTheDocument();
+    // Le simple affichage de la confirmation n'appelle PAS encore onDismiss.
+    expect(onDismiss).not.toHaveBeenCalled();
   });
 
-  it('"Annuler" revient à l\'affichage normal, la barre reste visible', () => {
-    render(<GuestModeBar theme={mockTheme} isVisible={true} openModal={() => {}} />);
+  it('"Annuler" revient à l\'affichage normal, la barre reste visible, onDismiss jamais appelé', () => {
+    const onDismiss = vi.fn();
+    render(<GuestModeBar theme={mockTheme} isVisible={true} openModal={() => {}} onDismiss={onDismiss} />);
     fireEvent.click(screen.getByTitle('Masquer ce rappel pour cette visite'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
 
     expect(screen.getByText('Données sauvegardées uniquement sur cet appareil.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Se connecter/ })).toBeInTheDocument();
+    expect(onDismiss).not.toHaveBeenCalled();
   });
 
-  it('"Masquer quand même" fait disparaître la barre entièrement (composant rend null)', () => {
-    const { container } = render(<GuestModeBar theme={mockTheme} isVisible={true} openModal={() => {}} />);
+  it('"Masquer quand même" appelle onDismiss() exactement 1 fois (la décision remonte au parent)', () => {
+    const onDismiss = vi.fn();
+    render(<GuestModeBar theme={mockTheme} isVisible={true} openModal={() => {}} onDismiss={onDismiss} />);
     fireEvent.click(screen.getByTitle('Masquer ce rappel pour cette visite'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Masquer quand même' }));
 
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it('quand le parent réagit à onDismiss en passant isVisible=false, la barre disparaît (composant rend null)', () => {
+    const { container, rerender } = render(
+      <GuestModeBar theme={mockTheme} isVisible={true} openModal={() => {}} />
+    );
+    fireEvent.click(screen.getByTitle('Masquer ce rappel pour cette visite'));
+    fireEvent.click(screen.getByRole('button', { name: 'Masquer quand même' }));
+
+    // Simule App.jsx : setIsGuestBarDismissed(true) → isGuestBarVisible passe
+    // à false → la nouvelle valeur de `isVisible` redescend en prop ici.
+    rerender(<GuestModeBar theme={mockTheme} isVisible={false} openModal={() => {}} />);
+
     expect(container).toBeEmptyDOMElement();
   });
 
-  // Le coeur du choix "session-only" (docstring source) : un nouveau
-  // montage (= l'équivalent d'un rechargement de page réel) ne doit
-  // JAMAIS se souvenir d'une fermeture précédente — aucune persistance.
-  it('un nouveau montage du composant réaffiche la barre normalement (rien ne persiste)', () => {
-    const { container, unmount } = render(<GuestModeBar theme={mockTheme} isVisible={true} openModal={() => {}} />);
+  // Le coeur du choix "session-only" (docstring source, `isGuestBarDismissed`
+  // dans App.jsx) : un nouveau montage avec isVisible=true à nouveau (=
+  // l'équivalent d'un vrai rechargement de page, où App.jsx repart avec
+  // `isGuestBarDismissed` réinitialisé à `false`) ne doit JAMAIS se
+  // souvenir d'une fermeture précédente.
+  it('un nouveau montage avec isVisible=true réaffiche la barre normalement (rien ne persiste dans le composant)', () => {
+    const { container, unmount } = render(
+      <GuestModeBar theme={mockTheme} isVisible={true} openModal={() => {}} />
+    );
     fireEvent.click(screen.getByTitle('Masquer ce rappel pour cette visite'));
     fireEvent.click(screen.getByRole('button', { name: 'Masquer quand même' }));
-    expect(container).toBeEmptyDOMElement();
     unmount();
 
     render(<GuestModeBar theme={mockTheme} isVisible={true} openModal={() => {}} />);
