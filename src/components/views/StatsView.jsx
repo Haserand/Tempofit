@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Activity, Upload, ChevronUp, ChevronDown, ChevronRight, Gauge, Share2, Loader2, Copy } from 'lucide-react';
+import { Activity, Upload, ChevronUp, ChevronDown, ChevronRight, Gauge, Share2, Loader2, Copy, Eye } from 'lucide-react';
 import { ATHLETIC_ZONES, getZoneForValue, DISTRIBUTION_COLORS, getBpmBucketColor, getBpmBucketLabel } from '../../appConfig';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import { NAUGHTY_WORKOUT_LABELS } from '../../appConfig';
@@ -36,7 +36,7 @@ export default function StatsView({
   showAdvancedStats, setShowAdvancedStats,
   expandedDetailGenre, setExpandedDetailGenre,
   expandedDetailArtist, setExpandedDetailArtist,
-  user,
+  user, username, profilePrivacy, onViewOwnProfile, onManageProfilePrivacy,
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
 
@@ -829,6 +829,62 @@ export default function StatsView({
                   Aller à Mes Séances →
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Vue publique du profil (03/08, retour direct : "la page
+              statistiques devrait permettre d'accéder à une vue publique
+              de notre profil, avec un message incitant à gérer ses
+              options de visibilité si rien n'est activé") — MÊME pattern
+              que "Compare tes séances au réel" juste au-dessus (encart à
+              2 états plutôt qu'un nouvel onglet, écarté en discussion :
+              "voir mon profil public" est une action de NAVIGATION vers
+              ProfileView.jsx, pas du contenu propre à afficher ici).
+              Réutilise le mécanisme déjà câblé pour Réglages > Mon Compte
+              (`onViewOwnProfile`, gaté sur `isProfilePublic` — voir
+              SettingsView.jsx, section "Confidentialité & Profil Public",
+              pour le raisonnement complet sur ce gate) plutôt que d'en
+              recréer un ici : ce bloc ne fait QUE rediriger, jamais de
+              formulaire de toggles dupliqué.
+              Gaté sur `user && username` — un profil public n'a aucun
+              sens tant qu'il n'y a pas de pseudonyme à exposer dans l'URL
+              (même garde que le bloc Confidentialité de SettingsView.jsx).
+              Gaté aussi sur `statsMode !== 'naughty'` — jamais affiché en
+              Mode Intime : cohérent avec le reste de l'app (fermé par
+              défaut, aucune incitation à l'exposition depuis un écran de
+              stats précisément dédié au contenu intime), même si
+              techniquement `is_profile_public` n'expose pas à lui seul les
+              stats Intime (`show_intimate_stats` est un toggle séparé) —
+              le mauvais endroit pour ce rappel, pas le bon message au bon
+              moment. */}
+          {user && username && statsMode !== 'naughty' && (
+            <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder} flex items-start gap-4`}>
+              <div className={`shrink-0 p-2.5 rounded-xl ${bgAccentClass} text-white`}><Eye size={20}/></div>
+              {profilePrivacy?.isProfilePublic ? (
+                <div>
+                  <h3 className={`font-bold mb-1 ${textHighlight}`}>Vue publique de ton profil</h3>
+                  <p className={`text-sm ${textMuted}`}>
+                    Ton profil est visible publiquement. Regarde exactement ce qu'un visiteur externe y voit — playlists/routines partagées, et tes statistiques si tu as choisi de les afficher.
+                  </p>
+                  {onViewOwnProfile && (
+                    <button onClick={onViewOwnProfile} className={`mt-3 text-sm font-bold underline ${textColorClass}`}>
+                      Voir l'aperçu de mon profil public →
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <h3 className={`font-bold mb-1 ${textHighlight}`}>Ton profil n'est pas encore public</h3>
+                  <p className={`text-sm ${textMuted}`}>
+                    Pour l'instant, personne ne peut voir ton profil, tes séances partagées ou tes statistiques. Tu peux choisir ce que tu rends visible depuis Réglages, quand tu veux.
+                  </p>
+                  {onManageProfilePrivacy && (
+                    <button onClick={onManageProfilePrivacy} className={`mt-3 text-sm font-bold underline ${textColorClass}`}>
+                      Gérer ma visibilité →
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
