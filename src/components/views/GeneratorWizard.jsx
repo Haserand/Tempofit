@@ -45,6 +45,7 @@ export default function GeneratorWizard({
   setResultsContextLabel, setNoUsableResultsHint, searchTracksByBpm,
   executeGeneration, isGenerating,
   toggleNaughtyMode, changeView,
+  isGuestBarVisible,
 }) {
   const { openModal } = useModalContext();
   const {
@@ -268,8 +269,29 @@ export default function GeneratorWizard({
               plus que n'importe laquelle des réductions précédentes prise
               isolément. Toujours pas de `min-h`/hauteur fixe réintroduite
               (voir plus haut) — cette valeur est un simple padding, pas une
-              contrainte de taille. */}
-          <div className={`${cardBg} rounded-3xl p-5 md:p-6 border ${cardBorder} shadow-xl relative overflow-hidden flex flex-col ${isGenerating ? 'opacity-60 pointer-events-none select-none' : ''}`}>
+              contrainte de taille.
+              `isGuestBarVisible && '-mb-10'` (03/08, 5e passe — retour
+              direct : "pourquoi ça ne s'adapte pas à la vue guest ?") —
+              App.jsx réserve un espaceur de 40px (`h-10`, tout en bas du
+              contenu défilant de `<main>`) tant que la barre "Mode invité"
+              est visible, pour qu'elle ne recouvre jamais le bouton
+              "Suivant" en étant `fixed bottom-0`. Ce spacer s'ADDITIONNE à
+              la hauteur déjà réglée au pixel près pour le cas SANS barre
+              visible (captures d'écran confirmées "parfait") — sans
+              compensation, le scroll réapparaît dès qu'un invité a déjà au
+              moins une séance sauvegardée. `-mb-10` = exactement -40px,
+              la MÊME valeur que le spacer qu'il compense (`h-10` aussi) —
+              pas une estimation séparée. Risque assumé, discuté avec
+              l'utilisateur : la valeur "parfaite" du cas sans barre n'a pas
+              pu être mesurée en dessous du pixel dans cet environnement
+              (aucun navigateur réel) — si une marge résiduelle existait
+              déjà à ce moment-là, cette compensation pourrait resserrer LÉGÈREMENT
+              plus que nécessaire dans ce cas précis (invité avec barre
+              visible) ; à vérifier en conditions réelles, et à retirer si
+              le gain ne s'avère pas net. UNIQUEMENT ce composant — ni
+              `<main>` ni le spacer lui-même ne changent, aucune autre vue
+              n'est affectée par ce chantier. */}
+          <div className={`${cardBg} rounded-3xl p-5 md:p-6 border ${cardBorder} shadow-xl relative overflow-hidden flex flex-col ${isGuestBarVisible ? '-mb-10' : ''} ${isGenerating ? 'opacity-60 pointer-events-none select-none' : ''}`}>
 
             {/* Barre de progression du wizard (4 pastilles). `mb-6` (PAS
                 `mb-8`) — 03/08, voir la docstring de `<main>` (App.jsx)
