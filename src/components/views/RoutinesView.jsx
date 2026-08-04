@@ -4,7 +4,7 @@ import { useModalContext } from '../../contexts/ModalContext';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 import { MAX_DESCRIPTION_LENGTH } from '../../appConfig';
-import { isTargetValueValid } from '../../utils/targetValidation';
+import { isTargetValueValid, areSegmentsValid } from '../../utils/targetValidation';
 
 /**
  * RoutinesView — vue "Mes Routines" (configurations sauvegardées, relançables en un clic).
@@ -136,14 +136,23 @@ export default function RoutinesView({
           // 1er passage n'avait couvert que les formulaires d'ENTRÉE
           // (wizard, EditRoutineModal), pas le bouton "Générer" de cette
           // carte, qui consomme directement les valeurs déjà STOCKÉES sur
-          // `routine`. `!routine.isIntervalMode` : même exclusion que
-          // GeneratorWizard.jsx/EditRoutineModal.jsx — le mode Fractionné
-          // utilise des durées PAR SEGMENT (`routine.segments[].durationValue`),
-          // hors scope. Calculé UNE FOIS par carte ici, réutilisé plus bas
+          // `routine`. Calculé UNE FOIS par carte ici, réutilisé plus bas
           // dans l'avertissement ET le bouton plutôt que recalculé 2 fois.
-          const routineTargetInvalid = !routine.isIntervalMode && !isTargetValueValid({
-            targetMode: routine.targetMode, distanceVal: routine.distanceVal, hours: routine.hours, minutes: routine.minutes,
-          });
+          // ⚠️ ÉLARGI (même jour, 3e retour direct — "ce comportement
+          // minimal est-il celui généralisé dans toute l'app ? il le
+          // faudrait") : le mode Fractionné (`routine.isIntervalMode`)
+          // était jusque-là exclu de la validation, sous prétexte qu'il
+          // utilise des durées PAR SEGMENT (`routine.segments[]`) plutôt
+          // que la cible globale — mais ces segments souffraient
+          // EXACTEMENT du même défaut (`isSegmentValid`, targetValidation.js,
+          // trouvé en généralisant ce correctif dans GeneratorWizard.jsx).
+          // Désormais validé selon le bon critère par mode : cible globale
+          // (Constant/Crescendo) OU segments (Fractionné), jamais les deux.
+          const routineTargetInvalid = routine.isIntervalMode
+            ? !areSegmentsValid(routine.segments, routine.targetMode)
+            : !isTargetValueValid({
+                targetMode: routine.targetMode, distanceVal: routine.distanceVal, hours: routine.hours, minutes: routine.minutes,
+              });
           return (
             <div key={routine.id} className={`${cardBg} rounded-2xl p-6 border ${rankStyle ? rankStyle.border : cardBorder} shadow-xs relative group overflow-hidden flex flex-col`}>
               {rankStyle && <span className="absolute -top-2 -right-2 text-xl" title={`${routine.manualGenerations} générations — la ${rank === 0 ? 'plus' : rank === 1 ? '2e plus' : '3e plus'} utilisée`}>{rankStyle.emoji}</span>}
@@ -244,9 +253,16 @@ export default function RoutinesView({
               )}
 
               <div className="mt-auto pt-4 border-t border-gray-100 dark:border-gray-800">
+                {/* Message différencié : le mode Fractionné ne peut PAS être
+                    corrigé via l'icône crayon (EditRoutineModal.jsx n'offre
+                    aucune édition des segments, voir son message "les
+                    portions détaillées ne sont pas éditables depuis cette
+                    fenêtre") — y renvoyer serait un cul-de-sac trompeur. */}
                 {routineTargetInvalid && (
                   <p className="text-xs font-bold text-red-500 mb-2">
-                    {routine.targetMode === 'distance' ? 'Distance invalide (0 ou vide)' : 'Durée invalide (0 ou vide)'} — corrige-la via <Edit3 size={11} className="inline align-text-bottom" /> avant de générer.
+                    {routine.isIntervalMode
+                      ? <>Portion(s) invalide(s) (BPM ou {routine.targetMode === 'distance' ? 'distance' : 'durée'} à 0) — recrée cette routine via "Nouvelle séance" pour corriger les portions.</>
+                      : <>{routine.targetMode === 'distance' ? 'Distance invalide (0 ou vide)' : 'Durée invalide (0 ou vide)'} — corrige-la via <Edit3 size={11} className="inline align-text-bottom" /> avant de générer.</>}
                   </p>
                 )}
                 <div className="flex gap-2 mb-2">
@@ -272,7 +288,7 @@ export default function RoutinesView({
                     onClick={() => { executeGeneration({ ...routine, workoutName: routine.customActivity || routine.workoutType, routineName: routine.name }, batchCount, routine.id);
                   }}
                     disabled={isGenerating || routineTargetInvalid}
-                    title={routineTargetInvalid ? 'Corrige la distance/durée de cette routine avant de générer.' : undefined}
+                    title={routineTargetInvalid ? (routine.isIntervalMode ? 'Une ou plusieurs portions de cette routine sont invalides.' : 'Corrige la distance/durée de cette routine avant de générer.') : undefined}
                     className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${bgAccentClass} text-white hover:brightness-110 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100`}>
                     {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <PlaySquare size={18} fill="currentColor"/>}
                     <span>Générer</span>
