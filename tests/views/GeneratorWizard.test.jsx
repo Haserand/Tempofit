@@ -56,6 +56,11 @@ vi.mock('../../src/musicCatalog.js', () => ({
   EXTRA_GENRES: ['Techno', 'Jazz'],
   getGenreLocalDepthWarning: vi.fn(() => null),
   genreDisplayLabel: vi.fn((g) => g),
+  // 04/08 — GENRE_SEARCH_DEPTH_HINT extraite ici (constante partagée avec
+  // FavoritesView.jsx, voir sa docstring dans musicCatalog.js pour le
+  // pourquoi). Mock statique, pas un vi.fn() : c'est une simple chaîne dans
+  // le vrai module, pas une fonction.
+  GENRE_SEARCH_DEPTH_HINT: 'mock genre search depth hint',
 }));
 
 vi.mock('../../src/components/shared/DualRangeSlider.jsx', () => ({
