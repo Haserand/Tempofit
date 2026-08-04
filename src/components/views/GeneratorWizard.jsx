@@ -275,7 +275,15 @@ export default function GeneratorWizard({
 
               {/* ETAPE 1 : L'ACTIVITE (choix du type d'entraînement + accès caché au mode Intime via l'icône flamme) */}
               {wizardStep === 1 && (
-                <div className="space-y-6">
+                <div className="space-y-4">
+                  {/* `space-y-4` (PAS `space-y-6`) — 03/08, 2e passe (retour
+                      direct : "tu y es presque") : après avoir épuisé les
+                      marges génériques de la page au 1er passage (`<main>`,
+                      en-tête, barre de progression, pied de page — voir
+                      App.jsx/GeneratorView.jsx), les derniers px
+                      raisonnables à gratter vivent DANS cette étape
+                      elle-même. `p-6`→`p-5` et `mb-3`→`mb-2` sur chaque
+                      carte d'activité juste plus bas, même raisonnement. */}
               <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
                 {isNaughtyMode ? <Heart className={textColorClass} size={24} /> : <Activity className={textColorClass} size={24} />}
                 <span>{isNaughtyMode ? "De quoi as-tu envie aujourd'hui ?" : "Qu'est-ce qu'on fait aujourd'hui ?"}</span>
@@ -308,10 +316,10 @@ export default function GeneratorWizard({
                             setTimeout(()=>setWizardStep(2), 200);
                           }
                         }}
-                        className={`w-full flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all duration-300 ${isSelected ? `${isNaughtyMode ?
+                        className={`w-full flex flex-col items-center justify-center p-5 rounded-2xl border-2 transition-all duration-300 ${isSelected ? `${isNaughtyMode ?
                           'bg-rose-100 dark:bg-rose-900/20 border-rose-500 text-rose-500 dark:text-rose-400' : 'bg-red-50 dark:bg-red-600/10 border-red-500 text-red-600 dark:text-red-500'}` : `${bgMainApp} ${cardBorder} ${textMuted} hover:text-main hover:border-gray-300 dark:hover:border-gray-600`}`}
                       >
-                        <Icon size={32} className="mb-3" />
+                        <Icon size={32} className="mb-2" />
                         <span className="font-bold text-center">
                           {type.id === 'Autre' && customActivity ? customActivity : (isNaughtyMode ? NAUGHTY_WORKOUT_LABELS[type.id] : type.id)}
                         </span>
