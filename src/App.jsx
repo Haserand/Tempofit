@@ -1400,22 +1400,39 @@ function AppContent({
     cardBg, cardBorder, cardBorderStrong, inputBg, inputBorder, textMuted, textHighlight,
   } = themeTokens;
 
+  // Fermeture SESSION-ONLY de la guest bar (03/08) : REMONTÉE ici depuis
+  // GuestModeBar.jsx (04/08, retour direct "je dois pouvoir scroll QUAND la
+  // barre est visible, et ne PLUS avoir à scroller une fois qu'elle est
+  // masquée"). Avant ce changement, `dismissed` était un `useState` strictement
+  // LOCAL à GuestModeBar.jsx : personne en dehors du composant — ni le spacer
+  // du contenu principal (plus bas), ni `bottomBarPadding`/`creditRowHeight`
+  // dans Sidebar.jsx (qui se basaient déjà sur `isGuestBarVisible`, voir plus
+  // bas) — ne pouvait savoir que la barre avait été masquée. Résultat concret :
+  // fermer la barre ne libérait jamais l'espace qu'elle réservait, contraire à
+  // ce qui était demandé. Le comportement "session-only" (repli à zéro à
+  // chaque vrai rechargement de page, jamais persisté) est INCHANGÉ : un
+  // simple `useState`, juste possédé un cran plus haut désormais.
+  const [isGuestBarDismissed, setIsGuestBarDismissed] = useState(false);
+
   // Source unique de vérité, calculée UNE SEULE FOIS ici et partagée entre
-  // GuestModeBar (l'affiche) et Sidebar (cache son propre crédit dans ce
-  // cas précis) — voir GuestModeBar.jsx pour tout l'historique du bug que
-  // ça corrige (les deux crédits pouvaient s'afficher en double sur les
-  // pages où la sidebar est plus courte). Reprend l'esprit "Soft Gating"
-  // d'origine (voir PlaylistsView.jsx/StatsView.jsx) : rien à perdre encore,
-  // pas la peine d'alerter dès la toute première visite. Volontairement PAS
-  // basé sur `favorites` : 2 artistes de démo y sont pré-remplis dès
-  // l'installation (voir useFavorites.js), ce qui rendrait la condition
-  // vraie en permanence.
+  // GuestModeBar (l'affiche), le spacer du contenu principal ET Sidebar
+  // (cache son propre crédit dans ce cas précis) — voir GuestModeBar.jsx pour
+  // tout l'historique du bug que ça corrige (les deux crédits pouvaient
+  // s'afficher en double sur les pages où la sidebar est plus courte).
+  // Reprend l'esprit "Soft Gating" d'origine (voir PlaylistsView.jsx/
+  // StatsView.jsx) : rien à perdre encore, pas la peine d'alerter dès la
+  // toute première visite. Volontairement PAS basé sur `favorites` : 2
+  // artistes de démo y sont pré-remplis dès l'installation (voir
+  // useFavorites.js), ce qui rendrait la condition vraie en permanence.
   // BUG CORRIGÉ (25/07) : cette ligne vivait par erreur dans le mauvais
   // composant — `App()`, le simple assembleur de Providers tout en bas de ce
   // fichier, qui n'a jamais eu `user`/`savedPlaylists`/`routines` en portée
   // (ceux-ci n'existent que dans CE composant-ci, `AppContent`) — d'où un
   // `ReferenceError: user is not defined` en production, page blanche.
-  const isGuestBarVisible = !user && (savedPlaylists.length > 0 || routines.length > 0);
+  // `&& !isGuestBarDismissed` AJOUTÉ (04/08) : sans quoi la variable ne
+  // reflétait que "c'est un invité avec des données", jamais "et il n'a pas
+  // déjà masqué le rappel cette visite" — voir le commentaire ci-dessus.
+  const isGuestBarVisible = !user && (savedPlaylists.length > 0 || routines.length > 0) && !isGuestBarDismissed;
 
   return (
     <div className={`${theme === 'dark' ? 'dark' : ''} ${isNaughtyMode ? 'naughty' : ''}`}>
@@ -1925,16 +1942,36 @@ function AppContent({
                 contrôles + progression), marge de sécurité incluse plutôt
                 qu'une valeur pile ajustée au pixel. */}
             {(currentTrack || playingPreviewId) && <div className="h-40 shrink-0 w-full"></div>}
-            {/* Spacer JUMEAU de celui juste au-dessus, pour la nouvelle barre
-                "mode invité" (voir plus bas, conteneur commun avec
-                MiniPlayerBar) — même principe (enfant réel dans le flux,
-                pas un padding fixe), une hauteur de sécurité modeste (la
-                barre est un simple texte sur une ligne, ~40px). Les deux
-                spacers s'additionnent naturellement dans le flux normal du
-                document quand les deux barres sont visibles en même temps —
-                pas besoin d'une condition combinée qui recalcule une
-                hauteur totale à la main. */}
-            {!user && (savedPlaylists.length > 0 || routines.length > 0) && <div className="h-10 shrink-0 w-full"></div>}
+            {/* Spacer JUMEAU de celui juste au-dessus, pour la barre "mode
+                invité" (voir plus bas, conteneur commun avec MiniPlayerBar)
+                — même principe (enfant réel dans le flux, pas un padding
+                fixe). Utilise désormais `isGuestBarVisible` (calculée plus
+                haut) plutôt que de redupliquer la condition brute : la même
+                variable pilote maintenant CE spacer, la prop `isVisible` de
+                GuestModeBar plus bas, ET `guestBarVisible` sur Sidebar — un
+                seul état, jamais 3 sources qui peuvent diverger.
+                ⚠️ BUG CORRIGÉ (04/08, retour direct "je dois pouvoir scroll
+                QUAND la barre est visible, zéro scroll une fois masquée") :
+                CE spacer était bloqué à `h-10` (40px) depuis l'ancien design
+                1-ligne de la barre (28/07) — jamais mis à jour quand sa
+                hauteur réelle est passée à 72px le 29/07 ("aération footer/
+                GuestBar"). Résultat concret : la barre (72px, fixed, hors du
+                flux) pouvait recouvrir jusqu'à 32px de contenu réel que ce
+                spacer ne compensait pas — exactement le "scroll résiduel"/
+                bouton coupé documenté (sans jamais avoir été relié à cette
+                cause précise) dans GeneratorWizard.jsx. `h-[72px]` (valeur
+                littérale, PAS interpolée depuis GUEST_MODE_BAR_HEIGHT_PX —
+                contrainte Tailwind JIT documentée dans bottomBarLayout.js)
+                remplace `h-10` pour matcher exactement la vraie hauteur de
+                GuestModeBar.jsx, sans marge de sécurité superflue : cette
+                barre est un bloc `flex items-center` à hauteur fixe et
+                connue, pas un contenu de hauteur imprévisible (contrairement
+                au mini-lecteur juste au-dessus, qui garde volontairement une
+                marge). Les deux spacers s'additionnent naturellement dans le
+                flux normal du document quand les deux barres sont visibles
+                en même temps — pas besoin d'une condition combinée qui
+                recalcule une hauteur totale à la main. */}
+            {isGuestBarVisible && <div className="h-[72px] shrink-0 w-full"></div>}
           </main>
         </div>
 
@@ -2086,8 +2123,17 @@ function AppContent({
               MiniPlayerBar juste au-dessus) — voir GuestModeBar.jsx pour
               tout le raisonnement (pourquoi cet ordre, pourquoi la réplique
               du crédit sidebar). `isVisible` reçue toute faite (pas
-              recalculée ici) — voir isGuestBarVisible ci-dessus. */}
-          <GuestModeBar theme={themeTokens} isVisible={isGuestBarVisible} openModal={openModal} />
+              recalculée ici) — voir isGuestBarVisible ci-dessus.
+              `onDismiss` (04/08) : remplace l'ancien `useState` local du
+              composant — voir isGuestBarDismissed ci-dessus pour le
+              raisonnement complet. GuestModeBar ne possède plus que
+              `confirmingDismiss` (état d'affichage pur, propre à lui,
+              personne d'autre n'en a besoin) ; la décision finale "masqué
+              ou non" remonte ici. */}
+          <GuestModeBar
+            theme={themeTokens} isVisible={isGuestBarVisible} openModal={openModal}
+            onDismiss={() => setIsGuestBarDismissed(true)}
+          />
         </div>
 
       </div>
