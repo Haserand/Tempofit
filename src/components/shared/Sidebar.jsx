@@ -78,7 +78,7 @@ export default function Sidebar({
   changeView, view,
   onOpenSettings,
   favorites,
-  user, userStats,
+  user, unseenTrophyCount,
   guestBarVisible, playerBarVisible,
   toggleNaughtyMode,
   theme, toggleTheme,
@@ -483,21 +483,29 @@ export default function Sidebar({
                 centre — les 2 boutons n'ont pas exactement la même
                 largeur, `p-2`/20px vs `px-2.5 py-1.5`/18px, mais un écart
                 de 2px sur la largeur est imperceptible comparé aux 8px de
-                décalage qu'on corrige). */}
+                décalage qu'on corrige).
+                `unseenTrophyCount` (PAS `userStats.unlockedTrophies.length`,
+                03/08, retour direct, capture d'écran : "quand j'ai ouvert
+                la partie trophées, l'icône doit devenir grise... et les
+                notifications '5' doit être retiré, sinon on pollue
+                visuellement") — voir la docstring complète côté
+                `useUserStats.js` (`markTrophiesSeen`) pour le
+                raisonnement : ce bouton ne connaît QUE le nombre à
+                afficher, jamais la logique "vu/pas vu" elle-même. */}
             {user && (
               <button
                 onClick={() => changeView('trophies')}
                 title="Trophées"
                 className={`relative shrink-0 mr-2 px-2.5 py-1.5 ${ICON_BUTTON_ROUNDING} transition-colors ${
-                  userStats.unlockedTrophies.length > 0
+                  unseenTrophyCount > 0
                     ? 'text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
                     : `${textMuted} hover:bg-surface-hover hover:text-main`
                 }`}
               >
-                <Trophy size={18} className={userStats.unlockedTrophies.length > 0 ? "fill-yellow-500" : ""} />
-                {userStats.unlockedTrophies.length > 0 && (
+                <Trophy size={18} className={unseenTrophyCount > 0 ? "fill-yellow-500" : ""} />
+                {unseenTrophyCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
-                    {userStats.unlockedTrophies.length}
+                    {unseenTrophyCount}
                   </span>
                 )}
               </button>
