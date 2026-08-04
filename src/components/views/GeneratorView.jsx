@@ -37,11 +37,13 @@ export default function GeneratorView({
   const { textColorClass } = theme;
 
   return (
-    <div className={`${VIEW_CONTENT_WRAPPER} space-y-6`}>
-      {/* `space-y-6` (PAS `space-y-8`) — 03/08, retour direct, capture
-          d'écran : voir la docstring de `<main>` (App.jsx) pour le
-          raisonnement complet, un des 4 petits ajustements cumulés de ce
-          chantier plutôt qu'un seul gros changement au même endroit. */}
+    <div className={`${VIEW_CONTENT_WRAPPER} space-y-4`}>
+      {/* `space-y-4` (PAS `space-y-6`, PAS l'original `space-y-8`) — 03/08,
+          3e passe (retour direct : "il reste un chouïa"). Voir la docstring
+          de `<main>` (App.jsx) pour l'historique complet de ce chantier en
+          plusieurs petites passes — pas de math d'alignement documentée
+          tenant à CETTE valeur précise (contrairement à `ViewHeader.jsx`
+          lui-même, jamais retouché ici), donc sûr à continuer de réduire. */}
       {/* En-tête standardisé — via <ViewHeader/> (components/shared/ViewHeader.jsx),
           le modèle commun à toutes les vues. */}
       <ViewHeader
