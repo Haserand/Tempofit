@@ -66,3 +66,63 @@ describe('GuestModeBar', () => {
     expect(screen.getByRole('button', { name: /Se connecter/ })).toHaveClass('mock-accent');
   });
 });
+
+// Fermeture SESSION-ONLY (03/08, retour direct : "option pour supprimer/
+// fermer la guest mode bar" — voir la docstring complète du composant
+// source pour le raisonnement produit derrière ce choix). `dismissed`/
+// `confirmingDismiss` sont de simples `useState` locaux — pas de
+// persistance à mocker ici, un nouveau `render()` (= un nouveau montage,
+// comme un vrai rechargement de page) suffit à observer le repli à zéro.
+describe('GuestModeBar — fermeture session-only avec confirmation', () => {
+  it('affiche un bouton pour masquer le rappel, à côté de "Se connecter"', () => {
+    render(<GuestModeBar theme={mockTheme} isVisible={true} openModal={() => {}} />);
+    expect(screen.getByTitle('Masquer ce rappel pour cette visite')).toBeInTheDocument();
+  });
+
+  it('cliquer le bouton de fermeture affiche une confirmation AVANT de masquer quoi que ce soit', () => {
+    render(<GuestModeBar theme={mockTheme} isVisible={true} openModal={() => {}} />);
+
+    fireEvent.click(screen.getByTitle('Masquer ce rappel pour cette visite'));
+
+    // Le message d'origine et "Se connecter" disparaissent, remplacés par
+    // la confirmation — toujours dans LA MÊME barre (pas une modale).
+    expect(screen.queryByText('Données sauvegardées uniquement sur cet appareil.')).toBeNull();
+    expect(screen.getByText(/resteront sauvegardées uniquement sur cet appareil/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Masquer quand même' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Annuler' })).toBeInTheDocument();
+  });
+
+  it('"Annuler" revient à l\'affichage normal, la barre reste visible', () => {
+    render(<GuestModeBar theme={mockTheme} isVisible={true} openModal={() => {}} />);
+    fireEvent.click(screen.getByTitle('Masquer ce rappel pour cette visite'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
+
+    expect(screen.getByText('Données sauvegardées uniquement sur cet appareil.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Se connecter/ })).toBeInTheDocument();
+  });
+
+  it('"Masquer quand même" fait disparaître la barre entièrement (composant rend null)', () => {
+    const { container } = render(<GuestModeBar theme={mockTheme} isVisible={true} openModal={() => {}} />);
+    fireEvent.click(screen.getByTitle('Masquer ce rappel pour cette visite'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Masquer quand même' }));
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  // Le coeur du choix "session-only" (docstring source) : un nouveau
+  // montage (= l'équivalent d'un rechargement de page réel) ne doit
+  // JAMAIS se souvenir d'une fermeture précédente — aucune persistance.
+  it('un nouveau montage du composant réaffiche la barre normalement (rien ne persiste)', () => {
+    const { container, unmount } = render(<GuestModeBar theme={mockTheme} isVisible={true} openModal={() => {}} />);
+    fireEvent.click(screen.getByTitle('Masquer ce rappel pour cette visite'));
+    fireEvent.click(screen.getByRole('button', { name: 'Masquer quand même' }));
+    expect(container).toBeEmptyDOMElement();
+    unmount();
+
+    render(<GuestModeBar theme={mockTheme} isVisible={true} openModal={() => {}} />);
+
+    expect(screen.getByText('Données sauvegardées uniquement sur cet appareil.')).toBeInTheDocument();
+  });
+});
