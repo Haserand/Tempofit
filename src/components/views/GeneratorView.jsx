@@ -32,7 +32,6 @@ export default function GeneratorView({
   setResultsContextLabel, setNoUsableResultsHint, searchTracksByBpm,
   executeGeneration, isGenerating,
   toggleNaughtyMode, changeView,
-  isGuestBarVisible,
 }) {
   const { isNaughtyMode, displaySubtitleGen } = useGeneratorContext();
   const { textColorClass } = theme;
@@ -63,7 +62,6 @@ export default function GeneratorView({
         searchTracksByBpm={searchTracksByBpm}
         executeGeneration={executeGeneration} isGenerating={isGenerating}
         toggleNaughtyMode={toggleNaughtyMode} changeView={changeView}
-        isGuestBarVisible={isGuestBarVisible}
       />
     </div>
   );
