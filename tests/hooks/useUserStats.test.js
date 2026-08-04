@@ -1,3 +1,12 @@
+// @vitest-environment jsdom
+//
+// `renderHook` (@testing-library/react) a besoin du DOM (`window`,
+// `localStorage`...) — ce projet utilise `environment: 'node'` par défaut
+// pour TOUS les tests (perf, voir vite.config.js), donc ce pragma est
+// OBLIGATOIRE ici, en 1re ligne exacte du fichier (pas plus bas, pas un
+// simple commentaire explicatif — Vitest ne le reconnaît que sous cette
+// forme précise). Même convention que useSyncedCollection.test.js/
+// ViewHeader.test.jsx/GuestModeBar.test.jsx/DualRangeSlider.test.jsx.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useUserStats } from '../../src/hooks/useUserStats';
