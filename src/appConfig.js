@@ -348,7 +348,21 @@ const getRankStyle = (rank) => (rank >= 0 && rank < 3) ? RANK_STYLES[rank] : nul
 // technique de stockage : `content` est un `jsonb` sans limite de
 // longueur pratique) — assez pour une vraie phrase de contexte, pas assez
 // pour transformer une carte compacte en mur de texte.
-const MAX_DESCRIPTION_LENGTH = 280;
+// ⚠️ RESSERRÉE 280 → 150 (04/08, retour direct — "refuser les descriptions
+// de playlist sur plus de 2 lignes... figer la limite de caractères",
+// suivi de "plutôt troncature sèche... je m'en moque d'en couper" — pas de
+// vrais utilisateurs pour l'instant) : les 4 endroits qui affichent une
+// description sont désormais TOUS en `line-clamp-2`, sans échappatoire
+// "Voir plus" nulle part (voir PlaylistHeader.jsx/PublicRoutinePreviewModal.jsx/
+// RoutinesView.jsx/ProfileView.jsx) — au-delà de 2 lignes, le texte
+// dépassant devient invisible partout, définitivement. 150 reste
+// délibérément AU-DESSUS de ce qui tient visuellement dans le contexte le
+// plus étroit (carte de routine, ~2 lignes à `text-sm`) plutôt qu'un
+// calibrage pixel-parfait par contexte (impossible : la largeur varie
+// selon l'endroit — carte compacte vs en-tête de playlist plus large) :
+// mieux vaut une marge de sécurité généreuse qu'un compteur qui semble
+// encore accepter du texte alors que rien ne s'affiche plus au-delà.
+const MAX_DESCRIPTION_LENGTH = 150;
 
 export {
   TROPHIES_DATA,
