@@ -356,18 +356,18 @@ describe('GeneratorWizard — navigation Précédent/Suivant (étapes 1 à 3)', 
     expect(setWizardStep).toHaveBeenCalledWith(3);
   });
 
-  it('étape 1, mode normal : le lien "Profil : Ajuster mes zones BPM" appelle changeView("settings")', () => {
+  it('étape 1, mode normal : le lien "Configurer mes zones BPM" appelle changeView("settings")', () => {
     const changeView = vi.fn();
     mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 1, isNaughtyMode: false }));
     render(<GeneratorWizard {...baseProps({ changeView })} />);
-    fireEvent.click(screen.getByText(/Profil : Ajuster mes zones BPM/));
+    fireEvent.click(screen.getByText(/Configurer mes zones BPM/));
     expect(changeView).toHaveBeenCalledWith('settings');
   });
 
   it('étape 1, Mode Intime : pas de lien profil (aucun bouton "Précédent" ni lien à sa place)', () => {
     mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 1, isNaughtyMode: true }));
     render(<GeneratorWizard {...baseProps()} />);
-    expect(screen.queryByText(/Profil : Ajuster mes zones BPM/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Configurer mes zones BPM/)).not.toBeInTheDocument();
   });
 });
 
