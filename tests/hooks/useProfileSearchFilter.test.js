@@ -95,11 +95,14 @@ describe('useProfileSearchFilter', () => {
   });
 
 
-  it('filtre par type (kind) : "routine" n\'affiche que les routines', () => {
-    const { result } = renderFilter([playlistA, routineDistance, routineTime]);
-    act(() => result.current.setTypeFilter('routine'));
-    expect(result.current.filteredItems).toEqual([routineDistance, routineTime]);
-  });
+  // ⚠️ RETIRÉ (03/08, refonte onglets Playlists/Routines) — `typeFilter`
+  // n'existe plus sur ce hook, voir sa docstring en tête de fichier
+  // source : filtrer par `kind` est désormais la responsabilité de
+  // l'APPELANT (ProfileView.jsx passe déjà `itemsForActiveTab`, un
+  // tableau à un seul `kind`, jamais mélangé). Le test "recherche vide :
+  // retourne tous les items, tels quels" plus haut couvre déjà
+  // implicitement le fait que ce hook ne filtre PAS par `kind` lui-même
+  // — un tableau mixte lui est passé et ressort intact.
 
   it('filtre par sport, valeurs disponibles générées dynamiquement à partir des items affichés', () => {
     const { result } = renderFilter([playlistA, playlistB, routineDistance]);
@@ -133,13 +136,20 @@ describe('useProfileSearchFilter', () => {
     expect(result.current.filteredItems).toEqual([routineDistance]);
   });
 
-  it('filtres combinés (texte + sport + type à la fois)', () => {
+  it('filtres combinés (texte + sport à la fois)', () => {
     const { result } = renderFilter([playlistA, playlistB, routineDistance, routineTime]);
     act(() => {
-      result.current.setSearchText('course');
-      result.current.setTypeFilter('routine');
+      // "sortie" matche playlistA ("Sortie Running Rapide") ET playlistB
+      // ("Longue Sortie Vélo") sur le NOM seul — routineDistance/routineTime
+      // n'ont pas "sortie" dans leur nom, déjà exclues par le texte.
+      result.current.setSearchText('sortie');
+      // Le filtre sport narrove ENSUITE ce qui reste : seule playlistB
+      // (Cyclisme) passe, playlistA (Course à pied) est exclue à SON tour
+      // — la preuve que les 2 filtres s'appliquent bien ensemble, pas
+      // juste l'un après l'autre sans effet du second.
+      result.current.setSportFilter('Cyclisme');
     });
-    expect(result.current.filteredItems).toEqual([routineDistance]);
+    expect(result.current.filteredItems).toEqual([playlistB]);
   });
 
   it('hasActiveFilters reflète l\'état réel des filtres', () => {
