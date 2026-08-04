@@ -4,6 +4,7 @@ import { useModalContext } from '../../contexts/ModalContext';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 import { MAX_DESCRIPTION_LENGTH } from '../../appConfig';
+import { isTargetValueValid } from '../../utils/targetValidation';
 
 /**
  * RoutinesView — vue "Mes Routines" (configurations sauvegardées, relançables en un clic).
@@ -128,6 +129,21 @@ export default function RoutinesView({
           const batchCount = routineBatchCounts[routine.id] || 1;
           const rank = routineRanks.indexOf(routine.id);
           const rankStyle = getRankStyle(rank);
+          // ⚠️ NOUVEAU (04/08, retour direct, 2e capture d'écran — une
+          // routine SAUVEGARDÉE avec 0 km, créée avant le 1er correctif de
+          // ce chantier, se générait encore sans blocage) : voir
+          // targetValidation.js ("ÉLARGI") pour le raisonnement complet — le
+          // 1er passage n'avait couvert que les formulaires d'ENTRÉE
+          // (wizard, EditRoutineModal), pas le bouton "Générer" de cette
+          // carte, qui consomme directement les valeurs déjà STOCKÉES sur
+          // `routine`. `!routine.isIntervalMode` : même exclusion que
+          // GeneratorWizard.jsx/EditRoutineModal.jsx — le mode Fractionné
+          // utilise des durées PAR SEGMENT (`routine.segments[].durationValue`),
+          // hors scope. Calculé UNE FOIS par carte ici, réutilisé plus bas
+          // dans l'avertissement ET le bouton plutôt que recalculé 2 fois.
+          const routineTargetInvalid = !routine.isIntervalMode && !isTargetValueValid({
+            targetMode: routine.targetMode, distanceVal: routine.distanceVal, hours: routine.hours, minutes: routine.minutes,
+          });
           return (
             <div key={routine.id} className={`${cardBg} rounded-2xl p-6 border ${rankStyle ? rankStyle.border : cardBorder} shadow-xs relative group overflow-hidden flex flex-col`}>
               {rankStyle && <span className="absolute -top-2 -right-2 text-xl" title={`${routine.manualGenerations} générations — la ${rank === 0 ? 'plus' : rank === 1 ? '2e plus' : '3e plus'} utilisée`}>{rankStyle.emoji}</span>}
@@ -228,6 +244,11 @@ export default function RoutinesView({
               )}
 
               <div className="mt-auto pt-4 border-t border-gray-100 dark:border-gray-800">
+                {routineTargetInvalid && (
+                  <p className="text-xs font-bold text-red-500 mb-2">
+                    {routine.targetMode === 'distance' ? 'Distance invalide (0 ou vide)' : 'Durée invalide (0 ou vide)'} — corrige-la via <Edit3 size={11} className="inline align-text-bottom" /> avant de générer.
+                  </p>
+                )}
                 <div className="flex gap-2 mb-2">
                   <div className={`flex items-center ${inputBg} border ${inputBorder} rounded-xl px-2`} title="Génère plusieurs versions différentes en un clic, pour choisir celle que tu préfères.">
                     <Layers size={16} className={`${textMuted} mr-1`} />
@@ -247,8 +268,12 @@ export default function RoutinesView({
                       Playlist" du wizard (GeneratorView.jsx), ce bouton n'avait
                       aucun `disabled` — on pouvait lancer une 2e génération
                       (même routine ou une autre) par-dessus une déjà en cours. */}
-                  <button onClick={() => { executeGeneration({ ...routine, workoutName: routine.customActivity || routine.workoutType, routineName: routine.name }, batchCount, routine.id);
-                  }} disabled={isGenerating} className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${bgAccentClass} text-white hover:brightness-110 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100`}>
+                  <button
+                    onClick={() => { executeGeneration({ ...routine, workoutName: routine.customActivity || routine.workoutType, routineName: routine.name }, batchCount, routine.id);
+                  }}
+                    disabled={isGenerating || routineTargetInvalid}
+                    title={routineTargetInvalid ? 'Corrige la distance/durée de cette routine avant de générer.' : undefined}
+                    className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all ${bgAccentClass} text-white hover:brightness-110 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100`}>
                     {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <PlaySquare size={18} fill="currentColor"/>}
                     <span>Générer</span>
                   </button>
