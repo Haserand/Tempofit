@@ -1,4 +1,5 @@
 import { X, Activity, Clock, Zap, Music, Copy } from 'lucide-react';
+import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import { genreDisplayLabel } from '../../musicCatalog';
 
 /**
@@ -40,7 +41,7 @@ export default function PublicRoutinePreviewModal({ theme, isOpen, onClose, rout
             <Copy className={textColorClass} />
             <span>Routine publique</span>
           </h3>
-          <button onClick={onClose} className="p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-surface-hover"><X size={20} /></button>
+          <button onClick={onClose} className={`p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors ${ICON_BUTTON_ROUNDING} hover:bg-surface-hover`}><X size={20} /></button>
         </div>
         <p className={`text-sm mb-4 ${textMuted}`}>Cette routine est partagée publiquement — tu peux la cloner dans tes propres Routines pour la relancer à ta façon, sans jamais modifier celle de son propriétaire.</p>
 
