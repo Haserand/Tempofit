@@ -464,12 +464,31 @@ export default function Sidebar({
                 pour que les 2 boutons s'alignent exactement à la même
                 hauteur. `ICON_BUTTON_ROUNDING` (PAS `rounded-xl` comme
                 Réglages juste à côté) — icône seule sans libellé, voir
-                iconButtonLayout.js pour la règle complète. */}
+                iconButtonLayout.js pour la règle complète.
+                `mr-2` (03/08, retour direct, capture d'écran à l'appui :
+                "l'icône trophée doit se trouver sur la même ligne
+                verticale que le bouton thème") — sans ce décalage, le
+                bouton Trophées atterrit visuellement 8px trop à droite par
+                rapport au bouton Thème (header, ligne ~241) : le conteneur
+                du header utilise `px-6` (24px) alors que ce pied de page
+                utilise `px-4` (16px, voir la docstring du conteneur
+                scrollable juste au-dessus, même raison) — un écart de 8px
+                entre les deux marges de droite. Corrigé ICI, sur CE bouton
+                seul (pas en touchant le padding du conteneur entier, qui
+                décalerait aussi Réglages et le texte de crédit en dessous,
+                sans raison de bouger eux) : `mr-2` compense exactement
+                l'écart, alignant le bord droit de Trophées sur celui de
+                Thème, quelle que soit la largeur propre de chaque bouton
+                (l'alignement porte sur le bord droit commun, pas sur le
+                centre — les 2 boutons n'ont pas exactement la même
+                largeur, `p-2`/20px vs `px-2.5 py-1.5`/18px, mais un écart
+                de 2px sur la largeur est imperceptible comparé aux 8px de
+                décalage qu'on corrige). */}
             {user && (
               <button
                 onClick={() => changeView('trophies')}
                 title="Trophées"
-                className={`relative shrink-0 px-2.5 py-1.5 ${ICON_BUTTON_ROUNDING} transition-colors ${
+                className={`relative shrink-0 mr-2 px-2.5 py-1.5 ${ICON_BUTTON_ROUNDING} transition-colors ${
                   userStats.unlockedTrophies.length > 0
                     ? 'text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
                     : `${textMuted} hover:bg-surface-hover hover:text-main`
