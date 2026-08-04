@@ -55,6 +55,21 @@ import {
  * pour toutes, quelle que soit la vue affichée. Contrairement à Trophées,
  * le bouton Thème reste inconditionnel (pas de `user &&`) : le thème
  * clair/sombre concerne tout visiteur, connecté ou non.
+ *
+ * SÉPARATION DÉFINITIVE (03/08, retour direct : "déplacer le bouton
+ * trophées juste à côté du bouton réglages, et laisser le bouton lumière
+ * au même endroit que quand on est invité") — Trophées quitte le header
+ * pour le pied de page, juste à côté de Réglages (compact, icône seule,
+ * même ligne — voir sa docstring plus bas pour le budget de hauteur).
+ * Thème reste SEUL dans le header, dans tous les cas désormais — corrige
+ * un vrai défaut relevé par l'utilisateur : avant ce changement, la
+ * position du bouton Thème se décalait de quelques pixels selon l'état de
+ * connexion (seul si invité, juste après Trophées si connecté). Il occupe
+ * maintenant une position FIXE, identique pour tout le monde. Raisonnement
+ * de regroupement : Trophées et Réglages sont tous les deux des éléments
+ * PERSONNELS (progression, compte) — les regrouper au pied de page a plus
+ * de sens que Trophées à côté du logo, plutôt territoire "identité de
+ * l'app".
  */
 export default function Sidebar({
   cardBorder, cardBorderStrong, bgAccentClass, isNaughtyMode, textHighlight, textColorClass, textMuted,
@@ -195,39 +210,30 @@ export default function Sidebar({
             <span className={`font-bold leading-none ${isNaughtyMode ? 'text-lg tracking-tighter' : 'text-2xl tracking-tight'} ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
          </button>
          <div className="flex items-center gap-2">
-           {/* Bouton Trophées — même comportement qu'avant son déménagement
-               (discret/gris tant qu'aucun trophée n'est débloqué, doré +
-               badge du nombre sinon, pour garder l'effet de surprise/
-               récompense au 1er déblocage sans le rendre invisible) — SEUL
-               changement réel : `user &&` en plus, un visiteur non connecté
-               ne voit plus ce bouton du tout. */}
-           {user && (
-             <button
-               onClick={() => changeView('trophies')}
-               title="Trophées"
-               className={`relative p-2 rounded-lg transition-colors ${
-                 userStats.unlockedTrophies.length > 0
-                   ? 'text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
-                   : `${textMuted} hover:bg-surface-hover hover:text-main`
-               }`}
-             >
-               <Trophy size={18} className={userStats.unlockedTrophies.length > 0 ? "fill-yellow-500" : ""} />
-               {userStats.unlockedTrophies.length > 0 && (
-                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
-                   {userStats.unlockedTrophies.length}
-                 </span>
-               )}
-             </button>
-           )}
            {/* Bouton Thème — relocalisé depuis App.jsx (Fix UI 27/07, "nettoyage
                global") : vivait avant `absolute top-4 right-4` en haut de
                `<main>`, ce qui pouvait entrer en collision avec le contenu des
                cartes pleine largeur (voir PlaylistHeader.jsx, même session).
-               Ici, à côté de Trophées, dans le header FIXE de la Sidebar :
-               plus jamais de superposition possible avec le contenu, quelle
-               que soit la vue. Visible inconditionnellement (pas de `user &&`
-               comme Trophées) — le thème clair/sombre concerne tout le monde,
-               connecté ou non. */}
+               Ici, dans le header FIXE de la Sidebar : plus jamais de
+               superposition possible avec le contenu, quelle que soit la vue.
+               Visible inconditionnellement (pas de `user &&`) — le thème
+               clair/sombre concerne tout le monde, connecté ou non.
+               ⚠️ SEUL bouton de ce header depuis le 03/08 (voir Trophées,
+               déménagé au pied de page à côté de Réglages) — retour direct :
+               "la position du bouton thème change selon que je suis
+               connecté ou non, ça devrait être fixe". C'était vrai : avant
+               ce déménagement, Trophées vivait ICI (`user &&`), donc ce
+               bouton Thème se décalait de quelques pixels selon l'état de
+               connexion (seul en mode invité, juste après Trophées sinon).
+               Il occupe maintenant TOUJOURS la même position, y compris
+               connecté — le calcul de largeur du logo "TempoIntime" plus
+               haut (`badge(46) + gap(12) + bouton thème seul(36) = 94px`)
+               n'est donc plus un cas "invité seulement" mais LE seul cas,
+               point, ce qui élimine au passage un risque de dépassement
+               latent non mesuré (le calcul d'origine ne couvrait jamais
+               explicitement "connecté + Mode Intime", le seul cas où
+               Trophées ET le texte élargi "TempoIntime" auraient coexisté
+               ici). */}
            <button
              onClick={toggleTheme}
              title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
@@ -438,10 +444,43 @@ export default function Sidebar({
               SettingsView avant d'y naviguer, pour ne jamais hériter d'un
               `'account'` posé par une visite précédente via le dropdown
               avatar (App.jsx, "cliquer sur mon compte"). */}
-          <button onClick={onOpenSettings} className={`w-full flex items-center space-x-3 ${SIDEBAR_FOOTER_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${textMuted} hover:bg-surface-hover hover:text-main`}>
-            <Settings size={18} className={textColorClass} />
-            <span className="font-bold text-sm">Réglages</span>
-          </button>
+          <div className="w-full flex items-center gap-2">
+            <button onClick={onOpenSettings} className={`flex-1 min-w-0 flex items-center space-x-3 ${SIDEBAR_FOOTER_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${textMuted} hover:bg-surface-hover hover:text-main`}>
+              <Settings size={18} className={textColorClass} />
+              <span className="font-bold text-sm">Réglages</span>
+            </button>
+            {/* Bouton Trophées (03/08, déménagé ici depuis le header à côté
+                du logo — retour direct : "déplacer le bouton trophées juste
+                à côté du bouton réglages, et laisser le bouton lumière au
+                même endroit que quand on est invité"). Comportement
+                identique à avant (discret/gris tant qu'aucun trophée n'est
+                débloqué, doré + badge du nombre sinon, `user &&` inchangé)
+                — seule la position change. `shrink-0` + icône seule (pas de
+                libellé, contrairement à Réglages) : compact exprès pour
+                tenir sur CETTE ligne sans agrandir la hauteur du pied de
+                page (budget strict, `creditRowHeight`, voir la docstring du
+                conteneur juste au-dessus) — `py-1.5` partagé avec Réglages
+                pour que les 2 boutons s'alignent exactement à la même
+                hauteur. */}
+            {user && (
+              <button
+                onClick={() => changeView('trophies')}
+                title="Trophées"
+                className={`relative shrink-0 px-2.5 py-1.5 rounded-xl transition-colors ${
+                  userStats.unlockedTrophies.length > 0
+                    ? 'text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
+                    : `${textMuted} hover:bg-surface-hover hover:text-main`
+                }`}
+              >
+                <Trophy size={18} className={userStats.unlockedTrophies.length > 0 ? "fill-yellow-500" : ""} />
+                {userStats.unlockedTrophies.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
+                    {userStats.unlockedTrophies.length}
+                  </span>
+                )}
+              </button>
+            )}
+          </div>
 
           {/* Crédit du projet — discret, ouvre dans un nouvel onglet pour ne
               pas faire quitter l'app en un clic accidentel.
