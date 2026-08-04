@@ -384,8 +384,17 @@ function AppContent({
   // celui-ci a besoin en plus de réinitialiser `settingsInitialTab` avant
   // d'y naviguer, sinon un onglet 'account' resté posé par une visite
   // précédente via le dropdown avatar s'appliquerait à tort ici aussi.
-  const handleOpenSettings = () => {
-    setSettingsInitialTab(null);
+  // Point d'entrée UNIQUE vers "Réglages" — `tab` optionnel (`null` par
+  // défaut = comportement d'origine, utilisé par la Sidebar) ; réinitialise
+  // TOUJOURS `settingsInitialTab` avant de naviguer (jamais une valeur
+  // périmée d'une visite précédente, voir la docstring de `initialTab`,
+  // SettingsView.jsx). Reste UNE SEULE fonction plutôt que 3 call sites
+  // dupliquant `setSettingsInitialTab(...); changeView('settings');` côte
+  // à côte — Sidebar.jsx (tab par défaut), le dropdown avatar (`'account'`)
+  // et désormais StatsView.jsx (`'account'` aussi, carte de confidentialité
+  // "Ton profil n'est pas encore public").
+  const handleOpenSettings = (tab = null) => {
+    setSettingsInitialTab(tab);
     changeView('settings');
   };
 
@@ -1581,9 +1590,10 @@ function AppContent({
                 l'état du 28/07, plus tout à fait exact : le bloc pseudo/
                 e-mail EN TÊTE du dropdown est désormais lui-même cliquable
                 et ouvre Réglages directement sur l'onglet "Mon Compte"
-                (`setSettingsInitialTab('account')` juste avant
-                `changeView('settings')`, voir le bloc plus bas). Décision
-                délibérée de garder l'ouverture du dropdown lui-même au
+                (`handleOpenSettings('account')`, voir le bloc plus bas —
+                même fonction que le bouton Réglages de la Sidebar, juste
+                avec un onglet de départ différent). Décision délibérée de
+                garder l'ouverture du dropdown lui-même au
                 CLIC sur l'avatar (pas au survol) — un menu au survol n'a
                 pas d'équivalent sur mobile/tactile. Le reste du paragraphe
                 (Réglages accessible via la Sidebar, "Rechercher un
@@ -1638,7 +1648,7 @@ function AppContent({
                             Slack...) : avatar → menu → son propre nom en
                             tête → réglages du compte. */}
                         <button
-                          onClick={() => { setIsUserMenuOpen(false); setSettingsInitialTab('account'); changeView('settings'); }}
+                          onClick={() => { setIsUserMenuOpen(false); handleOpenSettings('account'); }}
                           className="w-full text-left px-4 py-3 hover:bg-surface-hover transition-colors cursor-pointer"
                         >
                           {/* Pseudonyme en gras + e-mail en texte secondaire
@@ -1800,7 +1810,9 @@ function AppContent({
                 showAdvancedStats={showAdvancedStats} setShowAdvancedStats={setShowAdvancedStats}
                 expandedDetailGenre={expandedDetailGenre} setExpandedDetailGenre={setExpandedDetailGenre}
                 expandedDetailArtist={expandedDetailArtist} setExpandedDetailArtist={setExpandedDetailArtist}
-                user={user}
+                user={user} username={username} profilePrivacy={profilePrivacy}
+                onViewOwnProfile={() => handleViewProfile(username)}
+                onManageProfilePrivacy={() => handleOpenSettings('account')}
               />
             )}
 
