@@ -3,9 +3,21 @@ import { getGenresForDisplay, genreDisplayLabel } from '../musicCatalog';
 
 /**
  * useProfileSearchFilter — recherche/filtres 100% client-side sur la grille
- * "Playlists partagées" de ProfileView.jsx (playlists ET routines publiques
- * mêlées dans une seule grille, PAS d'onglets séparés — voir la docstring
- * de ProfileView.jsx pour ce choix).
+ * "Playlists partagées"/"Routines partagées" de ProfileView.jsx.
+ *
+ * ⚠️ REFONTE (03/08, retour direct : "les routines sont invisibles, noyées
+ * en bas d'une grille de playlists") — la grille combinée playlists+
+ * routines (voir git blame de ce fichier pour l'ancienne version) est
+ * remplacée par 2 ONGLETS séparés dans ProfileView.jsx. Ce hook ne sait
+ * donc plus RIEN d'un mélange des deux types : `items` ne doit contenir
+ * QUE les items de l'onglet actuellement affiché (déjà filtrés par `kind`
+ * par l'appelant, avant même d'arriver ici) — l'ancien `typeFilter`
+ * ('all'/'playlist'/'routine') a été retiré, les onglets remplissent
+ * désormais ce rôle. Recherche texte + filtres sport/genre/durée restent
+ * PARTAGÉS entre les 2 onglets (même state, un seul hook par
+ * `ProfileView.jsx` réutilisé pour les 2 grilles l'une après l'autre selon
+ * l'onglet actif) — volontairement, pour ne pas perdre sa recherche en
+ * cours en changeant d'onglet.
  *
  * `items` doit être un tableau DÉJÀ filtré par mode Sport/Intime (le
  * combiné de `visiblePlaylists`/`visibleRoutines`, PAS `publicItems.
@@ -73,7 +85,6 @@ export function useProfileSearchFilter(items) {
   const [durationFilter, setDurationFilter] = useState('all'); // 'all' | 'short' | 'medium' | 'long'
   const [sportFilter, setSportFilter] = useState('all');
   const [genreFilter, setGenreFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all'); // 'all' | 'playlist' | 'routine'
 
   // Enrichissement une seule fois par changement de `items` — évite de
   // ré-extraire genres/durée à chaque frappe dans le champ de recherche
@@ -112,7 +123,6 @@ export function useProfileSearchFilter(items) {
     const text = searchText.trim().toLowerCase();
     return enriched
       .filter(e => {
-        if (typeFilter !== 'all' && e.kind !== typeFilter) return false;
         if (text) {
           const matchesText = e.name.includes(text)
             || e.workoutType.toLowerCase().includes(text)
@@ -129,17 +139,16 @@ export function useProfileSearchFilter(items) {
         return true;
       })
       .map(e => e.row);
-  }, [enriched, searchText, sportFilter, genreFilter, durationFilter, typeFilter]);
+  }, [enriched, searchText, sportFilter, genreFilter, durationFilter]);
 
   const hasActiveFilters = searchText.trim() !== ''
-    || durationFilter !== 'all' || sportFilter !== 'all' || genreFilter !== 'all' || typeFilter !== 'all';
+    || durationFilter !== 'all' || sportFilter !== 'all' || genreFilter !== 'all';
 
   const resetFilters = () => {
     setSearchText('');
     setDurationFilter('all');
     setSportFilter('all');
     setGenreFilter('all');
-    setTypeFilter('all');
   };
 
   return {
@@ -147,7 +156,6 @@ export function useProfileSearchFilter(items) {
     durationFilter, setDurationFilter,
     sportFilter, setSportFilter,
     genreFilter, setGenreFilter,
-    typeFilter, setTypeFilter,
     availableSports, availableGenres,
     filteredItems, hasActiveFilters, resetFilters,
   };
