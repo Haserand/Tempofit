@@ -7,7 +7,7 @@ import {
 import { STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, genreDisplayLabel, GENRE_SEARCH_DEPTH_HINT } from '../../musicCatalog';
 import { formatDuration } from '../../utils/format';
 import { syncClampedInput } from '../../utils/numberInput';
-import { isTargetValueValid } from '../../utils/targetValidation';
+import { isTargetValueValid, isSegmentValid, areSegmentsValid, snapSegmentBpmOnBlur, snapSegmentDurationOnBlur } from '../../utils/targetValidation';
 import DualRangeSlider from '../shared/DualRangeSlider';
 import TargetModeInputs from './TargetModeInputs';
 import {
@@ -189,13 +189,22 @@ export default function GeneratorWizard({
   // (`!isIntervalMode || isCrescendoMode` — même condition que celle qui
   // décide d'afficher `<TargetModeInputs>` à l'étape 3, voir plus bas) :
   // le mode Fractionné y affiche des durées PAR SEGMENT à la place, une
-  // source de données différente, hors scope de ce correctif (voir la
-  // docstring de isTargetValueValid). "Suivant" reste actif à l'étape 1
-  // (aucun champ concerné) et à l'étape 3 en mode Fractionné pur.
+  // source de données différente — initialement hors scope, ÉLARGI ci-
+  // dessous (même jour, retour direct : "ce comportement minimal est-il
+  // celui généralisé dans toute l'app ? il le faudrait").
   const step3ShowsTargetInputs = !isIntervalMode || isCrescendoMode;
-  const isNextDisabledByInvalidTarget =
+  const isTopLevelTargetInvalid =
     (wizardStep === 2 || (wizardStep === 3 && step3ShowsTargetInputs)) &&
     !isTargetValueValid({ targetMode, distanceVal, hours, minutes });
+  // Mode Fractionné pur (`isIntervalMode && !isCrescendoMode`) : la cible
+  // globale ne s'affiche plus à l'étape 3 (segments à la place, voir
+  // step3ShowsTargetInputs ci-dessus) — donc c'est la validité des SEGMENTS
+  // eux-mêmes (`isSegmentValid`, targetValidation.js) qui gouverne "Suivant"
+  // à cette étape précise, pas isTargetValueValid.
+  const isSegmentsStepInvalid =
+    wizardStep === 3 && isIntervalMode && !isCrescendoMode &&
+    !areSegmentsValid(segments, targetMode);
+  const isNextDisabledByInvalidTarget = isTopLevelTargetInvalid || isSegmentsStepInvalid;
 
 
   return (
@@ -712,13 +721,31 @@ export default function GeneratorWizard({
                           <div className="flex-1 flex gap-3">
                             <div className="flex-1">
                               <div className={`flex items-center bg-surface rounded-lg px-3 py-2 shadow-xs`}>
-                                <input type="number" value={segment.bpm} onChange={(e) => setSegments(segments.map(s => s.id === segment.id ? { ...s, bpm: parseInt(e.target.value) || 0 } : s))} className={`w-full bg-transparent text-lg font-bold outline-hidden ${textHighlight}`} />
+                                {/* min=1 + onBlur — même principe que le champ distance
+                                    (targetValidation.js, snapSegmentBpmOnBlur) : un BPM à 0
+                                    n'a aucun sens pour la lecture d'un titre. Voir
+                                    isSegmentValid/areSegmentsValid pour le blocage du
+                                    bouton "Suivant" tant qu'un segment reste invalide. */}
+                                <input
+                                  type="number" min="1" value={segment.bpm}
+                                  onChange={(e) => setSegments(segments.map(s => s.id === segment.id ? { ...s, bpm: parseInt(e.target.value) || 0 } : s))}
+                                  onBlur={(e) => setSegments(prev => prev.map(s => s.id === segment.id ? { ...s, bpm: parseInt(snapSegmentBpmOnBlur(e.target.value), 10) } : s))}
+                                  className={`w-full bg-transparent text-lg font-bold outline-hidden ${textHighlight}`}
+                                />
                                 <span className={`text-xs font-bold ${textMuted}`}>BPM</span>
                               </div>
                               {renderZoneQuickPicks(segment.bpm, (zoneBpm) => setSegments(segments.map(s => s.id === segment.id ? { ...s, bpm: zoneBpm } : s)))}
                             </div>
                             <div className={`flex-1 flex items-center bg-surface rounded-lg px-3 py-2 shadow-xs h-fit`}>
-                              <input type="number" step={targetMode==='distance'?'0.1':'1'} value={segment.durationValue} onChange={(e) => setSegments(segments.map(s => s.id === segment.id ? { ...s, durationValue: parseFloat(e.target.value) || 0 } : s))} className={`w-full bg-transparent text-lg font-bold outline-hidden ${textHighlight}`} />
+                              {/* min dynamique (0.1 en distance, 1 en temps) + onBlur — pendant
+                                  de snapDistanceOnBlur pour ce champ par segment (voir
+                                  snapSegmentDurationOnBlur, targetValidation.js). */}
+                              <input
+                                type="number" min={targetMode==='distance'?'0.1':'1'} step={targetMode==='distance'?'0.1':'1'} value={segment.durationValue}
+                                onChange={(e) => setSegments(segments.map(s => s.id === segment.id ? { ...s, durationValue: parseFloat(e.target.value) || 0 } : s))}
+                                onBlur={(e) => setSegments(prev => prev.map(s => s.id === segment.id ? { ...s, durationValue: parseFloat(snapSegmentDurationOnBlur(e.target.value, targetMode)) } : s))}
+                                className={`w-full bg-transparent text-lg font-bold outline-hidden ${textHighlight}`}
+                              />
                               <span className={`text-xs font-bold ${textMuted}`}>{targetMode === 'distance' ? distanceUnit : 'Min'}</span>
                             </div>
                           </div>
@@ -736,6 +763,12 @@ export default function GeneratorWizard({
                             <Trash2 size={20} />
                           </button>
                         </div>
+                        {/* Voir isSegmentValid (targetValidation.js) — même raisonnement
+                            que l'indice sur le champ distance/durée global
+                            (TargetModeInputs.jsx), transposé au niveau du segment. */}
+                        {!isSegmentValid(segment, targetMode) && (
+                          <p className="text-xs font-bold text-red-500 px-4 pb-3 -mt-2">Portion {index + 1} : BPM et {targetMode === 'distance' ? 'distance' : 'durée'} doivent être supérieurs à 0.</p>
+                        )}
                         {isGenreExpanded && (
                           <div className={`px-4 pb-4 border-t ${inputBorder} pt-3`}>
                             <div className="flex items-center justify-between mb-2">
@@ -1082,7 +1115,7 @@ export default function GeneratorWizard({
             <button
               onClick={() => setWizardStep(wizardStep + 1)}
               disabled={isNextDisabledByInvalidTarget}
-              title={isNextDisabledByInvalidTarget ? (targetMode === 'distance' ? 'Renseigne une distance supérieure à 0 pour continuer.' : 'Renseigne une durée supérieure à 0 pour continuer.') : undefined}
+              title={isNextDisabledByInvalidTarget ? (isSegmentsStepInvalid ? 'Chaque portion doit avoir un BPM et une durée/distance valides.' : (targetMode === 'distance' ? 'Renseigne une distance supérieure à 0 pour continuer.' : 'Renseigne une durée supérieure à 0 pour continuer.')) : undefined}
               className={`px-8 py-3 rounded-xl font-bold flex items-center space-x-2 text-white shadow-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isNaughtyMode ?
               'bg-rose-500 hover:bg-rose-600' : 'bg-red-500 hover:bg-red-600'}`}>
               <span>Suivant</span> <ChevronRight size={20}/>
