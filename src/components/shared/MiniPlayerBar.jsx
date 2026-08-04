@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Play, Pause, X, Music2, SkipBack, SkipForward, Volume2, Volume1, VolumeX } from 'lucide-react';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 import AudioProgressBar from './AudioProgressBar';
+import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 
 /**
  * MiniPlayerBar — barre persistante en bas d'écran (façon Spotify), monté
@@ -162,7 +163,7 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
             <button
               onClick={handlePrevious}
               title="Titre précédent"
-              className={`p-2 rounded-full shrink-0 transition-colors ${textMuted} hover:text-main hover:bg-surface-hover`}
+              className={`p-2 ${ICON_BUTTON_ROUNDING} shrink-0 transition-colors ${textMuted} hover:text-main hover:bg-surface-hover`}
             >
               <SkipBack size={16} className="fill-current"/>
             </button>
@@ -170,7 +171,7 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
             <button
               onClick={handleTogglePlayPause}
               title={isPlaying ? 'Mettre en pause' : 'Reprendre la lecture'}
-              className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-white shadow-md hover:brightness-110 transition-all ${bgAccentClass}`}
+              className={`w-9 h-9 ${ICON_BUTTON_ROUNDING} flex items-center justify-center shrink-0 text-white shadow-md hover:brightness-110 transition-all ${bgAccentClass}`}
             >
               {isPlaying ? <Pause size={16} className="fill-white"/> : <Play size={16} className="fill-white ml-0.5"/>}
             </button>
@@ -178,7 +179,7 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
             <button
               onClick={handleNext}
               title="Titre suivant"
-              className={`p-2 rounded-full shrink-0 transition-colors ${textMuted} hover:text-main hover:bg-surface-hover`}
+              className={`p-2 ${ICON_BUTTON_ROUNDING} shrink-0 transition-colors ${textMuted} hover:text-main hover:bg-surface-hover`}
             >
               <SkipForward size={16} className="fill-current"/>
             </button>
@@ -222,7 +223,7 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
           <button
             onClick={handleToggleMute}
             title={volume === 0 ? 'Réactiver le son' : 'Couper le son'}
-            className={`p-2 rounded-full shrink-0 transition-colors ${textMuted} hover:text-main hover:bg-surface-hover`}
+            className={`p-2 ${ICON_BUTTON_ROUNDING} shrink-0 transition-colors ${textMuted} hover:text-main hover:bg-surface-hover`}
           >
             <VolumeIcon size={18}/>
           </button>
@@ -249,7 +250,7 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
         <button
           onClick={stopCurrentPreview}
           title="Fermer le lecteur"
-          className={`p-2 rounded-full shrink-0 transition-colors ${textMuted} hover:text-red-500 hover:bg-surface-hover`}
+          className={`p-2 ${ICON_BUTTON_ROUNDING} shrink-0 transition-colors ${textMuted} hover:text-red-500 hover:bg-surface-hover`}
         >
           <X size={18}/>
         </button>
