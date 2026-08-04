@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Award, Share2, HelpCircle, Lock } from 'lucide-react';
 import { TROPHIES_DATA, TROPHY_CATEGORIES } from '../../appConfig';
 import ViewHeader from '../shared/ViewHeader';
@@ -36,8 +36,20 @@ import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHe
  *   donnerait des indices sur leur thème avant même de les avoir débloqués,
  *   ce qui irait à l'encontre de la surprise qui fait leur intérêt.
  */
-export default function TrophiesView({ theme, userStats, handleShare, isNaughtyMode }) {
+export default function TrophiesView({ theme, userStats, handleShare, isNaughtyMode, markTrophiesSeen }) {
   const { cardBg, cardBorder, textHighlight, textMuted, bgAccentClass } = theme;
+
+  // Badge de notification "vu/pas vu" (03/08, retour direct, capture
+  // d'écran — voir la docstring complète de `markTrophiesSeen`,
+  // useUserStats.js) — appelé UNE FOIS à l'ouverture de cette page,
+  // jamais à chaque re-render (tableau de dépendances vide, `[]`) : le
+  // badge doit se vider dès qu'on MET LES YEUX sur la page, pas seulement
+  // après une action précise dessus. Idempotent si rappelé (repose juste
+  // `trophiesSeenCount` à la même valeur) — pas de garde-fou nécessaire
+  // contre un double appel.
+  useEffect(() => {
+    markTrophiesSeen();
+  }, []);
   const [activeTab, setActiveTab] = useState('visible');
 
   const visibleTrophies = TROPHIES_DATA.filter(t => !t.secret);
