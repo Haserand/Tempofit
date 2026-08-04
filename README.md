@@ -42,6 +42,8 @@ mériter sa propre section) :**
   appelée au montage de `TrophiesView.jsx`). Un COMPTEUR, pas un booléen :
   un nouveau trophée débloqué après consultation refait apparaître le
   badge, avec seulement le delta (pas le total).
+  ✅ **Vérifié en conditions réelles le 04/08** (retour direct : "je valide
+  aussi que tout marche pour les trophées").
 - **`SettingsView.jsx` — prop `initialTab`** (nouveau 2e point d'entrée) :
   le bloc pseudo/e-mail du dropdown avatar (App.jsx) est désormais
   cliquable → ouvre directement l'onglet "Mon Compte". `App.jsx` centralise
@@ -69,6 +71,9 @@ mériter sa propre section) :**
   clarifiée à cette occasion : scroll acceptable/attendu tant que la barre
   est visible (elle prend de la place), zéro scroll résiduel une fois
   masquée.
+  ✅ **Vérifié en conditions réelles le 04/08, sur l'app déployée** (retour
+  direct : "déploiement réalisé, le comportement est le bon") — les 2 bugs
+  ci-dessus sont bien résolus en pratique, pas seulement en théorie.
 - **`GeneratorWizard.jsx` — `min-h-[450px]` retiré** de la carte du wizard
   (partagé par les 4 étapes, poussait le bouton "Suivant" en bas d'une
   hauteur fixe même sur l'étape 1, la plus courte — un vrai espace mort,
@@ -103,13 +108,17 @@ mériter sa propre section) :**
   désambiguïsation K-pop/J-pop), impossible à rendre asynchrone sans
   casser ces 2 mécanismes.
 
-⚠️ **Rien de tout ce bloc n'a été vérifié en conditions réelles**, à
-UNE exception près (le chantier hauteur du wizard, confirmé par
-captures d'écran) — build Vercel vert (942 tests) au moment d'écrire
-ceci, mais un test qui passe ne garantit pas qu'un onglet s'affiche
-correctement, qu'un badge se comporte comme prévu au clic, etc. **Prochaine
-étape avant tout nouveau chantier : parcourir chaque point ci-dessus dans
-l'app déployée.**
+⚠️ **La majorité de ce bloc reste non vérifiée en conditions réelles.**
+✅ Confirmés le 04/08 : la fermeture de `GuestModeBar` (scroll/spacer) et le
+badge de notification Trophées. Restent à vérifier : les onglets
+Playlists/Routines du profil public, `SettingsView`/`StatsView` (points
+d'entrée croisés), la chasse au scroll résiduel du wizard (au-delà du seul
+cas guest bar), et les 3 optimisations de perf (`StatsView.jsx`,
+`musicEngine.js`, `TargetModeInputs.jsx`) — build Vercel vert (942 tests)
+au moment d'écrire ceci, mais un test qui passe ne garantit pas qu'un
+onglet s'affiche correctement, qu'un badge se comporte comme prévu au
+clic, etc. **Prochaine étape avant tout nouveau chantier : parcourir
+chaque point restant ci-dessus dans l'app déployée.**
 
 ---
 
