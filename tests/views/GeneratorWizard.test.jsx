@@ -361,6 +361,74 @@ describe('GeneratorWizard — navigation Précédent/Suivant (étapes 1 à 3)', 
     expect(setWizardStep).toHaveBeenCalledWith(3);
   });
 
+  // 04/08, retour direct (capture d'écran EditRoutineModal.jsx) : "je ne
+  // trouve pas ça normal de pouvoir générer une routine avec une valeur de
+  // 0 km" — voir targetValidation.js pour le raisonnement complet.
+  it('BUG CORRIGÉ : "Suivant" (étape 2, mode distance) est désactivé quand distanceVal vaut 0', () => {
+    const setWizardStep = vi.fn();
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 2, targetMode: 'distance', distanceVal: 0, setWizardStep }));
+    render(<GeneratorWizard {...baseProps()} />);
+    fireEvent.click(screen.getByText('Suivant'));
+    expect(setWizardStep).not.toHaveBeenCalled();
+    expect(screen.getByText('Suivant').closest('button')).toBeDisabled();
+  });
+
+  it('"Suivant" (étape 2, mode temps) est désactivé quand heures ET minutes valent 0', () => {
+    const setWizardStep = vi.fn();
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 2, targetMode: 'time', hours: 0, minutes: 0, setWizardStep }));
+    render(<GeneratorWizard {...baseProps()} />);
+    fireEvent.click(screen.getByText('Suivant'));
+    expect(setWizardStep).not.toHaveBeenCalled();
+  });
+
+  it('"Suivant" (étape 3, mode Constant) est aussi désactivé si la cible redevient invalide', () => {
+    const setWizardStep = vi.fn();
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 3, targetMode: 'distance', distanceVal: 0, setWizardStep }));
+    render(<GeneratorWizard {...baseProps()} />);
+    fireEvent.click(screen.getByText('Suivant'));
+    expect(setWizardStep).not.toHaveBeenCalled();
+  });
+
+  // 04/08, 3e retour direct sur ce même chantier : "ce comportement minimal
+  // est-il celui généralisé dans toute l'app ? il le faudrait" — le mode
+  // Fractionné n'est plus hors scope : ce sont désormais les SEGMENTS
+  // eux-mêmes qui gouvernent "Suivant" à cette étape (isSegmentValid/
+  // areSegmentsValid, targetValidation.js), pas la cible globale
+  // (distanceVal/hours/minutes), qui ne s'affiche plus à l'écran dans ce
+  // mode de toute façon.
+  it('BUG CORRIGÉ (généralisation) : "Suivant" (étape 3, Fractionné) est désactivé si un segment a bpm=0', () => {
+    const setWizardStep = vi.fn();
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({
+      wizardStep: 3, targetMode: 'distance', isIntervalMode: true, isCrescendoMode: false, setWizardStep,
+      segments: [{ id: 's1', bpm: 0, durationValue: 5 }],
+    }));
+    render(<GeneratorWizard {...baseProps()} />);
+    fireEvent.click(screen.getByText('Suivant'));
+    expect(setWizardStep).not.toHaveBeenCalled();
+  });
+
+  it('"Suivant" (étape 3, Fractionné) est désactivé quand la liste de segments est vide', () => {
+    const setWizardStep = vi.fn();
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({
+      wizardStep: 3, targetMode: 'distance', isIntervalMode: true, isCrescendoMode: false, setWizardStep,
+      segments: [],
+    }));
+    render(<GeneratorWizard {...baseProps()} />);
+    fireEvent.click(screen.getByText('Suivant'));
+    expect(setWizardStep).not.toHaveBeenCalled();
+  });
+
+  it('"Suivant" (étape 3, Fractionné) reste actif quand tous les segments sont valides', () => {
+    const setWizardStep = vi.fn();
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({
+      wizardStep: 3, targetMode: 'distance', isIntervalMode: true, isCrescendoMode: false, setWizardStep,
+      segments: [{ id: 's1', bpm: 150, durationValue: 5 }, { id: 's2', bpm: 160, durationValue: 3 }],
+    }));
+    render(<GeneratorWizard {...baseProps()} />);
+    fireEvent.click(screen.getByText('Suivant'));
+    expect(setWizardStep).toHaveBeenCalledWith(4);
+  });
+
   it('étape 1, mode normal : le lien "Configurer mes zones BPM" appelle changeView("settings")', () => {
     const changeView = vi.fn();
     mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 1, isNaughtyMode: false }));
@@ -625,6 +693,55 @@ describe('GeneratorWizard — étape 3, Fractionné/segments (détail)', () => {
 
     const addedSegments = setSegments.mock.calls[0][0];
     expect(addedSegments[2].bpm).toBe(100); // dernier segment était à zone4 (180) → alterne vers zone2 (100)
+  });
+
+  // 04/08, 3e retour direct sur ce même chantier : "ce comportement minimal
+  // est-il celui généralisé dans toute l'app ? il le faudrait" — voir
+  // snapSegmentBpmOnBlur/snapSegmentDurationOnBlur (targetValidation.js).
+  describe('correction automatique au blur + indice visuel (BUG CORRIGÉ, généralisation)', () => {
+    it('quitter le champ BPM d\'un segment à 0 le remonte à 1', () => {
+      const setSegments = vi.fn();
+      mockUseGeneratorContext.mockReturnValue(
+        makeContextValue({ wizardStep: 3, isIntervalMode: true, isCrescendoMode: false, targetMode: 'time', segments: [{ ...segment1, bpm: 0 }], setSegments })
+      );
+      const { container } = render(<GeneratorWizard {...baseProps()} />);
+
+      const bpmInput = container.querySelector('input[type="number"]');
+      fireEvent.blur(bpmInput, { target: { value: '0' } });
+
+      const updater = setSegments.mock.calls[0][0];
+      expect(updater([{ ...segment1, bpm: 0 }])[0].bpm).toBe(1);
+    });
+
+    it('quitter le champ durée d\'un segment à 0 le remonte au plancher (0.1 en distance, 1 en temps)', () => {
+      const setSegments = vi.fn();
+      mockUseGeneratorContext.mockReturnValue(
+        makeContextValue({ wizardStep: 3, isIntervalMode: true, isCrescendoMode: false, targetMode: 'distance', segments: [{ ...segment1, durationValue: 0 }], setSegments })
+      );
+      const { container } = render(<GeneratorWizard {...baseProps()} />);
+
+      const numberInputs = container.querySelectorAll('input[type="number"]');
+      fireEvent.blur(numberInputs[1], { target: { value: '0' } }); // durée
+
+      const updater = setSegments.mock.calls[0][0];
+      expect(updater([{ ...segment1, durationValue: 0 }])[0].durationValue).toBe(0.1);
+    });
+
+    it('affiche un avertissement sur la portion concernée quand elle est invalide', () => {
+      mockUseGeneratorContext.mockReturnValue(
+        makeContextValue({ wizardStep: 3, isIntervalMode: true, isCrescendoMode: false, targetMode: 'time', segments: [{ ...segment1, bpm: 0 }] })
+      );
+      render(<GeneratorWizard {...baseProps()} />);
+      expect(screen.getByText(/Portion 1 :/)).toBeInTheDocument();
+    });
+
+    it('n\'affiche aucun avertissement quand la portion est valide', () => {
+      mockUseGeneratorContext.mockReturnValue(
+        makeContextValue({ wizardStep: 3, isIntervalMode: true, isCrescendoMode: false, targetMode: 'time', segments: [segment1] })
+      );
+      render(<GeneratorWizard {...baseProps()} />);
+      expect(screen.queryByText(/Portion 1 :/)).toBeNull();
+    });
   });
 });
 
