@@ -112,8 +112,12 @@ describe('TargetModeInputs — mode "distance"', () => {
     expect(setPaceMin).toHaveBeenCalledWith('1');
   });
 
-  it('applique les classes du thème fourni (textHighlight sur le titre)', () => {
+  it('applique les classes du thème fourni (textHighlight sur le label, pas juste le texte)', () => {
     render(<TargetModeInputs {...baseProps({ targetMode: 'distance' })} />);
-    expect(screen.getByText('Objectif & Allure')).toHaveClass('mock-highlight');
+    // `textHighlight` est posée sur le <label> englobant, pas sur le <span>
+    // qui porte le texte visible — `.closest('label')` cible le bon élément
+    // (même piège que documenté ailleurs dans ce projet : le nom accessible
+    // d'un texte ne dit rien de QUEL élément DOM porte réellement la classe).
+    expect(screen.getByText('Objectif & Allure').closest('label')).toHaveClass('mock-highlight');
   });
 });
