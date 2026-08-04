@@ -259,8 +259,10 @@ export default function GeneratorWizard({
               jamais par rapport à CETTE carte englobante). */}
           <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl relative overflow-hidden flex flex-col ${isGenerating ? 'opacity-60 pointer-events-none select-none' : ''}`}>
 
-            {/* Barre de progression du wizard (4 pastilles) */}
-            <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-100 dark:border-gray-800">
+            {/* Barre de progression du wizard (4 pastilles). `mb-6` (PAS
+                `mb-8`) — 03/08, voir la docstring de `<main>` (App.jsx)
+                pour le raisonnement complet de ce chantier en 4 parties. */}
+            <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100 dark:border-gray-800">
               <div className="flex space-x-2">
                 {[1, 2, 3, 4].map(s => (
                   <div key={s} className={`h-2.5 w-8 sm:w-12 rounded-full transition-colors duration-300 ${wizardStep >= s ? bgAccentClass : 'bg-gray-200 dark:bg-gray-700'}`}/>
@@ -1012,9 +1014,11 @@ export default function GeneratorWizard({
 
         </div>
 
-        {/* Navigation Précédent/Suivant du wizard (étapes 1 à 3) */}
+        {/* Navigation Précédent/Suivant du wizard (étapes 1 à 3). `pt-6`
+            (PAS `pt-8`) — 03/08, voir la docstring de `<main>` (App.jsx)
+            pour le raisonnement complet de ce chantier en 4 parties. */}
         {wizardStep < 4 && (
-          <div className="mt-auto pt-8 flex justify-between items-center border-t border-gray-100 dark:border-gray-800">
+          <div className="mt-auto pt-6 flex justify-between items-center border-t border-gray-100 dark:border-gray-800">
             {wizardStep > 1 ? (
               <button onClick={() => setWizardStep(wizardStep - 1)} className={`px-6 py-3 rounded-xl font-bold flex items-center space-x-2 ${textMuted} hover:text-main bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`}>
                 <ChevronLeft size={20}/> <span>Précédent</span>
