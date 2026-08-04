@@ -792,7 +792,25 @@ export default function StatsView({
           useTheme.js (`cardBorder`/`textMuted`, voir RoutinesView.jsx/
           PlaylistsView.jsx pour le même ménage). */}
       {totalSessions === 0 ? (
-        <div className={`py-16 text-center border-2 border-dashed rounded-2xl ${cardBorder}`}>
+        // ⚠️ `min-h-[500px]` + centrage vertical AJOUTÉS (04/08, retour direct
+        // "pur détail esthétique... que la taille vide de la partie
+        // Statistiques fasse la même taille que la page 1/3 du générateur") :
+        // l'en-tête ("Statistiques"/"Sculpte ta séance") est déjà IDENTIQUE
+        // entre les deux vues (même <ViewHeader/> partagé, voir
+        // GeneratorView.jsx/StatsView.jsx) — seule LA CARTE en dessous
+        // différait en hauteur, celle-ci suivant son contenu (`py-16` +
+        // icône + titre + texte + bouton) au lieu d'une hauteur comparable à
+        // la carte du wizard (barre de progression + grille 2×2 des 4
+        // activités + pied de page, étape 1). 500px = estimation raisonnée
+        // (accolée à la structure réelle du wizard : padding de carte,
+        // barre de progression, grille de boutons, pied de page) mais PAS
+        // mesurée dans un vrai navigateur (aucun disponible dans ce bac à
+        // sable) — première valeur à ajuster si l'écart persiste après
+        // déploiement, `flex items-center justify-center` gardant le
+        // contenu centré quelle que soit la valeur finale. `py-16` gardé
+        // comme plancher si jamais min-h ne suffisait pas sur un très petit
+        // écran (texte qui s'étend sur plus de lignes qu'attendu, etc.).
+        <div className={`min-h-[500px] flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-2xl ${cardBorder}`}>
           <Activity size={48} className={`mx-auto mb-4 ${textMuted}`} />
           <h3 className="text-lg font-bold mb-2 text-white">Rien à montrer pour l'instant</h3>
           <p className={`text-sm mb-6 max-w-sm mx-auto line-clamp-1 ${textMuted}`}>
