@@ -411,11 +411,12 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
   );
 
   // Recherche & filtres (brief "Recherche & filtres sur les profils
-  // publics", 02/08) — grille COMBINÉE, pas d'onglets Playlists/Routines
-  // séparés (voir la docstring plus haut) : `kind` posé ICI, au moment de
-  // combiner les deux tableaux — ni `playlists` ni `routines`
-  // (supabase-schema.sql) n'ont de colonne équivalente en base, ce n'est
-  // qu'une étiquette d'affichage locale à ce composant.
+  // publics", 02/08) — `kind` posé ICI, au moment de combiner les deux
+  // tableaux — ni `playlists` ni `routines` (supabase-schema.sql) n'ont de
+  // colonne équivalente en base, ce n'est qu'une étiquette d'affichage
+  // locale à ce composant. `combinedVisibleItems` sert encore au total de
+  // clonages reçus juste en dessous (calculé sur les 2 types à la fois) —
+  // mais plus à la grille elle-même, voir `itemsForActiveTab` plus bas.
   //
   // `useMemo` en cascade (`visiblePlaylists`/`visibleRoutines` ci-dessus
   // ET `combinedVisibleItems` ici) : sans ça, une NOUVELLE référence de
@@ -428,6 +429,28 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
     ...visibleRoutines.map(row => ({ ...row, kind: 'routine' })),
   ], [visiblePlaylists, visibleRoutines]);
 
+  // Onglets Playlists/Routines — REFONTE (03/08, retour direct : "les
+  // routines sont invisibles, noyées en bas d'une grille de playlists" —
+  // capture d'écran à l'appui, 27 cartes de playlists avant la 1re
+  // routine). Remplace la grille combinée du 02/08 (voir git blame de ce
+  // fichier et de useProfileSearchFilter.js pour l'ancienne version) —
+  // les onglets Playlists/Routines avaient été explicitement écartés du
+  // scope à l'époque (remplacés par le filtre "Type" ci-dessous, retiré
+  // avec cette refonte), pas rejetés sur le fond. `'playlist'` par défaut
+  // (cohérent avec le libellé de section historique "Playlists
+  // partagées").
+  const [activeProfileTab, setActiveProfileTab] = useState('playlist'); // 'playlist' | 'routine'
+
+  // Recherche/filtres restent PARTAGÉS entre les 2 onglets (même state,
+  // voir la docstring de useProfileSearchFilter.js) — seul l'ENSEMBLE
+  // d'items passé au hook change selon l'onglet actif, ce qui recalcule
+  // aussi `availableSports`/`availableGenres` pour ne proposer QUE ce qui
+  // existe réellement dans l'onglet affiché.
+  const itemsForActiveTab = useMemo(
+    () => combinedVisibleItems.filter(item => item.kind === activeProfileTab),
+    [combinedVisibleItems, activeProfileTab]
+  );
+
   // Total de clonages reçus (02/08) — calculé côté CLIENT à partir de ce
   // qui est DÉJÀ chargé (`combinedVisibleItems`), pas une nouvelle requête
   // Supabase : `visiblePlaylists`/`visibleRoutines` viennent d'un
@@ -437,6 +460,9 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
   // deux mélangés — `combinedVisibleItems` est déjà filtré par mode via
   // `visiblePlaylists`/`visibleRoutines`), cohérent avec la séparation
   // stricte Sport/Intime appliquée partout ailleurs dans ce composant.
+  // Volontairement calculé sur les 2 onglets À LA FOIS (pas juste l'actif)
+  // — c'est un total de réputation globale, pas une stat propre à un
+  // onglet, il ne doit pas changer selon l'onglet consulté.
   const totalCloneCount = useMemo(
     () => combinedVisibleItems.reduce((sum, item) => sum + (item.clone_count || 0), 0),
     [combinedVisibleItems]
@@ -447,10 +473,9 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
     durationFilter, setDurationFilter,
     sportFilter, setSportFilter,
     genreFilter, setGenreFilter,
-    typeFilter, setTypeFilter,
     availableSports, availableGenres,
     filteredItems, hasActiveFilters, resetFilters,
-  } = useProfileSearchFilter(combinedVisibleItems);
+  } = useProfileSearchFilter(itemsForActiveTab);
 
   // Résumés chiffrés — `null` si la fonction serveur n'a pas renvoyé ce
   // tableau du tout (bascule de confidentialité désactivée côté
@@ -617,26 +642,57 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
               concernent que les CHIFFRES agrégés plus haut. */}
           <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className={`font-bold text-lg ${textHighlight}`}>Playlists partagées</h3>
+              {/* Onglets Playlists/Routines (03/08, refonte — voir la
+                  docstring de `activeProfileTab` plus haut). Remplace le
+                  titre statique "Playlists partagées" : chaque onglet
+                  affiche son propre compte, un visiteur qui veut
+                  spécifiquement les routines n'a plus à scroller une
+                  grille de playlists pour les trouver. */}
+              <div className="flex items-center gap-1" role="tablist">
+                {[
+                  { value: 'playlist', label: 'Playlists', count: visiblePlaylists.length },
+                  { value: 'routine', label: 'Routines', count: visibleRoutines.length },
+                ].map(tab => (
+                  <button
+                    key={tab.value}
+                    role="tab"
+                    aria-selected={activeProfileTab === tab.value}
+                    onClick={() => setActiveProfileTab(tab.value)}
+                    className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-colors ${
+                      activeProfileTab === tab.value ? `${bgAccentClass} text-white` : `${textMuted} hover:text-main`
+                    }`}
+                  >
+                    {tab.label} <span className="opacity-70">({tab.count})</span>
+                  </button>
+                ))}
+              </div>
               {/* Total de clonages reçus — seulement si > 0 (même
                   raisonnement que le badge par item, voir PublicItemCard :
-                  "0 clonage" n'est pas une information à mettre en avant). */}
+                  "0 clonage" n'est pas une information à mettre en avant).
+                  Volontairement global aux 2 onglets (voir la docstring de
+                  `totalCloneCount` plus haut) — ne change pas selon
+                  l'onglet actif. */}
               {totalCloneCount > 0 && (
-                <span className={`flex items-center gap-1.5 text-sm font-bold ${textMuted}`} title="Total des clonages reçus sur tes playlists/routines publiques, dans ce mode">
+                <span className={`flex items-center gap-1.5 text-sm font-bold shrink-0 ${textMuted}`} title="Total des clonages reçus sur tes playlists/routines publiques, dans ce mode">
                   <Copy size={14}/> {totalCloneCount} clonage{totalCloneCount > 1 ? 's' : ''} reçu{totalCloneCount > 1 ? 's' : ''}
                 </span>
               )}
             </div>
 
             {/* Recherche & filtres (brief "Recherche & filtres sur les
-                profils publics", 02/08) — affichés dès qu'il y a au moins
-                un item à filtrer (`combinedVisibleItems.length > 0`) :
-                inutile de montrer une barre de recherche/filtres sur une
-                grille vide, elle n'aurait jamais rien à faire. Champ de
-                recherche TOUJOURS visible ; le reste (type/sport/genre/
-                durée) est derrière `filtersExpanded` — repliable, cohérent
-                avec l'ergonomie "compacte, pliable sur mobile" du brief. */}
-            {itemsLoaded && combinedVisibleItems.length > 0 && (
+                profils publics", 02/08 ; onglets Playlists/Routines,
+                03/08) — affichés dès qu'il y a au moins un item à filtrer
+                DANS L'ONGLET ACTIF (`itemsForActiveTab.length > 0`, pas
+                `combinedVisibleItems` — inutile de montrer une barre de
+                recherche pour l'onglet Routines si seul l'onglet
+                Playlists a du contenu). Champ de recherche TOUJOURS
+                visible ; le reste (sport/genre/durée) est derrière
+                `filtersExpanded` — repliable, cohérent avec l'ergonomie
+                "compacte, pliable sur mobile" du brief d'origine. Le
+                filtre "Type" (Toutes/Playlists/Routines) a été RETIRÉ ici
+                — les onglets ci-dessus remplissent désormais ce rôle,
+                les deux auraient fait doublon. */}
+            {itemsLoaded && itemsForActiveTab.length > 0 && (
               <div className="mb-4 space-y-3">
                 <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border ${inputBorder} ${inputBg}`}>
                   <Search size={18} className={textMuted} />
@@ -659,27 +715,6 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
 
                 {filtersExpanded && (
                   <div className="flex flex-wrap items-center gap-2">
-                    {/* Type — 3 valeurs fixes (contrairement à
-                        sport/genre, générées dynamiquement plus bas) :
-                        pilules, même pattern que les catégories de
-                        DiscoverView.jsx. Remplace les onglets Playlists/
-                        Routines écartés du scope (brief) — même
-                        dimension de filtre que les autres, pas une
-                        bascule structurelle séparée. */}
-                    {[
-                      { value: 'all', label: 'Toutes' },
-                      { value: 'playlist', label: 'Playlists' },
-                      { value: 'routine', label: 'Routines' },
-                    ].map(opt => (
-                      <button
-                        key={opt.value}
-                        onClick={() => setTypeFilter(opt.value)}
-                        className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${typeFilter === opt.value ? `${bgAccentClass} text-white` : `border ${cardBorder} ${textMuted} hover:text-main`}`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-
                     {/* Sport/genre/durée — dropdowns natifs, valeurs
                         générées DYNAMIQUEMENT à partir des items
                         réellement affichés (brief, points 4/5) — jamais
@@ -744,8 +779,12 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
               <div className="flex justify-center py-8">
                 <Loader2 size={24} className={`animate-spin ${textMuted}`} />
               </div>
-            ) : combinedVisibleItems.length === 0 ? (
-              <p className={`text-sm text-center py-4 ${textMuted}`}>Aucune playlist publique dans ce mode pour le moment.</p>
+            ) : itemsForActiveTab.length === 0 ? (
+              <p className={`text-sm text-center py-4 ${textMuted}`}>
+                {activeProfileTab === 'routine'
+                  ? 'Aucune routine publique dans ce mode pour le moment.'
+                  : 'Aucune playlist publique dans ce mode pour le moment.'}
+              </p>
             ) : filteredItems.length === 0 ? (
               // État vide DISTINCT de "aucun contenu public du tout" —
               // brief, section Ergonomie : un profil peut avoir du contenu
