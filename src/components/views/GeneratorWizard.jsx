@@ -230,8 +230,34 @@ export default function GeneratorWizard({
               (juste `disabled` en HTML, pas toujours perceptible) ; ceci le
               rend aussi visuellement évident. Annulation possible via le
               bouton dans le bandeau "Génération en cours" (App.jsx), qui est
-              EN DEHORS de cette carte donc jamais gelé par ce changement. */}
-          <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl relative overflow-hidden flex flex-col min-h-[450px] ${isGenerating ? 'opacity-60 pointer-events-none select-none' : ''}`}>
+              EN DEHORS de cette carte donc jamais gelé par ce changement.
+              `min-h-[450px]` RETIRÉ (03/08, retour direct, capture d'écran :
+              "éviter de devoir scroll pour quelques pixels" sur l'étape 1)
+              — cette hauteur minimale, PARTAGÉE par les 4 étapes du wizard
+              (`flex flex-col` + pied de page en `mt-auto`, voir plus bas),
+              poussait le bouton "Suivant"/"Précédent" tout en bas d'une
+              carte de 450px MÊME quand le contenu réel de l'étape en
+              occupait beaucoup moins — un vrai espace mort, pas juste
+              quelques px de marge en trop. Plus flagrant sur l'étape 1
+              (~60 lignes de JSX : un simple choix à 4 cartes) que sur
+              l'étape 3 (~330 lignes : sélection de genres, BPM, structure,
+              options avancées — dépasse déjà largement 450px de contenu
+              naturel, donc ce retrait ne change RIEN visuellement pour
+              elle). Choix délibéré, discuté avec l'utilisateur : plutôt
+              que de garder cette hauteur partagée seulement réduite (ce
+              qui aurait aidé l'étape 1 sans la résoudre complètement, tout
+              en restant un pari sur la marge de l'étape 3 sans pouvoir le
+              vérifier dans un vrai navigateur ici), chaque étape prend
+              maintenant EXACTEMENT la hauteur de son propre contenu — le
+              principe demandé ("pas plus grand pour éviter le scroll,
+              mais pas plus petit non plus") s'applique alors identiquement
+              aux 4 étapes, pas seulement à la première. Aucun élément de
+              ce composant ne dépend en absolu de cette hauteur partagée
+              (vérifié : les seuls `absolute` du fichier sont positionnés
+              relativement à leur propre parent local — badge/toggle sur
+              une carte d'activité, tooltip sur le bouton "Créer routine" —
+              jamais par rapport à CETTE carte englobante). */}
+          <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl relative overflow-hidden flex flex-col ${isGenerating ? 'opacity-60 pointer-events-none select-none' : ''}`}>
 
             {/* Barre de progression du wizard (4 pastilles) */}
             <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-100 dark:border-gray-800">
