@@ -12,6 +12,95 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
+⚠️ **SESSION DU 03/08 (2e moitié) — plusieurs petits chantiers UI/perf,
+listés ici en bloc plutôt qu'un par un (chacun assez petit pour ne pas
+mériter sa propre section) :**
+
+- **Profil public : onglets Playlists/Routines**, remplace la grille
+  combinée décrite plus bas (retour direct : "les routines sont noyées en
+  bas d'une grille de playlists"). `ProfileView.jsx` — `activeProfileTab`
+  ('playlist'/'routine' par défaut), recherche/filtres restent
+  **partagés** entre les 2 onglets (même state, seul l'ensemble d'items
+  filtré change). Le filtre "Type" de `useProfileSearchFilter.js`
+  (`typeFilter`) est **retiré** — redondant avec les onglets. Toute
+  référence à `typeFilter`/grille combinée plus bas dans ce README décrit
+  l'ANCIENNE architecture (02/08), périmée depuis.
+- **`src/layout/iconButtonLayout.js`** (nouveau) — `ICON_BUTTON_ROUNDING`
+  ('rounded-full'), convention centralisée pour tout bouton **icône
+  seule** (sans libellé) : Thème, connexion/avatar, Trophées, hamburger
+  mobile, MiniPlayerBar (×4), les 9 boutons de fermeture de modale.
+  Un bouton icône+libellé (Réglages, nav Sidebar) reste en `rounded-xl`,
+  inchangé. Règle : tout nouveau bouton icône-seule doit importer et
+  utiliser cette constante, jamais un rayon en dur.
+- **Trophées déménagé** du header (à côté du logo) vers le pied de page de
+  la Sidebar, juste à côté de "Réglages" (`mr-2` compense un écart de
+  padding entre les deux conteneurs — voir Sidebar.jsx). Thème reste seul
+  dans le header, position désormais FIXE peu importe l'état de connexion
+  (avant : se décalait selon que Trophées était affiché ou non).
+- **Badge de notification Trophées "vu/pas vu"** — `useUserStats.js`
+  (`trophiesSeenCount`, persistant ; `unseenTrophyCount`, `markTrophiesSeen()`
+  appelée au montage de `TrophiesView.jsx`). Un COMPTEUR, pas un booléen :
+  un nouveau trophée débloqué après consultation refait apparaître le
+  badge, avec seulement le delta (pas le total).
+- **`SettingsView.jsx` — prop `initialTab`** (nouveau 2e point d'entrée) :
+  le bloc pseudo/e-mail du dropdown avatar (App.jsx) est désormais
+  cliquable → ouvre directement l'onglet "Mon Compte". `App.jsx` centralise
+  ça dans `handleOpenSettings(tab = null)` — LA seule fonction qui
+  navigue vers Réglages (Sidebar l'appelle aussi, sans argument =
+  comportement par défaut inchangé), pour ne jamais hériter d'un onglet
+  périmé d'une visite précédente.
+- **`StatsView.jsx` — nouvelle carte "Vue publique de ton profil"** (2
+  états : public → lien vers l'aperçu ; pas public → lien vers
+  Réglages > Mon Compte via `handleOpenSettings('account')`). Masquée en
+  Mode Intime (délibéré — pas le bon endroit pour inciter à l'exposition).
+- **`GuestModeBar.jsx` — fermeture SESSION-ONLY** (pas persistée — voir sa
+  docstring pour le raisonnement produit complet) : bouton X → confirmation
+  inline dans la même barre → si confirmé, disparaît jusqu'au prochain
+  rechargement de page.
+- **`GeneratorWizard.jsx` — `min-h-[450px]` retiré** de la carte du wizard
+  (partagé par les 4 étapes, poussait le bouton "Suivant" en bas d'une
+  hauteur fixe même sur l'étape 1, la plus courte — un vrai espace mort,
+  pas juste "quelques px"). Chaque étape prend maintenant la hauteur de
+  son propre contenu. Plusieurs passes de padding resserré en cascade
+  (`<main>`, en-tête de page, barre de progression, étape 1, pied de
+  page) — **confirmé visuellement par l'utilisateur, captures à l'appui**
+  (rare dans ce projet : la plupart des chantiers ci-dessus n'ont PAS
+  cette confirmation). Tentative de compensation pour la barre "Mode
+  invité" **essayée puis annulée** (surcompensait, rendait le bouton
+  inaccessible) — voir git blame si quelqu'un est tenté de retenter.
+- **`TargetModeInputs.jsx`** (nouveau, `src/components/views/`) — bloc
+  distance/allure + durée, extrait de `GeneratorWizard.jsx` où il était
+  dupliqué mot pour mot entre l'étape 2 et l'étape 3. Comportement
+  identique, juste un seul endroit à maintenir désormais.
+- **Perf — `StatsView.jsx`** : l'agrégation complète (boucle imbriquée
+  playlists × complétions × titres, ~40 variables) était recalculée à
+  CHAQUE rendu, même pour un état sans rapport — enveloppée dans un seul
+  `useMemo` (`statsAggregation`). Compagnon nécessaire pour que ça serve à
+  quelque chose en pratique : `getProfileForWorkout`/
+  `getProfileForWorkoutOrDefault` (`useAthleticProfile.js`) stabilisées en
+  `useCallback` — sans ça, elles changeaient de référence à chaque rendu
+  du composant propriétaire, annulant le bénéfice du `useMemo` en aval.
+- **Perf — `musicEngine.js`** : un `.includes()` (recherche linéaire)
+  dans une boucle de sélection de titres remplacé par un `Set` (O(1)).
+- **`ARTIST_CATALOG` (musicCatalog.js) — DÉLIBÉRÉMENT laissé dans le
+  bundle principal**, après investigation (suite à une suggestion externe
+  de le déplacer vers Supabase, puis vers un `import()` paresseux) — voir
+  le commentaire juste au-dessus de sa définition dans le fichier pour le
+  raisonnement complet : 2 fonctions de CE fichier l'utilisent de façon
+  SYNCHRONE en plein rendu React (info-bulle étape 4 du wizard,
+  désambiguïsation K-pop/J-pop), impossible à rendre asynchrone sans
+  casser ces 2 mécanismes.
+
+⚠️ **Rien de tout ce bloc n'a été vérifié en conditions réelles**, à
+UNE exception près (le chantier hauteur du wizard, confirmé par
+captures d'écran) — build Vercel vert (942 tests) au moment d'écrire
+ceci, mais un test qui passe ne garantit pas qu'un onglet s'affiche
+correctement, qu'un badge se comporte comme prévu au clic, etc. **Prochaine
+étape avant tout nouveau chantier : parcourir chaque point ci-dessus dans
+l'app déployée.**
+
+---
+
 ⚠️ **REFONTE (03/08) — traçabilité de lignée désormais résolue CÔTÉ
 SERVEUR, remplace le mécanisme du 02/08 décrit plus bas (`originId`/
 `originUserId` propagés par le client).** Ce mécanisme s'est révélé
@@ -66,7 +155,7 @@ Supabase, voir `CLAUDE-SANDBOX-VERIFICATION.md` §4bis) : la vérification
 réelle (clic sur "Cloner" dans l'app déployée, avec une vraie session)
 reste à faire, comme pour le chantier précédent.
 
-**Chantier en cours : "Compteur de sauvegardes/clonages" — build Vercel pas encore reconfirmé depuis la refonte du 03/08 ci-dessus.** Prochain chantier une fois la vérification en conditions réelles faite : retour à l'ordre de priorité normal (Vague 2, Chantier 2 — renforcement post-hoc, moteur BPM/structuration + analyse post-séance, `useSessionAnalysis.js`). **Voir aussi `PASSATION.md`** — résumé chronologique de toute cette session de dev, pour une future conversation qui reprendrait ce fil sans tout ce contexte.
+**Chantier en cours : vérification en conditions réelles de TOUT le bloc "session du 03/08 (2e moitié)" en tête de cette section — rien n'y a encore été cliqué dans l'app déployée, à l'exception du chantier hauteur du wizard.** Une fois fait : retour à l'ordre de priorité normal (Vague 2, Chantier 2 — renforcement post-hoc, moteur BPM/structuration + analyse post-séance, `useSessionAnalysis.js`). **Voir aussi `PASSATION.md`** — résumé chronologique de toute cette session de dev, pour une future conversation qui reprendrait ce fil sans tout ce contexte.
 
 ---
 
