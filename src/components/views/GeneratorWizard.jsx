@@ -7,6 +7,7 @@ import {
 import { STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, genreDisplayLabel, GENRE_SEARCH_DEPTH_HINT } from '../../musicCatalog';
 import { formatDuration } from '../../utils/format';
 import { syncClampedInput } from '../../utils/numberInput';
+import { isTargetValueValid } from '../../utils/targetValidation';
 import DualRangeSlider from '../shared/DualRangeSlider';
 import TargetModeInputs from './TargetModeInputs';
 import {
@@ -178,6 +179,24 @@ export default function GeneratorWizard({
       observer.disconnect();
     };
   }, [wizardStep, structureMode, targetMode]);
+
+  // ⚠️ NOUVEAU (04/08, retour direct — capture d'écran EditRoutineModal.jsx :
+  // "je ne trouve pas ça normal de pouvoir générer une routine avec une
+  // valeur de 0 km") : voir isTargetValueValid (targetValidation.js) pour le
+  // constat complet — rien n'empêchait jusque-là de générer avec une cible
+  // (distance OU durée) à 0. La cible est éditable à l'étape 2 (toujours) ET
+  // à nouveau à l'étape 3, mais SEULEMENT pour les modes Constant/Crescendo
+  // (`!isIntervalMode || isCrescendoMode` — même condition que celle qui
+  // décide d'afficher `<TargetModeInputs>` à l'étape 3, voir plus bas) :
+  // le mode Fractionné y affiche des durées PAR SEGMENT à la place, une
+  // source de données différente, hors scope de ce correctif (voir la
+  // docstring de isTargetValueValid). "Suivant" reste actif à l'étape 1
+  // (aucun champ concerné) et à l'étape 3 en mode Fractionné pur.
+  const step3ShowsTargetInputs = !isIntervalMode || isCrescendoMode;
+  const isNextDisabledByInvalidTarget =
+    (wizardStep === 2 || (wizardStep === 3 && step3ShowsTargetInputs)) &&
+    !isTargetValueValid({ targetMode, distanceVal, hours, minutes });
+
 
   return (
         <>
@@ -1060,7 +1079,11 @@ export default function GeneratorWizard({
                 Configurer mes zones BPM →
               </button>
             ) : <div/>}
-            <button onClick={() => setWizardStep(wizardStep + 1)} className={`px-8 py-3 rounded-xl font-bold flex items-center space-x-2 text-white shadow-md transition-colors ${isNaughtyMode ?
+            <button
+              onClick={() => setWizardStep(wizardStep + 1)}
+              disabled={isNextDisabledByInvalidTarget}
+              title={isNextDisabledByInvalidTarget ? (targetMode === 'distance' ? 'Renseigne une distance supérieure à 0 pour continuer.' : 'Renseigne une durée supérieure à 0 pour continuer.') : undefined}
+              className={`px-8 py-3 rounded-xl font-bold flex items-center space-x-2 text-white shadow-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isNaughtyMode ?
               'bg-rose-500 hover:bg-rose-600' : 'bg-red-500 hover:bg-red-600'}`}>
               <span>Suivant</span> <ChevronRight size={20}/>
             </button>
