@@ -123,6 +123,23 @@ describe('GeneratorWizard — étape 1 (activité)', () => {
     expect(screen.getByText('Étape 1 / 4')).toBeInTheDocument();
   });
 
+  // `isGuestBarVisible` (03/08, retour direct : "pourquoi ça ne s'adapte
+  // pas à la vue guest ?") — voir la docstring complète sur la carte du
+  // wizard (GeneratorWizard.jsx) : compense EXACTEMENT le spacer de 40px
+  // (`h-10`, App.jsx) réservé pour la barre "Mode invité", avec la même
+  // valeur en négatif (`-mb-10`).
+  it('isGuestBarVisible=true applique -mb-10 sur la carte (compense le spacer de 40px de la barre "Mode invité")', () => {
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 1 }));
+    const { container } = render(<GeneratorWizard {...baseProps({ isGuestBarVisible: true })} />);
+    expect(container.querySelector('.-mb-10')).toBeInTheDocument();
+  });
+
+  it('isGuestBarVisible absent/false : pas de -mb-10 (comportement par défaut inchangé)', () => {
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 1 }));
+    const { container } = render(<GeneratorWizard {...baseProps()} />);
+    expect(container.querySelector('.-mb-10')).toBeNull();
+  });
+
   it('choisir une activité standard remplit BPM/objectif par défaut puis avance à l\'étape 2', async () => {
     vi.useFakeTimers();
     const setWorkoutType = vi.fn();
