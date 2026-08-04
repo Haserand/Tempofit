@@ -1025,15 +1025,25 @@ export default function GeneratorWizard({
               // dans ce projet (aucune variante Mode Intime, voir
               // useTheme.js) — `hover:text-main` écrit ici en dur plutôt
               // qu'interpolé, en toute sécurité.
+              // ⚠️ REFONTE (04/08, retour direct, capture annotée — le lien
+              // "Profil : Ajuster mes zones BPM" gardait le préfixe en gris
+              // (`textMuted`), seul "Configure →" ressortait en accent) :
+              // tout le libellé passe en accent (`textColorClass`), texte
+              // unifié en un seul span ("Configurer mes zones BPM →" plutôt
+              // que "Profil : Ajuster mes zones BPM" + "Configure →" séparé)
+              // — la flèche colle directement au texte (espace simple, plus
+              // de `ml-2` qui l'écartait artificiellement). `hover:opacity-80`
+              // (repris du bouton "Se connecter" de GuestModeBar.jsx, même
+              // logique) remplace `hover:text-main` : cohérent avec le fait
+              // que ce libellé est maintenant intégralement en accent, pas
+              // juste sa 2e moitié — `hover:text-main` n'aurait plus eu de
+              // sens sur un texte déjà accent par défaut.
               <button
                 onClick={() => changeView('settings')} disabled={isGenerating}
-                className={`flex items-center gap-2 text-sm ${textMuted} hover:text-main hover:underline transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
+                className={`flex items-center gap-2 text-sm font-semibold ${textColorClass} hover:opacity-80 hover:underline transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
               >
                 <Gauge className="w-4 h-4 shrink-0"/>
-                <span>
-                  Profil : Ajuster mes zones BPM{' '}
-                  <span className={`font-semibold ml-2 ${textColorClass}`}>Configure →</span>
-                </span>
+                <span>Configurer mes zones BPM →</span>
               </button>
             ) : <div/>}
             <button onClick={() => setWizardStep(wizardStep + 1)} className={`px-8 py-3 rounded-xl font-bold flex items-center space-x-2 text-white shadow-md transition-colors ${isNaughtyMode ?
