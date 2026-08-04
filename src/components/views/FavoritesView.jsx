@@ -3,6 +3,7 @@ import { getGenreLocalDepthWarning, getGenresForDisplay, genreDisplayLabel, EXTR
 import { useModalContext } from '../../contexts/ModalContext';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
+import { INLINE_NAV_LINK_CLASS } from '../../layout/inlineLinkLayout';
 
 /**
  * FavoritesView — vue "Mes Favoris" (titres/artistes favoris + exploration BPM/genre).
@@ -92,7 +93,7 @@ export default function FavoritesView({
           <button
             onClick={() => changeView('settings')}
             title="Ouvre la page Comptes pour lier Spotify et élargir le catalogue de titres disponibles."
-            className={`text-sm font-bold underline ${textColorClass}`}
+            className={`text-sm ${INLINE_NAV_LINK_CLASS} ${textColorClass}`}
           >
             Synchroniser mes comptes →
           </button>
