@@ -644,7 +644,7 @@ function AppContent({
     addRoutine, updateRoutine,
   } = useRoutines(isNaughtyMode, showToast);
 
-  const { userStats, setUserStats, checkTrophies } = useUserStats(showToast, user);
+  const { userStats, setUserStats, checkTrophies, unseenTrophyCount, markTrophiesSeen } = useUserStats(showToast, user);
 
   // MIGRÉ VERS GeneratorContext (chantier God Component, étape 2) : tout ce
   // qui suit vivait ici via `useState('Course à pied')` + `useCustomActivity`
@@ -1508,7 +1508,7 @@ function AppContent({
           changeView={changeView} view={view}
           onOpenSettings={handleOpenSettings}
           favorites={favorites}
-          user={user} userStats={userStats}
+          user={user} unseenTrophyCount={unseenTrophyCount}
           guestBarVisible={isGuestBarVisible}
           playerBarVisible={!!(currentTrack || playingPreviewId)}
           toggleNaughtyMode={toggleNaughtyMode}
@@ -1861,7 +1861,7 @@ function AppContent({
             )}
 
             {view === 'trophies' && (
-              <TrophiesView theme={themeTokens} userStats={userStats} handleShare={handleShare} isNaughtyMode={isNaughtyMode} />
+              <TrophiesView theme={themeTokens} userStats={userStats} handleShare={handleShare} isNaughtyMode={isNaughtyMode} markTrophiesSeen={markTrophiesSeen} />
             )}
 
             {view === 'playlist' && currentPlaylist && (
