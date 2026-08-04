@@ -108,6 +108,15 @@ describe('Sidebar', () => {
     expect(screen.getByTitle('Trophées')).toHaveTextContent('3');
   });
 
+  it('le clic sur "Trophées" appelle changeView(\'trophies\')', () => {
+    const changeView = vi.fn();
+    render(<Sidebar {...baseProps} user={{ id: 'abc' }} userStats={{ unlockedTrophies: [] }} changeView={changeView} />);
+
+    fireEvent.click(screen.getByTitle('Trophées'));
+
+    expect(changeView).toHaveBeenCalledWith('trophies');
+  });
+
   it('affiche "TempoFit" en mode normal, "TempoIntime" + bouton de sortie en Mode Intime', () => {
     const { rerender } = render(<Sidebar {...baseProps} isNaughtyMode={false} />);
     expect(screen.getByText('Fit')).toBeInTheDocument();
