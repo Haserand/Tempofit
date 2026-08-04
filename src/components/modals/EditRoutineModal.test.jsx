@@ -13,7 +13,7 @@
 // targetValidation.js pour le raisonnement complet.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import EditRoutineModal from '../../src/components/modals/EditRoutineModal.jsx';
 
@@ -80,5 +80,26 @@ describe('EditRoutineModal — validation distance/durée (BUG CORRIGÉ, cible �
     render(<EditRoutineModal {...baseProps({ editingRoutine: makeRoutine({ targetMode: 'time', hours: 0, minutes: 45 }) })} />);
     expect(screen.getByText('Cette séance seulement').closest('button')).not.toBeDisabled();
     expect(screen.getByText('Toujours pour cette routine').closest('button')).not.toBeDisabled();
+  });
+});
+
+// 04/08, 3e retour direct sur ce même chantier (capture annotée) : "je
+// pensais qu'on avait dit qu'on ne pouvait pas sélectionner moins que
+// 0,1 ?" — voir snapDistanceOnBlur (targetValidation.js) pour le
+// raisonnement complet.
+describe('EditRoutineModal — correction automatique au blur (BUG CORRIGÉ)', () => {
+  it('quitter le champ distance à 0 le remonte à 0.1', () => {
+    const setEditingRoutine = vi.fn();
+    const { container } = render(<EditRoutineModal {...baseProps({ editingRoutine: makeRoutine({ targetMode: 'distance', distanceVal: 0 }), setEditingRoutine })} />);
+
+    const distanceInput = container.querySelector('input[step="0.1"]');
+    fireEvent.blur(distanceInput, { target: { value: '0' } });
+
+    // setEditingRoutine reçoit un updater fonctionnel (comme le reste de la
+    // modale pour les champs édités hors du flux React "contrôlé simple",
+    // voir les boutons +/- des minutes juste au-dessus dans le fichier
+    // source) — on l'exécute avec l'état simulé pour vérifier le résultat.
+    const updater = setEditingRoutine.mock.calls[0][0];
+    expect(updater(makeRoutine({ targetMode: 'distance', distanceVal: '0' })).distanceVal).toBe('0.1');
   });
 });
