@@ -62,6 +62,7 @@ export default function PlaylistsView({
   theme, isNaughtyMode, savedPlaylists, setSavedPlaylists, requestRemoveSavedPlaylist, setPlaylistPlannedDate, getRankStyle,
   setCurrentPlaylist, changeView, renderConfigInfoLine, markPlaylistAsCompleted,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate, triggerCSVUpload,
+  showToast,
 }) {
   const { cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
   const [draggedId, setDraggedId] = useState(null);
@@ -84,7 +85,19 @@ export default function PlaylistsView({
   // réclamé au moment du clonage lui-même) — retiré, plus rien à dupliquer
   // entre les 2 implémentations.
   const handleTogglePlaylistPublic = (id) => {
-    setSavedPlaylists(savedPlaylists.map(p => p.id === id ? { ...p, isPublic: !p.isPublic } : p));
+    setSavedPlaylists(savedPlaylists.map(p => {
+      if (p.id !== id) return p;
+      const updated = { ...p, isPublic: !p.isPublic };
+      // Confirmation (05/08, retour direct — voir la docstring identique
+      // dans PlaylistDetailContext.jsx pour le raisonnement complet, même
+      // formulation/variant ici pour rester cohérent partout). Calculée
+      // DANS le `.map()` (accès direct à `p`/`updated`) plutôt qu'après,
+      // sur un `find()` séparé sur `savedPlaylists` déjà obsolète à ce
+      // stade (state pas encore réellement mis à jour tant que ce
+      // `setSavedPlaylists` n'a pas été appliqué).
+      showToast(updated.isPublic ? `🌐 "${updated.name}" est maintenant visible sur ton profil public.` : `🔒 "${updated.name}" est de nouveau privée.`);
+      return updated;
+    }));
   };
 
   // Pare-feu Mode Intime (retour direct : "les vues Mes Séances et Découvrir
