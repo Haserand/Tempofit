@@ -64,34 +64,32 @@ export default function PublicRoutinePreviewModal({ theme, isOpen, onClose, rout
               <span className={`flex items-center gap-1 ${textMuted}`}><Music size={13} /> {genres.map(genreDisplayLabel).join(', ')}</span>
             )}
           </div>
-          {/* Description libre (Vague 2, Chantier 3, 02/08) — texte
-              COMPLET ici (contrairement à `PublicItemCard`, ProfileView.jsx,
-              qui tronque en `line-clamp-2` par manque de place sur une
-              carte de grille) : cette modale a la place, et c'est
-              justement l'endroit où quelqu'un s'attend à pouvoir lire le
-              contexte donné par le propriétaire avant de décider de
-              cloner.
-              BUGS DE BUILD CORRIGÉS (04/08, 2 passes) : (1) un commentaire
-              JSX placé juste après la parenthèse ouvrante du `&&` plus bas
-              cassait la compilation — un commentaire JSX n'est un enfant
-              valide QUE dans une liste d'enfants, pas juste après une
-              parenthèse ouvrante d'expression ; fusionné ici, en amont,
-              plutôt que réintroduit au même endroit fautif. (2) ce
-              paragraphe-ci reproduisait ensuite, en toutes lettres DANS le
-              texte du commentaire, la syntaxe même d'un commentaire JSX
-              (accolade-étoile ouvrante puis étoile-accolade fermante) — ces
-              caractères fermaient le commentaire englobant au premier
-              symbole de fermeture rencontré, cassant la compilation une
-              2e fois. Reformulé pour ne plus jamais écrire cette syntaxe en
-              toutes lettres à l'intérieur d'un commentaire JSX.
-              `line-clamp-2` (même jour, retour direct — troncature sèche,
-              décision RENVERSÉE par rapport à ce qui précède dans ce même
-              commentaire ("texte COMPLET ici") : voir PlaylistHeader.jsx
-              pour le même renversement et le raisonnement complet — pas de
-              vrais utilisateurs pour l'instant, "je m'en moque d'en
-              couper"). */}
+          {/* Description libre (Vague 2, Chantier 3, 02/08) — initialement
+              affichée en texte COMPLET ici (contrairement à
+              `PublicItemCard`, ProfileView.jsx, qui tronque par manque de
+              place sur une carte de grille), décision RENVERSÉE le 04/08
+              (troncature sèche partout, "je m'en moque d'en couper" — pas
+              de vrais utilisateurs pour l'instant) puis affinée le 05/08
+              (`line-clamp-1`, resserré depuis `line-clamp-2` — retour
+              direct : "je voulais UNE ligne max ; pas 2"). Voir
+              PlaylistHeader.jsx pour le même raisonnement.
+              BUGS DE BUILD CORRIGÉS (04/08, 2 passes, gardés en note car
+              non liés au clamp lui-même et faciles à reproduire par erreur) :
+              (1) un commentaire JSX placé juste après la parenthèse
+              ouvrante du `&&` plus bas cassait la compilation — un
+              commentaire JSX n'est un enfant valide QUE dans une liste
+              d'enfants, pas juste après une parenthèse ouvrante
+              d'expression ; fusionné ici, en amont, plutôt que réintroduit
+              au même endroit fautif. (2) ce paragraphe-ci reproduisait
+              ensuite, en toutes lettres DANS le texte du commentaire, la
+              syntaxe même d'un commentaire JSX (accolade-étoile ouvrante
+              puis étoile-accolade fermante) — ces caractères fermaient le
+              commentaire englobant au premier symbole de fermeture
+              rencontré, cassant la compilation une 2e fois. Reformulé pour
+              ne plus jamais écrire cette syntaxe en toutes lettres à
+              l'intérieur d'un commentaire JSX. */}
           {content.description && (
-            <p className={`text-sm mt-3 pt-3 border-t whitespace-pre-line line-clamp-2 ${inputBorder} ${textMuted}`}>{content.description}</p>
+            <p className={`text-sm mt-3 pt-3 border-t whitespace-pre-line line-clamp-1 ${inputBorder} ${textMuted}`}>{content.description}</p>
           )}
         </div>
 
