@@ -3,7 +3,7 @@ import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import { NAUGHTY_GENRES, STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarning, genreDisplayLabel } from '../../musicCatalog';
 import { getZoneForValue } from '../../appConfig';
 import { syncClampedInput } from '../../utils/numberInput';
-import { isTargetValueValid, snapDistanceOnBlur } from '../../utils/targetValidation';
+import { isTargetValueValid, snapDistanceOnBlur, areSegmentsValid } from '../../utils/targetValidation';
 import DualRangeSlider from '../shared/DualRangeSlider';
 
 /**
@@ -38,12 +38,33 @@ export default function EditRoutineModal({
   // targetValidation.js pour le raisonnement complet. `editingRoutine`
   // garanti non-null ici (guard juste au-dessus), donc lecture directe de
   // ses champs sans optional chaining.
-  const isTargetInvalid = !isTargetValueValid({
-    targetMode: editingRoutine.targetMode,
-    distanceVal: editingRoutine.distanceVal,
-    hours: editingRoutine.hours,
-    minutes: editingRoutine.minutes,
-  });
+  //
+  // ⚠️ TROU COMBLÉ (audit du 05/08, même famille que l'"ÉLARGI" documenté
+  // dans targetValidation.js) : cette modale appelle `executeGeneration`
+  // directement (`applyRoutineEditOnce`/`applyRoutineEditPermanently`,
+  // useRoutineActions.js) — exactement le même genre de point d'entrée que
+  // le bouton "Générer" de RoutinesView.jsx, qui lit déjà `routine.segments`
+  // pour le mode Fractionné pur plutôt que `distanceVal`/`hours`/`minutes`
+  // (voir `routineTargetInvalid`, RoutinesView.jsx). Cette modale ne
+  // validait QUE `distanceVal`/`hours`/`minutes`, jamais `segments` — un
+  // Fractionné pur (`isIntervalMode && !isCrescendoMode`) avec des portions
+  // cassées (BPM ou durée à 0, ex. une routine créée avant le correctif de
+  // ce chantier) pouvait donc être sauvegardé ET régénéré depuis cette
+  // modale sans le moindre blocage ni message, alors que ce même cas précis
+  // est bloqué avec un message clair partout ailleurs dans l'app. Le mode
+  // Crescendo (`isIntervalMode && isCrescendoMode`) N'EST PAS concerné : ses
+  // segments sont recalculés en direct depuis `distanceVal`/`hours`/
+  // `minutes` (voir l'effet dédié dans App.jsx, `buildCrescendoSegments`),
+  // donc valider la cible globale reste correct pour ce mode-là.
+  const isPureIntervalMode = editingRoutine.isIntervalMode && !editingRoutine.isCrescendoMode;
+  const isTargetInvalid = isPureIntervalMode
+    ? !areSegmentsValid(editingRoutine.segments, editingRoutine.targetMode)
+    : !isTargetValueValid({
+        targetMode: editingRoutine.targetMode,
+        distanceVal: editingRoutine.distanceVal,
+        hours: editingRoutine.hours,
+        minutes: editingRoutine.minutes,
+      });
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" onClick={close}>
@@ -75,46 +96,62 @@ export default function EditRoutineModal({
             <input type="range" min="0" max="30" value={editingRoutine.bpmTolerance} onChange={e => setEditingRoutine({...editingRoutine, bpmTolerance: parseInt(e.target.value)})} className={`w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none ${isNaughtyMode ? 'accent-rose-500' : 'accent-red-500'}`} />
           </div>
 
-          {editingRoutine.targetMode === 'distance' ? (
-            <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-3 justify-between`}>
-              {/* `min="0.1"` + `onBlur` — même raisonnement que
-                  TargetModeInputs.jsx (GeneratorWizard.jsx), voir sa
-                  docstring pour le détail complet (04/08, retour direct :
-                  "je veux que la valeur minimale disponible soit 0,1"). */}
-              <input
-                type="number" min="0.1" step="0.1" value={editingRoutine.distanceVal}
-                onChange={e => setEditingRoutine({...editingRoutine, distanceVal: e.target.value})}
-                onBlur={e => setEditingRoutine(r => ({...r, distanceVal: snapDistanceOnBlur(e.target.value)}))}
-                className={`bg-transparent w-full font-bold outline-hidden ${textHighlight}`}
-              />
-              <span className={`text-sm font-bold ${textMuted}`}>{editingRoutine.distanceUnit}</span>
-            </div>
-          ) : (
-            <div className="flex gap-3">
+          {/* Champ cible globale (distance/durée) — masqué en Fractionné pur
+              (`isPureIntervalMode`), même condition que
+              `step3ShowsTargetInputs` dans GeneratorWizard.jsx : pour ce
+              mode, la durée réelle vient des portions (`segments[]`), pas
+              de ce champ (voir usePlaylistGeneration.js, `executeGeneration`
+              — la branche `config.isIntervalMode` ignore `distanceVal`/
+              `hours`/`minutes`). L'afficher aurait laissé croire qu'il
+              pilote la génération alors qu'il n'a aucun effet dans ce mode. */}
+          {!isPureIntervalMode && (
+            editingRoutine.targetMode === 'distance' ? (
               <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-3 justify-between`}>
-                <input type="number" min="0" max="12" value={editingRoutine.hours} onChange={e => setEditingRoutine({...editingRoutine, hours: syncClampedInput(e, { min: 0, max: 12 })})} className={`bg-transparent w-full font-bold outline-hidden ${textHighlight}`} />
-                <span className={`text-sm font-bold ${textMuted}`}>Heures</span>
+                {/* `min="0.1"` + `onBlur` — même raisonnement que
+                    TargetModeInputs.jsx (GeneratorWizard.jsx), voir sa
+                    docstring pour le détail complet (04/08, retour direct :
+                    "je veux que la valeur minimale disponible soit 0,1"). */}
+                <input
+                  type="number" min="0.1" step="0.1" value={editingRoutine.distanceVal}
+                  onChange={e => setEditingRoutine({...editingRoutine, distanceVal: e.target.value})}
+                  onBlur={e => setEditingRoutine(r => ({...r, distanceVal: snapDistanceOnBlur(e.target.value)}))}
+                  className={`bg-transparent w-full font-bold outline-hidden ${textHighlight}`}
+                />
+                <span className={`text-sm font-bold ${textMuted}`}>{editingRoutine.distanceUnit}</span>
               </div>
-              <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-3 justify-between`}>
-                <input type="number" min="0" max="59" value={editingRoutine.minutes} onChange={e => setEditingRoutine({...editingRoutine, minutes: syncClampedInput(e, { min: 0, max: 59 })})} className={`bg-transparent w-full font-bold outline-hidden ${textHighlight} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
-                <span className={`text-sm font-bold ${textMuted} mr-1`}>Min</span>
-                <div className="flex flex-col">
-                  <button type="button" onClick={() => setEditingRoutine(r => ({...r, minutes: (parseInt(r.minutes) || 0) + 1 > 59 ? 0 : (parseInt(r.minutes) || 0) + 1}))} className={`${textMuted} hover:text-main`}>
-                    <ChevronUp size={14} />
-                  </button>
-                  <button type="button" onClick={() => setEditingRoutine(r => ({...r, minutes: (parseInt(r.minutes) || 0) - 1 < 0 ? 59 : (parseInt(r.minutes) || 0) - 1}))} className={`${textMuted} hover:text-main`}>
-                    <ChevronDown size={14} />
-                  </button>
+            ) : (
+              <div className="flex gap-3">
+                <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-3 justify-between`}>
+                  <input type="number" min="0" max="12" value={editingRoutine.hours} onChange={e => setEditingRoutine({...editingRoutine, hours: syncClampedInput(e, { min: 0, max: 12 })})} className={`bg-transparent w-full font-bold outline-hidden ${textHighlight}`} />
+                  <span className={`text-sm font-bold ${textMuted}`}>Heures</span>
+                </div>
+                <div className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl flex items-center px-4 py-3 justify-between`}>
+                  <input type="number" min="0" max="59" value={editingRoutine.minutes} onChange={e => setEditingRoutine({...editingRoutine, minutes: syncClampedInput(e, { min: 0, max: 59 })})} className={`bg-transparent w-full font-bold outline-hidden ${textHighlight} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} />
+                  <span className={`text-sm font-bold ${textMuted} mr-1`}>Min</span>
+                  <div className="flex flex-col">
+                    <button type="button" onClick={() => setEditingRoutine(r => ({...r, minutes: (parseInt(r.minutes) || 0) + 1 > 59 ? 0 : (parseInt(r.minutes) || 0) + 1}))} className={`${textMuted} hover:text-main`}>
+                      <ChevronUp size={14} />
+                    </button>
+                    <button type="button" onClick={() => setEditingRoutine(r => ({...r, minutes: (parseInt(r.minutes) || 0) - 1 < 0 ? 59 : (parseInt(r.minutes) || 0) - 1}))} className={`${textMuted} hover:text-main`}>
+                      <ChevronDown size={14} />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            )
           )}
           {/* Voir isTargetInvalid ci-dessus — même raisonnement que
               TargetModeInputs.jsx (GeneratorWizard.jsx), indice visuel en
-              plus des boutons de sauvegarde désactivés plus bas. */}
+              plus des boutons de sauvegarde désactivés plus bas. Message
+              distinct en Fractionné pur (segments cassés, rien à réparer
+              depuis cette modale, voir la boîte d'avertissement Fractionné
+              plus bas) — même formulation que `routineTargetInvalid` dans
+              RoutinesView.jsx pour rester cohérent. */}
           {isTargetInvalid && (
             <p className="text-xs font-bold text-red-500 -mt-3">
-              {editingRoutine.targetMode === 'distance' ? 'Renseigne une distance supérieure à 0.' : 'Renseigne une durée supérieure à 0.'}
+              {isPureIntervalMode
+                ? `Portion(s) invalide(s) (BPM ou ${editingRoutine.targetMode === 'distance' ? 'distance' : 'durée'} à 0) — recrée cette routine via "Nouvelle séance" pour corriger les portions.`
+                : (editingRoutine.targetMode === 'distance' ? 'Renseigne une distance supérieure à 0.' : 'Renseigne une durée supérieure à 0.')}
             </p>
           )}
 
