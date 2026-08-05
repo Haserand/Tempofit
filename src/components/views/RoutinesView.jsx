@@ -18,7 +18,7 @@ import { isTargetValueValid, areSegmentsValid } from '../../utils/targetValidati
 export default function RoutinesView({
   theme, isNaughtyMode, routines, setRoutines, routineBatchCounts, setRoutineBatchCounts,
   getDisplayRoutineIcon, getDisplayRoutineName, renderConfigInfoLine, getRankStyle,
-  setEditingRoutine, executeGeneration, isGenerating, changeView,
+  setEditingRoutine, executeGeneration, isGenerating, changeView, showToast,
 }) {
   const { openModal } = useModalContext();
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass, inputBg, inputBorder } = theme;
@@ -37,7 +37,18 @@ export default function RoutinesView({
   // était du code mort (déjà bloqué par le `clone_ledger`, systématiquement
   // réclamé au moment du clonage lui-même) — retiré.
   const handleToggleRoutinePublic = (id) => {
-    setRoutines(routines.map(r => r.id === id ? { ...r, isPublic: !r.isPublic } : r));
+    setRoutines(routines.map(r => {
+      if (r.id !== id) return r;
+      const updated = { ...r, isPublic: !r.isPublic };
+      // Confirmation (05/08, retour direct — même raisonnement/formulation
+      // que PlaylistDetailContext.jsx/PlaylistsView.jsx, voir leurs
+      // docstrings). `getDisplayRoutineName` (déjà reçu en prop) plutôt que
+      // `updated.name` brut — résout le même nom affiché que partout
+      // ailleurs sur cette carte (gère les cas Mode Intime), pas une 2e
+      // logique de nommage divergente pour ce seul message.
+      showToast(updated.isPublic ? `🌐 "${getDisplayRoutineName(updated)}" est maintenant visible sur ton profil public.` : `🔒 "${getDisplayRoutineName(updated)}" est de nouveau privée.`);
+      return updated;
+    }));
   };
 
   // Description libre (Vague 2, Chantier 3 — "description texte libre sur
