@@ -66,6 +66,7 @@ function baseProps(overrides = {}) {
     markPlaylistAsCompleted: vi.fn(),
     editingCompletion: null, setEditingCompletion: vi.fn(),
     editCompletionDate: vi.fn(), removeCompletionDate: vi.fn(), triggerCSVUpload: vi.fn(),
+    showToast: vi.fn(),
     ...overrides,
   };
 }
@@ -205,6 +206,21 @@ describe('PlaylistsView — bascule publique/privée (Feature Sociale, 01/08)', 
     const updater = setSavedPlaylists.mock.calls[0][0];
     const result = Array.isArray(updater) ? updater : updater([target]);
     expect(result.find(p => p.id === 'p1').isPublic).toBe(true);
+  });
+
+  // NOUVEAU (05/08, retour direct : "j'aimerais un message de confirmation
+  // d'action quand je mets/retire quelque chose en public [...] à
+  // généraliser dans toute l'app") — même raisonnement/formulation que
+  // PlaylistDetailContext.jsx/RoutinesView.jsx (voir leurs docstrings).
+  it('affiche un toast de confirmation au clic sur "Toggle public"', () => {
+    const showToast = vi.fn();
+    const setSavedPlaylists = vi.fn();
+    const target = makePlaylist({ id: 'p1', isPublic: false, name: 'Mon 5km' });
+    render(<PlaylistsView {...baseProps({ savedPlaylists: [target], setSavedPlaylists, showToast })} />);
+
+    fireEvent.click(screen.getByTestId('toggle-public-p1'));
+
+    expect(showToast).toHaveBeenCalledWith('🌐 "Mon 5km" est maintenant visible sur ton profil public.');
   });
 });
 
