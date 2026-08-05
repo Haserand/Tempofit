@@ -924,7 +924,22 @@ export default function StatsView({
               <div>
                 <h3 className={`font-bold mb-1 ${textHighlight}`}>Compare tes séances au réel</h3>
                 <p className={`text-sm ${textMuted}`}>
-                  Tu n'as encore importé aucune donnée réelle (cadence ou fréquence cardiaque). Depuis le détail d'une séance <span className={`font-semibold ${textHighlight}`}>terminée</span> dans "Mes Séances", tu peux importer un export CSV Garmin ou Strava pour comparer ce que tu as vraiment fait au rythme visé — ça vaut le coup d'essayer au moins une fois.
+                  {/* Resserré à 1 ligne (05/08, retour direct — "synthétise
+                      en une seule ligne", capture annotée). Longueur
+                      vérifiée par un rendu réel (Playwright, police
+                      volontairement plus large que celle de prod) — cette
+                      carte est PLEINE LARGEUR (`VIEW_CONTENT_WRAPPER`,
+                      `max-w-4xl`, pas dans un grid à colonnes contrairement
+                      à la carte "zone d'effort" juste avant), donc une
+                      colonne de texte nettement plus large que là-bas :
+                      74 caractères, confirmé sur 1 ligne dès ~650px de
+                      colonne. Emphase sur "terminée" conservée (c'est LA
+                      condition d'accès à cette fonctionnalité). Détail du
+                      type de donnée (cadence/FC) et le chemin exact
+                      ("Mes Séances") retirés du texte : déjà couverts par
+                      le titre de la carte et le bouton "Aller à Mes
+                      Séances →" juste en dessous. */}
+                  Depuis une séance <span className={`font-semibold ${textHighlight}`}>terminée</span>, importe un CSV Garmin/Strava pour te comparer.
                 </p>
                 <button onClick={() => changeView('playlists')} className={`mt-3 text-sm ${INLINE_NAV_LINK_CLASS} ${textColorClass}`}>
                   Aller à Mes Séances →
