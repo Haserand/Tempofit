@@ -9,6 +9,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+import { MAX_DESCRIPTION_LENGTH } from '../../src/appConfig.js';
 
 const mockOpenModal = vi.fn();
 vi.mock('../../src/contexts/ModalContext.jsx', () => ({
@@ -326,7 +327,11 @@ describe('RoutinesView — description libre', () => {
     expect(screen.getByText('Ajouter une description')).toBeInTheDocument();
   });
 
-  it('tronque à 280 caractères même si le texte saisi dépasse (défense en profondeur)', () => {
+  // 04/08 — 280 → 150 (voir MAX_DESCRIPTION_LENGTH, appConfig.js, pour le
+  // raisonnement). Import de la VRAIE constante (pas de mock d'appConfig
+  // dans ce fichier) plutôt qu'un nombre en dur, pour ne plus jamais avoir
+  // à revenir ici si cette valeur change encore.
+  it('tronque à MAX_DESCRIPTION_LENGTH caractères même si le texte saisi dépasse (défense en profondeur)', () => {
     const setRoutines = vi.fn();
     render(<RoutinesView {...baseProps({ routines: [routineC], setRoutines })} />);
 
@@ -334,7 +339,7 @@ describe('RoutinesView — description libre', () => {
     fireEvent.change(screen.getByPlaceholderText(/Ajoute une description/), { target: { value: 'y'.repeat(500) } });
     fireEvent.click(screen.getByTitle('Enregistrer'));
 
-    expect(setRoutines.mock.calls[0][0][0].description.length).toBe(280);
+    expect(setRoutines.mock.calls[0][0][0].description.length).toBe(MAX_DESCRIPTION_LENGTH);
   });
 
   // "Clone" vs "Enfant" (02/08) — MÊME règle que côté playlists
