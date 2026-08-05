@@ -153,14 +153,19 @@ describe('PlaylistHeader', () => {
     expect(resolveAndTogglePreview).not.toHaveBeenCalled();
   });
 
-  it('badge "Lecture seule" affiché si isSaved=false, absent si isSaved=true', () => {
+  // ⚠️ CORRIGÉ (05/08, retour direct — "le cadenas me semble suffisant...
+  // surtout si tu mets une infobulle au survol") : le libellé texte
+  // "Lecture seule" retiré du DOM visible, remplacé par un `title` natif
+  // sur le badge — `getByText` ne matche plus, retargeté sur `getByTitle`/
+  // `queryByTitle`.
+  it('badge "Lecture seule" (icône + title) affiché si isSaved=false, absent si isSaved=true', () => {
     mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: false }));
     const { rerender } = render(<PlaylistHeader {...baseProps()} />);
-    expect(screen.getByText('Lecture seule')).toBeInTheDocument();
+    expect(screen.getByTitle(/Lecture seule/)).toBeInTheDocument();
 
     mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: true }));
     rerender(<PlaylistHeader {...baseProps()} />);
-    expect(screen.queryByText('Lecture seule')).not.toBeInTheDocument();
+    expect(screen.queryByTitle(/Lecture seule/)).not.toBeInTheDocument();
   });
 
   it('médaille de rang affichée seulement si getRankStyle renvoie un style', () => {
