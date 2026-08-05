@@ -71,6 +71,24 @@ PASSATION.md → README.md → CLAUDE-SANDBOX-VERIFICATION.md → code réel),
   mais correct par principe et cohérent avec les 3 optimisations perf déjà
   faites le 03/08 (voir plus bas).
 
+⚠️ **SESSION DU 05/08 (suite) — retour direct : "je voulais UNE ligne max ;
+pas 2" (clarification de la demande du 04/08, mal interprétée sur le
+moment — voir le commentaire de MAX_DESCRIPTION_LENGTH, appConfig.js, qui
+citait pourtant l'énoncé d'origine "sur plus de 2 lignes").**
+`line-clamp-2` → `line-clamp-1` sur les 5 endroits qui affichent
+`content.description`/la description par catégorie d'un template
+(`PlaylistHeader.jsx`, `RoutinesView.jsx`, `ProfileView.jsx`,
+`PublicRoutinePreviewModal.jsx`, `TemplateCard.jsx`) — même décision de
+troncature sèche partout, sans "Voir plus" nulle part, juste 1 ligne au
+lieu de 2. `MAX_DESCRIPTION_LENGTH` (150) volontairement INCHANGÉ : déjà
+pensé comme une marge de sécurité généreuse au-dessus de ce qui tient
+visuellement, ce raisonnement tient tout autant à 1 ligne qu'à 2. Tous les
+commentaires qui documentaient l'ancien choix (2 lignes) mis à jour en
+conséquence, y compris un commentaire de `ProfileView.jsx` qui affirmait à
+tort que "le texte complet reste consultable ailleurs" (plus vrai
+maintenant que PlaylistHeader.jsx/PublicRoutinePreviewModal.jsx sont
+eux-mêmes clampés à 1 ligne).
+
 ⚠️ **SESSION DU 04/08 — vérification en conditions réelles du bloc 03/08 ci-
 dessous (toutes confirmées bonnes, guest bar + badge Trophées), puis une
 longue chaîne de correctifs en cascade. Voir `PASSATION.md` (généré en fin
