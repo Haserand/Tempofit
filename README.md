@@ -71,6 +71,28 @@ PASSATION.md → README.md → CLAUDE-SANDBOX-VERIFICATION.md → code réel),
   mais correct par principe et cohérent avec les 3 optimisations perf déjà
   faites le 03/08 (voir plus bas).
 
+⚠️ **SESSION DU 05/08 (suite 4) — retour direct, capture annotée : 1er
+paragraphe de l'infobulle "BPM cibles par zone" (`AthleticProfilePanel.jsx`,
+onglet Profil Athlétique) retiré ("Zone 2 = le BPM que tu tapes ci-dessous.
+Les 3 autres s'en écartent par palier fixe de 15 BPM..."). Import
+`getZoneSpacingForActivity` retiré de la déstructuration
+`useGeneratorContext()` du même fichier (n'était utilisé que dans ce
+paragraphe) — reste utilisé normalement ailleurs dans le projet
+(`useAthleticProfile.js`, `App.jsx`), fonction non touchée.**
+⚠️ **BUILD VERCEL CASSÉ PUIS CORRIGÉ** (logs collés par l'utilisateur) :
+`tests/views/AthleticProfilePanel.test.jsx` avait un test qui ciblait
+littéralement ce paragraphe (`getByText(/le BPM que tu tapes ci-dessous/)`)
+— le `grep` de pré-modification n'avait cherché que des portions de
+phrase plus longues/distinctives (`Zone 2 = le BPM`, `palier fixe de 15
+BPM`...), pas CETTE portion précise, donc rien remonté. Reformulation du
+piège pour la suite : `grep` avant de modifier un texte visible doit
+couvrir plusieurs sous-chaînes DISTINCTES du texte visé, pas une seule —
+un test peut cibler n'importe quel fragment, pas forcément celui qu'on a
+choisi de vérifier. Test retargeté sur un fragment toujours présent
+("niveau d'effort", 2e paragraphe, inchangé) plutôt que réintroduire du
+texte supprimé exprès. Mock `getZoneSpacingForActivity` (devenu inutile
+dans ce fichier de test) retiré au passage.
+
 ⚠️ **SESSION DU 05/08 (suite 3) — retour direct, capture d'écran : clic sur
 "Réglages" en vue invité → en-tête "Mon Compte", aucun onglet actif,
 contenu totalement vide.** BUG CORRIGÉ dans `Sidebar.jsx` :
