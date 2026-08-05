@@ -351,8 +351,18 @@ export default function PlaylistHeader({
                   vrais utilisateurs pour l'instant, donc pas de coût réel à
                   perdre l'accès au texte complet). Voir aussi
                   MAX_DESCRIPTION_LENGTH (appConfig.js), resserré au même
-                  retour pour un compteur de caractères plus honnête. */}
-              <p className="whitespace-pre-line line-clamp-2">{currentPlaylist.description}</p>
+                  retour pour un compteur de caractères plus honnête.
+                  ⚠️ 2e CORRECTIF (04/08, suite — le premier passage ajoutait
+                  `line-clamp-2` seul, insuffisant) : `<p>` vit dans un
+                  conteneur `flex` sans largeur propre — un item flex ne
+                  descend jamais sous la largeur de son contenu par défaut
+                  (`min-width: auto`), donc `line-clamp` n'avait rien pour
+                  s'appuyer, quel que soit le texte. MÊME piège déjà
+                  documenté dans ce projet (voir ViewHeader.jsx, commentaire
+                  `min-w-0`). `flex-1 min-w-0` corrige : l'élément prend
+                  l'espace disponible dans le conteneur `max-w-lg` du dessus
+                  ET peut se contraindre sous sa largeur de contenu. */}
+              <p className="whitespace-pre-line line-clamp-2 flex-1 min-w-0">{currentPlaylist.description}</p>
               {isSaved && !isReadOnly && (
                 <button onClick={() => { setEditedPlaylistDescription(currentPlaylist.description || ''); setIsEditingPlaylistDescription(true); }} className="p-1 rounded-lg text-slate-500 hover:text-white transition-colors shrink-0" title="Modifier la description">
                   <Edit3 size={14}/>
