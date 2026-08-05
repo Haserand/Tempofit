@@ -83,6 +83,23 @@ describe('Sidebar', () => {
     expect(changeView).not.toHaveBeenCalled();
   });
 
+  // BUG CORRIGÉ (05/08, retour direct, capture d'écran — clic sur
+  // "Réglages" en vue invité : en-tête "Mon Compte", aucun onglet actif,
+  // contenu vide) : `onClick={onOpenSettings}` (SANS wrapper) transmettait
+  // le SyntheticEvent du clic comme argument à `onOpenSettings` — un objet
+  // TOUJOURS "truthy", qui neutralise le paramètre par défaut `tab = null`
+  // de `handleOpenSettings` (App.jsx). Seul `toHaveBeenCalledTimes(1)`
+  // (test ci-dessus) ne pouvait PAS attraper ça — un test sur les
+  // ARGUMENTS de l'appel était nécessaire.
+  it('le clic sur "Réglages" appelle onOpenSettings SANS argument (pas le SyntheticEvent du clic)', () => {
+    const onOpenSettings = vi.fn();
+    render(<Sidebar {...baseProps} onOpenSettings={onOpenSettings} />);
+
+    fireEvent.click(screen.getByText('Réglages'));
+
+    expect(onOpenSettings).toHaveBeenCalledWith();
+  });
+
   it('masque le bouton Trophées quand aucun utilisateur n\'est connecté (user=null)', () => {
     render(<Sidebar {...baseProps} user={null} />);
     expect(screen.queryByTitle('Trophées')).toBeNull();
