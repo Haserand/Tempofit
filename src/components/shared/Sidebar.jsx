@@ -444,9 +444,27 @@ export default function Sidebar({
               voir sa docstring, App.jsx : réinitialise l'onglet de départ de
               SettingsView avant d'y naviguer, pour ne jamais hériter d'un
               `'account'` posé par une visite précédente via le dropdown
-              avatar (App.jsx, "cliquer sur mon compte"). */}
+              avatar (App.jsx, "cliquer sur mon compte").
+              ⚠️ BUG CORRIGÉ (05/08, retour direct, capture d'écran — clic
+              sur "Réglages" depuis la vue invité : en-tête "Mon Compte",
+              aucun onglet actif, contenu vide) : `onClick={onOpenSettings}`
+              passait la fonction TELLE QUELLE à `onClick` — React l'appelle
+              alors avec le SyntheticEvent du clic comme 1er argument.
+              `handleOpenSettings = (tab = null) => ...` (App.jsx) reçoit
+              donc cet event comme `tab` (un objet, TOUJOURS "truthy" — le
+              paramètre par défaut `= null` ne s'applique QUE si l'appelant
+              ne passe RIEN, pas juste une valeur fausse), jamais `null`.
+              `initialTab` (SettingsView.jsx) valait donc cet event, ni
+              'profile' ni 'music' ni 'account' — aucune branche des
+              ternaires (en-tête, onglet actif, contenu) ne matchait,
+              d'où l'en-tête replié sur son "else" ("Mon Compte"), aucun
+              onglet visuellement actif, et un contenu vide. Corrigé en
+              enveloppant l'appel (`() => onOpenSettings()`), comme PARTOUT
+              ailleurs dans ce fichier pour ce type de callback — c'était
+              d'ailleurs le SEUL endroit du projet où ce piège était présent
+              (audit fait sur les autres callbacks à paramètre optionnel). */}
           <div className="w-full flex items-center gap-2">
-            <button onClick={onOpenSettings} className={`flex-1 min-w-0 flex items-center space-x-3 ${SIDEBAR_FOOTER_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${textMuted} hover:bg-surface-hover hover:text-main`}>
+            <button onClick={() => onOpenSettings()} className={`flex-1 min-w-0 flex items-center space-x-3 ${SIDEBAR_FOOTER_LINK_PADDING} rounded-xl transition-colors select-none cursor-pointer ${textMuted} hover:bg-surface-hover hover:text-main`}>
               <Settings size={18} className={textColorClass} />
               <span className="font-bold text-sm">Réglages</span>
             </button>
