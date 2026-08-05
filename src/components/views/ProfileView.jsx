@@ -207,12 +207,17 @@ function PublicItemCard({ item, theme, onClick, kind = 'playlist' }) {
           haut, qui divergent selon `kind` — voir la docstring en tête de
           ce composant) : `description` est un simple texte libre, jamais
           généré, donc pas de branchement `isRoutine` nécessaire ici.
-          `line-clamp-2` : une carte de grille reste compacte même pour une
-          description proche de `MAX_DESCRIPTION_LENGTH` — le texte complet
-          reste consultable dans la modale d'aperçu (PublicRoutinePreviewModal.jsx)
-          ou la vue détail (PlaylistHeader.jsx) pour qui clique la carte. */}
+          `line-clamp-1` (05/08, resserré depuis `line-clamp-2` — retour
+          direct : "je voulais UNE ligne max ; pas 2") : une carte de grille
+          reste compacte même pour une description proche de
+          `MAX_DESCRIPTION_LENGTH`. ⚠️ Contrairement à l'ancienne version de
+          ce commentaire, le texte complet n'est PLUS consultable ailleurs
+          (modale d'aperçu PublicRoutinePreviewModal.jsx, vue détail
+          PlaylistHeader.jsx) — ces deux endroits sont désormais AUSSI en
+          `line-clamp-1`, même décision de troncature sèche partout, sans
+          exception ni "Voir plus" nulle part. */}
       {content.description && (
-        <p className={`text-xs mt-2 line-clamp-2 ${textMuted}`}>{content.description}</p>
+        <p className={`text-xs mt-2 line-clamp-1 ${textMuted}`}>{content.description}</p>
       )}
     </div>
   );
