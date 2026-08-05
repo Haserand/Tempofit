@@ -71,6 +71,30 @@ PASSATION.md → README.md → CLAUDE-SANDBOX-VERIFICATION.md → code réel),
   mais correct par principe et cohérent avec les 3 optimisations perf déjà
   faites le 03/08 (voir plus bas).
 
+⚠️ **SESSION DU 05/08 (suite 3) — retour direct, capture d'écran : clic sur
+"Réglages" en vue invité → en-tête "Mon Compte", aucun onglet actif,
+contenu totalement vide.** BUG CORRIGÉ dans `Sidebar.jsx` :
+`onClick={onOpenSettings}` transmettait le bouton directement à `onClick`
+SANS l'envelopper — React appelle alors le handler avec le SyntheticEvent
+du clic comme 1er argument. `handleOpenSettings = (tab = null) => ...`
+(App.jsx) recevait donc cet event comme `tab` (un objet, toujours
+"truthy" — un paramètre par défaut ne s'applique QUE si l'appelant ne
+passe rien du tout, pas juste une valeur fausse), jamais `null`.
+`SettingsView.jsx` initialisait alors `activeTab` à cet event, qui ne
+correspondait à AUCUNE des 3 valeurs attendues (`'profile'`/`'music'`/
+`'account'`) — d'où l'en-tête replié sur son "else" ("Mon Compte"), aucun
+onglet visuellement actif, et un contenu vide (aucune branche ne
+matchait). Le comportement par défaut VOULU (Profil Athlétique en premier,
+hors Mode Intime — voir `SettingsView.jsx`, `useState(() => initialTab ||
+(isNaughtyMode ? 'music' : 'profile'))`) était déjà correct dans le code ;
+seul ce câblage cassait la chaîne. Corrigé (`() => onOpenSettings()`),
+même pattern que partout ailleurs dans le projet pour ce type de callback
+— audit fait sur les autres callbacks à paramètre optionnel du projet,
+c'était le seul endroit concerné. Test existant (`Sidebar.test.jsx`)
+renforcé : il ne vérifiait que le NOMBRE d'appels, jamais les arguments —
+exactement pourquoi ce bug était passé inaperçu ; nouveau test dédié qui
+vérifie `onOpenSettings` appelé sans aucun argument.
+
 ⚠️ **SESSION DU 05/08 (suite 2) — retour direct : "y aurait pas besoin d'un
 test pour vérifier que les fichiers sont rangés au bon endroit au
 déploiement de Vercel ?" (en référence à l'incident `EditRoutineModal.test.jsx`
