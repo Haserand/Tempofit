@@ -64,6 +64,7 @@ function baseProps(overrides = {}) {
     executeGeneration: vi.fn(),
     isGenerating: false,
     changeView: vi.fn(),
+    showToast: vi.fn(),
     ...overrides,
   };
 }
@@ -139,6 +140,22 @@ describe('RoutinesView', () => {
       { ...routineB, isPublic: true },
       routineC,
     ]);
+  });
+
+  // NOUVEAU (05/08, retour direct : "j'aimerais un message de confirmation
+  // d'action quand je mets/retire quelque chose en public [...] à
+  // généraliser dans toute l'app") — même raisonnement/formulation que
+  // PlaylistDetailContext.jsx/PlaylistsView.jsx (voir leurs docstrings
+  // respectives). `getDisplayRoutineName` mocké en `(r) => r.name` dans
+  // `baseProps` (voir plus haut) — le message attendu utilise donc bien
+  // `routineB.name`.
+  it('affiche un toast de confirmation au clic sur "Rendre publique"/"Rendre privée"', () => {
+    const showToast = vi.fn();
+    const setRoutines = vi.fn();
+    render(<RoutinesView {...baseProps({ showToast, setRoutines })} />);
+
+    fireEvent.click(screen.getAllByTitle('Rendre cette routine visible sur ton profil public')[0]);
+    expect(showToast).toHaveBeenCalledWith(`🌐 "${routineB.name}" est maintenant visible sur ton profil public.`);
   });
 
   // ⚠️ SIMPLIFIÉ (03/08, refonte lignée serveur, voir supabase-schema.sql)
