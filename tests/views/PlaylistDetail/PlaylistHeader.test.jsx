@@ -22,8 +22,9 @@ vi.mock('../../../src/appConfig.js', () => ({
   getBpmBucketColor: vi.fn(() => '#123456'),
   getBpmBucketStart: vi.fn((bpm) => Math.floor(bpm / 20) * 20),
   // 04/08 — 280 → 150 (voir la docstring de MAX_DESCRIPTION_LENGTH,
-  // appConfig.js, pour le raisonnement complet : line-clamp-2 généralisé
-  // sans échappatoire "Voir plus" nulle part, seuil resserré en conséquence).
+  // appConfig.js, pour le raisonnement complet : line-clamp-1 généralisé
+  // (resserré depuis line-clamp-2 le 05/08) sans échappatoire "Voir plus"
+  // nulle part, seuil resserré en conséquence).
   MAX_DESCRIPTION_LENGTH: 150,
 }));
 
