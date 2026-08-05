@@ -56,8 +56,24 @@ export default function PendingNavigationModal({
           </div>
           <div>
             <h3 className={"text-xl font-bold " + textHighlight}>Playlist non sauvegardée</h3>
+            {/* Resserré à 1 ligne (05/08, retour direct — "synthétiser en
+                une seule ligne", capture d'écran annotée montrant le texte
+                sur 2 lignes) : ancien texte, "Si tu quittes maintenant sans
+                l'enregistrer dans Mes Séances, cette playlist sera
+                définitivement perdue." (107 caractères), débordait sur 2
+                lignes dans cette colonne étroite (icône à gauche, carte en
+                `max-w-md`) — même famille de demande que
+                GENRE_SEARCH_DEPTH_HINT (musicCatalog.js, 04/08). Longueur
+                vérifiée par un rendu réel (Playwright, police volontairement
+                plus large que celle de prod pour rester prudent) dans les
+                dimensions exactes de cette modale, pas à l'œil — 44
+                caractères, confirmé sur 1 seule ligne avec marge. "définitivement"
+                retiré pour tenir : le titre + l'icône d'avertissement + les
+                libellés des boutons ("Sauvegarder et continuer" /
+                "Continuer sans sauvegarder") portent déjà l'essentiel du
+                message sans ce mot. */}
             <p className={"text-sm mt-1 " + textMuted}>
-              Si tu quittes maintenant sans l'enregistrer dans Mes Séances, cette playlist sera définitivement perdue.
+              Sans sauvegarde, cette playlist sera perdue.
             </p>
           </div>
         </div>
