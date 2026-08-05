@@ -41,6 +41,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+import { MAX_DESCRIPTION_LENGTH } from '../../src/appConfig.js';
 
 vi.mock('../../src/contexts/GeneratorContext.jsx', () => ({
   useGeneratorContext: () => ({
@@ -267,7 +268,7 @@ describe('PlaylistDetailContext — description libre (handleEditPlaylistDescrip
     fireEvent.click(screen.getByText('save-description'));
 
     const calledWith = setCurrentPlaylist.mock.calls[0][0];
-    expect(calledWith.description.length).toBe(280);
+    expect(calledWith.description.length).toBe(MAX_DESCRIPTION_LENGTH);
   });
 
   // "Clone" vs "Enfant" (02/08, discussion produit : la lignée ne se
