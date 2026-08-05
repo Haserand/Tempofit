@@ -340,20 +340,18 @@ export default function PlaylistHeader({
             </div>
           ) : currentPlaylist.description ? (
             <div className="flex items-start gap-2 text-sm text-slate-300 max-w-lg">
-              {/* `line-clamp-2` (04/08, retour direct, capture d'écran : "casse
-                  la mise en page" — description trop longue sans aucune limite
-                  d'affichage). ⚠️ Ce composant était jusque-là DÉLIBÉRÉMENT
-                  exempté de cette troncature (voir le commentaire dans
-                  ProfileView.jsx : "le texte complet reste consultable [...]
-                  dans la vue détail (PlaylistHeader.jsx)") — décision
-                  RENVERSÉE explicitement au même retour direct : "plutôt
-                  troncature sèche, [...] je m'en moque d'en couper" (pas de
-                  vrais utilisateurs pour l'instant, donc pas de coût réel à
-                  perdre l'accès au texte complet). Voir aussi
-                  MAX_DESCRIPTION_LENGTH (appConfig.js), resserré au même
-                  retour pour un compteur de caractères plus honnête.
-                  ⚠️ 2e CORRECTIF (04/08, suite — le premier passage ajoutait
-                  `line-clamp-2` seul, insuffisant) : `<p>` vit dans un
+              {/* `line-clamp-1` (05/08, retour direct — clarification de la
+                  demande du 04/08 : "je voulais UNE ligne max ; pas 2").
+                  ⚠️ Ce composant était jusque-là DÉLIBÉRÉMENT exempté de
+                  toute troncature (voir le commentaire dans ProfileView.jsx :
+                  "le texte complet reste consultable [...] dans la vue
+                  détail (PlaylistHeader.jsx)") — décision RENVERSÉE
+                  explicitement le 04/08 : "plutôt troncature sèche, [...]
+                  je m'en moque d'en couper" (pas de vrais utilisateurs pour
+                  l'instant, donc pas de coût réel à perdre l'accès au texte
+                  complet). Voir aussi MAX_DESCRIPTION_LENGTH (appConfig.js).
+                  ⚠️ CORRECTIF flex (04/08, `line-clamp-2` à l'époque,
+                  toujours valable à `line-clamp-1`) : `<p>` vit dans un
                   conteneur `flex` sans largeur propre — un item flex ne
                   descend jamais sous la largeur de son contenu par défaut
                   (`min-width: auto`), donc `line-clamp` n'avait rien pour
@@ -362,7 +360,7 @@ export default function PlaylistHeader({
                   `min-w-0`). `flex-1 min-w-0` corrige : l'élément prend
                   l'espace disponible dans le conteneur `max-w-lg` du dessus
                   ET peut se contraindre sous sa largeur de contenu. */}
-              <p className="whitespace-pre-line line-clamp-2 flex-1 min-w-0">{currentPlaylist.description}</p>
+              <p className="whitespace-pre-line line-clamp-1 flex-1 min-w-0">{currentPlaylist.description}</p>
               {isSaved && !isReadOnly && (
                 <button onClick={() => { setEditedPlaylistDescription(currentPlaylist.description || ''); setIsEditingPlaylistDescription(true); }} className="p-1 rounded-lg text-slate-500 hover:text-white transition-colors shrink-0" title="Modifier la description">
                   <Edit3 size={14}/>
