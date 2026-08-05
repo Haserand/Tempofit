@@ -86,5 +86,31 @@ export function useCsvImport(
     e.target.value = '';
   };
 
-  return { triggerCSVUpload, handleCSVUpload };
+  /**
+   * Retire les données réelles importées (cadence/FC) pour UNE date de
+   * complétion précise, sans toucher au reste de la playlist (nom, autres
+   * dates, etc.) — NOUVEAU (05/08, retour direct : "je dois pouvoir retirer
+   * des données importées si je me trompe de fichier"). Jusqu'ici, la SEULE
+   * façon de corriger un mauvais import était d'en réimporter un autre par-
+   * dessus (`handleCSVUpload` écrase déjà `actualDataByDate[date]` sans
+   * poser de question) — mais ça suppose d'avoir le BON fichier sous la main
+   * tout de suite ; impossible de simplement revenir à "rien d'importé".
+   * Signature `(playlist, isoDate)` explicite (comme `triggerCSVUpload`,
+   * pas implicitement `currentPlaylist`) — réutilisable depuis n'importe
+   * quelle carte de "Mes Séances" plus tard, pas seulement la vue détail
+   * actuellement ouverte, même si le seul appelant pour l'instant est
+   * PlaylistHeader.jsx (voir sa docstring, bouton "Données importées").
+   * Extrait un NOUVEL objet `actualDataByDate` sans la clé `isoDate`
+   * (déstructuration + rest, jamais une mutation de l'objet existant).
+   */
+  const removeImportedData = (playlist, isoDate) => {
+    if (!playlist || !isoDate || !playlist.actualDataByDate || !playlist.actualDataByDate[isoDate]) return;
+    const { [isoDate]: _removed, ...remainingActualData } = playlist.actualDataByDate;
+    const updatedPlaylist = { ...playlist, actualDataByDate: remainingActualData };
+    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
+    if (currentPlaylist && currentPlaylist.id === updatedPlaylist.id) setCurrentPlaylist(updatedPlaylist);
+    showToast(`Données importées retirées pour la séance du ${formatCompletionDate(isoDate)}.`);
+  };
+
+  return { triggerCSVUpload, handleCSVUpload, removeImportedData };
 }
