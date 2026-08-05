@@ -71,6 +71,24 @@ PASSATION.md → README.md → CLAUDE-SANDBOX-VERIFICATION.md → code réel),
   mais correct par principe et cohérent avec les 3 optimisations perf déjà
   faites le 03/08 (voir plus bas).
 
+⚠️ **SESSION DU 05/08 (suite 2) — retour direct : "y aurait pas besoin d'un
+test pour vérifier que les fichiers sont rangés au bon endroit au
+déploiement de Vercel ?" (en référence à l'incident `EditRoutineModal.test.jsx`
+plus haut).** Nouveau garde-fou **`tests/testLocationTrap.test.js`** :
+scanne tout le dépôt (hors `node_modules`/`dist`) à la recherche de tout
+fichier `*.test.js(x)` posé HORS de `tests/` — exactement le cas qui avait
+laissé la couverture du chantier "cible à 0" tourner dans le vide sans
+qu'aucun signal ne le révèle. Comble un angle mort explicitement identifié
+plus haut : aucun des 3 garde-fous existants à ce moment-là
+(`noDuplicateFiles.test.js`, `testFileIdentityTrap.test.js`,
+`fileExtensionTrap.test.js`) ne scanne en dehors de `tests/`, donc aucun ne
+pouvait détecter ce cas précis. Ajouté à la liste blanche
+`NO_SINGLE_SUBJECT` de `testFileIdentityTrap.test.js` (garde-fou global,
+même famille que les 3 autres). Au passage : la ligne de la section Tests
+qui comptait "3 fichiers restés à la racine" était déjà fausse avant cette
+session (`testFileIdentityTrap.test.js` manquait au compte) — corrigée,
+5 fichiers désormais listés avec ce nouveau.
+
 ⚠️ **SESSION DU 05/08 (suite) — retour direct : "je voulais UNE ligne max ;
 pas 2" (clarification de la demande du 04/08, mal interprétée sur le
 moment — voir le commentaire de MAX_DESCRIPTION_LENGTH, appConfig.js, qui
@@ -460,7 +478,7 @@ Ordre de priorité retenu (voir aussi les passations pour le détail du raisonne
 ## Tests
 
 - `tests/` en miroir de `src/` (`views/`, `modals/`, `shared/`, `contexts/`, `hooks/`, `engine/`, `utils/`, `config/`, `data/`).
-- 3 fichiers restés volontairement à la racine (`fileExtensionTrap.test.js`, `noDuplicateFiles.test.js`, `tailwindConcatTrap.test.js`) — des garde-fous qui scannent tout le projet via leur propre `__dirname`, les déplacer casserait leur scan.
+- 5 fichiers restés volontairement à la racine (`fileExtensionTrap.test.js`, `noDuplicateFiles.test.js`, `tailwindConcatTrap.test.js`, `testFileIdentityTrap.test.js`, `testLocationTrap.test.js` — ce dernier ajouté le 05/08, voir "État d'avancement") — des garde-fous qui scannent tout le projet via leur propre `__dirname`, les déplacer casserait leur scan. (Le compte était déjà erroné avant le 05/08 — `testFileIdentityTrap.test.js` manquait à la liste, corrigé au passage.)
 - `PlaylistDetailContext.jsx` (Provider) n'a **pas** de couverture exhaustive — juste un test ciblé sur `isSaved`/`isReadOnly` (`tests/contexts/PlaylistDetailContext.test.jsx`). Le monter en entier exigerait de mocker `GeneratorContext` + `AudioPlayerContext` + le moteur de recalcul de timeline ; jugé disproportionné pour ce qui reste, à part ce point précis, de la logique triviale déjà couverte indirectement ailleurs.
 - Aucune exécution réelle de `vitest` n'est possible dans le bac à sable Claude — voir `CLAUDE-SANDBOX-VERIFICATION.md`.
 
