@@ -12,6 +12,62 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
+⚠️ **SESSION DU 04/08 — vérification en conditions réelles du bloc 03/08 ci-
+dessous (toutes confirmées bonnes, guest bar + badge Trophées), puis une
+longue chaîne de correctifs en cascade. Voir `PASSATION.md` (généré en fin
+de session, hors repo) pour le récit complet — résumé technique ici :**
+
+- **`src/utils/targetValidation.js`** (nouveau) — centralise toute la
+  validation "cible de séance" (distance ou durée, jamais 0/vide/négatif).
+  `isTargetValueValid`/`isSegmentValid`/`areSegmentsValid` (blocage à
+  l'action) + `snapDistanceOnBlur`/`snapSegmentBpmOnBlur`/
+  `snapSegmentDurationOnBlur` (correction automatique au blur du champ,
+  jamais pendant la frappe — casserait la saisie décimale). Câblé dans
+  `GeneratorWizard.jsx` (étapes 2/3, y compris les segments du mode
+  Fractionné), `EditRoutineModal.jsx`, `TargetModeInputs.jsx` (indices
+  visuels) ET `RoutinesView.jsx` (bouton "Générer" d'une routine déjà
+  sauvegardée — point d'entrée distinct des formulaires, trouvé en
+  généralisant après coup). Seuil distance : `>= 0.1` (`MIN_VALID_DISTANCE`),
+  pas juste `> 0` — cohérent avec `step="0.1"` déjà affiché sur les champs,
+  qui portent aussi `min="0.1"` (bloque les flèches natives du spinner).
+  ⚠️ Limite assumée : `EditRoutineModal.jsx` n'offre aucune édition des
+  segments du mode Fractionné — une routine Fractionné cassée ne peut être
+  réparée qu'en la recréant, pas de vraie UI de correction pour ce cas
+  précis actuellement.
+- **`src/layout/inlineLinkLayout.js`** (nouveau) — `INLINE_NAV_LINK_CLASS`
+  (`'font-bold underline'`), convention centralisée pour les liens texte
+  "ce lien t'emmène ailleurs dans l'app" (texte finissant par `→`, jamais
+  d'icône) — 6 occurrences alignées (`StatsView.jsx` ×4, `FavoritesView.jsx`,
+  `GeneratorWizard.jsx`).
+- **Troncature des descriptions** — `line-clamp-2` généralisé aux 5 endroits
+  qui affichent `content.description` (`ProfileView.jsx`/`TemplateCard.jsx`
+  l'avaient déjà ; `PlaylistHeader.jsx`/`PublicRoutinePreviewModal.jsx`/
+  `RoutinesView.jsx` corrigés). `MAX_DESCRIPTION_LENGTH` (`appConfig.js`)
+  resserré **280 → 150** — décision produit explicite : troncature SÈCHE,
+  sans "Voir plus" nulle part (pas de vrais utilisateurs actuellement).
+  ⚠️ Piège CSS rencontré deux fois (`PlaylistHeader.jsx`/`RoutinesView.jsx`) :
+  `line-clamp-2` seul ne suffit pas sur un `<p>` qui est item flex sans
+  largeur propre (`min-width: auto` par défaut) — `flex-1 min-w-0`
+  nécessaire en plus, même piège déjà documenté dans `ViewHeader.jsx`.
+- **`GuestModeBar.jsx`** — état de fermeture (`isGuestBarDismissed`) remonté
+  dans `AppContent` (était local au composant, invisible du spacer de
+  `<main>` et de `Sidebar.jsx`) ; spacer dédié corrigé `h-10`→`h-[72px]`
+  (désynchronisé depuis le passage de la barre à 72px le 29/07). Vérifié en
+  conditions réelles, confirmé bon.
+- **`GeneratorWizard.jsx`, étape 3** — hauteur `h-[300px]`/scroll interne
+  désormais conditionnelle (Crescendo/Fractionné seulement, plus Constant
+  qui n'en a jamais eu besoin).
+- **`StatsView.jsx`, état vide** — hauteur calée sur la carte de l'étape 1
+  du wizard ; écart `space-y-8`/`space-y-4` avec l'en-tête corrigé
+  (conditionnel à l'état vide, la vue remplie garde `space-y-8`).
+- **5 nouvelles habitudes de travail actées** dans
+  `CLAUDE-SANDBOX-VERIFICATION.md` (section en tête) — cadrer l'utilité de
+  chaque demande, format de livraison (jamais de zip), vérifier le test
+  miroir de chaque fichier touché, `grep` avant de modifier un texte
+  visible, généraliser/auditer spontanément à chaque bug trouvé.
+- ⚠️ **Le fix `min-w-0` (dernier correctif de la session) n'a PAS été
+  vérifié en conditions réelles** — priorité n°1 de la prochaine session.
+
 ⚠️ **SESSION DU 03/08 (2e moitié) — plusieurs petits chantiers UI/perf,
 listés ici en bloc plutôt qu'un par un (chacun assez petit pour ne pas
 mériter sa propre section) :**
@@ -242,7 +298,7 @@ Ce qui est posé (02/08) — voir `supabase-schema.sql` pour le détail comment�
 
 Première UI branchée dessus (02/08) — **"Ma persona intime"**, `SettingsView.jsx`, onglet "Mon Compte", visible en Mode Intime uniquement, **indépendante de `isProfilePublic`** (voir README plus haut : les pulses restent possibles sans opt-in au leaderboard). Bouton "Découvrir mon pseudonyme" → appelle `get_or_create_intimate_persona()` → affiche le résultat. **Volontairement manuel, jamais automatique au montage** : un `useEffect` qui déclencherait la création silencieusement dès l'ouverture de cet onglet contredirait le "fermé par défaut, l'utilisateur CHOISIT de partager" du README, même si la ligne créée reste inerte (aucune policy de lecture publique). Conséquence acceptée : `intimatePersona` n'est pas persisté côté client, redemande un clic à chaque nouvelle visite de la page (la RPC étant idempotente, ça renvoie toujours la même persona, aucune perte).
 
-Chantier annexe terminé le 02/08 — **description texte libre sur une playlist/routine publique** (point 3 de l'ordre de priorité ci-dessous, traité isolément, sans besoin d'attendre son tour) : `content.description` (simple champ texte dans le `jsonb` déjà existant, **aucune migration SQL** — même logique que `plannedDate`/`coverUrl`, ajoutés avant sans jamais toucher au schéma). `MAX_DESCRIPTION_LENGTH` (280, `appConfig.js`) partagée entre édition et affichage. Playlists : édition inline dans `PlaylistHeader.jsx`/`PlaylistDetailContext.jsx`, même schéma que le renommage déjà existant. Routines : **décision volontaire** de ne PAS l'ajouter à `EditRoutineModal.jsx` — cette modale force un choix "cette séance seulement/toujours" qui déclenche une génération à chaque sauvegarde (`applyRoutineEditOnce`/`applyRoutineEditPermanently`), une friction absurde pour un simple texte ; édition inline directement sur la carte de `RoutinesView.jsx` à la place (`setRoutines` local, même pattern que la bascule publique/privée du chantier 1). Affiché publiquement dans `PublicItemCard`/`PublicRoutinePreviewModal.jsx`, et intégré à la recherche texte de `useProfileSearchFilter.js` (explicitement prévu par le brief du chantier précédent une fois ce champ construit).
+Chantier annexe terminé le 02/08 — **description texte libre sur une playlist/routine publique** (point 3 de l'ordre de priorité ci-dessous, traité isolément, sans besoin d'attendre son tour) : `content.description` (simple champ texte dans le `jsonb` déjà existant, **aucune migration SQL** — même logique que `plannedDate`/`coverUrl`, ajoutés avant sans jamais toucher au schéma). `MAX_DESCRIPTION_LENGTH` (`appConfig.js`, **150** — resserré depuis 280 le 04/08, voir bloc "SESSION DU 04/08" plus haut) partagée entre édition et affichage. Playlists : édition inline dans `PlaylistHeader.jsx`/`PlaylistDetailContext.jsx`, même schéma que le renommage déjà existant. Routines : **décision volontaire** de ne PAS l'ajouter à `EditRoutineModal.jsx` — cette modale force un choix "cette séance seulement/toujours" qui déclenche une génération à chaque sauvegarde (`applyRoutineEditOnce`/`applyRoutineEditPermanently`), une friction absurde pour un simple texte ; édition inline directement sur la carte de `RoutinesView.jsx` à la place (`setRoutines` local, même pattern que la bascule publique/privée du chantier 1). Affiché publiquement dans `PublicItemCard`/`PublicRoutinePreviewModal.jsx`, et intégré à la recherche texte de `useProfileSearchFilter.js` (explicitement prévu par le brief du chantier précédent une fois ce champ construit).
 
 Chantier précédent (**Vague 2, Chantier 1 — UI publique des routines**) terminé le 02/08 : le SQL/RLS existait déjà (`routines.is_public`/`is_intimate`), il ne manquait que l'intégration frontend, transposée du mécanisme déjà en prod pour les playlists — voir `RoutinesView.jsx` (bascule publique/privée par routine, même pattern que `PlaylistCard.jsx`), `PublicRoutinePreviewModal.jsx` (nouvelle modale : aperçu + clonage — une routine n'a pas de vue détail dédiée contrairement à une playlist, donc pas de navigation possible comme `handleOpenPublicPlaylist`, juste une modale légère sur le modèle d'`ImportSharedPlaylistModal.jsx`) et `handleOpenPublicRoutine`/`handleClonePublicRoutine` (App.jsx). Bug réel trouvé et corrigé au passage dans `ProfileView.jsx` : `PublicItemCard` lisait aveuglément les champs *playlist* (`content.config.bpm`, `content.totalDuration`, `content.coverUrl`) même pour une routine — resté invisible jusqu'ici car aucune routine n'avait jamais été publique en pratique. `content` d'une routine a une forme différente (`bpm` à la racine, pas de `totalDuration` car rien n'a encore été généré, `coverIcon` emoji plutôt que pochette) — `PublicItemCard` prend maintenant un prop `kind` ('playlist'/'routine') pour lire les bons champs.
 
@@ -272,6 +328,9 @@ Chantier annexe (hors de l'ordre de priorité numéroté ci-dessous, traité sur
 - ⚠️ Piège trouvé pendant "UI publique des routines" (02/08) : `playlists.content` et `routines.content` ont la MÊME table/colonne (`jsonb`), mais PAS la même forme malgré la doc de `supabase-schema.sql` qui les présente comme structurellement identiques — une routine n'a jamais été générée, donc pas de `content.totalDuration`, pas de `content.coverUrl`, et le BPM vit à la racine (`content.bpm`) plutôt que sous `content.config.bpm`. Tout code qui affiche les deux types côte à côte (voir `PublicItemCard`, `ProfileView.jsx`) doit lire ces champs conditionnellement — jamais supposer qu'un helper écrit pour une playlist fonctionne tel quel sur une routine. Même piège retrouvé une 2e fois le même jour (`useProfileSearchFilter.js`, chantier "Recherche & filtres sur les profils publics") pour l'extraction du genre (`getGenresForDisplay` sur `content.tracks` pour une playlist vs `content.selectedGenres` direct pour une routine) et de la durée (`content.totalDuration` vs `content.hours`/`minutes` uniquement si `targetMode === 'time'`) — **pattern maintenant établi** : tout nouveau code qui lit `content` d'un item potentiellement playlist OU routine doit brancher sur un `kind`/`row.kind` explicite, jamais une formule unique.
 - ⚠️ Catalogue de genres CANONIQUE (`musicCatalog.js`, `STANDARD_GENRES`/`NAUGHTY_GENRES`/`EXTRA_GENRES`) — trouvé en écrivant les routines fictives de la vitrine (02/08) : la clé interne réelle est `Electro` **sans accent**, `genreDisplayLabel` ne la retraduit pas (elle ne remappe que `'Autre'`→`'Divers'` et `'Musique asiatique'`→`'J-pop & C-pop'`) — l'accent affiché ailleurs dans l'UI ("Électro") n'existe QUE dans du texte libre, jamais comme valeur stockée. `Hip-Hop` et `Lo-fi` n'existent PAS dans le catalogue — pas de fourre-tout "genre urbain/ambiance" disponible, le plus proche est `Rap`/`R&B Sensuel` (variante Intime de `R&B`, dans `NAUGHTY_GENRES`). Toute nouvelle donnée (fictive ou non) qui référence un genre doit être vérifiée contre ces 3 constantes, jamais un nom "qui sonne juste".
 - `content.description` (chantier "description texte libre", 02/08) : ajouté SANS migration SQL, simple nouvelle clé dans le `jsonb` déjà existant — précédent déjà établi par `plannedDate`/`coverUrl`. Un nouveau champ sur `playlists`/`routines` ne justifie une vraie colonne (`alter table`) que s'il doit être filtrable/indexable côté RLS (comme `is_public`/`is_intimate`) ; un simple texte d'affichage n'a aucune raison de sortir de `content`.
+
+### Valider une donnée persistée : à la SOURCE ne suffit pas, il faut aussi valider à la CONSOMMATION
+Leçon du chantier "cible à 0" (`targetValidation.js`, 04/08) : valider un formulaire d'ENTRÉE (le wizard, `EditRoutineModal.jsx`) empêche de CRÉER une donnée invalide, mais ne protège pas contre une donnée invalide déjà en base (créée avant le correctif, ou par tout autre moyen) qui serait relue ailleurs SANS repasser par ce formulaire — ici, le bouton "Générer" d'une routine déjà sauvegardée (`RoutinesView.jsx`), qui consomme `routine.distanceVal`/`.segments` directement. Tout nouveau champ avec une contrainte de validité mérite qu'on se pose la question aux DEUX endroits : où est-il écrit, et partout où il est relu sans repasser par l'écriture.
 
 ### Deux systèmes de confidentialité, volontairement séparés
 - **Niveau profil** (table `profiles`) : `is_profile_public`, `show_sport_stats`, `show_intimate_stats`, `default_playlist_public` — interrupteurs globaux.
