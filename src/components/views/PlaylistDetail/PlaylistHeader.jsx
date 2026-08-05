@@ -186,45 +186,65 @@ export default function PlaylistHeader({
         </span>
       )}
 
-      {/* Bouton "Retirer de Mes Séances" — icône seule + `title` (05/08,
-          retour direct : "il faudrait que le bouton 'retirer des séances'
-          suive la même logique [que la carte "Mes Séances"] : juste une
-          icône de corbeille... même ligne que le cadenas"). Auparavant un
-          bouton texte+icône dans la ligne d'actions principale (Partager/
-          Rendre publique/Planifier) — déplacé ici, MÊME emplacement/style
-          que le badge "Lecture seule" juste au-dessus (`top-4 right-4`,
-          jamais affiché en même temps : l'un exige `!isSaved`, l'autre
-          `isSaved`). `handleUnsavePlaylist` inchangé (même handler que la
-          corbeille de la carte dans "Mes Séances", PlaylistCard.jsx —
-          gère déjà en interne la confirmation via PendingUnsaveModal.jsx
-          si la playlist a de l'historique à perdre).
-          ⚠️ `!isReadOnly` explicite EN PLUS de `isSaved` (pas juste
-          `isSaved` seul) : l'ancienne version vivait dans la même chaîne
-          ternaire `isReadOnly ? ... : isSaved ? ... : ...` que le bouton
-          "Sauvegarder"/"Ajouter" juste en dessous, qui vérifie déjà
-          `isReadOnly` EN PREMIER (voir sa docstring, "défense en
-          profondeur" même si `isSaved` est déjà censé valoir `false` quand
-          `isReadOnly` est vrai). Sorti de cette ternaire pour vivre dans ce
-          bloc séparé, ce bouton perdait cette même garantie s'il ne
-          testait que `isSaved` — remis explicitement pour ne PAS
-          réintroduire, pour ce cas précis, le bug que cette vérification
-          "en premier" empêchait déjà ailleurs (testé dans
-          PlaylistHeader.test.jsx, describe `isReadOnly`).
-          Coexiste avec la médaille de rang (`-top-2 -right-2`, juste
-          au-dessus dans ce fichier) sans collision : offsets diagonaux
-          différents, la médaille pointe hors de la carte au coin, ce
-          bouton reste à l'intérieur — à confirmer visuellement en
-          conditions réelles pour une playlist À LA FOIS classée ET
-          sauvegardée, seul cas qui les combine. */}
-      {isSaved && !isReadOnly && (
-        <button
-          onClick={handleUnsavePlaylist}
-          title="Retirer cette séance de 'Mes Séances'"
-          className="absolute top-4 right-4 bg-slate-800/80 border border-slate-700 text-slate-300 p-2 rounded-full flex items-center justify-center z-10 hover:bg-red-900/40 hover:border-red-800 hover:text-red-400 transition-colors"
-        >
-          <Trash2 size={12} />
-        </button>
-      )}
+      {/* Bloc d'actions icône seule en coin (`top-4 right-4`, même
+          emplacement que le badge "Lecture seule" juste au-dessus — les
+          deux blocs ne s'affichent jamais ensemble : l'un exige `!isSaved`,
+          l'autre `isSaved`) — Rendre publique/privée (Globe) PUIS Retirer
+          (Trash2), dans cet ordre, MÊME ordre que PlaylistCard.jsx ("Mes
+          Séances" en carte) pour rester cohérent avec ce pattern déjà
+          établi là-bas.
+          RETOUR DIRECT (05/08), 2 points sur ce bloc :
+          1. "Rendre publique" (auparavant un bouton texte+icône dans la
+             ligne d'actions principale, à côté de Partager/Planifier) suit
+             désormais la MÊME logique que Retirer : icône seule, même
+             ligne, à gauche de la corbeille — transposition directe du
+             pattern Globe+Trash déjà en place sur la carte de
+             PlaylistCard.jsx (mêmes `title`, même logique "toujours coloré
+             si déjà public, gris + résolu au survol sinon").
+          2. Le fond circulaire de la corbeille (ajouté au 1er passage de ce
+             bloc) était VISIBLE EN PERMANENCE (`bg-slate-800/80 border
+             border-slate-700`) — pas la convention du reste de l'app pour
+             un bouton icône seule ACTIONNABLE (voir `ICON_BUTTON_ROUNDING`,
+             MiniPlayerBar.jsx/GuestModeBar.jsx/EditRoutineModal.jsx : icône
+             seule nue, fond/couleur uniquement au survol direct du bouton).
+             Corrigé ici aux 2 boutons — le fond n'apparaît plus qu'au
+             survol, jamais en repos. Le badge "Lecture seule" juste
+             au-dessus GARDE son fond permanent, volontairement : c'est un
+             STATUT à signaler passivement (pas une action), pas le même
+             rôle que ces 2 boutons.
+          `!isReadOnly` explicite EN PLUS de `isSaved` sur les 2 conditions
+          (voir la docstring de la bascule publique/privée plus bas dans ce
+          fichier pour le même raisonnement "défense en profondeur"). */}
+      <div className="absolute top-4 right-4 flex items-center gap-1 z-10">
+        {/* Coexiste avec la médaille de rang (`-top-2 -right-2`, juste
+            au-dessus dans ce fichier) sans collision de principe : offsets
+            diagonaux différents, la médaille pointe hors de la carte au
+            coin, ce bloc reste à l'intérieur — à confirmer visuellement en
+            conditions réelles pour une playlist À LA FOIS classée ET
+            sauvegardée, seul cas qui les combine. */}
+        {isSaved && !isReadOnly && (
+          <button
+            onClick={handleTogglePlaylistPublic}
+            title={currentPlaylist.isPublic ? "Visible sur ton profil public — clique pour la rendre privée" : "Rendre cette playlist visible sur ton profil public"}
+            className={`p-2 rounded-full flex items-center justify-center transition-colors ${
+              currentPlaylist.isPublic
+                ? 'text-emerald-400 hover:bg-emerald-600/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-white/10'
+            }`}
+          >
+            <Globe size={14} />
+          </button>
+        )}
+        {isSaved && !isReadOnly && (
+          <button
+            onClick={handleUnsavePlaylist}
+            title="Retirer cette séance de 'Mes Séances'"
+            className="p-2 rounded-full flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-white/10 transition-colors"
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
+      </div>
 
       {/* Pochette — ombre profonde/diffuse + léger zoom au survol, pour
           détacher visuellement la pochette du fond sombre plutôt qu'un
@@ -583,36 +603,11 @@ export default function PlaylistHeader({
             <Share2 size={16} /> <span>Partager</span>
           </button>
 
-          {/* Bascule publique/privée INDIVIDUELLE (Feature Sociale —
-              Refonte Structurale Round 2/2, 01/08, retour direct : "activer
-              une option dans les 2 vues pour faire de l'individuel") —
-              visible UNIQUEMENT une fois la playlist sauvegardée
-              (`isSaved`) : une playlist qui n'existe pas encore dans
-              "Mes Séances" n'a pas de ligne dans la table `playlists`,
-              rien à rendre public. Prime sur le réglage par défaut de
-              SettingsView.jsx, qui ne sert qu'à préremplir cette valeur
-              AU MOMENT de la sauvegarde initiale — modifiable ici à tout
-              moment ensuite, dans un sens comme dans l'autre.
-              `!isReadOnly` ajouté (01/08, trouvé en écrivant les tests de
-              ce fichier) — défense en profondeur, même principe exact que
-              le bouton CSV plus haut : `isSaved` vaut TOUJOURS `false`
-              pour une vraie playlist étrangère en pratique (voir
-              PlaylistDetailContext.jsx), donc ce garde ne change rien
-              aujourd'hui, mais protège contre un futur changement qui
-              romprait cette hypothèse implicite sans y penser. */}
-          {isSaved && !isReadOnly && (
-            <button
-              onClick={handleTogglePlaylistPublic}
-              title={currentPlaylist.isPublic ? "Visible sur ton profil public — clique pour la rendre privée" : "Rendre cette playlist visible sur ton profil public"}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm shrink-0 border transition-colors ${
-                currentPlaylist.isPublic
-                  ? 'bg-emerald-600/20 border-emerald-600/40 text-emerald-400 hover:bg-emerald-600/30'
-                  : 'bg-slate-800/80 border-slate-700 hover:bg-slate-700 text-slate-200'
-              }`}
-            >
-              <Globe size={16} /> <span>{currentPlaylist.isPublic ? 'Publique' : 'Rendre publique'}</span>
-            </button>
-          )}
+          {/* Bascule publique/privée — icône seule déplacée en haut à
+              droite (05/08, retour direct : même traitement que "Retirer",
+              voir le bloc `top-4 right-4` en tête de ce fichier). Plus
+              rien à rendre ici : `isSaved && !isReadOnly` gère déjà tout
+              là-bas, avec le même garde-fou. */}
 
           {/* Badge BPM/Zone — `ml-auto` le pousse à droite des boutons dans
               CETTE MÊME rangée (retour direct : plus jamais un élément
