@@ -186,6 +186,46 @@ export default function PlaylistHeader({
         </span>
       )}
 
+      {/* Bouton "Retirer de Mes Séances" — icône seule + `title` (05/08,
+          retour direct : "il faudrait que le bouton 'retirer des séances'
+          suive la même logique [que la carte "Mes Séances"] : juste une
+          icône de corbeille... même ligne que le cadenas"). Auparavant un
+          bouton texte+icône dans la ligne d'actions principale (Partager/
+          Rendre publique/Planifier) — déplacé ici, MÊME emplacement/style
+          que le badge "Lecture seule" juste au-dessus (`top-4 right-4`,
+          jamais affiché en même temps : l'un exige `!isSaved`, l'autre
+          `isSaved`). `handleUnsavePlaylist` inchangé (même handler que la
+          corbeille de la carte dans "Mes Séances", PlaylistCard.jsx —
+          gère déjà en interne la confirmation via PendingUnsaveModal.jsx
+          si la playlist a de l'historique à perdre).
+          ⚠️ `!isReadOnly` explicite EN PLUS de `isSaved` (pas juste
+          `isSaved` seul) : l'ancienne version vivait dans la même chaîne
+          ternaire `isReadOnly ? ... : isSaved ? ... : ...` que le bouton
+          "Sauvegarder"/"Ajouter" juste en dessous, qui vérifie déjà
+          `isReadOnly` EN PREMIER (voir sa docstring, "défense en
+          profondeur" même si `isSaved` est déjà censé valoir `false` quand
+          `isReadOnly` est vrai). Sorti de cette ternaire pour vivre dans ce
+          bloc séparé, ce bouton perdait cette même garantie s'il ne
+          testait que `isSaved` — remis explicitement pour ne PAS
+          réintroduire, pour ce cas précis, le bug que cette vérification
+          "en premier" empêchait déjà ailleurs (testé dans
+          PlaylistHeader.test.jsx, describe `isReadOnly`).
+          Coexiste avec la médaille de rang (`-top-2 -right-2`, juste
+          au-dessus dans ce fichier) sans collision : offsets diagonaux
+          différents, la médaille pointe hors de la carte au coin, ce
+          bouton reste à l'intérieur — à confirmer visuellement en
+          conditions réelles pour une playlist À LA FOIS classée ET
+          sauvegardée, seul cas qui les combine. */}
+      {isSaved && !isReadOnly && (
+        <button
+          onClick={handleUnsavePlaylist}
+          title="Retirer cette séance de 'Mes Séances'"
+          className="absolute top-4 right-4 bg-slate-800/80 border border-slate-700 text-slate-300 p-2 rounded-full flex items-center justify-center z-10 hover:bg-red-900/40 hover:border-red-800 hover:text-red-400 transition-colors"
+        >
+          <Trash2 size={12} />
+        </button>
+      )}
+
       {/* Pochette — ombre profonde/diffuse + léger zoom au survol, pour
           détacher visuellement la pochette du fond sombre plutôt qu'un
           simple `shadow-inner` qui se fondait dans la carte. */}
@@ -450,7 +490,13 @@ export default function PlaylistHeader({
           )}
 
           {/* Action principale (1er position) : Sauvegarder (clone) si
-              aperçu en lecture seule / Ajouter à Mes Séances / Retirer.
+              aperçu en lecture seule / Ajouter à Mes Séances. "Retirer"
+              déplacé le 05/08 (retour direct — icône seule en coin, voir
+              le bouton corbeille `top-4 right-4` plus haut dans ce fichier,
+              même emplacement que le badge "Lecture seule") : ce n'est
+              donc plus une des 3 branches ici, `isSaved` retombe sur
+              `null` (rien à afficher dans CETTE rangée pour ce cas — la
+              corbeille en coin suffit).
               `isReadOnly` VÉRIFIÉ EN PREMIER (Feature Sociale —
               Consultation/Clonage, 01/08) : `isSaved` (PlaylistDetailContext.jsx)
               vaut désormais TOUJOURS `false` quand `isReadOnly` est vrai —
@@ -474,15 +520,7 @@ export default function PlaylistHeader({
             >
               <Save size={16} /> <span>Sauvegarder dans mes séances</span>
             </button>
-          ) : isSaved ? (
-            <button
-              onClick={handleUnsavePlaylist}
-              title="Retirer cette séance de 'Mes Séances'"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm shrink-0 bg-slate-800/80 border border-slate-700 hover:bg-slate-700 text-slate-200 transition-colors"
-            >
-              <Trash2 size={16} /> <span>Retirer de Mes Séances</span>
-            </button>
-          ) : (
+          ) : isSaved ? null : (
             <button
               onClick={handleSavePlaylist}
               title="Ajoute cette séance à 'Mes Séances', ton journal de séances (passées et à venir)."
