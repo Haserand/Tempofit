@@ -1373,22 +1373,17 @@ export default function StatsView({
                       <div className={`shrink-0 p-2 rounded-lg ${bgAccentClass} text-white`}><Gauge size={16}/></div>
                       <div>
                         <p className={`text-sm font-bold ${textHighlight}`}>Vois aussi tes séances par zone d'effort</p>
-                        <p className={`text-xs ${textMuted}`}>
-                          {/* Resserré à 1 ligne (05/08, retour direct —
-                              "synthétise en une seule ligne", capture
-                              annotée). Longueur vérifiée par un rendu réel
-                              (Playwright, police volontairement plus large
-                              que celle de prod) à plusieurs largeurs de
-                              colonne plausibles pour cette carte (grid
-                              `md:grid-cols-2`) — 60 caractères, confirmé sur
-                              1 ligne avec marge même dans le cas le plus
-                              étroit testé. Détail des zones (Récupération/
-                              Endurance/Seuil/Vitesse) retiré : redondant
-                              avec le bouton "Configurer mon Profil
-                              Athlétique →" juste en dessous, qui mène
-                              directement à la configuration. */}
-                          Configure ton Profil Athlétique pour voir cette répartition.
-                        </p>
+                        {/* Texte gris intermédiaire retiré (05/08, retour
+                            direct — capture annotée : "seul le texte rouge
+                            me semble suffisant"). Titre + lien font déjà le
+                            travail à eux deux ("il existe un truc, clique
+                            ici pour l'activer") — la phrase d'explication
+                            entre les deux était devenue largement redondante
+                            après son propre resserrage plus tôt le même
+                            jour ("Configure ton Profil Athlétique pour voir
+                            cette répartition." — quasi un doublon du lien
+                            "Configurer mon Profil Athlétique →" juste en
+                            dessous). */}
                         <button onClick={() => changeView('generator')} className={`mt-1 text-xs ${INLINE_NAV_LINK_CLASS} ${textColorClass}`}>
                           Configurer mon Profil Athlétique →
                         </button>
