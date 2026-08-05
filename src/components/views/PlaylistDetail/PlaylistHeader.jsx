@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Music2, Play,
-  Calendar, Lock, Upload, Trash2, Gauge, Globe,
+  Calendar, Lock, Upload, Trash2, Gauge, Globe, X,
 } from 'lucide-react';
 import { getGenresForDisplay, genreDisplayLabel } from '../../../musicCatalog';
 import { formatDuration } from '../../../utils/format';
@@ -92,7 +92,7 @@ export default function PlaylistHeader({
   resolveAndTogglePreview, getNextTrackForAutoAdvance,
   setPlaylistPlannedDate, bpmChartActivityName,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
-  getRankStyle, triggerCSVUpload,
+  getRankStyle, triggerCSVUpload, removeImportedData,
   onShare,
 }) {
   const { bgAccentClass } = theme;
@@ -491,23 +491,56 @@ export default function PlaylistHeader({
               toujours disponibles sur cette page. */}
           <div className="flex items-center flex-wrap justify-center md:justify-start gap-3 mt-auto">
             {isLocked && !isReadOnly && triggerCSVUpload && (
-              <button
-                onClick={(e) => triggerCSVUpload(e, currentPlaylist, mostRecentCompletionIso)}
-              className={`flex items-center gap-2 px-6 py-2 rounded-lg font-black text-sm shrink-0 bg-white text-black shadow-lg transition-transform hover:scale-[1.02] ${hasImportedDataForMostRecent ? '' : 'animate-pulse'}`}
-            >
-              {hasImportedDataForMostRecent ? (
-                <>
-                  <CheckCircle size={16} className="text-green-500 shrink-0" />
-                  <span>Données importées</span>
-                </>
-              ) : (
-                <>
-                  <Upload size={16} className="shrink-0" />
-                  <span>Importe tes données</span>
-                </>
-              )}
-            </button>
-          )}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  onClick={(e) => triggerCSVUpload(e, currentPlaylist, mostRecentCompletionIso)}
+                  className={`flex items-center gap-2 px-6 py-2 rounded-lg font-black text-sm shrink-0 bg-white text-black shadow-lg transition-transform hover:scale-[1.02] ${hasImportedDataForMostRecent ? '' : 'animate-pulse'}`}
+                >
+                  {hasImportedDataForMostRecent ? (
+                    <>
+                      <CheckCircle size={16} className="text-green-500 shrink-0" />
+                      <span>Données importées</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={16} className="shrink-0" />
+                      <span>Importe tes données</span>
+                    </>
+                  )}
+                </button>
+                {/* Retirer les données importées — NOUVEAU (05/08, retour
+                    direct : "je dois pouvoir retirer des données importées
+                    si je me trompe de fichier"). Jusqu'ici, la SEULE façon
+                    de corriger un mauvais import était d'en réimporter un
+                    autre par-dessus (le bouton juste à gauche écrase déjà
+                    `actualDataByDate[date]` sans poser de question) — ça
+                    suppose d'avoir le BON fichier sous la main tout de
+                    suite, impossible de simplement revenir à "rien
+                    d'importé". `removeImportedData` (useCsvImport.js) fait
+                    ça proprement (retire juste cette clé, ne touche à rien
+                    d'autre). Visible UNIQUEMENT si des données existent
+                    déjà (`hasImportedDataForMostRecent`) — rien à retirer
+                    sinon. `removeImportedData &&` en garde (comme
+                    `triggerCSVUpload` juste au-dessus) : prop optionnelle,
+                    ce composant ne doit pas planter si un futur appelant ne
+                    la fournit pas.
+                    ⚠️ Même trou existe dans CompletionsList.jsx (icône
+                    Upload par date de complétion, même limite "remplacer
+                    seulement") — PAS traité ici : cette pastille inline est
+                    déjà dense (date + import + retirer-la-date), un 4e
+                    élément mérite d'être confirmé séparément avant d'y être
+                    ajouté plutôt que d'être supposé aller de soi. */}
+                {hasImportedDataForMostRecent && removeImportedData && (
+                  <button
+                    onClick={() => removeImportedData(currentPlaylist, mostRecentCompletionIso)}
+                    title="Retirer les données importées"
+                    className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-white/10 transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+            )}
 
           {/* Action principale (1er position) : Sauvegarder (clone) si
               aperçu en lecture seule / Ajouter à Mes Séances. "Retirer"
