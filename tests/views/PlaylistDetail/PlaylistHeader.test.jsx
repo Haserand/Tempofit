@@ -321,6 +321,38 @@ describe('PlaylistHeader', () => {
     expect(screen.getByText('Données importées')).toBeInTheDocument();
   });
 
+  // NOUVEAU (05/08, retour direct : "je dois pouvoir retirer des données
+  // importées si je me trompe de fichier") — bouton "x" à côté de "Données
+  // importées", visible UNIQUEMENT si `removeImportedData` est fourni ET
+  // des données existent déjà pour la date la plus récente.
+  describe('retirer les données importées (NOUVEAU, 05/08)', () => {
+    const playlistWithData = makePlaylist({ completions: ['2026-01-01'], actualDataByDate: { '2026-01-01': [{}] } });
+
+    it('absent si removeImportedData n\'est pas fourni (prop optionnelle)', () => {
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({ currentPlaylist: playlistWithData }));
+      render(<PlaylistHeader {...baseProps({ isLocked: true, triggerCSVUpload: vi.fn() })} />);
+      expect(screen.queryByTitle('Retirer les données importées')).not.toBeInTheDocument();
+    });
+
+    it('absent si aucune donnée importée pour la date la plus récente, même avec removeImportedData fourni', () => {
+      mockUsePlaylistDetail.mockReturnValue(
+        makeContextValue({ currentPlaylist: makePlaylist({ completions: ['2026-01-01'], actualDataByDate: {} }) })
+      );
+      render(<PlaylistHeader {...baseProps({ isLocked: true, triggerCSVUpload: vi.fn(), removeImportedData: vi.fn() })} />);
+      expect(screen.queryByTitle('Retirer les données importées')).not.toBeInTheDocument();
+    });
+
+    it('présent si des données existent, le clic appelle removeImportedData avec la playlist et la date', () => {
+      const removeImportedData = vi.fn();
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({ currentPlaylist: playlistWithData }));
+      render(<PlaylistHeader {...baseProps({ isLocked: true, triggerCSVUpload: vi.fn(), removeImportedData })} />);
+
+      fireEvent.click(screen.getByTitle('Retirer les données importées'));
+
+      expect(removeImportedData).toHaveBeenCalledWith(playlistWithData, '2026-01-01');
+    });
+  });
+
   // ⚠️ CORRIGÉ (05/08, retour direct — bouton devenu icône seule + title,
   // même emplacement que le badge "Lecture seule") : `getByText` ne
   // matche plus, retargeté sur `getByTitle`.
