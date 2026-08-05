@@ -1354,7 +1354,7 @@ function AppContent({
   // chantier "réduire le God Component") : même schéma que les hooks
   // précédents — fileInputRef/csvUploadTargetDate (uniques, voir useSessionAnalysis
   // plus haut) transmis en paramètres.
-  const { triggerCSVUpload, handleCSVUpload } = useCsvImport(
+  const { triggerCSVUpload, handleCSVUpload, removeImportedData } = useCsvImport(
     fileInputRef, csvUploadTargetDate, setCsvUploadTargetDate,
     currentPlaylist, setCurrentPlaylist, savedPlaylists, setSavedPlaylists,
     setSelectedAnalysisDate, setSelectedMetric,
@@ -1803,6 +1803,7 @@ function AppContent({
                 renderConfigInfoLine={renderConfigInfoLine} getRankStyle={getRankStyle}
                 setEditingRoutine={setEditingRoutine}
                 executeGeneration={executeGeneration} isGenerating={isGenerating} changeView={changeView}
+                showToast={showToast}
               />
             )}
 
@@ -1827,6 +1828,7 @@ function AppContent({
                 editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
                 triggerCSVUpload={triggerCSVUpload}
                 markPlaylistAsCompleted={markPlaylistAsCompleted}
+                showToast={showToast}
               />
             )}
 
@@ -1918,7 +1920,7 @@ function AppContent({
                 setPlaylistPlannedDate={setPlaylistPlannedDate}
                 editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
                 editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
-                getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload}
+                getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload} removeImportedData={removeImportedData}
                 changeView={changeView}
               />
             )}
