@@ -42,7 +42,7 @@ function PlaylistDetailViewInner({
   setIsBpmSearchMode,
   setPlaylistPlannedDate,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
-  getRankStyle, triggerCSVUpload,
+  getRankStyle, triggerCSVUpload, removeImportedData,
   changeView,
 }) {
   // Chantier découpage (suite) : ce composant ne fait plus QUE l'orchestration
@@ -492,7 +492,7 @@ function PlaylistDetailViewInner({
         setPlaylistPlannedDate={setPlaylistPlannedDate} bpmChartActivityName={bpmChartActivityName}
         editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
         editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
-        getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload}
+        getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload} removeImportedData={removeImportedData}
         onShare={handleShareClick}
       />
 
@@ -618,7 +618,7 @@ export default function PlaylistDetailView({
   toggleTrackFavorite, toggleArtistFavorite,
   setIsBpmSearchMode, setPlaylistPlannedDate,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
-  getRankStyle, triggerCSVUpload,
+  getRankStyle, triggerCSVUpload, removeImportedData,
   changeView,
 }) {
   return (
@@ -647,7 +647,7 @@ export default function PlaylistDetailView({
         setPlaylistPlannedDate={setPlaylistPlannedDate}
         editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
         editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
-        getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload}
+        getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload} removeImportedData={removeImportedData}
         changeView={changeView}
       />
     </PlaylistDetailProvider>
