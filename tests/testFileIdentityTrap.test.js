@@ -41,6 +41,7 @@ const NO_SINGLE_SUBJECT = new Set([
   'noDuplicateFiles.test.js',
   'tailwindConcatTrap.test.js',
   'testFileIdentityTrap.test.js', // ce fichier lui-même
+  'testLocationTrap.test.js', // garde-fou global (05/08), même famille
 ]);
 
 function walk(dir) {
