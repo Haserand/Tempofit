@@ -260,21 +260,21 @@ export default function RoutinesView({
                 </div>
               ) : routine.description ? (
                 <div className="mt-2 flex items-start gap-2">
-                  {/* `line-clamp-2` (04/08, retour direct — troncature sèche) :
-                      contrairement aux playlists, une routine n'a AUCUNE vue
-                      détail séparée — cette carte est le SEUL endroit où sa
-                      description s'affiche. Pas d'échappatoire "Voir plus"
-                      (décision explicite : "je m'en moque d'en couper", pas
-                      de vrais utilisateurs pour l'instant).
-                      ⚠️ 2e CORRECTIF (04/08, suite — capture d'écran :
-                      "toujours 2 lignes dépassées", même symptôme sur
-                      PlaylistHeader.jsx) : `<p>` est un item flex à côté du
-                      bouton crayon, sans largeur propre — `min-width: auto`
-                      par défaut empêche `line-clamp` de s'appuyer sur quoi
-                      que ce soit. Même piège déjà documenté dans ce projet
-                      (ViewHeader.jsx, commentaire `min-w-0`). `flex-1
-                      min-w-0` corrige. */}
-                  <p className={`text-sm whitespace-pre-line line-clamp-2 flex-1 min-w-0 ${textMuted}`}>{routine.description}</p>
+                  {/* `line-clamp-1` (05/08, retour direct — clarification de
+                      la demande du 04/08 : "je voulais UNE ligne max ; pas
+                      2"). Contrairement aux playlists, une routine n'a AUCUNE
+                      vue détail séparée — cette carte est le SEUL endroit où
+                      sa description s'affiche. Pas d'échappatoire "Voir plus"
+                      (décision explicite du 04/08 : "je m'en moque d'en
+                      couper", pas de vrais utilisateurs pour l'instant).
+                      ⚠️ CORRECTIF flex (04/08, `line-clamp-2` à l'époque,
+                      toujours valable à `line-clamp-1`) : `<p>` est un item
+                      flex à côté du bouton crayon, sans largeur propre —
+                      `min-width: auto` par défaut empêche `line-clamp` de
+                      s'appuyer sur quoi que ce soit. Même piège déjà
+                      documenté dans ce projet (ViewHeader.jsx, commentaire
+                      `min-w-0`). `flex-1 min-w-0` corrige. */}
+                  <p className={`text-sm whitespace-pre-line line-clamp-1 flex-1 min-w-0 ${textMuted}`}>{routine.description}</p>
                   <button onClick={() => startEditingDescription(routine)} className={`p-1 rounded-lg shrink-0 ${textMuted} hover:text-main transition-colors`} title="Modifier la description">
                     <Edit3 size={13} />
                   </button>
