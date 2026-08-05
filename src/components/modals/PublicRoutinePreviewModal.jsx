@@ -70,13 +70,21 @@ export default function PublicRoutinePreviewModal({ theme, isOpen, onClose, rout
               carte de grille) : cette modale a la place, et c'est
               justement l'endroit où quelqu'un s'attend à pouvoir lire le
               contexte donné par le propriétaire avant de décider de
-              cloner. */}
+              cloner.
+              ⚠️ BUG DE BUILD CORRIGÉ (04/08) : un commentaire JSX placé ici
+              juste après le `(` du `&&` cassait la compilation ("Expected
+              ',' ou ')' but found 'Identifier'") — un `{/* ... */}` n'est un
+              enfant JSX valide QUE dans une liste d'enfants, pas juste après
+              une parenthèse ouvrante d'expression. Fusionné dans CE
+              commentaire, en amont de l'expression, plutôt que réintroduit
+              au même endroit fautif.
+              `line-clamp-2` (04/08, retour direct — troncature sèche,
+              décision RENVERSÉE par rapport à ce qui précède dans ce même
+              commentaire ("texte COMPLET ici") : voir PlaylistHeader.jsx
+              pour le même renversement et le raisonnement complet — pas de
+              vrais utilisateurs pour l'instant, "je m'en moque d'en
+              couper"). */}
           {content.description && (
-            {/* `line-clamp-2` (04/08, retour direct — troncature sèche, décision
-                RENVERSÉE par rapport au commentaire d'origine dans
-                ProfileView.jsx qui désignait ce composant comme l'endroit où
-                lire le texte complet ; voir PlaylistHeader.jsx pour le même
-                renversement et le raisonnement complet). */}
             <p className={`text-sm mt-3 pt-3 border-t whitespace-pre-line line-clamp-2 ${inputBorder} ${textMuted}`}>{content.description}</p>
           )}
         </div>
