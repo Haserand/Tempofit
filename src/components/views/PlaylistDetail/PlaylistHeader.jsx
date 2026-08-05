@@ -340,7 +340,19 @@ export default function PlaylistHeader({
             </div>
           ) : currentPlaylist.description ? (
             <div className="flex items-start gap-2 text-sm text-slate-300 max-w-lg">
-              <p className="whitespace-pre-line">{currentPlaylist.description}</p>
+              {/* `line-clamp-2` (04/08, retour direct, capture d'écran : "casse
+                  la mise en page" — description trop longue sans aucune limite
+                  d'affichage). ⚠️ Ce composant était jusque-là DÉLIBÉRÉMENT
+                  exempté de cette troncature (voir le commentaire dans
+                  ProfileView.jsx : "le texte complet reste consultable [...]
+                  dans la vue détail (PlaylistHeader.jsx)") — décision
+                  RENVERSÉE explicitement au même retour direct : "plutôt
+                  troncature sèche, [...] je m'en moque d'en couper" (pas de
+                  vrais utilisateurs pour l'instant, donc pas de coût réel à
+                  perdre l'accès au texte complet). Voir aussi
+                  MAX_DESCRIPTION_LENGTH (appConfig.js), resserré au même
+                  retour pour un compteur de caractères plus honnête. */}
+              <p className="whitespace-pre-line line-clamp-2">{currentPlaylist.description}</p>
               {isSaved && !isReadOnly && (
                 <button onClick={() => { setEditedPlaylistDescription(currentPlaylist.description || ''); setIsEditingPlaylistDescription(true); }} className="p-1 rounded-lg text-slate-500 hover:text-white transition-colors shrink-0" title="Modifier la description">
                   <Edit3 size={14}/>
