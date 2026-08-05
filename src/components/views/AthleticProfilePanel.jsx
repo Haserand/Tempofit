@@ -40,7 +40,7 @@ export default function AthleticProfilePanel({ theme, showToast, changeView }) {
     isNaughtyMode,
     athleticProfile, setBaseBpmForActivity, setZoneForActivity, resetActivityProfile,
     addCustomActivity, removeCustomActivity, setBaseBpmForCustom, setZoneForCustom,
-    getDefaultBaseBpm, buildDefaultPreviewProfile, getZoneSpacingForActivity,
+    getDefaultBaseBpm, buildDefaultPreviewProfile,
     setCadenceIntentForActivity, setCadenceIntentForCustom, isCadenceIntentEligible,
   } = useGeneratorContext();
   const {
@@ -326,9 +326,13 @@ export default function AthleticProfilePanel({ theme, showToast, changeView }) {
                     lignes par paragraphe à texte plus gros). */}
                 {showZoneCalcInfo && (
                   <div className={`absolute z-40 top-full left-0 mt-2 w-80 sm:w-[26rem] p-4 rounded-xl border shadow-2xl text-sm leading-relaxed space-y-3 ${cardBg} ${cardBorder} ${textHighlight}`}>
-                    <p>
-                      <strong>Zone 2</strong> = le BPM que tu tapes ci-dessous. Les 3 autres s'en écartent par palier fixe de {getZoneSpacingForActivity(isCustomProfileTab ? '__custom__' : selectedProfileActivity, activeProfile?.cadenceIntent || 'energy')} BPM (Zone 1 = -1 palier, Zone 3 = +1, Zone 4 = +2) — une progression simple autour de ton BPM, pas une vraie formule physiologique (%VMA...).
-                    </p>
+                    {/* 1er paragraphe retiré (05/08, retour direct, capture
+                        annotée) — expliquait le calcul par palier fixe de 15
+                        BPM autour de Zone 2 (Zone 1 = -1 palier, Zone 3 = +1,
+                        Zone 4 = +2). `getZoneSpacingForActivity` (le seul
+                        usage de cette valeur dans ce fichier) retiré de la
+                        déstructuration `useGeneratorContext()` en
+                        conséquence — plus référencé nulle part ici. */}
                     <p className={textMuted}>
                       Les noms de zone (Récupération, Endurance, Seuil, Vitesse) viennent du vocabulaire des coachs de course à pied — ils décrivent un <strong className={textHighlight}>niveau d'effort</strong>, pas une mesure précise.
                     </p>
