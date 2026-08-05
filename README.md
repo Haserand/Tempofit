@@ -12,6 +12,65 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
+⚠️ **SESSION DU 05/08 — check-up demandé en début de conversation (lecture
+PASSATION.md → README.md → CLAUDE-SANDBOX-VERIFICATION.md → code réel),
+2 bugs réels trouvés et corrigés, 1 optimisation perf :**
+
+- **Le fix `min-w-0` (04/08, `PlaylistHeader.jsx`/`RoutinesView.jsx`),
+  resté "jamais vérifié en conditions réelles"** — relu en détail : la
+  structure flex est correcte des deux côtés (`flex-1 min-w-0` sur le `<p>`,
+  conteneur parent qui laisse la place). Sain par lecture de code, mais
+  reste à confirmer par un vrai clic en prod comme toujours pour du CSS.
+- **BUG CORRIGÉ — `tests/modals/EditRoutineModal.test.jsx` ne s'exécutait
+  JAMAIS.** Le fichier vivait dans `src/components/modals/` au lieu de
+  `tests/modals/` (viole la convention "tests/ miroir de src/") — invisible
+  du build Vercel réel (`vite.config.js`, `test.include:
+  ['tests/**/*.test.{js,jsx}']` ne scanne jamais `src/`), ET son import
+  relatif (écrit pour l'emplacement `tests/modals/`) était cassé depuis
+  l'ancien emplacement. Toute la couverture du chantier "cible à 0" du
+  04/08 tournait donc dans le vide depuis sa création. Déplacé au bon
+  endroit. Aucun des 3 garde-fous existants (`noDuplicateFiles.test.js`,
+  `testFileIdentityTrap.test.js`, `fileExtensionTrap.test.js`) ne
+  détecte ce cas précis (ils ne scannent que `tests/`) — angle mort
+  accepté pour l'instant, pas traité cette session (aurait été un chantier
+  à part, hors scope d'un check-up).
+- **BUG CORRIGÉ — `EditRoutineModal.jsx` avait le MÊME trou de validation
+  "cible à 0" que celui fermé le 04/08, sur un point d'entrée oublié.**
+  Cette modale appelle `executeGeneration` directement
+  (`applyRoutineEditOnce`/`applyRoutineEditPermanently`,
+  `useRoutineActions.js`) — un point d'entrée de la même famille que le
+  bouton "Générer" de `RoutinesView.jsx` (déjà audité le 04/08), mais elle
+  ne validait que `distanceVal`/`hours`/`minutes`, jamais `segments`. Pour
+  le mode Fractionné pur (`isIntervalMode && !isCrescendoMode`), c'est
+  pourtant `segments[]` qui pilote réellement la durée générée (voir
+  `usePlaylistGeneration.js`, `executeGeneration` — la branche
+  `config.isIntervalMode` ignore `distanceVal`/`hours`/`minutes`). Une
+  routine Fractionné aux portions cassées (créée avant le correctif du
+  04/08) pouvait donc être éditée/régénérée depuis cette modale sans le
+  moindre blocage. Corrigé : `isTargetInvalid` bascule sur
+  `areSegmentsValid()` en Fractionné pur (le Crescendo n'est pas concerné,
+  ses segments sont recalculés en direct depuis la cible globale — voir
+  l'effet dédié dans `App.jsx`) ; le champ distance/durée global, sans
+  effet dans ce mode, est désormais masqué (même condition que
+  `step3ShowsTargetInputs`, `GeneratorWizard.jsx`) ; message d'erreur
+  aligné sur la formulation de `RoutinesView.jsx`. Tests de régression
+  ajoutés dans le fichier déplacé ci-dessus. Audit complémentaire fait sur
+  les 4 points d'entrée réels de `executeGeneration` (`RoutinesView.jsx`,
+  `GeneratorWizard.jsx`, `useRoutineActions.js` ×2) — le bouton final du
+  wizard est protégé transitivement par le verrouillage du "Suivant" à
+  l'étape 3 (aucune navigation ne permet d'atteindre l'étape 4 avec une
+  cible/des segments invalides), pas de 5e trou trouvé.
+- **Optimisation perf — `RoutinesView.jsx`, tri des routines.** Les 2 tris
+  (`sortedRoutines`/rang par générations) tournaient sur CHAQUE rendu du
+  composant, y compris un rendu déclenché par une frappe dans le brouillon
+  de description (state local à ce même composant, sans rapport avec
+  `routines`) — enveloppés dans `useMemo([routines])`. `routineRanks
+  .indexOf(routine.id)` (O(n) par carte dans la boucle `.map()`, donc O(n²)
+  sur toute la grille) remplacé par une `Map` id→rang (O(1) par carte).
+  Sans impact perceptible au nombre de routines réaliste pour un compte,
+  mais correct par principe et cohérent avec les 3 optimisations perf déjà
+  faites le 03/08 (voir plus bas).
+
 ⚠️ **SESSION DU 04/08 — vérification en conditions réelles du bloc 03/08 ci-
 dessous (toutes confirmées bonnes, guest bar + badge Trophées), puis une
 longue chaîne de correctifs en cascade. Voir `PASSATION.md` (généré en fin
