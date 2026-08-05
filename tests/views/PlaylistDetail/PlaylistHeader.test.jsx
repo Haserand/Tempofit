@@ -397,23 +397,26 @@ describe('PlaylistHeader', () => {
 
   // Feature Sociale — Refonte Structurale Round 2/2 (01/08) : bascule
   // publique/privée individuelle.
+  // ⚠️ CORRIGÉ (05/08, retour direct — bouton devenu icône seule + title,
+  // même traitement que "Retirer") : `getByText('Rendre publique'/'Publique')`
+  // ne matche plus, retargeté sur `getByTitle`.
   describe('toggle publique/privée', () => {
     it('absent quand isSaved=false — rien à rendre public tant que la playlist n\'existe pas dans "Mes Séances"', () => {
       mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: false }));
       render(<PlaylistHeader {...baseProps()} />);
-      expect(screen.queryByText('Rendre publique')).not.toBeInTheDocument();
-      expect(screen.queryByText('Publique')).not.toBeInTheDocument();
+      expect(screen.queryByTitle('Rendre cette playlist visible sur ton profil public')).not.toBeInTheDocument();
+      expect(screen.queryByTitle("Visible sur ton profil public — clique pour la rendre privée")).not.toBeInTheDocument();
     });
 
-    it('affiche "Rendre publique" quand currentPlaylist.isPublic=false, "Publique" quand true', () => {
+    it('title "Rendre cette playlist visible..." quand currentPlaylist.isPublic=false, "Visible sur ton profil public..." quand true', () => {
       mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: true, currentPlaylist: makePlaylist({ isPublic: false }) }));
       const { rerender } = render(<PlaylistHeader {...baseProps()} />);
-      expect(screen.getByText('Rendre publique')).toBeInTheDocument();
+      expect(screen.getByTitle('Rendre cette playlist visible sur ton profil public')).toBeInTheDocument();
 
       mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: true, currentPlaylist: makePlaylist({ isPublic: true }) }));
       rerender(<PlaylistHeader {...baseProps()} />);
-      expect(screen.getByText('Publique')).toBeInTheDocument();
-      expect(screen.queryByText('Rendre publique')).not.toBeInTheDocument();
+      expect(screen.getByTitle("Visible sur ton profil public — clique pour la rendre privée")).toBeInTheDocument();
+      expect(screen.queryByTitle('Rendre cette playlist visible sur ton profil public')).not.toBeInTheDocument();
     });
 
     it('le clic appelle handleTogglePlaylistPublic', () => {
@@ -421,7 +424,7 @@ describe('PlaylistHeader', () => {
       mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: true, handleTogglePlaylistPublic }));
       render(<PlaylistHeader {...baseProps()} />);
 
-      fireEvent.click(screen.getByText('Rendre publique'));
+      fireEvent.click(screen.getByTitle('Rendre cette playlist visible sur ton profil public'));
 
       expect(handleTogglePlaylistPublic).toHaveBeenCalled();
     });
@@ -474,8 +477,8 @@ describe('PlaylistHeader', () => {
     it('reste absent même si isSaved=true (défense en profondeur, !isReadOnly ajouté au garde)', () => {
       mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isReadOnly: true, isSaved: true, currentPlaylist: makePlaylist({ isPublic: true }) }));
       render(<PlaylistHeader {...baseProps()} />);
-      expect(screen.queryByText('Publique')).not.toBeInTheDocument();
-      expect(screen.queryByText('Rendre publique')).not.toBeInTheDocument();
+      expect(screen.queryByTitle("Visible sur ton profil public — clique pour la rendre privée")).not.toBeInTheDocument();
+      expect(screen.queryByTitle('Rendre cette playlist visible sur ton profil public')).not.toBeInTheDocument();
     });
 
     // Relecture globale (02/08) — même incohérence trouvée sur 2 AUTRES
