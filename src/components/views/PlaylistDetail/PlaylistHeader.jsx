@@ -166,10 +166,23 @@ export default function PlaylistHeader({
           un titre) — voir `canEditTracks`, TrackItem.jsx/TrackList.jsx pour
           l'application réelle de cette règle. Jamais affiché en même temps
           que la médaille de rang ci-dessus : un rang suppose des
-          complétions, donc une playlist déjà sauvegardée. */}
+          complétions, donc une playlist déjà sauvegardée.
+          Icône seule + `title` (05/08, retour direct : "le cadenas me
+          semble suffisant... surtout si tu mets une infobulle au survol")
+          — le libellé texte "Lecture seule" retiré, le cadenas seul porte
+          déjà le sens ; `title` natif du navigateur fournit l'explication
+          complète au survol, sans lester en permanence l'en-tête pour ce
+          qui reste un statut secondaire (contrairement au nom/aux stats,
+          jamais l'info qu'on vient chercher en premier ici). Padding
+          resserré à `p-2` (symétrique) plutôt que `px-3 py-1` (pensé pour
+          icône+texte) — un badge icône seule reste circulaire et compact,
+          pas une pilule allongée sans texte pour la justifier. */}
       {!isSaved && (
-        <span className="absolute top-4 right-4 bg-slate-800/80 border border-slate-700 text-slate-300 text-xs px-3 py-1 rounded-full flex items-center gap-1.5 z-10">
-          <Lock size={12} /> Lecture seule
+        <span
+          title="Lecture seule — tu ne peux pas modifier cette playlist tant qu'elle n'est pas ajoutée à Mes Séances"
+          className="absolute top-4 right-4 bg-slate-800/80 border border-slate-700 text-slate-300 p-2 rounded-full flex items-center justify-center z-10"
+        >
+          <Lock size={12} />
         </span>
       )}
 
