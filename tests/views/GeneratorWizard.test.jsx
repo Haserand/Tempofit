@@ -720,8 +720,16 @@ describe('GeneratorWizard — étape 3, Fractionné/segments (détail)', () => {
       );
       const { container } = render(<GeneratorWizard {...baseProps()} />);
 
-      const numberInputs = container.querySelectorAll('input[type="number"]');
-      fireEvent.blur(numberInputs[1], { target: { value: '0' } }); // durée
+      // ⚠️ BUG DE TEST CORRIGÉ (04/08, build Vercel rouge) : `numberInputs[1]`
+      // supposait que le champ durée du segment était le 2e `input[type="number"]`
+      // du DOM — faux en mode `distance` : l'en-tête "Découpage de l'effort"
+      // affiche AUSSI 2 champs "Allure moy" (paceMin/paceSec) AVANT la liste
+      // des segments dans ce mode précis, décalant tous les index de 2. Le
+      // sélecteur `input[step="0.1"]` cible directement et sans ambiguïté le
+      // champ durée en mode distance (paceMin/paceSec n'ont pas cet
+      // attribut) — robuste quel que soit le nombre d'inputs qui l'entourent.
+      const durationInput = container.querySelector('input[step="0.1"]');
+      fireEvent.blur(durationInput, { target: { value: '0' } });
 
       const updater = setSegments.mock.calls[0][0];
       expect(updater([{ ...segment1, durationValue: 0 }])[0].durationValue).toBe(0.1);
