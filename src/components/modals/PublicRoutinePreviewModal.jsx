@@ -72,7 +72,12 @@ export default function PublicRoutinePreviewModal({ theme, isOpen, onClose, rout
               contexte donné par le propriétaire avant de décider de
               cloner. */}
           {content.description && (
-            <p className={`text-sm mt-3 pt-3 border-t whitespace-pre-line ${inputBorder} ${textMuted}`}>{content.description}</p>
+            {/* `line-clamp-2` (04/08, retour direct — troncature sèche, décision
+                RENVERSÉE par rapport au commentaire d'origine dans
+                ProfileView.jsx qui désignait ce composant comme l'endroit où
+                lire le texte complet ; voir PlaylistHeader.jsx pour le même
+                renversement et le raisonnement complet). */}
+            <p className={`text-sm mt-3 pt-3 border-t whitespace-pre-line line-clamp-2 ${inputBorder} ${textMuted}`}>{content.description}</p>
           )}
         </div>
 
