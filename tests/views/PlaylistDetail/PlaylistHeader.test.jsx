@@ -321,12 +321,15 @@ describe('PlaylistHeader', () => {
     expect(screen.getByText('Données importées')).toBeInTheDocument();
   });
 
-  it('sauvegarde : isSaved=true propose "Retirer de Mes Séances" (handleUnsavePlaylist)', () => {
+  // ⚠️ CORRIGÉ (05/08, retour direct — bouton devenu icône seule + title,
+  // même emplacement que le badge "Lecture seule") : `getByText` ne
+  // matche plus, retargeté sur `getByTitle`.
+  it('sauvegarde : isSaved=true propose le bouton "Retirer" (icône, handleUnsavePlaylist)', () => {
     const handleUnsavePlaylist = vi.fn();
     mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: true, handleUnsavePlaylist }));
     render(<PlaylistHeader {...baseProps()} />);
 
-    fireEvent.click(screen.getByText('Retirer de Mes Séances'));
+    fireEvent.click(screen.getByTitle("Retirer cette séance de 'Mes Séances'"));
     expect(handleUnsavePlaylist).toHaveBeenCalled();
   });
 
@@ -428,14 +431,14 @@ describe('PlaylistHeader', () => {
   // sur une playlist étrangère consultée depuis le profil public de
   // quelqu'un d'autre.
   describe('isReadOnly', () => {
-    it('affiche "Sauvegarder dans mes séances" (pas "Ajouter"/"Retirer"), le clic appelle handleClonePlaylist', () => {
+    it('affiche "Sauvegarder dans mes séances" (pas "Ajouter"/bouton Retirer), le clic appelle handleClonePlaylist', () => {
       const handleClonePlaylist = vi.fn();
       mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isReadOnly: true, isSaved: false, handleClonePlaylist }));
       render(<PlaylistHeader {...baseProps()} />);
 
       expect(screen.getByText('Sauvegarder dans mes séances')).toBeInTheDocument();
       expect(screen.queryByText('Ajouter à Mes Séances')).not.toBeInTheDocument();
-      expect(screen.queryByText('Retirer de Mes Séances')).not.toBeInTheDocument();
+      expect(screen.queryByTitle("Retirer cette séance de 'Mes Séances'")).not.toBeInTheDocument();
 
       fireEvent.click(screen.getByText('Sauvegarder dans mes séances'));
       expect(handleClonePlaylist).toHaveBeenCalled();
@@ -447,10 +450,14 @@ describe('PlaylistHeader', () => {
       // toujours false quand isReadOnly est vrai — un futur changement qui
       // inverserait l'ordre des deux conditions casserait silencieusement
       // le comportement pour un visiteur, ce test l'attraperait.
+      // Couvre aussi le bouton corbeille en coin (`top-4 right-4`, 05/08) :
+      // sorti de cette même ternaire, il vérifie désormais `isSaved &&
+      // !isReadOnly` explicitement pour garder la même garantie — ce test
+      // l'attraperait aussi s'il régressait vers `isSaved` seul.
       mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isReadOnly: true, isSaved: true }));
       render(<PlaylistHeader {...baseProps()} />);
       expect(screen.getByText('Sauvegarder dans mes séances')).toBeInTheDocument();
-      expect(screen.queryByText('Retirer de Mes Séances')).not.toBeInTheDocument();
+      expect(screen.queryByTitle("Retirer cette séance de 'Mes Séances'")).not.toBeInTheDocument();
     });
 
     it('masque le bouton d\'import CSV même si isLocked=true', () => {
