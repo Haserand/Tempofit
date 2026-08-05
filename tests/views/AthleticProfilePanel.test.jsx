@@ -55,7 +55,6 @@ function makeContextValue(overrides = {}) {
     setZoneForCustom: vi.fn(),
     getDefaultBaseBpm: vi.fn(() => 140),
     buildDefaultPreviewProfile: vi.fn(() => ({ ...DEFAULT_PREVIEW })),
-    getZoneSpacingForActivity: vi.fn(() => 10),
     setCadenceIntentForActivity: vi.fn(),
     setCadenceIntentForCustom: vi.fn(),
     isCadenceIntentEligible: vi.fn(() => true),
@@ -279,6 +278,17 @@ describe('AthleticProfilePanel', () => {
     const infoButton = screen.getByText('BPM cibles par zone').parentElement.querySelector('button');
     fireEvent.click(infoButton);
 
-    expect(screen.getByText(/le BPM que tu tapes ci-dessous/)).toBeInTheDocument();
+    // ⚠️ CORRIGÉ (05/08, build Vercel cassé — voir logs) : cette assertion
+    // ciblait le 1er paragraphe du popover ("Zone 2 = le BPM que tu tapes
+    // ci-dessous..."), RETIRÉ le même jour (retour direct, capture
+    // annotée — voir AthleticProfilePanel.jsx, `showZoneCalcInfo`) sans
+    // que ce test miroir n'ait été vérifié/mis à jour dans la même passe
+    // — exactement le réflexe que la règle "vérifier le fichier de test
+    // miroir pour CHAQUE fichier src/ touché" (CLAUDE-SANDBOX-VERIFICATION.md)
+    // est censée éviter, manqué ici car le grep de pré-modification ne
+    // portait pas sur CETTE portion de phrase précise. Retargeté sur le
+    // 2e paragraphe (toujours présent) plutôt que réintroduire un texte
+    // qui n'existe plus.
+    expect(screen.getByText(/niveau d'effort/)).toBeInTheDocument();
   });
 });
