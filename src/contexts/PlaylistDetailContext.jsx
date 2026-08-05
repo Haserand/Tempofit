@@ -158,6 +158,19 @@ export function PlaylistDetailProvider({
     const updatedPlaylist = { ...currentPlaylist, isPublic: !currentPlaylist.isPublic };
     setCurrentPlaylist(updatedPlaylist);
     setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
+    // Confirmation (05/08, retour direct : "j'aimerais un message de
+    // confirmation d'action quand je mets/retire quelque chose en public,
+    // [...] à généraliser dans toute l'app") — même modèle que le toast de
+    // déplacement de titre (`"${...}" déplacé dans la playlist.`, plus
+    // haut dans ce fichier) : variant par défaut (3s, icône check), pas
+    // 'ambiance'/'special' (réservés à une mise en avant/un déblocage de
+    // trophée, pas une simple confirmation d'action réversible). Généralisé
+    // aux 2 AUTRES endroits où une bascule publique/privée existe
+    // (PlaylistsView.jsx pour les cartes de "Mes Séances", RoutinesView.jsx
+    // pour les routines) — 3 implémentations indépendantes de la bascule
+    // elle-même (voir leurs docstrings respectives), donc 3 endroits à
+    // toucher pour ce même changement, pas un seul point central.
+    showToast(updatedPlaylist.isPublic ? `🌐 "${updatedPlaylist.name}" est maintenant visible sur ton profil public.` : `🔒 "${updatedPlaylist.name}" est de nouveau privée.`);
   };
 
   // --- Description libre (Vague 2, Chantier 3 — "description texte libre
