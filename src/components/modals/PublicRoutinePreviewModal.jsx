@@ -71,14 +71,20 @@ export default function PublicRoutinePreviewModal({ theme, isOpen, onClose, rout
               justement l'endroit où quelqu'un s'attend à pouvoir lire le
               contexte donné par le propriétaire avant de décider de
               cloner.
-              ⚠️ BUG DE BUILD CORRIGÉ (04/08) : un commentaire JSX placé ici
-              juste après le `(` du `&&` cassait la compilation ("Expected
-              ',' ou ')' but found 'Identifier'") — un `{/* ... */}` n'est un
-              enfant JSX valide QUE dans une liste d'enfants, pas juste après
-              une parenthèse ouvrante d'expression. Fusionné dans CE
-              commentaire, en amont de l'expression, plutôt que réintroduit
-              au même endroit fautif.
-              `line-clamp-2` (04/08, retour direct — troncature sèche,
+              BUGS DE BUILD CORRIGÉS (04/08, 2 passes) : (1) un commentaire
+              JSX placé juste après la parenthèse ouvrante du `&&` plus bas
+              cassait la compilation — un commentaire JSX n'est un enfant
+              valide QUE dans une liste d'enfants, pas juste après une
+              parenthèse ouvrante d'expression ; fusionné ici, en amont,
+              plutôt que réintroduit au même endroit fautif. (2) ce
+              paragraphe-ci reproduisait ensuite, en toutes lettres DANS le
+              texte du commentaire, la syntaxe même d'un commentaire JSX
+              (accolade-étoile ouvrante puis étoile-accolade fermante) — ces
+              caractères fermaient le commentaire englobant au premier
+              symbole de fermeture rencontré, cassant la compilation une
+              2e fois. Reformulé pour ne plus jamais écrire cette syntaxe en
+              toutes lettres à l'intérieur d'un commentaire JSX.
+              `line-clamp-2` (même jour, retour direct — troncature sèche,
               décision RENVERSÉE par rapport à ce qui précède dans ce même
               commentaire ("texte COMPLET ici") : voir PlaylistHeader.jsx
               pour le même renversement et le raisonnement complet — pas de
