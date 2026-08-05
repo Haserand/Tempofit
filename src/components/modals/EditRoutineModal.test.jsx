@@ -11,6 +11,15 @@
 // 04/08, retour direct (capture d'écran) : "je ne trouve pas ça normal de
 // pouvoir générer une routine avec une valeur de 0 km" — voir
 // targetValidation.js pour le raisonnement complet.
+//
+// ⚠️ DÉPLACÉ le 05/08 (check-up) : ce fichier vivait par erreur dans
+// `src/components/modals/EditRoutineModal.test.jsx` au lieu de
+// `tests/modals/EditRoutineModal.test.jsx` — invisible du build Vercel réel
+// (`vite.config.js`, `test.include: ['tests/**/*.test.{js,jsx}']` ne scanne
+// jamais `src/`) ET son import relatif (déjà écrit pour CET emplacement,
+// `../../src/...`) était cassé depuis l'ancien. Aucun des tests ci-dessous
+// n'avait donc JAMAIS tourné, y compris ceux qui couvrent le chantier
+// "cible à 0" du 04/08. Voir PASSATION.md pour le détail de la découverte.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
@@ -101,5 +110,70 @@ describe('EditRoutineModal — correction automatique au blur (BUG CORRIGÉ)', (
     // source) — on l'exécute avec l'état simulé pour vérifier le résultat.
     const updater = setEditingRoutine.mock.calls[0][0];
     expect(updater(makeRoutine({ targetMode: 'distance', distanceVal: '0' })).distanceVal).toBe('0.1');
+  });
+});
+
+// ⚠️ TROU COMBLÉ (audit du 05/08) : cette modale appelle `executeGeneration`
+// directement (`applyRoutineEditOnce`/`applyRoutineEditPermanently`) sans
+// jamais valider `editingRoutine.segments` — en mode Fractionné pur
+// (`isIntervalMode && !isCrescendoMode`), c'est pourtant `segments` qui
+// pilote réellement la durée générée (voir usePlaylistGeneration.js),
+// jamais `distanceVal`/`hours`/`minutes`. Voir la docstring d'`isTargetInvalid`
+// dans EditRoutineModal.jsx pour le raisonnement complet.
+describe('EditRoutineModal — segments cassés en mode Fractionné pur (TROU COMBLÉ, 05/08)', () => {
+  function makeIntervalRoutine(overrides = {}) {
+    return makeRoutine({
+      isIntervalMode: true, isCrescendoMode: false,
+      targetMode: 'distance',
+      segments: [
+        { id: 1, bpm: 150, durationValue: 2 },
+        { id: 2, bpm: 170, durationValue: 1 },
+      ],
+      ...overrides,
+    });
+  }
+
+  it('les 2 boutons restent actifs quand toutes les portions sont valides', () => {
+    render(<EditRoutineModal {...baseProps({ editingRoutine: makeIntervalRoutine() })} />);
+    expect(screen.getByText('Cette séance seulement').closest('button')).not.toBeDisabled();
+    expect(screen.getByText('Toujours pour cette routine').closest('button')).not.toBeDisabled();
+  });
+
+  it('les 2 boutons se désactivent quand une portion a une durée à 0', () => {
+    render(<EditRoutineModal {...baseProps({
+      editingRoutine: makeIntervalRoutine({ segments: [{ id: 1, bpm: 150, durationValue: 0 }] }),
+    })} />);
+    expect(screen.getByText('Cette séance seulement').closest('button')).toBeDisabled();
+    expect(screen.getByText('Toujours pour cette routine').closest('button')).toBeDisabled();
+    expect(screen.getByText(/Portion\(s\) invalide\(s\)/)).toBeInTheDocument();
+  });
+
+  it('les 2 boutons se désactivent quand une portion a un BPM à 0', () => {
+    render(<EditRoutineModal {...baseProps({
+      editingRoutine: makeIntervalRoutine({ segments: [{ id: 1, bpm: 0, durationValue: 2 }] }),
+    })} />);
+    expect(screen.getByText('Cette séance seulement').closest('button')).toBeDisabled();
+    expect(screen.getByText('Toujours pour cette routine').closest('button')).toBeDisabled();
+  });
+
+  it('une distanceVal globale à 0 n\'a AUCUN effet en Fractionné pur (le champ est masqué, seuls les segments comptent)', () => {
+    render(<EditRoutineModal {...baseProps({
+      editingRoutine: makeIntervalRoutine({ distanceVal: 0 }),
+    })} />);
+    // Le champ global est masqué dans ce mode (step="0.1" n'existe plus).
+    expect(screen.queryByText('Renseigne une distance supérieure à 0.')).not.toBeInTheDocument();
+    expect(screen.getByText('Cette séance seulement').closest('button')).not.toBeDisabled();
+  });
+
+  it('le mode Crescendo (isIntervalMode ET isCrescendoMode) continue de valider la cible globale, pas les segments', () => {
+    render(<EditRoutineModal {...baseProps({
+      editingRoutine: makeRoutine({
+        isIntervalMode: true, isCrescendoMode: true, targetMode: 'distance', distanceVal: 0,
+        crescendoWarmupBpm: 100, crescendoCooldownBpm: 100,
+        segments: [{ id: 1, bpm: 150, durationValue: 2 }],
+      }),
+    })} />);
+    expect(screen.getByText('Cette séance seulement').closest('button')).toBeDisabled();
+    expect(screen.getByText('Renseigne une distance supérieure à 0.')).toBeInTheDocument();
   });
 });
