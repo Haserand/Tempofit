@@ -203,9 +203,11 @@ export default function TemplateCard({ theme, template, onPlayTemplate, isNaught
         {/* Description par CATÉGORIE (9e passe, 02/08) — voir la docstring
             en tête de fichier : même source que la vitrine ET la playlist
             réellement ouverte (openCuratedPlaylist, useNavigation.js) —
-            plus de version isolée. `line-clamp-2`, même convention que
-            PublicItemCard (ProfileView.jsx) pour une vraie playlist/routine. */}
-        <p className={`text-xs mt-1 line-clamp-2 ${textMuted} ${isNaughtyMode ? 'dark:text-white' : ''}`}>
+            plus de version isolée. `line-clamp-1` (05/08, resserré depuis
+            `line-clamp-2` — retour direct : "je voulais UNE ligne max ;
+            pas 2"), même convention que PublicItemCard (ProfileView.jsx)
+            pour une vraie playlist/routine. */}
+        <p className={`text-xs mt-1 line-clamp-1 ${textMuted} ${isNaughtyMode ? 'dark:text-white' : ''}`}>
           {CATEGORY_DESCRIPTIONS[template.category]}
         </p>
       </div>
