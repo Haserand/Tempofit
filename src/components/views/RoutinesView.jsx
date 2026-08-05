@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ListPlus, Plus, Edit3, Trash2, Layers, Info, Loader2, PlaySquare, Globe, MessageSquarePlus, Check, X } from 'lucide-react';
 import { useModalContext } from '../../contexts/ModalContext';
 import ViewHeader from '../shared/ViewHeader';
@@ -80,11 +80,30 @@ export default function RoutinesView({
 
   // Triées par nombre de générations manuelles décroissant — les plus utilisées
   // remontent en premier. À égalité, ordre inchangé.
-  const sortedRoutines = [...routines].sort((a, b) => (b.manualGenerations || 0) - (a.manualGenerations || 0));
-  const routineRanks = [...routines]
-    .filter(r => (r.manualGenerations || 0) > 0)
-    .sort((a, b) => (b.manualGenerations || 0) - (a.manualGenerations || 0))
-    .map(r => r.id);
+  //
+  // ⚠️ OPTIMISATION (audit perf, 05/08) : les 2 tris + le filtre ci-dessous
+  // tournaient sur CHAQUE rendu de ce composant (pas de `useMemo`) — y
+  // compris un rendu déclenché par une simple frappe dans le brouillon de
+  // description (`descriptionDraft`, state local à ce même composant, voir
+  // plus haut), sans aucun rapport avec `routines`. Memoïsé sur `[routines]`
+  // : les 2 tris ne se recalculent plus que quand la liste change vraiment.
+  // `routineRankMap` (Map id → rang) remplace aussi un `routineRanks.indexOf
+  // (routine.id)` qui tournait DANS la boucle `.map()` juste en dessous —
+  // O(n) par carte, donc O(n²) au total pour toute la grille ; une Map rend
+  // ce lookup O(1) par carte. Sans impact perceptible au nombre de routines
+  // réaliste pour un compte (quelques dizaines), mais correct par principe
+  // et cohérent avec les optimisations déjà faites ailleurs cette semaine
+  // (StatsView.jsx `useMemo`, musicEngine.js `Set`).
+  const sortedRoutines = useMemo(
+    () => [...routines].sort((a, b) => (b.manualGenerations || 0) - (a.manualGenerations || 0)),
+    [routines],
+  );
+  const routineRankMap = useMemo(() => {
+    const ranked = routines
+      .filter(r => (r.manualGenerations || 0) > 0)
+      .sort((a, b) => (b.manualGenerations || 0) - (a.manualGenerations || 0));
+    return new Map(ranked.map((r, index) => [r.id, index]));
+  }, [routines]);
 
   return (
     <div className={`${VIEW_CONTENT_WRAPPER} space-y-8`}>
@@ -127,7 +146,7 @@ export default function RoutinesView({
         )}
         {sortedRoutines.map(routine => {
           const batchCount = routineBatchCounts[routine.id] || 1;
-          const rank = routineRanks.indexOf(routine.id);
+          const rank = routineRankMap.get(routine.id) ?? -1;
           const rankStyle = getRankStyle(rank);
           // ⚠️ NOUVEAU (04/08, retour direct, 2e capture d'écran — une
           // routine SAUVEGARDÉE avec 0 km, créée avant le 1er correctif de
