@@ -8,6 +8,7 @@ import { formatDuration } from '../../../utils/format';
 import { buildCoverUrl } from '../../../utils/coverArt';
 import { getActivityEmoji, getZoneForValue, getBpmBucketColor, getBpmBucketStart, MAX_DESCRIPTION_LENGTH } from '../../../appConfig';
 import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
+import { OFFICIAL_VITRINE_USERNAME } from '../../../data/officialVitrineProfile';
 import TopCompletionDate from '../../shared/TopCompletionDate';
 import CompletionsList from '../../shared/CompletionsList';
 
@@ -101,8 +102,31 @@ export default function PlaylistHeader({
     isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
     isEditingPlaylistDescription, setIsEditingPlaylistDescription, editedPlaylistDescription, setEditedPlaylistDescription, handleEditPlaylistDescription,
     handleSavePlaylist, handleUnsavePlaylist, handleTogglePlaylistPublic,
-    handleClonePlaylist, isReadOnly,
+    handleClonePlaylist, isReadOnly, username,
   } = usePlaylistDetail();
+
+  // Étiquette "propriétaire actuel" (05/08, retour direct : "ajouter le nom
+  // du compte créateur... quand je suis dans sa playlist en vitrine, et mon
+  // nom une fois que je suis dans ma playlist sauvegardée") — une fois
+  // `isSaved` (peu importe l'origine — template, clonage, génération
+  // fraîche), c'est TOI le propriétaire dans "Mes Séances", donc TON pseudo
+  // (`username`, PlaylistDetailContext.jsx — re-transmis depuis
+  // AuthContext.jsx via App.jsx). Tant que ce n'est PAS encore sauvegardé
+  // (aperçu en lecture seule, ou brouillon fraîchement généré) : le
+  // CRÉATEUR d'origine — soit TempoFit Officiel pour un template du
+  // catalogue (`sourceTemplateId`, posé par openCuratedPlaylist,
+  // useNavigation.js — présent que la prévisualisation vienne de la
+  // vitrine `@tempofit_officiel` OU d'un clic direct dans "Découvrir",
+  // les deux cas doivent afficher le même créateur), soit le pseudo du
+  // vrai propriétaire pour une playlist étrangère (`ownerUsername`, posé
+  // par ProfileView.jsx via `handleOpenPublicPlaylist`, App.jsx — la SEULE
+  // information qu'on ait sur lui, `user_id` n'étant qu'un UUID sans
+  // valeur d'affichage). `null` si aucun des deux (génération fraîche pas
+  // encore sauvegardée) — rien à afficher, pas encore "à" quelqu'un au
+  // sens de cette étiquette.
+  const ownerLabel = isSaved
+    ? username
+    : (currentPlaylist.sourceTemplateId ? OFFICIAL_VITRINE_USERNAME : currentPlaylist.ownerUsername) || null;
 
   // BPM moyen réel de la playlist — même formule que SessionSummaryCard.jsx/
   // ImportSharedPlaylistModal.jsx/StatsView.jsx/App.jsx (`avgBpm`), jamais
@@ -151,6 +175,30 @@ export default function PlaylistHeader({
         "flex flex-col md:flex-row items-start gap-6 md:gap-8"
       }
     >
+      {/* Étiquette "propriétaire actuel" (`ownerLabel`, calculé plus haut) —
+          MÊME hauteur que le bloc d'actions en coin juste en dessous
+          (`top-4`, comme demandé — "à la même hauteur que les icônes
+          public/corbeille à droite"), côté GAUCHE cette fois plutôt que de
+          se disputer l'espace avec ces icônes.
+          ⚠️ À VÉRIFIER EN CONDITIONS RÉELLES sur mobile spécifiquement :
+          la pochette (`mx-auto md:mx-0`, voir plus bas) est CENTRÉE
+          horizontalement en `flex-col` (mobile), donc potentiellement assez
+          large pour toucher le bord gauche de la carte — ce badge, en
+          position absolue à `top-4 left-4`, pourrait alors se superposer
+          au coin supérieur de la pochette sur un petit écran. Pas vérifiable
+          depuis ce bac à sable (pas de vrai navigateur) ; si collision
+          constatée, ajouter un `md:` à ce badge pour ne l'afficher qu'à
+          partir du breakpoint où la pochette n'est plus centrée, plutôt que
+          de deviner une valeur de décalage à l'aveugle. */}
+      {ownerLabel && (
+        <span
+          title={isSaved ? 'Cette playlist est dans ta bibliothèque' : `Créée par @${ownerLabel}`}
+          className="absolute top-4 left-4 z-10 text-xs font-bold text-slate-400 bg-slate-800/80 border border-slate-700 rounded-full px-3 py-1"
+        >
+          @{ownerLabel}
+        </span>
+      )}
+
       {currentPlaylistRankStyle && (
         <span
           className="absolute -top-2 -right-2 text-xl z-10"
