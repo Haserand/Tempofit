@@ -136,8 +136,19 @@ export default function PlaylistHeader({
   // construction (`USERNAME_REGEX`, utils/username.js,
   // `/^[a-z0-9_]{3,20}$/`) — rien à corriger de ce côté, aucun pseudo réel
   // ne peut contenir de majuscule.
+  // ⚠️ BUG CORRIGÉ (05/08, retour direct — capture montrant l'espace vide
+  // sous la pochette : "je suis en mode invité, par défaut mets 'Guest
+  // Mode' plutôt que rien") : `username` vaut `null` en mode invité (pas
+  // de compte, voir AuthContext.jsx) — `ownerLabel` retombait donc sur
+  // `null` lui aussi dans la branche `isSaved`, laissant l'étiquette
+  // silencieusement invisible plutôt que d'expliquer pourquoi. Repli sur
+  // "Invité" — MÊME mot que la convention déjà en place ailleurs dans
+  // l'app pour ce même état (Sidebar.jsx, en-tête de section "Mon Espace
+  // • Invité"), pas l'anglais "Guest Mode" proposé dans le retour direct :
+  // cohérence avec l'existant plutôt qu'un 2e vocabulaire pour la même
+  // notion.
   const ownerLabel = isSaved
-    ? username
+    ? (username || 'Invité')
     : (currentPlaylist.sourceTemplateId ? OFFICIAL_VITRINE_DISPLAY_NAME : currentPlaylist.ownerUsername) || null;
 
   // BPM moyen réel de la playlist — même formule que SessionSummaryCard.jsx/
