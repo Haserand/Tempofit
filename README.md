@@ -71,6 +71,42 @@ PASSATION.md → README.md → CLAUDE-SANDBOX-VERIFICATION.md → code réel),
   mais correct par principe et cohérent avec les 3 optimisations perf déjà
   faites le 03/08 (voir plus bas).
 
+⚠️ **SESSION DU 05/08 (suite 7) — retour direct, capture annotée : "ajouter
+le nom du compte créateur/dans lequel on voit la playlist où on est, pour
+mieux se repérer" — clarifié ensuite : le CRÉATEUR d'origine quand la
+playlist est encore en aperçu (vitrine `@tempofit_officiel` ou playlist
+d'un autre utilisateur), TON PROPRE pseudo une fois qu'elle est dans "Mes
+Séances".** Nouvelle étiquette `@pseudo` dans `PlaylistHeader.jsx`, même
+hauteur que le bloc d'actions en coin (`top-4`, comme demandé), côté
+gauche.
+- **Câblage `username`** (le pseudo du visiteur connecté, déjà dans
+  `AuthContext.jsx`/App.jsx) — ajouté au `value` de
+  `PlaylistDetailContext.jsx` (Provider), plutôt que prop-drillé sur 3
+  couches supplémentaires (`PlaylistDetailView.jsx`/`PlaylistDetailViewInner`)
+  : `PlaylistHeader.jsx` le lit directement via `usePlaylistDetail()`,
+  déjà consommé partout ailleurs dans ce fichier.
+- **Câblage `ownerUsername`** (le pseudo du PROPRIÉTAIRE, pour une vraie
+  playlist étrangère) — `ProfileView.jsx` est le SEUL endroit qui connaît
+  le pseudo du profil consulté ; `handleOpenPublicPlaylist` (App.jsx) n'a
+  lui que `row.user_id`, un UUID sans valeur d'affichage. Posé sur la ligne
+  (`_ownerUsername`, préfixé `_` comme `kind` juste à côté — un champ ajouté
+  par ce composant, pas un vrai champ des tables `playlists`/`routines`)
+  au clic sur une carte publique, lu par `handleOpenPublicPlaylist` et
+  reporté sur `currentPlaylist.ownerUsername`.
+- **Templates du catalogue** (vitrine OU Découvrir direct — les deux
+  passent par `sourceTemplateId`, `openCuratedPlaylist`,
+  useNavigation.js) : toujours `OFFICIAL_VITRINE_USERNAME`
+  ('tempofit_officiel'), pas besoin de câblage supplémentaire.
+⚠️ **À vérifier en conditions réelles sur mobile** (noté explicitement en
+commentaire dans le code) : la pochette est centrée horizontalement en
+`flex-col` (mobile) — risque de chevauchement avec cette nouvelle étiquette
+en position absolue, pas vérifiable depuis ce bac à sable (pas de vrai
+navigateur).
+2 tests exacts de `ProfileView.test.jsx` mis à jour (le payload transmis à
+`onOpenPlaylist`/`onOpenRoutine` porte désormais `_ownerUsername` en plus),
+4 nouveaux tests dans `PlaylistHeader.test.jsx` pour les 4 branches
+d'`ownerLabel`.
+
 ⚠️ **SESSION DU 05/08 (suite 6) — retour direct : "je vais dans Découvrir,
 j'ajoute une playlist, j'y retourne, je l'ajoute une 2e fois → je me
 retrouve avec 2 copies identiques... pas logique".** BUG CORRIGÉ dans
