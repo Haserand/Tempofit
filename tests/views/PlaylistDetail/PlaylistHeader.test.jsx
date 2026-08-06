@@ -536,22 +536,26 @@ describe('PlaylistHeader', () => {
 // PlaylistHeader.jsx pour le raisonnement complet des 4 branches testées
 // ici.
 describe('PlaylistHeader — étiquette "propriétaire actuel" (NOUVEAU, 05/08)', () => {
+  // ⚠️ CORRIGÉ (05/08, retour direct, capture annotée — 2e passe) : pas
+  // d'arobase ("on perd un caractère"), "TempoFit Officiel" avec majuscules
+  // (cohérence avec `author: 'TempoFit Officiel'`, déjà utilisé partout
+  // ailleurs) plutôt que le pseudo technique tout en minuscules.
   it('isSaved=true : affiche TON pseudo (username), peu importe l\'origine de la playlist', () => {
     mockUsePlaylistDetail.mockReturnValue(makeContextValue({
       isSaved: true, username: 'mon_pseudo',
       currentPlaylist: makePlaylist({ sourceTemplateId: 'tpl-cardio' }), // même déjà cloné d'un template : c'est TOI le propriétaire une fois sauvegardé
     }));
     render(<PlaylistHeader {...baseProps()} />);
-    expect(screen.getByText('@mon_pseudo')).toBeInTheDocument();
+    expect(screen.getByText('mon_pseudo')).toBeInTheDocument();
   });
 
-  it('isSaved=false + sourceTemplateId (template du catalogue, vitrine ou Découvrir direct) : affiche TempoFit Officiel', () => {
+  it('isSaved=false + sourceTemplateId (template du catalogue, vitrine ou Découvrir direct) : affiche "TempoFit Officiel" (majuscules, pas le pseudo technique)', () => {
     mockUsePlaylistDetail.mockReturnValue(makeContextValue({
       isSaved: false, username: null,
       currentPlaylist: makePlaylist({ sourceTemplateId: 'tpl-cardio' }),
     }));
     render(<PlaylistHeader {...baseProps()} />);
-    expect(screen.getByText('@tempofit_officiel')).toBeInTheDocument();
+    expect(screen.getByText('TempoFit Officiel')).toBeInTheDocument();
   });
 
   it('isSaved=false + ownerUsername (vraie playlist d\'un autre utilisateur) : affiche SON pseudo', () => {
@@ -560,7 +564,7 @@ describe('PlaylistHeader — étiquette "propriétaire actuel" (NOUVEAU, 05/08)'
       currentPlaylist: makePlaylist({ ownerUsername: 'un_autre_coureur' }),
     }));
     render(<PlaylistHeader {...baseProps()} />);
-    expect(screen.getByText('@un_autre_coureur')).toBeInTheDocument();
+    expect(screen.getByText('un_autre_coureur')).toBeInTheDocument();
   });
 
   it('isSaved=false, ni sourceTemplateId ni ownerUsername (génération fraîche pas encore sauvegardée) : aucune étiquette', () => {
@@ -569,6 +573,12 @@ describe('PlaylistHeader — étiquette "propriétaire actuel" (NOUVEAU, 05/08)'
       currentPlaylist: makePlaylist(),
     }));
     render(<PlaylistHeader {...baseProps()} />);
-    expect(screen.queryByText(/^@/)).not.toBeInTheDocument();
+    // ⚠️ CORRIGÉ (05/08, 2e passe) : `/^@/` ne matchait plus rien
+    // (l'arobase a été retirée) — testait donc toujours "vrai" par
+    // construction, plus un vrai test. Vérifie explicitement l'absence des
+    // 3 textes possibles à la place.
+    expect(screen.queryByText('TempoFit Officiel')).not.toBeInTheDocument();
+    expect(screen.queryByTitle(/Créée par/)).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Cette playlist est dans ta bibliothèque')).not.toBeInTheDocument();
   });
 });
