@@ -1826,7 +1826,7 @@ function AppContent({
                 renderConfigInfoLine={renderConfigInfoLine}
                 editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
                 editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
-                triggerCSVUpload={triggerCSVUpload}
+                triggerCSVUpload={triggerCSVUpload} removeImportedData={removeImportedData}
                 markPlaylistAsCompleted={markPlaylistAsCompleted}
                 showToast={showToast}
               />
