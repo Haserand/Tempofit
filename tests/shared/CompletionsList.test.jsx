@@ -125,11 +125,12 @@ describe('CompletionsList', () => {
   // visibles mais ne doivent plus rien proposer à modifier.
   describe('isReadOnly', () => {
     it('affiche les dates en texte simple, sans aucun bouton interactif', () => {
-      const { container } = render(<CompletionsList {...baseProps} isReadOnly={true} />);
+      const { container } = render(<CompletionsList {...baseProps} isReadOnly={true} removeImportedData={vi.fn()} />);
       expect(screen.queryByTitle('Modifier cette date')).toBeNull();
       expect(screen.queryByTitle('Retirer cette date')).toBeNull();
       expect(screen.queryByTitle('Importer Garmin/Strava (cadence/FC)')).toBeNull();
       expect(screen.queryByTitle('Données déjà importées — cliquer pour remplacer')).toBeNull();
+      expect(screen.queryByTitle('Retirer les données importées pour cette date')).toBeNull();
       // Aucun bouton du tout dans la liste — que du texte. Les 3 dates
       // restent chacune affichées (une pastille par date, comme d'habitude),
       // vérifié structurellement plutôt que sur le texte exact :
@@ -150,6 +151,42 @@ describe('CompletionsList', () => {
         />
       );
       expect(document.querySelectorAll('input[type="date"]')).toHaveLength(0);
+    });
+  });
+
+  // NOUVEAU (05/08, retour direct : "je dois pouvoir retirer des données
+  // importées si je me trompe de fichier" — même chantier que le bouton
+  // équivalent de PlaylistHeader.jsx pour la séance la plus récente,
+  // généralisé ici aux AUTRES dates de complétion). `mockPlaylist` a des
+  // données importées uniquement pour '2026-02-15' (voir plus haut).
+  describe('retirer les données importées pour une date précise (NOUVEAU, 05/08)', () => {
+    it('absent si removeImportedData n\'est pas fourni (prop optionnelle)', () => {
+      render(<CompletionsList {...baseProps} />);
+      expect(screen.queryByTitle('Retirer les données importées pour cette date')).not.toBeInTheDocument();
+    });
+
+    it('absent pour les dates SANS donnée importée, même avec removeImportedData fourni', () => {
+      render(<CompletionsList {...baseProps} removeImportedData={vi.fn()} />);
+      // 1 seule des 3 dates (2026-02-15) a des données -> 1 seul bouton, pas 3.
+      expect(screen.getAllByTitle('Retirer les données importées pour cette date')).toHaveLength(1);
+    });
+
+    it('le clic appelle removeImportedData(playlist, iso) pour la bonne date', () => {
+      const removeImportedData = vi.fn();
+      render(<CompletionsList {...baseProps} removeImportedData={removeImportedData} />);
+
+      fireEvent.click(screen.getByTitle('Retirer les données importées pour cette date'));
+
+      expect(removeImportedData).toHaveBeenCalledWith(mockPlaylist, '2026-02-15');
+    });
+
+    it('reste affiché même pour la date couverte par hideUploadForDate (contrairement au bouton import)', () => {
+      // `hideUploadForDate` ne masque QUE l'import (voir la docstring du
+      // composant) — retirer une donnée déjà importée doit rester possible
+      // même sur la date déjà couverte par un CTA d'import plus visible
+      // ailleurs sur l'écran.
+      render(<CompletionsList {...baseProps} hideUploadForDate="2026-02-15" removeImportedData={vi.fn()} />);
+      expect(screen.getByTitle('Retirer les données importées pour cette date')).toBeInTheDocument();
     });
   });
 });
