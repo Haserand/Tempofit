@@ -29,12 +29,29 @@
  * dynamiquement dans TemplateCard.jsx (pas stocké ici).
  */
 
+// Nom d'affichage du compte officiel — centralisé ici (05/08, retour
+// direct : "faut les majuscules... règles à harmoniser dans un fichier ?")
+// plutôt que redupliqué en dur à chaque `author:` ci-dessous (36
+// occurrences avant ce correctif) + une 37e copie qui venait d'être
+// ajoutée dans PlaylistHeader.jsx. Posé DANS ce fichier précisément (et
+// pas dans officialVitrineProfile.js, l'endroit a priori plus "logique"
+// pour une donnée de branding) parce que ce fichier-ci N'IMPORTE RIEN —
+// officialVitrineProfile.js importe déjà `curatedSessions`/
+// `naughtyCuratedSessions` DEPUIS ce fichier (voir son import en tête) ;
+// l'inverse (ce fichier important depuis officialVitrineProfile.js)
+// créerait un import circulaire. DISTINCT de `OFFICIAL_VITRINE_USERNAME`
+// (officialVitrineProfile.js, `'tempofit_officiel'`, tout en minuscules) —
+// celui-là est le pseudo TECHNIQUE (URL/mentions @, contraint par
+// `USERNAME_REGEX`), celui-ci le nom d'AFFICHAGE (avec majuscules, jamais
+// utilisé pour une URL ou une comparaison).
+export const OFFICIAL_VITRINE_DISPLAY_NAME = 'TempoFit Officiel';
+
 export const curatedSessions = [
   // ───────────────────────── CARDIO EXPRESS ─────────────────────────
   {
     id: 'tpl-midnight-runner-160',
     title: 'Midnight Runner 160',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Cardio Express',
@@ -50,7 +67,7 @@ export const curatedSessions = [
   {
     id: 'tpl-sprint-zone-180',
     title: 'Sprint Zone 180',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Cardio Express',
@@ -66,7 +83,7 @@ export const curatedSessions = [
   {
     id: 'tpl-neon-run-5k',
     title: 'Neon Run 5K',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Cardio Express',
@@ -82,7 +99,7 @@ export const curatedSessions = [
   {
     id: 'tpl-interval-overdrive',
     title: 'Interval Overdrive',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Cardio Express',
@@ -98,7 +115,7 @@ export const curatedSessions = [
   {
     id: 'tpl-turbo-cardio',
     title: 'Turbo Cardio',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Cardio Express',
@@ -113,7 +130,7 @@ export const curatedSessions = [
   {
     id: 'tpl-hiit-frenzy-170',
     title: 'HIIT Frenzy 170',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Cardio Express',
@@ -131,7 +148,7 @@ export const curatedSessions = [
   {
     id: 'tpl-deep-focus-run',
     title: 'Deep Focus Run',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Endurance Fondamentale',
@@ -154,7 +171,7 @@ export const curatedSessions = [
   {
     id: 'tpl-steady-state-cruise',
     title: 'Steady State Cruise',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Endurance Fondamentale',
@@ -175,7 +192,7 @@ export const curatedSessions = [
   {
     id: 'tpl-horizon-miles',
     title: 'Horizon Miles',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Endurance Fondamentale',
@@ -196,7 +213,7 @@ export const curatedSessions = [
   {
     id: 'tpl-long-haul-groove',
     title: 'Long Haul Groove',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Endurance Fondamentale',
@@ -217,7 +234,7 @@ export const curatedSessions = [
   {
     id: 'tpl-sunday-long-run',
     title: 'Sunday Long Run',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Endurance Fondamentale',
@@ -239,7 +256,7 @@ export const curatedSessions = [
   {
     id: 'tpl-base-building-beat',
     title: 'Base Building Beat',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Endurance Fondamentale',
@@ -263,7 +280,7 @@ export const curatedSessions = [
   {
     id: 'tpl-iron-pump-anthem',
     title: 'Iron Pump Anthem',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Force & Renfo',
@@ -280,7 +297,7 @@ export const curatedSessions = [
   {
     id: 'tpl-heavy-lift-sessions',
     title: 'Heavy Lift Sessions',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Force & Renfo',
@@ -297,7 +314,7 @@ export const curatedSessions = [
   {
     id: 'tpl-crossfit-crusher',
     title: 'Crossfit Crusher',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Force & Renfo',
@@ -314,7 +331,7 @@ export const curatedSessions = [
   {
     id: 'tpl-powerlifters-anthem',
     title: "Powerlifter's Anthem",
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Force & Renfo',
@@ -331,7 +348,7 @@ export const curatedSessions = [
   {
     id: 'tpl-barbell-beats',
     title: 'Barbell Beats',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Force & Renfo',
@@ -348,7 +365,7 @@ export const curatedSessions = [
   {
     id: 'tpl-grind-mode-activated',
     title: 'Grind Mode Activated',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Force & Renfo',
@@ -368,7 +385,7 @@ export const curatedSessions = [
   {
     id: 'tpl-sunday-recovery',
     title: 'Sunday Recovery',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Récupération & Flow',
@@ -385,7 +402,7 @@ export const curatedSessions = [
   {
     id: 'tpl-slow-flow-yoga',
     title: 'Slow Flow Yoga',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Récupération & Flow',
@@ -402,7 +419,7 @@ export const curatedSessions = [
   {
     id: 'tpl-gentle-stretch-session',
     title: 'Gentle Stretch Session',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Récupération & Flow',
@@ -418,7 +435,7 @@ export const curatedSessions = [
   {
     id: 'tpl-wind-down-wednesday',
     title: 'Wind Down Wednesday',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Récupération & Flow',
@@ -434,7 +451,7 @@ export const curatedSessions = [
   {
     id: 'tpl-mellow-mobility',
     title: 'Mellow Mobility',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Récupération & Flow',
@@ -450,7 +467,7 @@ export const curatedSessions = [
   {
     id: 'tpl-deep-breath-decompress',
     title: 'Deep Breath Decompress',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Récupération & Flow',
@@ -469,7 +486,7 @@ export const curatedSessions = [
   {
     id: 'tpl-personal-best-170',
     title: 'Personal Best 170',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Race Day / Performance',
@@ -490,7 +507,7 @@ export const curatedSessions = [
   {
     id: 'tpl-finish-line-fury',
     title: 'Finish Line Fury',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Race Day / Performance',
@@ -509,7 +526,7 @@ export const curatedSessions = [
   {
     id: 'tpl-record-breaker-180',
     title: 'Record Breaker 180',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Race Day / Performance',
@@ -528,7 +545,7 @@ export const curatedSessions = [
   {
     id: 'tpl-podium-push',
     title: 'Podium Push',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Race Day / Performance',
@@ -546,7 +563,7 @@ export const curatedSessions = [
   {
     id: 'tpl-marathon-kick-175',
     title: 'Marathon Kick 175',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Race Day / Performance',
@@ -564,7 +581,7 @@ export const curatedSessions = [
   {
     id: 'tpl-full-send-finale',
     title: 'Full Send Finale',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Race Day / Performance',
@@ -611,7 +628,7 @@ export const naughtyCuratedSessions = [
   {
     id: 'ntpl-soft-sunset',
     title: 'Soft Sunset',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Rythmes Sensuels',
@@ -626,7 +643,7 @@ export const naughtyCuratedSessions = [
   {
     id: 'ntpl-slow-hours',
     title: 'Slow Hours',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Rythmes Sensuels',
@@ -640,7 +657,7 @@ export const naughtyCuratedSessions = [
   {
     id: 'ntpl-slow-burn',
     title: 'Slow Burn',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Rythmes Sensuels',
@@ -655,7 +672,7 @@ export const naughtyCuratedSessions = [
   {
     id: 'ntpl-midnight-latino',
     title: 'Midnight Latino',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Rythmes Sensuels',
@@ -669,7 +686,7 @@ export const naughtyCuratedSessions = [
   {
     id: 'ntpl-heat-rising',
     title: 'Heat Rising',
-    author: 'TempoFit Officiel',
+    author: OFFICIAL_VITRINE_DISPLAY_NAME,
     isOfficial: true,
     upvotes: 0,
     category: 'Rythmes Sensuels',
