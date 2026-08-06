@@ -28,26 +28,54 @@ export function usePlaylistLibrary(
 
   // Ajoute la playlist en cours d'affichage à "Mes Séances" (si pas déjà sauvegardée).
   const handleSavePlaylist = () => {
-    if (currentPlaylist && !savedPlaylists.find(p => p.id === currentPlaylist.id)) {
-      // `isPublic` (Feature Sociale — Refonte Structurale Round 2/2, 01/08)
-      // — valeur de DÉPART lue depuis le réglage par défaut de
-      // SettingsView.jsx (`profilePrivacy.defaultPlaylistPublic`, reçu ici
-      // en paramètre) : juste une commodité au moment de la sauvegarde,
-      // ajustable ensuite au cas par cas (voir PlaylistHeader.jsx/
-      // PlaylistCard.jsx pour la bascule individuelle). `!!` en repli sûr :
-      // `undefined` (Supabase pas configuré, ou avant le 1er chargement du
-      // profil) doit se comporter comme `false`, jamais planter ce
-      // spread.
-      const saved = { ...currentPlaylist, status: 'pending', isPublic: !!defaultPlaylistPublic };
-      setSavedPlaylists([saved, ...savedPlaylists]);
-      // `currentPlaylist` et l'entrée poussée dans `savedPlaylists` étaient 2
-      // objets distincts (même id, mais 2 références différentes) tant que
-      // cette ligne n'existait pas — resynchronisé ici pour éviter toute
-      // divergence silencieuse entre les deux au fil des actions suivantes
-      // (ex. planifier une date juste après avoir sauvegardé).
-      setCurrentPlaylist(saved);
-      showToast("Playlist ajoutée à Mes Séances !");
+    if (!currentPlaylist) return;
+    if (savedPlaylists.find(p => p.id === currentPlaylist.id)) return;
+
+    // NOUVEAU (05/08, retour direct : "je vais dans Découvrir, j'ajoute une
+    // playlist, j'y retourne, je l'ajoute une 2e fois → je me retrouve avec
+    // 2 copies identiques") — un template ouvert DIRECTEMENT depuis
+    // Découvrir (`onPlayTemplate={openCuratedPlaylist}`, DiscoverView.jsx,
+    // SANS `isReadOnly`, contrairement au même template ouvert via la
+    // vitrine `@tempofit_officiel`, voir App.jsx) obtient un id FRAIS à
+    // CHAQUE ouverture (`pl-curated-{template.id}-${Date.now()}`,
+    // useNavigation.js) — le garde `savedPlaylists.find(p => p.id ===
+    // currentPlaylist.id)` juste au-dessus ne peut donc JAMAIS matcher pour
+    // ce cas précis, même en rouvrant exactement le même template. Ce
+    // 2e garde compare par `sourceTemplateId` (STABLE, lui, — l'id du
+    // template dans curatedSessions.js, pas celui de CETTE ouverture
+    // précise) plutôt que par `id` : si une copie de CE MÊME template
+    // existe déjà, on bascule dessus au lieu d'en recréer une identique.
+    // Seulement pertinent pour un template (`sourceTemplateId` absent sur
+    // une playlist fraîchement générée par le wizard — aucune raison
+    // d'empêcher de sauvegarder 2 générations différentes, même
+    // coïncidence de contenu).
+    if (currentPlaylist.sourceTemplateId) {
+      const existing = savedPlaylists.find(p => p.sourceTemplateId === currentPlaylist.sourceTemplateId);
+      if (existing) {
+        setCurrentPlaylist(existing);
+        showToast('Déjà dans Mes Séances — retour sur ta copie.');
+        return;
+      }
     }
+
+    // `isPublic` (Feature Sociale — Refonte Structurale Round 2/2, 01/08)
+    // — valeur de DÉPART lue depuis le réglage par défaut de
+    // SettingsView.jsx (`profilePrivacy.defaultPlaylistPublic`, reçu ici
+    // en paramètre) : juste une commodité au moment de la sauvegarde,
+    // ajustable ensuite au cas par cas (voir PlaylistHeader.jsx/
+    // PlaylistCard.jsx pour la bascule individuelle). `!!` en repli sûr :
+    // `undefined` (Supabase pas configuré, ou avant le 1er chargement du
+    // profil) doit se comporter comme `false`, jamais planter ce
+    // spread.
+    const saved = { ...currentPlaylist, status: 'pending', isPublic: !!defaultPlaylistPublic };
+    setSavedPlaylists([saved, ...savedPlaylists]);
+    // `currentPlaylist` et l'entrée poussée dans `savedPlaylists` étaient 2
+    // objets distincts (même id, mais 2 références différentes) tant que
+    // cette ligne n'existait pas — resynchronisé ici pour éviter toute
+    // divergence silencieuse entre les deux au fil des actions suivantes
+    // (ex. planifier une date juste après avoir sauvegardé).
+    setCurrentPlaylist(saved);
+    showToast("Playlist ajoutée à Mes Séances !");
   };
 
   /**
@@ -77,6 +105,30 @@ export function usePlaylistLibrary(
    */
   const handleClonePlaylist = () => {
     if (!currentPlaylist) return;
+
+    // NOUVEAU (05/08, retour direct — même chantier que le garde
+    // équivalent dans `handleSavePlaylist` juste au-dessus, voir sa
+    // docstring pour le raisonnement complet) : ici, le cas concerné est
+    // une playlist ÉTRANGÈRE (`user_id` réel) ou un template ouvert via la
+    // vitrine `@tempofit_officiel` (`isReadOnly: true` forcé, voir
+    // App.jsx) — même symptôme, revisiter la même source et cloner à
+    // nouveau créait une 2e copie identique à chaque fois. Même branchement
+    // que l'appel RPC juste plus bas dans cette fonction (`user_id` d'abord,
+    // `sourceTemplateId` en repli) : une vraie playlist étrangère se
+    // reconnaît par sa lignée immédiate (`parentId`+`parentUserId`, POSÉS
+    // par un clonage précédent — voir plus bas), un template par
+    // `sourceTemplateId` (stable, contrairement à l'id de CETTE
+    // prévisualisation précise).
+    const existing = currentPlaylist.user_id
+      ? savedPlaylists.find(p => p.parentId === currentPlaylist.id && p.parentUserId === currentPlaylist.user_id)
+      : currentPlaylist.sourceTemplateId
+        ? savedPlaylists.find(p => p.sourceTemplateId === currentPlaylist.sourceTemplateId)
+        : null;
+    if (existing) {
+      setCurrentPlaylist(existing);
+      showToast('Déjà dans Mes Séances — retour sur ta copie.');
+      return;
+    }
 
     // Traçabilité de lignée — REFONTE (03/08, voir supabase-schema.sql
     // pour le raisonnement complet) : le client ne pose plus que le
