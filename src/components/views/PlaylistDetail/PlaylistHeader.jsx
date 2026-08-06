@@ -336,7 +336,7 @@ export default function PlaylistHeader({
                     hideUploadForDate={mostRecentCompletionIso} skipDates={[currentPlaylist.completions[0]]}
                     editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
                     editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
-                    triggerCSVUpload={triggerCSVUpload}
+                    triggerCSVUpload={triggerCSVUpload} removeImportedData={removeImportedData}
                     isReadOnly={isReadOnly}
                   />
                 </div>
