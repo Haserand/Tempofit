@@ -8,7 +8,7 @@ import { formatDuration } from '../../../utils/format';
 import { buildCoverUrl } from '../../../utils/coverArt';
 import { getActivityEmoji, getZoneForValue, getBpmBucketColor, getBpmBucketStart, MAX_DESCRIPTION_LENGTH } from '../../../appConfig';
 import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
-import { OFFICIAL_VITRINE_USERNAME } from '../../../data/officialVitrineProfile';
+import { OFFICIAL_VITRINE_DISPLAY_NAME } from '../../../data/curatedSessions';
 import TopCompletionDate from '../../shared/TopCompletionDate';
 import CompletionsList from '../../shared/CompletionsList';
 
@@ -113,7 +113,7 @@ export default function PlaylistHeader({
   // (`username`, PlaylistDetailContext.jsx — re-transmis depuis
   // AuthContext.jsx via App.jsx). Tant que ce n'est PAS encore sauvegardé
   // (aperçu en lecture seule, ou brouillon fraîchement généré) : le
-  // CRÉATEUR d'origine — soit TempoFit Officiel pour un template du
+  // CRÉATEUR d'origine — soit "TempoFit Officiel" pour un template du
   // catalogue (`sourceTemplateId`, posé par openCuratedPlaylist,
   // useNavigation.js — présent que la prévisualisation vienne de la
   // vitrine `@tempofit_officiel` OU d'un clic direct dans "Découvrir",
@@ -124,9 +124,21 @@ export default function PlaylistHeader({
   // valeur d'affichage). `null` si aucun des deux (génération fraîche pas
   // encore sauvegardée) — rien à afficher, pas encore "à" quelqu'un au
   // sens de cette étiquette.
+  // ⚠️ CORRIGÉ (05/08, retour direct, capture annotée) : "TempoFit
+  // Officiel" via `OFFICIAL_VITRINE_DISPLAY_NAME` (curatedSessions.js —
+  // centralisé le même jour, "règles à harmoniser dans un fichier ?" :
+  // même chaîne réutilisée 35 fois pour `author:` dans ce fichier, plus
+  // cette 36e copie qui venait d'être ajoutée ici en dur) plutôt que
+  // `OFFICIAL_VITRINE_USERNAME` ('tempofit_officiel', le pseudo TECHNIQUE
+  // utilisé pour l'URL/les mentions @, tout en minuscules) — "faut les
+  // majuscules si y en a pour cohérence". Un vrai pseudo utilisateur
+  // (`username`/`ownerUsername`), lui, est TOUJOURS en minuscules par
+  // construction (`USERNAME_REGEX`, utils/username.js,
+  // `/^[a-z0-9_]{3,20}$/`) — rien à corriger de ce côté, aucun pseudo réel
+  // ne peut contenir de majuscule.
   const ownerLabel = isSaved
     ? username
-    : (currentPlaylist.sourceTemplateId ? OFFICIAL_VITRINE_USERNAME : currentPlaylist.ownerUsername) || null;
+    : (currentPlaylist.sourceTemplateId ? OFFICIAL_VITRINE_DISPLAY_NAME : currentPlaylist.ownerUsername) || null;
 
   // BPM moyen réel de la playlist — même formule que SessionSummaryCard.jsx/
   // ImportSharedPlaylistModal.jsx/StatsView.jsx/App.jsx (`avgBpm`), jamais
@@ -175,30 +187,6 @@ export default function PlaylistHeader({
         "flex flex-col md:flex-row items-start gap-6 md:gap-8"
       }
     >
-      {/* Étiquette "propriétaire actuel" (`ownerLabel`, calculé plus haut) —
-          MÊME hauteur que le bloc d'actions en coin juste en dessous
-          (`top-4`, comme demandé — "à la même hauteur que les icônes
-          public/corbeille à droite"), côté GAUCHE cette fois plutôt que de
-          se disputer l'espace avec ces icônes.
-          ⚠️ À VÉRIFIER EN CONDITIONS RÉELLES sur mobile spécifiquement :
-          la pochette (`mx-auto md:mx-0`, voir plus bas) est CENTRÉE
-          horizontalement en `flex-col` (mobile), donc potentiellement assez
-          large pour toucher le bord gauche de la carte — ce badge, en
-          position absolue à `top-4 left-4`, pourrait alors se superposer
-          au coin supérieur de la pochette sur un petit écran. Pas vérifiable
-          depuis ce bac à sable (pas de vrai navigateur) ; si collision
-          constatée, ajouter un `md:` à ce badge pour ne l'afficher qu'à
-          partir du breakpoint où la pochette n'est plus centrée, plutôt que
-          de deviner une valeur de décalage à l'aveugle. */}
-      {ownerLabel && (
-        <span
-          title={isSaved ? 'Cette playlist est dans ta bibliothèque' : `Créée par @${ownerLabel}`}
-          className="absolute top-4 left-4 z-10 text-xs font-bold text-slate-400 bg-slate-800/80 border border-slate-700 rounded-full px-3 py-1"
-        >
-          @{ownerLabel}
-        </span>
-      )}
-
       {currentPlaylistRankStyle && (
         <span
           className="absolute -top-2 -right-2 text-xl z-10"
@@ -328,6 +316,30 @@ export default function PlaylistHeader({
             </span>
           </div>
         </button>
+        {/* Étiquette "propriétaire actuel" (`ownerLabel`, calculé plus haut)
+            — DÉPLACÉE ici (05/08, retour direct, capture annotée montrant un
+            chevauchement réel avec la pochette) : l'ancien emplacement en
+            coin (`absolute top-4 left-4`) risquait justement ce
+            chevauchement sur mobile (pochette centrée, `mx-auto`, voir la
+            classe du conteneur juste au-dessus) — confirmé par la capture.
+            Sous la pochette plutôt qu'au-dessus : aucun risque de
+            chevauchement possible, quelle que soit la largeur d'écran,
+            puisque cet élément suit le flux normal du DOM au lieu d'un
+            positionnement absolu qui ignore l'espace déjà occupé. Centré
+            (`text-center`, largeur calée sur celle de la pochette via
+            `w-32`, la même valeur que `w-32 h-32` juste au-dessus — comme
+            demandé, "le nom doit être centré"). PAS d'arobase (retour
+            direct : "on perd un caractère") — le `title` HTML natif
+            (survol) reste plus explicite si besoin, sans peser sur
+            l'espace visuel restreint disponible ici. */}
+        {ownerLabel && (
+          <p
+            title={isSaved ? 'Cette playlist est dans ta bibliothèque' : `Créée par ${ownerLabel}`}
+            className="mt-2 w-32 text-center text-xs font-bold text-slate-400 truncate"
+          >
+            {ownerLabel}
+          </p>
+        )}
       </div>
 
       {/* Bloc de droite — `md:h-32` reprend EXACTEMENT la hauteur de la
