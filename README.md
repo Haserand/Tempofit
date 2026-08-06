@@ -71,6 +71,37 @@ PASSATION.md → README.md → CLAUDE-SANDBOX-VERIFICATION.md → code réel),
   mais correct par principe et cohérent avec les 3 optimisations perf déjà
   faites le 03/08 (voir plus bas).
 
+⚠️ **SESSION DU 05/08 (suite 6) — retour direct : "je vais dans Découvrir,
+j'ajoute une playlist, j'y retourne, je l'ajoute une 2e fois → je me
+retrouve avec 2 copies identiques... pas logique".** BUG CORRIGÉ dans
+`usePlaylistLibrary.js` — `handleSavePlaylist`/`handleClonePlaylist`
+créaient toujours une NOUVELLE entrée dans `savedPlaylists`, sans jamais
+vérifier si une copie de la MÊME source existait déjà. Concerne 3 chemins
+distincts, tous corrigés :
+- Template ouvert **directement depuis Découvrir** (`handleSavePlaylist`)
+  — obtient un id FRAIS à chaque ouverture (`pl-curated-{id}-${Date.now()}`,
+  useNavigation.js), donc le garde existant (comparaison par `id`) ne
+  matchait jamais 2 ouvertures du même template. Nouveau garde par
+  `sourceTemplateId` (stable, lui).
+- Template ouvert via la **vitrine `@tempofit_officiel`**
+  (`handleClonePlaylist`, `isReadOnly: true` forcé) — même correctif, même
+  clé (`sourceTemplateId`).
+- **Vraie playlist d'un autre utilisateur** (`handleClonePlaylist`) —
+  nouveau garde par `parentId`+`parentUserId` (la lignée déjà posée par un
+  clonage précédent, jusque-là utilisée uniquement pour créditer les
+  compteurs, jamais pour détecter un doublon).
+Dans les 3 cas, un doublon détecté bascule directement sur la copie
+existante (`setCurrentPlaylist`) + toast "Déjà dans Mes Séances — retour
+sur ta copie.", sans créer de nouvelle entrée ni appeler la RPC de
+comptage de clonages. Option retenue après discussion (redirection
+silencieuse, pas une modale de confirmation) — une playlist fraîchement
+générée par le wizard n'est PAS concernée (`sourceTemplateId` absent,
+aucune raison d'empêcher 2 générations distinctes même si leur contenu
+se ressemble). 6 tests de régression ajoutés dans
+`usePlaylistLibrary.test.js` (3 par fonction), y compris un test de
+non-régression vérifiant que 2 templates DIFFÉRENTS ne se confondent
+jamais.
+
 ⚠️ **SESSION DU 05/08 (suite 5) — incident réel de build, long diagnostic
 (voir les échanges autour des logs Vercel collés dans cette session pour le
 détail complet) : `src/contexts/PlaylistDetailContext.jsx` — le VRAI
