@@ -71,6 +71,34 @@ PASSATION.md → README.md → CLAUDE-SANDBOX-VERIFICATION.md → code réel),
   mais correct par principe et cohérent avec les 3 optimisations perf déjà
   faites le 03/08 (voir plus bas).
 
+⚠️ **SESSION DU 05/08 (suite 5) — incident réel de build, long diagnostic
+(voir les échanges autour des logs Vercel collés dans cette session pour le
+détail complet) : `src/contexts/PlaylistDetailContext.jsx` — le VRAI
+fichier du composant — avait été accidentellement écrasé par le CONTENU de
+son fichier de test (`tests/contexts/PlaylistDetailContext.test.jsx`),
+collé au mauvais endroit vu que les deux portent presque le même nom.
+`PlaylistDetailProvider`/`usePlaylistDetail` valaient donc `undefined` à
+l'import — d'où "Element type is invalid... got: undefined" sur les 25
+tests de ce fichier, une erreur React générique qui ne pointait jamais
+vers la vraie cause. Trouvé via une recherche de code GitHub (le dépôt
+étant privé, invisible depuis ce bac à sable) — PAS via les garde-fous
+existants, qui vérifient tous l'EMPLACEMENT/le NOM d'un fichier, jamais si
+son CONTENU correspond à ce que son nom promet.**
+Nouveau garde-fou **`tests/criticalExportsTrap.test.js`**, sur demande
+explicite après cet incident : (1) aucun fichier de `src/` ne doit
+importer `vitest`/`@testing-library/*` — un composant réel n'en a jamais
+besoin, la présence de cet import est un signal quasi certain qu'un
+fichier de TEST a été collé au mauvais endroit ; (2) les 3 vrais Context
+Providers de l'app (`GeneratorContext`/`AudioPlayerContext`/
+`PlaylistDetailContext`) sont importés pour de vrai et leurs exports
+attendus vérifiés comme étant bien des fonctions — 2e filet pour le cas où
+le contenu substitué ne serait pas un fichier de test (donc sans import
+`vitest`) mais un contenu tout aussi invalide pour ce rôle précis. Les 2
+vérifications testées "à blanc" (simulation de l'incident exact + état
+propre) avant livraison. Ajouté à la liste blanche `NO_SINGLE_SUBJECT` de
+`testFileIdentityTrap.test.js`, même famille que les autres garde-fous
+globaux.
+
 ⚠️ **SESSION DU 05/08 (suite 4) — retour direct, capture annotée : 1er
 paragraphe de l'infobulle "BPM cibles par zone" (`AthleticProfilePanel.jsx`,
 onglet Profil Athlétique) retiré ("Zone 2 = le BPM que tu tapes ci-dessous.
@@ -524,7 +552,7 @@ Ordre de priorité retenu (voir aussi les passations pour le détail du raisonne
 ## Tests
 
 - `tests/` en miroir de `src/` (`views/`, `modals/`, `shared/`, `contexts/`, `hooks/`, `engine/`, `utils/`, `config/`, `data/`).
-- 5 fichiers restés volontairement à la racine (`fileExtensionTrap.test.js`, `noDuplicateFiles.test.js`, `tailwindConcatTrap.test.js`, `testFileIdentityTrap.test.js`, `testLocationTrap.test.js` — ce dernier ajouté le 05/08, voir "État d'avancement") — des garde-fous qui scannent tout le projet via leur propre `__dirname`, les déplacer casserait leur scan. (Le compte était déjà erroné avant le 05/08 — `testFileIdentityTrap.test.js` manquait à la liste, corrigé au passage.)
+- 6 fichiers restés volontairement à la racine (`fileExtensionTrap.test.js`, `noDuplicateFiles.test.js`, `tailwindConcatTrap.test.js`, `testFileIdentityTrap.test.js`, `testLocationTrap.test.js`, `criticalExportsTrap.test.js` — ces 2 derniers ajoutés le 05/08, voir "État d'avancement") — des garde-fous qui scannent tout le projet via leur propre `__dirname`, les déplacer casserait leur scan. (Le compte était déjà erroné avant le 05/08 — `testFileIdentityTrap.test.js` manquait à la liste, corrigé au passage.)
 - `PlaylistDetailContext.jsx` (Provider) n'a **pas** de couverture exhaustive — juste un test ciblé sur `isSaved`/`isReadOnly` (`tests/contexts/PlaylistDetailContext.test.jsx`). Le monter en entier exigerait de mocker `GeneratorContext` + `AudioPlayerContext` + le moteur de recalcul de timeline ; jugé disproportionné pour ce qui reste, à part ce point précis, de la logique triviale déjà couverte indirectement ailleurs.
 - Aucune exécution réelle de `vitest` n'est possible dans le bac à sable Claude — voir `CLAUDE-SANDBOX-VERIFICATION.md`.
 
