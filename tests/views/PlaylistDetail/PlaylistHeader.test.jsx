@@ -549,6 +549,19 @@ describe('PlaylistHeader — étiquette "propriétaire actuel" (NOUVEAU, 05/08)'
     expect(screen.getByText('mon_pseudo')).toBeInTheDocument();
   });
 
+  // BUG CORRIGÉ (05/08, retour direct — capture montrant l'espace vide
+  // sous la pochette : "je suis en mode invité, par défaut mets 'Guest
+  // Mode' plutôt que rien") : `username` vaut `null` en mode invité,
+  // `ownerLabel` retombait sur `null` aussi, étiquette invisible.
+  it('isSaved=true SANS username (mode invité) : affiche "Invité" plutôt que rien', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({
+      isSaved: true, username: null,
+      currentPlaylist: makePlaylist(),
+    }));
+    render(<PlaylistHeader {...baseProps()} />);
+    expect(screen.getByText('Invité')).toBeInTheDocument();
+  });
+
   it('isSaved=false + sourceTemplateId (template du catalogue, vitrine ou Découvrir direct) : affiche "TempoFit Officiel" (majuscules, pas le pseudo technique)', () => {
     mockUsePlaylistDetail.mockReturnValue(makeContextValue({
       isSaved: false, username: null,
