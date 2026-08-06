@@ -254,7 +254,12 @@ describe('ProfileView — cloisonnement Sport/Intime des playlists partagées', 
     expect(await screen.findByText('Aucune playlist publique dans ce mode pour le moment.')).toBeInTheDocument();
   });
 
-  it('le clic sur une carte de playlist appelle onOpenPlaylist avec la ligne complète', async () => {
+  it('le clic sur une carte de playlist appelle onOpenPlaylist avec la ligne complète + _ownerUsername', async () => {
+    // ⚠️ CORRIGÉ (05/08, retour direct — "ajouter le nom du compte
+    // créateur... pour mieux se repérer") : `onOpenPlaylist` reçoit
+    // désormais la ligne + `_ownerUsername` (le pseudo du profil consulté,
+    // voir ProfileView.jsx) — l'égalité stricte avec `publicPlaylists[0]`
+    // seul ne matche plus, ce champ en plus est déjà attendu.
     const onOpenPlaylist = vi.fn();
     mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
     setupTableMocks({ playlists: publicPlaylists });
@@ -262,7 +267,7 @@ describe('ProfileView — cloisonnement Sport/Intime des playlists partagées', 
 
     fireEvent.click(await screen.findByText('Sortie running'));
 
-    expect(onOpenPlaylist).toHaveBeenCalledWith(publicPlaylists[0]);
+    expect(onOpenPlaylist).toHaveBeenCalledWith({ ...publicPlaylists[0], _ownerUsername: baseProps.username });
   });
 });
 
@@ -291,7 +296,9 @@ describe('ProfileView — routines partagées', () => {
     expect(screen.getByText('170 BPM')).toBeInTheDocument();
   });
 
-  it('le clic sur une carte de routine appelle onOpenRoutine avec la ligne complète', async () => {
+  it('le clic sur une carte de routine appelle onOpenRoutine avec la ligne complète + _ownerUsername', async () => {
+    // ⚠️ CORRIGÉ (05/08, même correctif que le test playlist équivalent
+    // juste au-dessus — voir sa docstring).
     const onOpenRoutine = vi.fn();
     mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
     setupTableMocks({ routines: publicRoutines });
@@ -300,7 +307,7 @@ describe('ProfileView — routines partagées', () => {
 
     fireEvent.click(await screen.findByText('Mon 10km Rapide'));
 
-    expect(onOpenRoutine).toHaveBeenCalledWith(publicRoutines[0]);
+    expect(onOpenRoutine).toHaveBeenCalledWith({ ...publicRoutines[0], _ownerUsername: baseProps.username });
   });
 
   it('cloisonnement Sport/Intime respecté pour les routines, comme pour les playlists', async () => {
