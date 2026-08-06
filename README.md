@@ -71,6 +71,18 @@ PASSATION.md → README.md → CLAUDE-SANDBOX-VERIFICATION.md → code réel),
   mais correct par principe et cohérent avec les 3 optimisations perf déjà
   faites le 03/08 (voir plus bas).
 
+⚠️ **SESSION DU 05/08 (suite 10) — retour direct, capture montrant l'espace
+vide sous la pochette : "je suis en mode invité, par défaut mets 'Guest
+Mode' plutôt que rien".** BUG CORRIGÉ dans `ownerLabel`
+(`PlaylistHeader.jsx`) — en mode invité, `username` vaut `null`
+(`AuthContext.jsx`, aucun compte), donc l'étiquette "propriétaire actuel"
+retombait aussi sur `null` dans la branche `isSaved` : silencieusement
+invisible plutôt que d'expliquer l'état. Repli sur **"Invité"** (pas
+l'anglais "Guest Mode" proposé dans le retour direct) — réutilise le mot
+déjà en place ailleurs pour ce même état (Sidebar.jsx, "Mon Espace •
+Invité"), cohérence avec le vocabulaire existant plutôt qu'un 2e terme
+pour la même notion. 1 test de régression ajouté.
+
 ⚠️ **SESSION DU 05/08 (suite 9) — retour direct : "règles à harmoniser dans
 un fichier ?" (suite au correctif "TempoFit Officiel" en dur du tour
 précédent).** Nouvelle constante **`OFFICIAL_VITRINE_DISPLAY_NAME`**
