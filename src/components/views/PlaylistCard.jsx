@@ -32,6 +32,7 @@ export default function PlaylistCard({
   onClick, onDelete, onTogglePublic,
   renderConfigInfoLine, markPlaylistAsCompleted,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate, triggerCSVUpload,
+  removeImportedData,
   onSetPlannedDate,
   draggable, onDragStart, onDragEnter, onDragEnd, isDragging,
 }) {
@@ -237,7 +238,7 @@ export default function PlaylistCard({
               playlist={playlist} theme={theme}
               editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
               editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
-              triggerCSVUpload={triggerCSVUpload}
+              triggerCSVUpload={triggerCSVUpload} removeImportedData={removeImportedData}
             />
             {/* Fusionné avec l'ancienne pastille "+ Ajouter une date" (retour direct :
                 elles faisaient doublon) — ce bouton permet maintenant de choisir
