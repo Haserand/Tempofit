@@ -166,13 +166,15 @@ export default function TemplateCard({ theme, template, onPlayTemplate, isNaught
           {/* Auteur cliquable (Feature Sociale "Cold Start", 02/08) —
               gaté sur `template.isOfficial` ET `onViewOfficialProfile`
               fourni : TOUS les templates actuels du catalogue sont
-              officiels (`author: 'TempoFit Officiel'` partout, voir
-              data/curatedSessions.js), mais si du contenu non-officiel
-              apparaissait un jour, son auteur ne doit PAS pointer par
-              erreur vers cette vitrine précise. `stopPropagation` :
-              toute la carte a déjà son propre `onClick` (ouvrir/écouter
-              la playlist) — sans lui, cliquer sur le nom de l'auteur
-              aurait AUSSI déclenché `onPlayTemplate`. */}
+              officiels (`author: OFFICIAL_VITRINE_DISPLAY_NAME` partout,
+              voir data/curatedSessions.js — centralisé le 05/08, cette
+              constante résout toujours vers "TempoFit Officiel"), mais si
+              du contenu non-officiel apparaissait un jour, son auteur ne
+              doit PAS pointer par erreur vers cette vitrine précise.
+              `stopPropagation` : toute la carte a déjà son propre
+              `onClick` (ouvrir/écouter la playlist) — sans lui, cliquer
+              sur le nom de l'auteur aurait AUSSI déclenché
+              `onPlayTemplate`. */}
           {template.isOfficial && onViewOfficialProfile ? (
             <button
               onClick={(e) => { e.stopPropagation(); onViewOfficialProfile(); }}
