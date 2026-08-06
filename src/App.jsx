@@ -228,7 +228,13 @@ function AppContent({
     // la playlist démo évoquée dans PlaylistDetailContext.jsx) — cibler
     // l'incrément par `id` seul risquerait exactement la même collision
     // déjà corrigée une fois sur ce projet.
-    setCurrentPlaylist({ ...row.content, id: row.id, user_id: row.user_id, isPublic: !!row.is_public, isReadOnly: true });
+    // `ownerUsername` (05/08, retour direct : "ajouter le nom du compte
+    // créateur... pour mieux se repérer") — lu depuis `row._ownerUsername`
+    // (posé par ProfileView.jsx, seul endroit qui connaît le pseudo du
+    // profil consulté ; `row.user_id` seul n'a aucune valeur d'affichage).
+    // Affiché par PlaylistHeader.jsx tant que la playlist reste en
+    // lecture seule.
+    setCurrentPlaylist({ ...row.content, id: row.id, user_id: row.user_id, ownerUsername: row._ownerUsername, isPublic: !!row.is_public, isReadOnly: true });
     changeView('playlist');
   };
 
@@ -1921,6 +1927,7 @@ function AppContent({
                 editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
                 editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
                 getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload} removeImportedData={removeImportedData}
+                username={username}
                 changeView={changeView}
               />
             )}
