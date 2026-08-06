@@ -836,8 +836,19 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
                       // composant n'a rien à faire dans un contrat partagé
                       // avec App.jsx — la ligne repart donc ici exactement
                       // comme elle est arrivée.
+                      // `_ownerUsername` (05/08, retour direct : "ajouter le
+                      // nom du compte créateur... pour mieux se repérer")
+                      // AJOUTÉ, lui, volontairement — seul cet endroit
+                      // connaît le pseudo du profil consulté (`username`,
+                      // prop de CE composant) ; `handleOpenPublicPlaylist`
+                      // (App.jsx) n'a lui que `row.user_id`, un UUID sans
+                      // valeur d'affichage. Préfixé `_` comme `kind` juste
+                      // au-dessus, même raison : un champ ajouté par CE
+                      // composant, pas un vrai champ des tables
+                      // `playlists`/`routines`.
                       const { kind, ...rawRow } = item;
-                      return kind === 'routine' ? onOpenRoutine(rawRow) : onOpenPlaylist(rawRow);
+                      const rowWithOwner = { ...rawRow, _ownerUsername: username };
+                      return kind === 'routine' ? onOpenRoutine(rowWithOwner) : onOpenPlaylist(rowWithOwner);
                     }}
                   />
                 ))}
