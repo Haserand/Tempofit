@@ -89,6 +89,7 @@ function makeContextValue(overrides = {}) {
     handleTogglePlaylistPublic: vi.fn(),
     handleClonePlaylist: vi.fn(),
     isReadOnly: false,
+    username: null,
     ...overrides,
   };
 }
@@ -526,5 +527,48 @@ describe('PlaylistHeader', () => {
       render(<PlaylistHeader {...baseProps()} />);
       expect(screen.queryByText('Planifier')).not.toBeInTheDocument();
     });
+  });
+});
+
+// NOUVEAU (05/08, retour direct : "ajouter le nom du compte créateur...
+// quand je suis dans sa playlist en vitrine, et mon nom une fois que je
+// suis dans ma playlist sauvegardée") — voir le calcul d'`ownerLabel` dans
+// PlaylistHeader.jsx pour le raisonnement complet des 4 branches testées
+// ici.
+describe('PlaylistHeader — étiquette "propriétaire actuel" (NOUVEAU, 05/08)', () => {
+  it('isSaved=true : affiche TON pseudo (username), peu importe l\'origine de la playlist', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({
+      isSaved: true, username: 'mon_pseudo',
+      currentPlaylist: makePlaylist({ sourceTemplateId: 'tpl-cardio' }), // même déjà cloné d'un template : c'est TOI le propriétaire une fois sauvegardé
+    }));
+    render(<PlaylistHeader {...baseProps()} />);
+    expect(screen.getByText('@mon_pseudo')).toBeInTheDocument();
+  });
+
+  it('isSaved=false + sourceTemplateId (template du catalogue, vitrine ou Découvrir direct) : affiche TempoFit Officiel', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({
+      isSaved: false, username: null,
+      currentPlaylist: makePlaylist({ sourceTemplateId: 'tpl-cardio' }),
+    }));
+    render(<PlaylistHeader {...baseProps()} />);
+    expect(screen.getByText('@tempofit_officiel')).toBeInTheDocument();
+  });
+
+  it('isSaved=false + ownerUsername (vraie playlist d\'un autre utilisateur) : affiche SON pseudo', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({
+      isSaved: false, username: null,
+      currentPlaylist: makePlaylist({ ownerUsername: 'un_autre_coureur' }),
+    }));
+    render(<PlaylistHeader {...baseProps()} />);
+    expect(screen.getByText('@un_autre_coureur')).toBeInTheDocument();
+  });
+
+  it('isSaved=false, ni sourceTemplateId ni ownerUsername (génération fraîche pas encore sauvegardée) : aucune étiquette', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({
+      isSaved: false, username: null,
+      currentPlaylist: makePlaylist(),
+    }));
+    render(<PlaylistHeader {...baseProps()} />);
+    expect(screen.queryByText(/^@/)).not.toBeInTheDocument();
   });
 });
