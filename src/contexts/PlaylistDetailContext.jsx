@@ -86,6 +86,7 @@ export function PlaylistDetailProvider({
   currentActualData, selectedMetric, setSelectedMetric,
   dataOffset, setDataOffset,
   selectedAnalysisDate, setSelectedAnalysisDate, availableMetrics,
+  username,
   children,
 }) {
   const { isNaughtyMode, getProfileForWorkout } = useGeneratorContext();
@@ -657,6 +658,14 @@ export function PlaylistDetailProvider({
     // Reçues du Provider, simplement re-transmises (source de vérité externe) :
     currentActualData, selectedMetric, setSelectedMetric,
     dataOffset, setDataOffset, selectedAnalysisDate, setSelectedAnalysisDate, availableMetrics,
+    // `username` (05/08, retour direct : "ajouter le nom du compte
+    // créateur... et mon nom une fois que je suis dans ma playlist
+    // sauvegardée") — pseudo du visiteur CONNECTÉ, simplement re-transmis
+    // lui aussi (AuthContext.jsx reste la source de vérité, via App.jsx).
+    // PlaylistHeader.jsx en a besoin pour afficher "toi" comme "propriétaire"
+    // dès qu'une playlist est sauvegardée (`isSaved`), quelle que soit son
+    // origine (template, clonage, ou génération fraîche).
+    username,
   };
 
   return <PlaylistDetailContext.Provider value={value}>{children}</PlaylistDetailContext.Provider>;
@@ -685,6 +694,7 @@ const FALLBACK = {
   getProfileForWorkout: () => ({ isConfigured: false }), isNaughtyMode: false,
   currentActualData: null, selectedMetric: 'cadence', setSelectedMetric: () => {},
   dataOffset: 0, setDataOffset: () => {}, selectedAnalysisDate: null, setSelectedAnalysisDate: () => {}, availableMetrics: [],
+  username: null,
 };
 
 export function usePlaylistDetail() {
