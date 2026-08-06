@@ -71,6 +71,53 @@ PASSATION.md → README.md → CLAUDE-SANDBOX-VERIFICATION.md → code réel),
   mais correct par principe et cohérent avec les 3 optimisations perf déjà
   faites le 03/08 (voir plus bas).
 
+⚠️ **SESSION DU 05/08 (suite 9) — retour direct : "règles à harmoniser dans
+un fichier ?" (suite au correctif "TempoFit Officiel" en dur du tour
+précédent).** Nouvelle constante **`OFFICIAL_VITRINE_DISPLAY_NAME`**
+('TempoFit Officiel', avec majuscules) centralisée dans
+`curatedSessions.js` — remplace 36 copies en dur du même littéral (35
+`author: 'TempoFit Officiel'` dans ce fichier + la copie fraîchement
+ajoutée dans `PlaylistHeader.jsx`). Posée DANS `curatedSessions.js`
+précisément (pas dans `officialVitrineProfile.js`, l'endroit a priori plus
+"logique" pour une donnée de branding) : ce fichier n'importe rien du
+tout, alors qu'`officialVitrineProfile.js` importe déjà `curatedSessions`/
+`naughtyCuratedSessions` DEPUIS `curatedSessions.js` — l'inverse aurait
+créé un import circulaire. DISTINCTE de `OFFICIAL_VITRINE_USERNAME`
+(officialVitrineProfile.js, `'tempofit_officiel'`, tout en minuscules) —
+celle-là reste le pseudo TECHNIQUE (URL/mentions @, contraint par
+`USERNAME_REGEX`), celle-ci le nom d'AFFICHAGE, jamais utilisé pour une
+URL ou une comparaison. Commentaire de `TemplateCard.jsx` qui citait
+encore l'ancien littéral mis à jour au passage. Aucun test cassé — la
+VALEUR résolue reste identique, seule sa source a changé (tests qui lisent
+`template.author` dynamiquement à l'exécution, jamais un littéral figé
+côté test).
+
+⚠️ **SESSION DU 05/08 (suite 8) — retour direct, capture annotée : le
+chevauchement avec la pochette redouté au tour précédent (noté "à vérifier
+en conditions réelles") s'est bien produit. 3 corrections sur l'étiquette
+"propriétaire actuel" (`PlaylistHeader.jsx`) :**
+- **Repositionnée SOUS la pochette** (plus au-dessus en position absolue)
+  — élimine le risque de chevauchement par construction (suit le flux
+  normal du DOM, n'ignore plus l'espace déjà occupé par l'image), plutôt
+  que de deviner un décalage qui aurait pu re-casser sur une autre largeur
+  d'écran.
+- **Centrée** (`text-center`, largeur calée sur celle de la pochette).
+- **Arobase retirée** ("on perd un caractère") — juste le nom nu
+  désormais, le `title` HTML natif au survol reste plus explicite si
+  besoin.
+- **"TempoFit Officiel" (majuscules)** au lieu du pseudo technique
+  `tempofit_officiel` (tout en minuscules, `OFFICIAL_VITRINE_USERNAME`) —
+  chaîne en dur, mêmes majuscules que `author: 'TempoFit Officiel'` déjà
+  utilisé partout ailleurs (curatedSessions.js/TemplateCard.jsx). Un vrai
+  pseudo utilisateur (`username`/`ownerUsername`), lui, reste inchangé :
+  toujours en minuscules par construction (`USERNAME_REGEX`,
+  `/^[a-z0-9_]{3,20}$/`), rien à "corriger" de ce côté.
+4 tests de `PlaylistHeader.test.jsx` mis à jour en conséquence (textes
+attendus sans arobase, "TempoFit Officiel" avec majuscules) + le test
+"aucune étiquette" reformulé (son ancienne assertion `/^@/` ne pouvait
+plus matcher quoi que ce soit après le retrait de l'arobase — passait
+toujours "vrai" par construction, plus un vrai test).
+
 ⚠️ **SESSION DU 05/08 (suite 7) — retour direct, capture annotée : "ajouter
 le nom du compte créateur/dans lequel on voit la playlist où on est, pour
 mieux se repérer" — clarifié ensuite : le CRÉATEUR d'origine quand la
