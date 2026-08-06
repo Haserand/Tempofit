@@ -62,6 +62,7 @@ export default function PlaylistsView({
   theme, isNaughtyMode, savedPlaylists, setSavedPlaylists, requestRemoveSavedPlaylist, setPlaylistPlannedDate, getRankStyle,
   setCurrentPlaylist, changeView, renderConfigInfoLine, markPlaylistAsCompleted,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate, triggerCSVUpload,
+  removeImportedData,
   showToast,
 }) {
   const { cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
@@ -186,7 +187,7 @@ export default function PlaylistsView({
         renderConfigInfoLine={renderConfigInfoLine}
         editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
         editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
-        triggerCSVUpload={triggerCSVUpload}
+        triggerCSVUpload={triggerCSVUpload} removeImportedData={removeImportedData}
         markPlaylistAsCompleted={markPlaylistAsCompleted}
         onSetPlannedDate={setPlaylistPlannedDate}
         draggable={draggableSection}
