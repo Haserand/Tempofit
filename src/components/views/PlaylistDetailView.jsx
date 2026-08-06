@@ -619,6 +619,7 @@ export default function PlaylistDetailView({
   setIsBpmSearchMode, setPlaylistPlannedDate,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
   getRankStyle, triggerCSVUpload, removeImportedData,
+  username,
   changeView,
 }) {
   return (
@@ -633,6 +634,7 @@ export default function PlaylistDetailView({
       dataOffset={dataOffset} setDataOffset={setDataOffset}
       selectedAnalysisDate={selectedAnalysisDate} setSelectedAnalysisDate={setSelectedAnalysisDate}
       availableMetrics={availableMetrics}
+      username={username}
     >
       <PlaylistDetailViewInner
         theme={theme} colorMode={colorMode}
