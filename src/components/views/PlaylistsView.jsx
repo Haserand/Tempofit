@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { List, Library, Plus, Calendar, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import PlaylistCard from './PlaylistCard';
 import ViewHeader from '../shared/ViewHeader';
@@ -108,25 +108,43 @@ export default function PlaylistsView({
   // undefined/false en booléen propre avant comparaison (playlists
   // anciennes sans ce champ), même garde-fou déjà en place dans
   // StatsView.jsx pour le même filtre.
-  const visiblePlaylists = savedPlaylists.filter(p => !!p.isNaughty === !!isNaughtyMode);
-
-  const toPlan = visiblePlaylists.filter(p => !isCompleted(p) && !p.plannedDate);
-  const planned = [...visiblePlaylists.filter(p => !isCompleted(p) && p.plannedDate)]
-    .sort((a, b) => a.plannedDate.localeCompare(b.plannedDate));
-  const completedPlaylists = [...visiblePlaylists.filter(isCompleted)].sort((a, b) => {
-    const lastA = a.completions[a.completions.length - 1];
-    const lastB = b.completions[b.completions.length - 1];
-    return lastB.localeCompare(lastA);
-  });
+  //
+  // ⚠️ OPTIMISATION (audit perf, 07/08 — même famille exacte que le
+  // correctif déjà fait dans RoutinesView.jsx le 05/08, généralisé ici
+  // après l'avoir cherché ailleurs dans l'app comme le veut l'habitude de
+  // travail établie sur ce projet, voir CLAUDE-SANDBOX-VERIFICATION.md) :
+  // les filtres/tris ci-dessous tournaient sur CHAQUE rendu de ce
+  // composant (pas de `useMemo`) — y compris un rendu déclenché par
+  // `draggedId`/`plannedPage`/`completedPage` (state local à ce même
+  // composant, sans rapport avec le CONTENU de `savedPlaylists`).
+  // Memoïsé sur `[savedPlaylists, isNaughtyMode]` : ne se recalcule plus
+  // que quand la liste ou le mode changent vraiment.
+  const { visiblePlaylists, toPlan, planned, completedPlaylists, playlistRankMap } = useMemo(() => {
+    const visible = savedPlaylists.filter(p => !!p.isNaughty === !!isNaughtyMode);
+    const toPlanList = visible.filter(p => !isCompleted(p) && !p.plannedDate);
+    const plannedList = [...visible.filter(p => !isCompleted(p) && p.plannedDate)]
+      .sort((a, b) => a.plannedDate.localeCompare(b.plannedDate));
+    const completedList = [...visible.filter(isCompleted)].sort((a, b) => {
+      const lastA = a.completions[a.completions.length - 1];
+      const lastB = b.completions[b.completions.length - 1];
+      return lastB.localeCompare(lastA);
+    });
+    // Classement par nombre d'utilisations, uniquement parmi celles ayant
+    // déjà été faites au moins une fois — sert à la bordure or/argent/
+    // bronze. Calculé sur la liste COMPLÈTE (pas juste la page affichée),
+    // sinon le classement changerait selon la page consultée.
+    // `Map` id → rang (O(1) par carte) plutôt qu'un `playlistRanks
+    // .indexOf(playlist.id)` recalculé DANS la boucle `.map()` de
+    // `renderCard` (voir plus bas) — O(n) par carte, donc O(n²) au total
+    // pour toute la grille, exactement le même piège déjà corrigé dans
+    // RoutinesView.jsx (`routineRankMap`).
+    const ranked = [...completedList].sort((a, b) => b.completions.length - a.completions.length);
+    const rankMap = new Map(ranked.map((p, i) => [p.id, i]));
+    return { visiblePlaylists: visible, toPlan: toPlanList, planned: plannedList, completedPlaylists: completedList, playlistRankMap: rankMap };
+  }, [savedPlaylists, isNaughtyMode]);
 
   const { pageItems: plannedPageItems, totalPages: plannedTotalPages, safePage: plannedSafePage } = usePageSlice(planned, plannedPage);
   const { pageItems: completedPageItems, totalPages: completedTotalPages, safePage: completedSafePage } = usePageSlice(completedPlaylists, completedPage);
-
-  // Classement par nombre d'utilisations, uniquement parmi celles ayant déjà
-  // été faites au moins une fois — sert à la bordure or/argent/bronze.
-  // Calculé sur la liste COMPLÈTE (pas juste la page affichée), sinon le
-  // classement changerait selon la page consultée.
-  const playlistRanks = [...completedPlaylists].sort((a, b) => b.completions.length - a.completions.length).map(p => p.id);
 
   // Réordonne UNIQUEMENT le sous-ensemble "À planifier" au sein de
   // `savedPlaylists`, en conservant la position relative de tout le reste
@@ -175,7 +193,7 @@ export default function PlaylistsView({
   };
 
   const renderCard = (playlist, { draggableSection } = {}) => {
-    const rank = playlistRanks.indexOf(playlist.id);
+    const rank = playlistRankMap.get(playlist.id);
     const rankStyle = getRankStyle(rank);
     return (
       <PlaylistCard
