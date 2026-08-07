@@ -118,7 +118,18 @@ export default function TemplateCard({ theme, template, onPlayTemplate, isNaught
   const coverUrl = buildCoverUrl(template.title);
 
   return (
-    <div className="group cursor-pointer select-none" onClick={() => onPlayTemplate(template)}>
+    // `cloneCount` transmis à `onPlayTemplate` (05/08, retour direct : "je
+    // ne vois pas le nombre de clones dans une playlist... c'est la
+    // demande de base") — cette carte reçoit déjà `cloneCount` en prop
+    // (calculé une fois pour toute la grille par DiscoverView.jsx/
+    // ProfileView.jsx), mais ce chiffre s'arrêtait jusqu'ici à la carte :
+    // le clic ouvrait `template` seul, sans lui, laissant la page détail
+    // (PlaylistHeader.jsx) sans AUCUN moyen de l'afficher — pas caché,
+    // jamais reçu. `{ cloneCount }` correspond à la signature de
+    // `openCuratedPlaylist(template, extraFields)` (useNavigation.js),
+    // fusionné dans `currentPlaylist` comme n'importe quel autre champ de
+    // `extraFields`.
+    <div className="group cursor-pointer select-none" onClick={() => onPlayTemplate(template, { cloneCount })}>
       <div className="relative aspect-square rounded-xl overflow-hidden shadow-md bg-surface-hover ring-2 ring-transparent group-hover:ring-white transition-all">
         <img src={coverUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
 
@@ -151,7 +162,7 @@ export default function TemplateCard({ theme, template, onPlayTemplate, isNaught
             de survol identique partout dans l'app. */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
           <button
-            onClick={(e) => { e.stopPropagation(); onPlayTemplate(template); }}
+            onClick={(e) => { e.stopPropagation(); onPlayTemplate(template, { cloneCount }); }}
             title="Écouter cette playlist"
             className={`w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 hover:scale-105 ${bgAccentClass}`}
           >
