@@ -219,6 +219,20 @@ réel trouvé et corrigé, 1 optimisation de dette technique appliquée :**
   ⚠️ **Pas encore vérifié en conditions réelles** — même limite que
   d'habitude (bac à sable sans accès réseau), à confirmer au prochain
   build/clic réel.
+- **`PublicRoutinePreviewModal.jsx` — message raccourci (07/08, retour
+  direct, capture montrant 3 lignes : "tienne en 2 lignes max").**
+  "Cette routine est partagée publiquement — tu peux la cloner dans tes
+  propres Routines pour la relancer à ta façon, sans jamais modifier
+  celle de son propriétaire." → "Routine partagée publiquement —
+  clone-la dans tes Routines pour la relancer à ta façon, sans y
+  toucher." (103 caractères). Même idée conservée (partage public,
+  clonage = copie indépendante, jamais de modification de l'originale),
+  longueur calée sur le message équivalent côté playlists
+  (`ImportSharedPlaylistModal.jsx`, ~105 caractères) plutôt qu'une
+  estimation à l'aveugle — cette modale-sœur n'avait jamais posé ce
+  problème de débordement, donc viser la même longueur. Aucun test
+  cassé (`PublicRoutinePreviewModal.test.jsx` ne dépend pas du texte
+  exact).
   ⚠️ **Correctif PAS ENCORE vérifié en conditions réelles** — trouvé et
   livré dans cette session, mais pas encore déployé/testé sur l'app en
   prod au moment d'écrire ceci (retour direct de l'utilisateur : "je
