@@ -77,6 +77,31 @@ réel trouvé et corrigé, 1 optimisation de dette technique appliquée :**
   `next` tels que reçus par `setState`, jamais d'un instantané pris
   séparément avant une éventuelle mutation) — pas une régression
   introduite ici.
+- **Optimisation — `PlaylistsView.jsx` : même piège perf déjà corrigé dans
+  `RoutinesView.jsx` (05/08), jamais généralisé à l'époque.** Trouvé en
+  auditant le reste de l'app après le correctif `useSyncedCollection.js`
+  du 07/08, exactement comme le veut l'habitude de travail établie sur ce
+  projet ("à chaque bug trouvé, se demander où d'autre dans l'app"). Les
+  filtres/tris (`visiblePlaylists`/`toPlan`/`planned`/`completedPlaylists`)
+  tournaient sur CHAQUE rendu du composant (pas de `useMemo`) — y compris
+  un rendu déclenché par `draggedId`/`plannedPage`/`completedPage` (state
+  local sans rapport avec le CONTENU de `savedPlaylists`). Pire : le
+  classement or/argent/bronze utilisait `playlistRanks.indexOf(playlist.id)`
+  DANS la boucle `.map()` de `renderCard` — O(n) par carte, donc O(n²) sur
+  toute la grille. Corrigé exactement comme `RoutinesView.jsx` :
+  regroupés dans un seul `useMemo([savedPlaylists, isNaughtyMode])`,
+  `playlistRanks` (tableau) remplacé par `playlistRankMap` (`Map` id →
+  rang, O(1) par carte). Comportement strictement identique (même filtres,
+  mêmes tris) — `getRankStyle`/`PlaylistCard.jsx` traitent déjà
+  `undefined` (nouveau repli de `Map#get` pour une playlist non classée)
+  exactement comme l'ancien `-1` d'`indexOf` (`rank >= 0 && rank < 3` :
+  faux dans les deux cas), vérifié avant de livrer. Aucun test cassé
+  (`getRankStyle` déjà mocké à `null` dans `PlaylistsView.test.jsx`,
+  aucune assertion n'y dépend de la valeur exacte de `rank`) — même
+  proportion d'effort de test que le correctif original de
+  `RoutinesView.jsx`, qui n'avait pas non plus ajouté de test dédié pour
+  ce mécanisme précis ("sans impact perceptible... mais correct par
+  principe").
 - **Dette corrigée — les données restaient dans localStorage après
   déconnexion, sur un appareil partagé le compte suivant pouvait les VOIR
   ET LES MODIFIER.** Connue et documentée de longue date (voir la
