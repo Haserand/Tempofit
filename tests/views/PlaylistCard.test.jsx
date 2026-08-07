@@ -239,29 +239,22 @@ describe('PlaylistCard — glisser-déposer', () => {
   });
 });
 
-// NOUVEAU (07/08, retour direct : "afficher aussi votre pseudo en
-// chapeau... pour la cohérence visuelle partout") — pseudo AU-DESSUS du
-// titre, même convention que PlaylistHeader.jsx/TemplateCard.jsx. Voir la
-// docstring dans PlaylistCard.jsx pour pourquoi ce n'est PAS cliquable ici
-// et PAS accompagné d'un compteur de clonages (contrairement aux 2 autres
-// endroits).
-describe('PlaylistCard — pseudo en chapeau au-dessus du titre (NOUVEAU, 07/08)', () => {
-  it('affiche le pseudo fourni, AVANT le titre dans le DOM', () => {
-    const { container } = render(<PlaylistCard {...baseProps({ username: 'mon_pseudo' })} />);
-    const h3 = container.querySelector('h3');
-    const byline = h3.previousElementSibling;
-    expect(byline.tagName).toBe('P');
-    expect(byline).toHaveTextContent('mon_pseudo');
-  });
-
-  it('sans username fourni (mode invité) : affiche "Invité", même mot que PlaylistHeader.jsx pour ce même état', () => {
-    render(<PlaylistCard {...baseProps({ username: null })} />);
-    expect(screen.getByText('Invité')).toBeInTheDocument();
-  });
-
-  it('le pseudo N\'EST PAS cliquable (simple texte, pas un bouton) — contrairement au pseudo d\'un AUTRE propriétaire dans PlaylistHeader.jsx', () => {
-    const { container } = render(<PlaylistCard {...baseProps({ username: 'mon_pseudo' })} />);
-    const byline = container.querySelector('h3').previousElementSibling;
-    expect(byline.querySelector('button')).toBeNull();
+// RETIRÉ (07/08, retour direct après essai en conditions réelles, capture
+// à l'appui : "pas la peine de mettre le nom d'utilisateur" sur Mes
+// Séances) — la ligne "chapeau" pseudo au-dessus du titre, ajoutée plus tôt
+// dans la même session, a été retirée de PlaylistCard.jsx (voir sa
+// docstring pour le raisonnement complet : toujours le MÊME pseudo sur
+// CHAQUE carte de cette vue, redondant par construction, en plus de
+// tronquer le titre affiché juste à côté). La convention reste appliquée
+// ailleurs (PlaylistHeader.jsx, TemplateCard.jsx), où le pseudo identifie
+// un propriétaire potentiellement différent de soi — voir leurs propres
+// fichiers de test, inchangés. Test de non-régression ci-dessous : même si
+// un futur appelant repasse `username` par erreur (ex. copie d'un ancien
+// pattern), la carte ne doit PLUS jamais l'afficher.
+describe('PlaylistCard — pas de pseudo affiché (retiré le 07/08, non-régression)', () => {
+  it('un éventuel prop username, même fourni, ne doit produire AUCUN texte visible sur la carte', () => {
+    render(<PlaylistCard {...baseProps({ username: 'un_pseudo_quelconque' })} />);
+    expect(screen.queryByText('un_pseudo_quelconque')).not.toBeInTheDocument();
+    expect(screen.queryByText('Invité')).not.toBeInTheDocument();
   });
 });
