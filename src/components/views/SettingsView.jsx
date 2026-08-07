@@ -341,12 +341,23 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
   // Redirect URIs — plutôt que de forcer à le retrouver dans l'URL tronquée
   // de la barre d'adresse au moment de l'erreur.
   const [copied, setCopied] = useState(false);
-  const copyRedirectUri = () => {
+  // ⚠️ HARMONISÉ (08/08, retour direct : "faut pas que tout soit le
+  // même ?") — utilisait AVANT `navigator.clipboard` seul, échec
+  // silencieux (`.catch(() => {})`, aucun repli, aucun retour utilisateur
+  // en cas d'échec réel) — exactement la version FRAGILE citée dans la
+  // docstring de `copyProfileLink` juste en dessous. Migré sur
+  // `copyTextToClipboard` (même mécanique robuste que les 2 autres
+  // boutons "copier" du projet désormais) + message d'erreur ajouté (
+  // absent avant, cohérence avec `copyProfileLink`/`useShare.js`).
+  const copyRedirectUri = async () => {
     if (!spotifyRedirectUri) return;
-    navigator.clipboard.writeText(spotifyRedirectUri).then(() => {
+    const succeeded = await copyTextToClipboard(spotifyRedirectUri);
+    if (succeeded) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    }).catch(() => {});
+    } else {
+      showToast("Impossible de copier le lien automatiquement — copie-le manuellement.", 'error');
+    }
   };
 
   // Copie du lien de profil public (08/08, retour direct : "je regrette
@@ -355,11 +366,9 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
   // "copier" indépendants sur cette même page ; partager le state aurait
   // fait clignoter le mauvais bouton en "copié ✓" si l'un était cliqué
   // pendant que l'autre l'était encore). Utilise `copyTextToClipboard`
-  // (nouveau, `src/utils/clipboard.js`) — version ROBUSTE déjà éprouvée
-  // ailleurs dans le projet (`useShare.js`), PAS le pattern plus fragile
-  // de `copyRedirectUri` ci-dessus (voir la docstring de clipboard.js
-  // pour le détail complet de cette incohérence trouvée en implémentant
-  // ce bouton).
+  // (nouveau, `src/utils/clipboard.js`) — MÊME mécanique désormais que
+  // `copyRedirectUri` ci-dessus ET `useShare.js` (harmonisé le 08/08,
+  // voir leurs propres docstrings).
   const [profileLinkCopied, setProfileLinkCopied] = useState(false);
   const copyProfileLink = async () => {
     const succeeded = await copyTextToClipboard(`tempofit.app/?profile=${username}`);
