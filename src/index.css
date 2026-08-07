@@ -158,3 +158,22 @@ input:not([type="range"]):not([type="checkbox"]):not([type="file"]), textarea, [
   user-select: text;
   cursor: text;
 }
+
+/* `.selectable-text` (07/08, retour direct : "le texte du lien de partage
+   de profil devrait être sélectionnable à la souris") — même besoin que la
+   règle juste au-dessus (réactiver la sélection sur un élément précis
+   malgré `body { user-select: none }` ci-dessus), mais pour du texte
+   D'AFFICHAGE, pas un champ de saisie : un lien copiable (SettingsView.jsx,
+   `tempofit.app/?profile={username}`), un futur code technique/ID à
+   copier, etc. — jamais du texte "normal" (titres, labels, cartes), qui
+   doit rester non sélectionnable par défaut comme voulu par le correctif
+   ci-dessus. Une classe DÉDIÉE plutôt qu'un simple `select-text` Tailwind
+   posé directement sur l'élément : la classe utilitaire Tailwind seule
+   perdrait TOUJOURS contre `body { user-select: none }` — même piège déjà
+   documenté juste au-dessus pour le curseur `<input type="range">`, cette
+   règle vivant hors de tout `@layer` Tailwind. */
+.selectable-text {
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
