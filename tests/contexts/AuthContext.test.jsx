@@ -294,6 +294,31 @@ describe('AuthContext — signIn / signOut / resetPassword / updateEmail / updat
     expect(mockAuth.signOut).toHaveBeenCalled();
   });
 
+  // NOUVEAU (07/08) — voir la docstring de `clearLocalCache`
+  // (`src/utils/localCache.js`) pour le raisonnement complet : dette
+  // connue de longue date, corrigée ici. Vrai `window.localStorage` de
+  // jsdom (pas mocké dans ce fichier) — vérifie le comportement réel, pas
+  // juste qu'une fonction a été appelée.
+  it('signOut vide tout le cache localStorage TempoFit (tempofit:*) de cet appareil, sans toucher une clé étrangère au même domaine', async () => {
+    window.localStorage.setItem('tempofit:savedPlaylists', JSON.stringify([{ id: 'pl-1' }]));
+    window.localStorage.setItem('tempofit:theme', '"dark"');
+    window.localStorage.setItem('une-autre-app:preference', 'valeur-etrangere');
+
+    const { result } = renderAuth();
+    await act(async () => { await result.current.signOut(); });
+
+    expect(window.localStorage.getItem('tempofit:savedPlaylists')).toBeNull();
+    expect(window.localStorage.getItem('tempofit:theme')).toBeNull();
+    // Clé SANS le préfixe TempoFit — jamais touchée, même raisonnement que
+    // la raison d'être du préfixe lui-même (éviter toute collision avec
+    // d'autres données du même domaine).
+    expect(window.localStorage.getItem('une-autre-app:preference')).toBe('valeur-etrangere');
+    // Nettoyage manuel de cette seule clé (aucun `localStorage.clear()`
+    // global dans l'`afterEach` de ce fichier) — évite de la laisser fuiter
+    // dans les tests suivants, même si elle n'y serait lue par rien.
+    window.localStorage.removeItem('une-autre-app:preference');
+  });
+
   it('resetPassword propage le message d\'erreur éventuel', async () => {
     mockAuth.resetPasswordForEmail.mockResolvedValue({ error: { message: 'Adresse introuvable' } });
     const { result } = renderAuth();
