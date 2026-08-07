@@ -141,7 +141,14 @@ export default function ShareModal({
             href={summaryImagePreviewUrl} download="tempofit-bilan-de-seance.png"
             className={`w-full py-3 mt-2 rounded-xl text-sm font-bold ${textMuted} hover:text-main transition-colors flex items-center justify-center gap-2`}
           >
-            <Download size={16}/> Télécharger le visuel (pour WhatsApp/X/Facebook, ou si le partage natif n'est pas disponible)
+            {/* Condensé (08/08, retour direct — capture montrant 2 lignes :
+                "condense le texte en une seule ligne") — 96 → 43
+                caractères. Clause "ou si le partage natif n'est pas
+                disponible" retirée : secondaire (le bouton lui-même est
+                déjà CE repli, le préciser en toutes lettres n'ajoute rien
+                d'essentiel), gardée seulement l'info qui manque vraiment
+                ailleurs (quelles plateformes). */}
+            <Download size={16}/> Télécharger le visuel (WhatsApp/X/Facebook)
           </a>
         )}
 
