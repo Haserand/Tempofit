@@ -238,3 +238,30 @@ describe('PlaylistCard — glisser-déposer', () => {
     expect(container.firstChild).toHaveClass('opacity-40');
   });
 });
+
+// NOUVEAU (07/08, retour direct : "afficher aussi votre pseudo en
+// chapeau... pour la cohérence visuelle partout") — pseudo AU-DESSUS du
+// titre, même convention que PlaylistHeader.jsx/TemplateCard.jsx. Voir la
+// docstring dans PlaylistCard.jsx pour pourquoi ce n'est PAS cliquable ici
+// et PAS accompagné d'un compteur de clonages (contrairement aux 2 autres
+// endroits).
+describe('PlaylistCard — pseudo en chapeau au-dessus du titre (NOUVEAU, 07/08)', () => {
+  it('affiche le pseudo fourni, AVANT le titre dans le DOM', () => {
+    const { container } = render(<PlaylistCard {...baseProps({ username: 'mon_pseudo' })} />);
+    const h3 = container.querySelector('h3');
+    const byline = h3.previousElementSibling;
+    expect(byline.tagName).toBe('P');
+    expect(byline).toHaveTextContent('mon_pseudo');
+  });
+
+  it('sans username fourni (mode invité) : affiche "Invité", même mot que PlaylistHeader.jsx pour ce même état', () => {
+    render(<PlaylistCard {...baseProps({ username: null })} />);
+    expect(screen.getByText('Invité')).toBeInTheDocument();
+  });
+
+  it('le pseudo N\'EST PAS cliquable (simple texte, pas un bouton) — contrairement au pseudo d\'un AUTRE propriétaire dans PlaylistHeader.jsx', () => {
+    const { container } = render(<PlaylistCard {...baseProps({ username: 'mon_pseudo' })} />);
+    const byline = container.querySelector('h3').previousElementSibling;
+    expect(byline.querySelector('button')).toBeNull();
+  });
+});
