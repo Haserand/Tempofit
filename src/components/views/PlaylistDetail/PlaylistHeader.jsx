@@ -9,6 +9,7 @@ import { buildCoverUrl } from '../../../utils/coverArt';
 import { getActivityEmoji, getZoneForValue, getBpmBucketColor, getBpmBucketStart, MAX_DESCRIPTION_LENGTH } from '../../../appConfig';
 import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
 import { OFFICIAL_VITRINE_DISPLAY_NAME } from '../../../data/curatedSessions';
+import { OFFICIAL_VITRINE_USERNAME } from '../../../data/officialVitrineProfile';
 import TopCompletionDate from '../../shared/TopCompletionDate';
 import CompletionsList from '../../shared/CompletionsList';
 
@@ -94,7 +95,7 @@ export default function PlaylistHeader({
   setPlaylistPlannedDate, bpmChartActivityName,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
   getRankStyle, triggerCSVUpload, removeImportedData,
-  onShare,
+  onShare, onViewProfile,
 }) {
   const { bgAccentClass } = theme;
   const {
@@ -150,6 +151,26 @@ export default function PlaylistHeader({
   const ownerLabel = isSaved
     ? (username || 'Invité')
     : (currentPlaylist.sourceTemplateId ? OFFICIAL_VITRINE_DISPLAY_NAME : currentPlaylist.ownerUsername) || null;
+
+  // Pseudo TECHNIQUE (07/08, retour direct : "cliquer sur le pseudo devrait
+  // amener à sa vue statistiques") — DISTINCT d'`ownerLabel` ci-dessus, qui
+  // ne porte que la valeur D'AFFICHAGE ("TempoFit Officiel", en majuscules,
+  // n'est PAS un vrai pseudo utilisable pour la navigation — voir
+  // `handleViewProfile`, App.jsx, qui attend le pseudo réel/technique,
+  // toujours en minuscules par construction, `USERNAME_REGEX`). Seulement
+  // dans la branche `!isSaved` (quelqu'un D'AUTRE a fait cette playlist) —
+  // volontairement PAS de navigation pour ton PROPRE pseudo sur ta propre
+  // playlist sauvegardée (branche `isSaved`), ni demandé ni évidemment
+  // utile (naviguer vers son propre profil depuis sa propre playlist).
+  // Même repli que `ownerLabel` : vitrine (`sourceTemplateId`) → pseudo
+  // technique de la vitrine (`OFFICIAL_VITRINE_USERNAME`, minuscules,
+  // importé d'`officialVitrineProfile.js` — PAS `OFFICIAL_VITRINE_DISPLAY_NAME`,
+  // qui n'est qu'un texte d'affichage) ; sinon `ownerUsername` (déjà le
+  // vrai pseudo technique d'un propriétaire réel, posé par ProfileView.jsx
+  // via `handleOpenPublicPlaylist`, App.jsx — rien à transformer).
+  const ownerProfileUsername = !isSaved
+    ? (currentPlaylist.sourceTemplateId ? OFFICIAL_VITRINE_USERNAME : currentPlaylist.ownerUsername) || null
+    : null;
 
   // BPM moyen réel de la playlist — même formule que SessionSummaryCard.jsx/
   // ImportSharedPlaylistModal.jsx/StatsView.jsx/App.jsx (`avgBpm`), jamais
@@ -362,14 +383,42 @@ export default function PlaylistHeader({
             demandé, "le nom doit être centré"). PAS d'arobase (retour
             direct : "on perd un caractère") — le `title` HTML natif
             (survol) reste plus explicite si besoin, sans peser sur
-            l'espace visuel restreint disponible ici. */}
+            l'espace visuel restreint disponible ici.
+            CLIQUABLE (07/08, retour direct : "cliquer sur le pseudo devrait
+            amener à sa vue statistiques" — capture "TempoFit Officiel" à
+            l'appui) — UNIQUEMENT si `ownerProfileUsername` existe (jamais
+            ton PROPRE pseudo sur ta propre playlist, `isSaved`, ni demandé
+            ni évidemment utile) ET `onViewProfile` fourni (défense en
+            profondeur, même raisonnement que `onViewOfficialProfile` dans
+            TemplateCard.jsx : un futur appelant qui oublierait de le
+            passer se retrouve avec du texte inerte plutôt qu'un clic mort).
+            `hover:underline cursor-pointer` : PAS un nouveau style inventé
+            ici — repris À L'IDENTIQUE de l'auteur cliquable déjà en place
+            sur les cartes de Découvrir (TemplateCard.jsx), pour que
+            "ceci est cliquable" porte la MÊME signature visuelle partout
+            dans l'app plutôt qu'une convention de plus à apprendre. Pas de
+            `stopPropagation` nécessaire : contrairement à TemplateCard.jsx
+            (toute la carte a son propre `onClick`), le conteneur parent
+            ici (`<div className="relative group/cover...">`) n'a aucun
+            `onClick` propre — seule la pochette, un `<button>` distinct
+            juste au-dessus, en a un. */}
         {ownerLabel && (
-          <p
-            title={isSaved ? 'Cette playlist est dans ta bibliothèque' : `Créée par ${ownerLabel}`}
-            className="mt-2 w-32 text-center text-xs font-bold text-slate-400 truncate"
-          >
-            {ownerLabel}
-          </p>
+          ownerProfileUsername && onViewProfile ? (
+            <button
+              onClick={() => onViewProfile(ownerProfileUsername)}
+              title={`Voir le profil de ${ownerLabel}`}
+              className="mt-2 w-32 text-center text-xs font-bold text-slate-400 truncate hover:underline hover:text-slate-200 cursor-pointer"
+            >
+              {ownerLabel}
+            </button>
+          ) : (
+            <p
+              title={isSaved ? 'Cette playlist est dans ta bibliothèque' : `Créée par ${ownerLabel}`}
+              className="mt-2 w-32 text-center text-xs font-bold text-slate-400 truncate"
+            >
+              {ownerLabel}
+            </p>
+          )
         )}
       </div>
 
