@@ -594,6 +594,64 @@ describe('PlaylistHeader — étiquette "propriétaire actuel" (NOUVEAU, 05/08)'
     expect(screen.queryByTitle(/Créée par/)).not.toBeInTheDocument();
     expect(screen.queryByTitle('Cette playlist est dans ta bibliothèque')).not.toBeInTheDocument();
   });
+
+  // NOUVEAU (07/08, retour direct : "cliquer sur le pseudo devrait amener
+  // à sa vue statistiques", capture "TempoFit Officiel" à l'appui) — voir
+  // la docstring d'`ownerProfileUsername`/du rendu conditionnel dans
+  // PlaylistHeader.jsx pour le raisonnement complet.
+  describe('étiquette "propriétaire actuel" cliquable (NOUVEAU, 07/08)', () => {
+    it('sourceTemplateId + onViewProfile fourni : le clic appelle onViewProfile avec le pseudo TECHNIQUE de la vitrine (minuscules, pas "TempoFit Officiel")', () => {
+      const onViewProfile = vi.fn();
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({
+        isSaved: false, username: null,
+        currentPlaylist: makePlaylist({ sourceTemplateId: 'tpl-cardio' }),
+      }));
+      render(<PlaylistHeader {...baseProps({ onViewProfile })} />);
+      fireEvent.click(screen.getByText('TempoFit Officiel'));
+      expect(onViewProfile).toHaveBeenCalledWith('tempofit_officiel');
+    });
+
+    it('ownerUsername (vraie playlist d\'un autre utilisateur) + onViewProfile fourni : le clic appelle onViewProfile avec SON pseudo', () => {
+      const onViewProfile = vi.fn();
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({
+        isSaved: false, username: null,
+        currentPlaylist: makePlaylist({ ownerUsername: 'un_autre_coureur' }),
+      }));
+      render(<PlaylistHeader {...baseProps({ onViewProfile })} />);
+      fireEvent.click(screen.getByText('un_autre_coureur'));
+      expect(onViewProfile).toHaveBeenCalledWith('un_autre_coureur');
+    });
+
+    // isSaved=true : c'est TON PROPRE pseudo affiché — jamais cliquable,
+    // même si onViewProfile est fourni (naviguer vers son propre profil
+    // depuis sa propre playlist n'a pas été demandé et n'est pas
+    // évidemment utile — voir la docstring d'`ownerProfileUsername`).
+    it('isSaved=true (ton propre pseudo) : PAS cliquable même si onViewProfile est fourni', () => {
+      const onViewProfile = vi.fn();
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({
+        isSaved: true, username: 'mon_pseudo',
+        currentPlaylist: makePlaylist(),
+      }));
+      render(<PlaylistHeader {...baseProps({ onViewProfile })} />);
+      const label = screen.getByText('mon_pseudo');
+      expect(label.tagName).toBe('P');
+      fireEvent.click(label);
+      expect(onViewProfile).not.toHaveBeenCalled();
+    });
+
+    // Défense en profondeur (même raisonnement que `onViewOfficialProfile`
+    // dans TemplateCard.jsx) : sans `onViewProfile`, l'étiquette reste du
+    // texte inerte plutôt qu'un clic mort — jamais de crash.
+    it('sourceTemplateId présent MAIS onViewProfile absent : reste un simple texte, pas un bouton', () => {
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({
+        isSaved: false, username: null,
+        currentPlaylist: makePlaylist({ sourceTemplateId: 'tpl-cardio' }),
+      }));
+      render(<PlaylistHeader {...baseProps()} />);
+      const label = screen.getByText('TempoFit Officiel');
+      expect(label.tagName).toBe('P');
+    });
+  });
 });
 
 // NOUVEAU (05/08, retour direct : "je ne vois pas le nombre de clones dans
