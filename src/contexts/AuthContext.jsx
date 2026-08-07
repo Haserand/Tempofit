@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../supabaseClient';
 import { USERNAME_REGEX, isReservedUsername, RESERVED_USERNAME_ERROR } from '../utils/username';
+import { clearLocalCache } from '../utils/localCache';
 
 /**
  * AuthContext — session utilisateur Supabase (email/mot de passe pour
@@ -252,6 +253,19 @@ export function AuthProvider({ children }) {
   const signOut = async () => {
     if (!isSupabaseConfigured) return;
     await supabase.auth.signOut();
+    // CORRIGÉ (07/08, dette connue de longue date — voir la docstring de
+    // `usePersistentState.js`) : sans ça, les données de l'utilisateur
+    // restaient dans localStorage de CET appareil après déconnexion — sur
+    // un appareil PARTAGÉ, le compte suivant pouvait les voir (et les
+    // MODIFIER) tant qu'il ne se connectait pas lui-même à son propre
+    // compte, potentiellement indéfiniment s'il restait en mode invité.
+    // APRÈS `supabase.auth.signOut()` (pas avant) : si la déconnexion
+    // réseau échoue, on ne vide pas le cache local pour rien. Safe par
+    // construction — voir `src/utils/localCache.js` : tout changement
+    // local a déjà été poussé vers Supabase en tâche de fond avant ce
+    // point, rien n'est perdu, juste un vrai re-pull à la prochaine
+    // connexion.
+    clearLocalCache();
   };
 
   // "Mot de passe oublié" (retour direct) — même convention EXACTE que
