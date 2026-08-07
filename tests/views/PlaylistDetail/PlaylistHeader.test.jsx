@@ -626,6 +626,11 @@ describe('PlaylistHeader — étiquette "propriétaire actuel" (NOUVEAU, 05/08)'
     // même si onViewProfile est fourni (naviguer vers son propre profil
     // depuis sa propre playlist n'a pas été demandé et n'est pas
     // évidemment utile — voir la docstring d'`ownerProfileUsername`).
+    // ⚠️ CORRIGÉ (07/08, suite au chantier "ligne chapeau au-dessus du
+    // titre") : la balise du cas NON cliquable est passée de `<p>` à
+    // `<span>` (plus logique dans la ligne flex qui regroupe désormais
+    // pseudo + compteur de clonages, voir PlaylistHeader.jsx) — ce test
+    // vérifiait encore l'ancienne balise, corrigé pour la nouvelle.
     it('isSaved=true (ton propre pseudo) : PAS cliquable même si onViewProfile est fourni', () => {
       const onViewProfile = vi.fn();
       mockUsePlaylistDetail.mockReturnValue(makeContextValue({
@@ -634,7 +639,7 @@ describe('PlaylistHeader — étiquette "propriétaire actuel" (NOUVEAU, 05/08)'
       }));
       render(<PlaylistHeader {...baseProps({ onViewProfile })} />);
       const label = screen.getByText('mon_pseudo');
-      expect(label.tagName).toBe('P');
+      expect(label.tagName).toBe('SPAN');
       fireEvent.click(label);
       expect(onViewProfile).not.toHaveBeenCalled();
     });
@@ -642,6 +647,8 @@ describe('PlaylistHeader — étiquette "propriétaire actuel" (NOUVEAU, 05/08)'
     // Défense en profondeur (même raisonnement que `onViewOfficialProfile`
     // dans TemplateCard.jsx) : sans `onViewProfile`, l'étiquette reste du
     // texte inerte plutôt qu'un clic mort — jamais de crash.
+    // ⚠️ CORRIGÉ (07/08) — même raison que le test juste au-dessus : `<p>`
+    // → `<span>` pour le cas non cliquable.
     it('sourceTemplateId présent MAIS onViewProfile absent : reste un simple texte, pas un bouton', () => {
       mockUsePlaylistDetail.mockReturnValue(makeContextValue({
         isSaved: false, username: null,
@@ -649,7 +656,7 @@ describe('PlaylistHeader — étiquette "propriétaire actuel" (NOUVEAU, 05/08)'
       }));
       render(<PlaylistHeader {...baseProps()} />);
       const label = screen.getByText('TempoFit Officiel');
-      expect(label.tagName).toBe('P');
+      expect(label.tagName).toBe('SPAN');
     });
   });
 });
