@@ -190,11 +190,34 @@ export function useSyncedCollection(storageKey, tableName, initialValue) {
           }
         });
 
-        // Modification — comparaison JSON complète (pas de diff champ par
-        // champ) : assez pour des collections de cette taille (playlists/
-        // routines d'un seul utilisateur, jamais des milliers de lignes),
-        // et évite d'avoir à maintenir une liste de champs "à surveiller"
-        // qui se désynchroniserait du modèle de données au fil du temps.
+        // Modification — court-circuit par RÉFÉRENCE (07/08, optimisation),
+        // puis comparaison JSON complète en filet de sécurité (pas de diff
+        // champ par champ) : assez pour des collections de cette taille
+        // (playlists/routines d'un seul utilisateur, jamais des milliers de
+        // lignes), et évite d'avoir à maintenir une liste de champs "à
+        // surveiller" qui se désynchroniserait du modèle de données au fil
+        // du temps.
+        //
+        // `old === item` (référence stricte) élimine la quasi-totalité des
+        // `JSON.stringify` inutiles en pratique : audité (07/08) sur les 27
+        // appels de `setSavedPlaylists`/`setRoutines` du projet — TOUS
+        // suivent le même pattern `.map(x => x.id === id ? { ...x, ... } :
+        // x)` (ou équivalent — push/filter/Map#get), qui préserve
+        // STRICTEMENT la référence de chaque item non modifié et n'en crée
+        // une nouvelle QUE pour l'item réellement changé. Concrètement :
+        // une frappe dans le brouillon de description d'UNE playlist ne
+        // fait plus sérialiser les N-1 AUTRES playlists de la collection à
+        // chaque rendu déclenché ailleurs — seul l'item dont la référence a
+        // changé passe par `JSON.stringify`.
+        // ⚠️ Ce court-circuit ne REMPLACE PAS la comparaison profonde, il la
+        // précède : un item reconstruit avec une NOUVELLE référence mais un
+        // contenu strictement identique (cas qui ne se produit pas
+        // aujourd'hui vu l'audit ci-dessus, mais pourrait un jour venir
+        // d'un code qui ne préserve pas les références) continue d'être
+        // reconnu comme "pas de changement réel" par le `JSON.stringify` en
+        // second temps — voir `tests/hooks/useSyncedCollection.test.js`,
+        // describe "élément INCHANGÉ", qui vérifie précisément CE contrat
+        // et continue de passer tel quel avec ce changement.
         //
         // `itemToUpdateRow` (PAS `itemToInsertRow`) — refonte du 03/08,
         // traçabilité de lignée : `parent_id`/`parent_user_id` ne doivent
@@ -205,7 +228,7 @@ export function useSyncedCollection(storageKey, tableName, initialValue) {
         // indépendantes plutôt qu'une seule.
         nextById.forEach((item, id) => {
           const old = prevById.get(id);
-          if (old && JSON.stringify(old) !== JSON.stringify(item)) {
+          if (old && old !== item && JSON.stringify(old) !== JSON.stringify(item)) {
             supabase.from(tableName).update(itemToUpdateRow(item, uid)).eq('id', id).eq('user_id', uid)
               .then(({ error }) => {
                 if (error) console.error(`useSyncedCollection(${tableName}) — mise à jour échouée :`, error);
