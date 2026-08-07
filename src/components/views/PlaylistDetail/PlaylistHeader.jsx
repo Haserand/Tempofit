@@ -368,58 +368,16 @@ export default function PlaylistHeader({
             </span>
           </div>
         </button>
-        {/* Étiquette "propriétaire actuel" (`ownerLabel`, calculé plus haut)
-            — DÉPLACÉE ici (05/08, retour direct, capture annotée montrant un
-            chevauchement réel avec la pochette) : l'ancien emplacement en
-            coin (`absolute top-4 left-4`) risquait justement ce
-            chevauchement sur mobile (pochette centrée, `mx-auto`, voir la
-            classe du conteneur juste au-dessus) — confirmé par la capture.
-            Sous la pochette plutôt qu'au-dessus : aucun risque de
-            chevauchement possible, quelle que soit la largeur d'écran,
-            puisque cet élément suit le flux normal du DOM au lieu d'un
-            positionnement absolu qui ignore l'espace déjà occupé. Centré
-            (`text-center`, largeur calée sur celle de la pochette via
-            `w-32`, la même valeur que `w-32 h-32` juste au-dessus — comme
-            demandé, "le nom doit être centré"). PAS d'arobase (retour
-            direct : "on perd un caractère") — le `title` HTML natif
-            (survol) reste plus explicite si besoin, sans peser sur
-            l'espace visuel restreint disponible ici.
-            CLIQUABLE (07/08, retour direct : "cliquer sur le pseudo devrait
-            amener à sa vue statistiques" — capture "TempoFit Officiel" à
-            l'appui) — UNIQUEMENT si `ownerProfileUsername` existe (jamais
-            ton PROPRE pseudo sur ta propre playlist, `isSaved`, ni demandé
-            ni évidemment utile) ET `onViewProfile` fourni (défense en
-            profondeur, même raisonnement que `onViewOfficialProfile` dans
-            TemplateCard.jsx : un futur appelant qui oublierait de le
-            passer se retrouve avec du texte inerte plutôt qu'un clic mort).
-            `hover:underline cursor-pointer` : PAS un nouveau style inventé
-            ici — repris À L'IDENTIQUE de l'auteur cliquable déjà en place
-            sur les cartes de Découvrir (TemplateCard.jsx), pour que
-            "ceci est cliquable" porte la MÊME signature visuelle partout
-            dans l'app plutôt qu'une convention de plus à apprendre. Pas de
-            `stopPropagation` nécessaire : contrairement à TemplateCard.jsx
-            (toute la carte a son propre `onClick`), le conteneur parent
-            ici (`<div className="relative group/cover...">`) n'a aucun
-            `onClick` propre — seule la pochette, un `<button>` distinct
-            juste au-dessus, en a un. */}
-        {ownerLabel && (
-          ownerProfileUsername && onViewProfile ? (
-            <button
-              onClick={() => onViewProfile(ownerProfileUsername)}
-              title={`Voir le profil de ${ownerLabel}`}
-              className="mt-2 w-32 text-center text-xs font-bold text-slate-400 truncate hover:underline hover:text-slate-200 cursor-pointer"
-            >
-              {ownerLabel}
-            </button>
-          ) : (
-            <p
-              title={isSaved ? 'Cette playlist est dans ta bibliothèque' : `Créée par ${ownerLabel}`}
-              className="mt-2 w-32 text-center text-xs font-bold text-slate-400 truncate"
-            >
-              {ownerLabel}
-            </p>
-          )
-        )}
+        {/* Étiquette "propriétaire actuel" + compteur de clonages — DÉPLACÉS
+            (07/08, retour direct, capture annotée : "mettre les pseudos
+            avant le nom de la playlist, et le compteur de clones, sur la
+            même ligne") — vivaient ici, sous la pochette, PHYSIQUEMENT
+            déconnectés du compteur de clonages (resté à côté du titre,
+            colonne de droite) alors que les deux décrivent la même chose
+            (qui a fait cette séance, quel accueil elle a eu). Regroupés
+            maintenant en une seule ligne "chapeau" AU-DESSUS du titre,
+            colonne de droite — voir plus bas. Rien à afficher ici sous la
+            pochette désormais. */}
       </div>
 
       {/* Bloc de droite — `md:h-32` reprend EXACTEMENT la hauteur de la
@@ -441,6 +399,73 @@ export default function PlaylistHeader({
               visible et ce bouton déjà masqué : ce titre est donc, dans les
               faits, TOUJOURS protégé sur cette vue précise, sans qu'aucun
               `pr-*` n'ait besoin d'être réintroduit ici. */}
+          {/* Ligne "chapeau" — pseudo (cliquable si applicable) + compteur
+              de clonages, AU-DESSUS du titre (07/08, retour direct, capture
+              annotée : "mettre les pseudos avant le nom de la playlist, et
+              le compteur de clones, sur la même ligne" — pattern déjà
+              éprouvé ailleurs, ex. Spotify "Playlist par X"). Remplace 2
+              emplacements séparés qui décrivaient pourtant la même famille
+              d'info (qui a fait cette séance, quel accueil elle a eu) :
+              l'étiquette propriétaire vivait sous la pochette (colonne de
+              gauche), le compteur de clonages à côté du titre (colonne de
+              droite) — visuellement déconnectés sans raison. Appliqué de
+              façon cohérente aux 3 endroits concernés (retour direct
+              explicite) : ici (fiche détail), TemplateCard.jsx (cartes
+              Découvrir), PlaylistCard.jsx (Mes Séances, TON PROPRE pseudo
+              — pas de compteur de clonages là, `cloneCount` reste TOUJOURS
+              `undefined` pour une playlist déjà sauvegardée, voir la
+              docstring du badge plus bas).
+              Séparateur `•` — MÊME convention que la ligne de métadonnées
+              juste en dessous (`text-slate-600`), pas un style inventé ici.
+              `ownerLabel`/`ownerProfileUsername` inchangés (calculés plus
+              haut) — seul l'EMPLACEMENT bouge, pas la logique qui décide
+              QUOI afficher/QUAND c'est cliquable (voir leurs docstrings
+              respectives pour ce raisonnement, toujours valable).
+              Compteur gaté sur `currentPlaylist.cloneCount !== undefined`
+              (07/08, historique important, gardé ici) — PAS `isReadOnly`
+              seul (raisonnement d'origine, 05/08 : "cloneCount vaut
+              undefined pour tout le reste... donc isReadOnly seul suffit"
+              — hypothèse fausse : un template ouvert DIRECTEMENT depuis
+              Découvrir, `TemplateCard.jsx` → `openCuratedPlaylist`, reçoit
+              bien un `cloneCount` réel SANS `isReadOnly: true` à côté —
+              seul le chemin vitrine pose les deux ensemble). Ne PAS
+              remettre `isReadOnly: true` côté Découvrir direct pour
+              "corriger" ça autrement : ce flag pilote AUSSI le bouton
+              d'action principal plus bas (Sauvegarder/Cloner vs Ajouter à
+              Mes Séances), une distinction VOLONTAIRE (voir le README :
+              "le clonage ne s'incrémente QUE via 'Cloner'... jamais via
+              'Utiliser ce modèle' dans Découvrir"). TOUJOURS affiché même
+              à 0, mêmes icône/gabarit que TemplateCard.jsx — signature
+              visuelle cohérente partout où ce compteur apparaît. */}
+          {ownerLabel && (
+            <div className="flex items-center gap-2 justify-center md:justify-start text-xs font-bold text-slate-400">
+              {ownerProfileUsername && onViewProfile ? (
+                <button
+                  onClick={() => onViewProfile(ownerProfileUsername)}
+                  title={`Voir le profil de ${ownerLabel}`}
+                  className="truncate hover:underline hover:text-slate-200 cursor-pointer"
+                >
+                  {ownerLabel}
+                </button>
+              ) : (
+                <span
+                  title={isSaved ? 'Cette playlist est dans ta bibliothèque' : `Créée par ${ownerLabel}`}
+                  className="truncate"
+                >
+                  {ownerLabel}
+                </span>
+              )}
+              {currentPlaylist.cloneCount !== undefined && (
+                <>
+                  <span className="text-slate-600">•</span>
+                  <span className="flex items-center gap-1 shrink-0" title="Nombre de fois où cette playlist a été clonée">
+                    <Copy size={11} />{currentPlaylist.cloneCount || 0}
+                  </span>
+                </>
+              )}
+            </div>
+          )}
+
           {/* Badge "séance déjà réalisée" + dernière date — seul élément
               qui peut légitimement précéder le titre (information sur la
               séance elle-même, pas une action). Bloc entier conditionné à
@@ -499,62 +524,13 @@ export default function PlaylistHeader({
           ) : (
             <h2 className="text-xl font-bold flex items-center gap-3 justify-center md:justify-start text-white">
               <span className="truncate min-w-0" title={currentPlaylist.name}>{getActivityEmoji(currentPlaylist.workoutType)} {currentPlaylist.name}</span>
-              {/* Compteur de clonages, à côté du titre (05/08, retour
-                  direct : "je ne vois pas le nombre de clones... c'est la
-                  demande de base" — puis avis demandé sur l'emplacement,
-                  discuté avant implémentation : "à côté du titre... l'info
-                  ne me semble pas être le même type que de la configuration
-                  de paramètre"). Volontairement PAS dans la ligne
-                  d'infos juste en dessous (Course à pied · durée · titres ·
-                  genres) — même logique déjà appliquée au badge BPM, sorti
-                  à part à droite : la ligne d'infos décrit ce qu'il y a
-                  DANS la séance (composition), le compteur de clonages
-                  décrit autre chose (l'accueil social), les mélanger
-                  brouillerait la distinction déjà en place.
-                  Gaté sur `currentPlaylist.cloneCount !== undefined` (07/08,
-                  corrigé — voir plus bas pour l'ancien raisonnement et ce
-                  qui le rendait faux). Volontairement PAS `isReadOnly`
-                  seul (raisonnement d'origine, 05/08, gardé ici pour
-                  mémoire : "`currentPlaylist.cloneCount` vaut `undefined`
-                  pour tout le reste... donc `isReadOnly` seul suffit comme
-                  garde" — CETTE hypothèse s'est révélée fausse : un
-                  template ouvert DIRECTEMENT depuis Découvrir
-                  (`TemplateCard.jsx` → `onPlayTemplate(template,
-                  { cloneCount })` → `openCuratedPlaylist`, useNavigation.js)
-                  reçoit bien un `cloneCount` réel dans ce même appel — mais
-                  SANS `isReadOnly: true` à côté (seul le chemin vitrine
-                  `@tempofit_officiel`, `handleOpenPublicPlaylist` dans
-                  App.jsx, pose les deux ensemble) : le badge restait donc
-                  invisible sur la fiche détail d'un template ouvert
-                  directement depuis Découvrir, alors même que le nombre
-                  était déjà correctement calculé et transporté jusqu'ici.
-                  ⚠️ Ne PAS "corriger" en ajoutant `isReadOnly: true` côté
-                  Découvrir direct à la place : ce flag pilote AUSSI le
-                  bouton d'action principal plus bas (`isReadOnly` →
-                  "Sauvegarder"/`handleClonePlaylist`, sinon "Ajouter à Mes
-                  Séances"/`handleSavePlaylist`) — une distinction
-                  VOLONTAIRE (voir le README : "le clonage ne s'incrémente
-                  QUE via 'Cloner' sur un profil/la vitrine — jamais via
-                  'Utiliser ce modèle' dans Découvrir, action différente :
-                  générer sa propre séance, pas copier"). Gater sur
-                  `cloneCount !== undefined` directement corrige l'affichage
-                  SANS toucher à cette distinction.
-                  TOUJOURS affiché, même à 0 (retour direct : "si c'est 0
-                  alors pas grave de laisser 0") — même convention que
-                  TemplateCard.jsx (`cloneCount = 0` par défaut, jamais
-                  caché), ProfileView.jsx harmonisé dans le même sens (voir
-                  son propre commentaire, il cachait avant à 0). Mêmes
-                  icône/gabarit que TemplateCard.jsx (`Copy size={11}`) —
-                  signature visuelle cohérente pour "ceci est un compteur de
-                  clonages" partout où ça apparaît dans l'app. */}
-              {currentPlaylist.cloneCount !== undefined && (
-                <span
-                  className="flex items-center gap-1 text-sm font-bold text-slate-400 shrink-0"
-                  title="Nombre de fois où cette playlist a été clonée"
-                >
-                  <Copy size={11} />{currentPlaylist.cloneCount || 0}
-                </span>
-              )}
+              {/* Compteur de clonages — DÉPLACÉ (07/08, retour direct :
+                  "mettre les pseudos avant le nom de la playlist, et le
+                  compteur de clones, sur la même ligne") dans la ligne
+                  "chapeau" au-dessus du titre, avec le pseudo — voir sa
+                  docstring, quelques lignes plus haut, pour tout
+                  l'historique (dont le bug `isReadOnly` du même jour). Plus
+                  rien à afficher ici, à côté du titre lui-même. */}
               {/* Renommer n'a de sens que pour une playlist déjà dans la
                   bibliothèque personnelle (`isSaved`) — sur un modèle pas
                   encore sauvegardé (bouton principal "Ajouter à Mes
