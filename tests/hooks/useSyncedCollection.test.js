@@ -289,6 +289,55 @@ describe('useSyncedCollection — diff de setState (insert/update/delete individ
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
+  // NOUVEAU (07/08, optimisation) — court-circuit par référence AVANT le
+  // JSON.stringify (voir la docstring du diff dans useSyncedCollection.js
+  // pour le raisonnement complet, notamment l'audit des 27 appels
+  // setSavedPlaylists/setRoutines du projet). Teste le MÉCANISME lui-même
+  // (le court-circuit évite bien l'appel à `JSON.stringify` quand la
+  // référence n'a pas bougé), pas seulement le résultat déjà couvert par
+  // "élément INCHANGÉ" ci-dessus (qui, lui, passe TOUJOURS par
+  // `JSON.stringify` puisque sa référence diffère volontairement).
+  //
+  // Espionne `JSON.stringify` plutôt que de mesurer un temps d'exécution
+  // (non fiable en test) — reproduit le scénario réel qui motive cette
+  // optimisation : un tableau de PLUSIEURS items où un seul a réellement
+  // changé (même pattern `.map(x => x.id === id ? {...x,...} : x)` que
+  // tout le reste du projet, voir l'audit) — vérifie que seul l'item
+  // MODIFIÉ est sérialisé, jamais les autres.
+  it('un item dont la référence n\'a PAS changé n\'est jamais passé à JSON.stringify — seul l\'item réellement modifié l\'est', async () => {
+    const untouched = { id: 'a', name: 'Jamais touché', parentId: null, parentUserId: null };
+    const toModify = { id: 'b', name: 'Ancien nom', parentId: null, parentUserId: null };
+    const initial = [untouched, toModify];
+    mockFrom.mockReturnValueOnce(makeBuilder({ data: serverRowsFor(initial), error: null }));
+    const { result } = renderHook(() => useSyncedCollection('key1', 'playlists', () => initial));
+    await waitFor(() => expect(mockFrom).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(result.current[0]).toEqual(initial));
+
+    // Références RÉELLES du state après le pull (`rowToItem` en a créé de
+    // nouvelles au moment du pull — on repart bien de CELLES-LÀ, pas des
+    // objets `untouched`/`toModify` d'origine, sans quoi le test ne
+    // reproduirait pas fidèlement `prevById`/`nextById`).
+    const [stateUntouched, stateToModify] = result.current[0];
+
+    const updateBuilder = makeBuilder({ data: null, error: null });
+    mockFrom.mockReturnValueOnce(updateBuilder);
+    const stringifySpy = vi.spyOn(JSON, 'stringify');
+    stringifySpy.mockClear();
+
+    // MÊME pattern que tout le reste du projet : `stateUntouched` repassé
+    // TEL QUEL (référence préservée), seul `toModify` remplacé par un
+    // NOUVEL objet.
+    act(() => {
+      result.current[1]([stateUntouched, { ...stateToModify, name: 'Nouveau nom' }]);
+    });
+
+    await waitFor(() => expect(updateBuilder.update).toHaveBeenCalled());
+
+    const stringifiedValues = stringifySpy.mock.calls.map(call => call[0]);
+    expect(stringifiedValues.some(v => v === stateUntouched)).toBe(false);
+    stringifySpy.mockRestore();
+  });
+
   it('itemToInsertRow : is_public reflète item.isPublic, is_intimate reflète item.isNaughty (pas l\'inverse, pas un autre champ)', async () => {
     mockFrom.mockReturnValueOnce(makeBuilder({ data: serverRowsFor([]), error: null }));
     const { result } = renderHook(() => useSyncedCollection('key1', 'playlists', () => []));
