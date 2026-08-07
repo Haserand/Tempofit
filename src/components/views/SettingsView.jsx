@@ -501,7 +501,16 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
             <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
               <h3 className={`font-bold text-xl mb-2 flex items-center gap-2 ${textHighlight}`}><Eye className={textColorClass} size={20}/> Confidentialité & Profil Public</h3>
               <p className={`text-sm mb-4 ${textMuted}`}>
-                Choisis si et comment ton profil est visible par les autres, à l'adresse <span className="font-mono">tempofit.app/?profile={username}</span>.
+                {/* `selectable-text` (07/08, retour direct, capture
+                    annotée : "pour simplifier le partage il faut que le
+                    texte du lien de partage de profil soit sélectionnable
+                    à la souris") — sans cette classe, `body { user-select:
+                    none }` (index.css) rend ce texte INSÉLECTIONNABLE
+                    malgré les apparences (aucune classe Tailwind seule ne
+                    peut l'emporter dessus, voir sa docstring dans
+                    index.css pour le détail des Cascade Layers CSS en
+                    jeu). */}
+                Choisis si et comment ton profil est visible par les autres, à l'adresse <span className="font-mono selectable-text">tempofit.app/?profile={username}</span>.
               </p>
 
               {/* Lien vers son propre aperçu (01/08, relecture globale,
