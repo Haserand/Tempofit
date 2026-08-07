@@ -1941,7 +1941,7 @@ function AppContent({
                 editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
                 getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload} removeImportedData={removeImportedData}
                 username={username}
-                changeView={changeView}
+                changeView={changeView} onViewProfile={handleViewProfile}
               />
             )}
             </Suspense>
