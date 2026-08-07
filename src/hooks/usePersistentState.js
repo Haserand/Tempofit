@@ -1,11 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuthContext } from '../contexts/AuthContext';
 import { supabase, isSupabaseConfigured } from '../supabaseClient';
+import { STORAGE_PREFIX } from '../utils/localCache';
 
-// Préfixe commun à toutes les clés TempoFit dans localStorage — évite toute
-// collision avec d'autres données que le navigateur pourrait stocker sur ce
-// même domaine (peu probable en pratique, mais coûte rien à préciser).
-const STORAGE_PREFIX = 'tempofit:';
 
 /**
  * usePersistentState — se comporte exactement comme `useState`, mais la
@@ -47,12 +44,16 @@ const STORAGE_PREFIX = 'tempofit:';
  * (échec silencieux si hors-ligne — même philosophie que localStorage
  * ci-dessus, la synchro est un confort, pas une dépendance dure).
  *
- * ⚠️ Connu et non traité pour l'instant : à la DÉCONNEXION, les données de
- * l'utilisateur restent dans localStorage de CET appareil (pas d'effacement
- * automatique) — correct pour un usage perso, mais sur un appareil partagé,
- * le compte suivant qui se connecte verrait d'abord ces données un instant
- * avant que son propre pull ne les remplace. À traiter si ce cas d'usage
- * devient réel (effacement du cache local au signOut).
+ * ⚠️ CORRIGÉ (07/08) — connu et non traité jusque-là : à la DÉCONNEXION, les
+ * données de l'utilisateur restaient dans localStorage de CET appareil (pas
+ * d'effacement automatique) — correct pour un usage perso, mais sur un
+ * appareil partagé, le compte suivant pouvait voir (et modifier) ces
+ * données tant qu'il ne se connectait pas lui-même. `signOut()`
+ * (AuthContext.jsx) appelle désormais `clearLocalCache()` (voir
+ * `src/utils/localCache.js`) — vide tout le cache localStorage de TempoFit
+ * sur cet appareil. Rien à changer ICI : ce hook continue de lire/écrire
+ * `STORAGE_PREFIX + key` normalement, `clearLocalCache()` agit en dehors de
+ * son cycle de vie, au moment de la déconnexion.
  */
 export function usePersistentState(key, initialValue) {
   const { user, authLoading } = useAuthContext();
