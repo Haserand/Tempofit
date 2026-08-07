@@ -462,15 +462,34 @@ export default function PlaylistHeader({
                   DANS la séance (composition), le compteur de clonages
                   décrit autre chose (l'accueil social), les mélanger
                   brouillerait la distinction déjà en place.
-                  Gaté sur `isReadOnly` : SEUL contexte où cette info a un
-                  sens (tu es en train de regarder quelque chose qui n'est
-                  pas encore à toi — le nombre de fois où d'autres l'ont
-                  déjà adopté est un vrai signal au moment de décider) ;
-                  `currentPlaylist.cloneCount` vaut `undefined` pour tout le
-                  reste (génération fraîche, playlist déjà sauvegardée —
-                  jamais câblé pour ces cas, hors périmètre de ce retour
-                  direct) donc `isReadOnly` seul suffit comme garde, pas
-                  besoin de tester `cloneCount !== undefined` en plus.
+                  Gaté sur `currentPlaylist.cloneCount !== undefined` (07/08,
+                  corrigé — voir plus bas pour l'ancien raisonnement et ce
+                  qui le rendait faux). Volontairement PAS `isReadOnly`
+                  seul (raisonnement d'origine, 05/08, gardé ici pour
+                  mémoire : "`currentPlaylist.cloneCount` vaut `undefined`
+                  pour tout le reste... donc `isReadOnly` seul suffit comme
+                  garde" — CETTE hypothèse s'est révélée fausse : un
+                  template ouvert DIRECTEMENT depuis Découvrir
+                  (`TemplateCard.jsx` → `onPlayTemplate(template,
+                  { cloneCount })` → `openCuratedPlaylist`, useNavigation.js)
+                  reçoit bien un `cloneCount` réel dans ce même appel — mais
+                  SANS `isReadOnly: true` à côté (seul le chemin vitrine
+                  `@tempofit_officiel`, `handleOpenPublicPlaylist` dans
+                  App.jsx, pose les deux ensemble) : le badge restait donc
+                  invisible sur la fiche détail d'un template ouvert
+                  directement depuis Découvrir, alors même que le nombre
+                  était déjà correctement calculé et transporté jusqu'ici.
+                  ⚠️ Ne PAS "corriger" en ajoutant `isReadOnly: true` côté
+                  Découvrir direct à la place : ce flag pilote AUSSI le
+                  bouton d'action principal plus bas (`isReadOnly` →
+                  "Sauvegarder"/`handleClonePlaylist`, sinon "Ajouter à Mes
+                  Séances"/`handleSavePlaylist`) — une distinction
+                  VOLONTAIRE (voir le README : "le clonage ne s'incrémente
+                  QUE via 'Cloner' sur un profil/la vitrine — jamais via
+                  'Utiliser ce modèle' dans Découvrir, action différente :
+                  générer sa propre séance, pas copier"). Gater sur
+                  `cloneCount !== undefined` directement corrige l'affichage
+                  SANS toucher à cette distinction.
                   TOUJOURS affiché, même à 0 (retour direct : "si c'est 0
                   alors pas grave de laisser 0") — même convention que
                   TemplateCard.jsx (`cloneCount = 0` par défaut, jamais
@@ -479,7 +498,7 @@ export default function PlaylistHeader({
                   icône/gabarit que TemplateCard.jsx (`Copy size={11}`) —
                   signature visuelle cohérente pour "ceci est un compteur de
                   clonages" partout où ça apparaît dans l'app. */}
-              {isReadOnly && (
+              {currentPlaylist.cloneCount !== undefined && (
                 <span
                   className="flex items-center gap-1 text-sm font-bold text-slate-400 shrink-0"
                   title="Nombre de fois où cette playlist a été clonée"
