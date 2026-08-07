@@ -77,6 +77,35 @@ réel trouvé et corrigé, 1 optimisation de dette technique appliquée :**
   `next` tels que reçus par `setState`, jamais d'un instantané pris
   séparément avant une éventuelle mutation) — pas une régression
   introduite ici.
+- **Dette corrigée — les données restaient dans localStorage après
+  déconnexion, sur un appareil partagé le compte suivant pouvait les VOIR
+  ET LES MODIFIER.** Connue et documentée de longue date (voir la
+  docstring historique de `usePersistentState.js`), mais sous-estimée :
+  la doc parlait d'un compte suivant qui verrait ces données "un court
+  instant avant que son propre pull ne les remplace" — ça suppose qu'il
+  se CONNECTE. S'il reste en mode invité (plausible sur un appareil
+  partagé), il voyait — et pouvait modifier — les données de la personne
+  précédente **indéfiniment**, jamais juste un instant. Corrigé :
+  `signOut()` (AuthContext.jsx) appelle désormais `clearLocalCache()`
+  (nouveau, `src/utils/localCache.js`) — vide tout le cache localStorage
+  TempoFit (`tempofit:*`) de cet appareil, APRÈS
+  `supabase.auth.signOut()` (si la déconnexion réseau échoue, le cache
+  local n'est pas vidé pour rien). Safe par construction, aucune perte de
+  donnée : au moment du `signOut()`, tout changement local a déjà été
+  poussé vers Supabase en tâche de fond (`usePersistentState.js`/
+  `useSyncedCollection.js`) — vider le cache oblige juste un vrai re-pull
+  réseau à la prochaine connexion. `deleteAccount` en bénéficie
+  automatiquement (il appelle déjà `signOut()` en interne) — logique,
+  supprimer son compte doit *a fortiori* nettoyer le cache local.
+  Occasion prise de centraliser `STORAGE_PREFIX` (`'tempofit:'`), trouvée
+  dupliquée à l'identique dans `usePersistentState.js` ET
+  `useSyncedCollection.js` — même raisonnement que les autres constantes
+  déjà extraites du projet une fois une duplication confirmée (voir
+  CLAUDE-SANDBOX-VERIFICATION.md §4sexies). Tests ajoutés :
+  `tests/utils/localCache.test.js` (nouveau, 1er fichier de test de cet
+  utilitaire) + 1 test dans `tests/contexts/AuthContext.test.jsx` (vrai
+  `window.localStorage` de jsdom, vérifie qu'une clé étrangère au même
+  domaine n'est jamais touchée).
 
 ⚠️ **SESSION DU 05/08 — check-up demandé en début de conversation (lecture
 PASSATION.md → README.md → CLAUDE-SANDBOX-VERIFICATION.md → code réel),
@@ -740,7 +769,7 @@ Leçon du chantier "cible à 0" (`targetValidation.js`, 04/08) : valider un form
 ### Synchronisation Supabase
 - `usePersistentState.js` : hook générique `[state, setState]`, synchronise vers la table `user_data` (blob JSON par clé). Utilisé pour tout ce qui n'est pas playlists/routines (thème, favoris, profil athlétique...).
 - `useSyncedCollection.js` : même signature `[state, setState]`, mais synchronise un TABLEAU d'objets vers une vraie table relationnelle (une ligne par élément), en calculant le diff en interne. Utilisé uniquement pour `savedPlaylists`/`routines`.
-- ⚠️ Connu et non traité : à la déconnexion, les données restent dans `localStorage` de l'appareil — un compte suivant sur un appareil partagé les verrait un court instant avant que son propre pull ne les remplace (voir `usePersistentState.js`, docstring).
+- ✅ **CORRIGÉ (07/08)** : à la déconnexion, `signOut()` (AuthContext.jsx) vide désormais tout le cache localStorage TempoFit de l'appareil (`clearLocalCache()`, `src/utils/localCache.js`) — voir "État d'avancement" plus haut pour le détail complet. Avant ce correctif, un compte suivant sur un appareil partagé pouvait voir (et modifier) les données de la personne précédente, potentiellement indéfiniment s'il restait en mode invité — pas juste "un court instant" comme le disait cette note.
 
 ### Pseudos réservés
 - `src/utils/username.js` (`isReservedUsername`, garde-fou UX) **et** la contrainte SQL `profiles_username_not_reserved` (`supabase-schema.sql`) existent tous les deux et doivent rester identiques — c'est la contrainte SQL qui constitue la vraie garantie de sécurité.
