@@ -176,6 +176,22 @@ describe('SettingsView — onglet Services Musicaux (Spotify)', () => {
     fireEvent.click(screen.getByTitle('Copier cette URL'));
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://x/callback');
   });
+
+  // NOUVEAU (08/08, harmonisation "faut pas que tout soit le même ?") —
+  // AVANT ce chantier, cette fonction n'avait aucun retour d'échec du tout
+  // (`.catch(() => {})` silencieux) — jamais testé non plus. Migrée sur
+  // `copyTextToClipboard` (même mécanique que `copyProfileLink` juste en
+  // dessous dans ce même fichier de test), ce test vérifie que le message
+  // d'erreur, désormais présent, s'affiche bien en cas d'échec réel.
+  it('"Copier cette URL" : en cas d\'échec réel de la copie, affiche un message d\'erreur (nouveau, AVANT échec silencieux)', async () => {
+    Object.assign(navigator, { clipboard: { writeText: vi.fn(() => Promise.reject(new Error('denied'))) } });
+    document.execCommand = vi.fn(() => false);
+    const showToast = vi.fn();
+    renderOnMusicTab({ spotifyRedirectUri: 'https://x/callback', showToast });
+    fireEvent.click(screen.getByTitle('Copier cette URL'));
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Impossible de copier'), 'error'));
+    delete document.execCommand;
+  });
 });
 
 describe('SettingsView — onglet Mon Compte (Informations & Sécurité)', () => {
