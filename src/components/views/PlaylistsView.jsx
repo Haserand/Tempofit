@@ -64,12 +64,6 @@ export default function PlaylistsView({
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate, triggerCSVUpload,
   removeImportedData,
   showToast,
-  // `username` (07/08, retour direct : "afficher aussi votre pseudo en
-  // chapeau" — sur VOS PROPRES playlists, pour la cohérence visuelle avec
-  // PlaylistHeader.jsx/TemplateCard.jsx, où pseudo+compteur de clonages
-  // vivent désormais au-dessus du titre) — transmis tel quel à
-  // PlaylistCard.jsx, seul consommateur réel ici.
-  username,
 }) {
   const { cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
   const [draggedId, setDraggedId] = useState(null);
@@ -205,7 +199,6 @@ export default function PlaylistsView({
       <PlaylistCard
         key={playlist.id}
         theme={theme} isNaughtyMode={isNaughtyMode} playlist={playlist} rankStyle={rankStyle} rank={rank}
-        username={username}
         onClick={() => { setCurrentPlaylist(playlist); changeView('playlist'); }}
         onDelete={requestRemoveSavedPlaylist}
         onTogglePublic={handleTogglePlaylistPublic}
