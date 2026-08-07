@@ -211,7 +211,14 @@ function AppContent({
     // publique (bouton "Sauvegarder dans mes séances", pas d'édition
     // possible — voir PlaylistDetailContext.jsx).
     if (row._sourceTemplate) {
-      openCuratedPlaylist(row._sourceTemplate, { isReadOnly: true, isPublic: true });
+      // `cloneCount: row.clone_count` (05/08, retour direct : "je ne vois
+      // pas le nombre de clones... c'est la demande de base") —
+      // `row.clone_count` existe déjà ici (posé par `templateToVitrineRow`,
+      // officialVitrineProfile.js, depuis la VRAIE table
+      // `template_clone_counts`) mais n'était jusqu'ici jamais transmis à
+      // `openCuratedPlaylist` — se perdait silencieusement au clic, comme
+      // pour Découvrir direct (voir TemplateCard.jsx).
+      openCuratedPlaylist(row._sourceTemplate, { isReadOnly: true, isPublic: true, cloneCount: row.clone_count });
       return;
     }
     if (user && row.user_id === user.id) {
@@ -234,7 +241,13 @@ function AppContent({
     // profil consulté ; `row.user_id` seul n'a aucune valeur d'affichage).
     // Affiché par PlaylistHeader.jsx tant que la playlist reste en
     // lecture seule.
-    setCurrentPlaylist({ ...row.content, id: row.id, user_id: row.user_id, ownerUsername: row._ownerUsername, isPublic: !!row.is_public, isReadOnly: true });
+    // `cloneCount: row.clone_count` (05/08, même retour direct que
+    // `ownerUsername` juste au-dessus, même raisonnement) —
+    // `row.clone_count` est une VRAIE colonne de `playlists` (voir
+    // ProfileView.jsx, PublicItemCard, pour pourquoi une colonne plutôt
+    // qu'un champ de `content`), déjà affichée sur la carte d'où vient ce
+    // clic, mais jamais transmise à la page détail jusqu'ici.
+    setCurrentPlaylist({ ...row.content, id: row.id, user_id: row.user_id, ownerUsername: row._ownerUsername, cloneCount: row.clone_count, isPublic: !!row.is_public, isReadOnly: true });
     changeView('playlist');
   };
 
