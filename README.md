@@ -51,6 +51,32 @@ réel trouvé et corrigé, 1 optimisation de dette technique appliquée :**
   `PlaylistDetailContext.jsx`) — comportement strictement identique
   (`substr(2, N)` ≡ `slice(2, N+1)`), aucun test cassé (aucun ne dépend du
   format exact d'un id généré, seulement de son unicité/préfixe).
+- **Optimisation — `useSyncedCollection.js`, court-circuit par RÉFÉRENCE
+  avant le `JSON.stringify` du diff de modification.** La comparaison
+  `JSON.stringify(old) !== JSON.stringify(item)` (une par item, à CHAQUE
+  `setState`) tournait pour TOUS les items de la collection à chaque
+  changement, même pour ceux structurellement inchangés. Précédée
+  maintenant d'un `old === item` (référence stricte) : audité sur les 27
+  appels de `setSavedPlaylists`/`setRoutines` du projet — TOUS suivent le
+  même pattern `.map(x => x.id === id ? {...x,...} : x)` (ou équivalent),
+  qui préserve STRICTEMENT la référence de chaque item non modifié.
+  Concrètement : une frappe dans le brouillon de description d'UNE
+  playlist ne sérialise plus les N-1 AUTRES playlists de la collection.
+  Le `JSON.stringify` en second temps reste inchangé, en filet de
+  sécurité — un item reconstruit avec une NOUVELLE référence mais un
+  contenu identique (cas qui ne se produit nulle part aujourd'hui, mais
+  pourrait un jour venir d'un code qui ne préserve pas les références)
+  continue d'être reconnu correctement comme "pas de changement réel",
+  aucun contrat retiré. 1 test ajouté pour isoler le mécanisme lui-même
+  (espionne `JSON.stringify`, vérifie qu'un item à référence inchangée ne
+  lui est jamais passé) — `tests/hooks/useSyncedCollection.test.js`.
+  ⚠️ Limite assumée, pas un oubli : une mutation EN PLACE d'un objet déjà
+  en state (jamais fait par le vrai code du projet, voir l'audit) serait
+  invisible au diff — mais c'était DÉJÀ le cas avant ce changement (par
+  construction du hook, `prevById`/`nextById` sont dérivés de `prev`/
+  `next` tels que reçus par `setState`, jamais d'un instantané pris
+  séparément avant une éventuelle mutation) — pas une régression
+  introduite ici.
 
 ⚠️ **SESSION DU 05/08 — check-up demandé en début de conversation (lecture
 PASSATION.md → README.md → CLAUDE-SANDBOX-VERIFICATION.md → code réel),
