@@ -12,6 +12,46 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
+⚠️ **SESSION DU 07/08 — check-up demandé en début de conversation (lecture
+README.md → CLAUDE-SANDBOX-VERIFICATION.md → code réel, esbuild + tsc
+--checkJs + résolution d'imports sur tout le projet, 0 anomalie), 1 bug
+réel trouvé et corrigé, 1 optimisation de dette technique appliquée :**
+
+- **BUG CORRIGÉ — `usePlaylistLibrary.js`, `handleClonePlaylist` : la
+  copie clonée gardait le `user_id`/`ownerUsername`/`cloneCount` du
+  PROPRIÉTAIRE D'ORIGINE.** `cloned = { ...currentPlaylist, ... }` reporte
+  aussi les champs D'AFFICHAGE posés par `handleOpenPublicPlaylist`
+  (App.jsx) pour la playlist ÉTRANGÈRE consultée — `user_id` (l'UUID de
+  l'ANCIEN propriétaire), `ownerUsername`, `cloneCount` (figé au moment du
+  clonage) — jamais remis à `undefined`, contrairement à
+  `completions`/`actualDataByDate`/`plannedDate`/`isPublic`/`isReadOnly`,
+  qui eux le sont explicitement juste à côté. Résultat : la copie,
+  désormais possédée par l'utilisateur, gardait pour toujours dans son
+  `content` (donc synchronisé tel quel vers Supabase) l'UUID et le pseudo
+  de l'ancien propriétaire. Aucun symptôme visible en pratique (les 2
+  seuls endroits qui lisent ces champs — bouton Cloner et badge de
+  clonages, `PlaylistHeader.jsx` — sont gatés sur `isReadOnly`, qui
+  redevient `false` après clonage) mais un vrai risque latent : tout futur
+  code qui lirait `currentPlaylist.user_id` sans vérifier
+  `isReadOnly`/`isSaved` en premier traiterait à tort cette copie,
+  pourtant possédée, comme une playlist étrangère — même famille de piège
+  que celui déjà documenté plus bas sur la clé composite `(id, user_id)`
+  ("toujours filtrer par les deux ensemble"). Corrigé : `user_id:
+  undefined, ownerUsername: undefined, cloneCount: undefined` posés
+  explicitement dans `cloned`, même endroit que les autres remises à zéro.
+  Point relevé au passage, pas un bug : `handleClonePublicRoutine`
+  (App.jsx), l'équivalent côté routines, n'a jamais eu ce problème — il
+  part de `{ ...row.content }` (le contenu brut, sans `user_id`) plutôt
+  que de l'objet aplati. Divergence entre les deux implémentations, pas un
+  choix voulu, mais sans conséquence pratique côté routines. 1 test de
+  régression ajouté (`usePlaylistLibrary.test.js`).
+- **Dette technique — `.substr()` déprécié remplacé par `.slice()`** sur
+  les 6 générateurs d'id du projet qui l'utilisaient encore
+  (`usePlaylistLibrary.js`, `App.jsx` ×2, `musicEngine.js` ×3,
+  `PlaylistDetailContext.jsx`) — comportement strictement identique
+  (`substr(2, N)` ≡ `slice(2, N+1)`), aucun test cassé (aucun ne dépend du
+  format exact d'un id généré, seulement de son unicité/préfixe).
+
 ⚠️ **SESSION DU 05/08 — check-up demandé en début de conversation (lecture
 PASSATION.md → README.md → CLAUDE-SANDBOX-VERIFICATION.md → code réel),
 2 bugs réels trouvés et corrigés, 1 optimisation perf :**
