@@ -494,8 +494,27 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
   // propriétaire), DISTINCT de "renvoyé mais vide" (aucune séance
   // enregistrée dans ce mode — un résumé à 0 reste un résumé à afficher,
   // pas une raison de masquer toute la section).
-  const sportSummary = profile?.sport_sessions !== undefined ? summarizeSessions(profile.sport_sessions) : null;
-  const intimateSummary = profile?.intimate_sessions !== undefined ? summarizeSessions(profile.intimate_sessions) : null;
+  //
+  // ⚠️ OPTIMISATION (audit perf, 07/08) — `summarizeSessions` (fonction
+  // PURE, exportée et testée isolément, voir ProfileView.test.jsx —
+  // volontairement PAS touchée elle-même) tournait sur CHAQUE rendu de ce
+  // composant, y compris chaque frappe dans le champ de recherche
+  // (`searchText`, state du hook `useProfileSearchFilter` appelé plus bas
+  // dans CE composant — chaque frappe re-render donc `ProfileView`
+  // lui-même), alors que `profile.sport_sessions`/`profile.intimate_sessions`
+  // ne changent JAMAIS pendant la frappe (seulement au chargement initial
+  // du profil). `useMemo` sur ces 2 tableaux précis, pas sur `profile`
+  // entier (qui contient d'autres champs sans rapport, voir `isSelf` plus
+  // bas) — évite tout recalcul inutile pendant la frappe, sans changer le
+  // résultat.
+  const sportSummary = useMemo(
+    () => profile?.sport_sessions !== undefined ? summarizeSessions(profile.sport_sessions) : null,
+    [profile?.sport_sessions]
+  );
+  const intimateSummary = useMemo(
+    () => profile?.intimate_sessions !== undefined ? summarizeSessions(profile.intimate_sessions) : null,
+    [profile?.intimate_sessions]
+  );
 
   // Double condition pour les stats Intime — le consentement du
   // PROPRIÉTAIRE (`intimate_sessions` renvoyé par le serveur seulement si
