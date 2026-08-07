@@ -213,9 +213,11 @@ describe('PlaylistHeader', () => {
     expect(setIsEditingPlaylistName).toHaveBeenCalledWith(false);
   });
 
-  // Vague 2, Chantier 3 — "description texte libre sur une playlist/routine
-  // publique" (02/08). Même schéma exact que les tests "renommer" juste
-  // au-dessus, transposé à la description.
+  // Vague 2, Chantier 3 — "description texte libre sur une playlist
+  // publique" (02/08 — nom d'origine du chantier mentionnait aussi les
+  // routines, RETIRÉ pour elles le 08/08, voir RoutinesView.jsx ; reste
+  // actif ici, côté playlist). Même schéma exact que les tests "renommer"
+  // juste au-dessus, transposé à la description.
   it('description : invite "+ Ajouter une description" affichée quand isSaved=true et aucune description', () => {
     mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: true, currentPlaylist: makePlaylist({ description: undefined }) }));
     render(<PlaylistHeader {...baseProps()} />);
