@@ -71,6 +71,32 @@ PASSATION.md → README.md → CLAUDE-SANDBOX-VERIFICATION.md → code réel),
   mais correct par principe et cohérent avec les 3 optimisations perf déjà
   faites le 03/08 (voir plus bas).
 
+⚠️ **SESSION DU 05/08 (suite 11) — retour direct : "je ne vois pas le
+nombre de clones dans une playlist... il me semble que c'est la demande de
+base".** Le compteur de clonages existait déjà (vraie table
+`template_clone_counts`, chantier des sessions précédentes) mais
+s'arrêtait aux CARTES de listing (`TemplateCard.jsx`/`ProfileView.jsx`) —
+jamais transmis à la page détail (`PlaylistHeader.jsx`), qui n'avait donc
+littéralement aucun moyen de l'afficher. Corrigé, 2 décisions actées
+avant implémentation :
+- **Toujours afficher, même à 0** (confirmé) — incohérence repérée entre
+  les 2 endroits existants (`TemplateCard.jsx` montrait 0, `ProfileView.jsx`
+  le cachait) et harmonisée dans ce sens.
+- **Près du titre, pas dans la ligne d'infos** (confirmé) — même logique
+  déjà appliquée au badge BPM (sorti à part) : la ligne d'infos décrit la
+  COMPOSITION de la séance, le compteur de clonages décrit son ACCUEIL
+  social, catégories différentes.
+Câblage : `TemplateCard.jsx` transmet désormais `cloneCount` (déjà reçu en
+prop) à `onPlayTemplate` ; `App.jsx` (`handleOpenPublicPlaylist`) lit
+`row.clone_count` (vraie colonne déjà là pour une playlist étrangère réelle
+ET pour un template de la vitrine, `templateToVitrineRow`,
+officialVitrineProfile.js) et le reporte sur `currentPlaylist.cloneCount`.
+Badge gaté sur `isReadOnly` (seul contexte où l'info a un sens — jamais
+câblé pour une playlist déjà sauvegardée ou une génération fraîche, hors
+périmètre de ce retour direct). 7 tests mis à jour/ajoutés au total
+(`TemplateCard.test.jsx` ×3, `DiscoverView.test.jsx` ×1,
+`ProfileView.test.jsx` ×2, `PlaylistHeader.test.jsx` ×3 nouveaux).
+
 ⚠️ **SESSION DU 05/08 (suite 10) — retour direct, capture montrant l'espace
 vide sous la pochette : "je suis en mode invité, par défaut mets 'Guest
 Mode' plutôt que rien".** BUG CORRIGÉ dans `ownerLabel`
