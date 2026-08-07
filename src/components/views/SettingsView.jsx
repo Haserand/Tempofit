@@ -4,6 +4,7 @@ import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 import AthleticProfilePanel from './AthleticProfilePanel';
 import { USERNAME_REGEX, isReservedUsername, RESERVED_USERNAME_ERROR } from '../../utils/username';
+import { copyTextToClipboard } from '../../utils/clipboard';
 import { supabase } from '../../supabaseClient';
 
 /**
@@ -348,6 +349,28 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
     }).catch(() => {});
   };
 
+  // Copie du lien de profil public (08/08, retour direct : "je regrette
+  // que tu aies pas décelé avant cette meilleure option") — state DÉDIÉ,
+  // séparé de `copied`/`copyRedirectUri` juste au-dessus (2 boutons
+  // "copier" indépendants sur cette même page ; partager le state aurait
+  // fait clignoter le mauvais bouton en "copié ✓" si l'un était cliqué
+  // pendant que l'autre l'était encore). Utilise `copyTextToClipboard`
+  // (nouveau, `src/utils/clipboard.js`) — version ROBUSTE déjà éprouvée
+  // ailleurs dans le projet (`useShare.js`), PAS le pattern plus fragile
+  // de `copyRedirectUri` ci-dessus (voir la docstring de clipboard.js
+  // pour le détail complet de cette incohérence trouvée en implémentant
+  // ce bouton).
+  const [profileLinkCopied, setProfileLinkCopied] = useState(false);
+  const copyProfileLink = async () => {
+    const succeeded = await copyTextToClipboard(`tempofit.app/?profile=${username}`);
+    if (succeeded) {
+      setProfileLinkCopied(true);
+      setTimeout(() => setProfileLinkCopied(false), 2000);
+    } else {
+      showToast("Impossible de copier le lien automatiquement — copie-le manuellement.", 'error');
+    }
+  };
+
   const disconnectSpotify = () => {
     window.localStorage.removeItem("spotify_token");
     setSpotifyToken(null);
@@ -501,17 +524,35 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
             <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
               <h3 className={`font-bold text-xl mb-2 flex items-center gap-2 ${textHighlight}`}><Eye className={textColorClass} size={20}/> Confidentialité & Profil Public</h3>
               <p className={`text-sm mb-4 ${textMuted}`}>
-                {/* `selectable-text` (07/08, retour direct, capture
-                    annotée : "pour simplifier le partage il faut que le
-                    texte du lien de partage de profil soit sélectionnable
-                    à la souris") — sans cette classe, `body { user-select:
-                    none }` (index.css) rend ce texte INSÉLECTIONNABLE
-                    malgré les apparences (aucune classe Tailwind seule ne
-                    peut l'emporter dessus, voir sa docstring dans
-                    index.css pour le détail des Cascade Layers CSS en
-                    jeu). */}
-                Choisis si et comment ton profil est visible par les autres, à l'adresse <span className="font-mono selectable-text">tempofit.app/?profile={username}</span>.
+                Choisis si et comment ton profil est visible par les autres.
               </p>
+
+              {/* Lien de profil, copiable en un clic (08/08, retour direct,
+                  capture annotée : "pour simplifier le partage il faut que
+                  le texte du lien de partage de profil soit sélectionnable
+                  à la souris" — puis, après un 1er correctif en texte
+                  sélectionnable seul, retour explicite : "je regrette que
+                  tu aies pas décelé avant cette meilleure option").
+                  Repris à l'IDENTIQUE du bloc "URL Spotify" plus bas dans
+                  ce même fichier (`<code>` + bouton copier + coche verte
+                  temporaire) — même signature visuelle pour "ceci est un
+                  identifiant technique copiable" partout dans cette page,
+                  plutôt qu'un 2e style inventé pour la même idée. Le texte
+                  reste `selectable-text` (index.css) EN PLUS du bouton —
+                  la sélection manuelle marche toujours pour qui préfère
+                  ça (lire l'adresse à voix haute, la coller dans un format
+                  précis...), le bouton n'est un raccourci en plus, jamais
+                  un remplacement forcé. */}
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${inputBorder} ${inputBg} mb-4`}>
+                <code className={`flex-1 text-xs font-mono truncate selectable-text ${textHighlight}`}>tempofit.app/?profile={username}</code>
+                <button
+                  onClick={copyProfileLink}
+                  title="Copier le lien de profil"
+                  className={`shrink-0 p-1.5 rounded-md transition-colors ${profileLinkCopied ? 'text-green-500' : textMuted + ' hover:text-red-500'}`}
+                >
+                  {profileLinkCopied ? <Check size={16}/> : <Copy size={16}/>}
+                </button>
+              </div>
 
               {/* Lien vers son propre aperçu (01/08, relecture globale,
                   retour direct : "j'ai l'impression que tu as pas imaginé
