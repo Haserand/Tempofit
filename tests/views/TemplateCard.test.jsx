@@ -41,19 +41,32 @@ describe('TemplateCard', () => {
     expect(screen.getByText(/Course à pied • 6 min/)).toBeInTheDocument();
   });
 
-  it('affiche le BPM moyen à côté de l\'auteur quand les titres en ont', () => {
+  // ⚠️ CORRIGÉ (07/08, retour direct : "mettre les pseudos avant le nom de
+  // la playlist, et le compteur de clones, sur la même ligne") — le BPM
+  // moyen n'est plus "à côté de l'auteur" (ligne "chapeau", désormais
+  // réservée à auteur+compteur de clonages) mais sur la ligne de
+  // métadonnées (workoutType/durée), même distinction "composition de la
+  // séance" vs "accueil social" appliquée dans PlaylistHeader.jsx.
+  it('affiche le BPM moyen sur la ligne de métadonnées (avec l\'activité et la durée), pas à côté de l\'auteur', () => {
     render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
     // (150+160)/2 = 155
-    expect(screen.getByText('TempoFit • 155 BPM')).toBeInTheDocument();
+    expect(screen.getByText('Course à pied • 6 min • 155 BPM')).toBeInTheDocument();
   });
 
+  // ⚠️ CORRIGÉ (07/08) — le compteur de clonages vit désormais DANS le
+  // même <p> que l'auteur (ligne "chapeau"), donc son texte complet
+  // n'égale plus exactement "TempoFit" (il inclut aussi "• 🔄0") —
+  // `getByText('TempoFit', { selector: 'p' })` (exact) ne matcherait plus
+  // rien. Regex substring à la place, comme le test "auteur cliquable"
+  // juste plus bas dans ce fichier, qui affrontait déjà ce même piège.
   it('n\'affiche AUCUN BPM quand le modèle n\'a aucun titre (tracks vide)', () => {
     const templateSansTracks = { ...mockTemplate, tracks: [] };
     render(<TemplateCard theme={mockTheme} template={templateSansTracks} onPlayTemplate={() => {}} isNaughtyMode={false} />);
     // ⚠️ "TempoFit" apparaît à 2 endroits ici (le badge "officiel" ET le nom
     // d'auteur du mock, qui vaut aussi "TempoFit") — `selector: 'p'` cible
-    // spécifiquement la ligne auteur, pas le badge, pour lever l'ambiguïté.
-    expect(screen.getByText('TempoFit', { selector: 'p' })).toBeInTheDocument();
+    // spécifiquement la ligne auteur (seule à contenir "TempoFit" en <p>),
+    // pas le badge (un <span>), pour lever l'ambiguïté.
+    expect(screen.getByText(/TempoFit/, { selector: 'p' })).toBeInTheDocument();
     expect(screen.queryByText(/BPM/)).toBeNull();
   });
 
@@ -173,6 +186,22 @@ describe('TemplateCard', () => {
     it('affiche 0 par défaut si cloneCount est omis — jamais un nombre inventé', () => {
       render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
       expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('0');
+    });
+
+    // NOUVEAU (07/08, retour direct, capture annotée : "mettre les pseudos
+    // avant le nom de la playlist, et le compteur de clones, sur la même
+    // ligne") — vérifie la vraie demande : auteur + compteur regroupés
+    // dans la MÊME ligne, PRÉCÉDANT le titre dans le DOM (pas juste "les
+    // deux existent quelque part sur la carte").
+    it('la ligne auteur+compteur de clonages précède immédiatement le titre dans le DOM', () => {
+      const { container } = render(
+        <TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} cloneCount={3} />
+      );
+      const h3 = container.querySelector('h3');
+      const byline = h3.previousElementSibling;
+      expect(byline.tagName).toBe('P');
+      expect(byline).toHaveTextContent('TempoFit');
+      expect(byline.querySelector('[title="Nombre de fois où cette playlist a été clonée"]')).not.toBeNull();
     });
   });
 
