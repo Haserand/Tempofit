@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Music2, Play,
-  Calendar, Lock, Upload, Trash2, Gauge, Globe, X,
+  Calendar, Lock, Upload, Trash2, Gauge, Globe, X, Copy,
 } from 'lucide-react';
 import { getGenresForDisplay, genreDisplayLabel } from '../../../musicCatalog';
 import { formatDuration } from '../../../utils/format';
@@ -430,6 +430,43 @@ export default function PlaylistHeader({
           ) : (
             <h2 className="text-xl font-bold flex items-center gap-3 justify-center md:justify-start text-white">
               <span className="truncate min-w-0" title={currentPlaylist.name}>{getActivityEmoji(currentPlaylist.workoutType)} {currentPlaylist.name}</span>
+              {/* Compteur de clonages, à côté du titre (05/08, retour
+                  direct : "je ne vois pas le nombre de clones... c'est la
+                  demande de base" — puis avis demandé sur l'emplacement,
+                  discuté avant implémentation : "à côté du titre... l'info
+                  ne me semble pas être le même type que de la configuration
+                  de paramètre"). Volontairement PAS dans la ligne
+                  d'infos juste en dessous (Course à pied · durée · titres ·
+                  genres) — même logique déjà appliquée au badge BPM, sorti
+                  à part à droite : la ligne d'infos décrit ce qu'il y a
+                  DANS la séance (composition), le compteur de clonages
+                  décrit autre chose (l'accueil social), les mélanger
+                  brouillerait la distinction déjà en place.
+                  Gaté sur `isReadOnly` : SEUL contexte où cette info a un
+                  sens (tu es en train de regarder quelque chose qui n'est
+                  pas encore à toi — le nombre de fois où d'autres l'ont
+                  déjà adopté est un vrai signal au moment de décider) ;
+                  `currentPlaylist.cloneCount` vaut `undefined` pour tout le
+                  reste (génération fraîche, playlist déjà sauvegardée —
+                  jamais câblé pour ces cas, hors périmètre de ce retour
+                  direct) donc `isReadOnly` seul suffit comme garde, pas
+                  besoin de tester `cloneCount !== undefined` en plus.
+                  TOUJOURS affiché, même à 0 (retour direct : "si c'est 0
+                  alors pas grave de laisser 0") — même convention que
+                  TemplateCard.jsx (`cloneCount = 0` par défaut, jamais
+                  caché), ProfileView.jsx harmonisé dans le même sens (voir
+                  son propre commentaire, il cachait avant à 0). Mêmes
+                  icône/gabarit que TemplateCard.jsx (`Copy size={11}`) —
+                  signature visuelle cohérente pour "ceci est un compteur de
+                  clonages" partout où ça apparaît dans l'app. */}
+              {isReadOnly && (
+                <span
+                  className="flex items-center gap-1 text-sm font-bold text-slate-400 shrink-0"
+                  title="Nombre de fois où cette playlist a été clonée"
+                >
+                  <Copy size={11} />{currentPlaylist.cloneCount || 0}
+                </span>
+              )}
               {/* Renommer n'a de sens que pour une playlist déjà dans la
                   bibliothèque personnelle (`isSaved`) — sur un modèle pas
                   encore sauvegardé (bouton principal "Ajouter à Mes
