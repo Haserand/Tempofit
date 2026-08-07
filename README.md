@@ -286,9 +286,17 @@ réel trouvé et corrigé, 1 optimisation de dette technique appliquée :**
   ajoutée là, l'en-tête de la page dit déjà "@pseudo" en haut, un rappel
   par carte serait redondant. Vérifié avec l'utilisateur avant de ne rien
   faire plutôt que supposé.
-  ⚠️ **Pas encore vérifié en conditions réelles** — même limite que
-  d'habitude (bac à sable sans accès réseau), à confirmer au prochain
-  build/clic réel.
+  ✅ **Build Vercel corrigé (07/08)** — 1er build cassé (2 tests sur 1055 en
+  échec, `PlaylistHeader.test.jsx`) : la balise du pseudo NON cliquable
+  était passée de `<p>` à `<span>` pendant ce chantier (plus logique dans
+  la ligne flex qui regroupe désormais pseudo + compteur), mais 2 tests
+  vérifiaient encore l'ancienne balise (`tagName).toBe('P')`). Corrigés
+  (`tagName).toBe('SPAN')`) — vrai oubli de ma part en écrivant ces tests,
+  pas un bug du composant lui-même (déjà correctement `<span>` dans le
+  code livré). Build reconfirmé vert depuis. Toujours PAS vérifié en
+  conditions réelles au-delà des tests (même limite habituelle, bac à
+  sable sans accès réseau) — à confirmer au prochain clic réel sur l'app
+  déployée.
   ⚠️ **Correctif PAS ENCORE vérifié en conditions réelles** — trouvé et
   livré dans cette session, mais pas encore déployé/testé sur l'app en
   prod au moment d'écrire ceci (retour direct de l'utilisateur : "je
