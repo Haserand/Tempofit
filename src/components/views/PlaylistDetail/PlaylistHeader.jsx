@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useMemo } from 'react';
 import {
   Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Music2, Play,
   Calendar, Lock, Upload, Trash2, Gauge, Globe, X, Copy,
@@ -184,10 +184,30 @@ export default function PlaylistHeader({
   // qu'un classement centralisé transmis en prop — cohérent avec la
   // convention déjà en place ailleurs dans l'app pour ce même genre de
   // classement (RoutinesView.jsx fait exactement pareil pour ses routines).
-  const playlistRanks = [...savedPlaylists.filter(p => p.completions && p.completions.length > 0)]
-    .sort((a, b) => b.completions.length - a.completions.length)
-    .map(p => p.id);
-  const currentPlaylistRank = playlistRanks.indexOf(currentPlaylist.id);
+  //
+  // ⚠️ OPTIMISATION (audit perf, 07/08 — même famille que le correctif déjà
+  // fait dans RoutinesView.jsx le 05/08 et PlaylistsView.jsx plus tôt
+  // aujourd'hui, cherché ici aussi par principe une fois le pattern
+  // identifié) : ce tri tournait sur CHAQUE rendu de ce composant SANS
+  // `useMemo` — y compris chaque frappe en train de renommer cette même
+  // playlist ou d'éditer sa description (`editedPlaylistName`/
+  // `editedPlaylistDescription`, state local au Provider
+  // `PlaylistDetailContext.jsx`, inclus dans la valeur du Contexte : CHAQUE
+  // frappe re-render tous les consommateurs du Contexte, dont ce composant
+  // lui-même). Moins coûteux en absolu qu'une boucle O(n²) sur une grille de
+  // cartes (ici un seul tri, pas répété N fois) — mais le même gaspillage à
+  // chaque frappe, sur TOUTE la collection `savedPlaylists`, pour ne lire
+  // au final qu'UN SEUL rang. `savedPlaylists` (reçu en prop depuis
+  // App.jsx via `PlaylistDetailView.jsx`) reste RÉFÉRENTIELLEMENT stable
+  // pendant la frappe (seul le state d'édition change, pas la collection
+  // elle-même) — `useMemo([savedPlaylists, currentPlaylist.id])` élimine
+  // donc bien tout recalcul inutile pendant l'édition.
+  const currentPlaylistRank = useMemo(() => {
+    const ranks = [...savedPlaylists.filter(p => p.completions && p.completions.length > 0)]
+      .sort((a, b) => b.completions.length - a.completions.length)
+      .map(p => p.id);
+    return ranks.indexOf(currentPlaylist.id);
+  }, [savedPlaylists, currentPlaylist.id]);
   const currentPlaylistRankStyle = getRankStyle ? getRankStyle(currentPlaylistRank) : null;
 
   return (
