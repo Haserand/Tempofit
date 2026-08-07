@@ -105,32 +105,53 @@ export function PlaylistDetailProvider({
   };
 
   // --- Édition du nom de la playlist ---
-  const [isEditingPlaylistName, setIsEditingPlaylistName] = useState(false);
+  // Édition combinée titre + description (08/08, retour direct : "que
+  // modifier le titre ou la description vienne un seul crayon plutôt que
+  // via chacune une option individuelle" — précédent Spotify cité,
+  // "Modifier les détails", mais gardé INLINE ici plutôt qu'une modale,
+  // sur confirmation explicite). Fusionne `isEditingPlaylistName`/
+  // `isEditingPlaylistDescription` (2 booléens séparés) en UN SEUL état,
+  // et `handleRenamePlaylist`/`handleEditPlaylistDescription` en UN SEUL
+  // handler de sauvegarde.
+  // ⚠️ Piège identifié AVANT d'implémenter (pas après coup) : les 2
+  // anciens handlers lisent chacun `currentPlaylist` depuis la MÊME
+  // fermeture de rendu — les appeler l'un après l'autre (au lieu de les
+  // fusionner) aurait fait perdre le 1er changement : le 2e handler aurait
+  // construit son `updatedPlaylist` à partir de l'ancien `currentPlaylist`
+  // (React ne reflète un `setState` qu'au rendu SUIVANT), écrasant
+  // silencieusement la modification du 1er. Un seul `updatedPlaylist`,
+  // les deux champs ensemble, un seul `setCurrentPlaylist`/
+  // `setSavedPlaylists` : plus de risque de ce genre.
+  const [isEditingPlaylistDetails, setIsEditingPlaylistDetails] = useState(false);
   const [editedPlaylistName, setEditedPlaylistName] = useState('');
+  const [editedPlaylistDescription, setEditedPlaylistDescription] = useState('');
 
-  const handleRenamePlaylist = () => {
-    const trimmed = editedPlaylistName.trim();
-    if (!trimmed || !currentPlaylist) { setIsEditingPlaylistName(false); return; }
+  // Nom JAMAIS vide (une playlist sans nom n'aurait aucun sens — même
+  // garde que l'ancien `handleRenamePlaylist`), mais contrairement à
+  // l'ancienne version, un nom vidé PAR MÉGARDE en éditant la
+  // description en même temps ne fait plus avorter TOUTE la sauvegarde
+  // (silencieusement, sans rien enregistrer) — repli sur l'ancien nom
+  // (`|| currentPlaylist.name`) plutôt qu'un `return` précoce qui aurait
+  // aussi perdu la description tapée à côté. Description VIDE, elle,
+  // reste un état valide (on peut vouloir l'effacer) — pas de repli
+  // équivalent pour ce champ.
+  const handleSavePlaylistDetails = () => {
+    if (!currentPlaylist) { setIsEditingPlaylistDetails(false); return; }
+    const trimmedName = editedPlaylistName.trim();
+    const trimmedDescription = editedPlaylistDescription.trim().slice(0, MAX_DESCRIPTION_LENGTH);
     const updatedPlaylist = {
       ...currentPlaylist,
-      name: trimmed,
-      // "Clone" vs "Enfant" (02/08, discussion produit : la lignée ne se
-      // rompt JAMAIS, quelle que soit l'ampleur des modifications — mais
-      // l'étiquette affichée change, pour rester honnête sur "copie
-      // fidèle" vs "dérivée"). Modèle DÉLIBÉRÉMENT simple (un booléen,
-      // jamais un seuil de "modification substantielle" — un seuil serait
-      // arbitraire et lui-même contournable). Posé UNE SEULE FOIS, jamais
-      // réinitialisé : `!currentPlaylist.isModifiedSinceClone` évite de
-      // réécrire `true` en `true` à chaque renommage supplémentaire, sans
-      // conséquence fonctionnelle mais plus clair à lire. Seulement si
-      // `parentUserId` existe (refonte 03/08, voir supabase-schema.sql) :
-      // une création originale (jamais clonée) n'a pas cette distinction à
-      // faire, elle reste juste "une playlist", ni Clone ni Enfant.
+      name: trimmedName || currentPlaylist.name,
+      description: trimmedDescription,
+      // "Clone" vs "Enfant" (02/08, discussion produit) — voir la
+      // docstring historique de l'ancien `handleRenamePlaylist` pour le
+      // raisonnement complet, inchangé : un booléen posé UNE SEULE FOIS,
+      // peu importe LEQUEL des deux champs a réellement changé.
       ...(currentPlaylist.parentUserId && !currentPlaylist.isModifiedSinceClone ? { isModifiedSinceClone: true } : {}),
     };
     setCurrentPlaylist(updatedPlaylist);
     setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
-    setIsEditingPlaylistName(false);
+    setIsEditingPlaylistDetails(false);
   };
 
   // Bascule individuelle publique/privée (Feature Sociale — Refonte
@@ -175,31 +196,9 @@ export function PlaylistDetailProvider({
   };
 
   // --- Description libre (Vague 2, Chantier 3 — "description texte libre
-  // sur une playlist/routine publique", 02/08) — même schéma exact que
-  // `handleRenamePlaylist` ci-dessus, à une différence près : une
-  // description VIDE est un état valide (on peut vouloir l'effacer), donc
-  // pas de garde `if (!trimmed) return` comme pour le nom (une playlist
-  // sans nom n'aurait aucun sens, une playlist sans description si).
-  // `MAX_DESCRIPTION_LENGTH` appliqué ici aussi (pas seulement via
-  // `maxLength` côté `<textarea>`, qui est un garde-fou UI seulement) —
-  // défense en profondeur si jamais un futur appelant contourne le champ.
-  const [isEditingPlaylistDescription, setIsEditingPlaylistDescription] = useState(false);
-  const [editedPlaylistDescription, setEditedPlaylistDescription] = useState('');
-
-  const handleEditPlaylistDescription = () => {
-    if (!currentPlaylist) return;
-    const trimmed = editedPlaylistDescription.trim().slice(0, MAX_DESCRIPTION_LENGTH);
-    const updatedPlaylist = {
-      ...currentPlaylist,
-      description: trimmed,
-      // "Clone" vs "Enfant" — même règle que handleRenamePlaylist
-      // ci-dessus, voir sa docstring pour le raisonnement complet.
-      ...(currentPlaylist.parentUserId && !currentPlaylist.isModifiedSinceClone ? { isModifiedSinceClone: true } : {}),
-    };
-    setCurrentPlaylist(updatedPlaylist);
-    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
-    setIsEditingPlaylistDescription(false);
-  };
+  // sur une playlist publique", 02/08). Fusionnée avec l'édition du nom le
+  // 08/08 (voir `handleSavePlaylistDetails`/`isEditingPlaylistDetails`
+  // juste au-dessus) — plus d'état ni de handler séparés ici.
 
   // handleSavePlaylist reçue en prop (voir signature du Provider) : sa
   // définition RESTE dans App.jsx, pas ici — contrairement à ce qui était
@@ -628,8 +627,9 @@ export function PlaylistDetailProvider({
   const isSaved = !isReadOnly && !!(currentPlaylist && savedPlaylists.find(p => p.id === currentPlaylist.id));
 
   const value = {
-    isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
-    isEditingPlaylistDescription, setIsEditingPlaylistDescription, editedPlaylistDescription, setEditedPlaylistDescription, handleEditPlaylistDescription,
+    isEditingPlaylistDetails, setIsEditingPlaylistDetails,
+    editedPlaylistName, setEditedPlaylistName, editedPlaylistDescription, setEditedPlaylistDescription,
+    handleSavePlaylistDetails,
     handleSavePlaylist, handleUnsavePlaylist, isSaved,
     handleTogglePlaylistPublic,
     handleClonePlaylist, isReadOnly,
@@ -673,10 +673,10 @@ export function PlaylistDetailProvider({
 
 // Fallback silencieux — même convention que les autres contextes du projet.
 const FALLBACK = {
-  isEditingPlaylistName: false, setIsEditingPlaylistName: () => {},
-  editedPlaylistName: '', setEditedPlaylistName: () => {}, handleRenamePlaylist: () => {},
-  isEditingPlaylistDescription: false, setIsEditingPlaylistDescription: () => {},
-  editedPlaylistDescription: '', setEditedPlaylistDescription: () => {}, handleEditPlaylistDescription: () => {},
+  isEditingPlaylistDetails: false, setIsEditingPlaylistDetails: () => {},
+  editedPlaylistName: '', setEditedPlaylistName: () => {},
+  editedPlaylistDescription: '', setEditedPlaylistDescription: () => {},
+  handleSavePlaylistDetails: () => {},
   handleSavePlaylist: () => {}, handleUnsavePlaylist: () => {}, isSaved: false,
   handleTogglePlaylistPublic: () => {},
   handleClonePlaylist: () => {}, isReadOnly: false,
