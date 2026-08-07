@@ -74,16 +74,13 @@ function makeContextValue(overrides = {}) {
     currentPlaylist: makePlaylist(),
     isSaved: true,
     getProfileForWorkout: vi.fn(() => ({ isConfigured: false })),
-    isEditingPlaylistName: false,
-    setIsEditingPlaylistName: vi.fn(),
+    isEditingPlaylistDetails: false,
+    setIsEditingPlaylistDetails: vi.fn(),
     editedPlaylistName: '',
     setEditedPlaylistName: vi.fn(),
-    handleRenamePlaylist: vi.fn(),
-    isEditingPlaylistDescription: false,
-    setIsEditingPlaylistDescription: vi.fn(),
     editedPlaylistDescription: '',
     setEditedPlaylistDescription: vi.fn(),
-    handleEditPlaylistDescription: vi.fn(),
+    handleSavePlaylistDetails: vi.fn(),
     handleSavePlaylist: vi.fn(),
     handleUnsavePlaylist: vi.fn(),
     handleTogglePlaylistPublic: vi.fn(),
@@ -179,94 +176,100 @@ describe('PlaylistHeader', () => {
     expect(screen.getByText('🥇')).toBeInTheDocument();
   });
 
-  it('renommer : le bouton crayon n\'apparaît que si isSaved=true, cliquer préremplit et ouvre l\'édition', () => {
+  // FUSIONNÉ (08/08, retour direct, capture annotée : "que modifier le
+  // titre ou la description vienne un seul crayon plutôt que via chacune
+  // une option individuelle" — précédent Spotify cité, gardé INLINE sur
+  // confirmation explicite). Un SEUL crayon, sur le titre, ouvre
+  // l'édition des DEUX champs ensemble — remplace les anciens tests
+  // séparés "renommer"/"description" ci-dessous.
+  it('le crayon (unique) n\'apparaît que si isSaved=true, cliquer préremplit les 2 brouillons et ouvre l\'édition combinée', () => {
     const setEditedPlaylistName = vi.fn();
-    const setIsEditingPlaylistName = vi.fn();
-    mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: true, setEditedPlaylistName, setIsEditingPlaylistName }));
+    const setEditedPlaylistDescription = vi.fn();
+    const setIsEditingPlaylistDetails = vi.fn();
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({
+      isSaved: true, currentPlaylist: makePlaylist({ description: 'Description existante' }),
+      setEditedPlaylistName, setEditedPlaylistDescription, setIsEditingPlaylistDetails,
+    }));
     render(<PlaylistHeader {...baseProps()} />);
 
-    fireEvent.click(screen.getByTitle('Renommer la playlist'));
+    fireEvent.click(screen.getByTitle('Modifier le titre et la description'));
 
     expect(setEditedPlaylistName).toHaveBeenCalledWith('Ma Séance');
-    expect(setIsEditingPlaylistName).toHaveBeenCalledWith(true);
+    expect(setEditedPlaylistDescription).toHaveBeenCalledWith('Description existante');
+    expect(setIsEditingPlaylistDetails).toHaveBeenCalledWith(true);
   });
 
-  it('pas de bouton renommer quand isSaved=false', () => {
+  it('pas de crayon quand isSaved=false', () => {
     mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: false }));
     render(<PlaylistHeader {...baseProps()} />);
-    expect(screen.queryByTitle('Renommer la playlist')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Modifier le titre et la description')).not.toBeInTheDocument();
   });
 
-  it('en édition : Entrée valide (handleRenamePlaylist), Échap annule (setIsEditingPlaylistName(false))', () => {
-    const handleRenamePlaylist = vi.fn();
-    const setIsEditingPlaylistName = vi.fn();
+  it('en édition combinée : Entrée dans le champ NOM valide (handleSavePlaylistDetails), Échap annule (setIsEditingPlaylistDetails(false))', () => {
+    const handleSavePlaylistDetails = vi.fn();
+    const setIsEditingPlaylistDetails = vi.fn();
     mockUsePlaylistDetail.mockReturnValue(
-      makeContextValue({ isEditingPlaylistName: true, editedPlaylistName: 'Nouveau nom', handleRenamePlaylist, setIsEditingPlaylistName })
+      makeContextValue({ isEditingPlaylistDetails: true, editedPlaylistName: 'Nouveau nom', handleSavePlaylistDetails, setIsEditingPlaylistDetails })
     );
     render(<PlaylistHeader {...baseProps()} />);
 
     const input = screen.getByDisplayValue('Nouveau nom');
     fireEvent.keyDown(input, { key: 'Enter' });
-    expect(handleRenamePlaylist).toHaveBeenCalled();
+    expect(handleSavePlaylistDetails).toHaveBeenCalled();
 
     fireEvent.keyDown(input, { key: 'Escape' });
-    expect(setIsEditingPlaylistName).toHaveBeenCalledWith(false);
+    expect(setIsEditingPlaylistDetails).toHaveBeenCalledWith(false);
   });
 
-  // Vague 2, Chantier 3 — "description texte libre sur une playlist
-  // publique" (02/08 — nom d'origine du chantier mentionnait aussi les
-  // routines, RETIRÉ pour elles le 08/08, voir RoutinesView.jsx ; reste
-  // actif ici, côté playlist). Même schéma exact que les tests "renommer"
-  // juste au-dessus, transposé à la description.
-  it('description : invite "+ Ajouter une description" affichée quand isSaved=true et aucune description', () => {
-    mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: true, currentPlaylist: makePlaylist({ description: undefined }) }));
+  it('en édition combinée : Échap dans le champ DESCRIPTION annule aussi (Entrée y insère juste un retour à la ligne, ne soumet rien)', () => {
+    const handleSavePlaylistDetails = vi.fn();
+    const setIsEditingPlaylistDetails = vi.fn();
+    mockUsePlaylistDetail.mockReturnValue(
+      makeContextValue({ isEditingPlaylistDetails: true, editedPlaylistDescription: 'Brouillon', handleSavePlaylistDetails, setIsEditingPlaylistDetails })
+    );
     render(<PlaylistHeader {...baseProps()} />);
-    expect(screen.getByText('+ Ajouter une description')).toBeInTheDocument();
+
+    const textarea = screen.getByPlaceholderText(/Ajoute une description/);
+    fireEvent.keyDown(textarea, { key: 'Enter' });
+    expect(handleSavePlaylistDetails).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(textarea, { key: 'Escape' });
+    expect(setIsEditingPlaylistDetails).toHaveBeenCalledWith(false);
   });
 
-  it('description : pas d\'invite "Ajouter" quand isSaved=false (playlist étrangère non sauvegardée)', () => {
-    mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: false, currentPlaylist: makePlaylist({ description: undefined }) }));
+  it('en édition combinée : "Enregistrer" appelle handleSavePlaylistDetails, "Annuler" ferme sans l\'appeler', () => {
+    const handleSavePlaylistDetails = vi.fn();
+    const setIsEditingPlaylistDetails = vi.fn();
+    mockUsePlaylistDetail.mockReturnValue(
+      makeContextValue({ isEditingPlaylistDetails: true, editedPlaylistDescription: 'Brouillon', handleSavePlaylistDetails, setIsEditingPlaylistDetails })
+    );
+    render(<PlaylistHeader {...baseProps()} />);
+
+    fireEvent.click(screen.getByText('Annuler'));
+    expect(setIsEditingPlaylistDetails).toHaveBeenCalledWith(false);
+    expect(handleSavePlaylistDetails).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('Enregistrer'));
+    expect(handleSavePlaylistDetails).toHaveBeenCalled();
+  });
+
+  // RETIRÉ (08/08) — l'invite "+ Ajouter une description" (bouton dédié,
+  // séparé du crayon du titre) n'existe plus : découvrir qu'on peut
+  // ajouter une description passe désormais par LE crayon, comme pour le
+  // titre. Test de non-régression à la place.
+  it('aucune invite "+ Ajouter une description" séparée n\'existe plus, même isSaved=true sans description (retiré le 08/08, non-régression)', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: true, currentPlaylist: makePlaylist({ description: undefined }) }));
     render(<PlaylistHeader {...baseProps()} />);
     expect(screen.queryByText('+ Ajouter une description')).not.toBeInTheDocument();
   });
 
-  it('description : affichée en lecture seule pour un VISITEUR (isReadOnly), sans bouton de modification', () => {
+  it('description : affichée en lecture seule pour un VISITEUR (isReadOnly), sans crayon (le crayon combiné n\'apparaît jamais si isReadOnly)', () => {
     mockUsePlaylistDetail.mockReturnValue(
       makeContextValue({ isSaved: false, isReadOnly: true, currentPlaylist: makePlaylist({ description: 'Une belle séance pour bien commencer la semaine' }) })
     );
     render(<PlaylistHeader {...baseProps()} />);
     expect(screen.getByText('Une belle séance pour bien commencer la semaine')).toBeInTheDocument();
-    expect(screen.queryByTitle('Modifier la description')).not.toBeInTheDocument();
-  });
-
-  it('description : cliquer le crayon préremplit le brouillon et ouvre l\'édition', () => {
-    const setEditedPlaylistDescription = vi.fn();
-    const setIsEditingPlaylistDescription = vi.fn();
-    mockUsePlaylistDetail.mockReturnValue(
-      makeContextValue({ isSaved: true, currentPlaylist: makePlaylist({ description: 'Description existante' }), setEditedPlaylistDescription, setIsEditingPlaylistDescription })
-    );
-    render(<PlaylistHeader {...baseProps()} />);
-
-    fireEvent.click(screen.getByTitle('Modifier la description'));
-
-    expect(setEditedPlaylistDescription).toHaveBeenCalledWith('Description existante');
-    expect(setIsEditingPlaylistDescription).toHaveBeenCalledWith(true);
-  });
-
-  it('description : en édition, "Enregistrer" appelle handleEditPlaylistDescription, "Annuler" ferme sans l\'appeler', () => {
-    const handleEditPlaylistDescription = vi.fn();
-    const setIsEditingPlaylistDescription = vi.fn();
-    mockUsePlaylistDetail.mockReturnValue(
-      makeContextValue({ isEditingPlaylistDescription: true, editedPlaylistDescription: 'Brouillon', handleEditPlaylistDescription, setIsEditingPlaylistDescription })
-    );
-    render(<PlaylistHeader {...baseProps()} />);
-
-    fireEvent.click(screen.getByText('Annuler'));
-    expect(setIsEditingPlaylistDescription).toHaveBeenCalledWith(false);
-    expect(handleEditPlaylistDescription).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByText('Enregistrer'));
-    expect(handleEditPlaylistDescription).toHaveBeenCalled();
+    expect(screen.queryByTitle('Modifier le titre et la description')).not.toBeInTheDocument();
   });
 
   it('genres : affiche cfg.selectedGenres (via genreDisplayLabel) en priorité sur les genres réels des titres', () => {
@@ -518,10 +521,12 @@ describe('PlaylistHeader', () => {
 
     // Relecture globale (02/08) — même incohérence trouvée sur 2 AUTRES
     // boutons (renommer, planifier), tous les 3 corrigés ensemble.
-    it('masque aussi le bouton renommer (crayon) même si isSaved=true', () => {
+    // ⚠️ MIS À JOUR (08/08) — "Renommer la playlist" → "Modifier le titre
+    // et la description" depuis la fusion des 2 crayons.
+    it('masque aussi le crayon d\'édition même si isSaved=true', () => {
       mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isReadOnly: true, isSaved: true }));
       render(<PlaylistHeader {...baseProps()} />);
-      expect(screen.queryByTitle('Renommer la playlist')).not.toBeInTheDocument();
+      expect(screen.queryByTitle('Modifier le titre et la description')).not.toBeInTheDocument();
     });
 
     it('masque aussi le bouton "Planifier" même si isSaved=true', () => {
