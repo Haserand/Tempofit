@@ -105,6 +105,36 @@ describe('usePlaylistLibrary — compteur de clonages (handleClonePlaylist)', ()
       expect(cloned.parentUserId).toBe('user-A');
     });
 
+    // BUG CORRIGÉ (07/08, check-up) — voir la docstring de `cloned` dans
+    // usePlaylistLibrary.js pour le raisonnement complet. `currentPlaylist`
+    // porte ici les champs D'AFFICHAGE posés par `handleOpenPublicPlaylist`
+    // (App.jsx) pour la playlist ÉTRANGÈRE consultée : `user_id` (le
+    // PROPRIÉTAIRE D'ORIGINE), `ownerUsername`, `cloneCount`. Avant ce
+    // correctif, le spread `...currentPlaylist` les reportait tels quels
+    // sur la copie — désormais possédée par l'utilisateur, qui se
+    // retrouvait avec l'UUID/le pseudo de quelqu'un d'autre dans son
+    // propre `content`, synchronisé tel quel vers Supabase.
+    it('la copie clonée ne garde JAMAIS le user_id/ownerUsername/cloneCount du propriétaire d\'origine (BUG CORRIGÉ 07/08)', () => {
+      const setSavedPlaylists = vi.fn();
+      const foreignPlaylist = {
+        id: 'pl-A-original', user_id: 'user-A', name: 'Playlist de A',
+        isReadOnly: true, ownerUsername: 'pseudo_de_a', cloneCount: 42,
+      };
+      const result = renderLibrary(foreignPlaylist, { setSavedPlaylists });
+
+      result.current.handleClonePlaylist();
+
+      const cloned = setSavedPlaylists.mock.calls[0][0][0];
+      expect(cloned.user_id).toBeUndefined();
+      expect(cloned.ownerUsername).toBeUndefined();
+      expect(cloned.cloneCount).toBeUndefined();
+      // Le lien de lignée, lui, reste bien posé — seuls les champs
+      // D'AFFICHAGE de l'ancien propriétaire sont retirés, pas la
+      // traçabilité réelle (`parentId`/`parentUserId`, colonnes dédiées).
+      expect(cloned.parentId).toBe('pl-A-original');
+      expect(cloned.parentUserId).toBe('user-A');
+    });
+
     // "Clone" vs "Enfant" (02/08) — une copie FRAÎCHE démarre toujours
     // "jamais modifiée", même si l'objet source (`currentPlaylist`)
     // portait déjà `isModifiedSinceClone: true` (un parent modifié ne doit
