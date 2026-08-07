@@ -263,6 +263,38 @@ describe('PlaylistHeader', () => {
     expect(screen.queryByText('+ Ajouter une description')).not.toBeInTheDocument();
   });
 
+  // NOUVEAU (08/08, retour direct après relecture de la fusion : "+
+  // Ajouter une description" disait littéralement ce qu'il faisait — un
+  // vrai gain de découvrabilité perdu en fusionnant les 2 crayons en un
+  // seul. Compromis : un texte discret, PUREMENT informatif, signale que
+  // le champ existe sans recréer un 2e point d'entrée cliquable.
+  it('affiche "Aucune description" (texte discret, non cliquable) quand isSaved=true et aucune description', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: true, currentPlaylist: makePlaylist({ description: undefined }) }));
+    render(<PlaylistHeader {...baseProps()} />);
+    const hint = screen.getByText('Aucune description');
+    expect(hint.tagName).toBe('P');
+    expect(hint.closest('button')).toBeNull();
+  });
+
+  it('"Aucune description" absent quand isSaved=false (playlist étrangère non sauvegardée) — rien à éditer, rien à signaler', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: false, currentPlaylist: makePlaylist({ description: undefined }) }));
+    render(<PlaylistHeader {...baseProps()} />);
+    expect(screen.queryByText('Aucune description')).not.toBeInTheDocument();
+  });
+
+  it('"Aucune description" absent pour un VISITEUR (isReadOnly) même sans description — rien d\'actionnable à lui signaler', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: false, isReadOnly: true, currentPlaylist: makePlaylist({ description: undefined }) }));
+    render(<PlaylistHeader {...baseProps()} />);
+    expect(screen.queryByText('Aucune description')).not.toBeInTheDocument();
+  });
+
+  it('"Aucune description" absent dès qu\'une vraie description existe', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: true, currentPlaylist: makePlaylist({ description: 'Une vraie description' }) }));
+    render(<PlaylistHeader {...baseProps()} />);
+    expect(screen.queryByText('Aucune description')).not.toBeInTheDocument();
+    expect(screen.getByText('Une vraie description')).toBeInTheDocument();
+  });
+
   it('description : affichée en lecture seule pour un VISITEUR (isReadOnly), sans crayon (le crayon combiné n\'apparaît jamais si isReadOnly)', () => {
     mockUsePlaylistDetail.mockReturnValue(
       makeContextValue({ isSaved: false, isReadOnly: true, currentPlaylist: makePlaylist({ description: 'Une belle séance pour bien commencer la semaine' }) })
