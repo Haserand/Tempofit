@@ -837,7 +837,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   // proxy indisponible...) : un objet minimal sans extrait, pour ne jamais planter
   // la génération même dans le pire des cas.
   return {
-    trackId: `fallback-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+    trackId: `fallback-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     title: 'Titre indisponible', artist: catalogArtists[0] || 'Inconnu',
     bpm: targetBpm, duration: preferredDuration || 200,
     genre: artistGenreMap.get(catalogArtists[0]) || validGenres[0], preview: null, _isFallback: true
@@ -1544,7 +1544,7 @@ const createPlaylistData = async (config, initialExcludeIds = [], favorites, spo
       segmentTracks.forEach((randomTrack) => {
           if (randomTrack._isFallback) fallbackCount++;
           tracks.push({
-              id: `track-${idCounter++}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              id: `track-${idCounter++}-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
               segmentIndex: segmentIndex + 1, targetSegmentBpm: segment.bpm,
               title: randomTrack.title, artist: randomTrack.artist, genre: randomTrack.genre,
               bpm: randomTrack.bpm, duration: randomTrack.duration, trackId: randomTrack.trackId,
@@ -1566,7 +1566,7 @@ const createPlaylistData = async (config, initialExcludeIds = [], favorites, spo
   if (config.routineName) generatedName = `Depuis : ${config.routineName}`;
 
   const rawPlaylist = {
-    id: `pl-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    id: `pl-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
     name: generatedName, workoutType: finalWorkoutName,
     avgPace: unitPaceSecs, targetMode: config.targetMode, distanceUnit: config.distanceUnit || 'km',
     tolerance: config.bpmTolerance, crossfade: config.crossfade || 0,
