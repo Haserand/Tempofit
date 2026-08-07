@@ -72,33 +72,11 @@ export default function PublicRoutinePreviewModal({ theme, isOpen, onClose, rout
               <span className={`flex items-center gap-1 ${textMuted}`}><Music size={13} /> {genres.map(genreDisplayLabel).join(', ')}</span>
             )}
           </div>
-          {/* Description libre (Vague 2, Chantier 3, 02/08) — initialement
-              affichée en texte COMPLET ici (contrairement à
-              `PublicItemCard`, ProfileView.jsx, qui tronque par manque de
-              place sur une carte de grille), décision RENVERSÉE le 04/08
-              (troncature sèche partout, "je m'en moque d'en couper" — pas
-              de vrais utilisateurs pour l'instant) puis affinée le 05/08
-              (`line-clamp-1`, resserré depuis `line-clamp-2` — retour
-              direct : "je voulais UNE ligne max ; pas 2"). Voir
-              PlaylistHeader.jsx pour le même raisonnement.
-              BUGS DE BUILD CORRIGÉS (04/08, 2 passes, gardés en note car
-              non liés au clamp lui-même et faciles à reproduire par erreur) :
-              (1) un commentaire JSX placé juste après la parenthèse
-              ouvrante du `&&` plus bas cassait la compilation — un
-              commentaire JSX n'est un enfant valide QUE dans une liste
-              d'enfants, pas juste après une parenthèse ouvrante
-              d'expression ; fusionné ici, en amont, plutôt que réintroduit
-              au même endroit fautif. (2) ce paragraphe-ci reproduisait
-              ensuite, en toutes lettres DANS le texte du commentaire, la
-              syntaxe même d'un commentaire JSX (accolade-étoile ouvrante
-              puis étoile-accolade fermante) — ces caractères fermaient le
-              commentaire englobant au premier symbole de fermeture
-              rencontré, cassant la compilation une 2e fois. Reformulé pour
-              ne plus jamais écrire cette syntaxe en toutes lettres à
-              l'intérieur d'un commentaire JSX. */}
-          {content.description && (
-            <p className={`text-sm mt-3 pt-3 border-t whitespace-pre-line line-clamp-1 ${inputBorder} ${textMuted}`}>{content.description}</p>
-          )}
+          {/* Affichage de la description RETIRÉ (08/08, retour direct :
+              "finalement pas emballé par la fonctionnalité description sur
+              les routines... on conserve juste pour les playlists") —
+              vivait ici, voir RoutinesView.jsx pour l'historique complet
+              du chantier retiré (édition, affichage public, vitrine). */}
         </div>
 
         <button
