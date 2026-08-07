@@ -43,7 +43,7 @@ function PlaylistDetailViewInner({
   setPlaylistPlannedDate,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
   getRankStyle, triggerCSVUpload, removeImportedData,
-  changeView,
+  changeView, onViewProfile,
 }) {
   // Chantier découpage (suite) : ce composant ne fait plus QUE l'orchestration
   // (état de filtre partagé entre TrackList/PlaylistCharts, génération du
@@ -493,7 +493,7 @@ function PlaylistDetailViewInner({
         editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
         editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
         getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload} removeImportedData={removeImportedData}
-        onShare={handleShareClick}
+        onShare={handleShareClick} onViewProfile={onViewProfile}
       />
 
       {/* Bloc d'analyse (courbe BPM + les 2 camemberts) — extrait dans
@@ -620,7 +620,11 @@ export default function PlaylistDetailView({
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
   getRankStyle, triggerCSVUpload, removeImportedData,
   username,
-  changeView,
+  // `onViewProfile` (07/08, retour direct : "cliquer sur le pseudo devrait
+  // amener à sa vue statistiques") — reçu depuis App.jsx (`handleViewProfile`),
+  // transmis tel quel à PlaylistHeader.jsx (seul consommateur réel ici,
+  // pour rendre "TempoFit Officiel"/le pseudo du propriétaire cliquable).
+  changeView, onViewProfile,
 }) {
   return (
     <PlaylistDetailProvider
@@ -650,7 +654,7 @@ export default function PlaylistDetailView({
         editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
         editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
         getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload} removeImportedData={removeImportedData}
-        changeView={changeView}
+        changeView={changeView} onViewProfile={onViewProfile}
       />
     </PlaylistDetailProvider>
   );
