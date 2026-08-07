@@ -193,13 +193,20 @@ function PublicItemCard({ item, theme, onClick, kind = 'playlist' }) {
             supabase-schema.sql pour pourquoi — un compteur incrémenté par
             n'importe qui doit être atomique, ce qu'une colonne réelle
             garantit et un blob jsonb réécrit entièrement à chaque fois
-            ne garantirait pas). `> 0` seulement : "0 clonage" n'apporte
-            rien à afficher, un compteur vide n'est pas une information. */}
-        {item.clone_count > 0 && (
-          <span className="flex items-center gap-1" title="Nombre de fois où cette playlist/routine a été clonée">
-            <Copy size={12}/>{item.clone_count}
-          </span>
-        )}
+            ne garantirait pas).
+            ⚠️ HARMONISÉ (05/08, retour direct : "je ne vois pas le nombre
+            de clones... si c'est 0 alors pas grave de laisser 0") : le
+            garde `> 0` retiré — TOUJOURS affiché désormais, même
+            incohérence corrigée avec TemplateCard.jsx (`cloneCount = 0`
+            par défaut, jamais caché) repérée à cette occasion. Décision
+            explicitement confirmée avant ce correctif plutôt que supposée :
+            la raison d'origine ("un compteur vide n'apporte rien") reste
+            défendable en soi, mais moins forte une fois que l'app affiche
+            déjà 0 sans complexe ailleurs — 2 règles différentes pour la
+            même donnée n'avait plus de justification claire. */}
+        <span className="flex items-center gap-1" title="Nombre de fois où cette playlist/routine a été clonée">
+          <Copy size={12}/>{item.clone_count || 0}
+        </span>
       </div>
       {/* Description libre (Vague 2, Chantier 3 — "description texte libre
           sur une playlist/routine publique", 02/08) — champ COMMUN aux
