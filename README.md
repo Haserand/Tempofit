@@ -22,6 +22,27 @@ Fichiers touchés (4) :
 - **`tests/views/PlaylistDetail/PlaylistHeader.test.jsx`** — suites "renommer"/"description" séparées fusionnées en une seule série de tests sur l'édition combinée ; tests de non-régression pour l'invite retirée.
 - **`tests/contexts/PlaylistDetailContext.test.jsx`** — sonde `DescriptionProbe` remplacée par `DetailsProbe` (nom + description ensemble) ; **nouveau test dédié** qui reproduit précisément le scénario du risque de course identifié avant implémentation (modifier nom ET description dans la même édition, sauvegarder en un clic, vérifier que les deux survivent) — ce n'est pas un test après-coup sur un bug trouvé, c'est la preuve que le bug anticipé n'existe pas dans la version livrée.
 
+⚠️ **AJUSTEMENT (08/08, même jour, retour direct après relecture honnête de
+la fusion) — indice discret "Aucune description" réintroduit.** En
+répondant franchement à "c'était la bonne solution ?", un vrai compromis
+identifié : "+ Ajouter une description" disait littéralement ce qu'il
+faisait (texte cliquable, explicite) — la fusion en un seul crayon
+générique sur le titre a fait perdre cette découvrabilité, un visiteur
+du code découvrant l'app ne devine pas forcément que LE crayon couvre
+aussi la description. Corrigé sans revenir à un 2e point d'entrée
+cliquable (qui recréerait la duplication d'origine, tout l'objet de ce
+chantier) : `PlaylistHeader.jsx` affiche désormais **"Aucune
+description"** en texte discret (`text-xs text-slate-600 italic`),
+PUREMENT informatif — jamais un `<button>`, jamais de `cursor-pointer`,
+jamais d'état hover. Le crayon du titre reste le SEUL point d'entrée pour
+éditer ; ce texte ne fait que signaler que le champ existe. Même
+périmètre que l'ancienne invite (`isSaved && !isReadOnly` uniquement — un
+visiteur n'a rien à éditer, le lui signaler n'apporterait rien
+d'actionnable). 4 nouveaux tests ajoutés
+(`tests/views/PlaylistDetail/PlaylistHeader.test.jsx`) : affichage +
+non-cliquable, absence si `isSaved=false`, absence pour un visiteur,
+absence dès qu'une vraie description existe.
+
 ⚠️ **Pas encore vérifié en conditions réelles** — même limite habituelle (bac à sable sans accès réseau), à confirmer au prochain build/clic réel.
 
 ⚠️ **SESSION DU 08/08 — description libre RETIRÉE pour les routines, conservée pour les playlists (retour direct, capture à l'appui : "finalement pas emballé par la fonctionnalité description sur les routines... on conserve juste pour les playlists").** Contexte du retrait : contrairement à une playlist (vraie page détail dédiée, `PlaylistHeader.jsx`, où la description a la place de respirer), une routine n'a AUCUNE vue détail séparée — la description finissait compressée sur la carte elle-même, tronquée à 1 ligne sans échappatoire, exactement ce que montrait la capture jointe au retour direct (texte "CV V" illisible, à peine visible). Chantier d'origine : Vague 2, Chantier 3, 02/08 — voir plus bas dans ce README pour l'historique complet, gardé pour le récit mais PLUS À JOUR pour la partie routines.
