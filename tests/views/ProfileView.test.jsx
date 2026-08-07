@@ -449,7 +449,14 @@ describe('ProfileView — badge "Clone"/"Enfant" (lignée de clonage)', () => {
 
 describe('ProfileView — description libre sur les cartes publiques', () => {
   const playlistWithDescription = { id: 'pl-desc', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Sortie du dimanche', workoutType: 'Course à pied', totalDuration: 1200, config: { bpm: 150 }, tracks: [], description: 'Une sortie tranquille pour récupérer.' } };
-  const routineWithDescription = { id: 'routine-desc', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Mon 10km', workoutType: 'Course à pied', coverIcon: '🏃', targetMode: 'distance', distanceVal: 10, distanceUnit: 'km', bpm: 170, description: 'À lancer avant le petit-déjeuner.' } };
+  // ⚠️ RETIRÉ pour les routines (08/08, retour direct, capture à l'appui :
+  // "finalement pas emballé par la fonctionnalité description sur les
+  // routines... on conserve juste pour les playlists") — voir
+  // RoutinesView.jsx pour l'historique complet du chantier retiré. Cette
+  // constante représente désormais une ANCIENNE routine qui porterait
+  // encore une description en base (jamais nettoyée rétroactivement) —
+  // gardée sous ce nom pour le test de non-régression ci-dessous.
+  const routineWithOldDescription = { id: 'routine-desc', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Mon 10km', workoutType: 'Course à pied', coverIcon: '🏃', targetMode: 'distance', distanceVal: 10, distanceUnit: 'km', bpm: 170, description: 'À lancer avant le petit-déjeuner.' } };
   const itemWithoutDescription = { id: 'pl-nodesc', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Séance sans description', workoutType: 'Cyclisme', totalDuration: 1800, config: { bpm: 130 }, tracks: [] } };
 
   it('affiche la description d\'une playlist publique quand elle existe', async () => {
@@ -460,13 +467,19 @@ describe('ProfileView — description libre sur les cartes publiques', () => {
     expect(await screen.findByText('Une sortie tranquille pour récupérer.')).toBeInTheDocument();
   });
 
-  it('affiche la description d\'une routine publique quand elle existe', async () => {
+  // RETIRÉ (08/08) — remplace "affiche la description d'une routine
+  // publique quand elle existe". Reproduit précisément le cas qui
+  // motivait le garde ajouté dans ProfileView.jsx (`!isRoutine`) : une
+  // routine qui porte ENCORE une description en base (créée avant ce
+  // retrait, jamais nettoyée) ne doit plus jamais l'afficher.
+  it('n\'affiche PLUS la description d\'une routine, même si elle en porte encore une en base (retiré le 08/08, non-régression)', async () => {
     mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
-    setupTableMocks({ routines: [routineWithDescription] });
+    setupTableMocks({ routines: [routineWithOldDescription] });
     render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
     await switchToRoutinesTab();
 
-    expect(await screen.findByText('À lancer avant le petit-déjeuner.')).toBeInTheDocument();
+    await screen.findByText('Mon 10km');
+    expect(screen.queryByText('À lancer avant le petit-déjeuner.')).not.toBeInTheDocument();
   });
 
   it('n\'affiche rien de particulier quand il n\'y a pas de description (pas de paragraphe vide)', async () => {
@@ -491,6 +504,24 @@ describe('ProfileView — description libre sur les cartes publiques', () => {
 
     expect(screen.getByText('Sortie du dimanche')).toBeInTheDocument();
     expect(screen.queryByText('Séance sans description')).toBeNull();
+  });
+
+  // NOUVEAU (08/08) — pendant du test juste au-dessus, côté routine :
+  // une ancienne description de routine ne doit plus être trouvable par
+  // recherche texte non plus (voir useProfileSearchFilter.js, gardé sur
+  // `kind === 'routine'`) — cohérent avec le fait qu'elle n'est plus
+  // affichée nulle part ; matcher sur un texte invisible aurait été
+  // déroutant.
+  it('une ancienne description de routine n\'entre PLUS dans la recherche texte (retiré le 08/08, non-régression)', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ routines: [routineWithOldDescription] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+    await switchToRoutinesTab();
+
+    await screen.findByText('Mon 10km');
+    fireEvent.change(screen.getByPlaceholderText(/Rechercher un titre/), { target: { value: 'petit-déjeuner' } });
+
+    expect(screen.queryByText('Mon 10km')).not.toBeInTheDocument();
   });
 });
 
