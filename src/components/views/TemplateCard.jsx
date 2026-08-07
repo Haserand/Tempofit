@@ -172,31 +172,59 @@ export default function TemplateCard({ theme, template, onPlayTemplate, isNaught
       </div>
 
       <div className="mt-2 px-0.5">
-        <h3 className={`font-bold text-sm truncate ${textHighlight}`}>{template.title}</h3>
-        <p className={`text-xs truncate ${textMuted} ${isNaughtyMode ? 'dark:text-white' : ''}`}>
-          {/* Auteur cliquable (Feature Sociale "Cold Start", 02/08) —
-              gaté sur `template.isOfficial` ET `onViewOfficialProfile`
-              fourni : TOUS les templates actuels du catalogue sont
-              officiels (`author: OFFICIAL_VITRINE_DISPLAY_NAME` partout,
-              voir data/curatedSessions.js — centralisé le 05/08, cette
-              constante résout toujours vers "TempoFit Officiel"), mais si
-              du contenu non-officiel apparaissait un jour, son auteur ne
-              doit PAS pointer par erreur vers cette vitrine précise.
-              `stopPropagation` : toute la carte a déjà son propre
-              `onClick` (ouvrir/écouter la playlist) — sans lui, cliquer
-              sur le nom de l'auteur aurait AUSSI déclenché
-              `onPlayTemplate`. */}
+        {/* Ligne "chapeau" — auteur (cliquable) + compteur de clonages,
+            AU-DESSUS du titre (07/08, retour direct, capture annotée sur
+            la fiche détail : "mettre les pseudos avant le nom de la
+            playlist, et le compteur de clones, sur la même ligne" —
+            appliqué ici aussi pour la cohérence, même convention EXACTE
+            que PlaylistHeader.jsx, voir sa docstring pour tout
+            l'historique). AVANT (jusqu'au 07/08) : auteur+BPM sur une
+            ligne SOUS le titre, compteur de clonages sur une 3e ligne
+            séparée avec workoutType/durée — 2 infos de la même famille
+            (qui a fait ça, quel accueil) écartées sans raison. `avgBpm`
+            déménagé sur la ligne de métadonnées juste en dessous (avec
+            workoutType/durée — même distinction "composition de la
+            séance" vs "accueil social" déjà appliquée dans
+            PlaylistHeader.jsx).
+            Auteur cliquable (Feature Sociale "Cold Start", 02/08) — gaté
+            sur `template.isOfficial` ET `onViewOfficialProfile` fourni :
+            TOUS les templates actuels du catalogue sont officiels
+            (`author: OFFICIAL_VITRINE_DISPLAY_NAME` partout, voir
+            data/curatedSessions.js), mais si du contenu non-officiel
+            apparaissait un jour, son auteur ne doit PAS pointer par
+            erreur vers cette vitrine précise. `stopPropagation` : toute
+            la carte a déjà son propre `onClick` (ouvrir/écouter la
+            playlist) — sans lui, cliquer sur le nom de l'auteur aurait
+            AUSSI déclenché `onPlayTemplate`. */}
+        {/* Pas de `<span>` autour de l'auteur dans le cas NON cliquable
+            (texte brut, comme avant ce chantier) — volontaire : le badge
+            "officiel" en coin (`<span>TempoFit</span>`, ci-dessus) et cet
+            auteur peuvent tous deux valoir exactement "TempoFit" pour un
+            template officiel — les envelopper TOUS LES DEUX dans un
+            `<span>` créerait une collision réelle (2 éléments distincts
+            avec exactement le même texte, le même tag), déjà un piège
+            documenté ailleurs dans les tests de ce fichier. Texte brut ici
+            évite le problème à la source plutôt que de le contourner côté
+            test. */}
+        <p className={`flex items-center gap-1 text-xs truncate ${textMuted} ${isNaughtyMode ? 'dark:text-white' : ''}`}>
           {template.isOfficial && onViewOfficialProfile ? (
             <button
               onClick={(e) => { e.stopPropagation(); onViewOfficialProfile(); }}
-              className="hover:underline cursor-pointer"
+              className="truncate hover:underline cursor-pointer"
               title="Voir le profil TempoFit Officiel"
             >
               {template.author}
             </button>
           ) : template.author}
-          {avgBpm != null ? ` • ${avgBpm} BPM` : ''}
+          {/* Compteur de clonages (02/08) — `shrink-0` : ne doit jamais
+              être celui des deux qui se fait tronquer par le `truncate`
+              du texte à sa gauche, un nombre coupé au milieu serait pire
+              qu'un titre d'activité tronqué. */}
+          <span className="flex items-center gap-0.5 shrink-0" title="Nombre de fois où cette playlist a été clonée">
+            • <Copy size={11} />{cloneCount}
+          </span>
         </p>
+        <h3 className={`font-bold text-sm truncate ${textHighlight}`}>{template.title}</h3>
         {/* RETOUR RECUL (harmonisation contraste, juillet 2026) : `opacity-70`
             retirée — elle atténuait un texte DÉJÀ atténué (`textMuted`),
             contraste final ~1.8:1 sur fond clair (illisible, cause directe
@@ -204,14 +232,7 @@ export default function TemplateCard({ theme, template, onPlayTemplate, isNaught
             correction du token --color-muted dans index.css) suffit
             largement à distinguer cette ligne du titre au-dessus. */}
         <div className={`flex items-center gap-1 text-xs truncate ${textMuted} ${isNaughtyMode ? 'dark:text-white' : ''}`}>
-          <span className="truncate">{template.workoutType} • {totalMinutes} min</span>
-          {/* Compteur de clonages (02/08) — `shrink-0` : ne doit jamais
-              être celui des deux qui se fait tronquer par le `truncate`
-              du texte à sa gauche, un nombre coupé au milieu serait pire
-              qu'un titre d'activité tronqué. */}
-          <span className="flex items-center gap-0.5 shrink-0" title="Nombre de fois où cette playlist a été clonée">
-            <Copy size={11} />{cloneCount}
-          </span>
+          <span className="truncate">{template.workoutType} • {totalMinutes} min{avgBpm != null ? ` • ${avgBpm} BPM` : ''}</span>
         </div>
         {/* Description par CATÉGORIE (9e passe, 02/08) — voir la docstring
             en tête de fichier : même source que la vitrine ET la playlist
