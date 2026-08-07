@@ -170,8 +170,16 @@ describe('buildOfficialVitrineRoutineRows', () => {
     expect(routineRows.every(r => r.is_public === true)).toBe(true);
   });
 
-  it('chaque routine a un content.description non vide', () => {
-    expect(routineRows.every(r => typeof r.content.description === 'string' && r.content.description.length > 0)).toBe(true);
+  // RETIRÉ (08/08, retour direct : "finalement pas emballé par la
+  // fonctionnalité description sur les routines... on conserve juste
+  // pour les playlists") — remplace "chaque routine a un
+  // content.description non vide". `FAKE_VITRINE_ROUTINES` n'a plus ce
+  // champ (voir officialVitrineProfile.js) ; `content.description` reste
+  // en revanche VÉRIFIÉE non vide côté playlists juste au-dessus dans ce
+  // même fichier (`templateToVitrineRow`, inchangé) — la fonctionnalité
+  // reste active pour les playlists, y compris celles de la vitrine.
+  it('aucune routine ne porte plus de content.description (retiré le 08/08, non-régression)', () => {
+    expect(routineRows.every(r => r.content.description === undefined)).toBe(true);
   });
 
   // ⚠️ RÉÉCRIT le 02/08 (même retour direct que ci-dessus) — `clone_count`
