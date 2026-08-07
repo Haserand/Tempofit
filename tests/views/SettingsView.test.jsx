@@ -389,6 +389,24 @@ describe('SettingsView — Confidentialité & Profil Public', () => {
     expect(screen.getByText('tempofit.app/?profile=alex_runner')).toHaveClass('selectable-text');
   });
 
+  // NOUVEAU (08/08, retour direct : "je regrette que tu aies pas décelé
+  // avant cette meilleure option" — un bouton "Copier le lien" plutôt que
+  // du texte à sélectionner manuellement, même pattern déjà en place dans
+  // ce même fichier pour l'URL Spotify). `navigator.clipboard.writeText`
+  // mocké globalement dans ce fichier (voir en tête) — vérifie que le
+  // TEXTE EXACT du lien de profil (pas un fragment, pas un autre lien) est
+  // bien celui transmis à l'API presse-papier.
+  it('le clic sur "Copier le lien de profil" copie le bon lien dans le presse-papier, puis affiche une coche temporaire', async () => {
+    renderOnAccountTab({ profilePrivacy: { isProfilePublic: false } });
+    fireEvent.click(screen.getByTitle('Copier le lien de profil'));
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('tempofit.app/?profile=alex_runner');
+    // Vérifie la classe du BOUTON lui-même (`text-green-500`, posée
+    // explicitement dans SettingsView.jsx) plutôt que le nom de classe
+    // interne de l'icône Check (lucide-react) — plus robuste, ne dépend
+    // que de code qu'on contrôle directement ici.
+    await waitFor(() => expect(screen.getByTitle('Copier le lien de profil')).toHaveClass('text-green-500'));
+  });
+
   it('isProfilePublic=false : les 3 autres bascules et le lien d\'aperçu sont ABSENTS', () => {
     renderOnAccountTab({ profilePrivacy: { isProfilePublic: false } });
     expect(screen.queryByText('Afficher mes statistiques sportives')).not.toBeInTheDocument();
