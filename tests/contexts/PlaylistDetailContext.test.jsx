@@ -129,10 +129,11 @@ function renderWithProvider(currentPlaylist, savedPlaylists) {
 }
 
 // Variante instrumentée (setters capturés via vi.fn(), pas des no-op) —
-// nécessaire pour le chantier "description libre" ci-dessous : contrairement
-// à isSaved/isReadOnly (valeurs DÉRIVÉES, pas de setter à vérifier), on doit
-// pouvoir observer CE AVEC QUOI `setCurrentPlaylist`/`setSavedPlaylists` sont
-// appelés après `handleEditPlaylistDescription`.
+// nécessaire pour le chantier "édition combinée titre+description"
+// ci-dessous : contrairement à isSaved/isReadOnly (valeurs DÉRIVÉES, pas
+// de setter à vérifier), on doit pouvoir observer CE AVEC QUOI
+// `setCurrentPlaylist`/`setSavedPlaylists` sont appelés après
+// `handleSavePlaylistDetails`.
 function renderWithProviderCapturing(currentPlaylist, savedPlaylists, { setCurrentPlaylist = vi.fn(), setSavedPlaylists = vi.fn() } = {}) {
   render(
     <PlaylistDetailProvider
@@ -157,23 +158,31 @@ function renderWithProviderCapturing(currentPlaylist, savedPlaylists, { setCurre
       setSelectedAnalysisDate={() => {}}
       availableMetrics={[]}
     >
-      <DescriptionProbe />
+      <DetailsProbe />
     </PlaylistDetailProvider>
   );
 }
 
-// Sonde dédiée à la description libre — DÉLIBÉRÉMENT séparée de `Probe`
-// (isSaved/isReadOnly) plutôt que de tout fusionner en une seule sonde
-// fourre-tout : chaque describe ci-dessous ne rend que ce dont il a besoin,
-// cohérent avec le principe déjà énoncé en tête de fichier (scope volontairement
-// restreint, pas une couverture exhaustive du Provider).
-function DescriptionProbe() {
-  const { editedPlaylistDescription, setEditedPlaylistDescription, handleEditPlaylistDescription, isEditingPlaylistDescription } = usePlaylistDetail();
+// Sonde dédiée à l'édition combinée titre+description (fusion du 08/08,
+// retour direct : "que modifier le titre ou la description vienne un seul
+// crayon plutôt que via chacune une option individuelle") — DÉLIBÉRÉMENT
+// séparée de `Probe` (isSaved/isReadOnly) plutôt que de tout fusionner en
+// une seule sonde fourre-tout : chaque describe ci-dessous ne rend que ce
+// dont il a besoin, cohérent avec le principe déjà énoncé en tête de
+// fichier (scope volontairement restreint, pas une couverture exhaustive
+// du Provider).
+function DetailsProbe() {
+  const {
+    editedPlaylistName, setEditedPlaylistName,
+    editedPlaylistDescription, setEditedPlaylistDescription,
+    handleSavePlaylistDetails, isEditingPlaylistDetails,
+  } = usePlaylistDetail();
   return (
     <div>
-      <span data-testid="editing-state">{String(isEditingPlaylistDescription)}</span>
+      <span data-testid="editing-state">{String(isEditingPlaylistDetails)}</span>
+      <input data-testid="name-draft-input" value={editedPlaylistName} onChange={(e) => setEditedPlaylistName(e.target.value)} />
       <input data-testid="draft-input" value={editedPlaylistDescription} onChange={(e) => setEditedPlaylistDescription(e.target.value)} />
-      <button onClick={handleEditPlaylistDescription}>save-description</button>
+      <button onClick={handleSavePlaylistDetails}>save-details</button>
     </div>
   );
 }
@@ -228,13 +237,13 @@ describe('PlaylistDetailContext — isSaved / isReadOnly', () => {
 // Vague 2, Chantier 3 — "description texte libre sur une playlist
 // publique" (02/08 — nom d'origine du chantier mentionnait aussi les
 // routines, RETIRÉ pour elles le 08/08, voir RoutinesView.jsx ; reste
-// actif ici, côté playlist). Contrairement à isSaved/isReadOnly (valeurs dérivées),
-// on vérifie ici que `handleEditPlaylistDescription` appelle bien LES DEUX
-// setters (`setCurrentPlaylist` ET `setSavedPlaylists`) — même schéma exact
-// que `handleRenamePlaylist`, jamais testé isolément non plus jusqu'ici,
-// mais le principe est identique donc une régression sur l'un couvrirait
-// probablement l'autre.
-describe('PlaylistDetailContext — description libre (handleEditPlaylistDescription)', () => {
+// actif ici, côté playlist). FUSIONNÉ avec l'édition du nom le 08/08
+// (retour direct : "que modifier le titre ou la description vienne un
+// seul crayon plutôt que via chacune une option individuelle") — un seul
+// handler, `handleSavePlaylistDetails`, sauvegarde les DEUX champs
+// ensemble. On vérifie ici qu'il appelle bien LES DEUX setters
+// (`setCurrentPlaylist` ET `setSavedPlaylists`).
+describe('PlaylistDetailContext — édition combinée titre+description (handleSavePlaylistDetails)', () => {
   it('met à jour currentPlaylist ET savedPlaylists avec la description éditée, en la découpant sur les espaces superflus', () => {
     const setCurrentPlaylist = vi.fn();
     const setSavedPlaylists = vi.fn();
@@ -242,10 +251,51 @@ describe('PlaylistDetailContext — description libre (handleEditPlaylistDescrip
     renderWithProviderCapturing(playlist, [playlist], { setCurrentPlaylist, setSavedPlaylists });
 
     fireEvent.change(screen.getByTestId('draft-input'), { target: { value: '  Ma nouvelle description  ' } });
-    fireEvent.click(screen.getByText('save-description'));
+    fireEvent.click(screen.getByText('save-details'));
 
     expect(setCurrentPlaylist).toHaveBeenCalledWith(expect.objectContaining({ description: 'Ma nouvelle description' }));
     expect(setSavedPlaylists).toHaveBeenCalledWith([expect.objectContaining({ description: 'Ma nouvelle description' })]);
+  });
+
+  // NOUVEAU (08/08) — le VRAI risque identifié AVANT d'implémenter la
+  // fusion (pas trouvé après coup) : les 2 anciens handlers séparés
+  // lisaient chacun `currentPlaylist` depuis la MÊME fermeture de rendu —
+  // les appeler l'un après l'autre (au lieu de les fusionner en un seul
+  // `updatedPlaylist`) aurait fait perdre le 1er changement, le 2e
+  // handler construisant son objet à partir de l'ancien `currentPlaylist`
+  // (React ne reflète un `setState` qu'au rendu SUIVANT). Ce test
+  // reproduit exactement le scénario qui aurait révélé ce bug : nom ET
+  // description modifiés dans la MÊME session d'édition, sauvegardés en
+  // UN SEUL clic — les deux doivent survivre.
+  it('modifier le NOM et la DESCRIPTION dans la même édition, puis sauvegarder UNE FOIS, garde les deux changements (régression du risque de course identifié avant implémentation)', () => {
+    const setCurrentPlaylist = vi.fn();
+    const setSavedPlaylists = vi.fn();
+    const playlist = makePlaylist({ name: 'Ancien nom', description: 'Ancienne description' });
+    renderWithProviderCapturing(playlist, [playlist], { setCurrentPlaylist, setSavedPlaylists });
+
+    fireEvent.change(screen.getByTestId('name-draft-input'), { target: { value: 'Nouveau nom' } });
+    fireEvent.change(screen.getByTestId('draft-input'), { target: { value: 'Nouvelle description' } });
+    fireEvent.click(screen.getByText('save-details'));
+
+    expect(setCurrentPlaylist).toHaveBeenCalledTimes(1);
+    expect(setCurrentPlaylist).toHaveBeenCalledWith(expect.objectContaining({ name: 'Nouveau nom', description: 'Nouvelle description' }));
+  });
+
+  // Nom JAMAIS vide (une playlist sans nom n'aurait aucun sens) — mais
+  // contrairement à l'ancien comportement (avorter TOUTE la sauvegarde,
+  // description comprise, si le nom était vidé), un nom vidé PAR MÉGARDE
+  // en éditant la description à côté replie désormais sur l'ANCIEN nom,
+  // sans perdre la description tapée en même temps.
+  it('un nom vidé (chaîne vide après trim) replie sur l\'ancien nom SANS perdre la description modifiée à côté', () => {
+    const setCurrentPlaylist = vi.fn();
+    const playlist = makePlaylist({ name: 'Nom original', description: '' });
+    renderWithProviderCapturing(playlist, [playlist], { setCurrentPlaylist });
+
+    fireEvent.change(screen.getByTestId('name-draft-input'), { target: { value: '   ' } });
+    fireEvent.change(screen.getByTestId('draft-input'), { target: { value: 'Une description quand même' } });
+    fireEvent.click(screen.getByText('save-details'));
+
+    expect(setCurrentPlaylist).toHaveBeenCalledWith(expect.objectContaining({ name: 'Nom original', description: 'Une description quand même' }));
   });
 
   it('accepte une description VIDE (contrairement au nom, effacer la description est un état valide)', () => {
@@ -255,7 +305,7 @@ describe('PlaylistDetailContext — description libre (handleEditPlaylistDescrip
     renderWithProviderCapturing(playlist, [playlist], { setCurrentPlaylist, setSavedPlaylists });
 
     fireEvent.change(screen.getByTestId('draft-input'), { target: { value: '' } });
-    fireEvent.click(screen.getByText('save-description'));
+    fireEvent.click(screen.getByText('save-details'));
 
     expect(setCurrentPlaylist).toHaveBeenCalledWith(expect.objectContaining({ description: '' }));
   });
@@ -267,7 +317,7 @@ describe('PlaylistDetailContext — description libre (handleEditPlaylistDescrip
 
     const tooLong = 'x'.repeat(500);
     fireEvent.change(screen.getByTestId('draft-input'), { target: { value: tooLong } });
-    fireEvent.click(screen.getByText('save-description'));
+    fireEvent.click(screen.getByText('save-details'));
 
     const calledWith = setCurrentPlaylist.mock.calls[0][0];
     expect(calledWith.description.length).toBe(MAX_DESCRIPTION_LENGTH);
@@ -282,7 +332,7 @@ describe('PlaylistDetailContext — description libre (handleEditPlaylistDescrip
     renderWithProviderCapturing(clonedPlaylist, [clonedPlaylist], { setCurrentPlaylist });
 
     fireEvent.change(screen.getByTestId('draft-input'), { target: { value: 'Ma propre description' } });
-    fireEvent.click(screen.getByText('save-description'));
+    fireEvent.click(screen.getByText('save-details'));
 
     expect(setCurrentPlaylist).toHaveBeenCalledWith(expect.objectContaining({ isModifiedSinceClone: true }));
   });
@@ -293,14 +343,14 @@ describe('PlaylistDetailContext — description libre (handleEditPlaylistDescrip
     renderWithProviderCapturing(ownPlaylist, [ownPlaylist], { setCurrentPlaylist });
 
     fireEvent.change(screen.getByTestId('draft-input'), { target: { value: 'Ma description' } });
-    fireEvent.click(screen.getByText('save-description'));
+    fireEvent.click(screen.getByText('save-details'));
 
     expect(setCurrentPlaylist.mock.calls[0][0].isModifiedSinceClone).toBeUndefined();
   });
 });
 
 // Sonde dédiée à la bascule publique/privée — MÊME schéma que
-// DescriptionProbe ci-dessus.
+// DetailsProbe ci-dessus.
 function TogglePublicProbe() {
   const { handleTogglePlaylistPublic } = usePlaylistDetail();
   return <button onClick={handleTogglePlaylistPublic}>toggle-public</button>;
