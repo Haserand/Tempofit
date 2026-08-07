@@ -297,6 +297,21 @@ réel trouvé et corrigé, 1 optimisation de dette technique appliquée :**
   conditions réelles au-delà des tests (même limite habituelle, bac à
   sable sans accès réseau) — à confirmer au prochain clic réel sur l'app
   déployée.
+  ✅ **AJUSTEMENT (07/08, retour direct après essai réel, capture à
+  l'appui) — pseudo RETIRÉ de `PlaylistCard.jsx` (Mes Séances).** "Pas la
+  peine de mettre le nom d'utilisateur" — en conditions réelles, la ligne
+  "chapeau" ajoutée plus tôt dans cette même session s'est révélée
+  redondante par construction (TOUJOURS le même pseudo, sur CHAQUE carte
+  de cette vue) et tronquait en plus visuellement le titre juste à côté
+  ("tempofit_..." répété identique sur toutes les cartes, capture à
+  l'appui). Retiré proprement : `username` déplombé (`App.jsx` →
+  `PlaylistsView.jsx` → `PlaylistCard.jsx`, 3 fichiers), 3 tests obsolètes
+  supprimés, 1 test de non-régression ajouté (même si `username` est
+  repassé par erreur, la carte ne doit plus jamais l'afficher). La
+  convention "pseudo au-dessus du titre" reste appliquée aux 2 autres
+  endroits où le pseudo identifie un propriétaire potentiellement
+  DIFFÉRENT de soi (`PlaylistHeader.jsx`, `TemplateCard.jsx`) — inchangés,
+  ce chantier ne concernait QUE la vue "Mes Séances".
   ⚠️ **Correctif PAS ENCORE vérifié en conditions réelles** — trouvé et
   livré dans cette session, mais pas encore déployé/testé sur l'app en
   prod au moment d'écrire ceci (retour direct de l'utilisateur : "je
