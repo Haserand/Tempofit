@@ -378,6 +378,17 @@ describe('SettingsView — Confidentialité & Profil Public', () => {
     expect(screen.getByText('Rendre mon profil public')).toBeInTheDocument();
   });
 
+  // NOUVEAU (07/08, retour direct, capture annotée : "pour simplifier le
+  // partage il faut que le texte du lien de partage de profil soit
+  // sélectionnable à la souris") — voir la docstring de `.selectable-text`
+  // dans index.css : sans cette classe, `body { user-select: none }` rend
+  // ce texte insélectionnable malgré les apparences (aucune classe
+  // Tailwind seule ne peut l'emporter dessus).
+  it('le lien de profil porte la classe .selectable-text (sélection à la souris réactivée malgré body { user-select: none })', () => {
+    renderOnAccountTab({ profilePrivacy: { isProfilePublic: false } });
+    expect(screen.getByText('tempofit.app/?profile=alex_runner')).toHaveClass('selectable-text');
+  });
+
   it('isProfilePublic=false : les 3 autres bascules et le lien d\'aperçu sont ABSENTS', () => {
     renderOnAccountTab({ profilePrivacy: { isProfilePublic: false } });
     expect(screen.queryByText('Afficher mes statistiques sportives')).not.toBeInTheDocument();
