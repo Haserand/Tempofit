@@ -74,13 +74,18 @@ describe('TemplateCard', () => {
     expect(screen.queryByText('TempoFit', { selector: 'span' })).toBeNull();
   });
 
-  it('le clic sur la carte appelle onPlayTemplate(template)', () => {
+  // ⚠️ CORRIGÉ (05/08, retour direct — "je ne vois pas le nombre de
+  // clones... c'est la demande de base") : `onPlayTemplate` reçoit
+  // désormais `cloneCount` en 2e argument (voir sa docstring dans
+  // TemplateCard.jsx) — `cloneCount` non fourni ici, retombe sur son
+  // défaut `0` (signature du composant).
+  it('le clic sur la carte appelle onPlayTemplate(template, { cloneCount })', () => {
     const onPlayTemplate = vi.fn();
     const { container } = render(
       <TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={onPlayTemplate} isNaughtyMode={false} />
     );
     fireEvent.click(container.firstChild);
-    expect(onPlayTemplate).toHaveBeenCalledWith(mockTemplate);
+    expect(onPlayTemplate).toHaveBeenCalledWith(mockTemplate, { cloneCount: 0 });
   });
 
   it('le clic sur le bouton play appelle onPlayTemplate UNE SEULE fois (stopPropagation évite le doublon avec le clic de carte)', () => {
@@ -90,7 +95,16 @@ describe('TemplateCard', () => {
     fireEvent.click(screen.getByTitle('Écouter cette playlist'));
 
     expect(onPlayTemplate).toHaveBeenCalledTimes(1);
-    expect(onPlayTemplate).toHaveBeenCalledWith(mockTemplate);
+    expect(onPlayTemplate).toHaveBeenCalledWith(mockTemplate, { cloneCount: 0 });
+  });
+
+  it('transmet le VRAI cloneCount reçu en prop, pas juste le défaut', () => {
+    const onPlayTemplate = vi.fn();
+    const { container } = render(
+      <TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={onPlayTemplate} isNaughtyMode={false} cloneCount={7} />
+    );
+    fireEvent.click(container.firstChild);
+    expect(onPlayTemplate).toHaveBeenCalledWith(mockTemplate, { cloneCount: 7 });
   });
 
   // Feature Sociale "Cold Start" (02/08) — auteur cliquable. 0 test
