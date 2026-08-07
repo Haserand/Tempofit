@@ -35,6 +35,7 @@ export default function PlaylistCard({
   removeImportedData,
   onSetPlannedDate,
   draggable, onDragStart, onDragEnter, onDragEnd, isDragging,
+  username,
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, bgAccentClass, inputBg, inputBorder } = theme;
   // Filet de sécurité multi-navigateurs pour le bouton "Ajouter une date"
@@ -135,6 +136,27 @@ export default function PlaylistCard({
               </button>
             </div>
           </div>
+          {/* Ligne "chapeau" — TON pseudo, AU-DESSUS du titre (07/08,
+              retour direct : "afficher aussi votre pseudo en chapeau...
+              pour la cohérence visuelle partout") — même convention EXACTE
+              que PlaylistHeader.jsx/TemplateCard.jsx (pseudo au-dessus du
+              titre), appliquée ici pour une playlist déjà TIENNE. PAS
+              cliquable (contrairement à PlaylistHeader.jsx pour le pseudo
+              d'un AUTRE propriétaire) — naviguer vers son propre profil
+              depuis sa propre carte n'a pas été demandé et n'est pas
+              évidemment utile, même raisonnement déjà appliqué ailleurs.
+              PAS de compteur de clonages ici (contrairement aux 2 autres
+              endroits) — `cloneCount` n'existe conceptuellement QUE pour
+              un aperçu en lecture seule (template/playlist étrangère
+              jamais encore sauvegardée), jamais pour une playlist déjà
+              dans "Mes Séances" (voir `usePlaylistLibrary.js`,
+              `handleClonePlaylist` : `cloneCount` explicitement remis à
+              `undefined` sur la copie au moment du clonage). Repli
+              "Invité" — MÊME mot que PlaylistHeader.jsx pour ce même état
+              (`username` vaut `null` en mode invité, AuthContext.jsx),
+              cohérence de vocabulaire plutôt qu'un 2e terme pour la même
+              notion. */}
+          <p className={`text-xs font-bold truncate ${textMuted}`}>{username || 'Invité'}</p>
           <h3 className={`font-bold text-lg flex items-center gap-2 min-w-0 ${textHighlight}`}>
             <span className="truncate">{getActivityEmoji(playlist.workoutType)} {playlist.name}</span>
             {playlist.config?.isIntervalMode && (
