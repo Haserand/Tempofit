@@ -71,6 +71,19 @@ PASSATION.md → README.md → CLAUDE-SANDBOX-VERIFICATION.md → code réel),
   mais correct par principe et cohérent avec les 3 optimisations perf déjà
   faites le 03/08 (voir plus bas).
 
+⚠️ **SESSION DU 05/08 (suite 12) — build Vercel cassé (1 test), corrigé.**
+Mon propre test ajouté au tour précédent (`ProfileView.test.jsx`, "un
+template jamais cloné... affiche bien 0") utilisait `getByTitle(...)` —
+un seul élément attendu. Une fois le badge de clonages passé en "toujours
+affiché, même à 0" (même chantier), la grille de la vitrine (35+ cartes)
+en affiche désormais AUTANT avec ce même `title`, donc `getByTitle`
+échouait ("Found multiple elements"). Corrigé : recherche depuis le titre
+de la carte concernée puis `.closest('.shadow-xs')` (classe unique à
+`PublicItemCard`, vérifiée) pour cibler précisément SA carte, plutôt
+qu'une recherche globale sur toute la page. `within` importé (manquant).
+Reste de la suite déjà vert à ce moment-là (1038/1039) — un seul test à
+corriger.
+
 ⚠️ **SESSION DU 05/08 (suite 11) — retour direct : "je ne vois pas le
 nombre de clones dans une playlist... il me semble que c'est la demande de
 base".** Le compteur de clonages existait déjà (vraie table
