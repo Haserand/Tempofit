@@ -144,7 +144,7 @@ export function usePlaylistLibrary(
 
     const cloned = {
       ...currentPlaylist,
-      id: `pl-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `pl-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
       status: 'pending',
       isPublic: false,
       isReadOnly: false,
@@ -152,6 +152,29 @@ export function usePlaylistLibrary(
       actualDataByDate: {},
       plannedDate: null,
       createdAt: new Date().toLocaleDateString(),
+      // BUG CORRIGÉ (07/08, check-up) : `...currentPlaylist` ci-dessus
+      // reporte aussi les champs D'AFFICHAGE posés par
+      // `handleOpenPublicPlaylist` (App.jsx) pour la playlist ÉTRANGÈRE
+      // qu'on vient de consulter — `user_id` (l'UUID du propriétaire
+      // D'ORIGINE), `ownerUsername`, `cloneCount` (figé au moment du
+      // clonage). Sans ce reset, ces 3 champs restaient indéfiniment dans
+      // `content` de la copie — désormais possédée par l'utilisateur —
+      // synchronisés tels quels vers Supabase. Aucun symptôme visible
+      // aujourd'hui (les 2 seuls endroits qui les lisent, le bouton
+      // Cloner et le badge de clonages de `PlaylistHeader.jsx`, sont gatés
+      // sur `isReadOnly`, qui redevient `false` juste en dessous) — mais
+      // un futur code qui lirait `currentPlaylist.user_id` SANS vérifier
+      // `isReadOnly`/`isSaved` en premier traiterait à tort cette copie,
+      // pourtant possédée, comme une playlist étrangère : même famille de
+      // piège que celui déjà documenté plus haut sur la clé composite
+      // `(id, user_id)` ("toujours filtrer par les deux ensemble").
+      // `handleClonePublicRoutine` (App.jsx), l'équivalent côté routines,
+      // n'a jamais eu ce problème : il part de `{ ...row.content }` (le
+      // contenu brut, sans `user_id`) plutôt que de l'objet aplati — divergence
+      // entre les deux implémentations, pas un choix voulu.
+      user_id: undefined,
+      ownerUsername: undefined,
+      cloneCount: undefined,
       // Ne conserver le lien que s'il pointe vers un VRAI utilisateur
       // (`parentUserId` défini) — sinon (playlist issue d'un template de
       // la vitrine, `sourceTemplateId` déjà propagé par le spread
