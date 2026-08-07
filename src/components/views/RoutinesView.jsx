@@ -1,9 +1,8 @@
 import { useState, useMemo } from 'react';
-import { ListPlus, Plus, Edit3, Trash2, Layers, Info, Loader2, PlaySquare, Globe, MessageSquarePlus, Check, X } from 'lucide-react';
+import { ListPlus, Plus, Edit3, Trash2, Layers, Info, Loader2, PlaySquare, Globe } from 'lucide-react';
 import { useModalContext } from '../../contexts/ModalContext';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
-import { MAX_DESCRIPTION_LENGTH } from '../../appConfig';
 import { isTargetValueValid, areSegmentsValid } from '../../utils/targetValidation';
 
 /**
@@ -51,52 +50,31 @@ export default function RoutinesView({
     }));
   };
 
-  // Description libre (Vague 2, Chantier 3 — "description texte libre sur
-  // une playlist/routine publique", 02/08) — MÊME principe local que
-  // `handleToggleRoutinePublic` juste au-dessus (état géré ici via
-  // `setRoutines`, pas via `updateRoutine`/`applyRoutineEditOnce` de
-  // useRoutines.js/useRoutineActions.js) : DÉLIBÉRÉMENT, pas la modale
-  // d'édition existante (`EditRoutineModal.jsx`) — celle-ci force un choix
-  // "cette séance seulement / toujours" qui déclenche une GÉNÉRATION à
-  // chaque sauvegarde (voir `applyRoutineEditOnce`/`applyRoutineEditPermanently`,
-  // useRoutineActions.js) : imposer ce détour pour un simple changement de
-  // texte descriptif aurait été une friction UX sans rapport avec le geste
-  // ("je veux juste écrire une phrase", pas "je veux relancer une séance").
-  // `editingDescriptionId` (pas juste un booléen) : identifie QUELLE carte
-  // est en cours d'édition, une seule à la fois.
-  const [editingDescriptionId, setEditingDescriptionId] = useState(null);
-  const [descriptionDraft, setDescriptionDraft] = useState('');
-
-  const startEditingDescription = (routine) => {
-    setDescriptionDraft(routine.description || '');
-    setEditingDescriptionId(routine.id);
-  };
-
-  const handleSaveRoutineDescription = (id) => {
-    const trimmed = descriptionDraft.trim().slice(0, MAX_DESCRIPTION_LENGTH);
-    setRoutines(routines.map(r => {
-      if (r.id !== id) return r;
-      return {
-        ...r,
-        description: trimmed,
-        // "Clone" vs "Enfant" (02/08) — MÊME règle que
-        // handleRenamePlaylist/handleEditPlaylistDescription
-        // (PlaylistDetailContext.jsx, voir leur docstring pour le
-        // raisonnement complet), transposée aux routines.
-        ...(r.parentUserId && !r.isModifiedSinceClone ? { isModifiedSinceClone: true } : {}),
-      };
-    }));
-    setEditingDescriptionId(null);
-  };
+  // Description libre sur les routines — RETIRÉE (08/08, retour direct,
+  // capture à l'appui : "finalement pas emballé par la fonctionnalité
+  // description sur les routines... on conserve juste pour les
+  // playlists"). Contrairement à une playlist (vraie page détail dédiée,
+  // la description y respire), une routine n'a AUCUNE vue détail séparée
+  // — la description finissait compressée sur la carte elle-même,
+  // tronquée à 1 ligne sans échappatoire "Voir plus" (voir le bloc JSX
+  // qui vivait ici, retiré). La fonctionnalité reste intacte pour les
+  // playlists (`PlaylistHeader.jsx`/`PlaylistDetailContext.jsx`,
+  // inchangés) — seule la variante "routines" de ce chantier (Vague 2,
+  // Chantier 3, 02/08) est annulée. Voir aussi `PublicRoutinePreviewModal.jsx`
+  // (affichage retiré), `ProfileView.jsx`/`PublicItemCard` (gaté sur
+  // `kind === 'playlist'` désormais), `officialVitrineProfile.js`
+  // (descriptions retirées de `FAKE_VITRINE_ROUTINES`).
 
   // Triées par nombre de générations manuelles décroissant — les plus utilisées
   // remontent en premier. À égalité, ordre inchangé.
   //
   // ⚠️ OPTIMISATION (audit perf, 05/08) : les 2 tris + le filtre ci-dessous
   // tournaient sur CHAQUE rendu de ce composant (pas de `useMemo`) — y
-  // compris un rendu déclenché par une simple frappe dans le brouillon de
-  // description (`descriptionDraft`, state local à ce même composant, voir
-  // plus haut), sans aucun rapport avec `routines`. Memoïsé sur `[routines]`
+  // compris un rendu déclenché par un state local à ce même composant sans
+  // aucun rapport avec `routines` (à l'époque, une frappe dans le brouillon
+  // de description — fonctionnalité retirée depuis le 08/08, voir plus
+  // haut ; l'optimisation elle-même reste valable pour tout autre state
+  // local futur du même genre). Memoïsé sur `[routines]`
   // : les 2 tris ne se recalculent plus que quand la liste change vraiment.
   // `routineRankMap` (Map id → rang) remplace aussi un `routineRanks.indexOf
   // (routine.id)` qui tournait DANS la boucle `.map()` juste en dessous —
@@ -238,63 +216,6 @@ export default function RoutinesView({
                 </div>
               </div>
               <div>{renderConfigInfoLine(routine)}</div>
-
-              {/* Description libre (Vague 2, Chantier 3, 02/08) — voir la
-                  docstring de `handleSaveRoutineDescription` plus haut pour
-                  pourquoi c'est géré ICI plutôt que dans
-                  EditRoutineModal.jsx. Visible aussi sur le profil public
-                  (PublicItemCard/PublicRoutinePreviewModal, ProfileView.jsx)
-                  une fois la routine rendue publique — c'est le but de ce
-                  chantier. */}
-              {editingDescriptionId === routine.id ? (
-                <div className="mt-2 space-y-1.5">
-                  <textarea
-                    autoFocus
-                    value={descriptionDraft}
-                    onChange={(e) => setDescriptionDraft(e.target.value.slice(0, MAX_DESCRIPTION_LENGTH))}
-                    onKeyDown={(e) => { if (e.key === 'Escape') setEditingDescriptionId(null); }}
-                    placeholder="Ajoute une description (visible si cette routine devient publique)..."
-                    rows={2}
-                    className={`w-full text-sm rounded-lg px-3 py-2 outline-hidden resize-none border ${inputBg} ${inputBorder} ${textHighlight}`}
-                  />
-                  <div className="flex items-center justify-between">
-                    <span className={`text-xs ${textMuted}`}>{descriptionDraft.length}/{MAX_DESCRIPTION_LENGTH}</span>
-                    <div className="flex gap-1">
-                      <button onClick={() => setEditingDescriptionId(null)} className={`p-1.5 rounded-lg ${textMuted} hover:text-main transition-colors`} title="Annuler">
-                        <X size={16} />
-                      </button>
-                      <button onClick={() => handleSaveRoutineDescription(routine.id)} className="p-1.5 rounded-lg text-white bg-emerald-600 hover:bg-emerald-500 transition-colors" title="Enregistrer">
-                        <Check size={16} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : routine.description ? (
-                <div className="mt-2 flex items-start gap-2">
-                  {/* `line-clamp-1` (05/08, retour direct — clarification de
-                      la demande du 04/08 : "je voulais UNE ligne max ; pas
-                      2"). Contrairement aux playlists, une routine n'a AUCUNE
-                      vue détail séparée — cette carte est le SEUL endroit où
-                      sa description s'affiche. Pas d'échappatoire "Voir plus"
-                      (décision explicite du 04/08 : "je m'en moque d'en
-                      couper", pas de vrais utilisateurs pour l'instant).
-                      ⚠️ CORRECTIF flex (04/08, `line-clamp-2` à l'époque,
-                      toujours valable à `line-clamp-1`) : `<p>` est un item
-                      flex à côté du bouton crayon, sans largeur propre —
-                      `min-width: auto` par défaut empêche `line-clamp` de
-                      s'appuyer sur quoi que ce soit. Même piège déjà
-                      documenté dans ce projet (ViewHeader.jsx, commentaire
-                      `min-w-0`). `flex-1 min-w-0` corrige. */}
-                  <p className={`text-sm whitespace-pre-line line-clamp-1 flex-1 min-w-0 ${textMuted}`}>{routine.description}</p>
-                  <button onClick={() => startEditingDescription(routine)} className={`p-1 rounded-lg shrink-0 ${textMuted} hover:text-main transition-colors`} title="Modifier la description">
-                    <Edit3 size={13} />
-                  </button>
-                </div>
-              ) : (
-                <button onClick={() => startEditingDescription(routine)} className={`mt-2 flex items-center gap-1 text-xs font-bold ${textMuted} hover:text-main transition-colors`}>
-                  <MessageSquarePlus size={13} /> Ajouter une description
-                </button>
-              )}
 
               <div className="mt-auto pt-4 border-t border-gray-100 dark:border-gray-800">
                 {/* Message différencié : le mode Fractionné ne peut PAS être
