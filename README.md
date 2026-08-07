@@ -375,6 +375,39 @@ réel trouvé et corrigé, 1 optimisation de dette technique appliquée :**
   utilitaire — 5 cas dont le repli `execCommand` et son piège de retour
   silencieux) + 1 test dans `SettingsView.test.jsx` (clic → bon texte
   copié → coche affichée).
+- **HARMONISATION — les 2 implémentations "copier dans le presse-papier"
+  signalées ci-dessus, mais volontairement pas touchées, ONT FINALEMENT
+  ÉTÉ unifiées (08/08, retour direct immédiat : "faut pas que tout soit
+  le même ?").** En revérifiant les tests existants avant de trancher,
+  le refactor s'est révélé bien MOINS risqué que redouté au moment du
+  1er correctif — les deux suites de tests concernées vérifient déjà un
+  comportement OBSERVABLE (toast affiché, modale fermée, `<textarea>`
+  bien retiré du DOM, texte transmis au presse-papier), jamais un détail
+  d'implémentation interne — un vrai signal que le refactor était sûr,
+  vérifié avant d'agir plutôt que supposé.
+  - **`useShare.js`, `copyToClipboard`** — la logique presse-papier
+    elle-même (essai `navigator.clipboard`, repli `execCommand`,
+    vérification de sa valeur de retour) déléguée à
+    `copyTextToClipboard` (`clipboard.js`) ; ce qui reste ICI est
+    seulement ce qui est spécifique à ce hook (construction du texte
+    depuis `shareData`, fermeture de la modale, message exact du toast).
+    Les 5 tests existants de `useShare.test.js` passent sans
+    modification — confirmé AVANT de livrer, pas après coup.
+  - **`SettingsView.jsx`, `copyRedirectUri`** — migré sur
+    `copyTextToClipboard` (avant : `navigator.clipboard` seul, échec
+    silencieux `.catch(() => {})`, aucun repli, aucun retour utilisateur
+    en cas d'échec réel — exactement la version FRAGILE identifiée dans
+    le correctif précédent). Message d'erreur ajouté au passage (absent
+    avant, jamais aucun retour possible en cas d'échec) — cohérence avec
+    `copyProfileLink` et `useShare.js`. 1 nouveau test ajouté
+    (`SettingsView.test.jsx`) qui vérifie précisément ce nouveau message
+    d'erreur, absent avant ce chantier.
+  Résultat : **une seule implémentation** de "copier dans le
+  presse-papier" dans tout le projet (`src/utils/clipboard.js`), utilisée
+  par les 3 boutons "copier" existants (redirect URI Spotify, lien de
+  profil public, partage de playlist/trophée) — plus aucune version
+  fragile qui traîne, plus aucun risque d'en copier une par accident pour
+  un futur 4e bouton.
   ⚠️ **Correctif PAS ENCORE vérifié en conditions réelles** — trouvé et
   livré dans cette session, mais pas encore déployé/testé sur l'app en
   prod au moment d'écrire ceci (retour direct de l'utilisateur : "je
