@@ -233,6 +233,62 @@ réel trouvé et corrigé, 1 optimisation de dette technique appliquée :**
   problème de débordement, donc viser la même longueur. Aucun test
   cassé (`PublicRoutinePreviewModal.test.jsx` ne dépend pas du texte
   exact).
+- **REFONTE UI — pseudo + compteur de clonages regroupés au-dessus du
+  titre, sur les 3 endroits concernés (07/08, retour direct, capture
+  annotée : "mettre les pseudos avant le nom de la playlist, et le
+  compteur de clones, sur la même ligne" — puis confirmation explicite
+  pour étendre aux cartes Découvrir ET à Mes Séances).** AVANT : pseudo et
+  compteur de clonages vivaient à 2 endroits physiquement déconnectés
+  (pseudo sous la pochette/après le titre, compteur à côté du titre/sur
+  une 3e ligne) alors qu'ils décrivent la même famille d'info (qui a fait
+  cette séance, quel accueil elle a eu). Pattern déjà éprouvé ailleurs
+  (Spotify, "Playlist par X" au-dessus du gros titre) — appliqué de façon
+  cohérente aux 3 surfaces concernées :
+  - **`PlaylistHeader.jsx`** (fiche détail) — étiquette propriétaire
+    (`ownerLabel`) déplacée de sous la pochette vers une nouvelle ligne
+    "chapeau" au-dessus du titre, fusionnée avec le compteur de clonages
+    (retiré de son ancien emplacement à côté du titre). Logique
+    inchangée (cliquable ou non, gating `cloneCount !== undefined`,
+    historique du bug `isReadOnly` du même jour) — seul l'EMPLACEMENT
+    bouge, conservé dans les commentaires de la nouvelle ligne pour ne
+    pas perdre ce contexte.
+  - **`TemplateCard.jsx`** (cartes Découvrir) — même déplacement (auteur
+    + compteur au-dessus du titre). `avgBpm` (qui vivait sur l'ancienne
+    ligne auteur) déménagé sur la ligne de métadonnées (avec
+    workoutType/durée) — même distinction "composition de la séance" vs
+    "accueil social" déjà appliquée dans PlaylistHeader.jsx. ⚠️ Piège
+    trouvé en implémentant : envelopper l'auteur NON cliquable dans un
+    `<span>` (comme la 1re version de ce correctif le faisait) aurait créé
+    une collision avec le badge "officiel" en coin (lui aussi un `<span>`
+    au texte EXACT "TempoFit" pour un template officiel) — 2 éléments
+    identiques, ambigu pour les tests ET pour tout outil d'accessibilité
+    qui s'appuierait sur le texte. Corrigé : l'auteur non cliquable reste
+    en texte brut (comme avant ce chantier), seul le cas CLIQUABLE
+    (`<button>`) a besoin d'un élément dédié. 2 tests existants réécrits
+    (le BPM n'est plus "à côté de l'auteur" ; le `<p>` auteur contient
+    désormais aussi le compteur, cassant un match exact), 1 nouveau test
+    qui vérifie l'ordre réel dans le DOM (la vraie demande, pas juste "les
+    deux existent quelque part sur la carte").
+  - **`PlaylistCard.jsx`** (Mes Séances, TES PROPRES playlists) — nouvelle
+    ligne "chapeau" avec TON pseudo (`username`, repli "Invité" — même mot
+    que PlaylistHeader.jsx pour ce même état), pour la cohérence visuelle
+    (confirmé explicitement, alors que ce n'était pas la demande
+    d'origine). PAS cliquable (naviguer vers son propre profil depuis sa
+    propre carte n'a pas de sens évident, même raisonnement déjà appliqué
+    au pseudo dans PlaylistHeader.jsx) et PAS de compteur de clonages
+    (`cloneCount` n'existe conceptuellement que pour un aperçu en lecture
+    seule — TOUJOURS `undefined` une fois la playlist dans "Mes Séances",
+    voir le correctif `usePlaylistLibrary.js` plus haut). `username`
+    câblé App.jsx → PlaylistsView.jsx → PlaylistCard.jsx (nouvelle prop,
+    3 fichiers touchés). 3 nouveaux tests ajoutés.
+  **Exception délibérée, PAS traitée** : `PublicItemCard`
+  (`ProfileView.jsx`, grille du profil de quelqu'un) — pas de byline
+  ajoutée là, l'en-tête de la page dit déjà "@pseudo" en haut, un rappel
+  par carte serait redondant. Vérifié avec l'utilisateur avant de ne rien
+  faire plutôt que supposé.
+  ⚠️ **Pas encore vérifié en conditions réelles** — même limite que
+  d'habitude (bac à sable sans accès réseau), à confirmer au prochain
+  build/clic réel.
   ⚠️ **Correctif PAS ENCORE vérifié en conditions réelles** — trouvé et
   livré dans cette session, mais pas encore déployé/testé sur l'app en
   prod au moment d'écrire ceci (retour direct de l'utilisateur : "je
