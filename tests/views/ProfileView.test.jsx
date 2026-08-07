@@ -8,7 +8,7 @@
 // vrai réseau.
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, cleanup, within } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 // Voir AuthContext.test.jsx pour l'explication complète de `vi.hoisted()`
@@ -680,10 +680,19 @@ describe('ProfileView — profil vitrine officiel (@tempofit_officiel)', () => {
   // ProfileView.jsx) : "jamais un nombre inventé" reste vrai (0 est la
   // valeur RÉELLE, pas une invention), mais le badge n'est plus masqué à
   // 0 — il s'affiche désormais, comme partout ailleurs dans l'app.
+  // ⚠️ BUG CORRIGÉ (build Vercel réel) : `getByTitle(...)` matchait
+  // PLUSIEURS éléments — la vitrine affiche des dizaines de cartes, TOUTES
+  // avec ce badge maintenant qu'il n'est plus masqué à 0, donc toutes avec
+  // le même `title`. Recherche depuis le titre de la carte concernée
+  // (`curatedSessions[0].title`) puis `.closest('.shadow-xs')` pour
+  // remonter jusqu'à SA carte précisément (`shadow-xs` : classe unique à
+  // `PublicItemCard`, vérifié — pas de risque de remonter vers une autre
+  // carte par erreur), plutôt qu'une recherche globale sur toute la page.
   it('un template jamais cloné (absent de template_clone_counts) affiche bien 0, jamais un nombre inventé', async () => {
     render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} isNaughtyMode={false} />);
-    await screen.findByText(curatedSessions[0].title);
-    expect(screen.getByTitle('Nombre de fois où cette playlist/routine a été clonée')).toHaveTextContent('0');
+    const titleEl = await screen.findByText(curatedSessions[0].title);
+    const card = titleEl.closest('.shadow-xs');
+    expect(within(card).getByTitle('Nombre de fois où cette playlist/routine a été clonée')).toHaveTextContent('0');
   });
 
   it('cloisonnement Sport/Intime respecté dans la grille de la vitrine, exactement comme un vrai profil', async () => {
