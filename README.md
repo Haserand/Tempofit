@@ -312,6 +312,29 @@ réel trouvé et corrigé, 1 optimisation de dette technique appliquée :**
   endroits où le pseudo identifie un propriétaire potentiellement
   DIFFÉRENT de soi (`PlaylistHeader.jsx`, `TemplateCard.jsx`) — inchangés,
   ce chantier ne concernait QUE la vue "Mes Séances".
+- **BUG CORRIGÉ — retour direct, capture annotée : "pour simplifier le
+  partage il faut que le texte du lien de partage de profil soit
+  sélectionnable à la souris"** (`SettingsView.jsx`, bloc "Confidentialité
+  & Profil Public"). Cause : `body { user-select: none }` (`index.css`,
+  décision globale VOLONTAIRE, déjà documentée — l'app se veut "native",
+  pas un document qu'on sélectionne) désactive la sélection PARTOUT par
+  défaut, réactivée jusqu'ici seulement sur les champs de saisie
+  (`input`/`textarea`/`[contenteditable]`). Le texte du lien
+  (`tempofit.app/?profile={username}`) n'est ni l'un ni l'autre — texte
+  d'AFFICHAGE, jamais un champ de saisie — donc restait insélectionnable
+  malgré les apparences. ⚠️ Piège déjà documenté ailleurs dans ce même
+  fichier CSS (curseur de `<input type="range">`, 04/08) et retrouvé ici à
+  l'identique : une classe Tailwind seule (`select-text`) posée
+  directement sur l'élément n'aurait RIEN changé — la règle `body` vit
+  hors de tout `@layer` Tailwind, donc bat toujours les classes Tailwind
+  par les règles des Cascade Layers CSS, quelle que soit leur spécificité.
+  Corrigé à la racine, pas contourné composant par composant : nouvelle
+  classe **`.selectable-text`** (`index.css`, même règle non-layée que le
+  correctif input déjà en place) — réutilisable ailleurs si un futur
+  besoin similaire apparaît (un autre lien/code technique à copier), sans
+  affaiblir le comportement "app native" pour tout le reste du texte de
+  l'app. Appliquée à ce lien précis. 1 test ajouté
+  (`SettingsView.test.jsx`) vérifiant la classe.
   ⚠️ **Correctif PAS ENCORE vérifié en conditions réelles** — trouvé et
   livré dans cette session, mais pas encore déployé/testé sur l'app en
   prod au moment d'écrire ceci (retour direct de l'utilisateur : "je
