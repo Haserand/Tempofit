@@ -149,6 +149,62 @@ réel trouvé et corrigé, 1 optimisation de dette technique appliquée :**
   passage `.forEach()` sur un tableau de séances, pas une boucle
   imbriquée. Aucun test cassé (`summarizeSessions` reste testée en
   isolation, indépendante de React).
+- **BUG CORRIGÉ — retour direct, capture d'écran : "pourquoi je ne vois
+  pas le compteur de clones sur les playlists de la vue Discover ?"**
+  Sur la GRILLE Découvrir elle-même (`TemplateCard.jsx`), le compteur
+  s'affiche déjà correctement — le trou était sur la fiche DÉTAIL d'un
+  template ouvert DIRECTEMENT depuis Découvrir (pas via la vitrine
+  `@tempofit_officiel`) : le badge de `PlaylistHeader.jsx` était gaté sur
+  `isReadOnly`, posé sur l'hypothèse (05/08) que `cloneCount` ne serait
+  JAMAIS défini quand `isReadOnly` est faux. Fausse : `TemplateCard.jsx`
+  transmet bien un `cloneCount` réel à `onPlayTemplate` pour CE chemin
+  aussi (`openCuratedPlaylist`, useNavigation.js) — seul le chemin
+  vitrine (`handleOpenPublicPlaylist`, App.jsx) posait `isReadOnly: true`
+  À CÔTÉ. Le nombre était donc déjà calculé et transporté jusqu'à
+  `currentPlaylist.cloneCount`, juste jamais affiché sur ce chemin précis.
+  ⚠️ Correctif naïf évité : forcer `isReadOnly: true` côté Découvrir
+  direct aurait AUSSI fait basculer le bouton d'action principal vers
+  "Sauvegarder"/`handleClonePlaylist` (au lieu de "Ajouter à Mes
+  Séances"/`handleSavePlaylist`) — cassant la distinction VOLONTAIRE déjà
+  documentée plus haut ("le clonage ne s'incrémente QUE via 'Cloner' sur
+  un profil/la vitrine — jamais via 'Utiliser ce modèle' dans Découvrir").
+  Corrigé en gatant le badge directement sur `currentPlaylist.cloneCount
+  !== undefined` plutôt que sur `isReadOnly` — précis, ne touche à rien
+  d'autre. Vérifié que `cloneCount` reste bien TOUJOURS `undefined` pour
+  une génération fraîche ou une playlist déjà sauvegardée (y compris une
+  copie clonée, voir le correctif `usePlaylistLibrary.js` plus haut qui
+  le remet explicitement à `undefined`) — le nouveau gardien ne fait donc
+  apparaître le badge que dans les cas où il a un sens. 1 test existant
+  corrigé (encodait l'ancienne hypothèse fausse), 1 nouveau test ajouté
+  qui reproduit exactement le chemin Découvrir direct.
+  ⚠️ **Correctif PAS ENCORE vérifié en conditions réelles** — trouvé et
+  livré dans cette session, mais pas encore déployé/testé sur l'app en
+  prod au moment d'écrire ceci (retour direct de l'utilisateur : "je
+  vérifie d'abord ton correctif" avant d'aller plus loin). Prochaine
+  étape avant tout nouveau chantier sur ce sujet : confirmer qu'un VRAI
+  template Découvrir (ex. "Midnight Runner 160", capture d'écran à
+  l'appui dans cette session) affiche bien le badge une fois ce fichier
+  poussé sur GitHub.
+  ⚠️ **Question ouverte, mise en pause à la demande explicite de
+  l'utilisateur ("note-toi la question pour plus tard")** : la playlist
+  de démo locale (`playlist-example-1`, "Exemple : Session Rock/Métal",
+  définie en dur dans `App.jsx`) devrait-elle AUSSI donner l'illusion
+  d'avoir été générée par le faux compte vitrine "TempoFit Officiel", et
+  afficher un compteur de clonages ? Contrairement aux vrais templates
+  Découvrir corrigés ci-dessus, cette playlist n'est PAS backée par
+  `curatedSessions.js`/`template_clone_counts` — elle est déjà "à
+  l'utilisateur" dès l'inscription (renommable/supprimable, voir
+  `App.jsx`). Tension identifiée avec le principe déjà acté ailleurs dans
+  ce fichier ("le compteur de clonage doit être honnête, 0 par défaut,
+  jamais un nombre inventé" — décision qui avait déjà fait annuler une
+  1re implémentation avec des chiffres "ambitieux mais faux", voir plus
+  bas dans ce README). 3 pistes proposées à l'utilisateur, aucune tranchée
+  pour l'instant : (1) lier cette playlist à un VRAI template Découvrir
+  existant/à créer (compteur honnête, mais demande plus de travail) ;
+  (2) une entrée dédiée dans `template_clone_counts` pour ce cas précis,
+  réelle mais qui démarrerait à 0 ; (3) afficher honnêtement 0 sans rien
+  changer côté données. **À reprendre une fois le point ci-dessus (badge
+  sur un vrai template) confirmé en conditions réelles** — pas commencé.
 - **Dette corrigée — les données restaient dans localStorage après
   déconnexion, sur un appareil partagé le compte suivant pouvait les VOIR
   ET LES MODIFIER.** Connue et documentée de longue date (voir la
