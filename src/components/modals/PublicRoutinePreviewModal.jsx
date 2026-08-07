@@ -43,7 +43,15 @@ export default function PublicRoutinePreviewModal({ theme, isOpen, onClose, rout
           </h3>
           <button onClick={onClose} className={`p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors ${ICON_BUTTON_ROUNDING} hover:bg-surface-hover`}><X size={20} /></button>
         </div>
-        <p className={`text-sm mb-4 ${textMuted}`}>Cette routine est partagée publiquement — tu peux la cloner dans tes propres Routines pour la relancer à ta façon, sans jamais modifier celle de son propriétaire.</p>
+        {/* Message raccourci (07/08, retour direct : "tienne en 2 lignes
+            max" — capture à l'appui montrant 3 lignes) — même idée que
+            l'ancien texte (routine partagée, clonage = copie indépendante,
+            jamais de modification de l'originale), condensée. Inspiré du
+            ton/de la longueur du message équivalent côté playlists
+            (`ImportSharedPlaylistModal.jsx`, nettement plus court) plutôt
+            que d'inventer un style différent pour une modale au même
+            rôle. */}
+        <p className={`text-sm mb-4 ${textMuted}`}>Routine partagée publiquement — clone-la dans tes Routines pour la relancer à ta façon, sans y toucher.</p>
 
         <div className={`p-4 rounded-2xl border ${inputBorder} ${inputBg} mb-4`}>
           <div className="flex items-center gap-2 mb-3">
