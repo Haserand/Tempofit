@@ -208,22 +208,23 @@ function PublicItemCard({ item, theme, onClick, kind = 'playlist' }) {
           <Copy size={12}/>{item.clone_count || 0}
         </span>
       </div>
-      {/* Description libre (Vague 2, Chantier 3 — "description texte libre
-          sur une playlist/routine publique", 02/08) — champ COMMUN aux
-          deux formes de `content` (contrairement à bpm/durée/genre plus
-          haut, qui divergent selon `kind` — voir la docstring en tête de
-          ce composant) : `description` est un simple texte libre, jamais
-          généré, donc pas de branchement `isRoutine` nécessaire ici.
-          `line-clamp-1` (05/08, resserré depuis `line-clamp-2` — retour
-          direct : "je voulais UNE ligne max ; pas 2") : une carte de grille
-          reste compacte même pour une description proche de
-          `MAX_DESCRIPTION_LENGTH`. ⚠️ Contrairement à l'ancienne version de
-          ce commentaire, le texte complet n'est PLUS consultable ailleurs
-          (modale d'aperçu PublicRoutinePreviewModal.jsx, vue détail
-          PlaylistHeader.jsx) — ces deux endroits sont désormais AUSSI en
-          `line-clamp-1`, même décision de troncature sèche partout, sans
-          exception ni "Voir plus" nulle part. */}
-      {content.description && (
+      {/* Description libre — RESTREINTE AUX PLAYLISTS (08/08, retour
+          direct : "finalement pas emballé par la fonctionnalité
+          description sur les routines... on conserve juste pour les
+          playlists"). Chantier d'origine (Vague 2, Chantier 3, 02/08)
+          avait posé `description` comme un champ COMMUN aux deux formes
+          de `content` — `!isRoutine` ajouté ici pour couper l'affichage
+          côté routines, cohérent avec le retrait fait dans
+          RoutinesView.jsx (édition) et PublicRoutinePreviewModal.jsx
+          (aperçu). Reste un simple texte libre pour les playlists, jamais
+          généré — `line-clamp-1` (05/08, resserré depuis `line-clamp-2` —
+          retour direct : "je voulais UNE ligne max ; pas 2") : une carte
+          de grille reste compacte même pour une description proche de
+          `MAX_DESCRIPTION_LENGTH`. Le texte complet reste consultable sur
+          la fiche détail de la playlist (`PlaylistHeader.jsx`, elle-même
+          en `line-clamp-1` — même décision de troncature sèche partout,
+          sans "Voir plus" nulle part). */}
+      {!isRoutine && content.description && (
         <p className={`text-xs mt-2 line-clamp-1 ${textMuted}`}>{content.description}</p>
       )}
     </div>
