@@ -257,13 +257,18 @@ describe('DiscoverView — pastille "Profils" (Feature Sociale, 01/08)', () => {
 });
 
 describe('DiscoverView — clic sur une carte', () => {
-  it('cliquer une carte appelle onPlayTemplate avec le bon template', () => {
+  // ⚠️ CORRIGÉ (05/08, retour direct — "je ne vois pas le nombre de
+  // clones... c'est la demande de base") : `onPlayTemplate` reçoit
+  // désormais `cloneCount` en 2e argument (voir TemplateCard.jsx). Pas de
+  // données mockées pour `template_clone_counts` dans ce test précis →
+  // retombe sur `0`.
+  it('cliquer une carte appelle onPlayTemplate avec le bon template et son cloneCount', () => {
     const onPlayTemplate = vi.fn();
     render(<DiscoverView {...baseProps({ onPlayTemplate })} />);
 
     fireEvent.click(screen.getByText(knownTemplate.title));
 
-    expect(onPlayTemplate).toHaveBeenCalledWith(knownTemplate);
+    expect(onPlayTemplate).toHaveBeenCalledWith(knownTemplate, { cloneCount: 0 });
   });
 });
 
