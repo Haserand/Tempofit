@@ -102,6 +102,29 @@ réel trouvé et corrigé, 1 optimisation de dette technique appliquée :**
   `RoutinesView.jsx`, qui n'avait pas non plus ajouté de test dédié pour
   ce mécanisme précis ("sans impact perceptible... mais correct par
   principe").
+- **Optimisation (mineure) — `PlaylistHeader.jsx` : 3e occurrence du même
+  pattern, trouvée en auditant `musicEngine.js` en profondeur (rien à y
+  corriger, moteur déjà audité perf le 03/08) puis en continuant la
+  recherche ailleurs comme demandé.** Calibrage honnête avant tout : ce
+  cas-ci est nettement MOINS grave que les 2 précédents — un seul tri
+  O(n log n), pas une boucle O(n²) sur une grille de cartes — mais le
+  même gaspillage à chaque frappe. `currentPlaylistRank` retriait TOUTE
+  la collection `savedPlaylists` à CHAQUE rendu de ce composant, y
+  compris chaque frappe en train de renommer la playlist affichée ou
+  d'éditer sa description (`editedPlaylistName`/`editedPlaylistDescription`,
+  state local au Provider `PlaylistDetailContext.jsx`, inclus dans la
+  valeur du Contexte — chaque frappe re-render donc TOUS les
+  consommateurs, dont `PlaylistHeader.jsx` lui-même) — pour ne lire au
+  final qu'UN SEUL rang. Corrigé : `useMemo([savedPlaylists,
+  currentPlaylist.id])` — `savedPlaylists` (reçu en prop depuis App.jsx)
+  reste référentiellement stable pendant la frappe (seul le state
+  d'édition change, jamais la collection elle-même tant que l'édition
+  n'est pas soumise), donc ce `useMemo` élimine bien tout recalcul
+  pendant la frappe. Comportement strictement identique. Aucun test cassé
+  (`PlaylistHeader.test.jsx`, "médaille de rang" : rendu simple, un seul
+  passage, comportement du `useMemo` indiscernable de l'ancien calcul
+  direct sur un premier rendu) — aucun test dédié ajouté, même
+  proportion que les 2 correctifs précédents de cette famille.
 - **Dette corrigée — les données restaient dans localStorage après
   déconnexion, sur un appareil partagé le compte suivant pouvait les VOIR
   ET LES MODIFIER.** Connue et documentée de longue date (voir la
