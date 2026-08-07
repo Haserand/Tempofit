@@ -199,9 +199,13 @@ export function buildOfficialVitrinePlaylistRows(realCloneCounts = {}) {
 // variante du genre réservée au Mode Intime (`NAUGHTY_GENRES`), pas "R&B"
 // tout court (catalogue Sport).
 // ⚠️ CORRIGÉ (02/08, même retour direct que templateToVitrineRow plus
-// haut) — `description` manquait ici aussi : ces routines ont été
-// écrites avant que cette fonctionnalité n'existe, jamais mise à jour
-// depuis.
+// haut) — `description` avait été ajoutée ici, PUIS RETIRÉE (08/08,
+// retour direct : "finalement pas emballé par la fonctionnalité
+// description sur les routines... on conserve juste pour les
+// playlists") — voir RoutinesView.jsx pour l'historique complet du
+// chantier retiré. `templateToVitrineRow` (playlists, plus haut dans ce
+// fichier) N'EST PAS concernée — la description reste une fonctionnalité
+// active pour les playlists, y compris celles de la vitrine.
 //
 // ⚠️ `clone_count` — retiré d'ici une 2e fois le même jour (retour direct :
 // "je veux que ce compteur soit honnête, 0 par défaut") : les valeurs
@@ -216,7 +220,6 @@ const FAKE_VITRINE_ROUTINES = [
       name: 'Mon 5km Quotidien', coverIcon: '🏃', workoutType: 'Course à pied',
       targetMode: 'distance', distanceVal: 5, distanceUnit: 'km',
       bpm: 160, selectedGenres: ['Métal', 'Rock'],
-      description: "Le rituel du matin, tous les jours ou presque — de quoi enchaîner sans réfléchir à la playlist.",
     },
   },
   {
@@ -225,7 +228,6 @@ const FAKE_VITRINE_ROUTINES = [
       name: 'Sortie Longue Weekend', coverIcon: '🚴', workoutType: 'Cyclisme',
       targetMode: 'time', hours: 1, minutes: 30,
       bpm: 130, selectedGenres: ['Electro', 'Pop'],
-      description: "1h30 sur les routes, un tempo qui tient la distance sans jamais lasser.",
     },
   },
   {
@@ -234,7 +236,6 @@ const FAKE_VITRINE_ROUTINES = [
       name: 'HIIT Express', coverIcon: '🔥', workoutType: 'Fractionné',
       targetMode: 'time', hours: 0, minutes: 20, isIntervalMode: true, isCrescendoMode: false,
       bpm: 175, selectedGenres: ['Rap', 'Electro'],
-      description: "20 minutes, aucun temps mort — pour les jours où le temps manque mais pas l'envie.",
     },
   },
   {
@@ -243,7 +244,6 @@ const FAKE_VITRINE_ROUTINES = [
       name: 'Rituel du Soir', coverIcon: '🌙', workoutType: 'Ambiance',
       targetMode: 'time', hours: 0, minutes: 25,
       bpm: 90, selectedGenres: ['R&B Sensuel'],
-      description: "Un moment rien qu'à soi, en douceur, pour clore la journée autrement.",
     },
   },
 ];
