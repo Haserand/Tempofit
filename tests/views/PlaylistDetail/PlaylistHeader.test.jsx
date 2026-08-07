@@ -595,3 +595,33 @@ describe('PlaylistHeader — étiquette "propriétaire actuel" (NOUVEAU, 05/08)'
     expect(screen.queryByTitle('Cette playlist est dans ta bibliothèque')).not.toBeInTheDocument();
   });
 });
+
+// NOUVEAU (05/08, retour direct : "je ne vois pas le nombre de clones dans
+// une playlist... c'est la demande de base") — voir la docstring du badge
+// dans PlaylistHeader.jsx pour le raisonnement complet (gaté sur
+// `isReadOnly`, toujours affiché même à 0).
+describe('PlaylistHeader — compteur de clonages près du titre (NOUVEAU, 05/08)', () => {
+  it('isReadOnly=true : affiche le compteur, même à 0', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({
+      isReadOnly: true, currentPlaylist: makePlaylist({ cloneCount: 0 }),
+    }));
+    render(<PlaylistHeader {...baseProps()} />);
+    expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('0');
+  });
+
+  it('isReadOnly=true avec un vrai compteur : affiche la vraie valeur', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({
+      isReadOnly: true, currentPlaylist: makePlaylist({ cloneCount: 42 }),
+    }));
+    render(<PlaylistHeader {...baseProps()} />);
+    expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('42');
+  });
+
+  it('isReadOnly=false (playlist déjà sauvegardée ou génération fraîche) : aucun compteur affiché', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({
+      isReadOnly: false, currentPlaylist: makePlaylist({ cloneCount: 42 }),
+    }));
+    render(<PlaylistHeader {...baseProps()} />);
+    expect(screen.queryByTitle('Nombre de fois où cette playlist a été clonée')).not.toBeInTheDocument();
+  });
+});
