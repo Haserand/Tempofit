@@ -97,14 +97,19 @@ export function useProfileSearchFilter(items) {
       kind: row.kind || 'playlist',
       name: (content.name || '').toLowerCase(),
       workoutType: content.workoutType || '',
-      // Description libre (Vague 2, Chantier 3, 02/08) — n'existait pas
-      // encore au moment où ce hook a été écrit (voir le brief d'origine,
-      // point "Retiré du scope v1" : "aucun de ces deux champs n'existe
-      // dans le modèle de données actuel... à réintégrer dans une v2 une
-      // fois ce champ construit"). Commun aux deux `kind` (simple texte
-      // libre, pas de divergence de forme comme genre/durée), pas besoin
-      // d'extraction adaptative.
-      description: (content.description || '').toLowerCase(),
+      // Description libre — RESTREINTE AUX PLAYLISTS (08/08, retour
+      // direct : "finalement pas emballé par la fonctionnalité
+      // description sur les routines... on conserve juste pour les
+      // playlists") — voir RoutinesView.jsx pour l'historique complet du
+      // chantier retiré côté édition/affichage. Gaté ici sur `kind` pour
+      // la MÊME raison : une routine créée AVANT ce retrait pourrait
+      // encore porter une vieille description en base (jamais nettoyée
+      // rétroactivement) — sans ce garde, elle resterait trouvable par
+      // recherche texte alors qu'elle n'est plus affichée NULLE PART
+      // (RoutinesView.jsx, PublicRoutinePreviewModal.jsx,
+      // PublicItemCard/ProfileView.jsx l'ont tous les 3 retirée) —
+      // matcher sur un texte invisible aurait été déroutant.
+      description: row.kind === 'routine' ? '' : (content.description || '').toLowerCase(),
       genres: extractGenres(row),
       durationMinutes: extractDurationMinutes(row),
     };
