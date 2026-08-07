@@ -225,8 +225,10 @@ describe('PlaylistDetailContext — isSaved / isReadOnly', () => {
   });
 });
 
-// Vague 2, Chantier 3 — "description texte libre sur une playlist/routine
-// publique" (02/08). Contrairement à isSaved/isReadOnly (valeurs dérivées),
+// Vague 2, Chantier 3 — "description texte libre sur une playlist
+// publique" (02/08 — nom d'origine du chantier mentionnait aussi les
+// routines, RETIRÉ pour elles le 08/08, voir RoutinesView.jsx ; reste
+// actif ici, côté playlist). Contrairement à isSaved/isReadOnly (valeurs dérivées),
 // on vérifie ici que `handleEditPlaylistDescription` appelle bien LES DEUX
 // setters (`setCurrentPlaylist` ET `setSavedPlaylists`) — même schéma exact
 // que `handleRenamePlaylist`, jamais testé isolément non plus jusqu'ici,
