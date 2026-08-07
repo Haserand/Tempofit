@@ -177,6 +177,48 @@ réel trouvé et corrigé, 1 optimisation de dette technique appliquée :**
   apparaître le badge que dans les cas où il a un sens. 1 test existant
   corrigé (encodait l'ancienne hypothèse fausse), 1 nouveau test ajouté
   qui reproduit exactement le chemin Découvrir direct.
+  ✅ **Confirmé en conditions réelles (07/08)** — capture d'écran à
+  l'appui : "Midnight Runner 160" (vrai template Découvrir) affiche
+  désormais bien le badge de clonages sur sa fiche détail, une fois
+  `PlaylistHeader.jsx` correctement repoussé (un 1er build avait échoué —
+  1 test sur 1047 en échec, `cloneCount défini MAIS isReadOnly=false...` —
+  cause : un copier-coller partiel côté GitHub avait laissé une version
+  intermédiaire du fichier ; recopié en entier, build reconfirmé vert).
+- **NOUVELLE FONCTIONNALITÉ — étiquette "propriétaire actuel" cliquable,
+  navigue vers le profil (07/08, retour direct, capture "TempoFit
+  Officiel" à l'appui) : "cliquer sur le pseudo devrait amener à sa vue
+  statistiques".** Précédent exact déjà en place ailleurs dans l'app
+  (`TemplateCard.jsx`, auteur cliquable sur les cartes Découvrir,
+  `hover:underline cursor-pointer`) — repris à l'IDENTIQUE ici plutôt que
+  d'inventer une nouvelle convention visuelle, pour que "ceci est
+  cliquable" porte la même signature partout. Nouveau champ
+  `ownerProfileUsername` (PlaylistHeader.jsx), DISTINCT d'`ownerLabel` —
+  ce dernier ne porte que la valeur D'AFFICHAGE ("TempoFit Officiel", en
+  majuscules, jamais un vrai pseudo utilisable pour la navigation) ; le
+  nouveau champ porte le pseudo TECHNIQUE réel (`OFFICIAL_VITRINE_USERNAME`,
+  minuscules — importé d'`officialVitrineProfile.js`, PAS
+  `OFFICIAL_VITRINE_DISPLAY_NAME` — ou `currentPlaylist.ownerUsername`
+  tel quel pour une vraie playlist étrangère). Cliquable UNIQUEMENT dans
+  la branche `!isSaved` (quelqu'un D'AUTRE a fait cette playlist) — le
+  cas `isSaved` (TON PROPRE pseudo sur ta propre playlist sauvegardée)
+  reste un simple texte inerte, ni demandé ni évidemment utile de le
+  rendre cliquable. Nouvelle prop `onViewProfile`, câblée depuis
+  `handleViewProfile` (App.jsx, déjà existante — même fonction que
+  `SearchUsersModal.jsx`) à travers `PlaylistDetailView.jsx` →
+  `PlaylistDetailViewInner` (2 niveaux de composants distincts dans ce
+  fichier, chacun avec sa PROPRE destructuration de props — piège réel
+  rencontré en implémentant : `tsc --checkJs` a immédiatement attrapé la
+  variable manquante dans le mauvais scope) → `PlaylistHeader.jsx`.
+  Défense en profondeur : sans `onViewProfile` fourni, l'étiquette reste
+  un texte inerte plutôt qu'un clic mort (même raisonnement que
+  `onViewOfficialProfile` dans TemplateCard.jsx). 4 tests ajoutés
+  (`PlaylistHeader.test.jsx`) : clic sur la vitrine → pseudo technique
+  correct ; clic sur un vrai propriétaire → son pseudo ; `isSaved=true` →
+  jamais cliquable même si `onViewProfile` fourni ; `onViewProfile`
+  absent → reste un `<p>`, pas un `<button>`.
+  ⚠️ **Pas encore vérifié en conditions réelles** — même limite que
+  d'habitude (bac à sable sans accès réseau), à confirmer au prochain
+  build/clic réel.
   ⚠️ **Correctif PAS ENCORE vérifié en conditions réelles** — trouvé et
   livré dans cette session, mais pas encore déployé/testé sur l'app en
   prod au moment d'écrire ceci (retour direct de l'utilisateur : "je
