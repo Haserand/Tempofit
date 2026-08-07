@@ -94,6 +94,22 @@ describe('useProfileSearchFilter', () => {
     expect(result.current.filteredItems).toEqual([playlistWithDescription]);
   });
 
+  // RETIRÉ pour les routines (08/08, retour direct : "finalement pas
+  // emballé par la fonctionnalité description sur les routines... on
+  // conserve juste pour les playlists") — voir RoutinesView.jsx pour
+  // l'historique complet. Reproduit le cas d'une ANCIENNE routine qui
+  // porterait encore une description en base (jamais nettoyée
+  // rétroactivement, voir la docstring du champ `description` dans
+  // useProfileSearchFilter.js) : elle ne doit plus être trouvable par
+  // recherche texte, cohérent avec le fait qu'elle n'est plus affichée
+  // nulle part.
+  it('une description de ROUTINE n\'entre PLUS dans la recherche texte, même une ancienne encore en base (retiré le 08/08, non-régression)', () => {
+    const routineWithOldDescription = { ...routineDistance, content: { ...routineDistance.content, description: 'Une sortie tranquille pour bien RÉCUPÉRER après une grosse semaine.' } };
+    const { result } = renderFilter([routineWithOldDescription, playlistB]);
+    act(() => result.current.setSearchText('récupérer'));
+    expect(result.current.filteredItems).toEqual([]);
+  });
+
 
   // ⚠️ RETIRÉ (03/08, refonte onglets Playlists/Routines) — `typeFilter`
   // n'existe plus sur ce hook, voir sa docstring en tête de fichier
