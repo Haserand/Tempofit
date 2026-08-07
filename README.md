@@ -125,6 +125,30 @@ réel trouvé et corrigé, 1 optimisation de dette technique appliquée :**
   passage, comportement du `useMemo` indiscernable de l'ancien calcul
   direct sur un premier rendu) — aucun test dédié ajouté, même
   proportion que les 2 correctifs précédents de cette famille.
+- **Audit complémentaire (07/08, sur demande explicite : "les 3" —
+  `musicEngine.js`, `useGeneratorForm.js`, `ProfileView.jsx`).**
+  `musicEngine.js` relu en entier une 2e fois : rien à corriger — le seul
+  point CPU-bound (boucle de sélection locale par segment) était déjà
+  audité et corrigé le 03/08 ; tout le reste est dominé par la latence
+  réseau Deezer (centaines de ms par appel), convertir les `.includes()`
+  restants en `Set` n'aurait gagné que des microsecondes invisibles.
+  `useGeneratorForm.js` lu en entier : aucun problème trouvé — état de
+  formulaire, petites collections (genres, segments), rien qui opère sur
+  des données volumineuses. `ProfileView.jsx` : déjà TRÈS bien mémoïsé
+  avant cette session (cascade `useMemo` explicitement commentée pour
+  protéger `useProfileSearchFilter.js` d'un recalcul à chaque frappe,
+  lui-même déjà correctement scindé "enrichissement one-shot" vs "filtre
+  reroulé à chaque frappe") — un seul point manqué : `sportSummary`/
+  `intimateSummary` (via `summarizeSessions`, fonction pure exportée et
+  testée isolément, volontairement pas touchée elle-même) recalculés en
+  direct dans le corps du rendu à CHAQUE frappe de recherche, alors que
+  `profile.sport_sessions`/`profile.intimate_sessions` ne changent
+  jamais pendant la frappe. Corrigé (`useMemo` sur ces 2 champs précis,
+  pas sur `profile` entier). Sévérité honnêtement calibrée : encore plus
+  mineur que le correctif `PlaylistHeader.jsx` juste au-dessus — un seul
+  passage `.forEach()` sur un tableau de séances, pas une boucle
+  imbriquée. Aucun test cassé (`summarizeSessions` reste testée en
+  isolation, indépendante de React).
 - **Dette corrigée — les données restaient dans localStorage après
   déconnexion, sur un appareil partagé le compte suivant pouvait les VOIR
   ET LES MODIFIER.** Connue et documentée de longue date (voir la
