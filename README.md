@@ -335,6 +335,46 @@ réel trouvé et corrigé, 1 optimisation de dette technique appliquée :**
   affaiblir le comportement "app native" pour tout le reste du texte de
   l'app. Appliquée à ce lien précis. 1 test ajouté
   (`SettingsView.test.jsx`) vérifiant la classe.
+- **AMÉLIORATION — bouton "Copier le lien" ajouté au lien de profil
+  (08/08, retour direct : "je regrette que tu aies pas décelé avant cette
+  meilleure option, je veux que tu le fasses systématiquement en
+  proposant mieux si tu as en me demandant validation").** Nouvelle
+  **habitude de travail actée** suite à ce retour — voir
+  `CLAUDE-SANDBOX-VERIFICATION.md`, section dédiée en tête du fichier.
+  Le correctif "texte sélectionnable" ci-dessus répondait littéralement à
+  la demande, mais le vrai besoin ("simplifier le partage") est mieux
+  servi par un vrai bouton copier — un clic, confirmation visuelle
+  immédiate, bien plus fiable sur mobile qu'une sélection manuelle de
+  texte étroit collé dans une phrase.
+  ⚠️ **Incohérence trouvée en implémentant** : DEUX versions différentes
+  de "copier dans le presse-papier" coexistaient déjà dans le projet —
+  `copyRedirectUri` (SettingsView.jsx, existant) : `navigator.clipboard`
+  SEUL, échec silencieux, aucun repli ; `copyToClipboard` (`useShare.js`,
+  existant) : `navigator.clipboard` en priorité, repli `execCommand` SI
+  indisponible, ET vérifie la valeur de retour d'`execCommand` (un vrai
+  bug avait déjà été corrigé là-dessus le 31/07 — peut échouer
+  silencieusement sans lever d'exception). Nouveau **`src/utils/clipboard.js`**
+  (`copyTextToClipboard`) — centralise la version ROBUSTE de `useShare.js`
+  plutôt que de repartir sur la version fragile de `copyRedirectUri` par
+  accident, ou d'ajouter une 3e implémentation différente. `useShare.js`
+  **volontairement PAS retouché** dans la foulée (couplé à
+  `shareData`/`closeModal`/`showToast`, un vrai refactor, pas juste un
+  remplacement d'appel) ni `copyRedirectUri` (même raison — les deux
+  restent signalés comme candidats à une future harmonisation, PAS faits
+  sans validation explicite, conformément à la nouvelle habitude
+  ci-dessus).
+  Bouton posé dans une boîte `<code>` + icône copier/coche, MÊME
+  signature visuelle que le bloc "URL Spotify" déjà présent plus bas dans
+  ce même fichier — pas un style inventé pour la même idée. Le texte
+  reste `selectable-text` EN PLUS du bouton (la sélection manuelle
+  continue de marcher pour qui la préfère). State `profileLinkCopied`
+  DÉDIÉ, séparé de `copied`/`copyRedirectUri` (2 boutons "copier"
+  indépendants sur cette même page — partager le state aurait fait
+  clignoter le mauvais bouton). Tests ajoutés :
+  `tests/utils/clipboard.test.js` (nouveau, 1er fichier de test de cet
+  utilitaire — 5 cas dont le repli `execCommand` et son piège de retour
+  silencieux) + 1 test dans `SettingsView.test.jsx` (clic → bon texte
+  copié → coche affichée).
   ⚠️ **Correctif PAS ENCORE vérifié en conditions réelles** — trouvé et
   livré dans cette session, mais pas encore déployé/testé sur l'app en
   prod au moment d'écrire ceci (retour direct de l'utilisateur : "je
