@@ -1848,7 +1848,6 @@ function AppContent({
                 triggerCSVUpload={triggerCSVUpload} removeImportedData={removeImportedData}
                 markPlaylistAsCompleted={markPlaylistAsCompleted}
                 showToast={showToast}
-                username={username}
               />
             )}
 
