@@ -226,7 +226,7 @@ export function PlaylistDetailProvider({
   const handleDuplicateTrack = (index) => {
     if (!currentPlaylist) return;
     const newTracks = [...currentPlaylist.tracks];
-    const duplicated = { ...newTracks[index], id: `track-dup-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` };
+    const duplicated = { ...newTracks[index], id: `track-dup-${Date.now()}-${Math.random().toString(36).slice(2, 11)}` };
     newTracks.splice(index + 1, 0, duplicated);
     applyPlaylistUpdate(newTracks);
     showToast('🎵 Titre dupliqué !');
