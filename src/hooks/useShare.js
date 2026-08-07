@@ -1,5 +1,6 @@
 import { formatDuration } from '../utils/format';
 import { encodePlaylistForSharing } from '../utils/playlistShareCode';
+import { copyTextToClipboard } from '../utils/clipboard';
 import { useModalContext } from '../contexts/ModalContext';
 
 /**
@@ -65,43 +66,28 @@ export function useShare(showToast) {
     openModal('SHARE', data);
   };
 
-  // Copie le texte de partage dans le presse-papier — `navigator.clipboard`
-  // (API moderne, fiable) en priorité, avec repli sur l'ancienne API
-  // `execCommand` UNIQUEMENT si `navigator.clipboard` est indisponible
-  // (contexte non sécurisé / navigateur ancien).
+  // Copie le texte de partage dans le presse-papier — délègue la mécanique
+  // presse-papier elle-même à `copyTextToClipboard` (08/08,
+  // `src/utils/clipboard.js`) plutôt que de la garder dupliquée ici.
   //
-  // BUG CORRIGÉ (31/07) — cette fonction n'utilisait QUE `execCommand`,
-  // jamais `navigator.clipboard` (pourtant l'API principale utilisée
-  // ailleurs dans le projet, voir SettingsView.jsx/copyRedirectUri), ET
-  // n'appelait le toast de succès qu'à l'intérieur d'un `try` qui ne
-  // vérifiait jamais la valeur de retour d'`execCommand('copy')` — cette
-  // fonction renvoie `false` en cas d'échec SANS lever d'exception dans la
-  // plupart des navigateurs, donc le toast "Lien copié !" s'affichait même
-  // quand rien n'avait réellement été copié.
+  // HISTORIQUE — cette logique (navigator.clipboard en priorité, repli
+  // execCommand SI indisponible, vérification de sa valeur de retour) a
+  // été centralisée le 08/08 après que l'utilisateur a repéré que le
+  // projet avait DEUX implémentations différentes de "copier dans le
+  // presse-papier" ("faut pas que tout soit le même ?") — celle-ci
+  // (déjà robuste, corrigée le 31/07 : avant, cette fonction n'utilisait
+  // QUE `execCommand`, jamais `navigator.clipboard`, ET affichait un
+  // toast de succès sans jamais vérifier la valeur de retour
+  // d'`execCommand('copy')`, qui peut renvoyer `false` sans lever
+  // d'exception dans la plupart des navigateurs) ET celle, plus fragile,
+  // de `copyRedirectUri` (SettingsView.jsx). Reste ici tout ce qui est
+  // SPÉCIFIQUE à ce hook (construction de `textToCopy` depuis
+  // `shareData`, fermeture de la modale, message exact du toast) — seule
+  // la mécanique presse-papier elle-même est désormais partagée.
   const copyToClipboard = async () => {
     if (!shareData) return;
     const textToCopy = `${shareData.text} ${shareData.url}`;
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      try {
-        await navigator.clipboard.writeText(textToCopy);
-        showToast("Lien copié dans le presse-papier !");
-        closeModal();
-        return;
-      } catch (err) {
-        // Repli sur execCommand ci-dessous (ex: permission refusée).
-      }
-    }
-
-    const textArea = document.createElement("textarea");
-    textArea.value = textToCopy;
-    textArea.style.top = "0"; textArea.style.left = "0"; textArea.style.position = "fixed";
-    document.body.appendChild(textArea);
-    textArea.focus(); textArea.select();
-    let succeeded = false;
-    try { succeeded = document.execCommand('copy'); } catch (err) { succeeded = false; }
-    document.body.removeChild(textArea);
-
+    const succeeded = await copyTextToClipboard(textToCopy);
     if (succeeded) showToast("Lien copié dans le presse-papier !");
     else showToast("Impossible de copier le lien automatiquement — copie-le manuellement.", 'error');
     closeModal();
