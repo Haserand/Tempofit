@@ -598,10 +598,20 @@ describe('PlaylistHeader — étiquette "propriétaire actuel" (NOUVEAU, 05/08)'
 
 // NOUVEAU (05/08, retour direct : "je ne vois pas le nombre de clones dans
 // une playlist... c'est la demande de base") — voir la docstring du badge
-// dans PlaylistHeader.jsx pour le raisonnement complet (gaté sur
-// `isReadOnly`, toujours affiché même à 0).
-describe('PlaylistHeader — compteur de clonages près du titre (NOUVEAU, 05/08)', () => {
-  it('isReadOnly=true : affiche le compteur, même à 0', () => {
+// dans PlaylistHeader.jsx pour le raisonnement complet.
+// ⚠️ CORRIGÉ (07/08, vrai bug trouvé sur une capture d'écran utilisateur) :
+// gaté à l'origine sur `isReadOnly`, sur l'hypothèse que `cloneCount` ne
+// serait JAMAIS défini quand `isReadOnly` est faux — hypothèse fausse : un
+// template ouvert DIRECTEMENT depuis Découvrir (TemplateCard.jsx →
+// openCuratedPlaylist, PAS la vitrine @tempofit_officiel) reçoit bien un
+// `cloneCount` réel SANS `isReadOnly: true` à côté — le badge restait donc
+// invisible sur ce chemin précis, alors que le nombre était déjà calculé et
+// transporté jusqu'ici. Gaté maintenant directement sur
+// `cloneCount !== undefined` — le 3e test ci-dessous (`isReadOnly: false`)
+// est celui qui encodait l'ancienne hypothèse fausse ("aucun compteur
+// affiché"), corrigé pour refléter le comportement désormais voulu.
+describe('PlaylistHeader — compteur de clonages près du titre (NOUVEAU, 05/08 ; corrigé 07/08)', () => {
+  it('cloneCount défini (isReadOnly=true, vitrine/playlist étrangère) : affiche le compteur, même à 0', () => {
     mockUsePlaylistDetail.mockReturnValue(makeContextValue({
       isReadOnly: true, currentPlaylist: makePlaylist({ cloneCount: 0 }),
     }));
@@ -609,7 +619,7 @@ describe('PlaylistHeader — compteur de clonages près du titre (NOUVEAU, 05/08
     expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('0');
   });
 
-  it('isReadOnly=true avec un vrai compteur : affiche la vraie valeur', () => {
+  it('cloneCount défini (isReadOnly=true) avec un vrai compteur : affiche la vraie valeur', () => {
     mockUsePlaylistDetail.mockReturnValue(makeContextValue({
       isReadOnly: true, currentPlaylist: makePlaylist({ cloneCount: 42 }),
     }));
@@ -617,9 +627,23 @@ describe('PlaylistHeader — compteur de clonages près du titre (NOUVEAU, 05/08
     expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('42');
   });
 
-  it('isReadOnly=false (playlist déjà sauvegardée ou génération fraîche) : aucun compteur affiché', () => {
+  // BUG CORRIGÉ (07/08) — reproduit exactement le chemin Découvrir direct :
+  // `isReadOnly: false` (jamais forcé à `true` sur ce chemin précis,
+  // contrairement à la vitrine — voir App.jsx/useNavigation.js) mais
+  // `cloneCount` bel et bien défini (transmis par TemplateCard.jsx via
+  // `onPlayTemplate(template, { cloneCount })`). Avant ce correctif, le
+  // badge restait invisible ici malgré un nombre déjà correct.
+  it('cloneCount défini MAIS isReadOnly=false (template ouvert directement depuis Découvrir) : affiche quand même le compteur', () => {
     mockUsePlaylistDetail.mockReturnValue(makeContextValue({
-      isReadOnly: false, currentPlaylist: makePlaylist({ cloneCount: 42 }),
+      isReadOnly: false, currentPlaylist: makePlaylist({ cloneCount: 7 }),
+    }));
+    render(<PlaylistHeader {...baseProps()} />);
+    expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('7');
+  });
+
+  it('cloneCount JAMAIS défini (génération fraîche, ou playlist déjà sauvegardée) : aucun compteur affiché', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({
+      isReadOnly: false, currentPlaylist: makePlaylist({ cloneCount: undefined }),
     }));
     render(<PlaylistHeader {...baseProps()} />);
     expect(screen.queryByTitle('Nombre de fois où cette playlist a été clonée')).not.toBeInTheDocument();
