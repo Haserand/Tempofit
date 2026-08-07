@@ -585,14 +585,12 @@ export default function PlaylistHeader({
               </h2>
               {/* Description en lecture seule — plus d'invite "+ Ajouter
                   une description" ni de crayon dédié ici (retirés le
-                  08/08, fusionnés dans le crayon du titre ci-dessus) :
-                  rien à afficher du tout si la description est vide,
-                  contrairement à avant. Rendue même pour un visiteur
-                  (`isReadOnly`) — la description reste visible sur le
-                  profil public, seule l'AFFORDANCE d'édition disparaît
-                  (déjà géré par le crayon plus haut, absent si
-                  `isReadOnly`). */}
-              {currentPlaylist.description && (
+                  08/08, fusionnés dans le crayon du titre ci-dessus).
+                  Rendue même pour un visiteur (`isReadOnly`) — la
+                  description reste visible sur le profil public, seule
+                  l'AFFORDANCE d'édition disparaît (déjà géré par le
+                  crayon plus haut, absent si `isReadOnly`). */}
+              {currentPlaylist.description ? (
                 <div className="flex items-start gap-2 text-sm text-slate-300 max-w-lg">
                   {/* `line-clamp-1` (05/08, retour direct — clarification de
                       la demande du 04/08 : "je voulais UNE ligne max ; pas
@@ -603,6 +601,24 @@ export default function PlaylistHeader({
                       s'appuyer. */}
                   <p className="whitespace-pre-line line-clamp-1 flex-1 min-w-0">{currentPlaylist.description}</p>
                 </div>
+              ) : (
+                // Indice discret, NON cliquable (08/08, retour direct après
+                // relecture de la fusion : "+ Ajouter une description"
+                // disait littéralement ce qu'il faisait — un vrai gain de
+                // découvrabilité perdu en fusionnant les 2 crayons en un
+                // seul, générique, sur le titre. Compromis : signaler
+                // que le champ EXISTE, sans revenir à un bouton dédié qui
+                // recréerait la duplication d'origine. Jamais de
+                // `<button>`/`cursor-pointer`/état hover ici — un texte
+                // purement informatif, le crayon du titre reste le SEUL
+                // point d'entrée pour éditer, ce texte n'en est pas un 2e.
+                // Uniquement pour le propriétaire (`isSaved && !isReadOnly`)
+                // — même périmètre que l'ancienne invite "+ Ajouter", un
+                // visiteur n'a rien à éditer, "Aucune description" ne lui
+                // apprendrait rien d'actionnable.
+                isSaved && !isReadOnly && (
+                  <p className="text-xs text-slate-600 italic">Aucune description</p>
+                )
               )}
             </>
           )}
