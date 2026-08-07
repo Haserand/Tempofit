@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuthContext } from '../contexts/AuthContext';
 import { supabase, isSupabaseConfigured } from '../supabaseClient';
+import { STORAGE_PREFIX } from '../utils/localCache';
 
-const STORAGE_PREFIX = 'tempofit:';
 
 /**
  * useSyncedCollection — même contrat que `usePersistentState.js`
