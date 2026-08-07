@@ -9,7 +9,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { MAX_DESCRIPTION_LENGTH } from '../../src/appConfig.js';
 
 const mockOpenModal = vi.fn();
 vi.mock('../../src/contexts/ModalContext.jsx', () => ({
@@ -297,82 +296,21 @@ describe('RoutinesView', () => {
   });
 });
 
-// Vague 2, Chantier 3 — "description texte libre sur une playlist/routine
-// publique" (02/08). Édition inline directement sur la carte (PAS via
-// EditRoutineModal.jsx — voir la docstring de `handleSaveRoutineDescription`
-// dans RoutinesView.jsx : cette modale forcerait un déclenchement de
-// génération à chaque sauvegarde, une friction absurde pour un simple champ
-// texte).
-describe('RoutinesView — description libre', () => {
-  it('affiche une invite "Ajouter une description" quand la routine n\'en a pas', () => {
-    render(<RoutinesView {...baseProps({ routines: [routineC] })} />);
-    expect(screen.getByText('Ajouter une description')).toBeInTheDocument();
-  });
-
-  it('affiche la description existante, avec un bouton pour la modifier', () => {
-    render(<RoutinesView {...baseProps({ routines: [{ ...routineC, description: 'Ma routine du dimanche' }] })} />);
-    expect(screen.getByText('Ma routine du dimanche')).toBeInTheDocument();
-    expect(screen.getByTitle('Modifier la description')).toBeInTheDocument();
-  });
-
-  it('cliquer "Ajouter une description" ouvre un champ, et "Enregistrer" appelle setRoutines avec le texte saisi, SANS jamais appeler executeGeneration', () => {
-    const setRoutines = vi.fn();
-    const executeGeneration = vi.fn();
-    render(<RoutinesView {...baseProps({ routines: [routineC], setRoutines, executeGeneration })} />);
-
-    fireEvent.click(screen.getByText('Ajouter une description'));
-    const textarea = screen.getByPlaceholderText(/Ajoute une description/);
-    fireEvent.change(textarea, { target: { value: '  Séance de récupération active  ' } });
-    fireEvent.click(screen.getByTitle('Enregistrer'));
-
-    expect(setRoutines).toHaveBeenCalledWith([
-      { ...routineC, description: 'Séance de récupération active' },
-    ]);
-    expect(executeGeneration).not.toHaveBeenCalled();
-  });
-
-  it('"Annuler" ferme le champ sans appeler setRoutines', () => {
-    const setRoutines = vi.fn();
-    render(<RoutinesView {...baseProps({ routines: [routineC], setRoutines })} />);
-
-    fireEvent.click(screen.getByText('Ajouter une description'));
-    fireEvent.change(screen.getByPlaceholderText(/Ajoute une description/), { target: { value: 'brouillon jeté' } });
-    fireEvent.click(screen.getByTitle('Annuler'));
-
-    expect(setRoutines).not.toHaveBeenCalled();
-    expect(screen.queryByPlaceholderText(/Ajoute une description/)).toBeNull();
-    expect(screen.getByText('Ajouter une description')).toBeInTheDocument();
-  });
-
-  // 04/08 — 280 → 150 (voir MAX_DESCRIPTION_LENGTH, appConfig.js, pour le
-  // raisonnement). Import de la VRAIE constante (pas de mock d'appConfig
-  // dans ce fichier) plutôt qu'un nombre en dur, pour ne plus jamais avoir
-  // à revenir ici si cette valeur change encore.
-  it('tronque à MAX_DESCRIPTION_LENGTH caractères même si le texte saisi dépasse (défense en profondeur)', () => {
-    const setRoutines = vi.fn();
-    render(<RoutinesView {...baseProps({ routines: [routineC], setRoutines })} />);
-
-    fireEvent.click(screen.getByText('Ajouter une description'));
-    fireEvent.change(screen.getByPlaceholderText(/Ajoute une description/), { target: { value: 'y'.repeat(500) } });
-    fireEvent.click(screen.getByTitle('Enregistrer'));
-
-    expect(setRoutines.mock.calls[0][0][0].description.length).toBe(MAX_DESCRIPTION_LENGTH);
-  });
-
-  // "Clone" vs "Enfant" (02/08) — MÊME règle que côté playlists
-  // (PlaylistDetailContext.jsx, voir sa docstring pour le raisonnement
-  // complet), transposée aux routines.
-  it('éditer la description d\'une routine CLONÉE (parentUserId présent) pose isModifiedSinceClone à true', () => {
-    const setRoutines = vi.fn();
-    const clonedRoutine = { ...routineC, parentId: 'routine-A', parentUserId: 'user-A', isModifiedSinceClone: false };
-    render(<RoutinesView {...baseProps({ routines: [clonedRoutine], setRoutines })} />);
-
-    fireEvent.click(screen.getByText('Ajouter une description'));
-    fireEvent.change(screen.getByPlaceholderText(/Ajoute une description/), { target: { value: 'Ma propre touche' } });
-    fireEvent.click(screen.getByTitle('Enregistrer'));
-
-    expect(setRoutines).toHaveBeenCalledWith([
-      expect.objectContaining({ isModifiedSinceClone: true }),
-    ]);
+// RETIRÉ (08/08, retour direct, capture à l'appui : "finalement pas
+// emballé par la fonctionnalité description sur les routines... on
+// conserve juste pour les playlists") — la suite "RoutinesView —
+// description libre" qui vivait ici (édition inline, invite "Ajouter une
+// description", troncature MAX_DESCRIPTION_LENGTH, flag Clone/Enfant) a
+// été retirée en même temps que la fonctionnalité elle-même dans
+// RoutinesView.jsx. La fonctionnalité reste intacte pour les playlists —
+// voir les tests de PlaylistHeader.jsx/PlaylistDetailContext.jsx,
+// inchangés. Test de non-régression ci-dessous, même esprit que celui
+// ajouté à PlaylistCard.test.jsx pour le pseudo retiré le même jour.
+describe('RoutinesView — pas de description affichée (retiré le 08/08, non-régression)', () => {
+  it('même si une routine porte encore une ancienne description en base, elle ne doit plus être affichée nulle part sur sa carte', () => {
+    render(<RoutinesView {...baseProps({ routines: [{ ...routineC, description: 'Ancienne description jamais nettoyée en base' }] })} />);
+    expect(screen.queryByText('Ancienne description jamais nettoyée en base')).not.toBeInTheDocument();
+    expect(screen.queryByText('Ajouter une description')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Modifier la description')).not.toBeInTheDocument();
   });
 });
