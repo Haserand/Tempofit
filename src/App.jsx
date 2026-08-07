@@ -294,7 +294,7 @@ function AppContent({
 
     const cloned = {
       ...row.content,
-      id: `routine-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `routine-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
       isPublic: false,
       manualGenerations: 0,
       recentTrackIds: [],
@@ -819,7 +819,7 @@ function AppContent({
     const avgBpm = Math.round(preview.tracks.reduce((s, t) => s + (t.bp || 0), 0) / preview.tracks.length) || 120;
 
     const rawPlaylist = {
-      id: `pl-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `pl-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
       name: `${preview.name} (importée)`,
       workoutType: preview.workoutType || 'Autre',
       avgPace: preview.avgPace, targetMode: preview.targetMode, distanceUnit: preview.distanceUnit,
