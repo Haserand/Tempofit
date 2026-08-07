@@ -1,6 +1,6 @@
 import { useRef, useMemo } from 'react';
 import {
-  Check, Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Music2, Play,
+  Edit3, Save, CheckCircle, Share2, Activity, Clock, Music, Music2, Play,
   Calendar, Lock, Upload, Trash2, Gauge, Globe, X, Copy,
 } from 'lucide-react';
 import { getGenresForDisplay, genreDisplayLabel } from '../../../musicCatalog';
@@ -100,8 +100,9 @@ export default function PlaylistHeader({
   const { bgAccentClass } = theme;
   const {
     currentPlaylist, isSaved, getProfileForWorkout,
-    isEditingPlaylistName, setIsEditingPlaylistName, editedPlaylistName, setEditedPlaylistName, handleRenamePlaylist,
-    isEditingPlaylistDescription, setIsEditingPlaylistDescription, editedPlaylistDescription, setEditedPlaylistDescription, handleEditPlaylistDescription,
+    isEditingPlaylistDetails, setIsEditingPlaylistDetails,
+    editedPlaylistName, setEditedPlaylistName, editedPlaylistDescription, setEditedPlaylistDescription,
+    handleSavePlaylistDetails,
     handleSavePlaylist, handleUnsavePlaylist, handleTogglePlaylistPublic,
     handleClonePlaylist, isReadOnly, username,
   } = usePlaylistDetail();
@@ -509,68 +510,34 @@ export default function PlaylistHeader({
             </div>
           )}
 
-          {/* Titre éditable — text-2xl/text-4xl (plutôt que text-5xl) pour que
-              la plupart des noms tiennent sur une ligne SANS être coupés, et
-              `truncate` en filet de sécurité pour les noms vraiment longs. */}
-          {isEditingPlaylistName ? (
-            <div className="flex items-center gap-2 justify-center md:justify-start">
+          {/* Titre + description — ÉDITION FUSIONNÉE (08/08, retour direct,
+              capture annotée : "que modifier le titre ou la description
+              vienne un seul crayon plutôt que via chacune une option
+              individuelle" — précédent cité, Spotify "Modifier les
+              détails", gardé INLINE ici plutôt qu'une modale sur
+              confirmation explicite). Un SEUL crayon (sur le titre,
+              affiché seulement `isSaved && !isReadOnly`, même garde qu'avant)
+              ouvre l'édition des DEUX champs ensemble — pré-remplit les 2
+              brouillons AVANT de basculer `isEditingPlaylistDetails`, pour
+              que rien ne parte d'un état vide au 1er rendu de l'édition.
+              text-2xl/text-4xl (plutôt que text-5xl) pour que la plupart
+              des noms tiennent sur une ligne SANS être coupés, `truncate`
+              en filet de sécurité pour les noms vraiment longs. */}
+          {isEditingPlaylistDetails ? (
+            <div className="w-full space-y-2">
               <input
                 type="text" autoFocus value={editedPlaylistName} onChange={e => setEditedPlaylistName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleRenamePlaylist(); if (e.key === 'Escape') setIsEditingPlaylistName(false); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSavePlaylistDetails(); if (e.key === 'Escape') setIsEditingPlaylistDetails(false); }}
                 className="text-xl font-bold bg-transparent outline-hidden border-b-2 border-rose-500 text-white w-full"
               />
-              <button onClick={handleRenamePlaylist} className="p-2 rounded-lg text-white shrink-0 bg-rose-600 hover:bg-rose-500"><Check size={20}/></button>
-            </div>
-          ) : (
-            <h2 className="text-xl font-bold flex items-center gap-3 justify-center md:justify-start text-white">
-              <span className="truncate min-w-0" title={currentPlaylist.name}>{getActivityEmoji(currentPlaylist.workoutType)} {currentPlaylist.name}</span>
-              {/* Compteur de clonages — DÉPLACÉ (07/08, retour direct :
-                  "mettre les pseudos avant le nom de la playlist, et le
-                  compteur de clones, sur la même ligne") dans la ligne
-                  "chapeau" au-dessus du titre, avec le pseudo — voir sa
-                  docstring, quelques lignes plus haut, pour tout
-                  l'historique (dont le bug `isReadOnly` du même jour). Plus
-                  rien à afficher ici, à côté du titre lui-même. */}
-              {/* Renommer n'a de sens que pour une playlist déjà dans la
-                  bibliothèque personnelle (`isSaved`) — sur un modèle pas
-                  encore sauvegardé (bouton principal "Ajouter à Mes
-                  Séances"), le nom affiché est celui du modèle d'origine,
-                  pas encore "à soi" ; le renommer ici donnerait l'illusion
-                  d'une sauvegarde qui n'a pas eu lieu. `!isReadOnly` ajouté
-                  (relecture globale, 02/08) — même défense en profondeur
-                  que le toggle public/le bouton CSV plus haut : `isSaved`
-                  vaut TOUJOURS `false` pour une vraie playlist étrangère en
-                  pratique, mais ce garde protège contre un futur
-                  changement qui romprait cette hypothèse implicite sans y
-                  penser. */}
-              {isSaved && !isReadOnly && (
-                <button onClick={() => { setEditedPlaylistName(currentPlaylist.name); setIsEditingPlaylistName(true); }} className="p-1.5 rounded-lg text-slate-400 hover:text-white transition-colors shrink-0" title="Renommer la playlist">
-                  <Edit3 size={20}/>
-                </button>
-              )}
-            </h2>
-          )}
-
-          {/* Description libre (Vague 2, Chantier 3 — "description texte
-              libre sur une playlist/routine publique", 02/08) — MÊME
-              schéma exact que le nom éditable juste au-dessus (édition
-              inline, `isSaved && !isReadOnly` pour l'affordance d'édition),
-              à 2 différences : une `<textarea>` (texte plus long possible)
-              plutôt qu'un `<input>`, et un état "pas encore de description"
-              affiché comme une invite discrète plutôt qu'absent — une
-              playlist SANS nom n'aurait aucun sens (le nom est donc
-              toujours affiché, jamais cette 3e branche), une playlist SANS
-              description est le cas de départ normal. Rendue même pour un
-              visiteur (`isReadOnly`) : c'est justement le but de ce
-              chantier — que la description soit visible sur le profil
-              public, pas seulement pour le propriétaire. */}
-          {isEditingPlaylistDescription ? (
-            <div className="w-full space-y-1.5">
+              {/* Pas de gestion `Enter` ici (contrairement au champ nom
+                  juste au-dessus) — Entrée dans une `<textarea>` insère un
+                  retour à la ligne, comportement natif attendu pour un
+                  texte multi-lignes, jamais une soumission prématurée. */}
               <textarea
-                autoFocus
                 value={editedPlaylistDescription}
                 onChange={e => setEditedPlaylistDescription(e.target.value.slice(0, MAX_DESCRIPTION_LENGTH))}
-                onKeyDown={(e) => { if (e.key === 'Escape') setIsEditingPlaylistDescription(false); }}
+                onKeyDown={(e) => { if (e.key === 'Escape') setIsEditingPlaylistDetails(false); }}
                 placeholder="Ajoute une description (visible si cette playlist devient publique)..."
                 rows={2}
                 className="w-full text-sm bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 outline-hidden text-slate-200 resize-none"
@@ -578,46 +545,66 @@ export default function PlaylistHeader({
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-500">{editedPlaylistDescription.length}/{MAX_DESCRIPTION_LENGTH}</span>
                 <div className="flex gap-2">
-                  <button onClick={() => setIsEditingPlaylistDescription(false)} className="px-3 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition-colors">Annuler</button>
-                  <button onClick={handleEditPlaylistDescription} className="px-3 py-1 rounded-lg text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 transition-colors">Enregistrer</button>
+                  <button onClick={() => setIsEditingPlaylistDetails(false)} className="px-3 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition-colors">Annuler</button>
+                  <button onClick={handleSavePlaylistDetails} className="px-3 py-1 rounded-lg text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 transition-colors">Enregistrer</button>
                 </div>
               </div>
             </div>
-          ) : currentPlaylist.description ? (
-            <div className="flex items-start gap-2 text-sm text-slate-300 max-w-lg">
-              {/* `line-clamp-1` (05/08, retour direct — clarification de la
-                  demande du 04/08 : "je voulais UNE ligne max ; pas 2").
-                  ⚠️ Ce composant était jusque-là DÉLIBÉRÉMENT exempté de
-                  toute troncature (voir le commentaire dans ProfileView.jsx :
-                  "le texte complet reste consultable [...] dans la vue
-                  détail (PlaylistHeader.jsx)") — décision RENVERSÉE
-                  explicitement le 04/08 : "plutôt troncature sèche, [...]
-                  je m'en moque d'en couper" (pas de vrais utilisateurs pour
-                  l'instant, donc pas de coût réel à perdre l'accès au texte
-                  complet). Voir aussi MAX_DESCRIPTION_LENGTH (appConfig.js).
-                  ⚠️ CORRECTIF flex (04/08, `line-clamp-2` à l'époque,
-                  toujours valable à `line-clamp-1`) : `<p>` vit dans un
-                  conteneur `flex` sans largeur propre — un item flex ne
-                  descend jamais sous la largeur de son contenu par défaut
-                  (`min-width: auto`), donc `line-clamp` n'avait rien pour
-                  s'appuyer, quel que soit le texte. MÊME piège déjà
-                  documenté dans ce projet (voir ViewHeader.jsx, commentaire
-                  `min-w-0`). `flex-1 min-w-0` corrige : l'élément prend
-                  l'espace disponible dans le conteneur `max-w-lg` du dessus
-                  ET peut se contraindre sous sa largeur de contenu. */}
-              <p className="whitespace-pre-line line-clamp-1 flex-1 min-w-0">{currentPlaylist.description}</p>
-              {isSaved && !isReadOnly && (
-                <button onClick={() => { setEditedPlaylistDescription(currentPlaylist.description || ''); setIsEditingPlaylistDescription(true); }} className="p-1 rounded-lg text-slate-500 hover:text-white transition-colors shrink-0" title="Modifier la description">
-                  <Edit3 size={14}/>
-                </button>
-              )}
-            </div>
           ) : (
-            isSaved && !isReadOnly && (
-              <button onClick={() => { setEditedPlaylistDescription(''); setIsEditingPlaylistDescription(true); }} className="text-xs font-bold text-slate-500 hover:text-slate-300 transition-colors">
-                + Ajouter une description
-              </button>
-            )
+            <>
+              <h2 className="text-xl font-bold flex items-center gap-3 justify-center md:justify-start text-white">
+                <span className="truncate min-w-0" title={currentPlaylist.name}>{getActivityEmoji(currentPlaylist.workoutType)} {currentPlaylist.name}</span>
+                {/* Compteur de clonages — vit dans la ligne "chapeau"
+                    au-dessus du titre, avec le pseudo (voir sa docstring
+                    plus haut). Rien à afficher ici, à côté du titre. */}
+                {/* Éditer n'a de sens que pour une playlist déjà dans la
+                    bibliothèque personnelle (`isSaved`) — sur un modèle pas
+                    encore sauvegardé (bouton principal "Ajouter à Mes
+                    Séances"), le nom/la description affichés sont ceux du
+                    modèle d'origine, pas encore "à soi" ; les modifier ici
+                    donnerait l'illusion d'une sauvegarde qui n'a pas eu
+                    lieu. `!isReadOnly` ajouté (relecture globale, 02/08) —
+                    même défense en profondeur que le toggle public/le
+                    bouton CSV plus haut : `isSaved` vaut TOUJOURS `false`
+                    pour une vraie playlist étrangère en pratique, mais ce
+                    garde protège contre un futur changement qui romprait
+                    cette hypothèse implicite sans y penser. */}
+                {isSaved && !isReadOnly && (
+                  <button
+                    onClick={() => {
+                      setEditedPlaylistName(currentPlaylist.name);
+                      setEditedPlaylistDescription(currentPlaylist.description || '');
+                      setIsEditingPlaylistDetails(true);
+                    }}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-white transition-colors shrink-0"
+                    title="Modifier le titre et la description"
+                  >
+                    <Edit3 size={20}/>
+                  </button>
+                )}
+              </h2>
+              {/* Description en lecture seule — plus d'invite "+ Ajouter
+                  une description" ni de crayon dédié ici (retirés le
+                  08/08, fusionnés dans le crayon du titre ci-dessus) :
+                  rien à afficher du tout si la description est vide,
+                  contrairement à avant. Rendue même pour un visiteur
+                  (`isReadOnly`) — la description reste visible sur le
+                  profil public, seule l'AFFORDANCE d'édition disparaît
+                  (déjà géré par le crayon plus haut, absent si
+                  `isReadOnly`). */}
+              {currentPlaylist.description && (
+                <div className="flex items-start gap-2 text-sm text-slate-300 max-w-lg">
+                  {/* `line-clamp-1` (05/08, retour direct — clarification de
+                      la demande du 04/08 : "je voulais UNE ligne max ; pas
+                      2"). `flex-1 min-w-0` : même piège déjà documenté dans
+                      ce projet (ViewHeader.jsx, commentaire `min-w-0`) — un
+                      item flex ne descend jamais sous la largeur de son
+                      contenu par défaut, `line-clamp` n'a alors rien pour
+                      s'appuyer. */}
+                  <p className="whitespace-pre-line line-clamp-1 flex-1 min-w-0">{currentPlaylist.description}</p>
+                </div>
+              )}
+            </>
           )}
 
           {/* Ligne d'infos de la playlist SEULES — icônes + `text-slate-300`
