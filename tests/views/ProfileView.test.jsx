@@ -352,13 +352,23 @@ describe('ProfileView — compteur de clonages', () => {
     expect(screen.getByText('12')).toBeInTheDocument();
   });
 
-  it('n\'affiche PAS de badge quand clone_count vaut 0 (pas d\'information à mettre en avant)', async () => {
+  // ⚠️ CORRIGÉ (05/08, retour direct : "je ne vois pas le nombre de
+  // clones... si c'est 0 alors pas grave de laisser 0") — le badge PAR
+  // CARTE s'affiche désormais TOUJOURS, même à 0 (harmonisé avec
+  // TemplateCard.jsx, voir sa docstring dans ProfileView.jsx). Ne PAS
+  // confondre avec le total AGRÉGÉ ("X clonages reçus" au-dessus de la
+  // grille, testé plus bas) — CELUI-LÀ reste bien caché à 0
+  // ("total ABSENT quand la somme vaut 0"), décision distincte et
+  // inchangée : un bandeau "0 clonages reçus" au niveau du profil entier
+  // reste peu utile, contrairement au badge par carte qui, lui, sert de
+  // repère cohérent partout dans l'app (Découvrir/vitrine/ici).
+  it('affiche le badge de clonages sur une carte MÊME quand clone_count vaut 0', async () => {
     mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
     setupTableMocks({ playlists: [playlistWithoutClones] });
     render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
 
     await screen.findByText('Sortie discrète');
-    expect(screen.queryByText('0')).toBeNull();
+    expect(screen.getByText('0')).toBeInTheDocument();
   });
 
   it('affiche le total agrégé (playlists + routines confondues) au-dessus de la grille', async () => {
@@ -666,12 +676,14 @@ describe('ProfileView — profil vitrine officiel (@tempofit_officiel)', () => {
     expect(screen.getByText('5')).toBeInTheDocument();
   });
 
-  it('un template jamais cloné (absent de template_clone_counts) reste à 0, jamais un nombre inventé', async () => {
+  // ⚠️ CORRIGÉ (05/08, retour direct — voir la docstring du badge dans
+  // ProfileView.jsx) : "jamais un nombre inventé" reste vrai (0 est la
+  // valeur RÉELLE, pas une invention), mais le badge n'est plus masqué à
+  // 0 — il s'affiche désormais, comme partout ailleurs dans l'app.
+  it('un template jamais cloné (absent de template_clone_counts) affiche bien 0, jamais un nombre inventé', async () => {
     render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} isNaughtyMode={false} />);
     await screen.findByText(curatedSessions[0].title);
-    // Aucun badge de clonage affiché du tout — `PublicItemCard` masque le
-    // badge quand `clone_count` vaut 0 (voir sa docstring, ProfileView.jsx).
-    expect(screen.queryByTitle('Nombre de fois où cette playlist/routine a été clonée')).toBeNull();
+    expect(screen.getByTitle('Nombre de fois où cette playlist/routine a été clonée')).toHaveTextContent('0');
   });
 
   it('cloisonnement Sport/Intime respecté dans la grille de la vitrine, exactement comme un vrai profil', async () => {
