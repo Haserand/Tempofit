@@ -337,21 +337,34 @@ describe('AuthContext — signIn / signOut / resetPassword / updateEmail / updat
 
     const { result } = renderAuth();
     let signOutSettled = false;
-    const signOutPromise = act(async () => {
-      await result.current.signOut();
-      signOutSettled = true;
+    // `act()` SYNCHRONE ici (pas de callback async) — ne fait que DÉCLENCHER
+    // `signOut()` et capturer sa Promise, sans l'attendre : nécessaire pour
+    // pouvoir observer l'état "en cours" juste après (tant que
+    // `pendingWrite` n'est pas résolue) avant de la laisser se terminer.
+    // `act(async () => ...)` sans l'`await` immédiat aurait déclenché
+    // l'avertissement React Testing Library "without await" (piégé au
+    // build Vercel du 08/08 — voir README) : la version async d'`act()`
+    // DOIT toujours être awaitée tout de suite, jamais stockée pour plus
+    // tard comme une Promise ordinaire.
+    let signOutPromise;
+    act(() => {
+      signOutPromise = result.current.signOut().then(() => { signOutSettled = true; });
     });
 
     // Laisse tourner les microtasks en attente : tant que `pendingWrite`
     // n'est pas résolue, `signOut()` ne doit ni avoir appelé
-    // `supabase.auth.signOut`, ni avoir vidé le cache local.
+    // `supabase.auth.signOut`, ni avoir vidé le cache local. Pas de
+    // rendu React déclenché dans cette fenêtre (rien n'appelle setState
+    // ici) — pas besoin d'`act()` pour ces simples `await`.
     await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
     expect(signOutSettled).toBe(false);
     expect(mockAuth.signOut).not.toHaveBeenCalled();
     expect(window.localStorage.getItem('tempofit:theme')).toBe('"dark"');
 
     resolvePendingWrite({ error: null });
-    await signOutPromise;
+    // `act(async () => ...)` awaitée IMMÉDIATEMENT ici, contrairement à la
+    // version précédente de ce test.
+    await act(async () => { await signOutPromise; });
 
     expect(signOutSettled).toBe(true);
     expect(mockAuth.signOut).toHaveBeenCalled();
