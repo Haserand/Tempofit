@@ -12,6 +12,17 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
+✅ **SESSION DU 08/08 (suite) — `signOut()` attend désormais les écritures Supabase encore en vol AVANT de couper la session, pas seulement de vider le cache local après coup.** Suite à l'audit du 08/08 (check-up général demandé en début de session) : `clearLocalCache()` (07/08, voir plus bas) reposait sur l'hypothèse "tout changement local a déjà été poussé vers Supabase au moment du signOut" — vraie la plupart du temps (chaque `setState` déclenche déjà son upsert/insert/delete immédiatement, aucun debounce), mais jamais GARANTIE : une frappe ou un clic juste avant de cliquer sur Déconnexion peut très bien laisser une écriture encore en vol au moment où `signOut()` s'exécute.
+
+Nouveau fichier — **`src/utils/pendingWrites.js`** — compteur global (module-level, singleton partagé par toutes les instances des deux hooks de persistance) des écritures Supabase en tâche de fond : `trackWrite(thenable, onSettled?)` l'incrémente à l'appel, le décrémente à la fin (succès ou échec) ; `waitForPendingWrites(timeoutMs = 5000)` renvoie une Promise qui se résout dès que le compteur retombe à zéro, avec un timeout pour ne JAMAIS bloquer une déconnexion indéfiniment (réseau down, requête bloquée). Voir sa docstring pour le raisonnement complet.
+
+Fichiers touchés (3) :
+- **`useSyncedCollection.js`** — les 4 écritures en tâche de fond (delete/insert/update par diff de `setState`, + la poussée initiale à la 1re connexion d'un compte qui avait déjà des données invité) passent désormais par `trackWrite`. Comportement observable strictement identique — `trackWrite` ne fait qu'envelopper la Promise/le thenable Supabase, les callbacks de journalisation d'erreur reçoivent exactement le même `{ error }` qu'avant.
+- **`usePersistentState.js`** — même traitement sur ses 2 upserts (poussée initiale à la connexion + push à chaque changement local).
+- **`AuthContext.jsx`** — `signOut()` appelle `await waitForPendingWrites()` en tout premier, AVANT `supabase.auth.signOut()` (pas après) : le but est que les dernières écritures partent avec une session ENCORE valide, plutôt que de risquer un échec côté RLS une fois la session coupée. `clearLocalCache()` reste ensuite au même endroit qu'avant (07/08).
+
+Tests : nouveau `tests/utils/pendingWrites.test.js` (comportement du compteur/timeout, isolé de React) + 1 nouveau test dans `tests/contexts/AuthContext.test.jsx` (`signOut` bloque tant qu'une écriture trackée n'est pas résolue, puis appelle `supabase.auth.signOut` et vide le cache une fois celle-ci terminée). Logique du module vérifiée par une exécution Node réelle en plus de la relecture (pas de `node_modules` dans ce bac à sable pour lancer `vitest` lui-même, voir `CLAUDE-SANDBOX-VERIFICATION.md` §5).
+
 ⚠️ **SESSION DU 08/08 (suite) — édition titre + description FUSIONNÉE sur les playlists, un seul crayon plutôt que deux affordances séparées (retour direct, capture annotée : "que modifier le titre ou la description vienne un seul crayon plutôt que via chacune une option individuelle").** Avis donné avant d'exécuter (idée franchement bonne, précédent cité : Spotify "Modifier les détails" fait exactement ça) — 2 façons de le faire proposées, tranchées par retour direct : **inline**, pas une modale.
 
 Fichiers touchés (4) :
