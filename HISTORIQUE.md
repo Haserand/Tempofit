@@ -1,0 +1,655 @@
+# TempoFit — Historique détaillé des chantiers (02/08 → 05/08)
+
+⚠️ Ce fichier est un **complément d'archive** au README.md, pas un
+document autonome. Il contient le récit chronologique COMPLET des
+chantiers antérieurs au 07/08, extrait tel quel de la section "État
+d'avancement" du README (aucun contenu réécrit ni résumé — copie exacte)
+au moment de l'élagage du 08/08, quand cette section a dépassé 1100
+lignes et rendait la lecture d'entrée de session trop lente.
+
+**Pourquoi ce découpage plutôt que de tout garder dans le README** :
+le README documente l'état ACTUEL du projet, pas son histoire complète —
+voir sa propre règle en tête ("rester court et pointer vers le code").
+Le récit détaillé (qui a demandé quoi, pourquoi telle option a été
+retenue plutôt qu'une autre, quels incidents de build ont eu lieu et
+comment ils ont été diagnostiqués) garde une vraie valeur — c'est
+souvent la SEULE trace du "pourquoi" derrière une décision qu'on
+retrouve dans le code des mois plus tard — mais n'a plus besoin d'être
+relu à CHAQUE début de session, seulement quand une question précise
+s'y prête (voir l'index dans le README, section "Historique").
+
+**Ce fichier n'est PAS mis à jour en continu** — contrairement au
+README, il n'y a rien à "tenir à jour" ici : c'est une photographie
+figée d'une période close (02/08 → 05/08). Le prochain élagage (si la
+section "État d'avancement" du README regrossit trop) ajoutera un bloc
+suivant à LA SUITE de celui-ci, jamais en réécrivant ce qui y est déjà.
+
+---
+
+⚠️ **SESSION DU 05/08 — check-up demandé en début de conversation (lecture
+PASSATION.md → README.md → CLAUDE-SANDBOX-VERIFICATION.md → code réel),
+2 bugs réels trouvés et corrigés, 1 optimisation perf :**
+
+- **Le fix `min-w-0` (04/08, `PlaylistHeader.jsx`/`RoutinesView.jsx`),
+  resté "jamais vérifié en conditions réelles"** — relu en détail : la
+  structure flex est correcte des deux côtés (`flex-1 min-w-0` sur le `<p>`,
+  conteneur parent qui laisse la place). Sain par lecture de code, mais
+  reste à confirmer par un vrai clic en prod comme toujours pour du CSS.
+- **BUG CORRIGÉ — `tests/modals/EditRoutineModal.test.jsx` ne s'exécutait
+  JAMAIS.** Le fichier vivait dans `src/components/modals/` au lieu de
+  `tests/modals/` (viole la convention "tests/ miroir de src/") — invisible
+  du build Vercel réel (`vite.config.js`, `test.include:
+  ['tests/**/*.test.{js,jsx}']` ne scanne jamais `src/`), ET son import
+  relatif (écrit pour l'emplacement `tests/modals/`) était cassé depuis
+  l'ancien emplacement. Toute la couverture du chantier "cible à 0" du
+  04/08 tournait donc dans le vide depuis sa création. Déplacé au bon
+  endroit. Aucun des 3 garde-fous existants (`noDuplicateFiles.test.js`,
+  `testFileIdentityTrap.test.js`, `fileExtensionTrap.test.js`) ne
+  détecte ce cas précis (ils ne scannent que `tests/`) — angle mort
+  accepté pour l'instant, pas traité cette session (aurait été un chantier
+  à part, hors scope d'un check-up).
+- **BUG CORRIGÉ — `EditRoutineModal.jsx` avait le MÊME trou de validation
+  "cible à 0" que celui fermé le 04/08, sur un point d'entrée oublié.**
+  Cette modale appelle `executeGeneration` directement
+  (`applyRoutineEditOnce`/`applyRoutineEditPermanently`,
+  `useRoutineActions.js`) — un point d'entrée de la même famille que le
+  bouton "Générer" de `RoutinesView.jsx` (déjà audité le 04/08), mais elle
+  ne validait que `distanceVal`/`hours`/`minutes`, jamais `segments`. Pour
+  le mode Fractionné pur (`isIntervalMode && !isCrescendoMode`), c'est
+  pourtant `segments[]` qui pilote réellement la durée générée (voir
+  `usePlaylistGeneration.js`, `executeGeneration` — la branche
+  `config.isIntervalMode` ignore `distanceVal`/`hours`/`minutes`). Une
+  routine Fractionné aux portions cassées (créée avant le correctif du
+  04/08) pouvait donc être éditée/régénérée depuis cette modale sans le
+  moindre blocage. Corrigé : `isTargetInvalid` bascule sur
+  `areSegmentsValid()` en Fractionné pur (le Crescendo n'est pas concerné,
+  ses segments sont recalculés en direct depuis la cible globale — voir
+  l'effet dédié dans `App.jsx`) ; le champ distance/durée global, sans
+  effet dans ce mode, est désormais masqué (même condition que
+  `step3ShowsTargetInputs`, `GeneratorWizard.jsx`) ; message d'erreur
+  aligné sur la formulation de `RoutinesView.jsx`. Tests de régression
+  ajoutés dans le fichier déplacé ci-dessus. Audit complémentaire fait sur
+  les 4 points d'entrée réels de `executeGeneration` (`RoutinesView.jsx`,
+  `GeneratorWizard.jsx`, `useRoutineActions.js` ×2) — le bouton final du
+  wizard est protégé transitivement par le verrouillage du "Suivant" à
+  l'étape 3 (aucune navigation ne permet d'atteindre l'étape 4 avec une
+  cible/des segments invalides), pas de 5e trou trouvé.
+- **Optimisation perf — `RoutinesView.jsx`, tri des routines.** Les 2 tris
+  (`sortedRoutines`/rang par générations) tournaient sur CHAQUE rendu du
+  composant, y compris un rendu déclenché par une frappe dans le brouillon
+  de description (state local à ce même composant, sans rapport avec
+  `routines`) — enveloppés dans `useMemo([routines])`. `routineRanks
+  .indexOf(routine.id)` (O(n) par carte dans la boucle `.map()`, donc O(n²)
+  sur toute la grille) remplacé par une `Map` id→rang (O(1) par carte).
+  Sans impact perceptible au nombre de routines réaliste pour un compte,
+  mais correct par principe et cohérent avec les 3 optimisations perf déjà
+  faites le 03/08 (voir plus bas).
+
+⚠️ **SESSION DU 05/08 (suite 12) — build Vercel cassé (1 test), corrigé.**
+Mon propre test ajouté au tour précédent (`ProfileView.test.jsx`, "un
+template jamais cloné... affiche bien 0") utilisait `getByTitle(...)` —
+un seul élément attendu. Une fois le badge de clonages passé en "toujours
+affiché, même à 0" (même chantier), la grille de la vitrine (35+ cartes)
+en affiche désormais AUTANT avec ce même `title`, donc `getByTitle`
+échouait ("Found multiple elements"). Corrigé : recherche depuis le titre
+de la carte concernée puis `.closest('.shadow-xs')` (classe unique à
+`PublicItemCard`, vérifiée) pour cibler précisément SA carte, plutôt
+qu'une recherche globale sur toute la page. `within` importé (manquant).
+Reste de la suite déjà vert à ce moment-là (1038/1039) — un seul test à
+corriger.
+
+⚠️ **SESSION DU 05/08 (suite 11) — retour direct : "je ne vois pas le
+nombre de clones dans une playlist... il me semble que c'est la demande de
+base".** Le compteur de clonages existait déjà (vraie table
+`template_clone_counts`, chantier des sessions précédentes) mais
+s'arrêtait aux CARTES de listing (`TemplateCard.jsx`/`ProfileView.jsx`) —
+jamais transmis à la page détail (`PlaylistHeader.jsx`), qui n'avait donc
+littéralement aucun moyen de l'afficher. Corrigé, 2 décisions actées
+avant implémentation :
+- **Toujours afficher, même à 0** (confirmé) — incohérence repérée entre
+  les 2 endroits existants (`TemplateCard.jsx` montrait 0, `ProfileView.jsx`
+  le cachait) et harmonisée dans ce sens.
+- **Près du titre, pas dans la ligne d'infos** (confirmé) — même logique
+  déjà appliquée au badge BPM (sorti à part) : la ligne d'infos décrit la
+  COMPOSITION de la séance, le compteur de clonages décrit son ACCUEIL
+  social, catégories différentes.
+Câblage : `TemplateCard.jsx` transmet désormais `cloneCount` (déjà reçu en
+prop) à `onPlayTemplate` ; `App.jsx` (`handleOpenPublicPlaylist`) lit
+`row.clone_count` (vraie colonne déjà là pour une playlist étrangère réelle
+ET pour un template de la vitrine, `templateToVitrineRow`,
+officialVitrineProfile.js) et le reporte sur `currentPlaylist.cloneCount`.
+Badge gaté sur `isReadOnly` (seul contexte où l'info a un sens — jamais
+câblé pour une playlist déjà sauvegardée ou une génération fraîche, hors
+périmètre de ce retour direct). 7 tests mis à jour/ajoutés au total
+(`TemplateCard.test.jsx` ×3, `DiscoverView.test.jsx` ×1,
+`ProfileView.test.jsx` ×2, `PlaylistHeader.test.jsx` ×3 nouveaux).
+
+⚠️ **SESSION DU 05/08 (suite 10) — retour direct, capture montrant l'espace
+vide sous la pochette : "je suis en mode invité, par défaut mets 'Guest
+Mode' plutôt que rien".** BUG CORRIGÉ dans `ownerLabel`
+(`PlaylistHeader.jsx`) — en mode invité, `username` vaut `null`
+(`AuthContext.jsx`, aucun compte), donc l'étiquette "propriétaire actuel"
+retombait aussi sur `null` dans la branche `isSaved` : silencieusement
+invisible plutôt que d'expliquer l'état. Repli sur **"Invité"** (pas
+l'anglais "Guest Mode" proposé dans le retour direct) — réutilise le mot
+déjà en place ailleurs pour ce même état (Sidebar.jsx, "Mon Espace •
+Invité"), cohérence avec le vocabulaire existant plutôt qu'un 2e terme
+pour la même notion. 1 test de régression ajouté.
+
+⚠️ **SESSION DU 05/08 (suite 9) — retour direct : "règles à harmoniser dans
+un fichier ?" (suite au correctif "TempoFit Officiel" en dur du tour
+précédent).** Nouvelle constante **`OFFICIAL_VITRINE_DISPLAY_NAME`**
+('TempoFit Officiel', avec majuscules) centralisée dans
+`curatedSessions.js` — remplace 36 copies en dur du même littéral (35
+`author: 'TempoFit Officiel'` dans ce fichier + la copie fraîchement
+ajoutée dans `PlaylistHeader.jsx`). Posée DANS `curatedSessions.js`
+précisément (pas dans `officialVitrineProfile.js`, l'endroit a priori plus
+"logique" pour une donnée de branding) : ce fichier n'importe rien du
+tout, alors qu'`officialVitrineProfile.js` importe déjà `curatedSessions`/
+`naughtyCuratedSessions` DEPUIS `curatedSessions.js` — l'inverse aurait
+créé un import circulaire. DISTINCTE de `OFFICIAL_VITRINE_USERNAME`
+(officialVitrineProfile.js, `'tempofit_officiel'`, tout en minuscules) —
+celle-là reste le pseudo TECHNIQUE (URL/mentions @, contraint par
+`USERNAME_REGEX`), celle-ci le nom d'AFFICHAGE, jamais utilisé pour une
+URL ou une comparaison. Commentaire de `TemplateCard.jsx` qui citait
+encore l'ancien littéral mis à jour au passage. Aucun test cassé — la
+VALEUR résolue reste identique, seule sa source a changé (tests qui lisent
+`template.author` dynamiquement à l'exécution, jamais un littéral figé
+côté test).
+
+⚠️ **SESSION DU 05/08 (suite 8) — retour direct, capture annotée : le
+chevauchement avec la pochette redouté au tour précédent (noté "à vérifier
+en conditions réelles") s'est bien produit. 3 corrections sur l'étiquette
+"propriétaire actuel" (`PlaylistHeader.jsx`) :**
+- **Repositionnée SOUS la pochette** (plus au-dessus en position absolue)
+  — élimine le risque de chevauchement par construction (suit le flux
+  normal du DOM, n'ignore plus l'espace déjà occupé par l'image), plutôt
+  que de deviner un décalage qui aurait pu re-casser sur une autre largeur
+  d'écran.
+- **Centrée** (`text-center`, largeur calée sur celle de la pochette).
+- **Arobase retirée** ("on perd un caractère") — juste le nom nu
+  désormais, le `title` HTML natif au survol reste plus explicite si
+  besoin.
+- **"TempoFit Officiel" (majuscules)** au lieu du pseudo technique
+  `tempofit_officiel` (tout en minuscules, `OFFICIAL_VITRINE_USERNAME`) —
+  chaîne en dur, mêmes majuscules que `author: 'TempoFit Officiel'` déjà
+  utilisé partout ailleurs (curatedSessions.js/TemplateCard.jsx). Un vrai
+  pseudo utilisateur (`username`/`ownerUsername`), lui, reste inchangé :
+  toujours en minuscules par construction (`USERNAME_REGEX`,
+  `/^[a-z0-9_]{3,20}$/`), rien à "corriger" de ce côté.
+4 tests de `PlaylistHeader.test.jsx` mis à jour en conséquence (textes
+attendus sans arobase, "TempoFit Officiel" avec majuscules) + le test
+"aucune étiquette" reformulé (son ancienne assertion `/^@/` ne pouvait
+plus matcher quoi que ce soit après le retrait de l'arobase — passait
+toujours "vrai" par construction, plus un vrai test).
+
+⚠️ **SESSION DU 05/08 (suite 7) — retour direct, capture annotée : "ajouter
+le nom du compte créateur/dans lequel on voit la playlist où on est, pour
+mieux se repérer" — clarifié ensuite : le CRÉATEUR d'origine quand la
+playlist est encore en aperçu (vitrine `@tempofit_officiel` ou playlist
+d'un autre utilisateur), TON PROPRE pseudo une fois qu'elle est dans "Mes
+Séances".** Nouvelle étiquette `@pseudo` dans `PlaylistHeader.jsx`, même
+hauteur que le bloc d'actions en coin (`top-4`, comme demandé), côté
+gauche.
+- **Câblage `username`** (le pseudo du visiteur connecté, déjà dans
+  `AuthContext.jsx`/App.jsx) — ajouté au `value` de
+  `PlaylistDetailContext.jsx` (Provider), plutôt que prop-drillé sur 3
+  couches supplémentaires (`PlaylistDetailView.jsx`/`PlaylistDetailViewInner`)
+  : `PlaylistHeader.jsx` le lit directement via `usePlaylistDetail()`,
+  déjà consommé partout ailleurs dans ce fichier.
+- **Câblage `ownerUsername`** (le pseudo du PROPRIÉTAIRE, pour une vraie
+  playlist étrangère) — `ProfileView.jsx` est le SEUL endroit qui connaît
+  le pseudo du profil consulté ; `handleOpenPublicPlaylist` (App.jsx) n'a
+  lui que `row.user_id`, un UUID sans valeur d'affichage. Posé sur la ligne
+  (`_ownerUsername`, préfixé `_` comme `kind` juste à côté — un champ ajouté
+  par ce composant, pas un vrai champ des tables `playlists`/`routines`)
+  au clic sur une carte publique, lu par `handleOpenPublicPlaylist` et
+  reporté sur `currentPlaylist.ownerUsername`.
+- **Templates du catalogue** (vitrine OU Découvrir direct — les deux
+  passent par `sourceTemplateId`, `openCuratedPlaylist`,
+  useNavigation.js) : toujours `OFFICIAL_VITRINE_USERNAME`
+  ('tempofit_officiel'), pas besoin de câblage supplémentaire.
+⚠️ **À vérifier en conditions réelles sur mobile** (noté explicitement en
+commentaire dans le code) : la pochette est centrée horizontalement en
+`flex-col` (mobile) — risque de chevauchement avec cette nouvelle étiquette
+en position absolue, pas vérifiable depuis ce bac à sable (pas de vrai
+navigateur).
+2 tests exacts de `ProfileView.test.jsx` mis à jour (le payload transmis à
+`onOpenPlaylist`/`onOpenRoutine` porte désormais `_ownerUsername` en plus),
+4 nouveaux tests dans `PlaylistHeader.test.jsx` pour les 4 branches
+d'`ownerLabel`.
+
+⚠️ **SESSION DU 05/08 (suite 6) — retour direct : "je vais dans Découvrir,
+j'ajoute une playlist, j'y retourne, je l'ajoute une 2e fois → je me
+retrouve avec 2 copies identiques... pas logique".** BUG CORRIGÉ dans
+`usePlaylistLibrary.js` — `handleSavePlaylist`/`handleClonePlaylist`
+créaient toujours une NOUVELLE entrée dans `savedPlaylists`, sans jamais
+vérifier si une copie de la MÊME source existait déjà. Concerne 3 chemins
+distincts, tous corrigés :
+- Template ouvert **directement depuis Découvrir** (`handleSavePlaylist`)
+  — obtient un id FRAIS à chaque ouverture (`pl-curated-{id}-${Date.now()}`,
+  useNavigation.js), donc le garde existant (comparaison par `id`) ne
+  matchait jamais 2 ouvertures du même template. Nouveau garde par
+  `sourceTemplateId` (stable, lui).
+- Template ouvert via la **vitrine `@tempofit_officiel`**
+  (`handleClonePlaylist`, `isReadOnly: true` forcé) — même correctif, même
+  clé (`sourceTemplateId`).
+- **Vraie playlist d'un autre utilisateur** (`handleClonePlaylist`) —
+  nouveau garde par `parentId`+`parentUserId` (la lignée déjà posée par un
+  clonage précédent, jusque-là utilisée uniquement pour créditer les
+  compteurs, jamais pour détecter un doublon).
+Dans les 3 cas, un doublon détecté bascule directement sur la copie
+existante (`setCurrentPlaylist`) + toast "Déjà dans Mes Séances — retour
+sur ta copie.", sans créer de nouvelle entrée ni appeler la RPC de
+comptage de clonages. Option retenue après discussion (redirection
+silencieuse, pas une modale de confirmation) — une playlist fraîchement
+générée par le wizard n'est PAS concernée (`sourceTemplateId` absent,
+aucune raison d'empêcher 2 générations distinctes même si leur contenu
+se ressemble). 6 tests de régression ajoutés dans
+`usePlaylistLibrary.test.js` (3 par fonction), y compris un test de
+non-régression vérifiant que 2 templates DIFFÉRENTS ne se confondent
+jamais.
+
+⚠️ **SESSION DU 05/08 (suite 5) — incident réel de build, long diagnostic
+(voir les échanges autour des logs Vercel collés dans cette session pour le
+détail complet) : `src/contexts/PlaylistDetailContext.jsx` — le VRAI
+fichier du composant — avait été accidentellement écrasé par le CONTENU de
+son fichier de test (`tests/contexts/PlaylistDetailContext.test.jsx`),
+collé au mauvais endroit vu que les deux portent presque le même nom.
+`PlaylistDetailProvider`/`usePlaylistDetail` valaient donc `undefined` à
+l'import — d'où "Element type is invalid... got: undefined" sur les 25
+tests de ce fichier, une erreur React générique qui ne pointait jamais
+vers la vraie cause. Trouvé via une recherche de code GitHub (le dépôt
+étant privé, invisible depuis ce bac à sable) — PAS via les garde-fous
+existants, qui vérifient tous l'EMPLACEMENT/le NOM d'un fichier, jamais si
+son CONTENU correspond à ce que son nom promet.**
+Nouveau garde-fou **`tests/criticalExportsTrap.test.js`**, sur demande
+explicite après cet incident : (1) aucun fichier de `src/` ne doit
+importer `vitest`/`@testing-library/*` — un composant réel n'en a jamais
+besoin, la présence de cet import est un signal quasi certain qu'un
+fichier de TEST a été collé au mauvais endroit ; (2) les 3 vrais Context
+Providers de l'app (`GeneratorContext`/`AudioPlayerContext`/
+`PlaylistDetailContext`) sont importés pour de vrai et leurs exports
+attendus vérifiés comme étant bien des fonctions — 2e filet pour le cas où
+le contenu substitué ne serait pas un fichier de test (donc sans import
+`vitest`) mais un contenu tout aussi invalide pour ce rôle précis. Les 2
+vérifications testées "à blanc" (simulation de l'incident exact + état
+propre) avant livraison. Ajouté à la liste blanche `NO_SINGLE_SUBJECT` de
+`testFileIdentityTrap.test.js`, même famille que les autres garde-fous
+globaux.
+
+⚠️ **SESSION DU 05/08 (suite 4) — retour direct, capture annotée : 1er
+paragraphe de l'infobulle "BPM cibles par zone" (`AthleticProfilePanel.jsx`,
+onglet Profil Athlétique) retiré ("Zone 2 = le BPM que tu tapes ci-dessous.
+Les 3 autres s'en écartent par palier fixe de 15 BPM..."). Import
+`getZoneSpacingForActivity` retiré de la déstructuration
+`useGeneratorContext()` du même fichier (n'était utilisé que dans ce
+paragraphe) — reste utilisé normalement ailleurs dans le projet
+(`useAthleticProfile.js`, `App.jsx`), fonction non touchée.**
+⚠️ **BUILD VERCEL CASSÉ PUIS CORRIGÉ** (logs collés par l'utilisateur) :
+`tests/views/AthleticProfilePanel.test.jsx` avait un test qui ciblait
+littéralement ce paragraphe (`getByText(/le BPM que tu tapes ci-dessous/)`)
+— le `grep` de pré-modification n'avait cherché que des portions de
+phrase plus longues/distinctives (`Zone 2 = le BPM`, `palier fixe de 15
+BPM`...), pas CETTE portion précise, donc rien remonté. Reformulation du
+piège pour la suite : `grep` avant de modifier un texte visible doit
+couvrir plusieurs sous-chaînes DISTINCTES du texte visé, pas une seule —
+un test peut cibler n'importe quel fragment, pas forcément celui qu'on a
+choisi de vérifier. Test retargeté sur un fragment toujours présent
+("niveau d'effort", 2e paragraphe, inchangé) plutôt que réintroduire du
+texte supprimé exprès. Mock `getZoneSpacingForActivity` (devenu inutile
+dans ce fichier de test) retiré au passage.
+
+⚠️ **SESSION DU 05/08 (suite 3) — retour direct, capture d'écran : clic sur
+"Réglages" en vue invité → en-tête "Mon Compte", aucun onglet actif,
+contenu totalement vide.** BUG CORRIGÉ dans `Sidebar.jsx` :
+`onClick={onOpenSettings}` transmettait le bouton directement à `onClick`
+SANS l'envelopper — React appelle alors le handler avec le SyntheticEvent
+du clic comme 1er argument. `handleOpenSettings = (tab = null) => ...`
+(App.jsx) recevait donc cet event comme `tab` (un objet, toujours
+"truthy" — un paramètre par défaut ne s'applique QUE si l'appelant ne
+passe rien du tout, pas juste une valeur fausse), jamais `null`.
+`SettingsView.jsx` initialisait alors `activeTab` à cet event, qui ne
+correspondait à AUCUNE des 3 valeurs attendues (`'profile'`/`'music'`/
+`'account'`) — d'où l'en-tête replié sur son "else" ("Mon Compte"), aucun
+onglet visuellement actif, et un contenu vide (aucune branche ne
+matchait). Le comportement par défaut VOULU (Profil Athlétique en premier,
+hors Mode Intime — voir `SettingsView.jsx`, `useState(() => initialTab ||
+(isNaughtyMode ? 'music' : 'profile'))`) était déjà correct dans le code ;
+seul ce câblage cassait la chaîne. Corrigé (`() => onOpenSettings()`),
+même pattern que partout ailleurs dans le projet pour ce type de callback
+— audit fait sur les autres callbacks à paramètre optionnel du projet,
+c'était le seul endroit concerné. Test existant (`Sidebar.test.jsx`)
+renforcé : il ne vérifiait que le NOMBRE d'appels, jamais les arguments —
+exactement pourquoi ce bug était passé inaperçu ; nouveau test dédié qui
+vérifie `onOpenSettings` appelé sans aucun argument.
+
+⚠️ **SESSION DU 05/08 (suite 2) — retour direct : "y aurait pas besoin d'un
+test pour vérifier que les fichiers sont rangés au bon endroit au
+déploiement de Vercel ?" (en référence à l'incident `EditRoutineModal.test.jsx`
+plus haut).** Nouveau garde-fou **`tests/testLocationTrap.test.js`** :
+scanne tout le dépôt (hors `node_modules`/`dist`) à la recherche de tout
+fichier `*.test.js(x)` posé HORS de `tests/` — exactement le cas qui avait
+laissé la couverture du chantier "cible à 0" tourner dans le vide sans
+qu'aucun signal ne le révèle. Comble un angle mort explicitement identifié
+plus haut : aucun des 3 garde-fous existants à ce moment-là
+(`noDuplicateFiles.test.js`, `testFileIdentityTrap.test.js`,
+`fileExtensionTrap.test.js`) ne scanne en dehors de `tests/`, donc aucun ne
+pouvait détecter ce cas précis. Ajouté à la liste blanche
+`NO_SINGLE_SUBJECT` de `testFileIdentityTrap.test.js` (garde-fou global,
+même famille que les 3 autres). Au passage : la ligne de la section Tests
+qui comptait "3 fichiers restés à la racine" était déjà fausse avant cette
+session (`testFileIdentityTrap.test.js` manquait au compte) — corrigée,
+5 fichiers désormais listés avec ce nouveau.
+
+⚠️ **SESSION DU 05/08 (suite) — retour direct : "je voulais UNE ligne max ;
+pas 2" (clarification de la demande du 04/08, mal interprétée sur le
+moment — voir le commentaire de MAX_DESCRIPTION_LENGTH, appConfig.js, qui
+citait pourtant l'énoncé d'origine "sur plus de 2 lignes").**
+`line-clamp-2` → `line-clamp-1` sur les 5 endroits qui affichent
+`content.description`/la description par catégorie d'un template
+(`PlaylistHeader.jsx`, `RoutinesView.jsx`, `ProfileView.jsx`,
+`PublicRoutinePreviewModal.jsx`, `TemplateCard.jsx`) — même décision de
+troncature sèche partout, sans "Voir plus" nulle part, juste 1 ligne au
+lieu de 2. `MAX_DESCRIPTION_LENGTH` (150) volontairement INCHANGÉ : déjà
+pensé comme une marge de sécurité généreuse au-dessus de ce qui tient
+visuellement, ce raisonnement tient tout autant à 1 ligne qu'à 2. Tous les
+commentaires qui documentaient l'ancien choix (2 lignes) mis à jour en
+conséquence, y compris un commentaire de `ProfileView.jsx` qui affirmait à
+tort que "le texte complet reste consultable ailleurs" (plus vrai
+maintenant que PlaylistHeader.jsx/PublicRoutinePreviewModal.jsx sont
+eux-mêmes clampés à 1 ligne).
+
+⚠️ **SESSION DU 04/08 — vérification en conditions réelles du bloc 03/08 ci-
+dessous (toutes confirmées bonnes, guest bar + badge Trophées), puis une
+longue chaîne de correctifs en cascade. Voir `PASSATION.md` (généré en fin
+de session, hors repo) pour le récit complet — résumé technique ici :**
+
+- **`src/utils/targetValidation.js`** (nouveau) — centralise toute la
+  validation "cible de séance" (distance ou durée, jamais 0/vide/négatif).
+  `isTargetValueValid`/`isSegmentValid`/`areSegmentsValid` (blocage à
+  l'action) + `snapDistanceOnBlur`/`snapSegmentBpmOnBlur`/
+  `snapSegmentDurationOnBlur` (correction automatique au blur du champ,
+  jamais pendant la frappe — casserait la saisie décimale). Câblé dans
+  `GeneratorWizard.jsx` (étapes 2/3, y compris les segments du mode
+  Fractionné), `EditRoutineModal.jsx`, `TargetModeInputs.jsx` (indices
+  visuels) ET `RoutinesView.jsx` (bouton "Générer" d'une routine déjà
+  sauvegardée — point d'entrée distinct des formulaires, trouvé en
+  généralisant après coup). Seuil distance : `>= 0.1` (`MIN_VALID_DISTANCE`),
+  pas juste `> 0` — cohérent avec `step="0.1"` déjà affiché sur les champs,
+  qui portent aussi `min="0.1"` (bloque les flèches natives du spinner).
+  ⚠️ Limite assumée : `EditRoutineModal.jsx` n'offre aucune édition des
+  segments du mode Fractionné — une routine Fractionné cassée ne peut être
+  réparée qu'en la recréant, pas de vraie UI de correction pour ce cas
+  précis actuellement.
+- **`src/layout/inlineLinkLayout.js`** (nouveau) — `INLINE_NAV_LINK_CLASS`
+  (`'font-bold underline'`), convention centralisée pour les liens texte
+  "ce lien t'emmène ailleurs dans l'app" (texte finissant par `→`, jamais
+  d'icône) — 6 occurrences alignées (`StatsView.jsx` ×4, `FavoritesView.jsx`,
+  `GeneratorWizard.jsx`).
+- **Troncature des descriptions** — `line-clamp-2` généralisé aux 5 endroits
+  qui affichent `content.description` (`ProfileView.jsx`/`TemplateCard.jsx`
+  l'avaient déjà ; `PlaylistHeader.jsx`/`PublicRoutinePreviewModal.jsx`/
+  `RoutinesView.jsx` corrigés). `MAX_DESCRIPTION_LENGTH` (`appConfig.js`)
+  resserré **280 → 150** — décision produit explicite : troncature SÈCHE,
+  sans "Voir plus" nulle part (pas de vrais utilisateurs actuellement).
+  ⚠️ Piège CSS rencontré deux fois (`PlaylistHeader.jsx`/`RoutinesView.jsx`) :
+  `line-clamp-2` seul ne suffit pas sur un `<p>` qui est item flex sans
+  largeur propre (`min-width: auto` par défaut) — `flex-1 min-w-0`
+  nécessaire en plus, même piège déjà documenté dans `ViewHeader.jsx`.
+- **`GuestModeBar.jsx`** — état de fermeture (`isGuestBarDismissed`) remonté
+  dans `AppContent` (était local au composant, invisible du spacer de
+  `<main>` et de `Sidebar.jsx`) ; spacer dédié corrigé `h-10`→`h-[72px]`
+  (désynchronisé depuis le passage de la barre à 72px le 29/07). Vérifié en
+  conditions réelles, confirmé bon.
+- **`GeneratorWizard.jsx`, étape 3** — hauteur `h-[300px]`/scroll interne
+  désormais conditionnelle (Crescendo/Fractionné seulement, plus Constant
+  qui n'en a jamais eu besoin).
+- **`StatsView.jsx`, état vide** — hauteur calée sur la carte de l'étape 1
+  du wizard ; écart `space-y-8`/`space-y-4` avec l'en-tête corrigé
+  (conditionnel à l'état vide, la vue remplie garde `space-y-8`).
+- **5 nouvelles habitudes de travail actées** dans
+  `CLAUDE-SANDBOX-VERIFICATION.md` (section en tête) — cadrer l'utilité de
+  chaque demande, format de livraison (jamais de zip), vérifier le test
+  miroir de chaque fichier touché, `grep` avant de modifier un texte
+  visible, généraliser/auditer spontanément à chaque bug trouvé.
+- ⚠️ **Le fix `min-w-0` (dernier correctif de la session) n'a PAS été
+  vérifié en conditions réelles** — priorité n°1 de la prochaine session.
+
+⚠️ **SESSION DU 03/08 (2e moitié) — plusieurs petits chantiers UI/perf,
+listés ici en bloc plutôt qu'un par un (chacun assez petit pour ne pas
+mériter sa propre section) :**
+
+- **Profil public : onglets Playlists/Routines**, remplace la grille
+  combinée décrite plus bas (retour direct : "les routines sont noyées en
+  bas d'une grille de playlists"). `ProfileView.jsx` — `activeProfileTab`
+  ('playlist'/'routine' par défaut), recherche/filtres restent
+  **partagés** entre les 2 onglets (même state, seul l'ensemble d'items
+  filtré change). Le filtre "Type" de `useProfileSearchFilter.js`
+  (`typeFilter`) est **retiré** — redondant avec les onglets. Toute
+  référence à `typeFilter`/grille combinée plus bas dans ce README décrit
+  l'ANCIENNE architecture (02/08), périmée depuis.
+- **`src/layout/iconButtonLayout.js`** (nouveau) — `ICON_BUTTON_ROUNDING`
+  ('rounded-full'), convention centralisée pour tout bouton **icône
+  seule** (sans libellé) : Thème, connexion/avatar, Trophées, hamburger
+  mobile, MiniPlayerBar (×4), les 9 boutons de fermeture de modale.
+  Un bouton icône+libellé (Réglages, nav Sidebar) reste en `rounded-xl`,
+  inchangé. Règle : tout nouveau bouton icône-seule doit importer et
+  utiliser cette constante, jamais un rayon en dur.
+- **Trophées déménagé** du header (à côté du logo) vers le pied de page de
+  la Sidebar, juste à côté de "Réglages" (`mr-2` compense un écart de
+  padding entre les deux conteneurs — voir Sidebar.jsx). Thème reste seul
+  dans le header, position désormais FIXE peu importe l'état de connexion
+  (avant : se décalait selon que Trophées était affiché ou non).
+- **Badge de notification Trophées "vu/pas vu"** — `useUserStats.js`
+  (`trophiesSeenCount`, persistant ; `unseenTrophyCount`, `markTrophiesSeen()`
+  appelée au montage de `TrophiesView.jsx`). Un COMPTEUR, pas un booléen :
+  un nouveau trophée débloqué après consultation refait apparaître le
+  badge, avec seulement le delta (pas le total).
+  ✅ **Vérifié en conditions réelles le 04/08** (retour direct : "je valide
+  aussi que tout marche pour les trophées").
+- **`SettingsView.jsx` — prop `initialTab`** (nouveau 2e point d'entrée) :
+  le bloc pseudo/e-mail du dropdown avatar (App.jsx) est désormais
+  cliquable → ouvre directement l'onglet "Mon Compte". `App.jsx` centralise
+  ça dans `handleOpenSettings(tab = null)` — LA seule fonction qui
+  navigue vers Réglages (Sidebar l'appelle aussi, sans argument =
+  comportement par défaut inchangé), pour ne jamais hériter d'un onglet
+  périmé d'une visite précédente.
+- **`StatsView.jsx` — nouvelle carte "Vue publique de ton profil"** (2
+  états : public → lien vers l'aperçu ; pas public → lien vers
+  Réglages > Mon Compte via `handleOpenSettings('account')`). Masquée en
+  Mode Intime (délibéré — pas le bon endroit pour inciter à l'exposition).
+- **`GuestModeBar.jsx` — fermeture SESSION-ONLY** (pas persistée — voir sa
+  docstring pour le raisonnement produit complet) : bouton X → confirmation
+  inline dans la même barre → si confirmé, disparaît jusqu'au prochain
+  rechargement de page.
+  ⚠️ **04/08, retour direct — 2 bugs corrigés, jamais vérifiés en conditions
+  réelles jusque-là** : (1) l'état "masqué" vivait en `useState` LOCAL au
+  composant, invisible du spacer de `<main>` et de `Sidebar.jsx`
+  (`guestBarVisible`) — fermer la barre ne libérait donc jamais l'espace
+  réservé ailleurs. Remonté dans `AppContent` (`isGuestBarDismissed`),
+  `GuestModeBar` ne fait plus que déclencher `onDismiss()`. (2) le spacer
+  dédié à cette barre (`App.jsx`) était resté à `h-10` (40px) depuis
+  l'ancien design 1-ligne du 28/07, jamais mis à jour quand la barre est
+  passée à 72px le 29/07 — corrigé en `h-[72px]`. Exigence produit
+  clarifiée à cette occasion : scroll acceptable/attendu tant que la barre
+  est visible (elle prend de la place), zéro scroll résiduel une fois
+  masquée.
+  ✅ **Vérifié en conditions réelles le 04/08, sur l'app déployée** (retour
+  direct : "déploiement réalisé, le comportement est le bon") — les 2 bugs
+  ci-dessus sont bien résolus en pratique, pas seulement en théorie.
+- **`GeneratorWizard.jsx` — `min-h-[450px]` retiré** de la carte du wizard
+  (partagé par les 4 étapes, poussait le bouton "Suivant" en bas d'une
+  hauteur fixe même sur l'étape 1, la plus courte — un vrai espace mort,
+  pas juste "quelques px"). Chaque étape prend maintenant la hauteur de
+  son propre contenu. Plusieurs passes de padding resserré en cascade
+  (`<main>`, en-tête de page, barre de progression, étape 1, pied de
+  page) — **confirmé visuellement par l'utilisateur, captures à l'appui**
+  (rare dans ce projet : la plupart des chantiers ci-dessus n'ont PAS
+  cette confirmation). Tentative de compensation pour la barre "Mode
+  invité" **essayée puis annulée** (surcompensait, rendait le bouton
+  inaccessible) — voir git blame si quelqu'un est tenté de retenter.
+- **`TargetModeInputs.jsx`** (nouveau, `src/components/views/`) — bloc
+  distance/allure + durée, extrait de `GeneratorWizard.jsx` où il était
+  dupliqué mot pour mot entre l'étape 2 et l'étape 3. Comportement
+  identique, juste un seul endroit à maintenir désormais.
+- **Perf — `StatsView.jsx`** : l'agrégation complète (boucle imbriquée
+  playlists × complétions × titres, ~40 variables) était recalculée à
+  CHAQUE rendu, même pour un état sans rapport — enveloppée dans un seul
+  `useMemo` (`statsAggregation`). Compagnon nécessaire pour que ça serve à
+  quelque chose en pratique : `getProfileForWorkout`/
+  `getProfileForWorkoutOrDefault` (`useAthleticProfile.js`) stabilisées en
+  `useCallback` — sans ça, elles changeaient de référence à chaque rendu
+  du composant propriétaire, annulant le bénéfice du `useMemo` en aval.
+- **Perf — `musicEngine.js`** : un `.includes()` (recherche linéaire)
+  dans une boucle de sélection de titres remplacé par un `Set` (O(1)).
+- **`ARTIST_CATALOG` (musicCatalog.js) — DÉLIBÉRÉMENT laissé dans le
+  bundle principal**, après investigation (suite à une suggestion externe
+  de le déplacer vers Supabase, puis vers un `import()` paresseux) — voir
+  le commentaire juste au-dessus de sa définition dans le fichier pour le
+  raisonnement complet : 2 fonctions de CE fichier l'utilisent de façon
+  SYNCHRONE en plein rendu React (info-bulle étape 4 du wizard,
+  désambiguïsation K-pop/J-pop), impossible à rendre asynchrone sans
+  casser ces 2 mécanismes.
+
+⚠️ **La majorité de ce bloc reste non vérifiée en conditions réelles.**
+✅ Confirmés le 04/08 : la fermeture de `GuestModeBar` (scroll/spacer) et le
+badge de notification Trophées. Restent à vérifier : les onglets
+Playlists/Routines du profil public, `SettingsView`/`StatsView` (points
+d'entrée croisés), la chasse au scroll résiduel du wizard (au-delà du seul
+cas guest bar), et les 3 optimisations de perf (`StatsView.jsx`,
+`musicEngine.js`, `TargetModeInputs.jsx`) — build Vercel vert (942 tests)
+au moment d'écrire ceci, mais un test qui passe ne garantit pas qu'un
+onglet s'affiche correctement, qu'un badge se comporte comme prévu au
+clic, etc. **Prochaine étape avant tout nouveau chantier : parcourir
+chaque point restant ci-dessus dans l'app déployée.**
+
+---
+
+⚠️ **REFONTE (03/08) — traçabilité de lignée désormais résolue CÔTÉ
+SERVEUR, remplace le mécanisme du 02/08 décrit plus bas (`originId`/
+`originUserId` propagés par le client).** Ce mécanisme s'est révélé
+fragile PAR CONSTRUCTION (un futur bug de spread client aurait pu casser
+la lignée silencieusement) — voir `supabase-schema.sql` pour le détail
+complet. **Tout ce qui, dans les paragraphes ci-dessous, mentionne
+`originId`/`originUserId`/`originCreditClaimed`/`willClaimOriginCredit`/
+`willClaimTemplateCredit` décrit l'ANCIENNE architecture, gardé comme
+récit historique — ne plus s'y fier comme référence technique actuelle.**
+
+Ce qui change concrètement :
+- Le client ne pose plus que le maillon IMMÉDIAT (`parentId`/
+  `parentUserId` — triviaux, `id`/`user_id` de l'objet cloné, lus
+  directement, rien à dériver) et fait **UN SEUL appel RPC** au clonage
+  (`increment_playlist_clone_count`/`increment_routine_clone_count`).
+- Postgres résout lui-même l'origine réelle de la chaîne, EN INTERNE,
+  via une marche récursive (`resolve_playlist_origin`/
+  `resolve_routine_origin`, `WITH RECURSIVE` sur `parent_id`/
+  `parent_user_id`) — plus rien à calculer ni propager côté client.
+- `parent_id`/`parent_user_id` : colonnes RÉELLES, **immuables après
+  l'insertion** — protégées par un trigger SQL (`lock_parent_lineage`)
+  ET par `useSyncedCollection.js` (`itemToInsertRow`/`itemToUpdateRow`
+  séparées, ces 2 champs ne transitent JAMAIS dans un `update`). Deux
+  couches indépendantes, une seule aurait suffi mais coûtait peu de plus.
+- Le mécanisme "republier une copie alimente le compteur de son origine"
+  (`originCreditClaimed`, dupliqué sur 3 fichiers) est **retiré
+  entièrement** — retracé, il s'est avéré être du CODE MORT dans tous les
+  cas réels : le clonage crédite déjà l'origine inconditionnellement, donc
+  la clé du `clone_ledger` était toujours déjà prise avant qu'une
+  republication ne tente le même appel. Ça résout au passage le point
+  ouvert "logique de republication dupliquée entre 3 fichiers" (plus rien
+  à dupliquer). `handleTogglePlaylistPublic`/`handleToggleRoutinePublic`
+  sont redevenus de simples flips locaux, sans aucun appel réseau.
+- Badge "Clone"/"Enfant" (`ProfileView.jsx`) : lit désormais la vraie
+  colonne `parent_user_id` plutôt que `content.originUserId` — même
+  raisonnement de robustesse, moins de surface pour un futur bug
+  d'affichage (`isModifiedSinceClone` reste cosmétique dans `content`,
+  aucun changement là).
+- Tests mis à jour en conséquence : `usePlaylistLibrary.test.js`,
+  `useRoutineActions.test.js`, `PlaylistsView.test.jsx`,
+  `RoutinesView.test.jsx`, `ProfileView.test.jsx`,
+  `PlaylistDetailContext.test.jsx`.
+
+⚠️ **Nouveau SQL à exécuter manuellement dans Supabase avant que quoi que
+ce soit ne fonctionne** (voir `supabase-schema.sql`) : colonnes
+`parent_id`/`parent_user_id` (playlists/routines), trigger
+`lock_parent_lineage`, fonctions `resolve_playlist_origin`/
+`resolve_routine_origin`, `_claim_ledger_credit`, et les 3 fonctions
+d'incrément réécrites. **Non vérifié en conditions réelles** — même
+limite que d'habitude (`auth.uid()` vaut `null` dans l'éditeur SQL
+Supabase, voir `CLAUDE-SANDBOX-VERIFICATION.md` §4bis) : la vérification
+réelle (clic sur "Cloner" dans l'app déployée, avec une vraie session)
+reste à faire, comme pour le chantier précédent.
+
+**Chantier en cours : vérification en conditions réelles de TOUT le bloc "session du 03/08 (2e moitié)" en tête de cette section — rien n'y a encore été cliqué dans l'app déployée, à l'exception du chantier hauteur du wizard.** Une fois fait : retour à l'ordre de priorité normal (Vague 2, Chantier 2 — renforcement post-hoc, moteur BPM/structuration + analyse post-séance, `useSessionAnalysis.js`). **Voir aussi `PASSATION.md`** — résumé chronologique de toute cette session de dev, pour une future conversation qui reprendrait ce fil sans tout ce contexte.
+
+---
+
+**Historique (02/08) — ANCIENNE architecture, remplacée le 03/08 ci-dessus, gardée pour le récit :**
+
+
+⚠️ **Tentative de vérification manuelle via l'éditeur SQL Supabase — retombée sur la même limite connue** (comme `get_or_create_intimate_persona()` avant elle) : `increment_playlist_clone_count(...)` appelée directement dans l'éditeur SQL s'exécute sans erreur mais `auth.uid()` y vaut `null` (pas de session utilisateur réelle), donc la fonction retourne dès sa 1re ligne — **aucun incrément, ni de `clone_count`, ni du nouveau `clone_ledger`, n'a pu être observé de cette façon**. Confirmé par test : `clone_count` reste à `0` sur `playlist-example-1` après 2 appels directs. Ce n'est PAS un bug — la fonction se comporte exactement comme prévu, elle bloque un appelant non authentifié — mais ça veut dire que **ni l'incrément de base, ni le nouvel anti-abus `clone_ledger`, n'ont encore été vérifiés en conditions réelles** (avec une vraie session connectée, via un vrai clic sur "Cloner" dans l'app déployée). Parcours de vérification suggéré, à faire dans l'app : cloner une playlist publique → vérifier `clone_count` +1 sur le profil de son auteur → supprimer sa copie locale → recloner la même playlist → vérifier que `clone_count` reste identique (pas +2, c'est le vrai test de l'anti-abus).
+
+✅ **Incident RÉSOLU (02/08)** — `tests/views/PlaylistDetailView.test.jsx` signalé en échec par `testFileIdentityTrap.test.js` sur un build Vercel (fichier réellement présent sur GitHub divergé de la copie de référence). Corrigé, build reconfirmé vert depuis.
+
+⚠️ **Correctif supplémentaire (02/08) — synchronisation des descriptions "partout dans l'app"**, retour direct après une capture d'écran montrant une description Lorem ipsum sur la carte "Découvrir" mais RIEN du tout une fois la playlist réellement ouverte. Vérifié : il existait 3 sources DIFFÉRENTES pour la description d'un même template selon l'endroit regardé — `CATEGORY_DESCRIPTIONS` (réelle, par catégorie, utilisée seulement par la vitrine), un texte Lorem ipsum générique (utilisé seulement par `TemplateCard.jsx`/Découvrir), et RIEN DU TOUT (`openCuratedPlaylist`, qui reconstruit la playlist réellement ouverte depuis le template brut, n'avait jamais eu de champ description). `CATEGORY_DESCRIPTIONS` déplacée dans `curatedSessions.js` (source unique, partagée) — Découvrir et l'ouverture réelle de la playlist utilisent désormais la MÊME description que la vitrine, plus de version isolée. Toujours PAS de vraie description par template (juste par catégorie, un pis-aller réel mais générique) — en attente que l'utilisateur réécrive les templates en profondeur.
+
+⚠️ **2 correctifs supplémentaires le même jour**, après une conversation générale sur les limites du système ("tu penses que c'est le meilleur système ?") — discussion volontairement tenue SANS implémenter en même temps, puis actée une fois les points clarifiés :
+
+3. **"Si A clone B, puis C clone la copie de B, ça doit augmenter A ET B"** (pas seulement l'origine A) — le clonage incrémente désormais **2 cibles distinctes** : le maillon immédiat (B, qui vient de se faire cloner) ET l'origine de la chaîne (A, si différente). Un seul appel réel si les deux sont identiques (1er clonage, jamais de doublon). La republication, elle, ne cible toujours QUE l'origine — republier son propre contenu n'est pas "se faire cloner".
+4. **Anti-abus "toggle spam"** — rien n'empêchait avant de faire public→privé→public en boucle pour réincrémenter le compteur de l'origine à chaque fois. `originCreditClaimed` (booléen, posé une seule fois, jamais réinitialisé) bloque ça : une copie ne peut contribuer son crédit de republication qu'UNE SEULE FOIS dans toute sa vie.
+5. **"Clone" vs "Enfant"** — la lignée de clonage ne se rompt JAMAIS, même après des modifications substantielles (retour direct explicite : un seuil de "modification substantielle" serait arbitraire et lui-même contournable). À la place, une ÉTIQUETTE change : `isModifiedSinceClone` (booléen, jamais réinitialisé) passe à `true` dès la 1re modification (renommage, description, ou "Toujours pour cette routine" côté routines — PAS "Cette séance seulement", qui ne modifie jamais la routine sauvegardée). Affiché comme badge "Clone"/"Enfant" sur `PublicItemCard` (ProfileView.jsx) — compte pour 1 dans les deux cas, aucun impact sur le compteur lui-même.
+
+✅ **Implémenté (02/08, sur demande explicite)** : l'abus "cloner puis supprimer sa copie en boucle" est désormais bloqué — nouvelle table `clone_ledger` (`supabase-schema.sql`), permanente, jamais nettoyée : une ligne = "ce compte a déjà obtenu un crédit de clonage pour cette cible précise, un jour", **survit à la suppression locale de la copie** (contrairement à `originCreditClaimed`, un flag côté client qui ne pouvait structurellement pas survivre à la suppression de l'objet qui le porte). Les 3 fonctions d'incrément (`increment_playlist_clone_count`/`increment_routine_clone_count`/`increment_template_clone_count`) consultent ce registre en premier (idiome `insert ... on conflict do nothing` + `if not found`) — si le crédit a déjà été accordé, la fonction s'arrête là, avant tout incrément. `target_key` (texte unique, PAS une paire `(id, user_id)` séparée) : `target_id || ':' || target_user_id` pour une playlist/routine réelle, `'template:' || template_id` pour un template — un seul registre partagé pour les 3 mécanismes, sans risque de collision entre les espaces de noms. Aucune policy de lecture/écriture côté client sur cette table — jamais interrogée directement, seulement en interne par les fonctions `security definer`. **Nouveau SQL à exécuter manuellement dans Supabase.**
+
+Fichiers touchés par ces 2 correctifs (3e et 4e passages sur ce chantier) : `usePlaylistLibrary.js`, `App.jsx` (clonage — dual increment + init des 2 flags), `PlaylistDetailContext.jsx`/`PlaylistsView.jsx`/`RoutinesView.jsx` (republication — anti-spam), `PlaylistDetailContext.jsx` (rename/description — flag Clone/Enfant), `useRoutineActions.js` (`applyRoutineEditPermanently` — flag Clone/Enfant), `ProfileView.jsx` (badge affiché). `useRoutineActions.js` a désormais son 1er fichier de test (`tests/hooks/useRoutineActions.test.js`, 02/08) — scopé au flag Clone/Enfant, pas une couverture exhaustive du hook.
+
+⚠️ **Ce chantier a été revu 2 fois après la 1re implémentation** (vérifiée par le build Vercel du 02/08, voir plus bas) — les 2 retours suivants ont changé l'architecture, pas juste le réglage :
+
+1. **"Je veux que le compteur de clonage soit honnête, 0 par défaut"** — les nombres "ambitieux mais faux" (`fakeCloneCountForId`, vitrine ET Découvrir) sont retirés, remplacés par une VRAIE table (`template_clone_counts`, supabase-schema.sql — clé `template_id`, lecture publique même sans compte, alimentée par une RPC dédiée). Découvrir et la vitrine lisent maintenant la même donnée réelle — un template jamais cloné affiche `0`, jamais un nombre inventé.
+2. **"Ce n'est pas juste le clic sur Cloner qui alimente le compteur — si A clone B, puis C clone la copie d'A, ça doit compter pour B, pas pour A. Et si je republie ma copie, ça alimente aussi le compteur de l'original."** — introduit une vraie **traçabilité de lignée** : `originId`/`originUserId`, posés sur CHAQUE copie au moment du clonage (repli sur soi-même si jamais clonée avant), propagés automatiquement à travers toute la chaîne, aussi loin qu'elle s'étende. **Aucune nouvelle colonne SQL nécessaire** — ces 2 champs vivent dans `content` (comme `description`), synchronisés par le mécanisme déjà en place.
+   - ⚠️ **Corrigé une 3e fois le même jour** — retour direct : "si A fait une playlist, B la clone, et C clone la copie de B, ça doit augmenter le compteur de A ET de B". Le clonage incrémente donc **2 cibles distinctes** : le maillon immédiat (celui qu'on vient concrètement de cloner) ET l'origine de la chaîne (si différente) — jamais un seul incrément "tout ou rien" vers la racine. Les deux sont identiques (donc un seul appel réel) quand la copie clonée n'avait jamais été clonée avant. La republication (rendre public une copie déjà issue d'un clonage), elle, ne cible QUE l'origine — republier son propre contenu n'est pas "se faire cloner", pas de double incrément à faire là.
+
+Fichiers touchés par ce 2e passage : `usePlaylistLibrary.js` (`handleClonePlaylist`), `PlaylistDetailContext.jsx`/`PlaylistsView.jsx` (2 implémentations séparées de "rendre publique" — détail ET liste, toutes deux mises à jour), `App.jsx` (`handleClonePublicRoutine` — ⚠️ lit `row.content.originId`, PAS `row.originId` : une routine est une ligne Supabase brute, tous ses champs personnalisés vivent dans `content`, contrairement à `currentPlaylist` côté playlists qui est déjà l'objet aplati), `RoutinesView.jsx` (`handleToggleRoutinePublic`).
+
+Résidu du 1er passage, toujours vrai : SQL exécuté avec succès dans Supabase (`template_clone_counts` + RPC), mais le clonage lui-même ne s'incrémente QUE via "Cloner" sur un profil/la vitrine — jamais via "Utiliser ce modèle" dans Découvrir (action différente : générer sa propre séance, pas copier). Ce chiffre reste donc probablement bas en pratique pour la plupart des templates — c'est le prix d'un compteur honnête.
+
+⚠️ **2 tests existants trouvés CASSÉS en cours de route** (`tests/views/ProfileView.test.jsx`) — affirmaient "mockFrom jamais appelé" pour la grille de la vitrine, plus vrai depuis que la branche vitrine fait un vrai fetch (`template_clone_counts`). Corrigés, renommés pour refléter ce qui reste réellement vrai (les STATS et le CONTENU restent statiques, seul le compteur de clonage fait un appel réseau).
+
+⚠️ **Correctif rétroactif (02/08, retour direct "la vitrine ne montre pas toutes les fonctionnalités")** — `officialVitrineProfile.js` n'avait jamais été mis à jour au fil des chantiers "description libre" et "compteur de clonages" : `templateToVitrineRow` (playlists) ne portait ni `content.tracks` (donc 0 genre extrait par `useProfileSearchFilter.js` — silencieusement, jamais une erreur), ni `content.description`, ni `clone_count` ; `FAKE_VITRINE_ROUTINES` n'avait ni description ni clone_count non plus. Corrigé — voir `src/data/officialVitrineProfile.js` pour le détail (nouvelle table `CATEGORY_DESCRIPTIONS`, `fakeCloneCountForId` déterministe). **Règle à retenir pour la suite** : toute nouvelle fonctionnalité touchant `content` d'une playlist/routine doit aussi être vérifiée contre `officialVitrineProfile.js` — cette vitrine est censée démontrer TOUTES les fonctionnalités à un visiteur non connecté, une régression y est silencieuse (aucun test ne l'aurait signalée avant celui-ci, maintenant ajouté à `tests/data/officialVitrineProfile.test.js`).
+
+**`DiscoverView.jsx`/`TemplateCard.jsx` — décision RENVERSÉE le 02/08, à la demande explicite de l'utilisateur** (après lui avoir signalé le "PIVOT DESIGN" antérieur qui avait retiré la description/les tags) : le compteur de clonages **est** ajouté à `TemplateCard.jsx`, partagé avec la vitrine via `fakeCloneCountForId` (nouvellement déplacée dans `curatedSessions.js`, importée par les deux — un même template affiche donc TOUJOURS le même nombre, qu'on le consulte depuis Découvrir ou depuis le profil `@tempofit_officiel`). ⚠️ Piège trouvé en écrivant les tests : le fixture existant de `TemplateCard.test.jsx` n'avait jamais eu besoin d'un `id` avant cette fonction — `fakeCloneCountForId(undefined)` aurait fait planter `undefined.length`. Corrigé par une garde défensive dans la fonction (renvoie `8` si `id` n'est pas une vraie chaîne non vide) + fixture de test mis à jour avec un `id` réaliste.
+
+⚠️ **TODO — description PLACEHOLDER, pas la version finale** : ajoutée le 02/08 (2e retour direct : "mets les descriptions aussi, pour voir à quoi ça ressemble visuellement — même texte de base partout si ça économise des tokens") — `TemplateCard.jsx` affiche désormais une description sur chaque carte, mais **le même texte de remplissage (Lorem ipsum) partout**, pas une vraie description par template. `curatedSessions.js` n'a toujours aucun champ `description` réel. **Une fois le nouveau contenu de `curatedSessions.js` acté** (l'utilisateur prévoit de réécrire ces templates en profondeur prochainement) : (1) ajouter un vrai champ `description` par template dans `curatedSessions.js` (remplacerait alors avantageusement `CATEGORY_DESCRIPTIONS`, officialVitrineProfile.js, qui n'est qu'un repli générique par catégorie faute de mieux, et le `PLACEHOLDER_DESCRIPTION` de `TemplateCard.jsx`) ; (2) remplacer le placeholder par ce vrai champ aux deux endroits.
+
+⚠️ **Requiert une action manuelle Supabase avant que quoi que ce soit ne fonctionne** — voir `supabase-schema.sql` : nouvelle colonne `clone_count` (`playlists`/`routines`) + 2 fonctions d'incrément (`increment_playlist_clone_count`/`increment_routine_clone_count`).
+
+Ce qui a été posé (02/08) :
+- **SQL** : `clone_count` (colonne, les 2 tables) + les 2 fonctions d'incrément, atomiques, avec garde anti-abus (`target_user_id = auth.uid()` bloque l'auto-incrémentation). ⚠️ Piège retrouvé en écrivant ce SQL — DÉJÀ rencontré une fois sur ce projet : la clé primaire de `playlists`/`routines` est **composite `(id, user_id)`**, jamais `id` seul (2 comptes peuvent partager le même id, ex. la playlist démo) — les 2 fonctions prennent donc `target_user_id` en paramètre OBLIGATOIRE, jamais une simplification par `id` seul qui répéterait la collision déjà corrigée dans `PlaylistDetailContext.jsx`.
+- **Client** : `handleClonePlaylist` (`usePlaylistLibrary.js`) et `handleClonePublicRoutine` (`App.jsx`) appellent la bonne fonction après un clonage réussi — fire-and-forget, jamais bloquant (un échec réseau sur ce compteur de vanité ne doit jamais faire échouer le clonage lui-même, déjà effectif localement). `handleOpenPublicPlaylist` modifié pour transporter `user_id` jusqu'à `currentPlaylist`, sans quoi `handleClonePlaylist` n'aurait pas eu l'info nécessaire pour cibler le bon compte.
+- **Affichage** : badge par item (`PublicItemCard`, ProfileView.jsx, masqué si 0) + total agrégé Sport/Intime **jamais mélangés** sur le profil public (calculé côté client depuis ce qui est déjà chargé — pas de requête supplémentaire) + un nouveau bloc dans `StatsView.jsx` pour ses propres stats, **volontairement une requête FRAÎCHE dédiée** plutôt que lue depuis `savedPlaylists` (le cache local synchronisé ne reflète jamais un changement provoqué par quelqu'un D'AUTRE clonant le contenu — resterait périmé jusqu'à la prochaine reconnexion).
+- **Décision de scope actée avec l'utilisateur** : uniquement un compteur par item, pas de classement (leaderboard) des créateurs — ce serait le chantier "Pulses/Leaderboard" (fondations déjà posées séparément), pas celui-ci. Compte UNIQUEMENT les clonages (copier le contenu de quelqu'un d'autre), jamais les sauvegardes de ses propres créations (`handleSavePlaylist` — concept différent, vérifié dans le code avant de trancher).
+- Tests ajoutés : `tests/hooks/usePlaylistLibrary.test.js` (nouveau — 1er test de ce hook, scopé au compteur), `tests/views/StatsView.test.jsx` (nouveau — 1er test de cette vue, scopé au nouveau bloc), extension de `tests/views/ProfileView.test.jsx`. ⚠️ `handleClonePublicRoutine` (App.jsx) reste NON testé directement — App.jsx n'a aucun fichier de test dédié dans ce projet (composant volontairement pas testé unitairement, voir sa taille), créer un fichier juste pour cette fonction aurait été disproportionné.
+
+Chantier précédent ("Pulses/Leaderboard" — fondations SQL de la persona intime + première UI "Ma persona intime") terminé et **vérifié de bout en bout en conditions réelles** le 02/08 (voir plus bas, section dédiée). Toujours aucun pulse, aucun leaderboard construits — seulement un bouton qui révèle son propre pseudonyme stable. Suite logique quand on y reviendra : opt-in au leaderboard + affichage du classement lui-même — à brief séparément le moment venu.
+
+⚠️ **Ce chantier requiert une action manuelle avant de continuer** : contrairement à tous les précédents (uniquement du frontend/JS), celui-ci ajoute une vraie table + 2 fonctions SQL (`supabase-schema.sql`) — **à exécuter dans l'éditeur SQL Supabase avant que quoi que ce soit ne fonctionne**, pousser sur GitHub ne suffit pas. Requêtes de vérification suggérées incluses en commentaire juste au-dessus de `generate_intimate_pseudonym` dans le fichier.
+
+Ce qui est posé (02/08) — voir `supabase-schema.sql` pour le détail commenté :
+- Table `intimate_personas` (`user_id` → `intimate_id`/`pseudonym`), RLS activée, **aucune policy de lecture publique** (volontaire — seule la RPC ci-dessous expose quoi que ce soit).
+- `generate_intimate_pseudonym(seed uuid)` — déterministe, basé sur `hashtext()` (fonction Postgres native, pas de dépendance à un idiome plus difficile à vérifier sans exécution réelle), jamais dérivé du username ni de `user_id`.
+- `get_or_create_intimate_persona()` — RPC dédiée (`security definer`, `auth.uid()` uniquement, jamais de paramètre client), idempotente, ne renvoie **jamais** `user_id`.
+- Conforme aux règles déjà tranchées plus bas ("Décisions actées, pas encore implémentées") : pseudonyme stable, indépendant du username, aucune fuite de `user_id`, aucune policy publique sur la table.
+- Limite assumée, pas un oubli : ~400 combinaisons de pseudonymes (20×20), donc collisions possibles entre utilisateurs à grande échelle — sans risque de sécurité (`intimate_id` reste unique), juste une limite UX à revisiter si le Mode Intime grossit beaucoup.
+- Prochaine étape logique (pas commencée) : une UI qui appelle `get_or_create_intimate_persona()` — un toggle "partager en Mode Intime" quelque part, probablement `SettingsView.jsx` ou `ProfileView.jsx`, à brief séparément.
+- ✅ **Vérifié dans l'éditeur SQL Supabase le 02/08** : `generate_intimate_pseudonym('00000000-0000-0000-0000-000000000000'::uuid)` renvoie systématiquement `"Marée Mystère"` — confirmé stable sur plusieurs appels d'affilée.
+- ✅ **Vérifiée de bout en bout en conditions réelles le 02/08** : build Vercel vert (tests mockés OK) PUIS clic réel sur "Découvrir mon pseudonyme" dans l'app déployée, en Mode Intime, avec un vrai compte connecté — persona générée avec succès (`"Aigle Secret"`, `Aigle`/`Secret` bien issus des 2 listes attendues). Confirme l'insert, l'idempotence et le `security definer` en conditions réelles, pas seulement en théorie. Ce chantier ("Pulses/Leaderboard", fondations + 1re UI) est maintenant COMPLET et validé — aucun point en suspens.
+
+Première UI branchée dessus (02/08) — **"Ma persona intime"**, `SettingsView.jsx`, onglet "Mon Compte", visible en Mode Intime uniquement, **indépendante de `isProfilePublic`** (voir README plus haut : les pulses restent possibles sans opt-in au leaderboard). Bouton "Découvrir mon pseudonyme" → appelle `get_or_create_intimate_persona()` → affiche le résultat. **Volontairement manuel, jamais automatique au montage** : un `useEffect` qui déclencherait la création silencieusement dès l'ouverture de cet onglet contredirait le "fermé par défaut, l'utilisateur CHOISIT de partager" du README, même si la ligne créée reste inerte (aucune policy de lecture publique). Conséquence acceptée : `intimatePersona` n'est pas persisté côté client, redemande un clic à chaque nouvelle visite de la page (la RPC étant idempotente, ça renvoie toujours la même persona, aucune perte).
+
+Chantier annexe terminé le 02/08 — **description texte libre sur une playlist/routine publique** (point 3 de l'ordre de priorité ci-dessous, traité isolément, sans besoin d'attendre son tour) : `content.description` (simple champ texte dans le `jsonb` déjà existant, **aucune migration SQL** — même logique que `plannedDate`/`coverUrl`, ajoutés avant sans jamais toucher au schéma). `MAX_DESCRIPTION_LENGTH` (`appConfig.js`, **150** — resserré depuis 280 le 04/08, voir bloc "SESSION DU 04/08" plus haut) partagée entre édition et affichage. Playlists : édition inline dans `PlaylistHeader.jsx`/`PlaylistDetailContext.jsx`, même schéma que le renommage déjà existant. Routines : **décision volontaire** de ne PAS l'ajouter à `EditRoutineModal.jsx` — cette modale force un choix "cette séance seulement/toujours" qui déclenche une génération à chaque sauvegarde (`applyRoutineEditOnce`/`applyRoutineEditPermanently`), une friction absurde pour un simple texte ; édition inline directement sur la carte de `RoutinesView.jsx` à la place (`setRoutines` local, même pattern que la bascule publique/privée du chantier 1). Affiché publiquement dans `PublicItemCard`/`PublicRoutinePreviewModal.jsx`, et intégré à la recherche texte de `useProfileSearchFilter.js` (explicitement prévu par le brief du chantier précédent une fois ce champ construit).
+
+Chantier précédent (**Vague 2, Chantier 1 — UI publique des routines**) terminé le 02/08 : le SQL/RLS existait déjà (`routines.is_public`/`is_intimate`), il ne manquait que l'intégration frontend, transposée du mécanisme déjà en prod pour les playlists — voir `RoutinesView.jsx` (bascule publique/privée par routine, même pattern que `PlaylistCard.jsx`), `PublicRoutinePreviewModal.jsx` (nouvelle modale : aperçu + clonage — une routine n'a pas de vue détail dédiée contrairement à une playlist, donc pas de navigation possible comme `handleOpenPublicPlaylist`, juste une modale légère sur le modèle d'`ImportSharedPlaylistModal.jsx`) et `handleOpenPublicRoutine`/`handleClonePublicRoutine` (App.jsx). Bug réel trouvé et corrigé au passage dans `ProfileView.jsx` : `PublicItemCard` lisait aveuglément les champs *playlist* (`content.config.bpm`, `content.totalDuration`, `content.coverUrl`) même pour une routine — resté invisible jusqu'ici car aucune routine n'avait jamais été publique en pratique. `content` d'une routine a une forme différente (`bpm` à la racine, pas de `totalDuration` car rien n'a encore été généré, `coverIcon` emoji plutôt que pochette) — `PublicItemCard` prend maintenant un prop `kind` ('playlist'/'routine') pour lire les bons champs.
+
+Chantier annexe (hors de l'ordre de priorité numéroté ci-dessous, traité sur brief dédié) — **Recherche & filtres sur les profils publics** — terminé le 02/08 : `useProfileSearchFilter.js` (nouveau hook, `src/hooks/`), recherche texte + filtres type/sport/genre/durée sur la grille COMBINÉE playlists+routines de `ProfileView.jsx` (pas d'onglets séparés — écarté du scope, voir le brief). Extraction genre/durée **adaptative selon `kind`** (même divergence de forme `content` que le chantier précédent) : genre via `getGenresForDisplay` sur les titres réels pour une playlist, `content.selectedGenres` direct pour une routine ; durée via `content.totalDuration` pour une playlist, uniquement si `targetMode === 'time'` pour une routine (une routine en mode distance est exclue de tout bucket précis, jamais de conversion distance→temps approximative). Annexe à ce chantier : la vitrine `@tempofit_officiel` affiche désormais aussi des routines fictives (`buildOfficialVitrineRoutineRows()`, `officialVitrineProfile.js`) — codées à la main (aucun template de routine dans `curatedSessions.js`), genres adaptés aux valeurs canoniques réelles du catalogue (`Electro` sans accent, `R&B Sensuel` pour l'Intime — le brief proposait des noms qui n'existent pas tels quels dans `musicCatalog.js`). ⚠️ 2 régressions réelles livrées puis corrigées le 02/08, toutes deux trouvées par le vrai build Vercel (jamais par la sandbox) : (1) `inputBorder`/`inputBg` utilisés dans la nouvelle barre de recherche sans être destructurés de `theme` — angle mort d'esbuild, voir `CLAUDE-SANDBOX-VERIFICATION.md` §1bis, `tsc --checkJs` ajouté au protocole en conséquence ; (2) l'étiquette interne `kind` (posée pour combiner playlists/routines dans une seule grille) fuyait dans le payload transmis à `onOpenPlaylist`/`onOpenRoutine`, cassant leur contrat "ligne brute" — sans impact fonctionnel réel (App.jsx ignore les champs qu'il ne lit pas) mais détecté par les tests existants, corrigé en dépouillant `kind` juste avant l'appel. Build Vercel vert depuis.
+
+**Règle** : dès qu'un chantier démarre, remplacer cette ligne par son nom + son état d'avancement réel (pas juste "en cours" — assez précis pour qu'une session qui n'a pas participé sache où reprendre). Dès qu'il se termine, revenir ici et pointer vers le suivant dans l'ordre de priorité (section "Décisions actées" plus bas). Une session qui termine un chantier sans mettre à jour cette section laisse la suivante repartir à l'aveugle.
