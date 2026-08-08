@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuthContext } from '../contexts/AuthContext';
 import { supabase, isSupabaseConfigured } from '../supabaseClient';
 import { STORAGE_PREFIX } from '../utils/localCache';
+import { trackWrite } from '../utils/pendingWrites';
 
 
 /**
@@ -135,9 +136,15 @@ export function useSyncedCollection(storageKey, tableName, initialValue) {
         if (data && data.length > 0) {
           setStateInternal(data.map(rowToItem));
         } else if (stateRef.current.length > 0) {
-          const { error: insertError } = await supabase.from(tableName).insert(
+          // `trackWrite` (08/08) — cette poussée initiale (1re connexion
+          // d'un compte qui avait déjà des données invité) est, elle
+          // aussi, une écriture Supabase en tâche de fond : un clic sur
+          // Déconnexion juste après la connexion pourrait sinon la
+          // manquer tout autant qu'une écriture "normale" en cours
+          // d'usage — voir pendingWrites.js.
+          const { error: insertError } = await trackWrite(supabase.from(tableName).insert(
             stateRef.current.map(item => itemToInsertRow(item, user.id))
-          );
+          ));
           if (insertError) {
             console.error(`useSyncedCollection(${tableName}) — poussée initiale échouée :`, insertError);
           }
@@ -172,21 +179,32 @@ export function useSyncedCollection(storageKey, tableName, initialValue) {
         const prevById = new Map(prev.map(item => [item.id, item]));
         const nextById = new Map(next.map(item => [item.id, item]));
 
+        // `trackWrite` (08/08) — enregistre chacune de ces écritures dans le
+        // compteur global partagé (voir pendingWrites.js), pour que
+        // `signOut()` (AuthContext.jsx) puisse les attendre avant de couper
+        // la session/vider le cache local, plutôt que de simplement supposer
+        // qu'elles sont "déjà parties". Ne change RIEN au comportement
+        // observable : le callback de journalisation d'erreur passé en 2e
+        // argument reçoit exactement le même `{ error }` qu'avant.
         prevById.forEach((_, id) => {
           if (!nextById.has(id)) {
-            supabase.from(tableName).delete().eq('id', id).eq('user_id', uid)
-              .then(({ error }) => {
+            trackWrite(
+              supabase.from(tableName).delete().eq('id', id).eq('user_id', uid),
+              ({ error }) => {
                 if (error) console.error(`useSyncedCollection(${tableName}) — suppression échouée :`, error);
-              });
+              },
+            );
           }
         });
 
         nextById.forEach((item, id) => {
           if (!prevById.has(id)) {
-            supabase.from(tableName).insert(itemToInsertRow(item, uid))
-              .then(({ error }) => {
+            trackWrite(
+              supabase.from(tableName).insert(itemToInsertRow(item, uid)),
+              ({ error }) => {
                 if (error) console.error(`useSyncedCollection(${tableName}) — insertion échouée :`, error);
-              });
+              },
+            );
           }
         });
 
@@ -229,10 +247,12 @@ export function useSyncedCollection(storageKey, tableName, initialValue) {
         nextById.forEach((item, id) => {
           const old = prevById.get(id);
           if (old && old !== item && JSON.stringify(old) !== JSON.stringify(item)) {
-            supabase.from(tableName).update(itemToUpdateRow(item, uid)).eq('id', id).eq('user_id', uid)
-              .then(({ error }) => {
+            trackWrite(
+              supabase.from(tableName).update(itemToUpdateRow(item, uid)).eq('id', id).eq('user_id', uid),
+              ({ error }) => {
                 if (error) console.error(`useSyncedCollection(${tableName}) — mise à jour échouée :`, error);
-              });
+              },
+            );
           }
         });
       }
