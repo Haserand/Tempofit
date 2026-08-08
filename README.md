@@ -27,6 +27,13 @@ Nouveaux fichiers, tous dans `src/components/views/PlaylistDetail/` — composan
 
 ⚠️ **Pas encore vérifié en conditions réelles** (build Vercel) — même limite habituelle (bac à sable sans accès réseau, `vitest run` jamais exécuté pour de vrai ici).
 
+✅ **SUITE (08/08, même jour, retour direct) — tests dédiés ajoutés pour les 5 sous-composants, `PlaylistHeader.test.jsx` allégé en conséquence pour ne plus dupliquer.** Même pattern que `TrackList.test.jsx`/`TrackItem.jsx` (précédent déjà en place dans ce dossier) : chaque sous-composant a désormais son propre fichier de test (`PlaylistHeaderBadges.test.jsx`/`Cover.test.jsx`/`TitleBlock.test.jsx`/`Meta.test.jsx`/`Actions.test.jsx`), rendu directement avec des props à la main — plus besoin de passer par `usePlaylistDetail()` ni par `PlaylistHeader.jsx` pour tester leur rendu/interaction.
+
+`PlaylistHeader.test.jsx` (279 lignes, contre 756 avant) ne teste plus QUE ce que `PlaylistHeader.jsx` lui-même fait encore : le calcul des valeurs partagées (`ownerLabel`/`ownerProfileUsername`/`avgBpm`/`bpmZone`/`bpmBadgeColor`/`currentPlaylistRank`/`mostRecentCompletionIso`/`hasImportedDataForMostRecent`) et leur transmission au bon sous-composant — les 5 sous-composants sont mockés par des stubs légers qui exposent juste les props reçues (en attributs `data-*`), jamais leur rendu réel.
+
+Aucun test perdu — chaque scénario de l'ancien fichier a soit migré vers le fichier du sous-composant concerné (rendu/interaction), soit est resté dans `PlaylistHeader.test.jsx` sous forme de vérification de calcul/plomberie (ex. "isSaved=false + sourceTemplateId → ownerLabel='TempoFit Officiel'" reste ici, "le clic sur le pseudo cliquable appelle onViewProfile" part dans `PlaylistHeaderTitleBlock.test.jsx`).
+
+
 
 ✅ **SESSION DU 08/08 (suite) — `signOut()` attend désormais les écritures Supabase encore en vol AVANT de couper la session, pas seulement de vider le cache local après coup.** Suite à l'audit du 08/08 (check-up général demandé en début de session) : `clearLocalCache()` (07/08, voir plus bas) reposait sur l'hypothèse "tout changement local a déjà été poussé vers Supabase au moment du signOut" — vraie la plupart du temps (chaque `setState` déclenche déjà son upsert/insert/delete immédiatement, aucun debounce), mais jamais GARANTIE : une frappe ou un clic juste avant de cliquer sur Déconnexion peut très bien laisser une écriture encore en vol au moment où `signOut()` s'exécute.
 
