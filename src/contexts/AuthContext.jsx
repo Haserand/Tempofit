@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../supabaseClient';
 import { USERNAME_REGEX, isReservedUsername, RESERVED_USERNAME_ERROR } from '../utils/username';
 import { clearLocalCache } from '../utils/localCache';
+import { waitForPendingWrites } from '../utils/pendingWrites';
 
 /**
  * AuthContext — session utilisateur Supabase (email/mot de passe pour
@@ -252,6 +253,18 @@ export function AuthProvider({ children }) {
 
   const signOut = async () => {
     if (!isSupabaseConfigured) return;
+    // CORRIGÉ (08/08) — `clearLocalCache()` plus bas repose sur l'idée que
+    // "tout changement local a déjà été poussé vers Supabase" : vrai la
+    // plupart du temps (chaque `setState` déclenche déjà son upsert/insert/
+    // delete immédiatement), mais pas garanti — une frappe ou un clic juste
+    // avant la déconnexion peut très bien laisser une écriture encore EN
+    // VOL. `waitForPendingWrites()` (voir `src/utils/pendingWrites.js`)
+    // attend que ces écritures se terminent, AVANT `supabase.auth.signOut()`
+    // (pas après) : pour qu'elles partent avec une session ENCORE valide,
+    // plutôt que de risquer un échec côté RLS une fois la session coupée.
+    // Timeout interne (5s par défaut) : ne bloque jamais la déconnexion
+    // indéfiniment si le réseau est down.
+    await waitForPendingWrites();
     await supabase.auth.signOut();
     // CORRIGÉ (07/08, dette connue de longue date — voir la docstring de
     // `usePersistentState.js`) : sans ça, les données de l'utilisateur
@@ -263,8 +276,8 @@ export function AuthProvider({ children }) {
     // réseau échoue, on ne vide pas le cache local pour rien. Safe par
     // construction — voir `src/utils/localCache.js` : tout changement
     // local a déjà été poussé vers Supabase en tâche de fond avant ce
-    // point, rien n'est perdu, juste un vrai re-pull à la prochaine
-    // connexion.
+    // point (voir `waitForPendingWrites()` juste au-dessus), rien n'est
+    // perdu, juste un vrai re-pull à la prochaine connexion.
     clearLocalCache();
   };
 
