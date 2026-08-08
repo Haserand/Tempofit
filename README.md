@@ -12,6 +12,22 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
+✅ **SESSION DU 08/08 (suite) — `PlaylistHeader.jsx` découpé (836 → 254 lignes) en 5 sous-composants.** Suite du chantier "simplicité" (`useSyncedCollection`/`usePersistentState` d'abord, README élagué ensuite) : `PlaylistHeader.jsx` était devenu le plus gros fichier du dossier `PlaylistDetail/`, largement au-dessus de ses voisins (`TrackItem.jsx`/`TrackList.jsx`/`PlaylistCharts.jsx`).
+
+Nouveaux fichiers, tous dans `src/components/views/PlaylistDetail/` — composants "dumb" (rendu seul, aucun état/calcul propre), reçoivent tout en props :
+- **`PlaylistHeaderBadges.jsx`** (78 lignes) — médaille de rang, badge "Lecture seule", boutons publique/privée+retirer (overlay en coin).
+- **`PlaylistHeaderCover.jsx`** (38 lignes) — pochette cliquable.
+- **`PlaylistHeaderTitleBlock.jsx`** (134 lignes) — ligne pseudo+compteur de clonages, titre/description (édition fusionnée).
+- **`PlaylistHeaderMeta.jsx`** (93 lignes) — badge "séance déjà réalisée"+dates, ligne d'infos (type/durée/titres/genres).
+- **`PlaylistHeaderActions.jsx`** (139 lignes) — import CSV, action principale (sauvegarder/cloner), planifier, partager, badge BPM.
+
+`PlaylistHeader.jsx` (254 lignes) reste le seul à posséder `usePlaylistDetail()` et à calculer les valeurs partagées entre plusieurs sous-composants (`ownerLabel`/`ownerProfileUsername`/`avgBpm`/`bpmZone`/`bpmBadgeColor`/`currentPlaylistRank`/`mostRecentCompletionIso`/`plannedDateInputRef`) — orchestrateur, plus aucune logique dupliquée entre fichiers.
+
+**Rendu strictement identique, aucun changement de comportement** — vérifié par recoupement systématique (pas juste relu) : correspondance exacte props déclarées/props passées sur les 5 sous-composants (script dédié), présence unique de toutes les chaînes/`title`/classes distinctives de l'original (aucune perte, aucun doublon de markup — seuls doublons trouvés = mention en commentaire + code réel, attendu), `esbuild` + `tsc --checkJs` sur les 6 fichiers (0 variable non déclarée). `tests/views/PlaylistDetail/PlaylistHeader.test.jsx` (755 lignes, existant) **non modifié** — les `vi.mock(...)` qu'il pose sur `appConfig.js`/`musicCatalog.js`/`coverArt.js`/`TopCompletionDate.jsx`/`CompletionsList.jsx` interceptent par chemin de module résolu, pas par "qui importe quoi" : ils s'appliquent de façon transparente aux nouveaux sous-composants qui importent désormais ces mêmes modules à la place de `PlaylistHeader.jsx`.
+
+⚠️ **Pas encore vérifié en conditions réelles** (build Vercel) — même limite habituelle (bac à sable sans accès réseau, `vitest run` jamais exécuté pour de vrai ici).
+
+
 ✅ **SESSION DU 08/08 (suite) — `signOut()` attend désormais les écritures Supabase encore en vol AVANT de couper la session, pas seulement de vider le cache local après coup.** Suite à l'audit du 08/08 (check-up général demandé en début de session) : `clearLocalCache()` (07/08, voir plus bas) reposait sur l'hypothèse "tout changement local a déjà été poussé vers Supabase au moment du signOut" — vraie la plupart du temps (chaque `setState` déclenche déjà son upsert/insert/delete immédiatement, aucun debounce), mais jamais GARANTIE : une frappe ou un clic juste avant de cliquer sur Déconnexion peut très bien laisser une écriture encore en vol au moment où `signOut()` s'exécute.
 
 Nouveau fichier — **`src/utils/pendingWrites.js`** — compteur global (module-level, singleton partagé par toutes les instances des deux hooks de persistance) des écritures Supabase en tâche de fond : `trackWrite(thenable, onSettled?)` l'incrémente à l'appel, le décrémente à la fin (succès ou échec) ; `waitForPendingWrites(timeoutMs = 5000)` renvoie une Promise qui se résout dès que le compteur retombe à zéro, avec un timeout pour ne JAMAIS bloquer une déconnexion indéfiniment (réseau down, requête bloquée). Voir sa docstring pour le raisonnement complet.
