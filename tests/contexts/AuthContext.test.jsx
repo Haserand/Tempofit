@@ -319,6 +319,45 @@ describe('AuthContext — signIn / signOut / resetPassword / updateEmail / updat
     window.localStorage.removeItem('une-autre-app:preference');
   });
 
+  // NOUVEAU (08/08) — voir la docstring de `waitForPendingWrites`
+  // (`src/utils/pendingWrites.js`) : `signOut()` doit attendre les
+  // écritures Supabase encore en vol (déclenchées par
+  // `useSyncedCollection.js`/`usePersistentState.js` via `trackWrite`)
+  // AVANT `supabase.auth.signOut()` — pas juste "vider le cache après",
+  // dette qui existait déjà avant ce chantier. `trackWrite` est appelé ici
+  // directement (pas via un vrai hook monté) : suffisant, le compteur est
+  // un module-level partagé par toute l'app, peu importe qui l'incrémente.
+  it('signOut attend une écriture Supabase encore en vol (trackWrite) avant supabase.auth.signOut, puis vide le cache local', async () => {
+    const { trackWrite } = await import('../../src/utils/pendingWrites.js');
+    let resolvePendingWrite;
+    const pendingWrite = new Promise((resolve) => { resolvePendingWrite = resolve; });
+    trackWrite(pendingWrite);
+
+    window.localStorage.setItem('tempofit:theme', '"dark"');
+
+    const { result } = renderAuth();
+    let signOutSettled = false;
+    const signOutPromise = act(async () => {
+      await result.current.signOut();
+      signOutSettled = true;
+    });
+
+    // Laisse tourner les microtasks en attente : tant que `pendingWrite`
+    // n'est pas résolue, `signOut()` ne doit ni avoir appelé
+    // `supabase.auth.signOut`, ni avoir vidé le cache local.
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+    expect(signOutSettled).toBe(false);
+    expect(mockAuth.signOut).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem('tempofit:theme')).toBe('"dark"');
+
+    resolvePendingWrite({ error: null });
+    await signOutPromise;
+
+    expect(signOutSettled).toBe(true);
+    expect(mockAuth.signOut).toHaveBeenCalled();
+    expect(window.localStorage.getItem('tempofit:theme')).toBeNull();
+  });
+
   it('resetPassword propage le message d\'erreur éventuel', async () => {
     mockAuth.resetPasswordForEmail.mockResolvedValue({ error: { message: 'Adresse introuvable' } });
     const { result } = renderAuth();
