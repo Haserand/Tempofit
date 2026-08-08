@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuthContext } from '../contexts/AuthContext';
 import { supabase, isSupabaseConfigured } from '../supabaseClient';
 import { STORAGE_PREFIX } from '../utils/localCache';
+import { trackWrite } from '../utils/pendingWrites';
 
 
 /**
@@ -117,9 +118,12 @@ export function usePersistentState(key, initialValue) {
           isApplyingRemoteRef.current = true;
           setState(data.value);
         } else {
-          await supabase.from('user_data').upsert({
+          // `trackWrite` (08/08) — voir pendingWrites.js : enregistre cette
+          // écriture dans le compteur global partagé, pour que `signOut()`
+          // puisse l'attendre. `await` inchangé, comportement identique.
+          await trackWrite(supabase.from('user_data').upsert({
             user_id: user.id, key, value: state, updated_at: new Date().toISOString(),
-          });
+          }));
         }
       } catch (e) {
         // Échec silencieux volontaire (hors-ligne au moment de la connexion,
@@ -153,9 +157,11 @@ export function usePersistentState(key, initialValue) {
     // chaîné sur le retour direct d'une requête Supabase).
     (async () => {
       try {
-        await supabase.from('user_data').upsert({
+        // `trackWrite` (08/08) — même raisonnement que le pull juste
+        // au-dessus : voir pendingWrites.js.
+        await trackWrite(supabase.from('user_data').upsert({
           user_id: userRef.current.id, key, value: state, updated_at: new Date().toISOString(),
-        });
+        }));
       } catch (e) {
         // Échec silencieux volontaire — voir docstring.
       }
