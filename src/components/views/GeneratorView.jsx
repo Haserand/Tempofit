@@ -1,4 +1,5 @@
 import { useGeneratorContext } from '../../contexts/GeneratorContext';
+import { useAthleticContext } from '../../contexts/AthleticContext';
 import { Zap } from 'lucide-react';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
@@ -33,7 +34,8 @@ export default function GeneratorView({
   executeGeneration, isGenerating,
   toggleNaughtyMode, changeView,
 }) {
-  const { isNaughtyMode, displaySubtitleGen } = useGeneratorContext();
+  const { displaySubtitleGen } = useGeneratorContext();
+  const { isNaughtyMode } = useAthleticContext();
   const { textColorClass } = theme;
 
   return (
