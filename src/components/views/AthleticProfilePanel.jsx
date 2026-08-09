@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Trash2, Plus, Info, ChevronUp, ChevronDown, RotateCcw } from 'lucide-react';
 import { ATHLETIC_ZONES, getZoneForValue } from '../../appConfig';
 import { syncClampedInput } from '../../utils/numberInput';
-import { useGeneratorContext } from '../../contexts/GeneratorContext';
+import { useAthleticContext } from '../../contexts/AthleticContext';
 
 /**
  * AthleticProfilePanel — page "Mon Profil Athlétique" (BPM cibles par zone
@@ -14,13 +14,20 @@ import { useGeneratorContext } from '../../contexts/GeneratorContext';
  * docstring de SettingsView.jsx pour l'historique complet des 2
  * déménagements). Ce composant-ci n'a pas changé de forme pour autant :
  * toujours aucune variable locale partagée avec le wizard de génération,
- * seul `theme` et quelques champs génériques de `useGeneratorContext()`
+ * seul `theme` et quelques champs génériques de `useAthleticContext()`
  * (`athleticProfile`, `buildDefaultPreviewProfile`...) sont utilisés des
- * deux côtés — chacun via son PROPRE appel à `useGeneratorContext()`, pas
+ * deux côtés — chacun via son PROPRE appel à `useAthleticContext()`, pas
  * une prop reçue de l'autre.
  *
+ * ⚠️ `useAthleticContext()` DEPUIS LE 08/08 (auparavant
+ * `useGeneratorContext()` — voir sa docstring pour le raisonnement complet
+ * du découpage) : ce composant ne lit QUE des champs athlétiques, jamais
+ * rien du formulaire du générateur (bpm/genres/structure...) — il ne
+ * re-rend donc plus DU TOUT quand ces réglages changent, puisqu'il ne
+ * consomme plus ce Contexte-là.
+ *
  * `theme`/`showToast` restent des props explicites (hors du périmètre de
- * GeneratorContext) — tout le reste du state (activité sélectionnée,
+ * AthleticContext) — tout le reste du state (activité sélectionnée,
  * brouillon de BPM, etc.) est LOCAL à ce composant.
  *
  * `changeView` (nouvelle prop, 28/07) : REMPLACE l'ancien
@@ -42,7 +49,7 @@ export default function AthleticProfilePanel({ theme, showToast, changeView }) {
     addCustomActivity, removeCustomActivity, setBaseBpmForCustom, setZoneForCustom,
     getDefaultBaseBpm, buildDefaultPreviewProfile,
     setCadenceIntentForActivity, setCadenceIntentForCustom, isCadenceIntentEligible,
-  } = useGeneratorContext();
+  } = useAthleticContext();
   const {
     cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass,
     borderAccentClass, inputBg, inputBorder,
@@ -331,7 +338,7 @@ export default function AthleticProfilePanel({ theme, showToast, changeView }) {
                         BPM autour de Zone 2 (Zone 1 = -1 palier, Zone 3 = +1,
                         Zone 4 = +2). `getZoneSpacingForActivity` (le seul
                         usage de cette valeur dans ce fichier) retiré de la
-                        déstructuration `useGeneratorContext()` en
+                        déstructuration `useAthleticContext()` en
                         conséquence — plus référencé nulle part ici. */}
                     <p className={textMuted}>
                       Les noms de zone (Récupération, Endurance, Seuil, Vitesse) viennent du vocabulaire des coachs de course à pied — ils décrivent un <strong className={textHighlight}>niveau d'effort</strong>, pas une mesure précise.
