@@ -95,6 +95,7 @@ import SearchUsersModal from './components/modals/SearchUsersModal';
 import { useAuthContext } from './contexts/AuthContext';
 import { ModalProvider, useModalContext } from './contexts/ModalContext';
 import { GeneratorProvider, useGeneratorContext } from './contexts/GeneratorContext';
+import { AthleticProvider } from './contexts/AthleticContext';
 import ModalContainer from './components/shared/ModalContainer';
 import SearchModal from './components/modals/SearchModal';
 import EditRoutineModal from './components/modals/EditRoutineModal';
@@ -2190,10 +2191,10 @@ function AppContent({
  * ici pour <AudioPlayerProvider> (useAudioPreview en dépend) — remontés pour
  * la même raison que athleticProfile, jamais dupliqués (voir useToast.js).
  *
- * Imbrication des Providers : GeneratorProvider et AudioPlayerProvider sont
- * indépendants l'un de l'autre (aucun des deux ne lit l'état de l'autre) —
- * leur ordre relatif n'a donc aucune importance fonctionnelle. AuthProvider
- * reste dans main.jsx, au-dessus des deux (voir plus haut).
+ * Imbrication des Providers : `AthleticProvider`/`GeneratorProvider`/
+ * `AudioPlayerProvider` sont indépendants les uns des autres (aucun ne lit
+ * l'état d'un autre) — leur ordre relatif n'a donc aucune importance
+ * fonctionnelle. AuthProvider reste dans main.jsx, au-dessus des trois.
  *
  * <ModalProvider> (chantier "centraliser les modales", 25/07) enveloppe
  * SEULEMENT <AppContent>, à l'intérieur d'<ErrorBoundary> — contrairement à
@@ -2207,21 +2208,29 @@ export default function App() {
   const { toast, showToast } = useToast();
 
   return (
-    <GeneratorProvider
-      isNaughtyMode={isNaughtyMode}
-      athleticProfileApi={athleticProfileApi}
-    >
-      <AudioPlayerProvider showToast={showToast}>
-        <ErrorBoundary>
-          <ModalProvider>
-            <AppContent
-              isNaughtyMode={isNaughtyMode} setIsNaughtyMode={setIsNaughtyMode}
-              athleticProfileApi={athleticProfileApi}
-              toast={toast} showToast={showToast}
-            />
-          </ModalProvider>
-        </ErrorBoundary>
-      </AudioPlayerProvider>
-    </GeneratorProvider>
+    // `AthleticProvider` (08/08, chantier "GeneratorContext.jsx re-rend à
+    // chaque réglage du wizard") — monté ICI, au même niveau que
+    // `<GeneratorProvider>`/`<AudioPlayerProvider>` : `isNaughtyMode`/
+    // `athleticProfileApi` restent possédés par `App()` (inchangé), ce
+    // Provider les expose juste via un Contexte DÉDIÉ, découplé de l'état
+    // du formulaire du générateur — voir AthleticContext.jsx.
+    <AthleticProvider isNaughtyMode={isNaughtyMode} athleticProfileApi={athleticProfileApi}>
+      <GeneratorProvider
+        isNaughtyMode={isNaughtyMode}
+        athleticProfileApi={athleticProfileApi}
+      >
+        <AudioPlayerProvider showToast={showToast}>
+          <ErrorBoundary>
+            <ModalProvider>
+              <AppContent
+                isNaughtyMode={isNaughtyMode} setIsNaughtyMode={setIsNaughtyMode}
+                athleticProfileApi={athleticProfileApi}
+                toast={toast} showToast={showToast}
+              />
+            </ModalProvider>
+          </ErrorBoundary>
+        </AudioPlayerProvider>
+      </GeneratorProvider>
+    </AthleticProvider>
   );
 }
