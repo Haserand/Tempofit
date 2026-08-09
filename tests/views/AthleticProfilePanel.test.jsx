@@ -1,17 +1,25 @@
 // @vitest-environment jsdom
 //
-// Palier 3 (29/07, 5/11) — AthleticProfilePanel. `GeneratorContext` est
-// mocké dans son intégralité via `vi.mock` (comme pour CustomActivityModal)
-// — seuls `theme`, `showToast` et `changeView` restent des props reçues
-// directement par ce composant.
+// Palier 3 (29/07, 5/11 ; mis à jour 08/08) — AthleticProfilePanel.
+// `AthleticContext` est mocké dans son intégralité via `vi.mock` (comme
+// pour CustomActivityModal) — seuls `theme`, `showToast` et `changeView`
+// restent des props reçues directement par ce composant.
+//
+// ⚠️ Ce composant lit `useAthleticContext()` DEPUIS LE 08/08 (auparavant
+// `useGeneratorContext()` — voir la docstring de AthleticContext.jsx pour
+// le raisonnement du découpage). Tous les champs qu'il utilise étaient
+// déjà 100% athlétiques (aucun champ du formulaire du wizard) — simple
+// renommage du mock ici, aucune scission de champs nécessaire
+// (contrairement à GeneratorWizard.test.jsx/CustomActivityModal.test.jsx,
+// qui ont besoin des deux Contextes à la fois).
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
-const mockUseGeneratorContext = vi.fn();
-vi.mock('../../src/contexts/GeneratorContext.jsx', () => ({
-  useGeneratorContext: () => mockUseGeneratorContext(),
+const mockUseAthleticContext = vi.fn();
+vi.mock('../../src/contexts/AthleticContext.jsx', () => ({
+  useAthleticContext: () => mockUseAthleticContext(),
 }));
 
 import AthleticProfilePanel from '../../src/components/views/AthleticProfilePanel.jsx';
@@ -70,13 +78,13 @@ const baseProps = {
 
 describe('AthleticProfilePanel', () => {
   it('ne rend rien en Mode Intime (garde interne, défense en profondeur)', () => {
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ isNaughtyMode: true }));
+    mockUseAthleticContext.mockReturnValue(makeContextValue({ isNaughtyMode: true }));
     const { container } = render(<AthleticProfilePanel {...baseProps} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it('affiche "Course à pied" sélectionné par défaut avec les valeurs d\'aperçu par défaut', () => {
-    mockUseGeneratorContext.mockReturnValue(makeContextValue());
+    mockUseAthleticContext.mockReturnValue(makeContextValue());
     render(<AthleticProfilePanel {...baseProps} />);
     // zone2 = 140 dans DEFAULT_PREVIEW, valeur unique parmi les 4 zones
     // affichées (120/140/160/180) — pas d'ambiguïté sur ce texte.
@@ -86,7 +94,7 @@ describe('AthleticProfilePanel', () => {
 
   it('saisir un BPM invalide (vide) et cliquer "Calculer mes zones" affiche une erreur, sans appeler setBaseBpmForActivity', () => {
     const setBaseBpmForActivity = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ setBaseBpmForActivity }));
+    mockUseAthleticContext.mockReturnValue(makeContextValue({ setBaseBpmForActivity }));
     const { container } = render(<AthleticProfilePanel {...baseProps} />);
 
     const bpmInput = container.querySelectorAll('input[type="number"]')[0];
@@ -99,7 +107,7 @@ describe('AthleticProfilePanel', () => {
 
   it('saisir un BPM valide et cliquer "Calculer mes zones" appelle setBaseBpmForActivity avec la bonne activité', () => {
     const setBaseBpmForActivity = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ setBaseBpmForActivity }));
+    mockUseAthleticContext.mockReturnValue(makeContextValue({ setBaseBpmForActivity }));
     const { container } = render(<AthleticProfilePanel {...baseProps} />);
 
     const bpmInput = container.querySelectorAll('input[type="number"]')[0];
@@ -112,7 +120,7 @@ describe('AthleticProfilePanel', () => {
 
   it('appuyer sur Entrée dans le champ BPM déclenche aussi le calcul (même effet que le bouton)', () => {
     const setBaseBpmForActivity = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ setBaseBpmForActivity }));
+    mockUseAthleticContext.mockReturnValue(makeContextValue({ setBaseBpmForActivity }));
     const { container } = render(<AthleticProfilePanel {...baseProps} />);
 
     const bpmInput = container.querySelectorAll('input[type="number"]')[0];
@@ -127,7 +135,7 @@ describe('AthleticProfilePanel', () => {
       ...DEFAULT_PREVIEW,
       targetBpm: key === 'Cyclisme' ? 90 : 140,
     }));
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ buildDefaultPreviewProfile }));
+    mockUseAthleticContext.mockReturnValue(makeContextValue({ buildDefaultPreviewProfile }));
     render(<AthleticProfilePanel {...baseProps} />);
 
     fireEvent.click(screen.getByText('Cyclisme'));
@@ -137,7 +145,7 @@ describe('AthleticProfilePanel', () => {
 
   it('le bouton "Ajuster manuellement" déplie les 4 zones, dont la modification appelle setZoneForActivity', () => {
     const setZoneForActivity = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(
+    mockUseAthleticContext.mockReturnValue(
       makeContextValue({
         setZoneForActivity,
         athleticProfile: { activities: { 'Course à pied': makeActivity({ isConfigured: true, targetBpm: 140, zone1: 120, zone2: 140, zone3: 160, zone4: 180 }), 'Cyclisme': makeActivity() }, custom: [] },
@@ -155,7 +163,7 @@ describe('AthleticProfilePanel', () => {
 
   it('ajouter une activité personnalisée : Entrée dans le champ appelle addCustomActivity et bascule sur le nouvel onglet', () => {
     const addCustomActivity = vi.fn(() => 'custom-1');
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ addCustomActivity }));
+    mockUseAthleticContext.mockReturnValue(makeContextValue({ addCustomActivity }));
     render(<AthleticProfilePanel {...baseProps} />);
 
     fireEvent.click(screen.getByText('+ Ajouter une autre activité'));
@@ -169,7 +177,7 @@ describe('AthleticProfilePanel', () => {
 
   it('si addCustomActivity échoue (retourne une valeur falsy), le formulaire d\'ajout reste ouvert', () => {
     const addCustomActivity = vi.fn(() => null);
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ addCustomActivity }));
+    mockUseAthleticContext.mockReturnValue(makeContextValue({ addCustomActivity }));
     render(<AthleticProfilePanel {...baseProps} />);
 
     fireEvent.click(screen.getByText('+ Ajouter une autre activité'));
@@ -180,7 +188,7 @@ describe('AthleticProfilePanel', () => {
 
   it('une activité personnalisée déjà configurée affiche un bouton de suppression qui appelle removeCustomActivity et revient sur "Course à pied"', () => {
     const removeCustomActivity = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(
+    mockUseAthleticContext.mockReturnValue(
       makeContextValue({
         removeCustomActivity,
         athleticProfile: {
@@ -199,7 +207,7 @@ describe('AthleticProfilePanel', () => {
 
   it('le bouton de réinitialisation (activité active et déjà configurée) appelle resetActivityProfile', () => {
     const resetActivityProfile = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(
+    mockUseAthleticContext.mockReturnValue(
       makeContextValue({
         resetActivityProfile,
         athleticProfile: { activities: { 'Course à pied': makeActivity({ isConfigured: true, targetBpm: 140, zone1: 120, zone2: 140, zone3: 160, zone4: 180 }), 'Cyclisme': makeActivity() }, custom: [] },
@@ -214,7 +222,7 @@ describe('AthleticProfilePanel', () => {
 
   it('isCadenceIntentEligible=true : affiche le toggle, clic sur "Suit ton rythme" appelle setCadenceIntentForActivity', () => {
     const setCadenceIntentForActivity = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ isCadenceIntentEligible: vi.fn(() => true), setCadenceIntentForActivity }));
+    mockUseAthleticContext.mockReturnValue(makeContextValue({ isCadenceIntentEligible: vi.fn(() => true), setCadenceIntentForActivity }));
     render(<AthleticProfilePanel {...baseProps} />);
 
     fireEvent.click(screen.getByText('Suit ton rythme'));
@@ -223,7 +231,7 @@ describe('AthleticProfilePanel', () => {
   });
 
   it('isCadenceIntentEligible=false : le toggle n\'est pas affiché', () => {
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ isCadenceIntentEligible: vi.fn(() => false) }));
+    mockUseAthleticContext.mockReturnValue(makeContextValue({ isCadenceIntentEligible: vi.fn(() => false) }));
     render(<AthleticProfilePanel {...baseProps} />);
     expect(screen.queryByText('Suit ton rythme')).not.toBeInTheDocument();
   });
@@ -231,7 +239,7 @@ describe('AthleticProfilePanel', () => {
   it('CTA final : profil non configuré, BPM valide → calcule les zones ET change de vue', () => {
     const setBaseBpmForActivity = vi.fn();
     const changeView = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ setBaseBpmForActivity }));
+    mockUseAthleticContext.mockReturnValue(makeContextValue({ setBaseBpmForActivity }));
     const { container } = render(<AthleticProfilePanel {...baseProps} changeView={changeView} />);
 
     const bpmInput = container.querySelectorAll('input[type="number"]')[0];
@@ -244,7 +252,7 @@ describe('AthleticProfilePanel', () => {
 
   it('CTA final : profil non configuré, BPM invalide (vide) → ne change PAS de vue', () => {
     const changeView = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(makeContextValue());
+    mockUseAthleticContext.mockReturnValue(makeContextValue());
     const { container } = render(<AthleticProfilePanel {...baseProps} changeView={changeView} />);
 
     const bpmInput = container.querySelectorAll('input[type="number"]')[0];
@@ -256,7 +264,7 @@ describe('AthleticProfilePanel', () => {
 
   it('CTA final : profil déjà configuré → libellé "Générer une playlist →", change de vue directement', () => {
     const changeView = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(
+    mockUseAthleticContext.mockReturnValue(
       makeContextValue({
         athleticProfile: { activities: { 'Course à pied': makeActivity({ isConfigured: true, targetBpm: 140, zone1: 120, zone2: 140, zone3: 160, zone4: 180 }), 'Cyclisme': makeActivity() }, custom: [] },
       })
@@ -269,7 +277,7 @@ describe('AthleticProfilePanel', () => {
   });
 
   it('le popover d\'explication (icône Info) s\'ouvre au clic et se ferme via le fond', () => {
-    mockUseGeneratorContext.mockReturnValue(makeContextValue());
+    mockUseAthleticContext.mockReturnValue(makeContextValue());
     render(<AthleticProfilePanel {...baseProps} />);
 
     // Le bouton Info est le seul <button> à l'intérieur du conteneur du
