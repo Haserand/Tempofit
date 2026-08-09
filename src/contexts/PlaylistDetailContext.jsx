@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useMemo } from 'react';
 import { getZoneForValue, ATHLETIC_ZONES, getBpmBucketColor, getBpmBucketLabel } from '../appConfig';
 import { normalizeGenreForDisplay, genreDisplayLabel } from '../musicCatalog';
 import { getSingleMatchingTrack, findSameArtistReplacement, recalculateTimeline } from '../engine/musicEngine';
-import { useGeneratorContext } from './GeneratorContext';
+import { useAthleticContext } from './AthleticContext';
 import { useAudioPlayer } from './AudioPlayerContext';
 import { supabase } from '../supabaseClient';
 
@@ -60,10 +60,14 @@ import { supabase } from '../supabaseClient';
  *   AudioPlayerContext.jsx pour le même raisonnement).
  *
  * DÉJÀ DISPONIBLE SANS RIEN RECEVOIR EN PROP (PlaylistDetailProvider est
- * monté à l'intérieur de <GeneratorProvider>/<AudioPlayerProvider>, qui
- * enveloppent déjà tout AppContent — voir App.jsx) :
+ * monté à l'intérieur de <AthleticProvider>/<GeneratorProvider>/
+ * <AudioPlayerProvider>, qui enveloppent déjà tout AppContent — voir
+ * App.jsx) :
  * - `isNaughtyMode`, `getProfileForWorkout` : lus directement via
- *   `useGeneratorContext()` ci-dessous, plutôt que reçus en prop en double.
+ *   `useAthleticContext()` ci-dessous (DEPUIS LE 08/08 — vivaient avant
+ *   dans `useGeneratorContext()`, déplacés avec le reste de l'API
+ *   athlétique, voir AthleticContext.jsx), plutôt que reçus en prop en
+ *   double.
  * - `togglePreview`/`playingPreviewId`/`resolveAndPlay`/`resolvingTrackId` :
  *   lus directement via `useAudioPlayer()`.
  *
@@ -96,7 +100,7 @@ export function PlaylistDetailProvider({
   username,
   children,
 }) {
-  const { isNaughtyMode, getProfileForWorkout } = useGeneratorContext();
+  const { isNaughtyMode, getProfileForWorkout } = useAthleticContext();
   const { togglePreview, playingPreviewId, resolveAndPlay, resolvingTrackId } = useAudioPlayer();
 
   // Petit utilitaire interne : la quasi-totalité des mutations de titres
@@ -613,7 +617,7 @@ export function PlaylistDetailProvider({
     // les sous-composants qui n'ont que usePlaylistDetail() sous la main.
     currentPlaylist,
     // Re-exposées pour que le composant n'ait plus qu'UN SEUL point d'entrée
-    // (usePlaylistDetail()) au lieu de devoir aussi lire useGeneratorContext()/
+    // (usePlaylistDetail()) au lieu de devoir aussi lire useAthleticContext()/
     // useAudioPlayer() séparément pour ces quelques valeurs.
     togglePreview, playingPreviewId, resolveAndPlay, resolvingTrackId,
     getProfileForWorkout, isNaughtyMode,
