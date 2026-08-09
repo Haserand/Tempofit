@@ -87,9 +87,6 @@ export default function PlaylistHeader({
   const { bgAccentClass } = theme;
   const {
     currentPlaylist, isSaved, getProfileForWorkout,
-    isEditingPlaylistDetails, setIsEditingPlaylistDetails,
-    editedPlaylistName, setEditedPlaylistName, editedPlaylistDescription, setEditedPlaylistDescription,
-    handleSavePlaylistDetails,
     handleSavePlaylist, handleUnsavePlaylist, handleTogglePlaylistPublic,
     handleClonePlaylist, isReadOnly, username,
   } = usePlaylistDetail();
@@ -152,13 +149,15 @@ export default function PlaylistHeader({
   // RoutinesView.jsx pour ses routines.
   //
   // `useMemo([savedPlaylists, currentPlaylist.id])` — `savedPlaylists`
-  // (reçu en prop depuis App.jsx) reste RÉFÉRENTIELLEMENT stable pendant
-  // la frappe (seul le state d'édition change, pas la collection
-  // elle-même) : élimine tout recalcul inutile de ce tri sur CHAQUE
-  // frappe en train de renommer cette playlist ou d'éditer sa description
-  // (`editedPlaylistName`/`editedPlaylistDescription`, state local au
-  // Provider `PlaylistDetailContext.jsx`, inclus dans la valeur du
-  // Contexte — chaque frappe re-render tous ses consommateurs).
+  // (reçu en prop depuis App.jsx) reste RÉFÉRENTIELLEMENT stable d'un
+  // rendu à l'autre tant que la collection elle-même ne change pas.
+  // Historiquement ajouté (07/08) pour contourner un re-render à chaque
+  // frappe pendant l'édition du titre/de la description — ce problème
+  // n'existe plus depuis le découpage `PlaylistEditContext.jsx` (08/08,
+  // voir sa docstring) : `PlaylistHeader.jsx` ne re-render même plus du
+  // tout pendant une frappe. Ce `useMemo` reste néanmoins la bonne
+  // pratique standard (éviter un tri à chaque rendu, peu importe la
+  // cause) — pas retiré pour autant.
   const currentPlaylistRank = useMemo(() => {
     const ranks = [...savedPlaylists.filter(p => p.completions && p.completions.length > 0)]
       .sort((a, b) => b.completions.length - a.completions.length)
@@ -207,13 +206,6 @@ export default function PlaylistHeader({
           ownerLabel={ownerLabel}
           ownerProfileUsername={ownerProfileUsername}
           onViewProfile={onViewProfile}
-          isEditingPlaylistDetails={isEditingPlaylistDetails}
-          setIsEditingPlaylistDetails={setIsEditingPlaylistDetails}
-          editedPlaylistName={editedPlaylistName}
-          setEditedPlaylistName={setEditedPlaylistName}
-          editedPlaylistDescription={editedPlaylistDescription}
-          setEditedPlaylistDescription={setEditedPlaylistDescription}
-          handleSavePlaylistDetails={handleSavePlaylistDetails}
         />
 
         <PlaylistHeaderMeta
