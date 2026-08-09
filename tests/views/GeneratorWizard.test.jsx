@@ -41,6 +41,17 @@ vi.mock('../../src/contexts/GeneratorContext.jsx', () => ({
   useGeneratorContext: () => mockUseGeneratorContext(),
 }));
 
+// `useAthleticContext()` (08/08) — `isNaughtyMode`/l'API athlétique ne
+// viennent plus de `useGeneratorContext()` (voir la docstring de
+// AthleticContext.jsx pour le raisonnement du découpage). Mocké séparément
+// ici, mais alimenté PAR `makeContextValue()` elle-même (voir plus bas) —
+// aucun des 60 appels existants à `mockUseGeneratorContext.mockReturnValue(
+// makeContextValue({...}))` n'a besoin de changer.
+const mockUseAthleticContext = vi.fn();
+vi.mock('../../src/contexts/AthleticContext.jsx', () => ({
+  useAthleticContext: () => mockUseAthleticContext(),
+}));
+
 const mockOpenModal = vi.fn();
 vi.mock('../../src/contexts/ModalContext.jsx', () => ({
   useModalContext: () => ({ openModal: mockOpenModal, activeModal: null, modalData: null, closeModal: vi.fn() }),
@@ -81,7 +92,7 @@ const mockTheme = {
 };
 
 function makeContextValue(overrides = {}) {
-  return {
+  const merged = {
     isNaughtyMode: false,
     wizardStep: 1, setWizardStep: vi.fn(),
     workoutType: 'Course à pied', setWorkoutType: vi.fn(), customActivity: '', handleOpenCustomActivityModal: vi.fn(),
@@ -101,6 +112,15 @@ function makeContextValue(overrides = {}) {
     athleticProfile: { activities: {}, custom: [] }, getProfileForWorkout: vi.fn(() => ({ isConfigured: false })), buildDefaultPreviewProfile: vi.fn(() => ({ isConfigured: false, targetBpm: 140 })),
     ...overrides,
   };
+  // Sépare les champs athlétiques (08/08, AthleticContext découplé de
+  // GeneratorContext — voir la docstring plus haut) : cette fonction
+  // continue de prendre TOUS les champs en un seul objet d'overrides (les
+  // 60 appels existants dans ce fichier n'ont pas besoin de changer), mais
+  // alimente maintenant les 2 mocks séparément — effet de bord assumé,
+  // documenté ici plutôt qu'une réécriture des 60 sites d'appel.
+  const { isNaughtyMode, athleticProfile, getProfileForWorkout, buildDefaultPreviewProfile, ...generatorPart } = merged;
+  mockUseAthleticContext.mockReturnValue({ isNaughtyMode, athleticProfile, getProfileForWorkout, buildDefaultPreviewProfile });
+  return generatorPart;
 }
 
 function baseProps(overrides = {}) {
