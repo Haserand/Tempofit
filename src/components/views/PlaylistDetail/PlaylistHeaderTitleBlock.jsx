@@ -1,5 +1,6 @@
 import { Edit3, Copy } from 'lucide-react';
 import { getActivityEmoji, MAX_DESCRIPTION_LENGTH } from '../../../appConfig';
+import { usePlaylistEdit } from '../../../contexts/PlaylistEditContext';
 
 /**
  * PlaylistHeaderTitleBlock.jsx — ligne "chapeau" (pseudo cliquable +
@@ -16,15 +17,30 @@ import { getActivityEmoji, MAX_DESCRIPTION_LENGTH } from '../../../appConfig';
  * reçoit un `cloneCount` réel sans `isReadOnly: true` à côté, voir
  * README) — TOUJOURS affiché même à 0, mêmes icône/gabarit que
  * `TemplateCard.jsx`.
+ *
+ * ⚠️ `isEditingPlaylistDetails`/`editedPlaylistName`/
+ * `editedPlaylistDescription`/`handleSavePlaylistDetails` viennent
+ * directement de `usePlaylistEdit()` ICI (08/08, chantier "value non
+ * mémoïsée re-render tout le monde à chaque frappe" — voir la docstring
+ * de PlaylistEditContext.jsx), PAS reçus en props depuis
+ * `PlaylistHeader.jsx` comme le reste. Volontaire : si `PlaylistHeader.jsx`
+ * lisait ces valeurs pour les redescendre en props, LUI-MÊME re-render à
+ * chaque frappe, entraînant avec lui tous ses autres enfants
+ * (Badges/Cover/Meta/Actions) — exactement le problème que ce découpage
+ * visait à éliminer. En les lisant directement ICI, seul CE composant
+ * re-render pendant l'édition.
  */
 export default function PlaylistHeaderTitleBlock({
   currentPlaylist, isSaved, isReadOnly,
   ownerLabel, ownerProfileUsername, onViewProfile,
-  isEditingPlaylistDetails, setIsEditingPlaylistDetails,
-  editedPlaylistName, setEditedPlaylistName,
-  editedPlaylistDescription, setEditedPlaylistDescription,
-  handleSavePlaylistDetails,
 }) {
+  const {
+    isEditingPlaylistDetails, setIsEditingPlaylistDetails,
+    editedPlaylistName, setEditedPlaylistName,
+    editedPlaylistDescription, setEditedPlaylistDescription,
+    handleSavePlaylistDetails,
+  } = usePlaylistEdit();
+
   return (
     <>
       {ownerLabel && (
