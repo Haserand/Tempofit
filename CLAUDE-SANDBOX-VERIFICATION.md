@@ -110,7 +110,15 @@ Règle : après avoir résolu une demande d'une façon qui révèle un principe 
 - Mais toujours **demander validation avant d'écrire** — même raisonnement que "proposer une meilleure option" juste au-dessus : ça reste une décision qui affecte la façon dont je travaille sur SON projet, elle mérite son accord avant de devenir permanente, pas juste ma propre initiative.
 - Ne pas sur-déclencher : un ajustement ponctuel, cosmétique, ou clairement lié à une préférence UNIQUE de ce jour précis (pas un principe généralisable) ne mérite PAS de devenir une règle — même calibrage de franchise que "cadrer chaque demande avant d'itérer" (ne pas systématiquement dire "bonne idée" là-bas, ne pas systématiquement proposer "documentons ça" ici).
 
-## 1. Validation de syntaxe RÉELLE — `esbuild` (recommandé)
+### Habitude de travail : après un découpage de fichier `src/`, ajouter un fichier de test dédié par sous-composant ET revoir le test du fichier parent pour ne pas dupliquer
+Trouvé le 08/08 (retour direct, après le découpage de `PlaylistHeader.jsx` en 5 sous-composants : question posée "je fais aussi des tests dédiés pour ces 5 fichiers ?", tranchée par l'utilisateur — "revoir aussi le test existant pour pas dupliquer"). Décision prise UNE FOIS, à appliquer désormais par défaut sur tout futur découpage de ce type, sans reposer la question.
+Règle : après avoir découpé un fichier `src/xxx/Yyy.jsx` en plusieurs sous-composants (même pattern que `TrackList.jsx`/`TrackItem.jsx`, déjà en place dans ce projet) :
+1. Un fichier de test dédié par sous-composant, qui le rend DIRECTEMENT avec des props écrites à la main (pas besoin de repasser par le contexte ni par le composant parent) — c'est là que vit le détail (rendu conditionnel, interactions, clics).
+2. Le fichier de test du composant PARENT est allégé en conséquence — les sous-composants y sont mockés par des stubs légers (même pattern que `TrackList.test.jsx` mocke `TrackItem.jsx`), et ce fichier ne teste plus QUE ce que le parent fait encore lui-même : le calcul des valeurs partagées/dérivées, et leur transmission (plomberie) au bon sous-composant.
+3. Vérifier qu'aucun scénario de l'ancien fichier (avant découpage) n'est perdu en route — chacun migre soit vers le fichier du sous-composant concerné, soit reste dans le test du parent sous une forme adaptée (vérification de calcul plutôt que de rendu).
+Pas besoin de redemander à chaque nouveau découpage si des tests dédiés sont voulus — la réponse est oui, par défaut, sur ce projet.
+
+ — `esbuild` (recommandé)
 
 Un vrai parseur JS/JSX est **déjà présent** dans le bac à sable Claude, caché
 dans les dépendances globales de `tsx` (installé pour d'autres besoins,
