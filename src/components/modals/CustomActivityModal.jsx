@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import { useGeneratorContext } from '../../contexts/GeneratorContext';
+import { useAthleticContext } from '../../contexts/AthleticContext';
 
 /**
  * CustomActivityModal — saisie du nom d'une activité personnalisée ("Autre"
@@ -17,14 +18,26 @@ import { useGeneratorContext } from '../../contexts/GeneratorContext';
  * (convention partagée avec toutes les vues extraites, vient de useTheme.js)
  * et `userStats`/`checkTrophies` (système de trophées, sans rapport avec le
  * générateur — seul l'easter egg Rick Astley les utilise ici).
+ *
+ * ⚠️ `isNaughtyMode`/`getProfileForWorkout` viennent de `useAthleticContext()`
+ * DEPUIS LE 08/08 (déplacés hors de GeneratorContext, voir sa docstring) —
+ * `applyProfileBpmIfUntouched` reste sur `useGeneratorContext()` (fait
+ * partie de l'état du formulaire, pas de l'API athlétique). Cette modale
+ * étant montée GLOBALEMENT dans App.jsx (pas conditionnée à une vue), elle
+ * continue donc de re-render à chaque réglage du wizard À CAUSE de
+ * `applyProfileBpmIfUntouched` — limite connue, non résolue ici (l'isoler
+ * complètement demanderait de stabiliser cette fonction dans
+ * useGeneratorForm.js lui-même, chantier distinct, plus profond, pas
+ * entrepris cette fois). Le découplage d'`isNaughtyMode`/l'API athlétique
+ * reste un vrai gain en soi, pas nul.
  */
 export default function CustomActivityModal({ theme, userStats, checkTrophies }) {
   const {
-    isNaughtyMode,
     isCustomActivityModalOpen, setIsCustomActivityModalOpen,
     tempCustomActivity, setTempCustomActivity, setCustomActivity,
-    getProfileForWorkout, applyProfileBpmIfUntouched,
+    applyProfileBpmIfUntouched,
   } = useGeneratorContext();
+  const { isNaughtyMode, getProfileForWorkout } = useAthleticContext();
 
   const { cardBg, cardBorder, textHighlight, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
 
