@@ -12,6 +12,26 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
+✅ **SESSION DU 08/08 (suite) — `GeneratorContext.jsx` découpé : `isNaughtyMode`/l'API athlétique isolés dans `AthleticContext.jsx`.** Suite du chantier "value non mémoïsée re-render tout le monde" (`PlaylistDetailContext`/`ModalContext` d'abord, voir plus bas) — chantier complet plutôt qu'un correctif ciblé, sur décision explicite de l'utilisateur ("tant que j'ai pas d'utilisateur je suis ok pour chantier les plus risqués et complets", enregistré comme habitude par défaut dans `CLAUDE-SANDBOX-VERIFICATION.md`).
+
+**Bonne surprise en vérifiant AVANT de découper** (pas supposé) : `useAthleticProfile()` est appelé UNE SEULE FOIS dans le composant racine `App()`, PAS dans `AppContent` ni dans `GeneratorProvider` — `athleticProfileApi` était donc déjà référentiellement stable à la source, tant que `App()` ne re-rend pas pour une autre raison (bascule Mode Intime, toast, ou le profil qui change réellement). Chantier plus petit et moins risqué que redouté : pas besoin de toucher `useAthleticProfile.js` (383 lignes, consommé aussi directement par StatsView/PlaylistDetailView).
+
+**Le vrai problème identifié** : `GeneratorProvider` re-rend à CHAQUE réglage du wizard (`useGeneratorForm()`/`useCustomActivity()` appelés en interne, dizaines de `useState`) — sa `value` (jamais mémoïsée, et ne PEUT pas l'être simplement, ces hooks renvoient un objet neuf à chaque rendu) était recréée en entier à chaque frappe/glissement, entraînant avec elle tout composant qui lisait ne serait-ce qu'`isNaughtyMode` sans rien lire du formulaire.
+
+⚠️ **Découverte en cours de route qui a réduit la portée initialement annoncée** : les vues de l'app sont en rendu conditionnel classique (`{view === 'generator' && (...)}`), donc démontées, pas juste cachées — `AthleticProfilePanel`/`SettingsView` ne sont JAMAIS montés en même temps que le wizard actif, donc ce cas précis ne se produisait pas réellement en pratique. Le vrai bénéfice concret restant : `CustomActivityModal.jsx`, monté GLOBALEMENT dans `App.jsx` (pas conditionné à une vue), qui re-rendait bien à chaque réglage du wizard même fermé.
+
+Nouveau fichier — **`src/contexts/AthleticContext.jsx`** — `isNaughtyMode`/l'API athlétique complète, `value` mémoïsée (`useMemo`, sûr ici puisque déjà stable à la source). Monté dans `App.jsx` au même niveau que `<GeneratorProvider>`/`<AudioPlayerProvider>`.
+
+`GeneratorContext.jsx` : ces 2 éléments retirés de sa `value`/son `FALLBACK`, docstring mise à jour — garde toujours `isNaughtyMode`/`athleticProfileApi` EN PROPS (nécessaires en interne pour `useGeneratorForm`), seule sa valeur de contexte ne les réexpose plus.
+
+Consommateurs mis à jour (vérifiés un par un avant de changer quoi que ce soit, pas supposés) : `PlaylistDetailContext.jsx`, `CustomActivityModal.jsx` (limite documentée honnêtement — reste partiellement couplé au générateur via `applyProfileBpmIfUntouched`, qui fait partie de l'état du formulaire ; l'isoler complètement demanderait de stabiliser cette fonction dans `useGeneratorForm.js` lui-même, chantier distinct, pas entrepris ici), `AthleticProfilePanel.jsx` (entièrement découplé du générateur), `GeneratorView.jsx`, `GeneratorWizard.jsx`. Vérifiés SANS modification nécessaire : `useNavigation.js`/`usePlaylistGeneration.js`/`useRoutineActions.js`/`Sidebar.jsx` (reçoivent `isNaughtyMode` en paramètre/prop direct, jamais via ce Contexte).
+
+Tests : `GeneratorView.test.jsx`/`CustomActivityModal.test.jsx`/`PlaylistDetailContext.test.jsx` mis à jour (mock séparé pour `useAthleticContext()`). `GeneratorWizard.test.jsx` (803 lignes, 60 appels au même helper `makeContextValue()`) — plutôt que de retoucher les 60 sites d'appel, `makeContextValue()` elle-même sépare maintenant les champs athlétiques en interne et alimente les 2 mocks ; aucun appel existant changé. `AthleticProfilePanel.test.jsx` — renommage complet du mock (100% de ses champs sont athlétiques). `criticalExportsTrap.test.js` — élargi : `AthleticContext.jsx` (nouveau) ajouté, et au passage `ModalContext.jsx`/`PlaylistEditContext.jsx` (chantiers précédents, jamais ajoutés à ce garde-fou) aussi couverts désormais — le titre "les 3 Context Providers" n'était déjà plus vrai avant même l'ajout d'`AthleticContext.jsx`.
+
+Bug de formatage trouvé et corrigé au passage dans `CLAUDE-SANDBOX-VERIFICATION.md` (titre "## 1. Validation de syntaxe RÉELLE" perdu lors d'une édition précédente).
+
+⚠️ **Pas encore vérifié en conditions réelles** (build Vercel) — même limite habituelle (bac à sable sans accès réseau, `vitest run` jamais exécuté pour de vrai ici).
+
 ✅ **SESSION DU 08/08 (suite) — `PlaylistHeader.jsx` découpé (836 → 254 lignes) en 5 sous-composants.** Suite du chantier "simplicité" (`useSyncedCollection`/`usePersistentState` d'abord, README élagué ensuite) : `PlaylistHeader.jsx` était devenu le plus gros fichier du dossier `PlaylistDetail/`, largement au-dessus de ses voisins (`TrackItem.jsx`/`TrackList.jsx`/`PlaylistCharts.jsx`).
 
 Nouveaux fichiers, tous dans `src/components/views/PlaylistDetail/` — composants "dumb" (rendu seul, aucun état/calcul propre), reçoivent tout en props :
