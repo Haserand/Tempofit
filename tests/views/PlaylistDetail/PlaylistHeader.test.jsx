@@ -97,16 +97,15 @@ function makePlaylist(overrides = {}) {
 
 function makeContextValue(overrides = {}) {
   return {
+    // `isEditingPlaylistDetails`/`editedPlaylistName`/
+    // `editedPlaylistDescription`/`handleSavePlaylistDetails` : DÉPLACÉS
+    // (08/08) vers `usePlaylistEdit()` (PlaylistEditContext.jsx) —
+    // `PlaylistHeader.jsx` ne les lit plus via `usePlaylistDetail()`, plus
+    // besoin de les fournir ici (voir la docstring de
+    // PlaylistEditContext.jsx pour le raisonnement).
     currentPlaylist: makePlaylist(),
     isSaved: true,
     getProfileForWorkout: vi.fn(() => ({ isConfigured: false })),
-    isEditingPlaylistDetails: false,
-    setIsEditingPlaylistDetails: vi.fn(),
-    editedPlaylistName: '',
-    setEditedPlaylistName: vi.fn(),
-    editedPlaylistDescription: '',
-    setEditedPlaylistDescription: vi.fn(),
-    handleSavePlaylistDetails: vi.fn(),
     handleSavePlaylist: vi.fn(),
     handleUnsavePlaylist: vi.fn(),
     handleTogglePlaylistPublic: vi.fn(),
