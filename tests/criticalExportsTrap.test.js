@@ -34,8 +34,9 @@ import { fileURLToPath } from 'node:url';
 //    qui aurait attrapé l'incident du 05/08 instantanément (le fichier de
 //    test importe `vitest` dès sa 1re ligne de code).
 //
-// 2. Les 3 vrais Context Providers de l'app (GeneratorContext/
-//    AudioPlayerContext/PlaylistDetailContext — le cœur architectural du
+// 2. Les vrais Context Providers de l'app (GeneratorContext/
+//    AudioPlayerContext/PlaylistDetailContext/ModalContext/
+//    PlaylistEditContext/AthleticContext — le cœur architectural du
 //    projet, dont une casse est difficile à diagnostiquer précisément
 //    parce que l'erreur React qui en résulte est générique et ne pointe
 //    jamais vers LA vraie cause) sont importés pour de vrai et on vérifie
@@ -92,9 +93,14 @@ describe('Garde-fou anti-régression : un fichier src/ ne doit jamais contenir u
   });
 });
 
-// Les 3 Providers réels — importés pour de vrai (pas juste scannés en
+// Les Providers réels — importés pour de vrai (pas juste scannés en
 // texte) : la 2e ligne de défense, voir la docstring en tête de fichier.
-describe('Garde-fou anti-régression : les 3 Context Providers exportent bien ce qu\'ils promettent (incident PlaylistDetailContext.jsx, 05/08)', () => {
+// ⚠️ Liste élargie le 08/08 (`ModalContext.jsx`/`PlaylistEditContext.jsx`
+// existaient déjà sans être couverts ici — trouvé en ajoutant
+// `AthleticContext.jsx`, nouveau ce même jour, et en réalisant que le
+// titre "les 3 Context Providers" n'était déjà plus vrai avant même cet
+// ajout).
+describe('Garde-fou anti-régression : les Context Providers exportent bien ce qu\'ils promettent (incident PlaylistDetailContext.jsx, 05/08)', () => {
   it('GeneratorContext.jsx exporte GeneratorProvider et useGeneratorContext (fonctions)', async () => {
     const m = await import('../src/contexts/GeneratorContext.jsx');
     expect(typeof m.GeneratorProvider).toBe('function');
@@ -111,5 +117,24 @@ describe('Garde-fou anti-régression : les 3 Context Providers exportent bien ce
     const m = await import('../src/contexts/PlaylistDetailContext.jsx');
     expect(typeof m.PlaylistDetailProvider).toBe('function');
     expect(typeof m.usePlaylistDetail).toBe('function');
+  });
+
+  // NOUVEAU (08/08) — les 3 ci-dessous manquaient à ce garde-fou.
+  it('ModalContext.jsx exporte ModalProvider et useModalContext (fonctions)', async () => {
+    const m = await import('../src/contexts/ModalContext.jsx');
+    expect(typeof m.ModalProvider).toBe('function');
+    expect(typeof m.useModalContext).toBe('function');
+  });
+
+  it('PlaylistEditContext.jsx exporte PlaylistEditProvider et usePlaylistEdit (fonctions)', async () => {
+    const m = await import('../src/contexts/PlaylistEditContext.jsx');
+    expect(typeof m.PlaylistEditProvider).toBe('function');
+    expect(typeof m.usePlaylistEdit).toBe('function');
+  });
+
+  it('AthleticContext.jsx exporte AthleticProvider et useAthleticContext (fonctions)', async () => {
+    const m = await import('../src/contexts/AthleticContext.jsx');
+    expect(typeof m.AthleticProvider).toBe('function');
+    expect(typeof m.useAthleticContext).toBe('function');
   });
 });
