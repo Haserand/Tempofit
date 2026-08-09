@@ -8,6 +8,7 @@ import { buildCoverUrlPng } from '../../utils/coverArt';
 import { deezerFetch } from '../../engine/musicEngine';
 import SessionSummaryCard from '../shared/SessionSummaryCard';
 import { PlaylistDetailProvider, usePlaylistDetail } from '../../contexts/PlaylistDetailContext';
+import { PlaylistEditProvider } from '../../contexts/PlaylistEditContext';
 import TrackList from './PlaylistDetail/TrackList';
 import PlaylistHeader from './PlaylistDetail/PlaylistHeader';
 import PlaylistCharts from './PlaylistDetail/PlaylistCharts';
@@ -627,35 +628,48 @@ export default function PlaylistDetailView({
   changeView, onViewProfile,
 }) {
   return (
-    <PlaylistDetailProvider
+    // `PlaylistEditProvider` MONTÉ EN FRÈRE de `PlaylistDetailProvider`
+    // (08/08, chantier "value non mémoïsée re-render tout le monde à
+    // chaque frappe" — voir la docstring de PlaylistEditContext.jsx) —
+    // PAS à l'intérieur, pas englobant dans l'autre sens : les deux
+    // Providers sont indépendants, chacun reçoit séparément les 4 mêmes
+    // props (`currentPlaylist`/`setCurrentPlaylist`/`savedPlaylists`/
+    // `setSavedPlaylists`) dont il a besoin pour sa propre raison. Ordre
+    // d'imbrication arbitraire (aucune dépendance entre eux).
+    <PlaylistEditProvider
       currentPlaylist={currentPlaylist} setCurrentPlaylist={setCurrentPlaylist}
       savedPlaylists={savedPlaylists} setSavedPlaylists={setSavedPlaylists}
-      favorites={favorites} spotifyTrackPool={spotifyTrackPool}
-      userStats={userStats} checkTrophies={checkTrophies}
-      showToast={showToast} requestRemoveSavedPlaylist={requestRemoveSavedPlaylist} handleSavePlaylist={handleSavePlaylist}
-      handleClonePlaylist={handleClonePlaylist}
-      currentActualData={currentActualData} selectedMetric={selectedMetric} setSelectedMetric={setSelectedMetric}
-      dataOffset={dataOffset} setDataOffset={setDataOffset}
-      selectedAnalysisDate={selectedAnalysisDate} setSelectedAnalysisDate={setSelectedAnalysisDate}
-      availableMetrics={availableMetrics}
-      username={username}
     >
-      <PlaylistDetailViewInner
-        theme={theme} colorMode={colorMode}
-        currentPlaylist={currentPlaylist} setCurrentPlaylist={setCurrentPlaylist} savedPlaylists={savedPlaylists}
-        handleShare={handleShare} showToast={showToast}
-        summaryImageStatus={summaryImageStatus} setSummaryImageStatus={setSummaryImageStatus}
-        summaryImageFile={summaryImageFile} setSummaryImageFile={setSummaryImageFile}
-        summaryImagePreviewUrl={summaryImagePreviewUrl} setSummaryImagePreviewUrl={setSummaryImagePreviewUrl}
-        includeSummaryImage={includeSummaryImage} setIncludeSummaryImage={setIncludeSummaryImage}
-        favorites={favorites} toggleTrackFavorite={toggleTrackFavorite} toggleArtistFavorite={toggleArtistFavorite}
-        setIsBpmSearchMode={setIsBpmSearchMode}
-        setPlaylistPlannedDate={setPlaylistPlannedDate}
-        editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
-        editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
-        getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload} removeImportedData={removeImportedData}
-        changeView={changeView} onViewProfile={onViewProfile}
-      />
-    </PlaylistDetailProvider>
+      <PlaylistDetailProvider
+        currentPlaylist={currentPlaylist} setCurrentPlaylist={setCurrentPlaylist}
+        savedPlaylists={savedPlaylists} setSavedPlaylists={setSavedPlaylists}
+        favorites={favorites} spotifyTrackPool={spotifyTrackPool}
+        userStats={userStats} checkTrophies={checkTrophies}
+        showToast={showToast} requestRemoveSavedPlaylist={requestRemoveSavedPlaylist} handleSavePlaylist={handleSavePlaylist}
+        handleClonePlaylist={handleClonePlaylist}
+        currentActualData={currentActualData} selectedMetric={selectedMetric} setSelectedMetric={setSelectedMetric}
+        dataOffset={dataOffset} setDataOffset={setDataOffset}
+        selectedAnalysisDate={selectedAnalysisDate} setSelectedAnalysisDate={setSelectedAnalysisDate}
+        availableMetrics={availableMetrics}
+        username={username}
+      >
+        <PlaylistDetailViewInner
+          theme={theme} colorMode={colorMode}
+          currentPlaylist={currentPlaylist} setCurrentPlaylist={setCurrentPlaylist} savedPlaylists={savedPlaylists}
+          handleShare={handleShare} showToast={showToast}
+          summaryImageStatus={summaryImageStatus} setSummaryImageStatus={setSummaryImageStatus}
+          summaryImageFile={summaryImageFile} setSummaryImageFile={setSummaryImageFile}
+          summaryImagePreviewUrl={summaryImagePreviewUrl} setSummaryImagePreviewUrl={setSummaryImagePreviewUrl}
+          includeSummaryImage={includeSummaryImage} setIncludeSummaryImage={setIncludeSummaryImage}
+          favorites={favorites} toggleTrackFavorite={toggleTrackFavorite} toggleArtistFavorite={toggleArtistFavorite}
+          setIsBpmSearchMode={setIsBpmSearchMode}
+          setPlaylistPlannedDate={setPlaylistPlannedDate}
+          editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
+          editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
+          getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload} removeImportedData={removeImportedData}
+          changeView={changeView} onViewProfile={onViewProfile}
+        />
+      </PlaylistDetailProvider>
+    </PlaylistEditProvider>
   );
 }
