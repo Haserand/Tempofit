@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useMemo } from 'react';
-import { getZoneForValue, ATHLETIC_ZONES, getBpmBucketColor, getBpmBucketLabel, MAX_DESCRIPTION_LENGTH } from '../appConfig';
+import { getZoneForValue, ATHLETIC_ZONES, getBpmBucketColor, getBpmBucketLabel } from '../appConfig';
 import { normalizeGenreForDisplay, genreDisplayLabel } from '../musicCatalog';
 import { getSingleMatchingTrack, findSameArtistReplacement, recalculateTimeline } from '../engine/musicEngine';
 import { useGeneratorContext } from './GeneratorContext';
@@ -11,9 +11,16 @@ import { supabase } from '../supabaseClient';
  * `PlaylistDetailView.jsx` (1656 lignes, 78 props — le plus gros morceau
  * restant après GeneratorView/MiniPlayerBar/CustomActivityModal).
  *
+ * ⚠️ DEPUIS LE 08/08 : l'édition du titre/de la description (état +
+ * `handleSavePlaylistDetails`) N'EST PLUS ICI — déplacée vers
+ * `PlaylistEditContext.jsx` (`usePlaylistEdit()`), à part, pour que taper
+ * dans ces champs ne re-render plus TOUS les consommateurs de ce
+ * Contexte-ci (TrackList/PlaylistCharts/PlaylistHeader) à chaque frappe.
+ * Voir la docstring de ce nouveau fichier pour le raisonnement complet.
+ *
  * DIFFÉRENCE MAJEURE avec GeneratorContext/AudioPlayerContext : cette fois,
  * il n'existait AUCUN hook déjà extrait à simplement envelopper — toute cette
- * logique (édition du nom, drag-and-drop liste ET graphique, menu par titre,
+ * logique (drag-and-drop liste ET graphique, menu par titre,
  * remplacement/duplication/suppression, calculs de graphique BPM,
  * distributions BPM/genre) vivait directement, en dizaines de `useState`/
  * fonctions, dans `AppContent` (App.jsx). Ce fichier la rapatrie fidèlement.
@@ -22,7 +29,7 @@ import { supabase } from '../supabaseClient';
  * soit (chaque nom cherché individuellement pour voir s'il sert à un autre
  * appel JSX qu'à celui de PlaylistDetailView) :
  *
- * RÉELLEMENT DÉPLACÉ ICI (exclusif à cette vue, vérifié) : édition du nom,
+ * RÉELLEMENT DÉPLACÉ ICI (exclusif à cette vue, vérifié) :
  * sauvegarde/retrait de "Mes Séances" DEPUIS la vue détail, drag-and-drop
  * (liste ET graphique — `moveTrackTo` sert aux deux, jamais dupliqué),
  * dupliquer/remplacer/remplacer-même-artiste/retirer un titre, menu par
@@ -105,54 +112,12 @@ export function PlaylistDetailProvider({
   };
 
   // --- Édition du nom de la playlist ---
-  // Édition combinée titre + description (08/08, retour direct : "que
-  // modifier le titre ou la description vienne un seul crayon plutôt que
-  // via chacune une option individuelle" — précédent Spotify cité,
-  // "Modifier les détails", mais gardé INLINE ici plutôt qu'une modale,
-  // sur confirmation explicite). Fusionne `isEditingPlaylistName`/
-  // `isEditingPlaylistDescription` (2 booléens séparés) en UN SEUL état,
-  // et `handleRenamePlaylist`/`handleEditPlaylistDescription` en UN SEUL
-  // handler de sauvegarde.
-  // ⚠️ Piège identifié AVANT d'implémenter (pas après coup) : les 2
-  // anciens handlers lisent chacun `currentPlaylist` depuis la MÊME
-  // fermeture de rendu — les appeler l'un après l'autre (au lieu de les
-  // fusionner) aurait fait perdre le 1er changement : le 2e handler aurait
-  // construit son `updatedPlaylist` à partir de l'ancien `currentPlaylist`
-  // (React ne reflète un `setState` qu'au rendu SUIVANT), écrasant
-  // silencieusement la modification du 1er. Un seul `updatedPlaylist`,
-  // les deux champs ensemble, un seul `setCurrentPlaylist`/
-  // `setSavedPlaylists` : plus de risque de ce genre.
-  const [isEditingPlaylistDetails, setIsEditingPlaylistDetails] = useState(false);
-  const [editedPlaylistName, setEditedPlaylistName] = useState('');
-  const [editedPlaylistDescription, setEditedPlaylistDescription] = useState('');
-
-  // Nom JAMAIS vide (une playlist sans nom n'aurait aucun sens — même
-  // garde que l'ancien `handleRenamePlaylist`), mais contrairement à
-  // l'ancienne version, un nom vidé PAR MÉGARDE en éditant la
-  // description en même temps ne fait plus avorter TOUTE la sauvegarde
-  // (silencieusement, sans rien enregistrer) — repli sur l'ancien nom
-  // (`|| currentPlaylist.name`) plutôt qu'un `return` précoce qui aurait
-  // aussi perdu la description tapée à côté. Description VIDE, elle,
-  // reste un état valide (on peut vouloir l'effacer) — pas de repli
-  // équivalent pour ce champ.
-  const handleSavePlaylistDetails = () => {
-    if (!currentPlaylist) { setIsEditingPlaylistDetails(false); return; }
-    const trimmedName = editedPlaylistName.trim();
-    const trimmedDescription = editedPlaylistDescription.trim().slice(0, MAX_DESCRIPTION_LENGTH);
-    const updatedPlaylist = {
-      ...currentPlaylist,
-      name: trimmedName || currentPlaylist.name,
-      description: trimmedDescription,
-      // "Clone" vs "Enfant" (02/08, discussion produit) — voir la
-      // docstring historique de l'ancien `handleRenamePlaylist` pour le
-      // raisonnement complet, inchangé : un booléen posé UNE SEULE FOIS,
-      // peu importe LEQUEL des deux champs a réellement changé.
-      ...(currentPlaylist.parentUserId && !currentPlaylist.isModifiedSinceClone ? { isModifiedSinceClone: true } : {}),
-    };
-    setCurrentPlaylist(updatedPlaylist);
-    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
-    setIsEditingPlaylistDetails(false);
-  };
+  // DÉPLACÉ (08/08) — cet état + `handleSavePlaylistDetails` vivent
+  // maintenant dans `PlaylistEditContext.jsx`, à part, pour que taper dans
+  // le champ titre/description ne re-render plus TOUS les consommateurs
+  // de `usePlaylistDetail()` (TrackList/PlaylistCharts/PlaylistHeader) à
+  // chaque frappe — voir la docstring de ce nouveau fichier pour le
+  // raisonnement complet.
 
   // Bascule individuelle publique/privée (Feature Sociale — Refonte
   // Structurale Round 2/2, 01/08) — MÊME schéma exact que
@@ -197,8 +162,8 @@ export function PlaylistDetailProvider({
 
   // --- Description libre (Vague 2, Chantier 3 — "description texte libre
   // sur une playlist publique", 02/08). Fusionnée avec l'édition du nom le
-  // 08/08 (voir `handleSavePlaylistDetails`/`isEditingPlaylistDetails`
-  // juste au-dessus) — plus d'état ni de handler séparés ici.
+  // 08/08 — logique désormais dans PlaylistEditContext.jsx
+  // (`handleSavePlaylistDetails`/`isEditingPlaylistDetails`), pas ici.
 
   // handleSavePlaylist reçue en prop (voir signature du Provider) : sa
   // définition RESTE dans App.jsx, pas ici — contrairement à ce qui était
@@ -627,9 +592,6 @@ export function PlaylistDetailProvider({
   const isSaved = !isReadOnly && !!(currentPlaylist && savedPlaylists.find(p => p.id === currentPlaylist.id));
 
   const value = {
-    isEditingPlaylistDetails, setIsEditingPlaylistDetails,
-    editedPlaylistName, setEditedPlaylistName, editedPlaylistDescription, setEditedPlaylistDescription,
-    handleSavePlaylistDetails,
     handleSavePlaylist, handleUnsavePlaylist, isSaved,
     handleTogglePlaylistPublic,
     handleClonePlaylist, isReadOnly,
@@ -673,10 +635,9 @@ export function PlaylistDetailProvider({
 
 // Fallback silencieux — même convention que les autres contextes du projet.
 const FALLBACK = {
-  isEditingPlaylistDetails: false, setIsEditingPlaylistDetails: () => {},
-  editedPlaylistName: '', setEditedPlaylistName: () => {},
-  editedPlaylistDescription: '', setEditedPlaylistDescription: () => {},
-  handleSavePlaylistDetails: () => {},
+  // isEditingPlaylistDetails/editedPlaylistName/editedPlaylistDescription/
+  // handleSavePlaylistDetails : DÉPLACÉS (08/08) vers PlaylistEditContext.jsx
+  // (usePlaylistEdit()) — plus dans ce Contexte ni son FALLBACK.
   handleSavePlaylist: () => {}, handleUnsavePlaylist: () => {}, isSaved: false,
   handleTogglePlaylistPublic: () => {},
   handleClonePlaylist: () => {}, isReadOnly: false,
