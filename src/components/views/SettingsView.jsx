@@ -26,7 +26,7 @@ import { supabase } from '../../supabaseClient';
  * + suppression de compte, tous deux NOUVEAUX). Voir le bloc `account`
  * plus bas pour une limite assumée sur ce dernier point.
  *
- * `AthleticProfilePanel` lit lui-même `useGeneratorContext()` pour tout ce
+ * `AthleticProfilePanel` lit lui-même `useAthleticContext()` pour tout ce
  * dont il a besoin (voir sa propre docstring) — ce composant-ci ne fait que
  * le monter/démonter selon l'onglet actif, sans dupliquer son state.
  *
