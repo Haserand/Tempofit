@@ -118,7 +118,13 @@ Règle : après avoir découpé un fichier `src/xxx/Yyy.jsx` en plusieurs sous-c
 3. Vérifier qu'aucun scénario de l'ancien fichier (avant découpage) n'est perdu en route — chacun migre soit vers le fichier du sous-composant concerné, soit reste dans le test du parent sous une forme adaptée (vérification de calcul plutôt que de rendu).
 Pas besoin de redemander à chaque nouveau découpage si des tests dédiés sont voulus — la réponse est oui, par défaut, sur ce projet.
 
- — `esbuild` (recommandé)
+### Habitude de travail : tant qu'il n'y a pas d'utilisateurs réels, chantiers risqués/complets acceptés PAR DÉFAUT — pas besoin de demander confirmation avant de proposer l'option la plus poussée
+Trouvé le 08/08 (retour direct, après avoir proposé 3 options pour le chantier `GeneratorContext.jsx` — "laisser tomber" / "correctif ciblé et petit" / "le chantier complet" — et présenté la 3e comme la plus risquée : "tant que j'ai pas d'utilisateur je suis ok pour chantier les plus risqués et complets").
+Règle : tant que ce projet n'a pas d'utilisateurs réels en production (voir README.md pour le statut actuel — si ça change, METTRE À JOUR cette règle en conséquence, elle n'est valable que dans ce contexte précis), ne pas hésiter à proposer/entreprendre l'option la plus complète et la plus risquée d'un chantier, plutôt que de systématiquement offrir un choix "petit correctif sûr vs chantier complet risqué" en laissant deviner. Ça ne dispense PAS de :
+- signaler clairement l'ampleur réelle et les risques d'un chantier avant de s'y lancer (la franchise sur le risque reste de mise, seule la nécessité de DEMANDER la permission avant de s'engager sur la version risquée disparaît) ;
+- vérifier le travail aussi rigoureusement qu'un chantier "petit" (esbuild/tsc --checkJs/recoupements manuels — aucun relâchement de rigueur, seulement moins d'hésitation sur le PÉRIMÈTRE à couvrir).
+
+## 1. Validation de syntaxe RÉELLE — `esbuild` (recommandé)
 
 Un vrai parseur JS/JSX est **déjà présent** dans le bac à sable Claude, caché
 dans les dépendances globales de `tsx` (installé pour d'autres besoins,
