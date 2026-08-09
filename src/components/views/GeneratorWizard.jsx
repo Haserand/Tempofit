@@ -15,6 +15,7 @@ import {
   WORKOUT_DEFAULT_BPM, WORKOUT_DEFAULT_TARGET, ATHLETIC_ZONES, getZoneForValue,
 } from '../../appConfig';
 import { useGeneratorContext } from '../../contexts/GeneratorContext';
+import { useAthleticContext } from '../../contexts/AthleticContext';
 import { useModalContext } from '../../contexts/ModalContext';
 import { INLINE_NAV_LINK_CLASS } from '../../layout/inlineLinkLayout';
 
@@ -30,8 +31,10 @@ import { INLINE_NAV_LINK_CLASS } from '../../layout/inlineLinkLayout';
  * lignes de JSX + la logique Crescendo/sélecteur rapide de zone/indicateur
  * de scroll qui n'appartenait qu'à lui) — rien de partagé avec
  * AthleticProfilePanel.jsx au-delà de quelques champs génériques de
- * useGeneratorContext() (`athleticProfile`, `buildDefaultPreviewProfile`),
- * chacun lu ICI via son propre appel au Contexte. (`setShowAthleticProfile`
+ * useAthleticContext() (`athleticProfile`, `buildDefaultPreviewProfile` —
+ * DEPUIS LE 08/08, auparavant `useGeneratorContext()`, voir sa docstring
+ * pour le raisonnement complet du découpage), chacun lu ICI via son propre
+ * appel au Contexte. (`setShowAthleticProfile`
  * retiré de cette liste le 29/07 — dead reference depuis le refactor
  * "Réglages à onglets" du 28/07, voir plus bas dans ce fichier pour le
  * détail du nettoyage.)
@@ -51,7 +54,6 @@ export default function GeneratorWizard({
 }) {
   const { openModal } = useModalContext();
   const {
-    isNaughtyMode,
     wizardStep, setWizardStep,
     workoutType, setWorkoutType, customActivity, handleOpenCustomActivityModal,
     setBpm, setBpmManual, setTargetMode, setDistanceVal, setDistanceUnit, setHours, setMinutes,
@@ -67,8 +69,8 @@ export default function GeneratorWizard({
     genreWeights, setGenreWeights, setGenreWeight, equalSplitWeights, setLockedGenreWeights,
     bpmTolerance, setBpmTolerance, crossfade, setCrossfade, allowLongTracks, setAllowLongTracks,
     getActiveWorkoutName,
-    athleticProfile, getProfileForWorkout, buildDefaultPreviewProfile,
   } = useGeneratorContext();
+  const { isNaughtyMode, athleticProfile, getProfileForWorkout, buildDefaultPreviewProfile } = useAthleticContext();
   const {
     cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass,
     borderAccentClass, bgMainApp, inputBg, inputBorder,
