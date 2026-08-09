@@ -23,6 +23,16 @@ vi.mock('../../src/contexts/GeneratorContext.jsx', () => ({
   useGeneratorContext: () => mockUseGeneratorContext(),
 }));
 
+// `useAthleticContext()` (08/08) — `isNaughtyMode`/`getProfileForWorkout`
+// ne viennent plus de `useGeneratorContext()` (voir la docstring de
+// AthleticContext.jsx). Mocké séparément, mais alimenté PAR
+// `makeContextValue()` elle-même (voir plus bas) — aucun des 10 appels
+// existants n'a besoin de changer.
+const mockUseAthleticContext = vi.fn();
+vi.mock('../../src/contexts/AthleticContext.jsx', () => ({
+  useAthleticContext: () => mockUseAthleticContext(),
+}));
+
 // Import APRÈS le vi.mock (obligatoire avec l'hoisting de Vitest, mais
 // l'ordre dans le fichier source reste celui qu'on écrit ici par lisibilité).
 import CustomActivityModal from '../../src/components/modals/CustomActivityModal.jsx';
@@ -43,7 +53,7 @@ const mockTheme = {
 };
 
 function makeContextValue(overrides = {}) {
-  return {
+  const merged = {
     isNaughtyMode: false,
     isCustomActivityModalOpen: true,
     setIsCustomActivityModalOpen: vi.fn(),
@@ -54,6 +64,13 @@ function makeContextValue(overrides = {}) {
     applyProfileBpmIfUntouched: vi.fn(),
     ...overrides,
   };
+  // Sépare les champs athlétiques (08/08, voir AthleticContext.jsx) —
+  // cette fonction continue de prendre TOUS les champs en un seul objet
+  // d'overrides (les 10 appels existants n'ont pas besoin de changer),
+  // mais alimente maintenant les 2 mocks séparément.
+  const { isNaughtyMode, getProfileForWorkout, ...generatorPart } = merged;
+  mockUseAthleticContext.mockReturnValue({ isNaughtyMode, getProfileForWorkout });
+  return generatorPart;
 }
 
 const baseProps = {
