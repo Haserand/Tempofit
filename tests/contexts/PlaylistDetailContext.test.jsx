@@ -31,19 +31,19 @@
 // synchronisation vers Supabase par `useSyncedCollection`. Correctif :
 // `isSaved = !isReadOnly && !!(...)`.
 //
-// GeneratorContext/AudioPlayerContext mockés à l'identique du pattern déjà
-// établi (voir AthleticProfilePanel.test.jsx pour GeneratorContext seul) —
-// seuls les champs RÉELLEMENT lus par PlaylistDetailContext.jsx sont
-// fournis (`isNaughtyMode`/`getProfileForWorkout` ; `togglePreview`/
-// `playingPreviewId`/`resolveAndPlay`/`resolvingTrackId`), pas la totalité
-// de ce que ces contextes exposent ailleurs dans l'app.
+// AthleticContext/AudioPlayerContext mockés à l'identique du pattern déjà
+// établi (voir AthleticProfilePanel.test.jsx) — seuls les champs RÉELLEMENT
+// lus par PlaylistDetailContext.jsx sont fournis (`isNaughtyMode`/
+// `getProfileForWorkout` ; `togglePreview`/`playingPreviewId`/
+// `resolveAndPlay`/`resolvingTrackId`), pas la totalité de ce que ces
+// contextes exposent ailleurs dans l'app.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
-vi.mock('../../src/contexts/GeneratorContext.jsx', () => ({
-  useGeneratorContext: () => ({
+vi.mock('../../src/contexts/AthleticContext.jsx', () => ({
+  useAthleticContext: () => ({
     isNaughtyMode: false,
     getProfileForWorkout: vi.fn(() => null),
   }),
