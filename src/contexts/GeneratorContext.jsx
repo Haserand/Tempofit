@@ -7,54 +7,57 @@ import { useCustomActivity } from '../hooks/useCustomActivity';
  * l'état PROPRE au wizard de génération (useGeneratorForm, useCustomActivity,
  * `workoutType`) de App.jsx, pour que GeneratorView le lise directement via
  * `useGeneratorContext()` au lieu de le recevoir en dizaines de props
- * individuelles. Objectif de cette étape : livrer le Contexte seul, sans
- * toucher à App.jsx/GeneratorView.jsx — le branchement réel est l'étape 2.
+ * individuelles.
+ *
+ * ⚠️ DEPUIS LE 08/08 : `isNaughtyMode`/l'API athlétique complète NE SONT
+ * PLUS DANS LA VALEUR DE CE CONTEXTE — déplacés vers `AthleticContext.jsx`
+ * (`useAthleticContext()`), à part. Raison : ce Provider re-rend à CHAQUE
+ * réglage du wizard (curseur BPM, genres, structure...) puisque
+ * `useGeneratorForm()`/`useCustomActivity()` sont appelés ICI MÊME — sa
+ * `value` (jamais mémoïsée, et ne PEUT PAS l'être simplement : ces 2 hooks
+ * renvoient un objet neuf à chaque rendu) était donc recréée en entier à
+ * chaque frappe/glissement, entraînant avec elle TOUT composant qui lisait
+ * ne serait-ce qu'`isNaughtyMode` sans rien lire du formulaire
+ * (`AthleticProfilePanel`, `CustomActivityModal`...). Voir la docstring de
+ * `AthleticContext.jsx` pour le détail complet (notamment la vérification
+ * qui a permis d'isoler CE bout sans avoir à toucher `useAthleticProfile.js`
+ * lui-même).
+ *
+ * `GeneratorProvider` reçoit toujours `isNaughtyMode`/`athleticProfileApi`
+ * EN PROPS (nécessaires en interne — `useGeneratorForm(isNaughtyMode,
+ * athleticProfile)` en a besoin pour ses calculs) — seule sa VALEUR DE
+ * CONTEXTE ne les réexpose plus. Tout consommateur qui a besoin de ces 2
+ * valeurs doit désormais appeler `useAthleticContext()` EN PLUS de (ou à la
+ * place de) `useGeneratorContext()`, selon ce dont il a réellement besoin.
  *
  * ==========================================================================
- * DÉCISION DE PÉRIMÈTRE IMPORTANTE (vérifiée dans le code réel, pas supposée) :
+ * DÉCISION DE PÉRIMÈTRE (héritée, toujours vraie) :
  * ==========================================================================
- * Le brief initial proposait d'y regrouper aussi `useAthleticProfile` en
- * entier. Après audit de App.jsx, ce n'est PAS possible sans risque :
- *
- * - `athleticProfile` (+ `getProfileForWorkout`, `getProfileForWorkoutOrDefault`,
- *   et tous les setters de zones/activités) est aussi consommé DIRECTEMENT
- *   par StatsView et PlaylistDetailView (pas seulement GeneratorView) — voir
- *   App.jsx lignes ~2551 et ~2607.
- * - `isNaughtyMode` est utilisé dans Sidebar.jsx en plus de GeneratorView
- *   (~29 usages de isNaughtyMode dans tout App.jsx).
- * - `useAthleticProfile()` persiste son état via `usePersistentState` : en
- *   appeler une 2e instance ICI, à côté de celle d'App.jsx, créerait DEUX
- *   états React indépendants adossés à la même clé stockage → exactement le
- *   genre de désynchronisation que ce projet s'est donné pour règle d'évacuer
- *   par construction (voir passation, "donnée calculée > donnée stockée
- *   redondante"). Une modif de profil faite depuis le générateur ne se
- *   répercuterait pas sur StatsView tant que la page ne serait pas rechargée.
- *
- * Donc : `isNaughtyMode` et l'API athlétique complète (`athleticProfileApi`,
- * le retour intact de `useAthleticProfile()` côté App.jsx) sont reçus en
- * PROPS du Provider — jamais recréés ici — et simplement re-exposés dans la
- * valeur du contexte pour que GeneratorView (et CustomActivityModal, à
- * l'étape 2) n'aient plus qu'UN SEUL point d'entrée (`useGeneratorContext()`)
- * au lieu de deux. La source de vérité reste 100% dans App.jsx, inchangée.
+ * `useAthleticProfile()` n'est PAS appelé ici (ni dans AthleticContext.jsx)
+ * — l'instance UNIQUE reste dans App.jsx, reçue en prop. Pourquoi : elle
+ * persiste son état via `usePersistentState` — en appeler une 2e instance
+ * créerait DEUX états React indépendants adossés à la même clé stockage,
+ * exactement le genre de désynchronisation que ce projet évacue par
+ * construction. `athleticProfile` (+ `getProfileForWorkout` etc.) est aussi
+ * consommé DIRECTEMENT par StatsView et PlaylistDetailView (pas seulement
+ * ici) — encore une raison de garder une seule source de vérité, remontée
+ * en props des 2 côtés plutôt que recréée localement.
  *
  * `workoutType`/`setWorkoutType`, en revanche, N'A PAS cette contrainte (pas
- * de persistance, pas de consommateur hors générateur SAUF deux fonctions
- * internes à App.jsx elles-mêmes — `addRoutine` et l'ancien
- * `getActiveWorkoutName` — qui devront lire le contexte au lieu d'une
- * variable locale à l'étape 2). C'est donc l'unique bout de state réellement
- * déplacé (plutôt que reçu en prop) dans ce Contexte.
+ * de persistance, pas de consommateur hors générateur) — c'est le seul bout
+ * de state réellement CRÉÉ (plutôt que reçu en prop) dans ce Contexte.
  */
 
 const GeneratorContext = createContext(null);
 
 /**
- * @param {boolean} isNaughtyMode - mode "Intime" global de l'app (reçu, pas possédé)
+ * @param {boolean} isNaughtyMode - mode "Intime" global de l'app (reçu, pas possédé —
+ *   nécessaire ICI pour `useGeneratorForm(isNaughtyMode, ...)`, mais plus
+ *   réexposé dans la valeur de ce Contexte, voir `AthleticContext.jsx`)
  * @param {object} athleticProfileApi - retour COMPLET et INCHANGÉ de useAthleticProfile()
- *   côté App.jsx (l'instance unique) : { athleticProfile, getProfileForWorkout,
- *   getDefaultBaseBpm, buildDefaultPreviewProfile, getZoneSpacingForActivity,
- *   setBaseBpmForActivity, setZoneForActivity, resetActivityProfile,
- *   addCustomActivity, removeCustomActivity, setBaseBpmForCustom, setZoneForCustom,
- *   setCadenceIntentForActivity, setCadenceIntentForCustom, isCadenceIntentEligible, ... }
+ *   côté App.jsx (l'instance unique) — nécessaire ICI pour son champ
+ *   `athleticProfile` (voir plus bas), plus réexposé en entier dans la
+ *   valeur de ce Contexte.
  */
 export function GeneratorProvider({
   isNaughtyMode,
@@ -82,15 +85,10 @@ export function GeneratorProvider({
     (workoutType === 'Autre' && customActivity.trim() !== '') ? customActivity : workoutType;
 
   const value = {
-    // --- Réellement possédé par ce Provider ---
     workoutType, setWorkoutType,
     getActiveWorkoutName,
     ...customActivityApi,
     ...generatorFormApi,
-
-    // --- Reçu en props, simplement re-exposé (source de vérité = App.jsx) ---
-    isNaughtyMode,
-    ...athleticProfileApi,
   };
 
   return <GeneratorContext.Provider value={value}>{children}</GeneratorContext.Provider>;
@@ -111,10 +109,10 @@ const FALLBACK = {
   bpm: 120, setBpm: () => {}, setBpmManual: () => {},
   segments: [], setSegments: () => {},
   selectedGenres: [], setSelectedGenres: () => {},
-  isNaughtyMode: false,
-  athleticProfile: { activities: {}, custom: [] },
-  getProfileForWorkout: () => ({ isConfigured: false }),
   applyProfileBpmIfUntouched: () => {},
+  // isNaughtyMode/athleticProfile/getProfileForWorkout : DÉPLACÉS (08/08)
+  // vers AthleticContext.jsx (useAthleticContext()) — plus dans ce
+  // Contexte ni son FALLBACK.
 };
 
 export function useGeneratorContext() {
