@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 
 /**
  * ModalContext — source de vérité UNIQUE pour "quelle modale est ouverte en ce
@@ -50,8 +50,25 @@ export function ModalProvider({ children }) {
     setModalData(null);
   }, []);
 
+  // `useMemo` (08/08, chantier "value non mémoïsée re-render tout le
+  // monde") — sûr et complet ICI (contrairement à PlaylistDetailContext.jsx,
+  // qui a eu besoin d'un vrai découpage en 2 Contextes) : les 4 champs de
+  // cette valeur sont soit du state simple qui ne change QUE quand une
+  // modale s'ouvre/se ferme (`activeModal`/`modalData`, pas à chaque
+  // frappe dans un formulaire — chaque modale garde SON PROPRE state de
+  // formulaire ailleurs, voir la docstring plus haut), soit déjà stables
+  // par eux-mêmes (`openModal`/`closeModal`, `useCallback([])`). Ce
+  // `useMemo` élimine donc un objet `value` neuf à CHAQUE rendu de
+  // n'importe quel composant qui monte `<ModalProvider>` au-dessus de lui
+  // (React.StrictMode/re-render du parent), même quand aucune modale ne
+  // change réellement d'état.
+  const value = useMemo(
+    () => ({ activeModal, modalData, openModal, closeModal }),
+    [activeModal, modalData, openModal, closeModal],
+  );
+
   return (
-    <ModalContext.Provider value={{ activeModal, modalData, openModal, closeModal }}>
+    <ModalContext.Provider value={value}>
       {children}
     </ModalContext.Provider>
   );
