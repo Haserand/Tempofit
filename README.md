@@ -645,6 +645,16 @@ Ordre de priorité retenu (voir aussi les passations pour le détail du raisonne
 - `PlaylistDetailContext.jsx` (Provider) n'a **pas** de couverture exhaustive — juste un test ciblé sur `isSaved`/`isReadOnly` (`tests/contexts/PlaylistDetailContext.test.jsx`). Le monter en entier exigerait de mocker `GeneratorContext` + `AudioPlayerContext` + le moteur de recalcul de timeline ; jugé disproportionné pour ce qui reste, à part ce point précis, de la logique triviale déjà couverte indirectement ailleurs.
 - Aucune exécution réelle de `vitest` n'est possible dans le bac à sable Claude — voir `CLAUDE-SANDBOX-VERIFICATION.md`.
 
+## Décisions actées, pas encore implémentées — découpage `App.jsx`
+
+**Repoussé volontairement (08/08, retour direct)** — voir plus haut, section "État d'avancement", pour le découpage déjà fait de `PlaylistHeader.jsx` (836 → 254 lignes, même famille de chantier). `App.jsx` (2227 lignes, `AppContent` avec 40+ `useState` interdépendants) reste le plus gros fichier du projet, mais N'EST PAS découpé maintenant :
+
+- **Raison du report** : refonte intégrale du menu de navigation + nouvelles fonctionnalités prévues dans les prochains jours. La navigation vit au cœur d'`App.jsx` et irrigue presque tout le reste (quelle vue est affichée, quel state est visible à quel moment) — découper maintenant obligerait à deviner des frontières qui vont de toute façon bouger avec la refonte, avec un vrai risque de devoir refaire une partie du travail une 2e fois.
+- **Approche retenue à la place** : laisser `App.jsx` tel quel pour l'instant, mais écrire la refonte de la navigation ET toute nouvelle fonctionnalité directement dans leur PROPRE hook/context dédié, plutôt que comme des `useState` de plus ajoutés dans `AppContent`. Le découpage se fait ainsi organiquement, au fil de l'eau, sans gros chantier de refactoring risqué à un instant T — et une fois la navigation isolée, ce qui reste dans `App.jsx` sera plus facile à lire pour identifier les bonnes frontières pour la suite.
+- **À reprendre** : une fois la refonte de navigation stabilisée (et si le rythme des nouvelles fonctionnalités ralentit), revisiter le découpage du reste d'`App.jsx` — évaluer alors ce qui reste vraiment à extraire, plutôt que de refaire ce raisonnement depuis zéro.
+
+
+
 ## Autres fichiers de référence à ce niveau
 
 - `CLAUDE-SANDBOX-VERIFICATION.md` — outils de vérification de code pour une session Claude sans accès réseau.
