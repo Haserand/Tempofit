@@ -39,7 +39,7 @@
 // contextes exposent ailleurs dans l'app.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 vi.mock('../../src/contexts/AthleticContext.jsx', () => ({
@@ -66,6 +66,23 @@ const mockRpc = vi.fn();
 vi.mock('../../src/supabaseClient.js', () => ({
   supabase: { rpc: (...args) => mockRpc(...args) },
 }));
+
+// `getSingleMatchingTrack`/`findSameArtistReplacement` (check-up 10/08,
+// correctif de course "Remplacer un titre"/"Cloner", voir le describe
+// dédié plus bas) — jamais mockés avant dans ce fichier (aucun test
+// n'exerçait encore `handleReplaceTrack`/`handleReplaceTrackSameArtist`).
+// `recalculateTimeline`, elle, reste la VRAIE implémentation — pure et
+// déjà testée ailleurs (musicEngine.test.js), aucune raison de la mocker.
+const mockGetSingleMatchingTrack = vi.fn();
+const mockFindSameArtistReplacement = vi.fn();
+vi.mock('../../src/engine/musicEngine.js', async () => {
+  const actual = await vi.importActual('../../src/engine/musicEngine.js');
+  return {
+    ...actual,
+    getSingleMatchingTrack: (...args) => mockGetSingleMatchingTrack(...args),
+    findSameArtistReplacement: (...args) => mockFindSameArtistReplacement(...args),
+  };
+});
 
 import { PlaylistDetailProvider, usePlaylistDetail } from '../../src/contexts/PlaylistDetailContext.jsx';
 
@@ -255,5 +272,192 @@ describe('PlaylistDetailContext — handleTogglePlaylistPublic (simple flip, plu
 
     const updated = setSavedPlaylists.mock.calls[0][0][0];
     expect(updated.isPublic).toBe(true);
+  });
+});
+
+// NOUVEAU (check-up 10/08) — `handleReplaceTrack`/`handleReplaceTrackSameArtist`
+// n'avaient jusqu'ici AUCUN test (aucun mock de musicEngine.js dans ce
+// fichier avant ce chantier). Ciblé UNIQUEMENT sur le correctif de course
+// ajouté ce jour-là — pas une couverture exhaustive de ces 2 fonctions
+// (choix du titre de remplacement, repli élargi, etc.), hors périmètre ici.
+function ReplaceProbe() {
+  const { handleReplaceTrack, handleReplaceTrackSameArtist } = usePlaylistDetail();
+  return (
+    <div>
+      <button onClick={() => handleReplaceTrack(0)}>trigger-replace</button>
+      <button onClick={() => handleReplaceTrackSameArtist(0)}>trigger-replace-same-artist</button>
+    </div>
+  );
+}
+
+function makeReplaceableTrack(overrides = {}) {
+  return { id: 't1', trackId: 'deezer-1', title: 'Ancien titre', artist: 'Ancien Artiste', bpm: 140, targetSegmentBpm: 140, duration: 200, ...overrides };
+}
+
+function renderProviderForReplace(props = {}) {
+  const merged = {
+    currentPlaylist: makePlaylist({ tracks: [makeReplaceableTrack()] }),
+    setCurrentPlaylist: vi.fn(),
+    savedPlaylists: [],
+    setSavedPlaylists: vi.fn(),
+    favorites: { tracks: [], artists: [] },
+    spotifyTrackPool: [],
+    userStats: { replacedTracks: 0 },
+    checkTrophies: vi.fn(),
+    showToast: vi.fn(),
+    requestRemoveSavedPlaylist: vi.fn(),
+    handleSavePlaylist: vi.fn(),
+    handleClonePlaylist: vi.fn(),
+    currentActualData: null,
+    selectedMetric: 'heartRate',
+    setSelectedMetric: vi.fn(),
+    dataOffset: 0,
+    setDataOffset: vi.fn(),
+    selectedAnalysisDate: null,
+    setSelectedAnalysisDate: vi.fn(),
+    availableMetrics: [],
+    ...props,
+  };
+  return render(
+    <PlaylistDetailProvider {...merged}>
+      <ReplaceProbe />
+    </PlaylistDetailProvider>
+  );
+}
+
+function createDeferred() {
+  let resolve;
+  const promise = new Promise((r) => { resolve = r; });
+  return { promise, resolve };
+}
+
+describe('PlaylistDetailContext — course "Remplacer un titre" / changement de playlist en cours de route (régression 10/08)', () => {
+  it('handleReplaceTrack : changer de playlist AVANT la fin de la recherche annule le remplacement (aucune écriture, toast d\'annulation)', async () => {
+    const setCurrentPlaylist = vi.fn();
+    const setSavedPlaylists = vi.fn();
+    const showToast = vi.fn();
+    const deferred = createDeferred();
+    mockGetSingleMatchingTrack.mockImplementationOnce(() => deferred.promise);
+
+    const playlistA = makePlaylist({ id: 'plA', tracks: [makeReplaceableTrack()] });
+    const { rerender } = render(
+      <PlaylistDetailProvider
+        currentPlaylist={playlistA} setCurrentPlaylist={setCurrentPlaylist}
+        savedPlaylists={[playlistA]} setSavedPlaylists={setSavedPlaylists}
+        favorites={{ tracks: [], artists: [] }} spotifyTrackPool={[]}
+        userStats={{ replacedTracks: 0 }} checkTrophies={vi.fn()}
+        showToast={showToast} requestRemoveSavedPlaylist={vi.fn()}
+        handleSavePlaylist={vi.fn()} handleClonePlaylist={vi.fn()}
+        currentActualData={null} selectedMetric="heartRate" setSelectedMetric={vi.fn()}
+        dataOffset={0} setDataOffset={vi.fn()}
+        selectedAnalysisDate={null} setSelectedAnalysisDate={vi.fn()} availableMetrics={[]}
+      >
+        <ReplaceProbe />
+      </PlaylistDetailProvider>
+    );
+
+    fireEvent.click(screen.getByText('trigger-replace'));
+
+    // "Cloner" (ou toute autre bascule en place) — currentPlaylist passe de
+    // plA à plB SANS démonter ce Provider, exactement comme un vrai
+    // clonage le fait (usePlaylistLibrary.js, handleClonePlaylist).
+    const playlistB = makePlaylist({ id: 'plB', tracks: [makeReplaceableTrack({ id: 't2' })] });
+    rerender(
+      <PlaylistDetailProvider
+        currentPlaylist={playlistB} setCurrentPlaylist={setCurrentPlaylist}
+        savedPlaylists={[playlistB, playlistA]} setSavedPlaylists={setSavedPlaylists}
+        favorites={{ tracks: [], artists: [] }} spotifyTrackPool={[]}
+        userStats={{ replacedTracks: 0 }} checkTrophies={vi.fn()}
+        showToast={showToast} requestRemoveSavedPlaylist={vi.fn()}
+        handleSavePlaylist={vi.fn()} handleClonePlaylist={vi.fn()}
+        currentActualData={null} selectedMetric="heartRate" setSelectedMetric={vi.fn()}
+        dataOffset={0} setDataOffset={vi.fn()}
+        selectedAnalysisDate={null} setSelectedAnalysisDate={vi.fn()} availableMetrics={[]}
+      >
+        <ReplaceProbe />
+      </PlaylistDetailProvider>
+    );
+
+    // La recherche de plA se termine maintenant — APRÈS le changement de
+    // playlist.
+    deferred.resolve({ title: 'Nouveau titre', artist: 'Nouvel Artiste', genre: 'Rock', bpm: 145, duration: 210, trackId: 'deezer-99', preview: null });
+    await new Promise((r) => setTimeout(r, 0));
+
+    // La vraie assertion : plA (obsolète) n'a JAMAIS écrit dans le state —
+    // ni ramené l'affichage dessus, ni recréé savedPlaylists à partir d'une
+    // version amputée de plB (qui causerait sa suppression via
+    // useSyncedCollection.js).
+    expect(setCurrentPlaylist).not.toHaveBeenCalled();
+    expect(setSavedPlaylists).not.toHaveBeenCalled();
+    expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Remplacement annulé'));
+  });
+
+  it('handleReplaceTrack : SANS changement de playlist, le remplacement s\'applique normalement (comportement inchangé)', async () => {
+    const setCurrentPlaylist = vi.fn();
+    const setSavedPlaylists = vi.fn();
+    const showToast = vi.fn();
+    mockGetSingleMatchingTrack.mockResolvedValue({ title: 'Nouveau titre', artist: 'Nouvel Artiste', genre: 'Rock', bpm: 145, duration: 210, trackId: 'deezer-99', preview: null });
+
+    const playlistA = makePlaylist({ id: 'plA', tracks: [makeReplaceableTrack()] });
+    renderProviderForReplace({ currentPlaylist: playlistA, savedPlaylists: [playlistA], setCurrentPlaylist, setSavedPlaylists, showToast });
+
+    fireEvent.click(screen.getByText('trigger-replace'));
+    await waitFor(() => expect(setCurrentPlaylist).toHaveBeenCalled());
+
+    const updated = setCurrentPlaylist.mock.calls[0][0];
+    expect(updated.tracks[0].title).toBe('Nouveau titre');
+    expect(showToast).toHaveBeenCalledWith('🎵 Titre remplacé et durée ajustée !');
+  });
+
+  it('handleReplaceTrackSameArtist : changer de playlist pendant le repli élargi (2e appel réseau) annule aussi le remplacement', async () => {
+    const setCurrentPlaylist = vi.fn();
+    const setSavedPlaylists = vi.fn();
+    const showToast = vi.fn();
+    mockFindSameArtistReplacement.mockResolvedValue(null); // force le repli élargi
+    const deferred = createDeferred();
+    mockGetSingleMatchingTrack.mockImplementationOnce(() => deferred.promise);
+
+    const playlistA = makePlaylist({ id: 'plA', tracks: [makeReplaceableTrack()] });
+    const { rerender } = render(
+      <PlaylistDetailProvider
+        currentPlaylist={playlistA} setCurrentPlaylist={setCurrentPlaylist}
+        savedPlaylists={[playlistA]} setSavedPlaylists={setSavedPlaylists}
+        favorites={{ tracks: [], artists: [] }} spotifyTrackPool={[]}
+        userStats={{ replacedTracks: 0 }} checkTrophies={vi.fn()}
+        showToast={showToast} requestRemoveSavedPlaylist={vi.fn()}
+        handleSavePlaylist={vi.fn()} handleClonePlaylist={vi.fn()}
+        currentActualData={null} selectedMetric="heartRate" setSelectedMetric={vi.fn()}
+        dataOffset={0} setDataOffset={vi.fn()}
+        selectedAnalysisDate={null} setSelectedAnalysisDate={vi.fn()} availableMetrics={[]}
+      >
+        <ReplaceProbe />
+      </PlaylistDetailProvider>
+    );
+
+    fireEvent.click(screen.getByText('trigger-replace-same-artist'));
+    await waitFor(() => expect(mockFindSameArtistReplacement).toHaveBeenCalled());
+
+    const playlistB = makePlaylist({ id: 'plB', tracks: [makeReplaceableTrack({ id: 't2' })] });
+    rerender(
+      <PlaylistDetailProvider
+        currentPlaylist={playlistB} setCurrentPlaylist={setCurrentPlaylist}
+        savedPlaylists={[playlistB, playlistA]} setSavedPlaylists={setSavedPlaylists}
+        favorites={{ tracks: [], artists: [] }} spotifyTrackPool={[]}
+        userStats={{ replacedTracks: 0 }} checkTrophies={vi.fn()}
+        showToast={showToast} requestRemoveSavedPlaylist={vi.fn()}
+        handleSavePlaylist={vi.fn()} handleClonePlaylist={vi.fn()}
+        currentActualData={null} selectedMetric="heartRate" setSelectedMetric={vi.fn()}
+        dataOffset={0} setDataOffset={vi.fn()}
+        selectedAnalysisDate={null} setSelectedAnalysisDate={vi.fn()} availableMetrics={[]}
+      >
+        <ReplaceProbe />
+      </PlaylistDetailProvider>
+    );
+
+    deferred.resolve({ title: 'Nouveau titre', artist: 'Nouvel Artiste', genre: 'Rock', bpm: 145, duration: 210, trackId: 'deezer-99', preview: null });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(setCurrentPlaylist).not.toHaveBeenCalled();
+    expect(setSavedPlaylists).not.toHaveBeenCalled();
   });
 });
