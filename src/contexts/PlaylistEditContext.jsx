@@ -1,5 +1,5 @@
 import { createContext, useContext, useState } from 'react';
-import { MAX_DESCRIPTION_LENGTH } from '../appConfig';
+import { MAX_DESCRIPTION_LENGTH, MIN_PLAYLIST_NAME_LENGTH } from '../appConfig';
 import { useModalContext } from './ModalContext';
 
 /**
@@ -44,6 +44,22 @@ import { useModalContext } from './ModalContext';
  * (`closeModal()`) une fois la sauvegarde faite, au lieu de mettre à jour
  * un booléen local.
  *
+ * ⚠️ VALIDATION DU TITRE (retour direct, même session — capture d'écran de
+ * la modale à l'appui) : le titre n'a JAMAIS été optionnel (contrairement à
+ * la description), mais rien ne l'empêchait auparavant d'être vidé — un
+ * repli silencieux sur l'ancien nom masquait le problème (`|| currentPlaylist.name`,
+ * retiré). Règle actée : 0 à 2 caractères (après `.trim()`, les espaces ne
+ * comptent pas) = INVALIDE, bouton "Enregistrer" désactivé + message
+ * d'erreur dans `EditPlaylistModal.jsx` (`MIN_PLAYLIST_NAME_LENGTH`,
+ * appConfig.js). La DESCRIPTION, elle, reste sans AUCUNE contrainte de
+ * longueur minimale — n'importe quel contenu est valide, y compris vide
+ * (optionnelle, inchangé). `isEditedNameValid` calculé directement ici
+ * (dérivé de `editedPlaylistName`, pas un state à part à synchroniser) et
+ * réexposé — `handleSavePlaylistDetails` la revérifie aussi en interne
+ * (garde défensive : Entrée dans le champ titre reste possible même
+ * bouton désactivé, ce garde-fou empêche une sauvegarde invalide malgré
+ * tout).
+ *
  * Monté en frère de `<PlaylistDetailProvider>` (pas à l'intérieur, pas
  * autour dans l'autre sens — l'un n'a pas besoin de l'autre) — voir
  * `PlaylistDetailView.jsx`. Reçoit les 4 mêmes props que
@@ -85,6 +101,10 @@ export function PlaylistEditProvider({
   const [editedPlaylistName, setEditedPlaylistName] = useState('');
   const [editedPlaylistDescription, setEditedPlaylistDescription] = useState('');
 
+  // Dérivé directement de `editedPlaylistName` — pas un state à part à
+  // resynchroniser à chaque frappe, juste un calcul lu à chaque rendu.
+  const isEditedNameValid = editedPlaylistName.trim().length >= MIN_PLAYLIST_NAME_LENGTH;
+
   // Point d'entrée UNIQUE pour ouvrir la modale — préremplit les 2
   // brouillons ET ouvre la modale ensemble, plutôt que de laisser
   // l'appelant (`PlaylistHeaderTitleBlock.jsx`) faire les 3 appels
@@ -98,20 +118,20 @@ export function PlaylistEditProvider({
     openModal('EDIT_PLAYLIST');
   };
 
-  // Nom JAMAIS vide (une playlist sans nom n'aurait aucun sens), mais un
-  // nom vidé PAR MÉGARDE en éditant la description en même temps ne fait
-  // plus avorter TOUTE la sauvegarde — repli sur l'ancien nom
-  // (`|| currentPlaylist.name`) plutôt qu'un `return` précoce qui aurait
-  // aussi perdu la description tapée à côté. Description VIDE, elle,
-  // reste un état valide (on peut vouloir l'effacer) — pas de repli
-  // équivalent pour ce champ.
+  // Titre JAMAIS vide (0 à 2 caractères = invalide, voir
+  // `isEditedNameValid` plus haut — le bouton "Enregistrer" est déjà
+  // désactivé dans ce cas, cette garde couvre l'entrée par Entrée dans le
+  // champ, toujours possible malgré le bouton désactivé). Description
+  // SANS contrainte de longueur minimale — n'importe quel contenu est
+  // valide, y compris vide (optionnelle).
   const handleSavePlaylistDetails = () => {
     if (!currentPlaylist) { closeModal(); return; }
+    if (!isEditedNameValid) return;
     const trimmedName = editedPlaylistName.trim();
     const trimmedDescription = editedPlaylistDescription.trim().slice(0, MAX_DESCRIPTION_LENGTH);
     const updatedPlaylist = {
       ...currentPlaylist,
-      name: trimmedName || currentPlaylist.name,
+      name: trimmedName,
       description: trimmedDescription,
       // "Clone" vs "Enfant" (02/08, discussion produit) — un booléen posé
       // UNE SEULE FOIS, peu importe LEQUEL des deux champs a réellement
@@ -127,6 +147,7 @@ export function PlaylistEditProvider({
     isEditPlaylistModalOpen, closeEditPlaylistModal: closeModal,
     editedPlaylistName, setEditedPlaylistName,
     editedPlaylistDescription, setEditedPlaylistDescription,
+    isEditedNameValid,
     handleOpenEditPlaylistModal, handleSavePlaylistDetails,
   };
 
@@ -139,6 +160,7 @@ const FALLBACK = {
   isEditPlaylistModalOpen: false, closeEditPlaylistModal: () => {},
   editedPlaylistName: '', setEditedPlaylistName: () => {},
   editedPlaylistDescription: '', setEditedPlaylistDescription: () => {},
+  isEditedNameValid: true,
   handleOpenEditPlaylistModal: () => {}, handleSavePlaylistDetails: () => {},
 };
 
