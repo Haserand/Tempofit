@@ -16,6 +16,7 @@ import {
 } from '../../appConfig';
 import { useGeneratorContext } from '../../contexts/GeneratorContext';
 import { useAthleticContext } from '../../contexts/AthleticContext';
+import { useCustomActivityContext } from '../../contexts/CustomActivityContext';
 import { useModalContext } from '../../contexts/ModalContext';
 import { INLINE_NAV_LINK_CLASS } from '../../layout/inlineLinkLayout';
 
@@ -55,7 +56,7 @@ export default function GeneratorWizard({
   const { openModal } = useModalContext();
   const {
     wizardStep, setWizardStep,
-    workoutType, setWorkoutType, customActivity, handleOpenCustomActivityModal,
+    workoutType, setWorkoutType,
     setBpm, setBpmManual, setTargetMode, setDistanceVal, setDistanceUnit, setHours, setMinutes,
     targetMode, isIntervalMode, isCrescendoMode, structureMode, setStructureMode,
     crescendoWarmupPct, setCrescendoWarmupPct, crescendoCooldownPct, setCrescendoCooldownPct, CRESCENDO_MIN_MAIN_PCT,
@@ -71,6 +72,10 @@ export default function GeneratorWizard({
     getActiveWorkoutName,
   } = useGeneratorContext();
   const { isNaughtyMode, athleticProfile, getProfileForWorkout, buildDefaultPreviewProfile } = useAthleticContext();
+  // `customActivity`/`handleOpenCustomActivityModal` (08/08, 2e passe) —
+  // viennent maintenant de `useCustomActivityContext()`, plus de
+  // `useGeneratorContext()` (voir la docstring de CustomActivityContext.jsx).
+  const { customActivity, handleOpenCustomActivityModal } = useCustomActivityContext();
   const {
     cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass,
     borderAccentClass, bgMainApp, inputBg, inputBorder,
