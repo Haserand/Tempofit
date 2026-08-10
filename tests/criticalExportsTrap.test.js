@@ -126,10 +126,15 @@ describe('Garde-fou anti-régression : les Context Providers exportent bien ce q
     expect(typeof m.useModalContext).toBe('function');
   });
 
-  it('PlaylistEditContext.jsx exporte PlaylistEditProvider et usePlaylistEdit (fonctions)', async () => {
+  it('PlaylistEditContext.jsx exporte PlaylistEditProvider, usePlaylistEdit et usePlaylistEditActions (fonctions)', async () => {
     const m = await import('../src/contexts/PlaylistEditContext.jsx');
     expect(typeof m.PlaylistEditProvider).toBe('function');
     expect(typeof m.usePlaylistEdit).toBe('function');
+    // usePlaylistEditActions (10/08, check-up) — 2e hook exporté par ce
+    // fichier depuis le découpage en 2 Contextes (stable/volatil), même
+    // raisonnement que les autres exports critiques ci-dessus : sa casse
+    // silencieuse (undefined) ne serait pas forcément détectée ailleurs.
+    expect(typeof m.usePlaylistEditActions).toBe('function');
   });
 
   it('AthleticContext.jsx exporte AthleticProvider et useAthleticContext (fonctions)', async () => {
