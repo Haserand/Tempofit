@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { MAX_DESCRIPTION_LENGTH, MIN_PLAYLIST_NAME_LENGTH } from '../appConfig';
 import { useModalContext } from './ModalContext';
 
@@ -60,6 +60,33 @@ import { useModalContext } from './ModalContext';
  * bouton désactivé, ce garde-fou empêche une sauvegarde invalide malgré
  * tout).
  *
+ * ⚠️ 2 CONTEXTES DISTINCTS ICI, PAS UN SEUL (check-up 10/08 — trouvé en
+ * relisant ce fichier : re-render exactement du même genre que celui visé
+ * par le découpage initial ci-dessus, réintroduit DANS le Contexte censé
+ * le corriger). `PlaylistHeaderTitleBlock.jsx` n'a besoin que d'un seul
+ * point stable — `handleOpenEditPlaylistModal` — pour ouvrir la modale ;
+ * mais tant que ce Contexte était unique, sa docstring affirmait à tort
+ * "ce composant n'a plus besoin de re-render pendant une frappe" alors que
+ * `editedPlaylistName`/`editedPlaylistDescription` (qui changent à CHAQUE
+ * frappe dans `EditPlaylistModal.jsx`) vivaient dans le MÊME objet `value`
+ * — un simple `useMemo` sur ce `value` n'aurait rien changé : ces 2 champs
+ * en font partie, donc le memo aurait de toute façon recalculé à chaque
+ * frappe. Seul un VRAI découpage en 2 Contextes règle ça, même logique que
+ * le découpage `PlaylistDetailContext` → `PlaylistEditContext` plus haut :
+ * - `PlaylistEditActionsContext` (`usePlaylistEditActions()`) — UNIQUEMENT
+ *   `handleOpenEditPlaylistModal`, stabilisée par `useCallback` puis
+ *   enveloppée seule dans son propre `useMemo` : sa référence ne change
+ *   QUE si `currentPlaylist`/`openModal` changent, jamais pendant une
+ *   frappe. Seul `PlaylistHeaderTitleBlock.jsx` la consomme.
+ * - `PlaylistEditContext` (`usePlaylistEdit()`, nom INCHANGÉ pour ne pas
+ *   casser l'import de `EditPlaylistModal.jsx`) — tout le reste (état
+ *   volatil + `handleSavePlaylistDetails`/`isEditedNameValid`, qui
+ *   dépendent du brouillon donc ne PEUVENT pas être stabilisés sans perdre
+ *   leur sens). Recrée bien sa `value` à chaque frappe, mais c'est SANS
+ *   conséquence : seul `EditPlaylistModal.jsx` la consomme, et ce
+ *   composant DOIT de toute façon re-rendre à chaque frappe pour afficher
+ *   ce qui est tapé — rien à gagner à le mémoïser plus loin.
+ *
  * Monté en frère de `<PlaylistDetailProvider>` (pas à l'intérieur, pas
  * autour dans l'autre sens — l'un n'a pas besoin de l'autre) — voir
  * `PlaylistDetailView.jsx`. Reçoit les 4 mêmes props que
@@ -75,6 +102,7 @@ import { useModalContext } from './ModalContext';
  * détail d'une playlist.
  */
 
+const PlaylistEditActionsContext = createContext(null);
 const PlaylistEditContext = createContext(null);
 
 export function PlaylistEditProvider({
@@ -111,12 +139,16 @@ export function PlaylistEditProvider({
   // séparément : évite qu'un futur appelant oublie l'un des 3, ou les
   // fasse dans le mauvais ordre (même raisonnement que
   // `handleSavePlaylistDetails` plus bas).
-  const handleOpenEditPlaylistModal = () => {
+  // `useCallback` (10/08, check-up) : SEULE fonction de ce fichier qui a
+  // besoin d'une référence stable pendant la frappe — c'est elle qui vit
+  // dans `PlaylistEditActionsContext`, consommée par un composant qui ne
+  // doit PAS re-render à chaque caractère tapé (voir docstring plus haut).
+  const handleOpenEditPlaylistModal = useCallback(() => {
     if (!currentPlaylist) return;
     setEditedPlaylistName(currentPlaylist.name);
     setEditedPlaylistDescription(currentPlaylist.description || '');
     openModal('EDIT_PLAYLIST');
-  };
+  }, [currentPlaylist, openModal]);
 
   // Titre JAMAIS vide (0 à 2 caractères = invalide, voir
   // `isEditedNameValid` plus haut — le bouton "Enregistrer" est déjà
@@ -124,6 +156,15 @@ export function PlaylistEditProvider({
   // champ, toujours possible malgré le bouton désactivé). Description
   // SANS contrainte de longueur minimale — n'importe quel contenu est
   // valide, y compris vide (optionnelle).
+  // ⚠️ PAS `useCallback` ici (10/08, check-up) — contrairement à
+  // `handleOpenEditPlaylistModal` ci-dessus : cette fonction ferme sur
+  // `editedPlaylistName`/`editedPlaylistDescription`, qui changent à
+  // CHAQUE frappe par construction. La stabiliser demanderait le même
+  // pattern "callback stable via ref" déjà utilisé dans
+  // `useGeneratorForm.js` (`applyProfileBpmIfUntouched`) — inutile ici :
+  // seul `EditPlaylistModal.jsx` consomme cette fonction, et ce composant
+  // DOIT de toute façon re-rendre à chaque frappe (c'est lui qui affiche
+  // le texte tapé), donc rien à gagner à lui donner une référence stable.
   const handleSavePlaylistDetails = () => {
     if (!currentPlaylist) { closeModal(); return; }
     if (!isEditedNameValid) return;
@@ -143,6 +184,23 @@ export function PlaylistEditProvider({
     closeModal();
   };
 
+  // Contexte STABLE (10/08) — un seul champ, mémoïsé séparément du reste :
+  // sa référence ne change QUE si `handleOpenEditPlaylistModal` change
+  // (donc `currentPlaylist`/`openModal`), jamais à cause d'une frappe dans
+  // le brouillon. C'est ce qui permet à `PlaylistHeaderTitleBlock.jsx` de
+  // ne PAS re-render pendant l'édition — affirmation qui était fausse tant
+  // que ce champ vivait dans le même `value` que le brouillon.
+  const actionsValue = useMemo(
+    () => ({ handleOpenEditPlaylistModal }),
+    [handleOpenEditPlaylistModal]
+  );
+
+  // Contexte VOLATIL (10/08) — tout le reste, y compris le brouillon.
+  // PAS enveloppé dans un `useMemo` supplémentaire : `editedPlaylistName`/
+  // `editedPlaylistDescription` en font partie et changent à chaque
+  // frappe, donc un `useMemo` recalculerait de toute façon à chaque
+  // rendu — seul `EditPlaylistModal.jsx` (qui DOIT re-render à chaque
+  // frappe) le consomme, rien à gagner à mémoïser ici.
   const value = {
     isEditPlaylistModalOpen, closeEditPlaylistModal: closeModal,
     editedPlaylistName, setEditedPlaylistName,
@@ -151,7 +209,11 @@ export function PlaylistEditProvider({
     handleOpenEditPlaylistModal, handleSavePlaylistDetails,
   };
 
-  return <PlaylistEditContext.Provider value={value}>{children}</PlaylistEditContext.Provider>;
+  return (
+    <PlaylistEditActionsContext.Provider value={actionsValue}>
+      <PlaylistEditContext.Provider value={value}>{children}</PlaylistEditContext.Provider>
+    </PlaylistEditActionsContext.Provider>
+  );
 }
 
 // Fallback silencieux — même convention que les autres contexts du projet
@@ -164,7 +226,19 @@ const FALLBACK = {
   handleOpenEditPlaylistModal: () => {}, handleSavePlaylistDetails: () => {},
 };
 
+const ACTIONS_FALLBACK = {
+  handleOpenEditPlaylistModal: () => {},
+};
+
 export function usePlaylistEdit() {
   const ctx = useContext(PlaylistEditContext);
   return ctx || FALLBACK;
+}
+
+// NOUVEAU (10/08) — hook STABLE dédié, pour tout consommateur qui n'a
+// besoin QUE d'ouvrir la modale (aujourd'hui : `PlaylistHeaderTitleBlock.jsx`
+// uniquement) sans jamais re-render pendant une frappe dans le brouillon.
+export function usePlaylistEditActions() {
+  const ctx = useContext(PlaylistEditActionsContext);
+  return ctx || ACTIONS_FALLBACK;
 }
