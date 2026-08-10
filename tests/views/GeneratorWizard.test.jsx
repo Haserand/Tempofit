@@ -52,6 +52,17 @@ vi.mock('../../src/contexts/AthleticContext.jsx', () => ({
   useAthleticContext: () => mockUseAthleticContext(),
 }));
 
+// `useCustomActivityContext()` (08/08, 2e passe) — `customActivity`/
+// `handleOpenCustomActivityModal` ne viennent plus de
+// `useGeneratorContext()` (voir la docstring de CustomActivityContext.jsx).
+// Même principe que `mockUseAthleticContext` ci-dessus : alimenté PAR
+// `makeContextValue()` elle-même, aucun des 60 appels existants n'a besoin
+// de changer.
+const mockUseCustomActivityContext = vi.fn();
+vi.mock('../../src/contexts/CustomActivityContext.jsx', () => ({
+  useCustomActivityContext: () => mockUseCustomActivityContext(),
+}));
+
 const mockOpenModal = vi.fn();
 vi.mock('../../src/contexts/ModalContext.jsx', () => ({
   useModalContext: () => ({ openModal: mockOpenModal, activeModal: null, modalData: null, closeModal: vi.fn() }),
@@ -112,14 +123,20 @@ function makeContextValue(overrides = {}) {
     athleticProfile: { activities: {}, custom: [] }, getProfileForWorkout: vi.fn(() => ({ isConfigured: false })), buildDefaultPreviewProfile: vi.fn(() => ({ isConfigured: false, targetBpm: 140 })),
     ...overrides,
   };
-  // Sépare les champs athlétiques (08/08, AthleticContext découplé de
-  // GeneratorContext — voir la docstring plus haut) : cette fonction
-  // continue de prendre TOUS les champs en un seul objet d'overrides (les
-  // 60 appels existants dans ce fichier n'ont pas besoin de changer), mais
-  // alimente maintenant les 2 mocks séparément — effet de bord assumé,
-  // documenté ici plutôt qu'une réécriture des 60 sites d'appel.
-  const { isNaughtyMode, athleticProfile, getProfileForWorkout, buildDefaultPreviewProfile, ...generatorPart } = merged;
+  // Sépare les champs athlétiques (08/08, voir AthleticContext.jsx) et les
+  // champs "activité personnalisée" (08/08, 2e passe, voir
+  // CustomActivityContext.jsx) — cette fonction continue de prendre TOUS
+  // les champs en un seul objet d'overrides (les 60 appels existants dans
+  // ce fichier n'ont pas besoin de changer), mais alimente maintenant les
+  // 3 mocks séparément — effet de bord assumé, documenté ici plutôt qu'une
+  // réécriture des 60 sites d'appel.
+  const {
+    isNaughtyMode, athleticProfile, getProfileForWorkout, buildDefaultPreviewProfile,
+    customActivity, handleOpenCustomActivityModal,
+    ...generatorPart
+  } = merged;
   mockUseAthleticContext.mockReturnValue({ isNaughtyMode, athleticProfile, getProfileForWorkout, buildDefaultPreviewProfile });
+  mockUseCustomActivityContext.mockReturnValue({ customActivity, handleOpenCustomActivityModal });
   return generatorPart;
 }
 
