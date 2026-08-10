@@ -1,32 +1,48 @@
 import { createContext, useContext, useState } from 'react';
 import { MAX_DESCRIPTION_LENGTH } from '../appConfig';
+import { useModalContext } from './ModalContext';
 
 /**
  * PlaylistEditContext.jsx — extrait de PlaylistDetailContext.jsx (08/08,
  * chantier "value non mémoïsée re-render tout le monde à chaque frappe").
  *
- * PROBLÈME TROUVÉ : `PlaylistDetailContext.jsx` construit un `value` neuf
- * (littéral d'objet, jamais passé dans `useMemo`) à CHAQUE rendu du
- * Provider. `isEditingPlaylistDetails`/`editedPlaylistName`/
+ * PROBLÈME TROUVÉ (08/08) : `PlaylistDetailContext.jsx` construit un
+ * `value` neuf (littéral d'objet, jamais passé dans `useMemo`) à CHAQUE
+ * rendu du Provider. `isEditingPlaylistDetails`/`editedPlaylistName`/
  * `editedPlaylistDescription` vivaient dans ce même Provider — donc taper
  * UN SEUL caractère dans le champ titre/description recréait ce `value`
  * en entier, et React re-rendait TOUS les consommateurs de
- * `usePlaylistDetail()` (TrackList/TrackItem, PlaylistCharts, et les 5
- * sous-composants de PlaylistHeader) à chaque frappe — pas seulement le
- * champ de saisie lui-même. Les calculs lourds restaient protégés par
- * leurs propres `useMemo` (pas de recalcul), mais le re-render React en
- * lui-même a un coût, payé à chaque frappe, par des composants qui n'ont
- * RIEN à voir avec l'édition en cours.
+ * `usePlaylistDetail()` à chaque frappe.
  *
- * CORRECTIF : cet état (+ `handleSavePlaylistDetails`) vit maintenant dans
- * son PROPRE Contexte, à part. Seul `PlaylistHeaderTitleBlock.jsx` (via
- * `usePlaylistEdit()`) le consomme — c'est le SEUL composant qui a besoin
- * de re-render à chaque frappe, et c'est maintenant le SEUL qui le fait.
- * `PlaylistDetailProvider` lui-même n'a plus cet état interne : il ne
- * re-rend plus du tout pendant une frappe, donc son `value` (toujours pas
- * mémoïsé, mais ça n'a plus d'importance ici) garde la MÊME référence
- * d'un rendu à l'autre — React ne propage alors AUCUN re-render à ses
- * propres consommateurs pendant l'édition.
+ * CORRECTIF (08/08) : cet état (+ `handleSavePlaylistDetails`) déplacé
+ * dans son PROPRE Contexte, à part.
+ *
+ * ⚠️ ÉDITION PASSÉE EN MODALE (retour direct, captures à l'appui : "l'édition
+ * inline crée un layout shift désagréable qui décale les stats/boutons vers
+ * le bas — remplacer par une modale dédiée, standardiser l'UX") — plus dans
+ * la même session que le découpage initial. L'édition inline (un seul
+ * crayon ouvrant titre+description DIRECTEMENT dans la carte, décrite plus
+ * haut dans les versions précédentes de ce fichier) est retirée : le
+ * crayon (`PlaylistHeaderTitleBlock.jsx`) ouvre maintenant
+ * `EditPlaylistModal.jsx` via `ModalContext`, MÊME SCHÉMA que
+ * `EditRoutineModal.jsx`/`useRoutines.js` — `isEditPlaylistModalOpen`
+ * dérivé de `activeModal === 'EDIT_PLAYLIST'` ICI, dans le hook qui
+ * possède déjà le reste de l'état d'édition, plutôt que reçu en prop
+ * depuis un container générique (voir la docstring de
+ * `ModalContainer.jsx` : "Share, Search, EditRoutine et SavingRoutine...
+ * rendues ailleurs qu'ici : leur booléen d'ouverture est dérivé
+ * directement dans le hook qui possède déjà le reste de leur état" — même
+ * principe appliqué ici). `editedPlaylistName`/`editedPlaylistDescription`
+ * restent le brouillon local (comme avant), mais préremplies au moment de
+ * L'OUVERTURE (`handleOpenEditPlaylistModal`, un seul point d'entrée qui
+ * fait les 3 choses ensemble — préremplir nom, préremplir description,
+ * ouvrir la modale — plutôt que 3 appels séparés dans le composant
+ * appelant : même raisonnement que l'ancien risque de course déjà
+ * documenté pour `handleSavePlaylistDetails`, éviter qu'un futur appelant
+ * n'oublie l'un des 3 appels ou les fasse dans le mauvais ordre).
+ * `handleSavePlaylistDetails` ferme désormais la modale lui-même
+ * (`closeModal()`) une fois la sauvegarde faite, au lieu de mettre à jour
+ * un booléen local.
  *
  * Monté en frère de `<PlaylistDetailProvider>` (pas à l'intérieur, pas
  * autour dans l'autre sens — l'un n'a pas besoin de l'autre) — voir
@@ -34,7 +50,13 @@ import { MAX_DESCRIPTION_LENGTH } from '../appConfig';
  * `PlaylistDetailProvider` en a besoin pour la même raison
  * (`applyPlaylistUpdate`, écrit dans currentPlaylist ET savedPlaylists) :
  * PAS de dépendance entre les deux Providers, juste les mêmes 4 valeurs
- * reçues séparément par chacun.
+ * reçues séparément par chacun. `EditPlaylistModal.jsx` est montée dans
+ * `PlaylistDetailView.jsx`, à l'intérieur de CE Provider (lit
+ * `usePlaylistEdit()` directement, comme `CustomActivityModal.jsx` lit
+ * `useCustomActivityContext()`) — pas besoin de faire transiter son état
+ * par un container générique (`ModalContainer.jsx`), qui, lui, est monté
+ * GLOBALEMENT et n'a donc jamais accès à ce Contexte, scopé à la vue
+ * détail d'une playlist.
  */
 
 const PlaylistEditContext = createContext(null);
@@ -43,23 +65,38 @@ export function PlaylistEditProvider({
   currentPlaylist, setCurrentPlaylist, savedPlaylists, setSavedPlaylists,
   children,
 }) {
+  const { activeModal, openModal, closeModal } = useModalContext();
+  // Même schéma que `isEditRoutineModalOpen` (useRoutines.js) — dérivé
+  // directement de `activeModal`, pas un 2e booléen local à synchroniser.
+  const isEditPlaylistModalOpen = activeModal === 'EDIT_PLAYLIST';
+
   // --- Édition du nom/de la description de la playlist ---
-  // Édition combinée titre + description (08/08, retour direct : "que
-  // modifier le titre ou la description vienne un seul crayon plutôt que
-  // via chacune une option individuelle" — précédent Spotify cité, gardé
-  // INLINE plutôt qu'une modale, sur confirmation explicite). UN SEUL
-  // état, UN SEUL handler de sauvegarde pour les deux champs.
-  // ⚠️ Piège identifié AVANT d'implémenter (pas après coup, voir aussi
-  // git blame de PlaylistDetailContext.jsx avant ce découpage) : les 2
-  // anciens handlers séparés lisaient chacun `currentPlaylist` depuis la
-  // MÊME fermeture de rendu — les appeler l'un après l'autre aurait fait
-  // perdre le 1er changement (React ne reflète un `setState` qu'au rendu
-  // SUIVANT). Un seul `updatedPlaylist`, les deux champs ensemble, un
-  // seul `setCurrentPlaylist`/`setSavedPlaylists` : plus de risque de ce
-  // genre.
-  const [isEditingPlaylistDetails, setIsEditingPlaylistDetails] = useState(false);
+  // Brouillon local, préremplit à l'OUVERTURE de la modale
+  // (`handleOpenEditPlaylistModal` plus bas) — inchangé depuis la version
+  // inline : UN SEUL état, UN SEUL handler de sauvegarde pour les deux
+  // champs.
+  // ⚠️ Piège identifié AVANT d'implémenter la fusion titre+description
+  // (pas après coup) : les 2 anciens handlers séparés lisaient chacun
+  // `currentPlaylist` depuis la MÊME fermeture de rendu — les appeler l'un
+  // après l'autre aurait fait perdre le 1er changement (React ne reflète
+  // un `setState` qu'au rendu SUIVANT). Un seul `updatedPlaylist`, les
+  // deux champs ensemble, un seul `setCurrentPlaylist`/`setSavedPlaylists`
+  // : plus de risque de ce genre.
   const [editedPlaylistName, setEditedPlaylistName] = useState('');
   const [editedPlaylistDescription, setEditedPlaylistDescription] = useState('');
+
+  // Point d'entrée UNIQUE pour ouvrir la modale — préremplit les 2
+  // brouillons ET ouvre la modale ensemble, plutôt que de laisser
+  // l'appelant (`PlaylistHeaderTitleBlock.jsx`) faire les 3 appels
+  // séparément : évite qu'un futur appelant oublie l'un des 3, ou les
+  // fasse dans le mauvais ordre (même raisonnement que
+  // `handleSavePlaylistDetails` plus bas).
+  const handleOpenEditPlaylistModal = () => {
+    if (!currentPlaylist) return;
+    setEditedPlaylistName(currentPlaylist.name);
+    setEditedPlaylistDescription(currentPlaylist.description || '');
+    openModal('EDIT_PLAYLIST');
+  };
 
   // Nom JAMAIS vide (une playlist sans nom n'aurait aucun sens), mais un
   // nom vidé PAR MÉGARDE en éditant la description en même temps ne fait
@@ -69,7 +106,7 @@ export function PlaylistEditProvider({
   // reste un état valide (on peut vouloir l'effacer) — pas de repli
   // équivalent pour ce champ.
   const handleSavePlaylistDetails = () => {
-    if (!currentPlaylist) { setIsEditingPlaylistDetails(false); return; }
+    if (!currentPlaylist) { closeModal(); return; }
     const trimmedName = editedPlaylistName.trim();
     const trimmedDescription = editedPlaylistDescription.trim().slice(0, MAX_DESCRIPTION_LENGTH);
     const updatedPlaylist = {
@@ -83,14 +120,14 @@ export function PlaylistEditProvider({
     };
     setCurrentPlaylist(updatedPlaylist);
     setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
-    setIsEditingPlaylistDetails(false);
+    closeModal();
   };
 
   const value = {
-    isEditingPlaylistDetails, setIsEditingPlaylistDetails,
+    isEditPlaylistModalOpen, closeEditPlaylistModal: closeModal,
     editedPlaylistName, setEditedPlaylistName,
     editedPlaylistDescription, setEditedPlaylistDescription,
-    handleSavePlaylistDetails,
+    handleOpenEditPlaylistModal, handleSavePlaylistDetails,
   };
 
   return <PlaylistEditContext.Provider value={value}>{children}</PlaylistEditContext.Provider>;
@@ -99,10 +136,10 @@ export function PlaylistEditProvider({
 // Fallback silencieux — même convention que les autres contexts du projet
 // (AuthContext.jsx/GeneratorContext.jsx/AudioPlayerContext.jsx).
 const FALLBACK = {
-  isEditingPlaylistDetails: false, setIsEditingPlaylistDetails: () => {},
+  isEditPlaylistModalOpen: false, closeEditPlaylistModal: () => {},
   editedPlaylistName: '', setEditedPlaylistName: () => {},
   editedPlaylistDescription: '', setEditedPlaylistDescription: () => {},
-  handleSavePlaylistDetails: () => {},
+  handleOpenEditPlaylistModal: () => {}, handleSavePlaylistDetails: () => {},
 };
 
 export function usePlaylistEdit() {
