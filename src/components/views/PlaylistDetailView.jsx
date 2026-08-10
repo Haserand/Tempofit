@@ -219,6 +219,20 @@ function PlaylistDetailViewInner({
   const [summaryCovers, setSummaryCovers] = useState({});
   const [summarySessionCover, setSummarySessionCover] = useState(null);
 
+  // `currentPlaylistIdRef` (check-up 10/08 — voir le correctif de course
+  // "Partager"/"Cloner" plus bas) — TOUJOURS la valeur la PLUS RÉCENTE de
+  // `currentPlaylist?.id`, mise à jour à CHAQUE rendu (simple assignation,
+  // pas un Hook) — même pattern que `structureModeRef`/`setStructureModeRef`
+  // dans useGeneratorForm.js (`applyProfileBpmIfUntouched`). Sert de
+  // référence "vivante" à laquelle comparer un id capturé au DÉBUT d'une
+  // chaîne asynchrone longue (`generateSummaryImageFile` ci-dessous), pour
+  // détecter si l'utilisateur a changé de playlist EN COURS DE ROUTE — ce
+  // composant reste volontairement monté d'une playlist à l'autre (voir le
+  // `useEffect` de reset juste en dessous), donc une simple fermeture sur
+  // `currentPlaylist` au moment du clic ne suffit pas à le détecter.
+  const currentPlaylistIdRef = useRef(currentPlaylist?.id);
+  currentPlaylistIdRef.current = currentPlaylist?.id;
+
   // RETOUR DIRECT ("insérer le bilan image directement dans l'option de
   // partage, avec une croix pour le retirer") — DEUXIÈME évolution de ce
   // chantier (voir le commentaire juste au-dessus pour la 1re, qui a fusionné
@@ -265,8 +279,35 @@ function PlaylistDetailViewInner({
    * Déclenchée en arrière-plan au clic sur "Partager" (voir
    * startBackgroundImageGeneration ci-dessous) ; ShareModal.jsx affiche
    * l'aperçu et gère elle-même le partage une fois l'image prête.
+   *
+   * ⚠️ COURSE CORRIGÉE (check-up 10/08 — voir la docstring de
+   * `currentPlaylistIdRef` plus haut) : ce composant reste MONTÉ d'une
+   * playlist à l'autre (`handleClonePlaylist`, usePlaylistLibrary.js :
+   * "on reste sur la même vue détail, seul l'objet affiché change" — même
+   * chose pour toute autre ouverture de playlist en place). Cliquer
+   * "Partager" PUIS "Cloner" avant la fin des allers-retours réseau
+   * ci-dessous écrivait auparavant les pochettes de l'ANCIENNE playlist
+   * (`setSummarySessionCover`/`setSummaryCovers`) dans le state PARTAGÉ,
+   * APRÈS que le `useEffect` de reset ait déjà remis ce state à zéro pour
+   * la NOUVELLE — `<SessionSummaryCard playlist={currentPlaylist} .../>`
+   * (qui lit `currentPlaylist` en direct) capturait alors un bilan
+   * mélangeant les données de la NOUVELLE playlist avec les pochettes de
+   * l'ANCIENNE, marqué "prêt" malgré tout par `startBackgroundImageGeneration`
+   * — un bilan potentiellement FAUX, partageable publiquement tel quel.
+   * `isStale()` capture l'id de playlist au tout début de CET appel
+   * (fermeture sur `currentPlaylist`, fixe pour toute la durée de cette
+   * fonction) et le compare à `currentPlaylistIdRef.current` (toujours à
+   * jour) à CHAQUE point d'écriture — dès qu'ils divergent, on abandonne
+   * silencieusement (aucun setState de ce côté) plutôt que d'écrire une
+   * donnée obsolète. Vérifié aussi AVANT de lancer les appels réseau
+   * suivants (pas seulement avant chaque `setState`) : pas la peine de
+   * continuer à interroger Deezer pour une playlist qu'on ne regarde déjà
+   * plus.
    */
   const generateSummaryImageFile = async () => {
+    const playlistIdAtStart = currentPlaylist.id;
+    const isStale = () => currentPlaylistIdRef.current !== playlistIdAtStart;
+
     // 1. Pochette de LA SÉANCE (celle affichée en en-tête de la carte) —
     // résolue en data URI comme les pochettes de titres ci-dessous, pour
     // la même raison (voir fetchImageAsDataUri). Sans ça, la pochette de
@@ -280,6 +321,7 @@ function PlaylistDetailViewInner({
     // directement en PNG plutôt que de convertir une URL SVG existante.
     const sessionCoverSourceUrl = buildCoverUrlPng(currentPlaylist.name);
     const sessionCoverDataUri = await fetchImageAsDataUri(sessionCoverSourceUrl);
+    if (isStale()) return null;
     setSummarySessionCover(sessionCoverDataUri);
 
     // 2. Pochettes des 3 premiers titres — uniquement pour ceux sourcés de
@@ -314,6 +356,7 @@ function PlaylistDetailViewInner({
         }
       } catch (e) { /* pas de pochette pour ce titre — repli déjà géré côté composant */ }
     }));
+    if (isStale()) return null;
     setSummaryCovers(covers);
 
     // 3-4. Attente du re-render + capture — entièrement centralisées dans
@@ -321,21 +364,39 @@ function PlaylistDetailViewInner({
     // ici avec l'import html2canvas. `scale: 2.7` sur une carte de 400px de
     // large vise exactement 1080px de sortie (format Story Instagram,
     // 1080×1920 — voir la largeur/hauteur fixées dans SessionSummaryCard.jsx).
+    if (isStale()) return null;
     return captureElementAsFile(summaryCardRef.current, 'tempofit-bilan-de-seance.png', { scale: 2.7 });
   };
 
   // Lance la génération en arrière-plan — ne fait rien si déjà en cours ou
   // déjà prête pour CETTE playlist (voir le useEffect de reset ci-dessus
   // pour le changement de playlist).
+  //
+  // ⚠️ COURSE CORRIGÉE (check-up 10/08, voir la docstring complète de
+  // `generateSummaryImageFile` ci-dessus) — 2e couche de la même défense,
+  // en plus de celle DANS `generateSummaryImageFile` : même si un fichier a
+  // malgré tout été produit (aucun `isStale()` déclenché à temps, cas
+  // limite), on vérifie ICI ENCORE une fois avant de l'appliquer comme
+  // "prêt" — défense en profondeur, 2 couches indépendantes plutôt qu'une
+  // seule (même principe que `lock_parent_lineage`/l'omission de
+  // `parent_id` côté client, useSyncedCollection.js).
   const startBackgroundImageGeneration = async () => {
     if (!currentPlaylist || summaryImageStatus === 'loading' || summaryImageStatus === 'ready') return;
+    const playlistIdAtStart = currentPlaylist.id;
     setSummaryImageStatus('loading');
     try {
       const file = await generateSummaryImageFile();
+      if (!file || currentPlaylistIdRef.current !== playlistIdAtStart) return;
       setSummaryImageFile(file);
       setSummaryImagePreviewUrl(URL.createObjectURL(file));
       setSummaryImageStatus('ready');
     } catch (e) {
+      // Une playlist déjà abandonnée (voir ci-dessus) qui échoue en route
+      // ne doit PAS marquer 'error' sur la NOUVELLE playlist actuellement
+      // affichée — son propre statut (déjà remis à 'idle' par le
+      // `useEffect` de reset au moment du changement) ne doit pas être
+      // écrasé par un échec qui ne la concerne plus.
+      if (currentPlaylistIdRef.current !== playlistIdAtStart) return;
       // Erreur maintenant JOURNALISÉE (console.error, pas debugLog — utile
       // aussi en prod pour diagnostiquer, même convention que les erreurs
       // API Deezer/Spotify ailleurs dans le projet) — jusqu'ici totalement
