@@ -1,5 +1,5 @@
 import { Edit3, Copy } from 'lucide-react';
-import { usePlaylistEdit } from '../../../contexts/PlaylistEditContext';
+import { usePlaylistEditActions } from '../../../contexts/PlaylistEditContext';
 
 /**
  * PlaylistHeaderTitleBlock.jsx — ligne "chapeau" (pseudo cliquable +
@@ -26,20 +26,32 @@ import { usePlaylistEdit } from '../../../contexts/PlaylistEditContext';
  * composant reste volontairement "dumb" : un seul appel, aucun état
  * d'édition à gérer lui-même.
  *
- * `handleOpenEditPlaylistModal` vient directement de `usePlaylistEdit()`
- * ICI (08/08, chantier "value non mémoïsée re-render tout le monde à
- * chaque frappe" — voir la docstring de PlaylistEditContext.jsx), PAS reçu
- * en prop depuis `PlaylistHeader.jsx` comme le reste : ce composant n'a
- * plus besoin de re-render pendant une frappe (l'édition vit dans la
- * modale, ailleurs), mais le principe "lire ce Contexte au plus près du
- * composant qui en a besoin, pas le faire remonter par le parent" reste
- * valable — inchangé depuis le découpage initial.
+ * `handleOpenEditPlaylistModal` vient directement de
+ * `usePlaylistEditActions()` ICI (08/08, chantier "value non mémoïsée
+ * re-render tout le monde à chaque frappe" — voir la docstring de
+ * PlaylistEditContext.jsx), PAS reçu en prop depuis `PlaylistHeader.jsx`
+ * comme le reste : ce composant n'a plus besoin de re-render pendant une
+ * frappe (l'édition vit dans la modale, ailleurs), mais le principe "lire
+ * ce Contexte au plus près du composant qui en a besoin, pas le faire
+ * remonter par le parent" reste valable — inchangé depuis le découpage
+ * initial.
+ * ⚠️ `usePlaylistEditActions()`, PAS `usePlaylistEdit()` (10/08, check-up
+ * — corrigé) : ce composant lisait auparavant `usePlaylistEdit()`, le
+ * Contexte VOLATIL qui porte aussi `editedPlaylistName`/
+ * `editedPlaylistDescription` (changent à chaque frappe dans
+ * `EditPlaylistModal.jsx`) — un Contexte unique re-rend TOUS ses
+ * consommateurs dès que N'IMPORTE QUEL champ de sa `value` change, donc ce
+ * composant re-rendait bien à chaque frappe malgré ce que disait cette
+ * docstring avant correction. `usePlaylistEditActions()` isole la SEULE
+ * chose dont ce composant a besoin (`handleOpenEditPlaylistModal`,
+ * stabilisée par `useCallback`) dans son propre Contexte, dont la `value`
+ * ne change jamais pendant l'édition — voir PlaylistEditContext.jsx.
  */
 export default function PlaylistHeaderTitleBlock({
   currentPlaylist, isSaved, isReadOnly,
   ownerLabel, ownerProfileUsername, onViewProfile,
 }) {
-  const { handleOpenEditPlaylistModal } = usePlaylistEdit();
+  const { handleOpenEditPlaylistModal } = usePlaylistEditActions();
 
   return (
     <>
