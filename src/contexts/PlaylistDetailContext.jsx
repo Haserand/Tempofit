@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useMemo } from 'react';
+import { createContext, useContext, useState, useMemo, useRef } from 'react';
 import { getZoneForValue, ATHLETIC_ZONES, getBpmBucketColor, getBpmBucketLabel } from '../appConfig';
 import { normalizeGenreForDisplay, genreDisplayLabel } from '../musicCatalog';
 import { getSingleMatchingTrack, findSameArtistReplacement, recalculateTimeline } from '../engine/musicEngine';
@@ -103,6 +103,21 @@ export function PlaylistDetailProvider({
   const { isNaughtyMode, getProfileForWorkout } = useAthleticContext();
   const { togglePreview, playingPreviewId, resolveAndPlay, resolvingTrackId } = useAudioPlayer();
 
+  // `currentPlaylistIdRef` (check-up 10/08 — voir le correctif de course
+  // "Remplacer un titre" / "Cloner" plus bas, `handleReplaceTrack`/
+  // `handleReplaceTrackSameArtist`) — TOUJOURS la valeur la PLUS RÉCENTE de
+  // `currentPlaylist?.id`, mise à jour à CHAQUE rendu (simple assignation,
+  // pas un Hook) — même pattern que `currentPlaylistIdRef` dans
+  // PlaylistDetailView.jsx (correctif de la course "Partager"/"Cloner",
+  // même jour) et que `structureModeRef` dans useGeneratorForm.js. Ce
+  // Provider reste MONTÉ d'une playlist à l'autre (voir
+  // `handleClonePlaylist`, usePlaylistLibrary.js : "on reste sur la même
+  // vue détail, seul l'objet affiché change"), donc une simple fermeture
+  // sur `currentPlaylist` au moment du clic ne suffit pas à détecter un
+  // changement de playlist survenu PENDANT une recherche réseau.
+  const currentPlaylistIdRef = useRef(currentPlaylist?.id);
+  currentPlaylistIdRef.current = currentPlaylist?.id;
+
   // Petit utilitaire interne : la quasi-totalité des mutations de titres
   // suivent le même triptyque (recalculer la timeline, écrire dans
   // currentPlaylist ET dans sa copie persistée savedPlaylists) — factorisé
@@ -200,10 +215,33 @@ export function PlaylistDetailProvider({
     showToast('🎵 Titre dupliqué !');
   };
 
+  /**
+   * ⚠️ COURSE CORRIGÉE (check-up 10/08 — voir la docstring de
+   * `currentPlaylistIdRef` plus haut) : `await getSingleMatchingTrack(...)`
+   * peut prendre plusieurs secondes (recherche Deezer + résolution BPM/
+   * genre). Si l'utilisateur change de playlist entre-temps (ex. "Cloner",
+   * juste à côté du menu "Remplacer" — ce Provider reste monté d'une
+   * playlist à l'autre), reprendre ensuite avec `currentPlaylist`/
+   * `savedPlaylists` FIGÉS au moment du clic (fermeture JS classique)
+   * causait deux dégâts : `setCurrentPlaylist` ramenait l'affichage sur
+   * l'ANCIENNE playlist par-dessus la NOUVELLE que l'utilisateur regarde
+   * désormais, et `setSavedPlaylists(savedPlaylists.map(...))` utilisait
+   * un tableau `savedPlaylists` obsolète — s'il manquait une playlist
+   * créée entre-temps (ex. le clone qui a justement causé le changement),
+   * ce tableau amputé remplaçait le VRAI state courant, et
+   * `useSyncedCollection.js` interprétait cette playlist manquante comme
+   * SUPPRIMÉE, envoyant un vrai `DELETE` vers Supabase — perte de données
+   * réelle, pas juste un affichage incohérent. `playlistIdAtStart` capturé
+   * AVANT l'appel réseau, revérifié contre `currentPlaylistIdRef.current`
+   * (toujours à jour) juste avant d'écrire quoi que ce soit : abandon
+   * silencieux (juste un toast informatif) si ça diverge, plutôt que
+   * d'écrire une donnée obsolète.
+   */
   const handleReplaceTrack = async (indexToReplace) => {
     if (!currentPlaylist) return;
     checkTrophies({ ...userStats, replacedTracks: userStats.replacedTracks + 1 });
 
+    const playlistIdAtStart = currentPlaylist.id;
     const oldTrack = currentPlaylist.tracks[indexToReplace];
     const usedIds = currentPlaylist.tracks.map(t => t.trackId);
 
@@ -212,6 +250,11 @@ export function PlaylistDetailProvider({
       currentPlaylist.config?.selectedGenres || ['Métal'], usedIds, favorites, spotifyTrackPool,
       null, [], currentPlaylist.config?.allowLongTracks || false,
     );
+
+    if (currentPlaylistIdRef.current !== playlistIdAtStart) {
+      showToast("Remplacement annulé : tu as changé de playlist entre-temps.");
+      return;
+    }
 
     const newTracks = [...currentPlaylist.tracks];
     newTracks[indexToReplace] = {
@@ -226,8 +269,16 @@ export function PlaylistDetailProvider({
     showToast('🎵 Titre remplacé et durée ajustée !');
   };
 
+  /**
+   * Même correctif de course que `handleReplaceTrack` ci-dessus (check-up
+   * 10/08) — même raisonnement, voir sa docstring. Revérifié APRÈS les 2
+   * appels réseau possibles (`findSameArtistReplacement` PUIS,
+   * potentiellement, `getSingleMatchingTrack` en repli), juste avant
+   * d'écrire quoi que ce soit.
+   */
   const handleReplaceTrackSameArtist = async (indexToReplace) => {
     if (!currentPlaylist) return;
+    const playlistIdAtStart = currentPlaylist.id;
     const oldTrack = currentPlaylist.tracks[indexToReplace];
     const usedIds = currentPlaylist.tracks.map(t => t.trackId);
     const minBpm = oldTrack.targetSegmentBpm - (currentPlaylist.tolerance || 10);
@@ -238,9 +289,18 @@ export function PlaylistDetailProvider({
     let newRawTrack = await findSameArtistReplacement(oldTrack.artist, minBpm, maxBpm, usedIds, requestedGenres, allowLong);
 
     if (!newRawTrack) {
+      if (currentPlaylistIdRef.current !== playlistIdAtStart) return; // playlist déjà changée, pas la peine de lancer la recherche élargie
       newRawTrack = await getSingleMatchingTrack(oldTrack.targetSegmentBpm, currentPlaylist.tolerance || 10, requestedGenres, usedIds, favorites, spotifyTrackPool, null, [], allowLong);
+      if (currentPlaylistIdRef.current !== playlistIdAtStart) {
+        showToast("Remplacement annulé : tu as changé de playlist entre-temps.");
+        return;
+      }
       showToast(`Aucun autre titre de ${oldTrack.artist} à ce BPM — recherche élargie utilisée.`);
     } else {
+      if (currentPlaylistIdRef.current !== playlistIdAtStart) {
+        showToast("Remplacement annulé : tu as changé de playlist entre-temps.");
+        return;
+      }
       checkTrophies({ ...userStats, replacedTracks: userStats.replacedTracks + 1 });
       showToast(`🎵 Remplacé par un autre titre de ${newRawTrack.artist} !`);
     }
