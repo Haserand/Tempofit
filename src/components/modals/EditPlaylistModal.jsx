@@ -41,6 +41,13 @@ import { usePlaylistEdit } from '../../contexts/PlaylistEditContext';
  * `currentPlaylist`/`savedPlaylists`. Une fois la sauvegarde faite, ce
  * handler ferme lui-même la modale (`closeModal()`), donc rien à faire ici
  * après l'appel.
+ *
+ * ⚠️ VALIDATION DU TITRE (même session, retour direct) — `isEditedNameValid`
+ * (PlaylistEditContext.jsx) désactive "Enregistrer" (`disabled`, même
+ * pattern que `EditRoutineModal.jsx` sur cible invalide) tant que le titre
+ * fait moins de `MIN_PLAYLIST_NAME_LENGTH` caractères une fois les espaces
+ * retirés — message d'erreur affiché sous le champ dans ce cas. La
+ * DESCRIPTION reste sans aucune contrainte de longueur minimale.
  */
 export default function EditPlaylistModal({ theme }) {
   const { cardBg, cardBorder, textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
@@ -48,6 +55,7 @@ export default function EditPlaylistModal({ theme }) {
     isEditPlaylistModalOpen, closeEditPlaylistModal,
     editedPlaylistName, setEditedPlaylistName,
     editedPlaylistDescription, setEditedPlaylistDescription,
+    isEditedNameValid,
     handleSavePlaylistDetails,
   } = usePlaylistEdit();
 
@@ -71,14 +79,22 @@ export default function EditPlaylistModal({ theme }) {
                 N'EST PAS géré ici : aucune modale de ce projet ne ferme sur
                 Échap (voir SearchModal.jsx, seul autre usage d'Échap dans
                 ce dossier, et pour un tout autre besoin), le clic sur la
-                croix ou en dehors de la carte suffit déjà. */}
+                croix ou en dehors de la carte suffit déjà.
+                `handleSavePlaylistDetails` revérifie `isEditedNameValid` en
+                interne (voir PlaylistEditContext.jsx) — Entrée sur un
+                titre invalide reste donc un no-op silencieux, cohérent
+                avec le bouton "Enregistrer" déjà désactivé juste en
+                dessous. */}
             <input
               type="text" autoFocus value={editedPlaylistName}
               onChange={e => setEditedPlaylistName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSavePlaylistDetails(); }}
-              className={`w-full rounded-xl px-4 py-3 font-bold outline-hidden border ${inputBg} ${inputBorder} ${textHighlight}`}
+              className={`w-full rounded-xl px-4 py-3 font-bold outline-hidden border ${inputBg} ${!isEditedNameValid ? 'border-red-500' : inputBorder} ${textHighlight}`}
               placeholder="Nom de la playlist"
             />
+            {!isEditedNameValid && (
+              <p className="text-xs text-red-400 mt-1.5">Le titre doit contenir au moins 3 caractères.</p>
+            )}
           </div>
 
           <div>
@@ -86,7 +102,10 @@ export default function EditPlaylistModal({ theme }) {
             {/* Pas de gestion `Enter` ici (contrairement au champ titre
                 juste au-dessus) — Entrée dans une `<textarea>` insère un
                 retour à la ligne, comportement natif attendu pour un
-                texte multi-lignes, jamais une soumission prématurée. */}
+                texte multi-lignes, jamais une soumission prématurée.
+                Aucune validation de longueur minimale ici (contrairement
+                au titre) — champ optionnel, n'importe quel contenu est
+                valide, y compris vide. */}
             <textarea
               value={editedPlaylistDescription}
               onChange={e => setEditedPlaylistDescription(e.target.value.slice(0, MAX_DESCRIPTION_LENGTH))}
@@ -107,7 +126,9 @@ export default function EditPlaylistModal({ theme }) {
           </button>
           <button
             onClick={handleSavePlaylistDetails}
-            className={`flex-1 py-3.5 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}
+            disabled={!isEditedNameValid}
+            title={!isEditedNameValid ? 'Le titre doit contenir au moins 3 caractères.' : undefined}
+            className={`flex-1 py-3.5 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100`}
           >
             Enregistrer
           </button>
