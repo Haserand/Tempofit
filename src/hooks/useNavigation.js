@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { buildCoverUrl } from '../utils/coverArt';
 import { recalculateTimeline } from '../engine/musicEngine';
 import { CATEGORY_DESCRIPTIONS } from '../data/curatedSessions';
+import { getActivityEmoji } from '../appConfig';
 import { useGeneratorContext } from '../contexts/GeneratorContext';
 import { useModalContext } from '../contexts/ModalContext';
 
@@ -33,6 +34,23 @@ import { useModalContext } from '../contexts/ModalContext';
  * est courte (accepts `handleSavePlaylist` en paramètre) — pas la peine de casser
  * ce cycle pour si peu.
  */
+
+/**
+ * Émoji baké en texte littéral dans le nom d'une playlist ouverte depuis un
+ * template du catalogue (08/08, même raisonnement que
+ * `buildGeneratedPlaylistName` dans musicEngine.js — voir sa docstring pour
+ * le détail complet) — extraite en fonction PURE, testable sans monter le
+ * hook `useNavigation()` (qui a besoin de `useGeneratorContext()`/
+ * `useModalContext()` pour exister).
+ * `finalWorkoutType` (PAS `template.workoutType` brut) : donne le MÊME
+ * émoji que celui qui aurait été affiché pour cette playlist (respecte le
+ * Mode Intime — voir le commentaire "BUG ÉVITÉ" dans `openCuratedPlaylist`
+ * pour pourquoi `isNaughtyMode` doit primer sur `template.workoutType`).
+ */
+export function buildCuratedPlaylistName(template, finalWorkoutType) {
+  return `${getActivityEmoji(finalWorkoutType)} ${template.title}`;
+}
+
 export function useNavigation(
   view, setView, setIsMobileMenuOpen,
   currentPlaylist, setCurrentPlaylist, savedPlaylists,
@@ -94,10 +112,14 @@ export function useNavigation(
   const openCuratedPlaylist = (template, extraFields = {}) => {
     const avgBpm = Math.round(template.tracks.reduce((s, t) => s + (t.bpm || 0), 0) / template.tracks.length) || 120;
     const genres = Array.from(new Set(template.tracks.map(t => t.genre).filter(Boolean)));
+    // Même valeur que `workoutType` ci-dessous (calculée une fois ici pour
+    // servir aux deux) — voir le commentaire "BUG ÉVITÉ" juste plus bas
+    // pour pourquoi `isNaughtyMode` doit primer sur `template.workoutType`.
+    const finalWorkoutType = isNaughtyMode ? 'Ambiance' : template.workoutType;
 
     const rawPlaylist = {
       id: `pl-curated-${template.id}-${Date.now()}`,
-      name: template.title,
+      name: buildCuratedPlaylistName(template, finalWorkoutType),
       // BUG ÉVITÉ (trouvé en vérifiant le pare-feu Mode Intime signalé sur
       // Mes Séances/Découvrir) : `workoutType` était TOUJOURS
       // `template.workoutType` tel quel, `isNaughty` TOUJOURS `false` — une
@@ -110,7 +132,7 @@ export function useNavigation(
       // toute vraie génération (musicEngine.js, `finalWorkoutName`) : toujours
       // "Ambiance" en Mode Intime, l'activité réelle du template restant
       // disponible dans `config.workoutName` ci-dessous.
-      workoutType: isNaughtyMode ? 'Ambiance' : template.workoutType,
+      workoutType: finalWorkoutType,
       avgPace: 330, targetMode: 'time', distanceUnit: 'km',
       tolerance: 10, crossfade: 2,
       // RETOUR DIRECT ("pas de bruit, ne pas appeler ça un id YouTube si ça
