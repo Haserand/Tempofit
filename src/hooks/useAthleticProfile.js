@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { usePersistentState } from './usePersistentState';
 import {
   isCadenceIntentEligible,
@@ -98,6 +98,29 @@ import {
  * Si ce n'était pas le cas, il aurait fallu lire l'ancien nom en plus du
  * nouveau le temps d'une migration, comme pour l'ancien format plat (V1,
  * voir plus haut).
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * STABILISATION RÉFÉRENTIELLE (10/08, check-up) : toutes les fonctions de
+ * mutation (`setBaseBpmForActivity`, `setZoneForActivity`,
+ * `resetActivityProfile`, `addCustomActivity`, `removeCustomActivity`,
+ * `setBaseBpmForCustom`, `setZoneForCustom`, `setCadenceIntentForActivity`,
+ * `setCadenceIntentForCustom`, `resetAthleticProfile`) enveloppées dans
+ * `useCallback([])` — aucune ne lit `athleticProfile` directement (toutes
+ * passent par `prev =>` dans `setAthleticProfile`, garanti stable par
+ * React comme tout setter `useState`), donc rien ne les empêchait d'être
+ * stables depuis le début. La `value` retournée par ce hook est maintenant
+ * elle-même dans un `useMemo`. Raison : ce hook n'est appelé QU'une fois,
+ * dans `App()` (App.jsx) — et `AthleticContext.jsx` (08/08) enveloppe déjà
+ * SON `value` dans un `useMemo` qui dépend de cet objet retourné ICI en
+ * entier. Sans cette stabilisation, cet objet était recréé à CHAQUE rendu
+ * de `App()` (y compris les ~73 endroits du projet qui affichent un toast,
+ * state également possédé par `App()`, sans rapport avec le profil
+ * athlétique) — rendant le `useMemo` d'`AthleticContext.jsx` décoratif :
+ * il recalculait presque à chaque interaction utilisateur ayant un retour
+ * visuel, pas seulement quand le profil changeait vraiment. `getProfileForWorkout`/
+ * `getProfileForWorkoutOrDefault` l'étaient déjà (03/08, voir plus bas) —
+ * seules les 10 fonctions de mutation ci-dessus manquaient.
+ * ─────────────────────────────────────────────────────────────────────────
  */
 
 // Constantes/fonctions pures de calcul des zones BPM : extraites dans
@@ -144,7 +167,30 @@ export function useAthleticProfile() {
 
   // ─── Activités "built-in" (Course à pied, Cyclisme) ───────────────────────
 
-  const setBaseBpmForActivity = (activityKey, rawValue) => {
+  // `useCallback([])` (10/08, check-up) — sûr ici (comme les 9 autres
+  // fonctions de mutation ci-dessous) : cette fonction ne lit JAMAIS
+  // `athleticProfile` directement, uniquement via `prev =>` dans
+  // `setAthleticProfile` (le setter de `usePersistentState`, garanti stable
+  // par React comme n'importe quel setter `useState` — voir sa propre
+  // définition, `return [state, setState]`). Les seules autres valeurs
+  // fermées (`getZoneSpacingForActivity`/`computeZonesFromBaseBpm`) sont des
+  // imports MODULE-LEVEL de `athleticZones.js`, jamais recréées entre les
+  // rendus. Donc RIEN dans le corps de cette fonction ne peut jamais
+  // changer d'une frappe à l'autre — `[]` est la dépendance correcte, pas
+  // une approximation.
+  //
+  // RAISON D'ÊTRE (voir aussi la docstring de `AthleticContext.jsx`) :
+  // avant ce chantier, cette fonction (et les 9 sœurs ci-dessous) était une
+  // simple `const` recréée à CHAQUE appel de `useAthleticProfile()` — donc
+  // à CHAQUE rendu de `App()` (l'unique appelant, App.jsx), y compris les
+  // re-renders déclenchés par `toast` (state DE `App()`, mis à jour par les
+  // ~73 appels `showToast(...)` du projet, n'importe où). Le `useMemo` déjà
+  // posé dans `AthleticContext.jsx` le 08/08 dépendait de l'objet retourné
+  // ICI EN ENTIER — donc recalculait à chaque toast affiché n'importe où
+  // dans l'app, pas seulement quand le profil athlétique changeait
+  // vraiment. Stabiliser les fonctions ICI, à la source, est ce qui rend ce
+  // `useMemo` réellement efficace plutôt que décoratif.
+  const setBaseBpmForActivity = useCallback((activityKey, rawValue) => {
     const base = parseInt(rawValue);
     if (!Number.isFinite(base) || base <= 0) return;
     setAthleticProfile(prev => {
@@ -161,7 +207,7 @@ export function useAthleticProfile() {
         },
       };
     });
-  };
+  }, [setAthleticProfile]);
 
   // RETOUR DIRECT ("proposer une visualisation par sync uniquement si
   // l'utilisateur active l'option") — bascule l'intention ET recalcule
@@ -171,7 +217,7 @@ export function useAthleticProfile() {
   // les anciennes zones (mal espacées pour la nouvelle intention) jusqu'à ce
   // que la personne relance l'Assistant Rapide — un état incohérent entre
   // "ce qui est coché" et "ce qui est affiché".
-  const setCadenceIntentForActivity = (activityKey, intent) => {
+  const setCadenceIntentForActivity = useCallback((activityKey, intent) => {
     if (intent !== 'energy' && intent !== 'sync') return;
     setAthleticProfile(prev => {
       const existing = prev.activities[activityKey];
@@ -195,13 +241,13 @@ export function useAthleticProfile() {
         },
       };
     });
-  };
+  }, [setAthleticProfile]);
 
   // Mode Expert : ajuste UNE zone à la fois, sans recalculer les 3 autres —
   // une fois qu'une zone a été ajustée manuellement, elle n'est plus jamais
   // recalculée automatiquement (même philosophie "manuel = définitif" que le
   // BPM Échauffement/Retour au calme du Crescendo, voir useGeneratorForm.js).
-  const setZoneForActivity = (activityKey, zoneKey, rawValue) => {
+  const setZoneForActivity = useCallback((activityKey, zoneKey, rawValue) => {
     const value = parseInt(rawValue);
     setAthleticProfile(prev => {
       const existing = prev.activities[activityKey];
@@ -224,30 +270,30 @@ export function useAthleticProfile() {
         },
       };
     });
-  };
+  }, [setAthleticProfile]);
 
-  const resetActivityProfile = (activityKey) => {
+  const resetActivityProfile = useCallback((activityKey) => {
     setAthleticProfile(prev => ({ ...prev, activities: { ...prev.activities, [activityKey]: emptyProfile() } }));
-  };
+  }, [setAthleticProfile]);
 
   // ─── Activités personnalisées ("Ajouter une autre activité") ──────────────
 
   // Identifiant simple (horodatage) plutôt qu'un vrai UUID — cohérent avec le
   // reste de l'app (voir génération d'ids des routines/playlists ailleurs),
   // amplement suffisant pour une poignée d'activités persos par utilisateur.
-  const addCustomActivity = (name) => {
+  const addCustomActivity = useCallback((name) => {
     const trimmed = (name || '').trim();
     if (!trimmed) return null;
     const id = `custom-${Date.now()}`;
     setAthleticProfile(prev => ({ ...prev, custom: [...prev.custom, { id, name: trimmed, ...emptyProfile() }] }));
     return id;
-  };
+  }, [setAthleticProfile]);
 
-  const removeCustomActivity = (id) => {
+  const removeCustomActivity = useCallback((id) => {
     setAthleticProfile(prev => ({ ...prev, custom: prev.custom.filter(c => c.id !== id) }));
-  };
+  }, [setAthleticProfile]);
 
-  const setBaseBpmForCustom = (id, rawValue) => {
+  const setBaseBpmForCustom = useCallback((id, rawValue) => {
     const base = parseInt(rawValue);
     if (!Number.isFinite(base) || base <= 0) return;
     setAthleticProfile(prev => ({
@@ -259,12 +305,12 @@ export function useAthleticProfile() {
         return { ...c, isConfigured: true, targetBpm: base, cadenceIntent, ...computeZonesFromBaseBpm(base, spacing) };
       }),
     }));
-  };
+  }, [setAthleticProfile]);
 
   // Même garde-fou que setCadenceIntentForActivity ci-dessus : ne recalcule
   // de vraies zones que si l'activité personnalisée est DÉJÀ configurée,
   // sinon mémorise juste l'intention (zones restent à `null`).
-  const setCadenceIntentForCustom = (id, intent) => {
+  const setCadenceIntentForCustom = useCallback((id, intent) => {
     if (intent !== 'energy' && intent !== 'sync') return;
     setAthleticProfile(prev => ({
       ...prev,
@@ -275,9 +321,9 @@ export function useAthleticProfile() {
         return { ...c, cadenceIntent: intent, ...computeZonesFromBaseBpm(c.targetBpm, spacing) };
       }),
     }));
-  };
+  }, [setAthleticProfile]);
 
-  const setZoneForCustom = (id, zoneKey, rawValue) => {
+  const setZoneForCustom = useCallback((id, zoneKey, rawValue) => {
     const value = parseInt(rawValue);
     setAthleticProfile(prev => ({
       ...prev,
@@ -294,7 +340,7 @@ export function useAthleticProfile() {
         };
       }),
     }));
-  };
+  }, [setAthleticProfile]);
 
   // ─── Lookup — LE point d'entrée que GeneratorView utilisera à l'étape 3 ───
 
@@ -366,12 +412,29 @@ export function useAthleticProfile() {
     // rendus.
   }, [getProfileForWorkout]);
 
-  const resetAthleticProfile = () => setAthleticProfile({
+  const resetAthleticProfile = useCallback(() => setAthleticProfile({
     activities: { 'Course à pied': emptyProfile(), 'Cyclisme': emptyProfile() },
     custom: [],
-  });
+  }), [setAthleticProfile]);
 
-  return {
+  // `useMemo` (10/08, check-up — voir la docstring de `AthleticContext.jsx`
+  // et les docstrings `useCallback` ci-dessus pour le détail du problème) :
+  // SANS ce `useMemo`, cet objet était recréé à chaque appel de ce hook —
+  // donc à chaque rendu de `App()` (son unique appelant), y compris les
+  // ~73 endroits du projet qui affichent un toast n'importe où dans l'app
+  // (state `toast` possédé par `App()`, sans rapport avec le profil
+  // athlétique). Maintenant que les 10 fonctions de mutation ci-dessus sont
+  // stabilisées par `useCallback([])` (jamais recréées, elles ne ferment
+  // que sur `setAthleticProfile` — stable — et des imports module-level),
+  // ce `useMemo` ne recalcule RÉELLEMENT que quand `athleticProfile`
+  // change vraiment (ou, en théorie, si `getProfileForWorkout`/
+  // `getProfileForWorkoutOrDefault` changeaient — déjà stabilisées depuis
+  // le 03/08, listées ici par exhaustivité). `computeZonesFromBaseBpm`/
+  // `getDefaultBaseBpm`/`buildDefaultPreviewProfile`/
+  // `getZoneSpacingForActivity`/`isCadenceIntentEligible` : imports
+  // module-level (ligne 3), jamais recréés — pas la peine de les lister en
+  // dépendance, mais inclus dans l'objet retourné comme avant.
+  return useMemo(() => ({
     athleticProfile, setAthleticProfile,
     computeZonesFromBaseBpm, getDefaultBaseBpm, buildDefaultPreviewProfile, getZoneSpacingForActivity,
     setBaseBpmForActivity, setZoneForActivity, resetActivityProfile,
@@ -379,5 +442,12 @@ export function useAthleticProfile() {
     setCadenceIntentForActivity, setCadenceIntentForCustom, isCadenceIntentEligible,
     getProfileForWorkout, getProfileForWorkoutOrDefault,
     resetAthleticProfile,
-  };
+  }), [
+    athleticProfile, setAthleticProfile,
+    setBaseBpmForActivity, setZoneForActivity, resetActivityProfile,
+    addCustomActivity, removeCustomActivity, setBaseBpmForCustom, setZoneForCustom,
+    setCadenceIntentForActivity, setCadenceIntentForCustom,
+    getProfileForWorkout, getProfileForWorkoutOrDefault,
+    resetAthleticProfile,
+  ]);
 }
