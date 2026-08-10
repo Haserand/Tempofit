@@ -1,19 +1,21 @@
 // @vitest-environment jsdom
 //
 // Test dédié à PlaylistCard.jsx — 0 test jusqu'ici (avant même la Feature
-// Sociale, 01/08). `appConfig.js`/`coverArt.js` mockés (fonctions pures
-// déjà couvertes par leurs propres tests, même convention que
-// PlaylistHeader.test.jsx). `CompletionsList` mocké par un stub léger :
-// déjà testé dans tests/Completionslist.test.jsx — pas la peine de
-// re-tester sa logique interne ici.
+// Sociale, 01/08). `coverArt.js` mocké (fonction pure déjà couverte par
+// ses propres tests, même convention que PlaylistHeader.test.jsx).
+// `CompletionsList` mocké par un stub léger : déjà testé dans
+// tests/Completionslist.test.jsx — pas la peine de re-tester sa logique
+// interne ici.
+//
+// ⚠️ `appConfig.js` (getActivityEmoji) N'EST PLUS mocké ici (08/08,
+// chantier "émoji baké en texte littéral dans le titre") — ce composant
+// ne l'importe plus DU TOUT : l'émoji est désormais du texte ORDINAIRE
+// dans `playlist.name` (baké une fois à la création, voir musicEngine.js/
+// useNavigation.js), plus recalculé à l'affichage.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-
-vi.mock('../../src/appConfig.js', () => ({
-  getActivityEmoji: vi.fn(() => '🏃'),
-}));
 
 vi.mock('../../src/utils/coverArt.js', () => ({
   buildCoverUrl: vi.fn((name) => `generated-cover://${name}`),
