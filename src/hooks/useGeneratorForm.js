@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { STANDARD_GENRES, NAUGHTY_GENRES } from '../musicCatalog';
 import { buildCrescendoSegments, deduceCrescendoBpm } from '../engine/musicEngine';
 import { checkGenreWeightDeviation, equalSplitWeights } from '../engine/genreWeightDeviation';
@@ -270,7 +270,30 @@ export function useGeneratorForm(isNaughtyMode, athleticProfile) {
   // appelée (CustomActivityModal.jsx) mais n'avait jamais été définie ici,
   // ce qui plantait (`TypeError: ... is not a function`) à chaque
   // sauvegarde d'activité personnalisée hors mode Intime.
-  const applyProfileBpmIfUntouched = (activityProfile) => setStructureMode(structureMode, activityProfile);
+  //
+  // ⚠️ RÉFÉRENCE STABLE (08/08, chantier "CustomActivityModal.jsx re-rend à
+  // chaque réglage du wizard") — cette fonction est LE SEUL point d'entrée
+  // de useGeneratorForm() consommé par CustomActivityContext.jsx (Contexte
+  // À PART, low-churn, voir sa docstring). Pour que ce découplage serve à
+  // quelque chose, `applyProfileBpmIfUntouched` doit garder la MÊME
+  // référence d'un rendu à l'autre — sinon la valeur du nouveau Contexte
+  // redeviendrait instable à cause de CE SEUL champ, malgré tout le reste
+  // déjà mémoïsé. `setStructureMode`/`structureMode` changent pourtant à
+  // chaque frappe (ce sont eux les VRAIS coupables du re-render en premier
+  // lieu) — impossible de les mettre en dépendance d'un `useCallback` sans
+  // recréer la fonction à chaque fois. Solution : deux `useRef`, mis à jour
+  // À CHAQUE rendu (simple assignation, pas un Hook, pas de tableau de
+  // dépendances) pour toujours pointer vers la version la PLUS RÉCENTE de
+  // chacun — la fonction elle-même (`useCallback([])`, jamais recréée) les
+  // lit à travers ces refs au moment de l'appel, jamais figée sur une
+  // valeur périmée malgré sa référence stable.
+  const setStructureModeRef = useRef(setStructureMode);
+  setStructureModeRef.current = setStructureMode;
+  const structureModeRef = useRef(structureMode);
+  structureModeRef.current = structureMode;
+  const applyProfileBpmIfUntouched = useCallback((activityProfile) => {
+    setStructureModeRef.current(structureModeRef.current, activityProfile);
+  }, []);
 
   // L'échauffement ne doit jamais dépasser le BPM cible (le curseur de
   // l'étape 3 le borne déjà côté UI), et le retour au calme ne doit jamais
