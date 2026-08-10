@@ -402,3 +402,106 @@ describe('PlaylistDetailView — génération d\'image, résolution des pochette
     captureUtils.fetchImageAsDataUri.mockResolvedValue('data:image/png;base64,mock');
   });
 });
+
+describe('PlaylistDetailView — course "Partager" / changement de playlist en cours de route (régression 10/08)', () => {
+  // Reproduit exactement le scénario trouvé au check-up : ce composant
+  // reste MONTÉ d'une playlist à l'autre (`handleClonePlaylist`,
+  // usePlaylistLibrary.js : "on reste sur la même vue détail, seul l'objet
+  // affiché change") — cliquer "Partager" PUIS changer de playlist AVANT
+  // la fin des allers-retours réseau écrivait auparavant les pochettes de
+  // l'ANCIENNE playlist dans le state après que la NOUVELLE ait déjà été
+  // affichée, et marquait quand même le résultat "prêt" (`ready`),
+  // partageable tel quel. `rerender` avec un `currentPlaylist` différent,
+  // SANS démonter, simule fidèlement ce que fait un vrai clonage/une
+  // ouverture de playlist en place.
+  function createDeferred() {
+    let resolve;
+    const promise = new Promise((r) => { resolve = r; });
+    return { promise, resolve };
+  }
+
+  it('changer de playlist AVANT la fin de la génération empêche d\'appliquer le résultat obsolète (jamais "ready", capture jamais tentée)', async () => {
+    const captureUtils = await import('../../src/utils/captureElementAsFile.js');
+    const setSummaryImageStatus = vi.fn();
+    const deferred = createDeferred();
+    // 1er appel de fetchImageAsDataUri dans generateSummaryImageFile = la
+    // pochette de SÉANCE de pl1 — reste EN ATTENTE le temps de simuler le
+    // changement de playlist ci-dessous (les appels suivants, pour une
+    // AUTRE playlist le cas échéant, retombent sur la résolution
+    // immédiate par défaut du mock).
+    captureUtils.fetchImageAsDataUri.mockImplementationOnce(() => deferred.promise);
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue());
+
+    const { rerender } = render(
+      <PlaylistDetailView {...baseProps({ currentPlaylist: makePlaylist({ id: 'pl1' }), setSummaryImageStatus, summaryImageStatus: 'idle' })} />
+    );
+
+    fireEvent.click(screen.getByText('trigger-share'));
+    await waitFor(() => expect(setSummaryImageStatus).toHaveBeenCalledWith('loading'));
+    setSummaryImageStatus.mockClear();
+
+    // "Cloner" (ou toute autre bascule en place, ex. ouvrir un titre du
+    // profil d'un autre utilisateur) — currentPlaylist passe de pl1 à pl2
+    // SANS démonter ce composant, exactement comme un vrai clonage le fait.
+    rerender(
+      <PlaylistDetailView {...baseProps({ currentPlaylist: makePlaylist({ id: 'pl2' }), setSummaryImageStatus, summaryImageStatus: 'idle' })} />
+    );
+    // Le useEffect de reset (déjà couvert par ailleurs dans ce fichier)
+    // s'est déclenché pour pl2 — comportement inchangé, pas la peine de le
+    // re-vérifier ici en détail.
+    expect(setSummaryImageStatus).toHaveBeenCalledWith('idle');
+    setSummaryImageStatus.mockClear();
+
+    // La génération de pl1, EN ATTENTE depuis le début de ce test, se
+    // termine maintenant — APRÈS le changement de playlist.
+    deferred.resolve('data:image/png;base64,mock-pl1-cover');
+    await new Promise((r) => setTimeout(r, 0));
+
+    // La vraie assertion : la génération abandonnée de pl1 n'a JAMAIS pu
+    // marquer 'ready' (ni 'error') pour la playlist maintenant affichée —
+    // elle s'est arrêtée silencieusement avant.
+    expect(setSummaryImageStatus).not.toHaveBeenCalledWith('ready');
+    expect(setSummaryImageStatus).not.toHaveBeenCalledWith('error');
+    // Encore plus strict : la capture elle-même n'a jamais été tentée — la
+    // génération s'est arrêtée AVANT ce point, pas seulement son résultat
+    // ignoré après coup (aucun risque qu'un bilan mélangeant pl1/pl2 ait
+    // pu exister ne serait-ce que le temps d'un rendu).
+    expect(captureUtils.captureElementAsFile).not.toHaveBeenCalled();
+  });
+
+  it('changer de playlist APRÈS la fin de la génération (résultat déjà obtenu) n\'applique pas non plus le résultat obsolète', async () => {
+    const captureUtils = await import('../../src/utils/captureElementAsFile.js');
+    const setSummaryImageStatus = vi.fn();
+    const setSummaryImageFile = vi.fn();
+    // `captureElementAsFile` (la toute DERNIÈRE étape) reste en attente
+    // cette fois — simule le cas où le changement de playlist survient
+    // pile pendant la capture elle-même, la partie la plus lente
+    // (html2canvas), pas seulement pendant la résolution des pochettes.
+    const deferred = createDeferred();
+    captureUtils.captureElementAsFile.mockImplementationOnce(() => deferred.promise);
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue());
+
+    const { rerender } = render(
+      <PlaylistDetailView {...baseProps({ currentPlaylist: makePlaylist({ id: 'pl1' }), setSummaryImageStatus, setSummaryImageFile, summaryImageStatus: 'idle' })} />
+    );
+
+    fireEvent.click(screen.getByText('trigger-share'));
+    await waitFor(() => expect(setSummaryImageStatus).toHaveBeenCalledWith('loading'));
+    setSummaryImageStatus.mockClear();
+
+    rerender(
+      <PlaylistDetailView {...baseProps({ currentPlaylist: makePlaylist({ id: 'pl2' }), setSummaryImageStatus, setSummaryImageFile, summaryImageStatus: 'idle' })} />
+    );
+    setSummaryImageStatus.mockClear();
+
+    const fakeFile = new File(['x'], 'bilan-obsolete.png');
+    deferred.resolve(fakeFile);
+    await new Promise((r) => setTimeout(r, 0));
+
+    // 2e couche de défense (voir startBackgroundImageGeneration) : même si
+    // un fichier a malgré tout été produit jusqu'au bout, il n'est jamais
+    // appliqué pour une playlist qui n'est plus celle affichée.
+    expect(setSummaryImageFile).not.toHaveBeenCalledWith(fakeFile);
+    expect(setSummaryImageStatus).not.toHaveBeenCalledWith('ready');
+  });
+});
