@@ -1,113 +1,74 @@
-// @vitest-environment jsdom
-//
-// Premier fichier de test pour CustomActivityContext.jsx (nouveau, 08/08 —
-// chantier "CustomActivityModal.jsx re-rend à chaque réglage du wizard").
-// Même principe que AthleticContext.test.jsx : ciblé sur la SEULE chose
-// qui justifie l'existence de ce Contexte, la stabilité référentielle de
-// sa `value` — pas une couverture de la logique métier de
-// `useCustomActivity`/`useGeneratorForm` (déjà testées directement dans
-// leurs propres fichiers).
+import { createContext, useContext, useMemo } from 'react';
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
-import { CustomActivityProvider, useCustomActivityContext } from '../../src/contexts/CustomActivityContext.jsx';
+/**
+ * CustomActivityContext.jsx — extrait de `GeneratorContext.jsx` (08/08,
+ * suite du chantier "value non mémoïsée re-render tout le monde" —
+ * `AthleticContext.jsx` d'abord, ce fichier ensuite pour finir de résoudre
+ * la limite documentée à l'époque : `CustomActivityModal.jsx`, montée
+ * GLOBALEMENT dans App.jsx (pas conditionnée à une vue), continuait de
+ * re-rendre à chaque réglage du wizard à cause d'`applyProfileBpmIfUntouched`
+ * — un champ de `useGeneratorForm()`, donc du même `value` très haute
+ * fréquence que `bpm`/`selectedGenres`/etc.
+ *
+ * DEUX CONDITIONS étaient nécessaires pour que ce découplage serve à
+ * quelque chose, toutes deux réglées AVANT ce fichier (pas ici) :
+ * 1. `applyProfileBpmIfUntouched` (useGeneratorForm.js) rendue
+ *    RÉFÉRENTIELLEMENT STABLE — via `useRef`+`useCallback([])`, elle lit
+ *    `structureMode`/`setStructureMode` à travers des refs mises à jour à
+ *    chaque rendu, plutôt que de les fermer directement (ce qui aurait
+ *    exigé de la recréer à chaque frappe). Voir sa docstring pour le détail.
+ * 2. Le retour de `useCustomActivity()` mémoïsé (`useMemo`) — sinon ce
+ *    hook renvoie un objet neuf à chaque rendu de `GeneratorProvider`
+ *    (peu importe si SES PROPRES champs n'ont pas changé), rendant toute
+ *    mémoïsation en aval inutile.
+ *
+ * Sans CES DEUX préalables, un simple `useMemo` sur la `value` de CE
+ * Contexte n'aurait servi à rien : ses 2 dépendances auraient de toute
+ * façon été de nouvelles références à chaque rendu, recalculant le
+ * `useMemo` à chaque fois — exactement le piège déjà documenté dans
+ * GeneratorContext.jsx pour expliquer pourquoi il n'a jamais été mémoïsé
+ * lui-même.
+ *
+ * Monté à l'INTÉRIEUR de `GeneratorProvider` (pas en frère dans App.jsx,
+ * contrairement à `AthleticContext.jsx`) : `customActivityApi`/
+ * `applyProfileBpmIfUntouched` n'existent QUE dans le corps de
+ * `GeneratorProvider` (retours de `useCustomActivity()`/
+ * `useGeneratorForm()`, appelés là), pas question de les recréer une 2e
+ * fois ailleurs.
+ */
 
-afterEach(() => {
-  cleanup();
-});
+const CustomActivityContext = createContext(null);
 
-function makeCustomActivityApi(overrides = {}) {
-  return {
-    customActivity: '', setCustomActivity: vi.fn(),
-    tempCustomActivity: '', setTempCustomActivity: vi.fn(),
-    isCustomActivityModalOpen: false, setIsCustomActivityModalOpen: vi.fn(),
-    handleOpenCustomActivityModal: vi.fn(),
-    ...overrides,
-  };
+/**
+ * @param {object} customActivityApi - retour MÉMOÏSÉ de useCustomActivity()
+ *   (voir sa docstring)
+ * @param {function} applyProfileBpmIfUntouched - retour STABLE de
+ *   useGeneratorForm() (voir sa docstring)
+ */
+export function CustomActivityProvider({ customActivityApi, applyProfileBpmIfUntouched, children }) {
+  // `useMemo` — SÛR ici (contrairement à GeneratorContext.jsx) : les 2
+  // dépendances sont maintenant stables à la source (voir docstring plus
+  // haut) — ce `useMemo` ne recalcule QUE quand l'une d'elles change
+  // réellement, jamais à cause d'un réglage du wizard sans rapport
+  // (bpm/genres/structure...).
+  const value = useMemo(
+    () => ({ ...customActivityApi, applyProfileBpmIfUntouched }),
+    [customActivityApi, applyProfileBpmIfUntouched],
+  );
+
+  return <CustomActivityContext.Provider value={value}>{children}</CustomActivityContext.Provider>;
 }
 
-const captured = [];
-function Probe() {
-  captured.push(useCustomActivityContext());
-  return null;
+// Fallback silencieux — même convention que les autres contexts du projet.
+const FALLBACK = {
+  customActivity: '', setCustomActivity: () => {},
+  tempCustomActivity: '', setTempCustomActivity: () => {},
+  isCustomActivityModalOpen: false, setIsCustomActivityModalOpen: () => {},
+  handleOpenCustomActivityModal: () => {},
+  applyProfileBpmIfUntouched: () => {},
+};
+
+export function useCustomActivityContext() {
+  const ctx = useContext(CustomActivityContext);
+  return ctx || FALLBACK;
 }
-
-describe('CustomActivityContext — comportement de base', () => {
-  it('useCustomActivityContext() hors Provider renvoie un repli inerte (pas de crash)', () => {
-    captured.length = 0;
-    render(<Probe />);
-    expect(captured[0].isCustomActivityModalOpen).toBe(false);
-    expect(typeof captured[0].applyProfileBpmIfUntouched).toBe('function');
-  });
-
-  it('réexpose tous les champs de customActivityApi ET applyProfileBpmIfUntouched tels quels', () => {
-    captured.length = 0;
-    const customActivityApi = makeCustomActivityApi({ customActivity: 'Escalade' });
-    const applyProfileBpmIfUntouched = vi.fn();
-    render(
-      <CustomActivityProvider customActivityApi={customActivityApi} applyProfileBpmIfUntouched={applyProfileBpmIfUntouched}>
-        <Probe />
-      </CustomActivityProvider>
-    );
-    expect(captured[0].customActivity).toBe('Escalade');
-    expect(captured[0].applyProfileBpmIfUntouched).toBe(applyProfileBpmIfUntouched);
-    expect(captured[0].setCustomActivity).toBe(customActivityApi.setCustomActivity);
-  });
-});
-
-// NOUVEAU — la vraie raison d'être de ce Contexte (voir sa docstring) :
-// sa `value` doit garder la MÊME référence tant que `customActivityApi`/
-// `applyProfileBpmIfUntouched` ne changent pas réellement — condition dont
-// dépend directement le fait que `CustomActivityModal.jsx` (montée
-// globalement dans App.jsx) ne re-rende plus à chaque réglage du wizard.
-describe('CustomActivityContext — stabilité référentielle de la value (useMemo)', () => {
-  it('un re-rendu du Provider avec les MÊMES références (customActivityApi/applyProfileBpmIfUntouched inchangés) renvoie la MÊME value', () => {
-    captured.length = 0;
-    const customActivityApi = makeCustomActivityApi();
-    const applyProfileBpmIfUntouched = vi.fn();
-    const { rerender } = render(
-      <CustomActivityProvider customActivityApi={customActivityApi} applyProfileBpmIfUntouched={applyProfileBpmIfUntouched}>
-        <Probe />
-      </CustomActivityProvider>
-    );
-    rerender(
-      <CustomActivityProvider customActivityApi={customActivityApi} applyProfileBpmIfUntouched={applyProfileBpmIfUntouched}>
-        <Probe />
-      </CustomActivityProvider>
-    );
-    expect(captured.length).toBe(2);
-    expect(captured[1]).toBe(captured[0]);
-  });
-
-  it('customActivityApi qui change de référence (nouvel objet) fait bien recalculer la value', () => {
-    captured.length = 0;
-    const applyProfileBpmIfUntouched = vi.fn();
-    const { rerender } = render(
-      <CustomActivityProvider customActivityApi={makeCustomActivityApi()} applyProfileBpmIfUntouched={applyProfileBpmIfUntouched}>
-        <Probe />
-      </CustomActivityProvider>
-    );
-    rerender(
-      <CustomActivityProvider customActivityApi={makeCustomActivityApi()} applyProfileBpmIfUntouched={applyProfileBpmIfUntouched}>
-        <Probe />
-      </CustomActivityProvider>
-    );
-    expect(captured[1]).not.toBe(captured[0]);
-  });
-
-  it('applyProfileBpmIfUntouched qui change de référence fait bien recalculer la value', () => {
-    captured.length = 0;
-    const customActivityApi = makeCustomActivityApi();
-    const { rerender } = render(
-      <CustomActivityProvider customActivityApi={customActivityApi} applyProfileBpmIfUntouched={vi.fn()}>
-        <Probe />
-      </CustomActivityProvider>
-    );
-    rerender(
-      <CustomActivityProvider customActivityApi={customActivityApi} applyProfileBpmIfUntouched={vi.fn()}>
-        <Probe />
-      </CustomActivityProvider>
-    );
-    expect(captured[1]).not.toBe(captured[0]);
-  });
-});
