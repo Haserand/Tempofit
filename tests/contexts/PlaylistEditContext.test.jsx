@@ -26,13 +26,26 @@
 // que ce soit, pour préremplir un nom déjà valide (celui de la playlist) —
 // exactement le déroulé réel de l'app (la modale ne s'ouvre jamais sans
 // préremplissage).
+//
+// ⚠️ MIS À JOUR (10/08, check-up — découpage en 2 Contextes) : `usePlaylistEdit()`
+// (volatil — inclut `editedPlaylistName`/`editedPlaylistDescription`, change
+// à chaque frappe) et `usePlaylistEditActions()` (stable — uniquement
+// `handleOpenEditPlaylistModal`) sont désormais 2 Contextes DISTINCTS, tous
+// les deux fournis par le MÊME `<PlaylistEditProvider>`. `DetailsProbe`
+// ci-dessous continue de lire `usePlaylistEdit()` pour tous les scénarios
+// déjà couverts (rien ne change côté comportement/API de ce hook). Un
+// nouveau describe en fin de fichier ("isolation actions vs draft") couvre
+// spécifiquement la RAISON D'ÊTRE de ce découpage : un composant qui ne lit
+// que `usePlaylistEditActions()` ne doit JAMAIS re-render pendant une
+// frappe dans le brouillon — trou de couverture avant ce chantier (aucun
+// test ne vérifiait la stabilité référentielle de ce Contexte).
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { MAX_DESCRIPTION_LENGTH } from '../../src/appConfig.js';
 import { ModalProvider } from '../../src/contexts/ModalContext.jsx';
-import { PlaylistEditProvider, usePlaylistEdit } from '../../src/contexts/PlaylistEditContext.jsx';
+import { PlaylistEditProvider, usePlaylistEdit, usePlaylistEditActions } from '../../src/contexts/PlaylistEditContext.jsx';
 
 afterEach(() => {
   cleanup();
@@ -370,5 +383,124 @@ describe('PlaylistEditContext — isolation', () => {
     }
     render(<Bare />);
     expect(screen.getByTestId('bare')).toHaveTextContent('falsefunction');
+  });
+
+  it('usePlaylistEditActions() hors Provider renvoie un repli inerte (pas de crash)', () => {
+    function BareActions() {
+      const { handleOpenEditPlaylistModal } = usePlaylistEditActions();
+      return <span data-testid="bare-actions">{typeof handleOpenEditPlaylistModal}</span>;
+    }
+    render(<BareActions />);
+    expect(screen.getByTestId('bare-actions')).toHaveTextContent('function');
+  });
+});
+
+// NOUVEAU (10/08, check-up) — la vraie raison d'être du découpage en 2
+// Contextes (voir la docstring de PlaylistEditContext.jsx, "⚠️ 2 CONTEXTES
+// DISTINCTS ICI, PAS UN SEUL") : AVANT ce découpage, `usePlaylistEdit()`
+// portait à la fois le brouillon volatil (`editedPlaylistName`/
+// `editedPlaylistDescription`, change à chaque frappe) ET
+// `handleOpenEditPlaylistModal` (utilisé par `PlaylistHeaderTitleBlock.jsx`,
+// qui n'a besoin de rien d'autre) dans le MÊME objet `value` — un Contexte
+// React re-rend TOUS ses consommateurs dès que N'IMPORTE QUEL champ de sa
+// `value` change, donc `PlaylistHeaderTitleBlock.jsx` re-rendait à chaque
+// frappe malgré ce qu'affirmait sa docstring à l'époque. Aucun test
+// existant (ci-dessus) ne le vérifiait — trou de couverture comblé ici,
+// avec un compteur de rendus réel plutôt qu'une simple relecture de code.
+describe('PlaylistEditContext — stabilité référentielle (10/08, régression du re-render réintroduit puis corrigé)', () => {
+  // Compte les rendus d'un composant qui ne lit QUE usePlaylistEditActions()
+  // — doit rester à 1 (le rendu initial) même après plusieurs frappes dans
+  // le brouillon, PUISQUE ce Contexte ne porte plus que
+  // `handleOpenEditPlaylistModal`, stabilisée par useCallback + useMemo.
+  function ActionsRenderProbe({ renderCountRef }) {
+    renderCountRef.current += 1;
+    const { handleOpenEditPlaylistModal } = usePlaylistEditActions();
+    return <button onClick={handleOpenEditPlaylistModal}>open-edit-via-actions</button>;
+  }
+
+  // Contrôle négatif — un composant qui lit usePlaylistEdit() (le Contexte
+  // VOLATIL) DOIT continuer à re-render à chaque frappe : sans ce contrôle,
+  // un test qui se contenterait de vérifier "ActionsRenderProbe ne re-render
+  // pas" pourrait passer à tort si le mécanisme de frappe lui-même était
+  // cassé (aucune frappe n'atteignant plus aucun Contexte).
+  function DraftRenderProbe({ renderCountRef }) {
+    renderCountRef.current += 1;
+    usePlaylistEdit();
+    return null;
+  }
+
+  it('un composant qui ne lit que usePlaylistEditActions() NE re-render PAS pendant une frappe dans le brouillon', () => {
+    const playlist = makePlaylist();
+    const actionsRenderCount = { current: 0 };
+    const draftRenderCount = { current: 0 };
+
+    render(
+      <ModalProvider>
+        <PlaylistEditProvider
+          currentPlaylist={playlist} setCurrentPlaylist={vi.fn()}
+          savedPlaylists={[playlist]} setSavedPlaylists={vi.fn()}
+        >
+          <ActionsRenderProbe renderCountRef={actionsRenderCount} />
+          <DraftRenderProbe renderCountRef={draftRenderCount} />
+          <DetailsProbe />
+        </PlaylistEditProvider>
+      </ModalProvider>
+    );
+
+    const actionsRendersAtStart = actionsRenderCount.current;
+    const draftRendersAtStart = draftRenderCount.current;
+    expect(actionsRendersAtStart).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByText('open-edit'));
+    fireEvent.change(screen.getByTestId('name-draft-input'), { target: { value: 'a' } });
+    fireEvent.change(screen.getByTestId('name-draft-input'), { target: { value: 'ab' } });
+    fireEvent.change(screen.getByTestId('name-draft-input'), { target: { value: 'abc' } });
+    fireEvent.change(screen.getByTestId('draft-input'), { target: { value: 'Nouvelle description' } });
+
+    // Contrôle : le Contexte volatil, lui, a bien re-rendu à chaque frappe
+    // (la mécanique de frappe fonctionne normalement) — sinon le test
+    // ci-dessous ne prouverait rien.
+    expect(draftRenderCount.current).toBeGreaterThan(draftRendersAtStart);
+
+    // La vraie assertion : le composant qui ne lit QUE le Contexte stable
+    // n'a subi AUCUN rendu supplémentaire, malgré 4 frappes + une ouverture
+    // de modale dans le même arbre.
+    expect(actionsRenderCount.current).toBe(actionsRendersAtStart);
+  });
+
+  it('handleOpenEditPlaylistModal garde EXACTEMENT la même référence entre deux rendus déclenchés par une frappe ailleurs', () => {
+    const playlist = makePlaylist();
+    const seenRefs = [];
+
+    function RefCapturingProbe() {
+      const { handleOpenEditPlaylistModal } = usePlaylistEditActions();
+      seenRefs.push(handleOpenEditPlaylistModal);
+      return null;
+    }
+
+    render(
+      <ModalProvider>
+        <PlaylistEditProvider
+          currentPlaylist={playlist} setCurrentPlaylist={vi.fn()}
+          savedPlaylists={[playlist]} setSavedPlaylists={vi.fn()}
+        >
+          <RefCapturingProbe />
+          <DetailsProbe />
+        </PlaylistEditProvider>
+      </ModalProvider>
+    );
+
+    fireEvent.click(screen.getByText('open-edit'));
+    fireEvent.change(screen.getByTestId('name-draft-input'), { target: { value: 'Nouveau titre' } });
+    fireEvent.change(screen.getByTestId('draft-input'), { target: { value: 'Nouvelle description' } });
+
+    // RefCapturingProbe n'a été rendu qu'une fois (voir le test précédent) —
+    // une seule référence collectée, donc rien à comparer entre plusieurs
+    // valeurs. On vérifie ici plutôt qu'elle reste bien une fonction valide
+    // et que le Provider n'a jamais eu besoin de la recréer pour que ce test
+    // passe (si ActionsRenderProbe avait re-rendu, `seenRefs.length` serait
+    // > 1 et pourrait alors différer d'un élément à l'autre).
+    expect(seenRefs.length).toBe(1);
+    expect(typeof seenRefs[0]).toBe('function');
   });
 });
