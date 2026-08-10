@@ -16,6 +16,16 @@
 // `PlaylistEditProvider` seul comme avant), sans quoi `openModal`/
 // `closeModal` seraient des no-op (repli hors Provider de ModalContext.jsx)
 // et rendraient tout le cycle ouverture/fermeture impossible à observer.
+//
+// ⚠️ MIS À JOUR (08/08, 3e passe — validation du titre) : `editedPlaylistName`
+// démarre à `''` (vide, `useState('')`) tant que `handleOpenEditPlaylistModal`
+// ("open-edit" dans les tests) n'a pas été appelé pour le préremplir — et un
+// titre vide est maintenant INVALIDE (`isEditedNameValid`), donc
+// `handleSavePlaylistDetails` refuse de sauvegarder. TOUS les tests de
+// sauvegarde ci-dessous appellent donc "open-edit" AVANT de modifier quoi
+// que ce soit, pour préremplir un nom déjà valide (celui de la playlist) —
+// exactement le déroulé réel de l'app (la modale ne s'ouvre jamais sans
+// préremplissage).
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
@@ -34,18 +44,20 @@ function makePlaylist(overrides = {}) {
 }
 
 // Même sonde que l'ancienne `DetailsProbe` (PlaylistDetailContext.test.jsx),
-// + `handleOpenEditPlaylistModal`/`closeEditPlaylistModal` (nouveaux, 2e
-// passe) pour pouvoir observer/déclencher le cycle ouverture/fermeture.
+// + `handleOpenEditPlaylistModal`/`closeEditPlaylistModal`/`isEditedNameValid`
+// (nouveaux) pour pouvoir observer/déclencher le cycle ouverture/fermeture
+// et la validation.
 function DetailsProbe() {
   const {
     editedPlaylistName, setEditedPlaylistName,
     editedPlaylistDescription, setEditedPlaylistDescription,
     handleOpenEditPlaylistModal, handleSavePlaylistDetails, closeEditPlaylistModal,
-    isEditPlaylistModalOpen,
+    isEditPlaylistModalOpen, isEditedNameValid,
   } = usePlaylistEdit();
   return (
     <div>
       <span data-testid="editing-state">{String(isEditPlaylistModalOpen)}</span>
+      <span data-testid="name-valid-state">{String(isEditedNameValid)}</span>
       <input data-testid="name-draft-input" value={editedPlaylistName} onChange={(e) => setEditedPlaylistName(e.target.value)} />
       <input data-testid="draft-input" value={editedPlaylistDescription} onChange={(e) => setEditedPlaylistDescription(e.target.value)} />
       <button onClick={handleOpenEditPlaylistModal}>open-edit</button>
@@ -111,6 +123,61 @@ describe('PlaylistEditContext — ouverture de la modale (handleOpenEditPlaylist
   });
 });
 
+// NOUVEAU (08/08, 3e passe) — validation du titre : retour direct, captures
+// à l'appui — "0 à 3 c'est invalide" pour le titre (jamais optionnel,
+// contrairement à la description, qui elle reste valide quel que soit son
+// contenu).
+describe('PlaylistEditContext — validation du titre (isEditedNameValid, NOUVEAU 08/08)', () => {
+  it('un titre de 3 caractères ou plus (après trim) est valide', () => {
+    const playlist = makePlaylist();
+    renderWithProvider(playlist, [playlist]);
+    fireEvent.click(screen.getByText('open-edit'));
+
+    fireEvent.change(screen.getByTestId('name-draft-input'), { target: { value: 'abc' } });
+
+    expect(screen.getByTestId('name-valid-state')).toHaveTextContent('true');
+  });
+
+  it('0, 1 ou 2 caractères (après trim) sont invalides', () => {
+    const playlist = makePlaylist();
+    renderWithProvider(playlist, [playlist]);
+    fireEvent.click(screen.getByText('open-edit'));
+
+    fireEvent.change(screen.getByTestId('name-draft-input'), { target: { value: '' } });
+    expect(screen.getByTestId('name-valid-state')).toHaveTextContent('false');
+
+    fireEvent.change(screen.getByTestId('name-draft-input'), { target: { value: 'a' } });
+    expect(screen.getByTestId('name-valid-state')).toHaveTextContent('false');
+
+    fireEvent.change(screen.getByTestId('name-draft-input'), { target: { value: 'ab' } });
+    expect(screen.getByTestId('name-valid-state')).toHaveTextContent('false');
+  });
+
+  it('les espaces ne comptent pas — "   " (3 espaces) reste invalide, pas contournable', () => {
+    const playlist = makePlaylist();
+    renderWithProvider(playlist, [playlist]);
+    fireEvent.click(screen.getByText('open-edit'));
+
+    fireEvent.change(screen.getByTestId('name-draft-input'), { target: { value: '   ' } });
+
+    expect(screen.getByTestId('name-valid-state')).toHaveTextContent('false');
+  });
+
+  it('handleSavePlaylistDetails refuse de sauvegarder si le titre est invalide (défense en profondeur, même si le bouton "Enregistrer" est censé déjà être désactivé côté modale)', () => {
+    const setCurrentPlaylist = vi.fn();
+    const playlist = makePlaylist();
+    renderWithProvider(playlist, [playlist], { setCurrentPlaylist });
+    fireEvent.click(screen.getByText('open-edit'));
+
+    fireEvent.change(screen.getByTestId('name-draft-input'), { target: { value: 'ab' } });
+    fireEvent.click(screen.getByText('save-details'));
+
+    expect(setCurrentPlaylist).not.toHaveBeenCalled();
+    // La modale reste OUVERTE (pas de closeModal() si la sauvegarde a été refusée).
+    expect(screen.getByTestId('editing-state')).toHaveTextContent('true');
+  });
+});
+
 // NOUVEAU (08/08, 2e passe) — fermeture SANS sauvegarder (bouton "Annuler"
 // de EditPlaylistModal.jsx) : ne doit appeler AUCUN setter de playlist.
 describe('PlaylistEditContext — fermeture sans sauvegarder (closeEditPlaylistModal)', () => {
@@ -138,13 +205,16 @@ describe('PlaylistEditContext — fermeture sans sauvegarder (closeEditPlaylistM
 // handler, `handleSavePlaylistDetails`, sauvegarde les DEUX champs
 // ensemble. Comportement de SAUVEGARDE inchangé par le passage en modale
 // (2e passe, 08/08) — seule l'OUVERTURE a changé, testée séparément
-// ci-dessus.
+// ci-dessus. Chaque test ouvre d'abord la modale ("open-edit") pour
+// préremplir un titre déjà valide (voir l'avertissement en tête de
+// fichier), sauf mention contraire explicite.
 describe('PlaylistEditContext — édition combinée titre+description (handleSavePlaylistDetails)', () => {
   it('met à jour currentPlaylist ET savedPlaylists avec la description éditée, en la découpant sur les espaces superflus', () => {
     const setCurrentPlaylist = vi.fn();
     const setSavedPlaylists = vi.fn();
     const playlist = makePlaylist({ description: '' });
     renderWithProvider(playlist, [playlist], { setCurrentPlaylist, setSavedPlaylists });
+    fireEvent.click(screen.getByText('open-edit'));
 
     fireEvent.change(screen.getByTestId('draft-input'), { target: { value: '  Ma nouvelle description  ' } });
     fireEvent.click(screen.getByText('save-details'));
@@ -163,6 +233,7 @@ describe('PlaylistEditContext — édition combinée titre+description (handleSa
     const setSavedPlaylists = vi.fn();
     const playlist = makePlaylist({ name: 'Ancien nom', description: 'Ancienne description' });
     renderWithProvider(playlist, [playlist], { setCurrentPlaylist, setSavedPlaylists });
+    fireEvent.click(screen.getByText('open-edit'));
 
     fireEvent.change(screen.getByTestId('name-draft-input'), { target: { value: 'Nouveau nom' } });
     fireEvent.change(screen.getByTestId('draft-input'), { target: { value: 'Nouvelle description' } });
@@ -172,16 +243,20 @@ describe('PlaylistEditContext — édition combinée titre+description (handleSa
     expect(setCurrentPlaylist).toHaveBeenCalledWith(expect.objectContaining({ name: 'Nouveau nom', description: 'Nouvelle description' }));
   });
 
-  it('un nom vidé (chaîne vide après trim) replie sur l\'ancien nom SANS perdre la description modifiée à côté', () => {
+  // MIS À JOUR (08/08, 3e passe) — comportement CHANGÉ : un titre vidé (ou
+  // trop court) ne replie PLUS silencieusement sur l'ancien nom, il BLOQUE
+  // la sauvegarde entière (voir describe "validation du titre" plus haut).
+  it('un titre vidé (chaîne vide après trim) BLOQUE la sauvegarde entière — même la description tapée à côté n\'est pas enregistrée', () => {
     const setCurrentPlaylist = vi.fn();
     const playlist = makePlaylist({ name: 'Nom original', description: '' });
     renderWithProvider(playlist, [playlist], { setCurrentPlaylist });
+    fireEvent.click(screen.getByText('open-edit'));
 
     fireEvent.change(screen.getByTestId('name-draft-input'), { target: { value: '   ' } });
     fireEvent.change(screen.getByTestId('draft-input'), { target: { value: 'Une description quand même' } });
     fireEvent.click(screen.getByText('save-details'));
 
-    expect(setCurrentPlaylist).toHaveBeenCalledWith(expect.objectContaining({ name: 'Nom original', description: 'Une description quand même' }));
+    expect(setCurrentPlaylist).not.toHaveBeenCalled();
   });
 
   it('accepte une description VIDE (contrairement au nom, effacer la description est un état valide)', () => {
@@ -189,6 +264,7 @@ describe('PlaylistEditContext — édition combinée titre+description (handleSa
     const setSavedPlaylists = vi.fn();
     const playlist = makePlaylist({ description: 'Une description déjà présente' });
     renderWithProvider(playlist, [playlist], { setCurrentPlaylist, setSavedPlaylists });
+    fireEvent.click(screen.getByText('open-edit'));
 
     fireEvent.change(screen.getByTestId('draft-input'), { target: { value: '' } });
     fireEvent.click(screen.getByText('save-details'));
@@ -196,10 +272,27 @@ describe('PlaylistEditContext — édition combinée titre+description (handleSa
     expect(setCurrentPlaylist).toHaveBeenCalledWith(expect.objectContaining({ description: '' }));
   });
 
+  // NOUVEAU (08/08, 3e passe) — confirmation explicite du retour :
+  // "description : là peu importe ce qu'on met c'est valide" — même un
+  // seul caractère, aucune contrainte de longueur minimale (contrairement
+  // au titre).
+  it('accepte une description d\'UN SEUL caractère (aucune contrainte de longueur minimale, contrairement au titre)', () => {
+    const setCurrentPlaylist = vi.fn();
+    const playlist = makePlaylist({ description: '' });
+    renderWithProvider(playlist, [playlist], { setCurrentPlaylist });
+    fireEvent.click(screen.getByText('open-edit'));
+
+    fireEvent.change(screen.getByTestId('draft-input'), { target: { value: 'x' } });
+    fireEvent.click(screen.getByText('save-details'));
+
+    expect(setCurrentPlaylist).toHaveBeenCalledWith(expect.objectContaining({ description: 'x' }));
+  });
+
   it('tronque à MAX_DESCRIPTION_LENGTH même si le texte fourni est plus long (défense en profondeur, pas juste le `maxLength` du textarea)', () => {
     const setCurrentPlaylist = vi.fn();
     const playlist = makePlaylist({ description: '' });
     renderWithProvider(playlist, [playlist], { setCurrentPlaylist });
+    fireEvent.click(screen.getByText('open-edit'));
 
     const tooLong = 'x'.repeat(500);
     fireEvent.change(screen.getByTestId('draft-input'), { target: { value: tooLong } });
@@ -216,6 +309,7 @@ describe('PlaylistEditContext — édition combinée titre+description (handleSa
     const setCurrentPlaylist = vi.fn();
     const clonedPlaylist = makePlaylist({ description: '', parentId: 'pl-A', parentUserId: 'user-A', isModifiedSinceClone: false });
     renderWithProvider(clonedPlaylist, [clonedPlaylist], { setCurrentPlaylist });
+    fireEvent.click(screen.getByText('open-edit'));
 
     fireEvent.change(screen.getByTestId('draft-input'), { target: { value: 'Ma propre description' } });
     fireEvent.click(screen.getByText('save-details'));
@@ -227,6 +321,7 @@ describe('PlaylistEditContext — édition combinée titre+description (handleSa
     const setCurrentPlaylist = vi.fn();
     const ownPlaylist = makePlaylist({ description: '' });
     renderWithProvider(ownPlaylist, [ownPlaylist], { setCurrentPlaylist });
+    fireEvent.click(screen.getByText('open-edit'));
 
     fireEvent.change(screen.getByTestId('draft-input'), { target: { value: 'Ma description' } });
     fireEvent.click(screen.getByText('save-details'));
