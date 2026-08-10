@@ -9,13 +9,15 @@
 // uniquement "étant donné ownerLabel=X, le rendu/l'interaction sont
 // corrects" — pas d'où X vient.
 //
-// ⚠️ `usePlaylistEdit()` MOCKÉ (08/08, chantier "value non mémoïsée
-// re-render tout le monde à chaque frappe" — voir la docstring de
-// PlaylistEditContext.jsx) : `isEditingPlaylistDetails`/
-// `editedPlaylistName`/`editedPlaylistDescription`/
-// `handleSavePlaylistDetails` ne sont PLUS des props de ce composant,
-// il les lit directement via ce Contexte — même pattern de mock que
-// `usePlaylistDetail()` dans PlaylistHeader.test.jsx.
+// ⚠️ `usePlaylistEdit()` MOCKÉ — ce composant lit `handleOpenEditPlaylistModal`
+// directement via ce Contexte plutôt qu'en prop (même pattern de mock que
+// `usePlaylistDetail()` dans PlaylistHeader.test.jsx). DEPUIS LE 08/08 (2e
+// passe, "édition passée en modale") : ce composant ne rend PLUS aucun
+// formulaire — le crayon appelle juste `handleOpenEditPlaylistModal()`
+// (PlaylistEditContext.jsx), qui ouvre `EditPlaylistModal.jsx` ailleurs
+// dans l'arbre (voir PlaylistDetailView.jsx). Le comportement du
+// formulaire lui-même (Entrée/Échap/Enregistrer/Annuler) est donc testé
+// dans EditPlaylistModal.test.jsx désormais, pas ici.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
@@ -63,10 +65,7 @@ function baseProps(overrides = {}) {
 
 function makeEditValue(overrides = {}) {
   return {
-    isEditingPlaylistDetails: false, setIsEditingPlaylistDetails: vi.fn(),
-    editedPlaylistName: '', setEditedPlaylistName: vi.fn(),
-    editedPlaylistDescription: '', setEditedPlaylistDescription: vi.fn(),
-    handleSavePlaylistDetails: vi.fn(),
+    handleOpenEditPlaylistModal: vi.fn(),
     ...overrides,
   };
 }
@@ -122,21 +121,17 @@ describe('PlaylistHeaderTitleBlock — ligne pseudo + compteur de clonages', () 
   });
 });
 
-describe('PlaylistHeaderTitleBlock — titre/description (édition fusionnée)', () => {
-  it('le crayon (unique) n\'apparaît que si isSaved=true, cliquer préremplit les 2 brouillons et ouvre l\'édition combinée', () => {
-    const setEditedPlaylistName = vi.fn();
-    const setEditedPlaylistDescription = vi.fn();
-    const setIsEditingPlaylistDetails = vi.fn();
-    mockUsePlaylistEdit.mockReturnValue(makeEditValue({ setEditedPlaylistName, setEditedPlaylistDescription, setIsEditingPlaylistDetails }));
+describe('PlaylistHeaderTitleBlock — titre/description (crayon → ouverture de la modale)', () => {
+  it('le crayon (unique) n\'apparaît que si isSaved=true, cliquer appelle handleOpenEditPlaylistModal', () => {
+    const handleOpenEditPlaylistModal = vi.fn();
+    mockUsePlaylistEdit.mockReturnValue(makeEditValue({ handleOpenEditPlaylistModal }));
     render(<PlaylistHeaderTitleBlock {...baseProps({
       isSaved: true, currentPlaylist: makePlaylist({ description: 'Description existante' }),
     })} />);
 
     fireEvent.click(screen.getByTitle('Modifier le titre et la description'));
 
-    expect(setEditedPlaylistName).toHaveBeenCalledWith('Ma Séance');
-    expect(setEditedPlaylistDescription).toHaveBeenCalledWith('Description existante');
-    expect(setIsEditingPlaylistDetails).toHaveBeenCalledWith(true);
+    expect(handleOpenEditPlaylistModal).toHaveBeenCalledTimes(1);
   });
 
   it('pas de crayon quand isSaved=false', () => {
@@ -151,52 +146,16 @@ describe('PlaylistHeaderTitleBlock — titre/description (édition fusionnée)',
     expect(screen.queryByTitle('Modifier le titre et la description')).not.toBeInTheDocument();
   });
 
-  it('en édition combinée : Entrée dans le champ NOM valide (handleSavePlaylistDetails), Échap annule', () => {
-    const handleSavePlaylistDetails = vi.fn();
-    const setIsEditingPlaylistDetails = vi.fn();
-    mockUsePlaylistEdit.mockReturnValue(makeEditValue({
-      isEditingPlaylistDetails: true, editedPlaylistName: 'Nouveau nom', handleSavePlaylistDetails, setIsEditingPlaylistDetails,
-    }));
-    render(<PlaylistHeaderTitleBlock {...baseProps()} />);
-
-    const input = screen.getByDisplayValue('Nouveau nom');
-    fireEvent.keyDown(input, { key: 'Enter' });
-    expect(handleSavePlaylistDetails).toHaveBeenCalled();
-
-    fireEvent.keyDown(input, { key: 'Escape' });
-    expect(setIsEditingPlaylistDetails).toHaveBeenCalledWith(false);
-  });
-
-  it('en édition combinée : Échap dans le champ DESCRIPTION annule aussi (Entrée y insère juste un retour à la ligne, ne soumet rien)', () => {
-    const handleSavePlaylistDetails = vi.fn();
-    const setIsEditingPlaylistDetails = vi.fn();
-    mockUsePlaylistEdit.mockReturnValue(makeEditValue({
-      isEditingPlaylistDetails: true, editedPlaylistDescription: 'Brouillon', handleSavePlaylistDetails, setIsEditingPlaylistDetails,
-    }));
-    render(<PlaylistHeaderTitleBlock {...baseProps()} />);
-
-    const textarea = screen.getByPlaceholderText(/Ajoute une description/);
-    fireEvent.keyDown(textarea, { key: 'Enter' });
-    expect(handleSavePlaylistDetails).not.toHaveBeenCalled();
-
-    fireEvent.keyDown(textarea, { key: 'Escape' });
-    expect(setIsEditingPlaylistDetails).toHaveBeenCalledWith(false);
-  });
-
-  it('en édition combinée : "Enregistrer" appelle handleSavePlaylistDetails, "Annuler" ferme sans l\'appeler', () => {
-    const handleSavePlaylistDetails = vi.fn();
-    const setIsEditingPlaylistDetails = vi.fn();
-    mockUsePlaylistEdit.mockReturnValue(makeEditValue({
-      isEditingPlaylistDetails: true, editedPlaylistDescription: 'Brouillon', handleSavePlaylistDetails, setIsEditingPlaylistDetails,
-    }));
-    render(<PlaylistHeaderTitleBlock {...baseProps()} />);
-
-    fireEvent.click(screen.getByText('Annuler'));
-    expect(setIsEditingPlaylistDetails).toHaveBeenCalledWith(false);
-    expect(handleSavePlaylistDetails).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByText('Enregistrer'));
-    expect(handleSavePlaylistDetails).toHaveBeenCalled();
+  // NON-RÉGRESSION (08/08, 2e passe) — ce composant ne rend plus AUCUN
+  // formulaire d'édition inline (input titre, textarea description,
+  // boutons Enregistrer/Annuler) : tout ça vit maintenant dans
+  // EditPlaylistModal.jsx, testé séparément.
+  it('aucun formulaire d\'édition inline (input titre/textarea description/Enregistrer/Annuler) n\'est rendu ici', () => {
+    mockUsePlaylistEdit.mockReturnValue(makeEditValue());
+    render(<PlaylistHeaderTitleBlock {...baseProps({ isSaved: true })} />);
+    expect(screen.queryByPlaceholderText(/Ajoute une description/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Enregistrer')).not.toBeInTheDocument();
+    expect(screen.queryByText('Annuler')).not.toBeInTheDocument();
   });
 
   it('aucune invite "+ Ajouter une description" séparée n\'existe (retirée le 08/08, non-régression)', () => {
