@@ -82,18 +82,24 @@ describe('useGeneratorForm — applyProfileBpmIfUntouched, stabilité référent
 
   it('mais lit bien le structureMode ACTUEL au moment de l\'appel — pas figée sur "constant" du 1er rendu', () => {
     const { result } = renderForm();
-    // Bascule en mode crescendo AVANT d'appeler la fonction stable.
-    act(() => { result.current.setStructureMode('crescendo'); });
-    // `crescendoWarmupBpm` vaut `null` tant que le mode crescendo n'a
-    // jamais amorcé son seed — un signal fiable que la branche crescendo
-    // de `setStructureMode` a bien tourné (donc que `structureMode` lu
-    // au moment de l'appel était bien 'crescendo', pas 'constant').
-    expect(result.current.crescendoWarmupBpm).toBeNull();
+    const profile = { isConfigured: true, zone1: 100, zone2: 150, zone3: 165, zone4: 180 };
 
-    act(() => {
-      result.current.applyProfileBpmIfUntouched({ isConfigured: true, zone1: 100, zone2: 150, zone3: 165, zone4: 180 });
-    });
+    // En mode 'constant' (par défaut), un profil configuré + BPM jamais
+    // touché manuellement active bpmSourceIsProfile (voir setStructureMode,
+    // branche `mode === 'constant'`).
+    act(() => { result.current.applyProfileBpmIfUntouched(profile); });
+    expect(result.current.bpmSourceIsProfile).toBe(true);
 
-    expect(result.current.crescendoWarmupBpm).not.toBeNull();
+    // Bascule en mode 'interval' (Fractionné) — sa branche (le `else` de
+    // setStructureMode) met INCONDITIONNELLEMENT bpmSourceIsProfile à
+    // false, peu importe le profil. Si `applyProfileBpmIfUntouched` lisait
+    // encore 'constant' (figée sur le 1er rendu plutôt que lue à travers
+    // le ref), bpmSourceIsProfile resterait `true` ici — c'est ce signal,
+    // pas `crescendoWarmupBpm` (qui se réamorce dès l'entrée en mode
+    // crescendo, profil ou non, et ne permet donc pas de distinguer les
+    // deux cas), qui prouve que le state lu est bien le plus récent.
+    act(() => { result.current.setStructureMode('interval'); });
+    act(() => { result.current.applyProfileBpmIfUntouched(profile); });
+    expect(result.current.bpmSourceIsProfile).toBe(false);
   });
 });
