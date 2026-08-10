@@ -137,4 +137,10 @@ describe('Garde-fou anti-régression : les Context Providers exportent bien ce q
     expect(typeof m.AthleticProvider).toBe('function');
     expect(typeof m.useAthleticContext).toBe('function');
   });
+
+  it('CustomActivityContext.jsx exporte CustomActivityProvider et useCustomActivityContext (fonctions)', async () => {
+    const m = await import('../src/contexts/CustomActivityContext.jsx');
+    expect(typeof m.CustomActivityProvider).toBe('function');
+    expect(typeof m.useCustomActivityContext).toBe('function');
+  });
 });
