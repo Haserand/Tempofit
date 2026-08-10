@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deduceCrescendoBpm, buildCrescendoSegments, pickByDurationProximity, recalculateTimeline } from '../../src/engine/musicEngine.js';
+import { deduceCrescendoBpm, buildCrescendoSegments, pickByDurationProximity, recalculateTimeline, buildGeneratedPlaylistName } from '../../src/engine/musicEngine.js';
 
 /**
  * musicEngine.test.js — sécurise le cœur du moteur de génération : dérivation
@@ -105,5 +105,42 @@ describe('recalculateTimeline', () => {
   it('startDistVal est un NOMBRE, jamais une chaîne (régression documentée : cassait l\'axe Distance du graphique)', () => {
     const result = recalculateTimeline({ tracks: [{ duration: 300 }], crossfade: 0, avgPace: 330 });
     expect(typeof result.tracks[0].startDistVal).toBe('number');
+  });
+});
+
+// NOUVEAU (08/08, chantier "émoji baké en texte littéral dans le titre") —
+// extraite de `createPlaylistData` (async, appels réseau Deezer, non
+// testable en isolation) pour pouvoir tester CE calcul précis sans mock
+// réseau. Voir sa docstring pour le raisonnement produit complet.
+describe('buildGeneratedPlaylistName', () => {
+  it('préfixe le nom généré avec l\'émoji correspondant à finalWorkoutName', () => {
+    const name = buildGeneratedPlaylistName({ isCrescendoMode: false, isIntervalMode: false }, false, 'Course à pied');
+    expect(name).toBe('🏃 Session Course à pied');
+  });
+
+  it('replie sur l\'émoji par défaut (🎧) pour une activité personnalisée non reconnue', () => {
+    const name = buildGeneratedPlaylistName({ isCrescendoMode: false, isIntervalMode: false }, false, 'Escalade');
+    expect(name).toBe('🎧 Session Escalade');
+  });
+
+  it('mode Crescendo : "Crescendo : {activité}"', () => {
+    const name = buildGeneratedPlaylistName({ isCrescendoMode: true, isIntervalMode: true }, false, 'Cyclisme');
+    expect(name).toContain('Crescendo : Cyclisme');
+  });
+
+  it('mode Fractionné (pas Crescendo) : "Fractionné : {activité}"', () => {
+    const name = buildGeneratedPlaylistName({ isCrescendoMode: false, isIntervalMode: true }, false, 'Cyclisme');
+    expect(name).toContain('Fractionné : Cyclisme');
+  });
+
+  it('Mode Intime : "Moment Intime", peu importe le reste de la config', () => {
+    const name = buildGeneratedPlaylistName({ isCrescendoMode: false, isIntervalMode: false }, true, 'Ambiance');
+    expect(name).toContain('Moment Intime');
+  });
+
+  it('génération depuis une routine : "Depuis : {nom de la routine}" prime sur tout le reste', () => {
+    const name = buildGeneratedPlaylistName({ isCrescendoMode: true, isIntervalMode: true, routineName: 'Mon 5km' }, false, 'Course à pied');
+    expect(name).toContain('Depuis : Mon 5km');
+    expect(name).not.toContain('Crescendo');
   });
 });
