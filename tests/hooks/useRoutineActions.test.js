@@ -14,13 +14,20 @@ import { useRoutineActions } from '../../src/hooks/useRoutineActions.js';
 
 vi.mock('../../src/contexts/GeneratorContext.jsx', () => ({
   useGeneratorContext: () => ({
-    workoutType: 'Course à pied', customActivity: '', isIntervalMode: false, isCrescendoMode: false, bpm: 150,
+    workoutType: 'Course à pied', isIntervalMode: false, isCrescendoMode: false, bpm: 150,
     crescendoWarmupPct: 0, crescendoCooldownPct: 0, crescendoWarmupBpm: 0, crescendoCooldownBpm: 0,
     targetMode: 'time', distanceVal: 0, distanceUnit: 'km', paceMin: 0, paceSec: 0, hours: 0, minutes: 30,
     selectedGenres: ['Rock'], bpmTolerance: 10, crossfade: 2, allowLongTracks: false, genreWeights: {}, segments: [],
     setBpm: vi.fn(), setBpmTolerance: vi.fn(), setSelectedGenres: vi.fn(), setGenreWeights: vi.fn(), setLockedGenreWeights: vi.fn(),
     setTargetMode: vi.fn(), setCrossfade: vi.fn(),
   }),
+}));
+
+// `useCustomActivityContext()` (08/08, 2e passe) — `customActivity` ne
+// vient plus de `useGeneratorContext()` (voir la docstring de
+// CustomActivityContext.jsx).
+vi.mock('../../src/contexts/CustomActivityContext.jsx', () => ({
+  useCustomActivityContext: () => ({ customActivity: '' }),
 }));
 
 const mockCloseModal = vi.fn();
