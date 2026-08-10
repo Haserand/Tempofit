@@ -29,6 +29,26 @@ import { useAudioPreview } from '../hooks/useAudioPreview';
  *
  * Conséquence : `useToast()` lui-même doit remonter dans le composant racine
  * `App` (comme `useAthleticProfile()` avant lui) — voir App.jsx.
+ *
+ * ⚠️ DEPUIS LE 08/08 (chantier "value non mémoïsée re-render tout le
+ * monde" — suite de GeneratorContext.jsx/AthleticContext.jsx/
+ * CustomActivityContext.jsx) : `useAudioPreview.js` renvoie maintenant un
+ * objet MÉMOÏSÉ (`useMemo`), donc `audioPlayerApi` (et par extension la
+ * `value` de ce Provider, qui n'est rien d'autre) reste référentiellement
+ * stable tant qu'aucune valeur réactive du lecteur (`playingPreviewId`/
+ * `currentTrack`/`isPlaying`/`resolvingTrackId`/`showToast`) ne change
+ * réellement — plus besoin d'un `useMemo` SÉPARÉ ici, contrairement à
+ * `AthleticContext.jsx`/`CustomActivityContext.jsx` : ce Provider ne fait
+ * QUE réexposer tel quel le retour du hook, rien à combiner. Voir la
+ * docstring de `useAudioPreview.js` pour le détail complet (notamment
+ * pourquoi ses 9 fonctions ne sont PAS individuellement stabilisées via
+ * `useCallback` — jugé disproportionné ici, contrairement à
+ * `applyProfileBpmIfUntouched`, qui avait un besoin plus ciblé).
+ *
+ * Gain concret : `MiniPlayerBar.jsx` (montée globalement dans App.jsx,
+ * comme l'était `CustomActivityModal.jsx`) et `PlaylistDetailContext.jsx`
+ * (qui consomme aussi ce Contexte) ne re-rendent plus à chaque rendu
+ * d'`AudioPlayerProvider` sans rapport avec une action de lecture réelle.
  */
 
 const AudioPlayerContext = createContext(null);
