@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { resolveDeezerTrackByTitleArtist } from '../engine/musicEngine';
 
 /**
@@ -184,7 +184,32 @@ export function useAudioPreview(showToast) {
     autoAdvanceResolverRef.current = null;
   };
 
-  return {
+  // `useMemo` (08/08, chantier "value non mémoïsée re-render tout le
+  // monde" — après GeneratorContext.jsx, même principe appliqué ici) —
+  // `MiniPlayerBar.jsx` est montée GLOBALEMENT dans App.jsx (comme l'était
+  // `CustomActivityModal.jsx`), et `PlaylistDetailContext.jsx` consomme
+  // aussi ce hook (pour `togglePreview`/`playingPreviewId`/`resolveAndPlay`/
+  // `resolvingTrackId`) — sans mémoïsation, CHAQUE rendu de
+  // `AudioPlayerProvider` (donc de tout composant qui consomme
+  // `useAudioPlayer()`) recréait cet objet en entier.
+  //
+  // Dépendances = exactement les valeurs RÉACTIVES dont une fonction
+  // ci-dessus a besoin (`playingPreviewId`/`currentTrack`/`isPlaying`/
+  // `resolvingTrackId`/`showToast`) — PAS les fonctions elles-mêmes
+  // (`playTrack`/`togglePreview`/etc., toujours recréées à chaque rendu,
+  // pas individuellement stabilisées via `useCallback` : le faire
+  // proprement pour les 9 fonctions ci-dessus, chacune avec ses propres
+  // dépendances à vérifier, aurait été un chantier à part, plus long, pour
+  // un gain marginal ici). Ce `useMemo` reste correct malgré tout : tant
+  // qu'aucune de CES dépendances n'a changé, les fonctions de l'ancien
+  // rendu (conservées par `useMemo`) se comportent EXACTEMENT comme des
+  // fonctions fraîches l'auraient fait — elles ne ferment que sur des refs
+  // (identité stable, toujours lues à jour via `.current`) et sur CES
+  // mêmes dépendances. `previewAudioRef` volontairement ABSENT du tableau
+  // de dépendances : son identité ne change jamais (même objet `Audio()`
+  // tant que l'app vit, voir plus bas) — l'y ajouter serait inoffensif
+  // mais inutile.
+  return useMemo(() => ({
     playingPreviewId, togglePreview,
     currentTrack, isPlaying,
     pauseCurrentPreview, resumeCurrentPreview, stopCurrentPreview,
@@ -200,5 +225,5 @@ export function useAudioPreview(showToast) {
     // Audio() tant que l'app vit) : le passer en contexte ne déclenche donc
     // aucun re-render supplémentaire.
     previewAudioRef,
-  };
+  }), [playingPreviewId, currentTrack, isPlaying, resolvingTrackId, showToast]);
 }
