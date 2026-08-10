@@ -677,14 +677,16 @@ function AppContent({
   // dans ce fichier n'a besoin de changer.
   const {
     workoutType, setWorkoutType,
-    // `setCustomActivity`/`tempCustomActivity`/`setTempCustomActivity`/
-    // `isCustomActivityModalOpen`/`setIsCustomActivityModalOpen` ne sont PLUS
-    // déstructurées ici : elles ne servaient qu'à alimenter les props de
-    // CustomActivityModal, qui lit maintenant directement le contexte
-    // lui-même (voir CustomActivityModal.jsx). `customActivity` (sans
-    // "set") reste nécessaire ci-dessous (handleSaveRoutine).
-    customActivity,
-    handleOpenCustomActivityModal,
+    // `customActivity`/`handleOpenCustomActivityModal` retirées d'ici
+    // (08/08, 2e passe) — en vérifiant pourquoi elles devraient migrer vers
+    // `useCustomActivityContext()` suite au découpage de
+    // `CustomActivityContext.jsx`, découvert qu'elles n'étaient en réalité
+    // PLUS utilisées nulle part ailleurs dans ce fichier (commentaire
+    // précédent, "customActivity reste nécessaire ci-dessous
+    // (handleSaveRoutine)", déjà obsolète — `handleSaveRoutine` vit dans
+    // `useRoutineActions.js`, qui lit sa PROPRE copie de `customActivity`
+    // via son propre appel de contexte, jamais celle-ci). Code mort
+    // retiré plutôt que redirigé pour rien.
     wizardStep, setWizardStep,
     selectedGenres, setSelectedGenres,
     genreWeights, setGenreWeights,
