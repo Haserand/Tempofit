@@ -9,6 +9,7 @@ import { deezerFetch } from '../../engine/musicEngine';
 import SessionSummaryCard from '../shared/SessionSummaryCard';
 import { PlaylistDetailProvider, usePlaylistDetail } from '../../contexts/PlaylistDetailContext';
 import { PlaylistEditProvider } from '../../contexts/PlaylistEditContext';
+import EditPlaylistModal from '../modals/EditPlaylistModal';
 import TrackList from './PlaylistDetail/TrackList';
 import PlaylistHeader from './PlaylistDetail/PlaylistHeader';
 import PlaylistCharts from './PlaylistDetail/PlaylistCharts';
@@ -640,6 +641,16 @@ export default function PlaylistDetailView({
       currentPlaylist={currentPlaylist} setCurrentPlaylist={setCurrentPlaylist}
       savedPlaylists={savedPlaylists} setSavedPlaylists={setSavedPlaylists}
     >
+      {/* Édition passée en modale (retour direct, captures à l'appui — voir
+          la docstring de EditPlaylistModal.jsx). Montée ICI (à l'intérieur
+          de PlaylistEditProvider, EN FRÈRE de PlaylistDetailProvider, pas
+          dedans — n'a besoin d'aucun de ses champs) plutôt que dans
+          ModalContainer.jsx (monté globalement dans App.jsx, sans accès à
+          ce Contexte scopé à la vue détail d'une playlist) — même logique
+          de placement que CustomActivityModal.jsx dans App.jsx. Ne reçoit
+          que `theme` en prop, tout le reste vient de usePlaylistEdit(). */}
+      <EditPlaylistModal theme={theme} />
+
       <PlaylistDetailProvider
         currentPlaylist={currentPlaylist} setCurrentPlaylist={setCurrentPlaylist}
         savedPlaylists={savedPlaylists} setSavedPlaylists={setSavedPlaylists}
