@@ -1,7 +1,6 @@
 import { useRef } from 'react';
 import { Music2, ArrowUpRight, Trash2, CheckCircle, Circle, Activity, List, Calendar, GripVertical, Globe } from 'lucide-react';
 import { buildCoverUrl } from '../../utils/coverArt';
-import { getActivityEmoji } from '../../appConfig';
 import CompletionsList from '../shared/CompletionsList';
 
 /**
@@ -148,7 +147,13 @@ export default function PlaylistCard({
               elle a un sens réel (fiche détail, cartes Découvrir) — voir
               leurs docstrings respectives, inchangées. */}
           <h3 className={`font-bold text-lg flex items-center gap-2 min-w-0 ${textHighlight}`}>
-            <span className="truncate">{getActivityEmoji(playlist.workoutType)} {playlist.name}</span>
+            {/* ⚠️ Émoji NON dérivé ici (retiré 08/08, chantier "émoji baké
+                en texte littéral dans le titre", voir musicEngine.js/
+                useNavigation.js) — même raisonnement que
+                PlaylistHeaderTitleBlock.jsx : `playlist.name` porte déjà
+                l'émoji tel quel pour toute playlist créée APRÈS ce
+                changement, le recalculer ici l'aurait affiché EN DOUBLE. */}
+            <span className="truncate">{playlist.name}</span>
             {playlist.config?.isIntervalMode && (
               <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full text-white shrink-0 ${bgAccentClass}`}>
                 {playlist.config?.isCrescendoMode ? 'Crescendo' : 'Fractionné'}
