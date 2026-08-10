@@ -30,6 +30,7 @@
  */
 
 import { ARTIST_CATALOG, DEEZER_GENRE_KEYWORDS, WEAK_DEEZER_KEYWORD_GENRES, GENRES_NEEDING_DEEP_CATALOG_SEARCH, isDirectGenreMatch, genreRoughlyMatches, detectTitleStyleConflict, detectLanguageVersionConflict, isLiveOrPerformanceVersion } from '../musicCatalog';
+import { getActivityEmoji } from '../appConfig';
 import { formatDuration } from '../utils/format';
 import { debugLog } from '../utils/debugLog';
 
@@ -1511,6 +1512,38 @@ const buildCrescendoSegments = (targetMode, bpm, hours, minutes, distanceVal, pa
  * précédentes de la même routine (voir `routine.recentTrackIds`), en plus des
  * doublons internes à la playlist elle-même.
  */
+
+// Nom généré (+ émoji baké en texte littéral, voir sa docstring interne)
+// pour une NOUVELLE playlist — extraite en fonction PURE dédiée (08/08,
+// chantier "émoji baké dans le titre") : `createPlaylistData` fait des
+// appels réseau (résolution Deezer), donc pas testable directement en
+// isolation — CETTE fonction, elle, ne dépend que de ses arguments,
+// testable sans aucun mock réseau (voir musicEngine.test.js).
+const buildGeneratedPlaylistName = (config, isNaughtyMode, finalWorkoutName) => {
+  let generatedName = isNaughtyMode ? `Moment Intime` : (config.isCrescendoMode ? `Crescendo : ${finalWorkoutName}` : (config.isIntervalMode ? `Fractionné : ${finalWorkoutName}` : `Session ${finalWorkoutName}`));
+  if (config.routineName) generatedName = `Depuis : ${config.routineName}`;
+  // ⚠️ ÉMOJI BAKÉ EN TEXTE LITTÉRAL DANS LE NOM (retour direct, 08/08,
+  // chantier "EditPlaylistModal.jsx" — "faudrait que l'emoji corresponde à
+  // un truc présent dans le titre et que l'internaute puisse le supprimer
+  // ou le remettre à loisir") : auparavant purement décoratif, recalculé à
+  // CHAQUE affichage via `getActivityEmoji(currentPlaylist.workoutType)`
+  // (PlaylistHeaderTitleBlock.jsx/PlaylistCard.jsx) — jamais stocké dans
+  // `name`, donc jamais éditable. Désormais un simple caractère DE PLUS
+  // dans `name`, comme n'importe quel autre — l'utilisateur peut le
+  // supprimer/retaper librement depuis EditPlaylistModal.jsx, il n'a plus
+  // AUCUN lien avec `workoutType` une fois posé ici (calculé UNE FOIS, à
+  // la création, jamais recalculé ensuite). `finalWorkoutName` (PAS
+  // `config.workoutName` brut) : c'est la même valeur que celle stockée
+  // dans `workoutType` sur l'objet playlist final (voir `createPlaylistData`
+  // plus bas) — donne exactement le même émoji que l'ancien calcul à
+  // l'affichage aurait produit pour CETTE playlist.
+  // Playlists déjà existantes (créées avant ce changement) : n'auront
+  // JAMAIS cet émoji rétroactivement, aucune migration prévue — sans
+  // utilisateurs réels sur ce projet, cette incohérence ancien/nouveau
+  // n'est pas un problème à résoudre (voir CLAUDE-SANDBOX-VERIFICATION.md).
+  return `${getActivityEmoji(finalWorkoutName)} ${generatedName}`;
+};
+
 const createPlaylistData = async (config, initialExcludeIds = [], favorites, spotifyTrackPool, isNaughtyMode) => {
   let activeSegments = [];
   const unitPaceSecs = config.targetMode === 'distance' ? ((parseInt(config.paceMin)||0)*60 + (parseInt(config.paceSec)||0)) : 330;
@@ -1562,8 +1595,7 @@ const createPlaylistData = async (config, initialExcludeIds = [], favorites, spo
   }
 
   const finalWorkoutName = isNaughtyMode ? 'Ambiance' : config.workoutName;
-  let generatedName = isNaughtyMode ? `Moment Intime` : (config.isCrescendoMode ? `Crescendo : ${finalWorkoutName}` : (config.isIntervalMode ? `Fractionné : ${finalWorkoutName}` : `Session ${finalWorkoutName}`));
-  if (config.routineName) generatedName = `Depuis : ${config.routineName}`;
+  const generatedName = buildGeneratedPlaylistName(config, isNaughtyMode, finalWorkoutName);
 
   const rawPlaylist = {
     id: `pl-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
@@ -1591,6 +1623,7 @@ export {
   searchDeezerPage,
   resolveDeezerTrackByTitleArtist,
   searchDeezerForGenres,
+  buildGeneratedPlaylistName,
   getSingleMatchingTrack,
   buildSegmentTracks,
   deduceCrescendoBpm,
