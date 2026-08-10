@@ -1,5 +1,4 @@
 import { Edit3, Copy } from 'lucide-react';
-import { getActivityEmoji } from '../../../appConfig';
 import { usePlaylistEdit } from '../../../contexts/PlaylistEditContext';
 
 /**
@@ -74,7 +73,16 @@ export default function PlaylistHeaderTitleBlock({
       )}
 
       <h2 className="text-xl font-bold flex items-center gap-3 justify-center md:justify-start text-white">
-        <span className="truncate min-w-0" title={currentPlaylist.name}>{getActivityEmoji(currentPlaylist.workoutType)} {currentPlaylist.name}</span>
+        {/* ⚠️ Émoji NON dérivé ici (retiré 08/08, chantier "émoji baké en
+            texte littéral dans le titre", voir musicEngine.js/useNavigation.js) —
+            `currentPlaylist.name` porte déjà l'émoji tel quel pour toute
+            playlist créée APRÈS ce changement (texte littéral, éditable
+            depuis EditPlaylistModal.jsx) ; le recalculer ici via
+            `getActivityEmoji(workoutType)` l'aurait affiché EN DOUBLE.
+            Playlists créées AVANT ce changement : n'affichent plus aucun
+            émoji désormais (aucune migration rétroactive prévue, voir
+            CLAUDE-SANDBOX-VERIFICATION.md). */}
+        <span className="truncate min-w-0" title={currentPlaylist.name}>{currentPlaylist.name}</span>
         {/* Éditer n'a de sens que pour une playlist déjà dans la
             bibliothèque personnelle (`isSaved`) — sur un modèle pas
             encore sauvegardé, le nom/la description affichés sont
