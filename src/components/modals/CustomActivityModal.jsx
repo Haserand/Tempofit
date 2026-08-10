@@ -1,7 +1,7 @@
 import { X } from 'lucide-react';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
-import { useGeneratorContext } from '../../contexts/GeneratorContext';
 import { useAthleticContext } from '../../contexts/AthleticContext';
+import { useCustomActivityContext } from '../../contexts/CustomActivityContext';
 
 /**
  * CustomActivityModal — saisie du nom d'une activité personnalisée ("Autre"
@@ -12,31 +12,34 @@ import { useAthleticContext } from '../../contexts/AthleticContext';
  *
  * Chantier God Component étape 2 (suite) : cette modale appartient au wizard
  * de génération ("Autre" à l'étape 1) — tout son state (ouverture, valeur
- * temporaire, confirmation) vit déjà dans GeneratorContext (voir
- * contexts/GeneratorContext.jsx) puisque `useCustomActivity` y est appelé.
- * Ne reste en props que ce qui est VRAIMENT hors de ce périmètre : `theme`
- * (convention partagée avec toutes les vues extraites, vient de useTheme.js)
- * et `userStats`/`checkTrophies` (système de trophées, sans rapport avec le
- * générateur — seul l'easter egg Rick Astley les utilise ici).
+ * temporaire, confirmation) vit dans `CustomActivityContext.jsx` (voir sa
+ * docstring) puisque `useCustomActivity` y est appelé indirectement (à
+ * l'intérieur de `GeneratorProvider`). Ne reste en props que ce qui est
+ * VRAIMENT hors de ce périmètre : `theme` (convention partagée avec toutes
+ * les vues extraites, vient de useTheme.js) et `userStats`/`checkTrophies`
+ * (système de trophées, sans rapport avec le générateur — seul l'easter egg
+ * Rick Astley les utilise ici).
  *
- * ⚠️ `isNaughtyMode`/`getProfileForWorkout` viennent de `useAthleticContext()`
- * DEPUIS LE 08/08 (déplacés hors de GeneratorContext, voir sa docstring) —
- * `applyProfileBpmIfUntouched` reste sur `useGeneratorContext()` (fait
- * partie de l'état du formulaire, pas de l'API athlétique). Cette modale
- * étant montée GLOBALEMENT dans App.jsx (pas conditionnée à une vue), elle
- * continue donc de re-render à chaque réglage du wizard À CAUSE de
- * `applyProfileBpmIfUntouched` — limite connue, non résolue ici (l'isoler
- * complètement demanderait de stabiliser cette fonction dans
- * useGeneratorForm.js lui-même, chantier distinct, plus profond, pas
- * entrepris cette fois). Le découplage d'`isNaughtyMode`/l'API athlétique
- * reste un vrai gain en soi, pas nul.
+ * ⚠️ DEPUIS LE 08/08 (2e passe, même jour) — cette modale ne consomme PLUS
+ * DU TOUT `useGeneratorContext()` : `isNaughtyMode`/`getProfileForWorkout`
+ * viennent de `useAthleticContext()`, et `isCustomActivityModalOpen`/
+ * `tempCustomActivity`/`setCustomActivity`/`applyProfileBpmIfUntouched`
+ * viennent maintenant de `useCustomActivityContext()` (auparavant sur
+ * `useGeneratorContext()` — limite documentée dans une 1re passe, résolue
+ * ici : voir la docstring de `CustomActivityContext.jsx` pour le détail
+ * complet, notamment pourquoi `applyProfileBpmIfUntouched` a dû être rendue
+ * référentiellement stable dans `useGeneratorForm.js` d'abord). Montée
+ * GLOBALEMENT dans App.jsx (pas conditionnée à une vue), cette modale ne
+ * re-rend donc plus DU TOUT à cause d'un réglage du wizard (bpm/genres/
+ * structure...) — le but initial de ce découpage, désormais pleinement
+ * atteint.
  */
 export default function CustomActivityModal({ theme, userStats, checkTrophies }) {
   const {
     isCustomActivityModalOpen, setIsCustomActivityModalOpen,
     tempCustomActivity, setTempCustomActivity, setCustomActivity,
     applyProfileBpmIfUntouched,
-  } = useGeneratorContext();
+  } = useCustomActivityContext();
   const { isNaughtyMode, getProfileForWorkout } = useAthleticContext();
 
   const { cardBg, cardBorder, textHighlight, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
