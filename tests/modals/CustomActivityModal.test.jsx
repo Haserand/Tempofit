@@ -1,12 +1,17 @@
 // @vitest-environment jsdom
 //
-// Palier 3 (29/07, 1/11) — CustomActivityModal, 1er composant du projet
-// avec un vrai Context React à mocker (`GeneratorContext`). `theme`,
+// Palier 3 (29/07, 1/11 ; mis à jour 08/08, 2 passes). CustomActivityModal,
+// 1er composant du projet avec un vrai Context React à mocker. `theme`,
 // `userStats` et `checkTrophies` restent de simples props (comme au
-// Palier 2) — seul `useGeneratorContext()` est intercepté via `vi.mock`,
-// pour ne pas avoir à monter un vrai `<GeneratorProvider>` (qui exigerait
-// lui-même `useAthleticProfile`/`useGeneratorForm` réels, hors périmètre
-// d'un test de CE composant précis).
+// Palier 2).
+//
+// ⚠️ DEPUIS LE 08/08 (2e passe) — ce composant ne consomme PLUS
+// `useGeneratorContext()` DU TOUT : `isCustomActivityModalOpen`/
+// `tempCustomActivity`/`setCustomActivity`/`applyProfileBpmIfUntouched`
+// viennent maintenant de `useCustomActivityContext()` (voir la docstring de
+// CustomActivityContext.jsx pour le raisonnement complet du découpage), et
+// `isNaughtyMode`/`getProfileForWorkout` de `useAthleticContext()` (1re
+// passe, même jour). Mocks renommés en conséquence.
 //
 // ⚠️ Piège de sélecteur déjà rencontré une fois sur ce lot de tests
 // (SavingRoutineModal.test.jsx, 29/07) : ne jamais utiliser une classe
@@ -18,9 +23,9 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
-const mockUseGeneratorContext = vi.fn();
-vi.mock('../../src/contexts/GeneratorContext.jsx', () => ({
-  useGeneratorContext: () => mockUseGeneratorContext(),
+const mockUseCustomActivityContext = vi.fn();
+vi.mock('../../src/contexts/CustomActivityContext.jsx', () => ({
+  useCustomActivityContext: () => mockUseCustomActivityContext(),
 }));
 
 // `useAthleticContext()` (08/08) — `isNaughtyMode`/`getProfileForWorkout`
@@ -68,9 +73,9 @@ function makeContextValue(overrides = {}) {
   // cette fonction continue de prendre TOUS les champs en un seul objet
   // d'overrides (les 10 appels existants n'ont pas besoin de changer),
   // mais alimente maintenant les 2 mocks séparément.
-  const { isNaughtyMode, getProfileForWorkout, ...generatorPart } = merged;
+  const { isNaughtyMode, getProfileForWorkout, ...customActivityPart } = merged;
   mockUseAthleticContext.mockReturnValue({ isNaughtyMode, getProfileForWorkout });
-  return generatorPart;
+  return customActivityPart;
 }
 
 const baseProps = {
@@ -81,20 +86,20 @@ const baseProps = {
 
 describe('CustomActivityModal', () => {
   it('ne rend rien quand isCustomActivityModalOpen=false', () => {
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ isCustomActivityModalOpen: false }));
+    mockUseCustomActivityContext.mockReturnValue(makeContextValue({ isCustomActivityModalOpen: false }));
     const { container } = render(<CustomActivityModal {...baseProps} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it('affiche le champ de saisie avec la valeur de tempCustomActivity quand ouverte', () => {
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ tempCustomActivity: 'Yoga' }));
+    mockUseCustomActivityContext.mockReturnValue(makeContextValue({ tempCustomActivity: 'Yoga' }));
     render(<CustomActivityModal {...baseProps} />);
     expect(screen.getByPlaceholderText('Ex: Yoga...')).toHaveValue('Yoga');
   });
 
   it('taper dans le champ appelle setTempCustomActivity avec la nouvelle valeur', () => {
     const setTempCustomActivity = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ setTempCustomActivity }));
+    mockUseCustomActivityContext.mockReturnValue(makeContextValue({ setTempCustomActivity }));
     render(<CustomActivityModal {...baseProps} />);
 
     fireEvent.change(screen.getByPlaceholderText('Ex: Yoga...'), { target: { value: 'Pilates' } });
@@ -104,7 +109,7 @@ describe('CustomActivityModal', () => {
 
   it('le clic sur le bouton X appelle setIsCustomActivityModalOpen(false)', () => {
     const setIsCustomActivityModalOpen = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ setIsCustomActivityModalOpen }));
+    mockUseCustomActivityContext.mockReturnValue(makeContextValue({ setIsCustomActivityModalOpen }));
     const { container } = render(<CustomActivityModal {...baseProps} />);
 
     // `.text-gray-400` est unique au bouton X dans ce fichier (vérifié) —
@@ -118,7 +123,7 @@ describe('CustomActivityModal', () => {
 
   it('le clic sur "Annuler" appelle setIsCustomActivityModalOpen(false)', () => {
     const setIsCustomActivityModalOpen = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ setIsCustomActivityModalOpen }));
+    mockUseCustomActivityContext.mockReturnValue(makeContextValue({ setIsCustomActivityModalOpen }));
     render(<CustomActivityModal {...baseProps} />);
 
     fireEvent.click(screen.getByText('Annuler'));
@@ -128,7 +133,7 @@ describe('CustomActivityModal', () => {
 
   it('le clic sur le fond (backdrop) appelle setIsCustomActivityModalOpen(false)', () => {
     const setIsCustomActivityModalOpen = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ setIsCustomActivityModalOpen }));
+    mockUseCustomActivityContext.mockReturnValue(makeContextValue({ setIsCustomActivityModalOpen }));
     const { container } = render(<CustomActivityModal {...baseProps} />);
 
     fireEvent.click(container.firstChild);
@@ -138,7 +143,7 @@ describe('CustomActivityModal', () => {
 
   it('le clic à l\'intérieur de la carte ne ferme pas la modale (stopPropagation)', () => {
     const setIsCustomActivityModalOpen = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ setIsCustomActivityModalOpen }));
+    mockUseCustomActivityContext.mockReturnValue(makeContextValue({ setIsCustomActivityModalOpen }));
     render(<CustomActivityModal {...baseProps} />);
 
     fireEvent.click(screen.getByText('Activité personnalisée'));
@@ -149,7 +154,7 @@ describe('CustomActivityModal', () => {
   it('le clic sur "Valider" appelle setCustomActivity puis ferme la modale', () => {
     const setCustomActivity = vi.fn();
     const setIsCustomActivityModalOpen = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(
+    mockUseCustomActivityContext.mockReturnValue(
       makeContextValue({ tempCustomActivity: 'Escalade', setCustomActivity, setIsCustomActivityModalOpen })
     );
     render(<CustomActivityModal {...baseProps} />);
@@ -162,7 +167,7 @@ describe('CustomActivityModal', () => {
 
   it('appuyer sur Entrée dans le champ confirme (même effet que "Valider")', () => {
     const setCustomActivity = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ tempCustomActivity: 'Boxe', setCustomActivity }));
+    mockUseCustomActivityContext.mockReturnValue(makeContextValue({ tempCustomActivity: 'Boxe', setCustomActivity }));
     render(<CustomActivityModal {...baseProps} />);
 
     fireEvent.keyDown(screen.getByPlaceholderText('Ex: Yoga...'), { key: 'Enter' });
@@ -173,7 +178,7 @@ describe('CustomActivityModal', () => {
   it('en mode normal, la confirmation pré-remplit le BPM via applyProfileBpmIfUntouched', () => {
     const applyProfileBpmIfUntouched = vi.fn();
     const getProfileForWorkout = vi.fn(() => ({ isConfigured: true }));
-    mockUseGeneratorContext.mockReturnValue(
+    mockUseCustomActivityContext.mockReturnValue(
       makeContextValue({
         isNaughtyMode: false,
         tempCustomActivity: 'Natation',
@@ -191,7 +196,7 @@ describe('CustomActivityModal', () => {
 
   it('en Mode Intime, la confirmation NE pré-remplit PAS le BPM (pas d\'appel à applyProfileBpmIfUntouched)', () => {
     const applyProfileBpmIfUntouched = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(
+    mockUseCustomActivityContext.mockReturnValue(
       makeContextValue({ isNaughtyMode: true, tempCustomActivity: 'Natation', applyProfileBpmIfUntouched })
     );
     render(<CustomActivityModal {...baseProps} />);
@@ -203,7 +208,7 @@ describe('CustomActivityModal', () => {
 
   it('easter egg : taper "Rick Astley" (insensible à la casse) débloque le trophée dédié à la confirmation', () => {
     const checkTrophies = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ tempCustomActivity: 'un peu de RICK ASTLEY' }));
+    mockUseCustomActivityContext.mockReturnValue(makeContextValue({ tempCustomActivity: 'un peu de RICK ASTLEY' }));
     render(<CustomActivityModal {...baseProps} checkTrophies={checkTrophies} userStats={{ hasRickroll: false, other: 42 }} />);
 
     fireEvent.click(screen.getByText('Valider'));
@@ -213,7 +218,7 @@ describe('CustomActivityModal', () => {
 
   it('sans "Rick Astley" dans le texte, checkTrophies n\'est jamais appelé', () => {
     const checkTrophies = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ tempCustomActivity: 'Aviron' }));
+    mockUseCustomActivityContext.mockReturnValue(makeContextValue({ tempCustomActivity: 'Aviron' }));
     render(<CustomActivityModal {...baseProps} checkTrophies={checkTrophies} />);
 
     fireEvent.click(screen.getByText('Valider'));
