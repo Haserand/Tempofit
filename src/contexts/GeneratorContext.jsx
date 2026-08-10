@@ -1,6 +1,7 @@
 import { createContext, useContext, useState } from 'react';
 import { useGeneratorForm } from '../hooks/useGeneratorForm';
 import { useCustomActivity } from '../hooks/useCustomActivity';
+import { CustomActivityProvider } from './CustomActivityContext';
 
 /**
  * GeneratorContext.jsx — Étape 1/2 du chantier "God Component" : sort tout
@@ -29,6 +30,19 @@ import { useCustomActivity } from '../hooks/useCustomActivity';
  * CONTEXTE ne les réexpose plus. Tout consommateur qui a besoin de ces 2
  * valeurs doit désormais appeler `useAthleticContext()` EN PLUS de (ou à la
  * place de) `useGeneratorContext()`, selon ce dont il a réellement besoin.
+ *
+ * ⚠️ DEPUIS LE 08/08 (suite, même jour) : `customActivityApi`
+ * (useCustomActivity()) et `applyProfileBpmIfUntouched` NE SONT PLUS NON
+ * PLUS dans la valeur de ce Contexte — déplacés vers
+ * `CustomActivityContext.jsx` (`useCustomActivityContext()`), à part, monté
+ * À L'INTÉRIEUR de ce Provider (voir plus bas). Même raisonnement
+ * qu'`AthleticContext.jsx` : `CustomActivityModal.jsx`, montée GLOBALEMENT
+ * dans App.jsx, continuait de re-rendre à chaque réglage du wizard à cause
+ * de ces champs, même après le découpage d'`AthleticContext.jsx`. Voir la
+ * docstring de `CustomActivityContext.jsx` pour le détail complet
+ * (notamment pourquoi `applyProfileBpmIfUntouched` a dû être rendue
+ * référentiellement stable dans `useGeneratorForm.js` d'abord, sans quoi ce
+ * découpage n'aurait servi à rien).
  *
  * ==========================================================================
  * DÉCISION DE PÉRIMÈTRE (héritée, toujours vraie) :
@@ -78,6 +92,10 @@ export function GeneratorProvider({
   // athlétique dont useGeneratorForm a besoin en dépendance — exactement ce
   // qu'App.jsx lui passait déjà avant ce chantier.
   const generatorFormApi = useGeneratorForm(isNaughtyMode, athleticProfile);
+  // `applyProfileBpmIfUntouched` sorti du spread ci-dessous — vit désormais
+  // UNIQUEMENT dans CustomActivityContext.jsx (voir docstring plus haut),
+  // pas dupliqué ici pour éviter 2 sources d'accès à la même fonction.
+  const { applyProfileBpmIfUntouched, ...restGeneratorFormApi } = generatorFormApi;
 
   // Déplacée telle quelle depuis App.jsx (n'y était jamais appelée ailleurs
   // que passée en prop à GeneratorView — sûr à relocaliser entièrement ici).
@@ -87,11 +105,16 @@ export function GeneratorProvider({
   const value = {
     workoutType, setWorkoutType,
     getActiveWorkoutName,
-    ...customActivityApi,
-    ...generatorFormApi,
+    ...restGeneratorFormApi,
   };
 
-  return <GeneratorContext.Provider value={value}>{children}</GeneratorContext.Provider>;
+  return (
+    <GeneratorContext.Provider value={value}>
+      <CustomActivityProvider customActivityApi={customActivityApi} applyProfileBpmIfUntouched={applyProfileBpmIfUntouched}>
+        {children}
+      </CustomActivityProvider>
+    </GeneratorContext.Provider>
+  );
 }
 
 // Fallback silencieux plutôt qu'un throw — même choix que AuthContext.jsx
@@ -102,14 +125,12 @@ export function GeneratorProvider({
 const FALLBACK = {
   workoutType: 'Course à pied', setWorkoutType: () => {},
   getActiveWorkoutName: () => '',
-  customActivity: '', setCustomActivity: () => {},
-  tempCustomActivity: '', setTempCustomActivity: () => {},
-  isCustomActivityModalOpen: false, setIsCustomActivityModalOpen: () => {},
-  handleOpenCustomActivityModal: () => {},
   bpm: 120, setBpm: () => {}, setBpmManual: () => {},
   segments: [], setSegments: () => {},
   selectedGenres: [], setSelectedGenres: () => {},
-  applyProfileBpmIfUntouched: () => {},
+  // customActivity/tempCustomActivity/isCustomActivityModalOpen/
+  // handleOpenCustomActivityModal/applyProfileBpmIfUntouched : DÉPLACÉS
+  // (08/08) vers CustomActivityContext.jsx (useCustomActivityContext()) —
   // isNaughtyMode/athleticProfile/getProfileForWorkout : DÉPLACÉS (08/08)
   // vers AthleticContext.jsx (useAthleticContext()) — plus dans ce
   // Contexte ni son FALLBACK.
