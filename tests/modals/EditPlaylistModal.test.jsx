@@ -43,6 +43,7 @@ function makeEditValue(overrides = {}) {
     isEditPlaylistModalOpen: true, closeEditPlaylistModal: vi.fn(),
     editedPlaylistName: 'Ma Séance', setEditedPlaylistName: vi.fn(),
     editedPlaylistDescription: '', setEditedPlaylistDescription: vi.fn(),
+    isEditedNameValid: true,
     handleSavePlaylistDetails: vi.fn(),
     ...overrides,
   };
@@ -158,5 +159,48 @@ describe('EditPlaylistModal — Annuler / Enregistrer', () => {
     fireEvent.click(screen.getByText('Enregistrer'));
 
     expect(handleSavePlaylistDetails).toHaveBeenCalledTimes(1);
+  });
+});
+
+// NOUVEAU (08/08, 3e passe) — validation du titre : retour direct, captures
+// à l'appui — bouton "Enregistrer" désactivé + message d'erreur tant que
+// `isEditedNameValid` (PlaylistEditContext.jsx) est faux. La DESCRIPTION,
+// elle, n'a aucune validation équivalente — aucun test correspondant côté
+// description, volontairement (n'importe quel contenu est déjà valide).
+describe('EditPlaylistModal — validation du titre (isEditedNameValid, NOUVEAU 08/08)', () => {
+  it('titre valide : "Enregistrer" n\'est PAS désactivé, aucun message d\'erreur', () => {
+    mockUsePlaylistEdit.mockReturnValue(makeEditValue({ isEditedNameValid: true }));
+    render(<EditPlaylistModal theme={mockTheme} />);
+
+    expect(screen.getByText('Enregistrer')).not.toBeDisabled();
+    expect(screen.queryByText(/doit contenir au moins 3 caractères/)).not.toBeInTheDocument();
+  });
+
+  it('titre invalide : "Enregistrer" est désactivé, message d\'erreur affiché sous le champ', () => {
+    mockUsePlaylistEdit.mockReturnValue(makeEditValue({ isEditedNameValid: false, editedPlaylistName: 'ab' }));
+    render(<EditPlaylistModal theme={mockTheme} />);
+
+    expect(screen.getByText('Enregistrer')).toBeDisabled();
+    expect(screen.getByText(/doit contenir au moins 3 caractères/)).toBeInTheDocument();
+  });
+
+  it('cliquer sur "Enregistrer" désactivé n\'appelle PAS handleSavePlaylistDetails (comportement natif du `disabled`, vérifié explicitement)', () => {
+    const handleSavePlaylistDetails = vi.fn();
+    mockUsePlaylistEdit.mockReturnValue(makeEditValue({ isEditedNameValid: false, handleSavePlaylistDetails }));
+    render(<EditPlaylistModal theme={mockTheme} />);
+
+    fireEvent.click(screen.getByText('Enregistrer'));
+
+    expect(handleSavePlaylistDetails).not.toHaveBeenCalled();
+  });
+
+  it('"Annuler" reste cliquable même quand le titre est invalide', () => {
+    const closeEditPlaylistModal = vi.fn();
+    mockUsePlaylistEdit.mockReturnValue(makeEditValue({ isEditedNameValid: false, closeEditPlaylistModal }));
+    render(<EditPlaylistModal theme={mockTheme} />);
+
+    fireEvent.click(screen.getByText('Annuler'));
+
+    expect(closeEditPlaylistModal).toHaveBeenCalledTimes(1);
   });
 });
