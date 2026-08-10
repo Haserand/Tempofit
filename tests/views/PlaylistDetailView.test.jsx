@@ -81,6 +81,16 @@ vi.mock('../../src/appConfig.js', () => ({
   getCadenceUnitLabel: vi.fn(() => 'PPM'),
   getZoneForValue: vi.fn(() => null),
   getBpmBucketLabel: vi.fn(() => '140-159'),
+  // `MAX_DESCRIPTION_LENGTH`/`MIN_PLAYLIST_NAME_LENGTH` (08/08, chantier
+  // "validation du titre + émoji baké") — `PlaylistEditProvider` ET
+  // `EditPlaylistModal.jsx` sont RENDUS RÉELLEMENT ici (ni l'un ni l'autre
+  // n'est mocké dans ce fichier, contrairement à `PlaylistHeader.jsx`
+  // juste en dessous) : sans ces 2 exports, `PlaylistEditContext.jsx`
+  // plante au montage (`undefined.trim()` sur un seuil manquant) — piégé
+  // au build Vercel, ce mock ne les fournissait pas encore à l'époque de
+  // leur ajout.
+  MAX_DESCRIPTION_LENGTH: 150,
+  MIN_PLAYLIST_NAME_LENGTH: 3,
 }));
 
 vi.mock('../../src/musicCatalog.js', () => ({
