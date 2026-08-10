@@ -30,6 +30,20 @@ Tests : `GeneratorView.test.jsx`/`CustomActivityModal.test.jsx`/`PlaylistDetailC
 
 Bug de formatage trouvé et corrigé au passage dans `CLAUDE-SANDBOX-VERIFICATION.md` (titre "## 1. Validation de syntaxe RÉELLE" perdu lors d'une édition précédente).
 
+✅ **SUITE (08/08, même jour) — `CustomActivityModal.jsx` entièrement découplée du wizard (2e passe sur `GeneratorContext.jsx`).** Répond à une limite documentée honnêtement dans la passe précédente : `applyProfileBpmIfUntouched` restait accrochée au formulaire du wizard (donc à son re-render à chaque frappe), rendant le découplage d'`AthleticContext.jsx` incomplet pour ce composant précis, monté GLOBALEMENT dans `App.jsx`.
+
+**Le vrai obstacle** : `applyProfileBpmIfUntouched` (useGeneratorForm.js) lit `structureMode`/`setStructureMode` — impossible de la rendre stable avec un simple `useCallback([structureMode, setStructureMode])`, ça l'aurait recréée à chaque frappe (exactement le problème à résoudre). Corrigé avec le pattern "callback stable via ref" : deux `useRef`, mis à jour à CHAQUE rendu (simple assignation, pas un Hook), que la fonction (elle, `useCallback([])`, jamais recréée) lit à travers eux au moment de l'appel — référence stable pour toujours, tout en lisant l'état le plus récent.
+
+Deuxième condition nécessaire, réglée dans la foulée : `useCustomActivity.js` renvoyait un objet neuf à chaque rendu (aucune mémoïsation) — `handleOpenCustomActivityModal` passée en `useCallback`, le retour entier enveloppé dans `useMemo`.
+
+Nouveau fichier — **`src/contexts/CustomActivityContext.jsx`** — isole `customActivityApi` + `applyProfileBpmIfUntouched` (désormais stables), `value` mémoïsée en toute sécurité. Monté À L'INTÉRIEUR de `GeneratorProvider` (pas en frère dans `App.jsx` comme `AthleticContext.jsx` — ces 2 valeurs n'existent que dans son corps).
+
+`GeneratorContext.jsx` : ces 2 éléments retirés de sa `value`. `CustomActivityModal.jsx` : ne consomme plus `useGeneratorContext()` DU TOUT désormais — objectif initial pleinement atteint. `GeneratorWizard.jsx`/`useRoutineActions.js` mis à jour pour lire `customActivity`/`handleOpenCustomActivityModal` via le nouveau Contexte.
+
+**Bonus trouvé en cours de route** : `AppContent` (App.jsx) déstructurait encore `customActivity`/`handleOpenCustomActivityModal` depuis `useGeneratorContext()` — vérifié avant de rediriger, et découvert que ces 2 variables étaient en réalité du CODE MORT dans ce fichier (jamais utilisées ailleurs, commentaire déjà obsolète prétendant le contraire). Retirées plutôt que redirigées pour rien.
+
+Tests : nouveaux `tests/hooks/useGeneratorForm.test.js`/`useCustomActivity.test.js` (1ers fichiers de test pour ces 2 hooks — scopés au comportement touché ici : correction métier d'`applyProfileBpmIfUntouched` inchangée + sa nouvelle stabilité référentielle, mémoïsation du retour de `useCustomActivity`). Nouveaux `tests/contexts/AthleticContext.test.jsx`/`CustomActivityContext.test.jsx` (1ers tests dédiés pour ces 2 Contextes — celui d'`AthleticContext.jsx` manquait depuis la 1re passe, ajouté maintenant par cohérence avec l'habitude "après un découpage, test dédié"). `CustomActivityModal.test.jsx`/`GeneratorWizard.test.jsx`/`useRoutineActions.test.js` adaptés. `criticalExportsTrap.test.js` élargi à `CustomActivityContext.jsx`.
+
 ⚠️ **Pas encore vérifié en conditions réelles** (build Vercel) — même limite habituelle (bac à sable sans accès réseau, `vitest run` jamais exécuté pour de vrai ici).
 
 ✅ **SESSION DU 08/08 (suite) — `PlaylistHeader.jsx` découpé (836 → 254 lignes) en 5 sous-composants.** Suite du chantier "simplicité" (`useSyncedCollection`/`usePersistentState` d'abord, README élagué ensuite) : `PlaylistHeader.jsx` était devenu le plus gros fichier du dossier `PlaylistDetail/`, largement au-dessus de ses voisins (`TrackItem.jsx`/`TrackList.jsx`/`PlaylistCharts.jsx`).
