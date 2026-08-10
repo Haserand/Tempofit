@@ -87,6 +87,35 @@ import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
  * silencieusement l'utilisateur de ce rappel de sécurité. "Masquer quand
  * même" appelle `onDismiss()` (remonté au parent) plutôt que de mettre à
  * jour un état local.
+ *
+ * ── Alignement 2 lignes sur le pied de page de la Sidebar (retour direct,
+ * captures à l'appui) ─────────────────────────────────────────────────────
+ * Passe de mono-ligne (`flex-row`) à DEUX lignes empilées
+ * (`flex-col items-center justify-center gap-1 py-2`), pour reproduire
+ * EXACTEMENT la structure du pied de page de Sidebar.jsx (Réglages/
+ * Trophées sur une ligne, crédit "Un projet créé par..." juste en dessous,
+ * même conteneur `h-[72px]`/`flex-col items-center justify-center gap-1
+ * py-2`) — SANS RIEN modifier dans Sidebar.jsx elle-même, seulement
+ * répliquer ici la même recette de mise en page (hauteur fixe identique,
+ * même padding vertical, même gap) pour que les deux pieds de page,
+ * visuellement côte à côte sur desktop, aient leurs 2 lignes à la même
+ * hauteur.
+ * Ligne 1 (boutons) : `text-sm font-bold`, comme "Réglages" en face.
+ * Ligne 2 (texte explicatif) : passé de `text-sm` à `text-xs`, comme le
+ * crédit "Un projet créé par..." en face — nécessaire pour que les 2
+ * lignes de base coïncident (une taille de texte différente aurait décalé
+ * la hauteur de ligne, même avec un padding/gap identique par ailleurs).
+ * Texte de l'état de confirmation RACCOURCI dans la foulée ("— ce rappel
+ * reviendra à ta prochaine visite" retiré) : à `text-xs` sur une largeur
+ * de ligne 2 déjà contrainte par le padding horizontal, la phrase complète
+ * passait mal ; le message essentiel (données sauvegardées uniquement sur
+ * cet appareil) reste intact, seule la précision "ce rappel reviendra..."
+ * disparaît — l'utilisateur venait de toute façon de LIRE ce rappel en
+ * cliquant sur la croix, la répétition n'était pas strictement nécessaire.
+ * Hauteur du conteneur INCHANGÉE (`h-[72px]`, toujours la même classe en
+ * toutes lettres — voir bottomBarLayout.js pour pourquoi) : seule sa
+ * disposition INTERNE change, jamais sa taille globale ni celle de
+ * Sidebar.jsx.
  */
 export default function GuestModeBar({ theme, isVisible, openModal, onDismiss = () => {} }) {
   const { cardBg, cardBorderStrong, textMuted, textColorClass } = theme;
@@ -97,56 +126,55 @@ export default function GuestModeBar({ theme, isVisible, openModal, onDismiss = 
   if (!isVisible) return null;
 
   return (
-    // h-[72px] (64→72, +8px, Refactor UI "aération footer/GuestBar", 29/07,
-    // retour direct : "la ligne de crédit frôle la bordure inférieure") —
-    // DOIT rester une classe Tailwind écrite en toutes lettres (voir
-    // bottomBarLayout.js pour pourquoi) — reporté depuis GUEST_MODE_BAR_HEIGHT_PX
-    // (bottomBarLayout.js), déjà mis à jour à l'identique. Disposition
-    // mono-ligne (`flex-row items-center justify-center gap-3`) INCHANGÉE :
-    // le contenu profite juste des 8px supplémentaires pour se centrer
-    // verticalement avec un peu plus d'air, sans aucune restructuration.
-    // Hauteur INCHANGÉE (72px) que ce soit le contenu normal ou l'étape de
-    // confirmation ci-dessous — même conteneur, jamais de saut de hauteur
-    // entre les 2 états.
-    <div className={`h-[72px] border-t-2 ${cardBorderStrong} ${cardBg} flex flex-row items-center justify-center gap-3 px-6`}>
+    // h-[72px] INCHANGÉE (voir bottomBarLayout.js) — seule la disposition
+    // INTERNE passe de mono-ligne à 2 lignes empilées
+    // (`flex-col items-center justify-center gap-1 py-2`), copiée telle
+    // quelle depuis le pied de page de Sidebar.jsx (voir la docstring
+    // "Alignement 2 lignes" plus haut) pour que les 2 lignes de CETTE barre
+    // tombent exactement sur celles de la Sidebar juste à sa gauche.
+    <div className={`h-[72px] border-t-2 ${cardBorderStrong} ${cardBg} flex flex-col items-center justify-center gap-1 py-2 px-6`}>
       {confirmingDismiss ? (
         <>
-          <span className={`text-sm font-normal text-center ${textMuted}`}>
-            Tes données resteront sauvegardées uniquement sur cet appareil — ce rappel reviendra à ta prochaine visite.
+          <div className="w-full flex items-center justify-center gap-3">
+            <button
+              onClick={onDismiss}
+              className={`shrink-0 text-sm font-bold ${textColorClass} hover:opacity-80 transition-colors`}
+            >
+              Masquer quand même
+            </button>
+            <button
+              onClick={() => setConfirmingDismiss(false)}
+              className={`shrink-0 text-sm font-bold ${textMuted} hover:text-main transition-colors`}
+            >
+              Annuler
+            </button>
+          </div>
+          <span className={`text-xs font-normal text-center ${textMuted}`}>
+            Tes données resteront sauvegardées uniquement sur cet appareil.
           </span>
-          <button
-            onClick={onDismiss}
-            className={`shrink-0 text-sm font-bold ${textColorClass} hover:opacity-80 transition-colors`}
-          >
-            Masquer quand même
-          </button>
-          <button
-            onClick={() => setConfirmingDismiss(false)}
-            className={`shrink-0 text-sm font-bold ${textMuted} hover:text-main transition-colors`}
-          >
-            Annuler
-          </button>
         </>
       ) : (
         <>
-          <span className={`text-sm font-normal ${textMuted}`}>
+          <div className="w-full flex items-center justify-center gap-3">
+            <button
+              onClick={() => openModal('AUTH')}
+              className={`shrink-0 text-sm font-bold ${textColorClass} hover:opacity-80 flex items-center gap-2 transition-colors`}
+            >
+              <UserPlus size={14} /> Se connecter
+            </button>
+            {/* Bouton icône seule → `ICON_BUTTON_ROUNDING` (voir
+                iconButtonLayout.js pour la règle centralisée, 03/08). */}
+            <button
+              onClick={() => setConfirmingDismiss(true)}
+              title="Masquer ce rappel pour cette visite"
+              className={`shrink-0 p-1.5 ${ICON_BUTTON_ROUNDING} ${textMuted} hover:text-main hover:bg-surface-hover transition-colors`}
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <span className={`text-xs font-normal ${textMuted}`}>
             Données sauvegardées uniquement sur cet appareil.
           </span>
-          <button
-            onClick={() => openModal('AUTH')}
-            className={`shrink-0 text-sm font-bold ${textColorClass} hover:opacity-80 flex items-center gap-2 transition-colors`}
-          >
-            <UserPlus size={14} /> Se connecter
-          </button>
-          {/* Bouton icône seule → `ICON_BUTTON_ROUNDING` (voir
-              iconButtonLayout.js pour la règle centralisée, 03/08). */}
-          <button
-            onClick={() => setConfirmingDismiss(true)}
-            title="Masquer ce rappel pour cette visite"
-            className={`shrink-0 p-1.5 ${ICON_BUTTON_ROUNDING} ${textMuted} hover:text-main hover:bg-surface-hover transition-colors`}
-          >
-            <X size={16} />
-          </button>
         </>
       )}
     </div>
