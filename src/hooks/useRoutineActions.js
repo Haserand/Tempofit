@@ -1,4 +1,5 @@
 import { useGeneratorContext } from '../contexts/GeneratorContext';
+import { useCustomActivityContext } from '../contexts/CustomActivityContext';
 import { useModalContext } from '../contexts/ModalContext';
 
 /**
@@ -32,13 +33,17 @@ export function useRoutineActions(
 ) {
   const { closeModal } = useModalContext();
   const {
-    workoutType, customActivity, isIntervalMode, isCrescendoMode, bpm,
+    workoutType, isIntervalMode, isCrescendoMode, bpm,
     crescendoWarmupPct, crescendoCooldownPct, crescendoWarmupBpm, crescendoCooldownBpm,
     targetMode, distanceVal, distanceUnit, paceMin, paceSec, hours, minutes,
     selectedGenres, bpmTolerance, crossfade, allowLongTracks, genreWeights, segments,
     setBpm, setBpmTolerance, setSelectedGenres, setGenreWeights, setLockedGenreWeights,
     setTargetMode, setCrossfade,
   } = useGeneratorContext();
+  // `customActivity` (08/08, 2e passe) — vient maintenant de
+  // `useCustomActivityContext()`, plus de `useGeneratorContext()` (voir la
+  // docstring de CustomActivityContext.jsx).
+  const { customActivity } = useCustomActivityContext();
 
   // Bascule le "mode Intime" : change à la volée les réglages par défaut
   // (BPM plus bas, genres différents, crossfade plus long...) pour coller à
