@@ -23,10 +23,12 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
-vi.mock('../../../src/appConfig.js', () => ({
-  getActivityEmoji: vi.fn(() => '🏃'),
-  MAX_DESCRIPTION_LENGTH: 150,
-}));
+// `appConfig.js` (getActivityEmoji/MAX_DESCRIPTION_LENGTH) N'EST PLUS
+// mocké ici (08/08, chantier "émoji baké en texte littéral dans le
+// titre") — ce composant ne l'importe plus DU TOUT : l'émoji est
+// désormais du texte ORDINAIRE dans `currentPlaylist.name`, et
+// MAX_DESCRIPTION_LENGTH n'a jamais servi qu'au formulaire d'édition,
+// déplacé dans EditPlaylistModal.jsx (voir sa docstring).
 
 // `vi.hoisted()` (voir AuthContext.test.jsx pour l'explication complète) —
 // pattern déjà établi ailleurs dans ce projet pour ce cas précis, adopté
