@@ -10,7 +10,19 @@ Ce fichier n'est **pas** un document de passation — les passations (narratives
 
 Objectif explicite : rester **court et pointer vers le code** plutôt que de le paraphraser en détail — moins de texte dupliqué entre ce fichier et les commentaires du code source, moins de risque que les deux divergent avec le temps (voir `CLAUDE-SANDBOX-VERIFICATION.md` pour un exemple concret de commentaire devenu faux, trouvé et corrigé le 02/08).
 
-## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
+✅ **SESSION DU 08/08 (suite) — édition titre+description passée d'inline à une modale dédiée (`EditPlaylistModal.jsx`).** Retour direct, captures à l'appui : "le mode édition inline crée un layout shift désagréable qui décale les stats/boutons vers le bas — remplacer par une modale dédiée, standardiser l'UX comme `EditRoutineModal.jsx`".
+
+**Vérifié avant d'implémenter** (pas supposé) : ce projet a un schéma déjà établi pour ce genre de modale — voir `ModalContainer.jsx` : "Share, Search, EditRoutine et SavingRoutine... rendues ailleurs qu'ici : leur booléen d'ouverture est dérivé directement dans le hook qui possède déjà le reste de leur état" (ex. `isEditRoutineModalOpen = activeModal === 'EDIT_ROUTINE'`, dans `useRoutines.js`). `PlaylistEditContext.jsx` (créé le même jour, chantier mémoïsation) est EXACTEMENT ce hook pour l'édition de playlist — même schéma appliqué ici plutôt qu'inventé.
+
+`PlaylistEditContext.jsx` : `isEditingPlaylistDetails` (booléen local) remplacé par `isEditPlaylistModalOpen = activeModal === 'EDIT_PLAYLIST'` (dérivé de `useModalContext()`). Nouveau point d'entrée unique `handleOpenEditPlaylistModal()` — préremplit les 2 brouillons ET ouvre la modale ensemble (même raisonnement que `handleSavePlaylistDetails` déjà en place : éviter qu'un appelant fasse les 3 étapes séparément, dans le mauvais ordre ou en en oubliant une). `handleSavePlaylistDetails` ferme désormais la modale lui-même (`closeModal()`) une fois la sauvegarde faite.
+
+Nouveau fichier — **`src/components/modals/EditPlaylistModal.jsx`** — sur le modèle d'`EditRoutineModal.jsx` (même gabarit de fenêtre : overlay, carte `rounded-3xl`, en-tête icône+titre+croix, pied de page 2 boutons). Lit tout son état via `usePlaylistEdit()` (comme `CustomActivityModal.jsx` lit `useCustomActivityContext()`) — ne reçoit que `theme` en prop. Montée dans `PlaylistDetailView.jsx`, à l'intérieur de `<PlaylistEditProvider>` (PAS dans `ModalContainer.jsx`, monté globalement et sans accès à ce Contexte scopé à la vue détail d'une playlist).
+
+`PlaylistHeaderTitleBlock.jsx` : formulaire d'édition inline entièrement retiré (input, textarea, compteur de caractères, boutons Enregistrer/Annuler) — le crayon appelle maintenant `handleOpenEditPlaylistModal()`, un seul appel, plus aucun état d'édition géré localement dans ce composant.
+
+Tests : nouveau `tests/modals/EditPlaylistModal.test.jsx` (1er fichier de test — ouverture/fermeture, édition des champs, Entrée/backdrop/Annuler/Enregistrer). `PlaylistEditContext.test.jsx` réécrit — `renderWithProvider` enveloppe désormais avec un VRAI `<ModalProvider>` (sans quoi `openModal`/`closeModal` seraient des no-op, rendant le cycle ouverture/fermeture impossible à observer), nouveaux tests pour `handleOpenEditPlaylistModal`/`closeEditPlaylistModal`. `PlaylistHeaderTitleBlock.test.jsx` — tout le bloc "édition fusionnée" (formulaire inline) remplacé par un test resserré sur l'appel de `handleOpenEditPlaylistModal` + une non-régression confirmant qu'aucun formulaire n'est plus rendu ici.
+
+⚠️ **Pas encore vérifié en conditions réelles** (build Vercel) — même limite habituelle (bac à sable sans accès réseau, `vitest run` jamais exécuté pour de vrai ici).
 
 ✅ **SUITE (08/08, même jour) — `AudioPlayerContext.jsx` mémoïsé (via `useAudioPreview.js`).** Après avoir évalué `AuthContext.jsx` (state qui ne change que rarement — connexion/déconnexion — donc `AuthProvider` re-rend déjà peu même sans mémoïsation ; corriger demanderait d'envelopper une quinzaine de fonctions dans `useCallback` pour un gain marginal, **pas fait**, priorité jugée trop basse) et `AudioPlayerContext.jsx` (retenu — voir plus bas).
 
