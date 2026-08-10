@@ -1,113 +1,79 @@
 // @vitest-environment jsdom
 //
-// Premier fichier de test pour CustomActivityContext.jsx (nouveau, 08/08 —
-// chantier "CustomActivityModal.jsx re-rend à chaque réglage du wizard").
-// Même principe que AthleticContext.test.jsx : ciblé sur la SEULE chose
-// qui justifie l'existence de ce Contexte, la stabilité référentielle de
-// sa `value` — pas une couverture de la logique métier de
-// `useCustomActivity`/`useGeneratorForm` (déjà testées directement dans
-// leurs propres fichiers).
+// Premier fichier de test pour useCustomActivity.js (08/08, chantier
+// "CustomActivityModal.jsx re-rend à chaque réglage du wizard"). Ciblé sur
+// le comportement AJOUTÉ ce jour-là (mémoïsation du retour) — pas une
+// couverture exhaustive de la logique métier (déjà couverte indirectement
+// via CustomActivityModal.test.jsx/GeneratorWizard.test.jsx, qui mockent
+// ce hook plutôt que de le faire tourner pour de vrai).
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
-import { CustomActivityProvider, useCustomActivityContext } from '../../src/contexts/CustomActivityContext.jsx';
+import { describe, it, expect, vi } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
+import { useCustomActivity } from '../../src/hooks/useCustomActivity.js';
 
-afterEach(() => {
-  cleanup();
-});
+describe('useCustomActivity — comportement métier', () => {
+  it('handleOpenCustomActivityModal appelle setWorkoutType("Autre"), pré-remplit tempCustomActivity avec customActivity, et ouvre la modale', () => {
+    const setWorkoutType = vi.fn();
+    const { result } = renderHook(() => useCustomActivity(setWorkoutType));
 
-function makeCustomActivityApi(overrides = {}) {
-  return {
-    customActivity: '', setCustomActivity: vi.fn(),
-    tempCustomActivity: '', setTempCustomActivity: vi.fn(),
-    isCustomActivityModalOpen: false, setIsCustomActivityModalOpen: vi.fn(),
-    handleOpenCustomActivityModal: vi.fn(),
-    ...overrides,
-  };
-}
+    act(() => { result.current.setCustomActivity('Escalade'); });
+    act(() => { result.current.handleOpenCustomActivityModal(); });
 
-const captured = [];
-function Probe() {
-  captured.push(useCustomActivityContext());
-  return null;
-}
-
-describe('CustomActivityContext — comportement de base', () => {
-  it('useCustomActivityContext() hors Provider renvoie un repli inerte (pas de crash)', () => {
-    captured.length = 0;
-    render(<Probe />);
-    expect(captured[0].isCustomActivityModalOpen).toBe(false);
-    expect(typeof captured[0].applyProfileBpmIfUntouched).toBe('function');
-  });
-
-  it('réexpose tous les champs de customActivityApi ET applyProfileBpmIfUntouched tels quels', () => {
-    captured.length = 0;
-    const customActivityApi = makeCustomActivityApi({ customActivity: 'Escalade' });
-    const applyProfileBpmIfUntouched = vi.fn();
-    render(
-      <CustomActivityProvider customActivityApi={customActivityApi} applyProfileBpmIfUntouched={applyProfileBpmIfUntouched}>
-        <Probe />
-      </CustomActivityProvider>
-    );
-    expect(captured[0].customActivity).toBe('Escalade');
-    expect(captured[0].applyProfileBpmIfUntouched).toBe(applyProfileBpmIfUntouched);
-    expect(captured[0].setCustomActivity).toBe(customActivityApi.setCustomActivity);
+    expect(setWorkoutType).toHaveBeenCalledWith('Autre');
+    expect(result.current.tempCustomActivity).toBe('Escalade');
+    expect(result.current.isCustomActivityModalOpen).toBe(true);
   });
 });
 
-// NOUVEAU — la vraie raison d'être de ce Contexte (voir sa docstring) :
-// sa `value` doit garder la MÊME référence tant que `customActivityApi`/
-// `applyProfileBpmIfUntouched` ne changent pas réellement — condition dont
-// dépend directement le fait que `CustomActivityModal.jsx` (montée
-// globalement dans App.jsx) ne re-rende plus à chaque réglage du wizard.
-describe('CustomActivityContext — stabilité référentielle de la value (useMemo)', () => {
-  it('un re-rendu du Provider avec les MÊMES références (customActivityApi/applyProfileBpmIfUntouched inchangés) renvoie la MÊME value', () => {
-    captured.length = 0;
-    const customActivityApi = makeCustomActivityApi();
-    const applyProfileBpmIfUntouched = vi.fn();
-    const { rerender } = render(
-      <CustomActivityProvider customActivityApi={customActivityApi} applyProfileBpmIfUntouched={applyProfileBpmIfUntouched}>
-        <Probe />
-      </CustomActivityProvider>
-    );
-    rerender(
-      <CustomActivityProvider customActivityApi={customActivityApi} applyProfileBpmIfUntouched={applyProfileBpmIfUntouched}>
-        <Probe />
-      </CustomActivityProvider>
-    );
-    expect(captured.length).toBe(2);
-    expect(captured[1]).toBe(captured[0]);
+// NOUVEAU (08/08) — la vraie raison d'être de ce fichier : vérifier que le
+// retour de ce hook reste RÉFÉRENTIELLEMENT STABLE d'un rendu à l'autre
+// tant qu'aucun de ses propres champs n'a changé — condition nécessaire
+// pour que CustomActivityContext.jsx (qui réexpose ce retour tel quel)
+// puisse à son tour être mémoïsé utilement. Voir la docstring du hook pour
+// le raisonnement complet.
+describe('useCustomActivity — stabilité référentielle du retour (NOUVEAU, 08/08)', () => {
+  it('renvoie le MÊME objet si le composant appelant re-rend sans que rien ici n\'ait changé', () => {
+    const setWorkoutType = vi.fn();
+    const { result, rerender } = renderHook(() => useCustomActivity(setWorkoutType));
+
+    const first = result.current;
+    rerender();
+    const second = result.current;
+
+    expect(second).toBe(first);
   });
 
-  it('customActivityApi qui change de référence (nouvel objet) fait bien recalculer la value', () => {
-    captured.length = 0;
-    const applyProfileBpmIfUntouched = vi.fn();
-    const { rerender } = render(
-      <CustomActivityProvider customActivityApi={makeCustomActivityApi()} applyProfileBpmIfUntouched={applyProfileBpmIfUntouched}>
-        <Probe />
-      </CustomActivityProvider>
-    );
-    rerender(
-      <CustomActivityProvider customActivityApi={makeCustomActivityApi()} applyProfileBpmIfUntouched={applyProfileBpmIfUntouched}>
-        <Probe />
-      </CustomActivityProvider>
-    );
-    expect(captured[1]).not.toBe(captured[0]);
+  it('handleOpenCustomActivityModal garde la MÊME référence tant que customActivity/setWorkoutType ne changent pas', () => {
+    const setWorkoutType = vi.fn();
+    const { result, rerender } = renderHook(() => useCustomActivity(setWorkoutType));
+
+    const firstHandler = result.current.handleOpenCustomActivityModal;
+    rerender();
+    const secondHandler = result.current.handleOpenCustomActivityModal;
+
+    expect(secondHandler).toBe(firstHandler);
   });
 
-  it('applyProfileBpmIfUntouched qui change de référence fait bien recalculer la value', () => {
-    captured.length = 0;
-    const customActivityApi = makeCustomActivityApi();
-    const { rerender } = render(
-      <CustomActivityProvider customActivityApi={customActivityApi} applyProfileBpmIfUntouched={vi.fn()}>
-        <Probe />
-      </CustomActivityProvider>
-    );
-    rerender(
-      <CustomActivityProvider customActivityApi={customActivityApi} applyProfileBpmIfUntouched={vi.fn()}>
-        <Probe />
-      </CustomActivityProvider>
-    );
-    expect(captured[1]).not.toBe(captured[0]);
+  it('renvoie un NOUVEL objet quand un champ change réellement (ex. customActivity)', () => {
+    const setWorkoutType = vi.fn();
+    const { result } = renderHook(() => useCustomActivity(setWorkoutType));
+
+    const before = result.current;
+    act(() => { result.current.setCustomActivity('Natation'); });
+    const after = result.current;
+
+    expect(after).not.toBe(before);
+    expect(after.customActivity).toBe('Natation');
+  });
+
+  it('handleOpenCustomActivityModal change de référence quand customActivity change (dépendance réelle de son useCallback)', () => {
+    const setWorkoutType = vi.fn();
+    const { result } = renderHook(() => useCustomActivity(setWorkoutType));
+
+    const before = result.current.handleOpenCustomActivityModal;
+    act(() => { result.current.setCustomActivity('Natation'); });
+    const after = result.current.handleOpenCustomActivityModal;
+
+    expect(after).not.toBe(before);
   });
 });
