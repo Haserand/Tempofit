@@ -367,6 +367,14 @@ const getRankStyle = (rank) => (rank >= 0 && rank < 3) ? RANK_STYLES[rank] : nul
 // accepter du texte alors que rien ne s'affiche plus au-delà.
 const MAX_DESCRIPTION_LENGTH = 150;
 
+// Titre de playlist JAMAIS vide (contrairement à la description,
+// optionnelle) — minimum choisi pour filtrer un titre clairement
+// insuffisant ("a", "ok") sans être trop restrictif (retour direct, 08/08,
+// chantier "EditPlaylistModal.jsx" : "0 à 3 c'est invalide" pour le
+// titre). Comparé après `.trim()` (les espaces ne comptent pas) — voir
+// PlaylistEditContext.jsx.
+const MIN_PLAYLIST_NAME_LENGTH = 3;
+
 export {
   TROPHIES_DATA,
   TROPHY_CATEGORIES,
@@ -389,5 +397,6 @@ export {
   getBpmBucketLabel,
   getActivityEmoji,
   getRankStyle,
-  MAX_DESCRIPTION_LENGTH
+  MAX_DESCRIPTION_LENGTH,
+  MIN_PLAYLIST_NAME_LENGTH
 };
