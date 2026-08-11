@@ -396,9 +396,26 @@ describe('GeneratorWizard — étape 4 (genres & génération)', () => {
     expect(setLockedGenreWeights).toHaveBeenCalledWith(new Set());
   });
 
+  // ⚠️ CORRIGÉ (build Vercel, échec réel — CI, pas anticipé en local) :
+  // ce test utilisait le contexte par défaut (`structureMode: 'constant'`)
+  // et sélectionnait le slider par INDEX (`sliders[0]`) — jusqu'au chantier
+  // du 10/08 (fusion BPM/étape 4 pour l'Allure Constante), l'étape 4 ne
+  // contenait QUE bpmTolerance/crossfade comme sliders, `sliders[0]` visait
+  // donc bpmTolerance sans ambiguïté. Depuis, en Allure Constante,
+  // `sliders[0]` est le NOUVEAU slider BPM (renderTargetBpmBlock, tout en
+  // haut de l'étape 4) — bpmTolerance/crossfade ont chacun glissé d'un cran.
+  // Plutôt que de corriger l'index en dur (fragile : recasserait pareil au
+  // prochain slider ajouté), ce test bascule sur `structureMode: 'crescendo'`
+  // — bpmTolerance/crossfade existent QUELLE QUE SOIT la structure choisie
+  // (réglages génériques, sans rapport avec Constant/Crescendo/Fractionné),
+  // donc tester avec un mode où le nouveau slider BPM ne s'affiche PAS à
+  // cette étape restaure les index d'origine, sans dépendre d'un compte de
+  // sliders qui varie désormais selon le mode.
   it('déplacer la marge d\'erreur (tolérance BPM) appelle setBpmTolerance', () => {
     const setBpmTolerance = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 4, setBpmTolerance }));
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({
+      wizardStep: 4, structureMode: 'crescendo', isCrescendoMode: true, isIntervalMode: true, setBpmTolerance,
+    }));
     const { container } = render(<GeneratorWizard {...baseProps()} />);
 
     const sliders = container.querySelectorAll('input[type="range"]');
@@ -925,9 +942,16 @@ describe('GeneratorWizard — étape 4 (compléments)', () => {
     expect(rockButton.textContent).toContain('⚠️');
   });
 
+  // ⚠️ CORRIGÉ (build Vercel, échec réel — même cause que le test
+  // "déplacer la marge d'erreur" ci-dessus, voir sa docstring pour le
+  // détail complet) : `structureMode: 'crescendo'` plutôt que le défaut
+  // 'constant', pour que le nouveau slider BPM de l'étape 4 (Allure
+  // Constante uniquement) ne décale pas les index.
   it('le curseur "Fondu enchaîné" appelle setCrossfade', () => {
     const setCrossfade = vi.fn();
-    mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 4, setCrossfade }));
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({
+      wizardStep: 4, structureMode: 'crescendo', isCrescendoMode: true, isIntervalMode: true, setCrossfade,
+    }));
     const { container } = render(<GeneratorWizard {...baseProps()} />);
 
     const sliders = container.querySelectorAll('input[type="range"]');
