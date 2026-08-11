@@ -191,23 +191,26 @@ export default function GeneratorWizard({
   // "je ne trouve pas ça normal de pouvoir générer une routine avec une
   // valeur de 0 km") : voir isTargetValueValid (targetValidation.js) pour le
   // constat complet — rien n'empêchait jusque-là de générer avec une cible
-  // (distance OU durée) à 0. La cible est éditable à l'étape 2 (toujours) ET
-  // à nouveau à l'étape 3, mais SEULEMENT pour les modes Constant/Crescendo
-  // (`!isIntervalMode || isCrescendoMode` — même condition que celle qui
-  // décide d'afficher `<TargetModeInputs>` à l'étape 3, voir plus bas) :
-  // le mode Fractionné y affiche des durées PAR SEGMENT à la place, une
-  // source de données différente — initialement hors scope, ÉLARGI ci-
-  // dessous (même jour, retour direct : "ce comportement minimal est-il
-  // celui généralisé dans toute l'app ? il le faudrait").
-  const step3ShowsTargetInputs = !isIntervalMode || isCrescendoMode;
+  // (distance OU durée) à 0.
+  //
+  // ⚠️ SIMPLIFIÉ (10/08, retour direct — "est-ce cohérent d'avoir la
+  // prévision temps/km à la fois à l'étape 2 ET à l'étape 3 ? est-ce pas
+  // redondant ?") : la cible n'était éditable qu'à l'étape 2 ET à l'étape 3
+  // (Constant/Crescendo) jusqu'à ce jour — `<TargetModeInputs>` retiré de
+  // l'étape 3 (voir plus bas, même raisonnement), donc `hours`/`minutes`/
+  // `distanceVal` ne peuvent plus JAMAIS changer une fois l'étape 2
+  // quittée : une valeur déjà validée avant de cliquer "Suivant" à l'étape 2
+  // reste valide pour toute la suite du wizard, par construction — plus
+  // besoin de revalider à l'étape 3. `step3ShowsTargetInputs` (l'ancienne
+  // condition qui gatait cette 2e validation) est donc supprimée, elle
+  // n'avait plus qu'un seul usage, devenu mort.
   const isTopLevelTargetInvalid =
-    (wizardStep === 2 || (wizardStep === 3 && step3ShowsTargetInputs)) &&
-    !isTargetValueValid({ targetMode, distanceVal, hours, minutes });
+    wizardStep === 2 && !isTargetValueValid({ targetMode, distanceVal, hours, minutes });
   // Mode Fractionné pur (`isIntervalMode && !isCrescendoMode`) : la cible
-  // globale ne s'affiche plus à l'étape 3 (segments à la place, voir
-  // step3ShowsTargetInputs ci-dessus) — donc c'est la validité des SEGMENTS
-  // eux-mêmes (`isSegmentValid`, targetValidation.js) qui gouverne "Suivant"
-  // à cette étape précise, pas isTargetValueValid.
+  // globale ne s'affiche jamais à l'étape 3 (segments à la place) — donc
+  // c'est la validité des SEGMENTS eux-mêmes (`isSegmentValid`,
+  // targetValidation.js) qui gouverne "Suivant" à cette étape précise, pas
+  // isTargetValueValid.
   const isSegmentsStepInvalid =
     wizardStep === 3 && isIntervalMode && !isCrescendoMode &&
     !areSegmentsValid(segments, targetMode);
@@ -595,16 +598,23 @@ export default function GeneratorWizard({
                     {renderZoneQuickPicks(bpm, (zoneBpm) => setBpmManual(zoneBpm))}
                   </div>
 
-                  {/* Extrait dans TargetModeInputs.jsx (03/08, check-up dette
-                      technique) — voir sa docstring, et l'étape 2 plus haut
-                      où le même composant est utilisé. */}
-                  <TargetModeInputs
-                    targetMode={targetMode} theme={theme}
-                    distanceVal={distanceVal} setDistanceVal={setDistanceVal}
-                    distanceUnit={distanceUnit} setDistanceUnit={setDistanceUnit}
-                    paceMin={paceMin} setPaceMin={setPaceMin} paceSec={paceSec} setPaceSec={setPaceSec}
-                    hours={hours} setHours={setHours} minutes={minutes} setMinutes={setMinutes}
-                  />
+                  {/* ⚠️ RETIRÉ (10/08, retour direct — "est-ce cohérent d'avoir
+                      la prévision temps/km à la fois à l'étape 2 ET à l'étape 3 ?
+                      est-ce pas redondant ?") : `<TargetModeInputs>` (même
+                      composant, mêmes champs, éditable identiquement aux 2
+                      endroits — donc STRICTEMENT redondant, pas un raffinement)
+                      vivait ici en plus de l'étape 2, où la cible (durée/distance)
+                      se règle UNE SEULE fois désormais. Pour Crescendo (juste
+                      en dessous) et Fractionné (branche `else`, plus bas), la
+                      durée totale reste lisible indirectement via la durée
+                      concrète de chaque segment/portion affichée — pas de trou
+                      d'information. Pour Allure Constante (aucun segment), cette
+                      étape n'affiche donc plus AUCUN rappel de durée/distance —
+                      compromis accepté explicitement avec l'utilisateur plutôt
+                      que découvert après coup ; un futur chantier séparé
+                      envisage de fusionner BPM + genre en une étape unique pour
+                      ce mode précis (voir README.md), ce qui réglerait aussi ce
+                      point à cette occasion. */}
 
                   {isCrescendoMode && (
                     <div className="space-y-6 mt-6">
