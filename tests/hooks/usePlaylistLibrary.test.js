@@ -323,3 +323,65 @@ describe('usePlaylistLibrary — handleSavePlaylist', () => {
     expect(setSavedPlaylists).not.toHaveBeenCalled();
   });
 });
+
+// NOUVEAU (check-up 10/08, retour direct — captures à l'appui : "je supprime
+// de Mes Séances, je ne vois plus le compteur de clonages, on devrait revoir
+// le précédent pourtant ?") — `removeSavedPlaylist` n'avait aucun test avant
+// ce chantier. Ciblé sur le correctif : `openCuratedPlaylist` doit être
+// appelée avec `{ isReadOnly: true, isPublic: true, cloneCount }` au moment
+// de restaurer le template pristine, comme les 2 AUTRES appelants du projet
+// (App.jsx/TemplateCard.jsx) — pas une couverture exhaustive de
+// removeSavedPlaylist par ailleurs (garde-fou historique/PENDING_UNSAVE déjà
+// couvert indirectement via requestRemoveSavedPlaylist ailleurs).
+describe('usePlaylistLibrary — removeSavedPlaylist (restauration du template pristine)', () => {
+  it('restaure le template avec isReadOnly/isPublic/cloneCount (régression 10/08 — badge de clonages disparaissait)', () => {
+    const openCuratedPlaylist = vi.fn();
+    // Même template que les captures d'écran du retour direct ("Midnight
+    // Runner 160") — un VRAI id de data/curatedSessions.js, pas un fixture
+    // inventé, pour que `catalog.find(...)` matche réellement.
+    const savedCopy = {
+      id: 'pl-curated-tpl-midnight-runner-160-1723200000000',
+      sourceTemplateId: 'tpl-midnight-runner-160',
+      name: 'Midnight Runner 160',
+      cloneCount: 7, // hérité de l'ouverture initiale depuis Découvrir
+      isNaughty: false,
+    };
+    const result = renderLibrary(savedCopy, { savedPlaylists: [savedCopy], openCuratedPlaylist });
+
+    result.current.removeSavedPlaylist(savedCopy.id);
+
+    expect(openCuratedPlaylist).toHaveBeenCalledTimes(1);
+    const [calledTemplate, calledExtraFields] = openCuratedPlaylist.mock.calls[0];
+    expect(calledTemplate.id).toBe('tpl-midnight-runner-160');
+    expect(calledExtraFields).toEqual({ isReadOnly: true, isPublic: true, cloneCount: 7 });
+  });
+
+  it('cloneCount undefined sur la copie retirée (jamais posé) se propage tel quel — pas de faux 0 inventé', () => {
+    const openCuratedPlaylist = vi.fn();
+    const savedCopy = {
+      id: 'pl-curated-tpl-midnight-runner-160-1723200000000',
+      sourceTemplateId: 'tpl-midnight-runner-160',
+      name: 'Midnight Runner 160',
+      isNaughty: false,
+      // Pas de cloneCount — cas d'une playlist sauvegardée AVANT ce
+      // correctif (pas de migration rétroactive, voir CLAUDE-SANDBOX-
+      // VERIFICATION.md, "tant qu'il n'y a pas d'utilisateurs réels").
+    };
+    const result = renderLibrary(savedCopy, { savedPlaylists: [savedCopy], openCuratedPlaylist });
+
+    result.current.removeSavedPlaylist(savedCopy.id);
+
+    const [, calledExtraFields] = openCuratedPlaylist.mock.calls[0];
+    expect(calledExtraFields.cloneCount).toBeUndefined();
+  });
+
+  it('playlist SANS sourceTemplateId (générée/importée) : pas de restauration de template, openCuratedPlaylist jamais appelée', () => {
+    const openCuratedPlaylist = vi.fn();
+    const generatedPlaylist = { id: 'pl-generated-123', name: 'Ma séance générée' };
+    const result = renderLibrary(generatedPlaylist, { savedPlaylists: [generatedPlaylist], openCuratedPlaylist });
+
+    result.current.removeSavedPlaylist(generatedPlaylist.id);
+
+    expect(openCuratedPlaylist).not.toHaveBeenCalled();
+  });
+});
