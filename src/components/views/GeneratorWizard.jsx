@@ -163,6 +163,60 @@ export default function GeneratorWizard({
       </div>
     );
   };
+
+  /**
+   * Bloc "Rythme cible global" (Constant) / "Rythme au pic" (Crescendo) —
+   * slider BPM + badge "Calculé depuis ton Profil" + raccourcis de zone.
+   * Extrait ici (10/08, 2e passe du chantier "redondance étape 2/étape 3",
+   * retour direct : "dans la logique de l'allure constante exclusivement je
+   * verrais bien la partie BPM dans l'étape 4") — même raisonnement que
+   * `renderZoneQuickPicks` juste au-dessus : PARTAGÉ par 2 emplacements
+   * maintenant, donc factorisé plutôt que copié-collé (éviter de
+   * réintroduire, sur CE bloc, la même redondance qu'on vient de corriger
+   * sur `<TargetModeInputs>` juste avant).
+   * - Crescendo : rendu à l'étape 3, EXACTEMENT comme avant cette
+   *   extraction (emplacement inchangé, contenu inchangé).
+   * - Allure Constante : rendu à l'étape 4 maintenant, PLUS à l'étape 3 —
+   *   ce mode ne visite plus jamais l'étape 3 du tout (voir
+   *   goToNextWizardStep/goToPreviousWizardStepFromStep4 plus bas, qui la
+   *   sautent explicitement). L'étape 3, elle, reste un `wizardStep === 3`
+   *   ordinaire dans le code — simplement jamais atteint par la navigation
+   *   pour ce mode précis, pas besoin de condition supplémentaire dedans.
+   */
+  const renderTargetBpmBlock = () => (
+    <div className="space-y-4">
+      <div className="flex justify-between items-end">
+        <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
+          <Activity className={textColorClass} size={24} /> <span>{isCrescendoMode ? 'Rythme au pic (cœur de séance)' : 'Rythme cible global'}</span>
+        </label>
+        <span className={`text-4xl font-black ${textColorClass}`}>{bpm} <span className={`text-sm font-bold ${textMuted}`}>BPM</span></span>
+      </div>
+      <input type="range" min={isNaughtyMode ? "40" : "80"} max={isNaughtyMode ? "180" : "220"} value={bpm} onChange={(e) => setBpmManual(parseInt(e.target.value))} className={`w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none ${isNaughtyMode ?
+        'accent-rose-500' : 'accent-red-500'}`} />
+      {/* Badge "calculé depuis ton profil" (retour direct : "il faudrait
+          ajouter une petite indication visuelle... pour bien faire
+          comprendre à l'utilisateur que l'appli a intelligemment
+          calculé ces BPM pour lui"). Affiché en Crescendo ET en
+          Allure Constante (retour direct : "pourquoi c'est utilisé en
+          Crescendo et pas pour les autres types de séances" — les 2
+          modes partagent maintenant EXACTEMENT le même mécanisme, voir
+          setStructureMode dans useGeneratorForm.js) — `bpmSourceIsProfile`
+          encode déjà "est-ce pertinent dans le mode actuel", pas la peine
+          de reproduire une condition de mode ici. N'apparaît QUE si la/les
+          valeur(s) affichée(s) sont VRAIMENT celles du profil de
+          l'activité en cours, pas dès qu'un profil existe quelque part
+          (voir bpmSourceIsProfile, useGeneratorForm.js) — disparaît dès
+          qu'un réglage est retouché à la main. Animation d'entrée
+          ponctuelle (pas un pulse en boucle) : un "aha" au moment où ça
+          apparaît, pas une sollicitation permanente. */}
+      {bpmSourceIsProfile && (
+        <div className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full ${bgAccentClass} text-white`}>
+          <Gauge size={12}/> Calculé depuis ton Profil Athlétique
+        </div>
+      )}
+      {renderZoneQuickPicks(bpm, (zoneBpm) => setBpmManual(zoneBpm))}
+    </div>
+  );
   const step3ScrollRef = useRef(null);
   const [showScrollHint, setShowScrollHint] = useState(false);
   useEffect(() => {
@@ -215,6 +269,31 @@ export default function GeneratorWizard({
     wizardStep === 3 && isIntervalMode && !isCrescendoMode &&
     !areSegmentsValid(segments, targetMode);
   const isNextDisabledByInvalidTarget = isTopLevelTargetInvalid || isSegmentsStepInvalid;
+
+  // `goToNextWizardStep`/`goToPreviousWizardStepFromStep4` (10/08, 2e passe
+  // du chantier "redondance étape 2/étape 3" — voir renderTargetBpmBlock
+  // plus haut pour le contexte complet) : en Allure Constante, l'étape 3
+  // (juste le slider BPM, seule chose que ce mode y affichait — aucun
+  // segment/répartition, contrairement à Crescendo/Fractionné) n'a plus de
+  // raison d'exister comme étape À PART ENTIÈRE une fois son slider déplacé
+  // à l'étape 4 (fusionné avec la sélection de genre). `wizardStep` GARDE
+  // ses valeurs numériques habituelles (1/2/3/4) — pas de renumérotation
+  // interne, seulement une NAVIGATION qui saute la valeur 3 pour ce mode
+  // précis : moins de surface de risque qu'une refonte du modèle d'état
+  // lui-même (`wizardStep === 3` reste un test parfaitement valide partout
+  // ailleurs dans ce fichier, simplement jamais atteint par ce mode). Seul
+  // l'AFFICHAGE (barre de progression, libellé "Étape X / N" — voir plus
+  // bas) traduit ce saut en un compte cohérent pour l'utilisateur (3 étapes
+  // au total en Allure Constante, pas 4 avec un trou).
+  const goToNextWizardStep = () => setWizardStep(wizardStep === 2 && structureMode === 'constant' ? 4 : wizardStep + 1);
+  const goToPreviousWizardStepFromStep4 = () => setWizardStep(structureMode === 'constant' ? 2 : 3);
+
+  // Nombre total d'étapes ET position AFFICHÉE dans ce total — distincts de
+  // `wizardStep` lui-même (voir juste au-dessus) : en Allure Constante,
+  // `wizardStep` vaut 4 sur le dernier écran, mais l'utilisateur ne doit
+  // jamais voir "Étape 4 / 3" (incohérent) — seulement "Étape 3 / 3".
+  const totalWizardSteps = structureMode === 'constant' ? 3 : 4;
+  const displayWizardStep = (structureMode === 'constant' && wizardStep === 4) ? 3 : wizardStep;
 
 
   return (
@@ -322,16 +401,18 @@ export default function GeneratorWizard({
               disponible dans ce cas précis. */}
           <div className={`${cardBg} rounded-3xl p-5 md:p-6 border ${cardBorder} shadow-xl relative overflow-hidden flex flex-col ${isGenerating ? 'opacity-60 pointer-events-none select-none' : ''}`}>
 
-            {/* Barre de progression du wizard (4 pastilles). `mb-6` (PAS
-                `mb-8`) — 03/08, voir la docstring de `<main>` (App.jsx)
-                pour le raisonnement complet de ce chantier en 4 parties. */}
+            {/* Barre de progression du wizard (3 pastilles en Allure
+                Constante, 4 sinon — voir totalWizardSteps/displayWizardStep
+                plus haut). `mb-6` (PAS `mb-8`) — 03/08, voir la docstring de
+                `<main>` (App.jsx) pour le raisonnement complet de ce
+                chantier en 4 parties. */}
             <div className="flex justify-between items-center mb-6 pb-3 border-b border-gray-100 dark:border-gray-800">
               <div className="flex space-x-2">
-                {[1, 2, 3, 4].map(s => (
-                  <div key={s} className={`h-2.5 w-8 sm:w-12 rounded-full transition-colors duration-300 ${wizardStep >= s ? bgAccentClass : 'bg-gray-200 dark:bg-gray-700'}`}/>
+                {Array.from({ length: totalWizardSteps }, (_, i) => i + 1).map(s => (
+                  <div key={s} className={`h-2.5 w-8 sm:w-12 rounded-full transition-colors duration-300 ${displayWizardStep >= s ? bgAccentClass : 'bg-gray-200 dark:bg-gray-700'}`}/>
                 ))}
               </div>
-              <span className={`text-sm font-bold uppercase tracking-wider ${textMuted}`}>Étape {wizardStep} / 4</span>
+              <span className={`text-sm font-bold uppercase tracking-wider ${textMuted}`}>Étape {displayWizardStep} / {totalWizardSteps}</span>
             </div>
 
             <div className="flex-1">
@@ -565,38 +646,7 @@ export default function GeneratorWizard({
 
               {(!isIntervalMode || isCrescendoMode) ? (
                 <>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-end">
-                      <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
-                        <Activity className={textColorClass} size={24} /> <span>{isCrescendoMode ? 'Rythme au pic (cœur de séance)' : 'Rythme cible global'}</span>
-                      </label>
-                      <span className={`text-4xl font-black ${textColorClass}`}>{bpm} <span className={`text-sm font-bold ${textMuted}`}>BPM</span></span>
-                    </div>
-                    <input type="range" min={isNaughtyMode ? "40" : "80"} max={isNaughtyMode ? "180" : "220"} value={bpm} onChange={(e) => setBpmManual(parseInt(e.target.value))} className={`w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none ${isNaughtyMode ?
-                      'accent-rose-500' : 'accent-red-500'}`} />
-                    {/* Badge "calculé depuis ton profil" (retour direct : "il faudrait
-                        ajouter une petite indication visuelle... pour bien faire
-                        comprendre à l'utilisateur que l'appli a intelligemment
-                        calculé ces BPM pour lui"). Affiché en Crescendo ET en
-                        Allure Constante (retour direct : "pourquoi c'est utilisé en
-                        Crescendo et pas pour les autres types de séances" — les 2
-                        modes partagent maintenant EXACTEMENT le même mécanisme, voir
-                        setStructureMode dans useGeneratorForm.js) — `bpmSourceIsProfile`
-                        encode déjà "est-ce pertinent dans le mode actuel", pas la peine
-                        de reproduire une condition de mode ici. N'apparaît QUE si la/les
-                        valeur(s) affichée(s) sont VRAIMENT celles du profil de
-                        l'activité en cours, pas dès qu'un profil existe quelque part
-                        (voir bpmSourceIsProfile, useGeneratorForm.js) — disparaît dès
-                        qu'un réglage est retouché à la main. Animation d'entrée
-                        ponctuelle (pas un pulse en boucle) : un "aha" au moment où ça
-                        apparaît, pas une sollicitation permanente. */}
-                    {bpmSourceIsProfile && (
-                      <div className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full ${bgAccentClass} text-white`}>
-                        <Gauge size={12}/> Calculé depuis ton Profil Athlétique
-                      </div>
-                    )}
-                    {renderZoneQuickPicks(bpm, (zoneBpm) => setBpmManual(zoneBpm))}
-                  </div>
+                  {renderTargetBpmBlock()}
 
                   {/* ⚠️ RETIRÉ (10/08, retour direct — "est-ce cohérent d'avoir
                       la prévision temps/km à la fois à l'étape 2 ET à l'étape 3 ?
@@ -608,13 +658,20 @@ export default function GeneratorWizard({
                       en dessous) et Fractionné (branche `else`, plus bas), la
                       durée totale reste lisible indirectement via la durée
                       concrète de chaque segment/portion affichée — pas de trou
-                      d'information. Pour Allure Constante (aucun segment), cette
-                      étape n'affiche donc plus AUCUN rappel de durée/distance —
-                      compromis accepté explicitement avec l'utilisateur plutôt
-                      que découvert après coup ; un futur chantier séparé
-                      envisage de fusionner BPM + genre en une étape unique pour
-                      ce mode précis (voir README.md), ce qui réglerait aussi ce
-                      point à cette occasion. */}
+                      d'information.
+                      ⚠️ Allure Constante NE PASSE PLUS PAR ICI DU TOUT (10/08,
+                      2e passe, même chantier) — ce mode ne visite plus jamais
+                      l'étape 3 (voir goToNextWizardStep/
+                      goToPreviousWizardStepFromStep4 plus bas) : son slider BPM
+                      (`renderTargetBpmBlock()`, même fonction que juste
+                      au-dessus) vit maintenant à l'étape 4, fusionné avec la
+                      sélection de genre — voir cette étape plus bas pour le
+                      raisonnement complet. Cette branche `(!isIntervalMode ||
+                      isCrescendoMode)` reste écrite telle quelle (pas
+                      simplifiée en juste `isCrescendoMode`) : moins de risque
+                      de régression sur une condition qui fonctionne déjà, même
+                      si sa moitié `!isIntervalMode` ne peut plus se déclencher
+                      concrètement ici. */}
 
                   {isCrescendoMode && (
                     <div className="space-y-6 mt-6">
@@ -878,6 +935,16 @@ export default function GeneratorWizard({
           {/* ETAPE 4 : MUSIQUE & GENERATION (genres, tolérance BPM, crossfade, boutons finaux) */}
           {wizardStep === 4 && (
             <div className="space-y-8">
+              {/* Slider BPM (10/08, 2e passe — voir la docstring de
+                  renderTargetBpmBlock plus haut) : UNIQUEMENT en Allure
+                  Constante, seul mode qui ne visite plus l'étape 3 (Crescendo/
+                  Fractionné continuent de l'afficher là-bas, inchangé). Rendu
+                  en premier, avant le choix du genre — dernier réglage
+                  numérique avant la partie plus "exploratoire" de cette étape
+                  (genres, options avancées), même ordre logique que
+                  Crescendo/Fractionné (BPM d'abord, détails ensuite). */}
+              {structureMode === 'constant' && renderTargetBpmBlock()}
+
               <div className="space-y-4">
                 <label className={`text-xl font-bold flex items-center space-x-2 ${textHighlight}`}>
                   <Music className={textColorClass} size={24} /> <span>Quelle vibe musicale ?</span>
@@ -1130,7 +1197,7 @@ export default function GeneratorWizard({
               </button>
             ) : <div/>}
             <button
-              onClick={() => setWizardStep(wizardStep + 1)}
+              onClick={goToNextWizardStep}
               disabled={isNextDisabledByInvalidTarget}
               title={isNextDisabledByInvalidTarget ? (isSegmentsStepInvalid ? 'Chaque portion doit avoir un BPM et une durée/distance valides.' : (targetMode === 'distance' ? 'Renseigne une distance supérieure à 0 pour continuer.' : 'Renseigne une durée supérieure à 0 pour continuer.')) : undefined}
               className={`px-8 py-3 rounded-xl font-bold flex items-center space-x-2 text-white shadow-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isNaughtyMode ?
@@ -1141,7 +1208,7 @@ export default function GeneratorWizard({
         )}
         {wizardStep === 4 && (
           <div className="mt-4 flex justify-start">
-            <button onClick={() => setWizardStep(3)} disabled={isGenerating} className={`px-6 py-2 rounded-xl font-bold flex items-center space-x-2 ${textMuted} hover:text-main transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}>
+            <button onClick={goToPreviousWizardStepFromStep4} disabled={isGenerating} className={`px-6 py-2 rounded-xl font-bold flex items-center space-x-2 ${textMuted} hover:text-main transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}>
               <ChevronLeft size={18}/> <span>Retour aux réglages</span>
             </button>
           </div>
