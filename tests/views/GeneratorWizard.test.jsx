@@ -273,6 +273,30 @@ describe('GeneratorWizard — étape 3 (rythme)', () => {
     expect(setBpmManual).toHaveBeenCalledWith(170);
   });
 
+  // NOUVEAU (10/08, retour direct — "est-ce cohérent d'avoir la prévision
+  // temps/km à la fois à l'étape 2 ET à l'étape 3 ? est-ce pas redondant ?")
+  // — `<TargetModeInputs>` (le bloc durée/distance) était dupliqué mot pour
+  // mot à l'étape 2 ET à l'étape 3 (Constant/Crescendo) — retiré de l'étape
+  // 3, qui ne montre donc plus JAMAIS ces libellés, quel que soit le mode.
+  it('mode Constant, mode Temps : n\'affiche plus "Durée de la session" (bloc durée retiré, redondant avec l\'étape 2)', () => {
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 3, targetMode: 'time', isCrescendoMode: false, isIntervalMode: false }));
+    render(<GeneratorWizard {...baseProps()} />);
+    expect(screen.queryByText('Durée de la session')).not.toBeInTheDocument();
+  });
+
+  it('mode Constant, mode Distance : n\'affiche plus "Objectif & Allure" (bloc distance retiré, redondant avec l\'étape 2)', () => {
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 3, targetMode: 'distance', isCrescendoMode: false, isIntervalMode: false }));
+    render(<GeneratorWizard {...baseProps()} />);
+    expect(screen.queryByText('Objectif & Allure')).not.toBeInTheDocument();
+  });
+
+  it('mode Crescendo : n\'affiche plus non plus "Durée de la session" (même retrait, la répartition de l\'effort reste affichée)', () => {
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 3, targetMode: 'time', isCrescendoMode: true }));
+    render(<GeneratorWizard {...baseProps()} />);
+    expect(screen.queryByText('Durée de la session')).not.toBeInTheDocument();
+    expect(screen.getByText("Répartition de l'effort")).toBeInTheDocument();
+  });
+
   it('mode Crescendo : affiche la répartition de l\'effort (DualRangeSlider)', () => {
     mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 3, isCrescendoMode: true }));
     render(<GeneratorWizard {...baseProps()} />);
@@ -418,12 +442,25 @@ describe('GeneratorWizard — navigation Précédent/Suivant (étapes 1 à 3)', 
     expect(setWizardStep).not.toHaveBeenCalled();
   });
 
-  it('"Suivant" (étape 3, mode Constant) est aussi désactivé si la cible redevient invalide', () => {
+  // ⚠️ MIS À JOUR (10/08, retour direct — "est-ce cohérent d'avoir la
+  // prévision temps/km à la fois à l'étape 2 ET à l'étape 3 ? est-ce pas
+  // redondant ?") : ce test vérifiait AVANT que "Suivant" (étape 3, Constant)
+  // soit désactivé si la cible était invalide — comportement volontairement
+  // retiré ce même jour en même temps que `<TargetModeInputs>` (le champ qui
+  // aurait pu la rendre invalide À CETTE ÉTAPE, justement). La cible ne peut
+  // plus JAMAIS être modifiée après l'étape 2, donc une valeur invalide à
+  // l'étape 3 n'est plus un scénario atteignable en usage réel (l'étape 2
+  // bloque déjà "Suivant" dans ce cas, voir le test juste au-dessus) — ce
+  // test synthétique (render DIRECT à l'étape 3 avec `distanceVal: 0`,
+  // sans passer par l'étape 2) reste utile comme garde-fou explicite :
+  // confirme que "Suivant" à l'étape 3 ne dépend PLUS DU TOUT de la cible,
+  // même dans ce cas limite forcé artificiellement.
+  it('"Suivant" (étape 3, mode Constant) reste actif même si la cible est à 0 — la cible n\'est plus éditable/revalidée à cette étape', () => {
     const setWizardStep = vi.fn();
     mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 3, targetMode: 'distance', distanceVal: 0, setWizardStep }));
     render(<GeneratorWizard {...baseProps()} />);
     fireEvent.click(screen.getByText('Suivant'));
-    expect(setWizardStep).not.toHaveBeenCalled();
+    expect(setWizardStep).toHaveBeenCalledWith(4);
   });
 
   // 04/08, 3e retour direct sur ce même chantier : "ce comportement minimal
