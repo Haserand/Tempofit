@@ -12,6 +12,18 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
+✅ **SESSION DU 10/08 (suite, 8e trouvaille — retour direct avec captures à l'appui, bug DIFFÉRENT de la famille "course asynchrone" des 7 précédentes) — le badge de compteur de clonages disparaissait après avoir retiré une playlist-template de "Mes Séances".**
+
+**Le mécanisme** : le badge (`PlaylistHeaderTitleBlock.jsx`) est gaté sur `currentPlaylist.cloneCount !== undefined` — pas recalculé dynamiquement, juste un champ posé explicitement au bon moment. `openCuratedPlaylist` (`useNavigation.js`) accepte un 2e paramètre `extraFields` pour ça — 3 appelants dans tout le projet, 2 corrects (`App.jsx`/`TemplateCard.jsx`, tous deux fusionnent déjà `{ isReadOnly: true, isPublic: true, cloneCount }`), un seul oublié : `removeSavedPlaylist` (`usePlaylistLibrary.js`), qui restaure le template pristine après un retrait de "Mes Séances" en appelant `openCuratedPlaylist(originalTemplate)` SANS 2e argument — le template restauré repartait d'un objet flambant neuf, sans `cloneCount`/`isReadOnly`/`isPublic`.
+
+**Correctif** : `cloneCount` repris directement depuis `currentPlaylist.cloneCount` (la copie qu'on retire l'a elle-même hérité au moment de sa sauvegarde, `handleSavePlaylist` spreads `{...currentPlaylist}` — jamais perdu depuis, aucune mutation de playlist du projet ne le supprime du spread) plutôt qu'une nouvelle requête Supabase à `template_clone_counts` — potentiellement légèrement périmé (quelqu'un a pu cloner entre-temps) mais suffisant pour un chiffre de vanité, largement mieux que l'absence totale actuelle.
+
+**Généralisation vérifiée AVANT de corriger** (nouvelle habitude actée ce même jour, voir CLAUDE-SANDBOX-VERIFICATION.md) : les 3 appelants de `openCuratedPlaylist` du projet entier recensés — seul celui corrigé ici était fautif, les 2 autres déjà corrects.
+
+Tests : `tests/hooks/usePlaylistLibrary.test.js` — nouveau describe dédié à `removeSavedPlaylist` (aucun test n'existait avant pour cette fonction). 3 scénarios : restauration avec les 3 champs corrects (vrai template `tpl-midnight-runner-160`, le même que les captures), `cloneCount` absent sur la copie retirée se propage tel quel (pas de faux 0 inventé), playlist sans `sourceTemplateId` (générée/importée) — pas de restauration du tout, comportement inchangé.
+
+⚠️ **Pas encore vérifié en conditions réelles** (build Vercel) — même limite habituelle.
+
 ✅ **SESSION DU 10/08 — check-up général, 1 vrai bug trouvé et corrigé : `PlaylistEditContext.jsx` re-rendait `PlaylistHeaderTitleBlock.jsx` à chaque frappe, malgré ce qu'affirmait sa propre docstring.** Trouvé en relisant le chantier de mémoïsation du 08/08 (le même jour qui avait justement corrigé ce type de bug ailleurs) — ironie relevée avec l'utilisateur avant correctif.
 
 **Le vrai problème** : `PlaylistEditContext.jsx` construisait une seule `value` (littéral, jamais dans un `useMemo`) portant à la fois `handleOpenEditPlaylistModal` (lu par `PlaylistHeaderTitleBlock.jsx`, censé rester stable) ET `editedPlaylistName`/`editedPlaylistDescription` (le brouillon, qui change à CHAQUE frappe dans `EditPlaylistModal.jsx`). Un Contexte React re-rend TOUS ses consommateurs dès qu'UN SEUL champ de sa `value` change — donc `PlaylistHeaderTitleBlock.jsx` re-rendait bien à chaque frappe, alors que sa docstring affirmait explicitement le contraire depuis le 08/08. ⚠️ Un simple `useMemo` sur la `value` n'aurait PAS suffi : `editedPlaylistName` en fait partie et change à chaque frappe, donc le memo aurait recalculé de toute façon.
@@ -318,6 +330,16 @@ Ordre de priorité retenu (voir aussi les passations pour le détail du raisonne
 - **Raison du report** : refonte intégrale du menu de navigation + nouvelles fonctionnalités prévues dans les prochains jours. La navigation vit au cœur d'`App.jsx` et irrigue presque tout le reste (quelle vue est affichée, quel state est visible à quel moment) — découper maintenant obligerait à deviner des frontières qui vont de toute façon bouger avec la refonte, avec un vrai risque de devoir refaire une partie du travail une 2e fois.
 - **Approche retenue à la place** : laisser `App.jsx` tel quel pour l'instant, mais écrire la refonte de la navigation ET toute nouvelle fonctionnalité directement dans leur PROPRE hook/context dédié, plutôt que comme des `useState` de plus ajoutés dans `AppContent`. Le découpage se fait ainsi organiquement, au fil de l'eau, sans gros chantier de refactoring risqué à un instant T — et une fois la navigation isolée, ce qui reste dans `App.jsx` sera plus facile à lire pour identifier les bonnes frontières pour la suite.
 - **À reprendre** : une fois la refonte de navigation stabilisée (et si le rythme des nouvelles fonctionnalités ralentit), revisiter le découpage du reste d'`App.jsx` — évaluer alors ce qui reste vraiment à extraire, plutôt que de refaire ce raisonnement depuis zéro.
+
+## Limite connue, non traitée — écritures concurrentes de MÊME TYPE sur la MÊME playlist
+
+**Constat (check-up 10/08)**, pas un chantier ouvert à trancher. Les 5 correctifs de course du 10/08 (`currentPlaylistIdRef`/`savedPlaylistsRef`/`routinesRef`/`userStatsRef`, voir "État d'avancement" plus haut) protègent contre une ANCIENNE fermeture asynchrone qui écrase un changement survenu APRÈS elle (playlist différente, action différente). Ils ne protègent PAS contre deux actions du MÊME type, sur la MÊME playlist, lancées à quelques secondes d'écart sans attendre la première (ex. cliquer "Remplacer" sur deux titres différents de la même playlist coup sur coup) — dans ce cas, "le dernier qui écrit gagne" : un des deux remplacements peut être perdu. Pas de risque de suppression/perte d'une AUTRE playlist (contrairement aux bugs corrigés), juste un remplacement à refaire.
+
+Pas corrigé pour deux raisons :
+- **Fenêtre de déclenchement étroite** — geste délibérément inhabituel (deux clics rapprochés sur la même playlist), pas un enchaînement d'actions normal comme "Partager puis naviguer ailleurs".
+- **Un simple remplacement mécanique `setXxx(x...)` → `setXxx(prev => ...)` ne suffirait pas** à le régler correctement : `prev =>` protège la référence du TABLEAU (`savedPlaylists`), pas l'objet PLAYLIST à l'intérieur — `newTracks` est construit à partir de `currentPlaylist.tracks` capturé au clic, pas relu depuis `prev`. Une vraie correction demanderait de retrouver la playlist cible À L'INTÉRIEUR du `prev =>` plutôt que de se fier à un snapshot capturé au clic — un chantier à part entière sur COMMENT ces hooks lisent/écrivent leur état, pas une syntaxe à changer partout.
+
+**À reprendre** : plutôt en même temps que la refonte de navigation que si isolément — même question de fond ("comment ces hooks lisent et écrivent leur état").
 
 
 
