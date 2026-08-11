@@ -159,8 +159,25 @@ function baseProps(overrides = {}) {
 }
 
 describe('GeneratorWizard — étape 1 (activité)', () => {
-  it('affiche "Étape 1 / 4"', () => {
+  // ⚠️ MIS À JOUR (10/08, 2e passe du chantier "redondance étape 2/étape 3")
+  // — le contexte de test par défaut (`makeContextValue`) est en
+  // `structureMode: 'constant'` ; ce mode compte désormais 3 étapes (pas 4),
+  // son slider BPM ayant été fusionné avec l'étape 4 (genre) — voir
+  // renderTargetBpmBlock/goToNextWizardStep, GeneratorWizard.jsx.
+  it('affiche "Étape 1 / 3" en Allure Constante (3 étapes, BPM fusionné avec le genre à l\'étape finale)', () => {
     mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 1 }));
+    render(<GeneratorWizard {...baseProps()} />);
+    expect(screen.getByText('Étape 1 / 3')).toBeInTheDocument();
+  });
+
+  it('affiche "Étape 1 / 4" en Crescendo (comportement INCHANGÉ — 4 étapes, comme avant ce chantier)', () => {
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 1, structureMode: 'crescendo', isCrescendoMode: true, isIntervalMode: true }));
+    render(<GeneratorWizard {...baseProps()} />);
+    expect(screen.getByText('Étape 1 / 4')).toBeInTheDocument();
+  });
+
+  it('affiche "Étape 1 / 4" en Fractionné (comportement INCHANGÉ — 4 étapes, comme avant ce chantier)', () => {
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 1, structureMode: 'interval', isCrescendoMode: false, isIntervalMode: true }));
     render(<GeneratorWizard {...baseProps()} />);
     expect(screen.getByText('Étape 1 / 4')).toBeInTheDocument();
   });
@@ -306,6 +323,43 @@ describe('GeneratorWizard — étape 3 (rythme)', () => {
 });
 
 describe('GeneratorWizard — étape 4 (genres & génération)', () => {
+  // NOUVEAU (10/08, 2e passe du chantier "redondance étape 2/étape 3",
+  // retour direct : "dans la logique de l'allure constante exclusivement je
+  // verrais bien la partie BPM dans l'étape 4") — le slider BPM
+  // (renderTargetBpmBlock, même fonction que celle utilisée à l'étape 3
+  // pour Crescendo, voir la description de ce test plus bas) apparaît
+  // maintenant en tête de l'étape 4, UNIQUEMENT en Allure Constante.
+  it('Allure Constante : le slider BPM ("Rythme cible global") apparaît en tête de l\'étape 4', () => {
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 4, bpm: 150 }));
+    const { container } = render(<GeneratorWizard {...baseProps()} />);
+    expect(screen.getByText('Rythme cible global')).toBeInTheDocument();
+    expect(container.querySelector('input[type="range"]')).toHaveValue('150');
+  });
+
+  it('Crescendo : PAS de slider BPM à l\'étape 4 (reste exclusivement à l\'étape 3 pour ce mode, comportement INCHANGÉ)', () => {
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 4, structureMode: 'crescendo', isCrescendoMode: true, isIntervalMode: true }));
+    render(<GeneratorWizard {...baseProps()} />);
+    expect(screen.queryByText('Rythme cible global')).not.toBeInTheDocument();
+    expect(screen.queryByText('Rythme au pic (cœur de séance)')).not.toBeInTheDocument();
+  });
+
+  it('Fractionné : PAS de slider BPM à l\'étape 4 (comportement INCHANGÉ)', () => {
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 4, structureMode: 'interval', isCrescendoMode: false, isIntervalMode: true }));
+    render(<GeneratorWizard {...baseProps()} />);
+    expect(screen.queryByText('Rythme cible global')).not.toBeInTheDocument();
+  });
+
+  it('Allure Constante : déplacer le slider BPM à l\'étape 4 appelle setBpmManual avec un nombre', () => {
+    const setBpmManual = vi.fn();
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 4, setBpmManual }));
+    const { container } = render(<GeneratorWizard {...baseProps()} />);
+
+    const slider = container.querySelector('input[type="range"]');
+    fireEvent.change(slider, { target: { value: '175' } });
+
+    expect(setBpmManual).toHaveBeenCalledWith(175);
+  });
+
   it('cliquer un genre disponible appelle toggleGenre', () => {
     const toggleGenre = vi.fn();
     mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 4, availableGenres: ['Rock', 'Pop'], toggleGenre }));
@@ -396,9 +450,20 @@ describe('GeneratorWizard — étape 4 (genres & génération)', () => {
     expect(mockOpenModal).toHaveBeenCalledWith('SAVING_ROUTINE');
   });
 
-  it('"Retour aux réglages" (étape 4) appelle setWizardStep(3)', () => {
+  // ⚠️ MIS À JOUR (10/08, 2e passe) — en Allure Constante (défaut du
+  // contexte de test), l'étape 3 n'existe plus DU TOUT (BPM fusionné avec
+  // l'étape 4) : "Retour aux réglages" ramène donc à l'étape 2, pas 3.
+  it('"Retour aux réglages" (étape 4, Allure Constante) appelle setWizardStep(2) — l\'étape 3 n\'existe plus pour ce mode', () => {
     const setWizardStep = vi.fn();
     mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 4, setWizardStep }));
+    render(<GeneratorWizard {...baseProps()} />);
+    fireEvent.click(screen.getByText('Retour aux réglages'));
+    expect(setWizardStep).toHaveBeenCalledWith(2);
+  });
+
+  it('"Retour aux réglages" (étape 4, Crescendo) appelle setWizardStep(3) — comportement INCHANGÉ', () => {
+    const setWizardStep = vi.fn();
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 4, structureMode: 'crescendo', isCrescendoMode: true, isIntervalMode: true, setWizardStep }));
     render(<GeneratorWizard {...baseProps()} />);
     fireEvent.click(screen.getByText('Retour aux réglages'));
     expect(setWizardStep).toHaveBeenCalledWith(3);
@@ -414,9 +479,29 @@ describe('GeneratorWizard — navigation Précédent/Suivant (étapes 1 à 3)', 
     expect(setWizardStep).toHaveBeenCalledWith(1);
   });
 
-  it('"Suivant" (étape 2) appelle setWizardStep(3)', () => {
+  // ⚠️ MIS À JOUR (10/08, 2e passe) — en Allure Constante (défaut du
+  // contexte de test), "Suivant" à l'étape 2 saute directement à l'étape 4
+  // (BPM fusionné avec le genre) — l'étape 3 n'est plus jamais visitée pour
+  // ce mode. Voir goToNextWizardStep, GeneratorWizard.jsx.
+  it('"Suivant" (étape 2, Allure Constante) appelle setWizardStep(4) — saute l\'étape 3, qui n\'existe plus pour ce mode', () => {
     const setWizardStep = vi.fn();
     mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 2, setWizardStep }));
+    render(<GeneratorWizard {...baseProps()} />);
+    fireEvent.click(screen.getByText('Suivant'));
+    expect(setWizardStep).toHaveBeenCalledWith(4);
+  });
+
+  it('"Suivant" (étape 2, Crescendo) appelle setWizardStep(3) — comportement INCHANGÉ', () => {
+    const setWizardStep = vi.fn();
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 2, structureMode: 'crescendo', isCrescendoMode: true, isIntervalMode: true, setWizardStep }));
+    render(<GeneratorWizard {...baseProps()} />);
+    fireEvent.click(screen.getByText('Suivant'));
+    expect(setWizardStep).toHaveBeenCalledWith(3);
+  });
+
+  it('"Suivant" (étape 2, Fractionné) appelle setWizardStep(3) — comportement INCHANGÉ', () => {
+    const setWizardStep = vi.fn();
+    mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 2, structureMode: 'interval', isCrescendoMode: false, isIntervalMode: true, setWizardStep }));
     render(<GeneratorWizard {...baseProps()} />);
     fireEvent.click(screen.getByText('Suivant'));
     expect(setWizardStep).toHaveBeenCalledWith(3);
