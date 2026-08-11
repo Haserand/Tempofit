@@ -12,6 +12,19 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
+✅ **SESSION DU 10/08 (suite) — chantier "GeneratorWizard, redondance étape 2/étape 3" DÉCOUPÉ EN PLUSIEURS PASSES (retour direct, "je veux le truc le plus sécurisé possible") — 1re passe livrée : retrait du bloc durée/distance dupliqué à l'étape 3.**
+
+**Constat de départ** (captures à l'appui) : `<TargetModeInputs>` (durée/distance) était affiché À L'IDENTIQUE à l'étape 2 ET à l'étape 3 (Constant/Crescendo) — même composant, mêmes champs, éditable aux deux endroits, sur le MÊME state (`hours`/`minutes`/`distanceVal`...). Vérifié avant de toucher au code : pour Crescendo/Fractionné, la durée totale reste lisible indirectement via la durée concrète de chaque segment affiché — aucun trou d'info. Pour Allure Constante (aucun segment), l'étape 3 ne montre plus AUCUN repère de durée après ce retrait — **compromis accepté explicitement avec l'utilisateur**, pas découvert après coup.
+
+**1re passe livrée** :
+- `<TargetModeInputs>` retiré de l'étape 3 (reste uniquement à l'étape 2, où la cible se règle désormais UNE SEULE fois).
+- `isTopLevelTargetInvalid` simplifié : ne vérifie plus QUE `wizardStep === 2` — la cible ne pouvant plus jamais changer après cette étape, la revalider à l'étape 3 n'avait plus de sens. `step3ShowsTargetInputs` (son unique usage) supprimée avec.
+- 1 test existant, devenu obsolète par ce changement de comportement VOLONTAIRE (`tests/views/GeneratorWizard.test.jsx`, "Suivant... est aussi désactivé si la cible redevient invalide"), mis à jour pour vérifier le NOUVEAU comportement plutôt que contourné ou supprimé. 3 nouveaux tests ajoutés (Constant Temps/Distance + Crescendo) confirmant le retrait.
+
+**2e passe, PAS ENCORE FAITE (chantier séparé, volontairement)** : pour l'Allure Constante spécifiquement, fusionner le slider BPM (étape 3 actuelle) avec la sélection de genre (étape 4) — retour direct : *"dans la logique de l'allure constante exclusivement je verrais bien la partie BPM dans l'étape 4"*. Idée validée sur le fond, mais PAS un simple déplacement de bloc : `wizardStep` est référencé à 16 endroits dans `GeneratorWizard.jsx` (barre de progression, navigation Suivant/Précédent en dur `wizardStep ± 1`, bouton Générer gaté sur `wizardStep === 4` uniquement, validations par numéro d'étape...), TOUS supposant aujourd'hui un compte FIXE de 4 étapes pour tous les modes. Rendre le nombre total d'étapes conditionnel au mode de structure (3 pour Constant, 4 pour les autres) touche ces 16 points, pas juste l'affichage du BPM — à traiter avec le même soin que cette 1re passe, pas empilé dedans.
+
+⚠️ **Pas encore vérifié en conditions réelles** (build Vercel) — même limite habituelle.
+
 ✅ **SESSION DU 10/08 (suite, 8e trouvaille — retour direct avec captures à l'appui, bug DIFFÉRENT de la famille "course asynchrone" des 7 précédentes) — le badge de compteur de clonages disparaissait après avoir retiré une playlist-template de "Mes Séances".**
 
 **Le mécanisme** : le badge (`PlaylistHeaderTitleBlock.jsx`) est gaté sur `currentPlaylist.cloneCount !== undefined` — pas recalculé dynamiquement, juste un champ posé explicitement au bon moment. `openCuratedPlaylist` (`useNavigation.js`) accepte un 2e paramètre `extraFields` pour ça — 3 appelants dans tout le projet, 2 corrects (`App.jsx`/`TemplateCard.jsx`, tous deux fusionnent déjà `{ isReadOnly: true, isPublic: true, cloneCount }`), un seul oublié : `removeSavedPlaylist` (`usePlaylistLibrary.js`), qui restaure le template pristine après un retrait de "Mes Séances" en appelant `openCuratedPlaylist(originalTemplate)` SANS 2e argument — le template restauré repartait d'un objet flambant neuf, sans `cloneCount`/`isReadOnly`/`isPublic`.
