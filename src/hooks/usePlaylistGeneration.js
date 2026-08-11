@@ -35,6 +35,39 @@ export function usePlaylistGeneration(
 ) {
   const { checkGenreWeightDeviation } = useGeneratorContext();
 
+  // `savedPlaylistsRef`/`routinesRef`/`userStatsRef` (check-up 10/08 — même
+  // famille de course que "Partager"/"Cloner" et "Remplacer un titre"/
+  // "Cloner", déjà corrigées ce jour-là dans PlaylistDetailView.jsx/
+  // PlaylistDetailContext.jsx) — TOUJOURS la valeur la PLUS RÉCENTE de
+  // chacun, mise à jour à CHAQUE rendu (simple assignation, pas un Hook).
+  //
+  // `executeGeneration` peut tourner plusieurs dizaines de secondes pour un
+  // gros lot (voir le bandeau de progression, App.jsx : "+1s de pause
+  // volontaire entre chaque playlist") — et `isGenerating` ne bloque QUE
+  // l'affichage d'un bandeau, jamais le reste de l'UI (confirmé en lisant
+  // App.jsx : aucune modale/overlay, juste un `<div>` flottant). Rien
+  // n'empêche donc de renommer/cloner/supprimer une AUTRE playlist, ou de
+  // terminer une séance qui débloque un trophée, PENDANT qu'une génération
+  // tourne encore. Sans ces refs, les 3 écritures finales de cette fonction
+  // (`setSavedPlaylists`/`setRoutines`/`checkTrophies`) utilisaient
+  // `savedPlaylists`/`routines`/`userStats` FIGÉS au moment du clic sur
+  // "Générer" — pour `savedPlaylists`/`routines` (tous deux synchronisés via
+  // `useSyncedCollection.js`), un tableau obsolète manquant une entrée
+  // ajoutée entre-temps se traduisait par un vrai `DELETE` envoyé à
+  // Supabase pour cette entrée (`useSyncedCollection.js` interprète toute
+  // absence comme une suppression) — perte de données réelle, pas juste un
+  // affichage incohérent. Pour `userStats` (simple blob local,
+  // `usePersistentState`), la conséquence est moindre (pas de suppression)
+  // mais réelle quand même : un changement de stats concurrent (ex. un
+  // trophée débloqué par une autre action pendant ce temps) pouvait être
+  // silencieusement écrasé.
+  const savedPlaylistsRef = useRef(savedPlaylists);
+  savedPlaylistsRef.current = savedPlaylists;
+  const routinesRef = useRef(routines);
+  routinesRef.current = routines;
+  const userStatsRef = useRef(userStats);
+  userStatsRef.current = userStats;
+
   // Jeton d'annulation "par exécution" — voir cancelGeneration ci-dessous pour
   // le raisonnement complet. Un objet mutable frais { cancelled: false } est
   // créé à CHAQUE appel de executeGeneration et capturé dans sa closure ; ça
@@ -233,10 +266,27 @@ export function usePlaylistGeneration(
     if (!newStats.hasUsedFavorites && generatedPlaylists.some(pl => pl.tracks.some(t => t._fromFavorites))) {
       newStats.hasUsedFavorites = true; statsUpdated = true;
     }
-    if (statsUpdated) checkTrophies(newStats);
+    if (statsUpdated) {
+      // Rebasé sur `userStatsRef.current` (le PLUS FRAIS, voir la docstring
+      // plus haut) plutôt que sur `newStats` tel quel (construit à partir du
+      // `userStats` figé au tout début de cette génération) — seuls les
+      // champs RÉELLEMENT modifiés par CETTE génération (comparés à
+      // `userStats`, la version de départ) sont réappliqués par-dessus,
+      // pour ne pas écraser un changement concurrent survenu ailleurs
+      // pendant les plusieurs secondes/dizaines de secondes qu'a duré cette
+      // génération.
+      const touchedKeys = Object.keys(newStats).filter(k => newStats[k] !== userStats[k]);
+      const rebasedStats = { ...userStatsRef.current };
+      touchedKeys.forEach(k => { rebasedStats[k] = newStats[k]; });
+      checkTrophies(rebasedStats);
+    }
 
     if (routineId) {
-      setRoutines(routines.map(r => r.id === routineId
+      // `routinesRef.current` (PAS `routines`, voir la docstring plus haut)
+      // — évite qu'une autre routine ajoutée/modifiée pendant cette
+      // génération ne soit silencieusement perdue (DELETE côté Supabase via
+      // useSyncedCollection.js) au moment d'écrire celle-ci.
+      setRoutines(routinesRef.current.map(r => r.id === routineId
         ? { ...r, manualGenerations: (r.manualGenerations || 0) + count, recentTrackIds: rollingExcludeIds.slice(-RECENT_TRACKS_CAP) }
         : r));
     }
@@ -262,7 +312,12 @@ export function usePlaylistGeneration(
         showToast(`⚠️ Répartition entre genres différente de ce qui était visé : ${deviations.join(', ')}.`, 'error');
       }
     } else {
-      setSavedPlaylists([...generatedPlaylists, ...savedPlaylists]);
+      // `savedPlaylistsRef.current` (PAS `savedPlaylists`, voir la
+      // docstring plus haut) — même raisonnement que `routinesRef` juste
+      // au-dessus : un lot de plusieurs playlists peut prendre des dizaines
+      // de secondes, largement assez pour qu'une AUTRE playlist soit
+      // ajoutée/modifiée/supprimée entre-temps ailleurs dans l'app.
+      setSavedPlaylists([...generatedPlaylists, ...savedPlaylistsRef.current]);
       changeView('playlists');
       showToast(`${count} playlists générées ! Distance/durée réelle : peut légèrement différer de la cible.`);
       const totalFallback = generatedPlaylists.reduce((s, p) => s + (p.fallbackTrackCount || 0), 0);
