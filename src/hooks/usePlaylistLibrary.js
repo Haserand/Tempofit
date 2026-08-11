@@ -260,11 +260,37 @@ export function usePlaylistLibrary(
     // l'écran courant) et qu'elle vient bien d'un template (`sourceTemplateId`
     // — absent pour une playlist générée ou importée, qui n'a pas de
     // "version canonique" séparée d'elle-même vers laquelle revenir).
+    //
+    // ⚠️ BUG CORRIGÉ (retour direct, captures à l'appui : "je supprime de
+    // Mes Séances, je ne vois plus le compteur de clonages, on devrait
+    // revoir le précédent pourtant ?") — `openCuratedPlaylist` était
+    // appelée ICI sans son 2e paramètre (`extraFields`), contrairement aux
+    // 2 AUTRES appelants du projet (`App.jsx`/`TemplateCard.jsx`), qui
+    // fusionnent tous les deux `{ isReadOnly: true, isPublic: true,
+    // cloneCount }` — vérifié en généralisant la recherche à TOUS les
+    // appels de `openCuratedPlaylist` du projet avant de corriger (2 seuls
+    // autres appelants, tous les deux déjà corrects). Le template restauré
+    // ici repartait donc d'un objet flambant neuf, sans `cloneCount` ni
+    // `isReadOnly`/`isPublic` — le badge de compteur de clonages
+    // (`PlaylistHeaderTitleBlock.jsx`, gaté sur `cloneCount !== undefined`)
+    // disparaissait purement et simplement.
+    // `cloneCount: currentPlaylist.cloneCount` (PAS une nouvelle requête
+    // Supabase à `template_clone_counts`, contrairement à App.jsx) — la
+    // copie qu'on retire avait ELLE-MÊME hérité de la vraie valeur au
+    // moment de sa sauvegarde (`handleSavePlaylist` spreads
+    // `{...currentPlaylist}`, voir sa docstring) et ne l'a plus jamais
+    // perdue depuis (aucune mutation de playlist dans ce projet ne
+    // supprime `cloneCount` du spread) : la reporter ici suffit, sans
+    // avoir besoin de refaire un aller-retour réseau juste pour un
+    // affichage qui redevient de toute façon un aperçu figé. Potentiellement
+    // légèrement périmée (quelqu'un d'autre a pu cloner ce template
+    // entre-temps) — acceptable pour un chiffre de vanité, largement
+    // mieux que l'absence totale actuelle.
     if (currentPlaylist?.id === playlistId && currentPlaylist.sourceTemplateId) {
       const catalog = currentPlaylist.isNaughty ? naughtyCuratedSessions : curatedSessions;
       const originalTemplate = catalog.find(t => t.id === currentPlaylist.sourceTemplateId);
       if (originalTemplate) {
-        openCuratedPlaylist(originalTemplate);
+        openCuratedPlaylist(originalTemplate, { isReadOnly: true, isPublic: true, cloneCount: currentPlaylist.cloneCount });
         showToast("Playlist retirée de Mes Séances — le modèle original a été restauré.");
         return;
       }
