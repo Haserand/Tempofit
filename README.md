@@ -64,6 +64,16 @@ Tests : nouveau fichier `tests/hooks/usePlaylistGeneration.test.js` (aucun test 
 
 ⚠️ **Pas encore vérifié en conditions réelles** (build Vercel) — même limite habituelle.
 
+✅ **SESSION DU 10/08 (suite, 6e trouvaille) — 4e occurrence de la même famille, cette fois dans `useCsvImport.js` (`handleCSVUpload`) : un `FileReader`, pas un appel réseau.**
+
+**Trouvé en balayant systématiquement** tous les appels directs `setSavedPlaylists(savedPlaylists...)`/`setRoutines(routines...)` (sans `prev =>`) du projet, pour vérifier s'il en restait d'autres après les 3 corrections précédentes — la quasi-totalité des résultats se sont avérés sûrs (handlers strictement synchrones, aucun `await`/callback asynchrone entre la lecture et l'écriture, donc aucune fenêtre de course possible) : `usePlaylistLibrary.js`, `usePlaylistCompletions.js`, `PlaylistsView.jsx`, `RoutinesView.jsx`. Un seul candidat réel : `FileReader.readAsText()` est asynchrone (lecture en arrière-plan, `onload` se déclenche une fois terminée) — fenêtre de course plus petite que les 3 précédentes (souvent quasi instantané pour un petit CSV) mais pas nulle (gros fichier, appareil lent). Même risque : `setCurrentPlaylist` ramenant l'affichage sur l'ancienne playlist, `setSavedPlaylists` avec un tableau obsolète pouvant faire disparaître une playlist ajoutée entre-temps.
+
+**Correctif** : même schéma une 4e fois — `currentPlaylistIdRef`/`savedPlaylistsRef`, abandon avec toast si divergence détectée à l'intérieur de `onload`, avant toute écriture.
+
+Tests : nouveau fichier `tests/hooks/useCsvImport.test.js` (aucun test dédié n'existait avant). `FileReader` remplacé par un faux constructeur contrôlable manuellement (`onload` déclenché explicitement par le test) — seul moyen fiable d'insérer un point de pause exact entre le déclenchement de l'import et la fin de la lecture pour simuler la course. 2 scénarios : changement de playlist pendant la lecture (annulation), comportement inchangé sans changement.
+
+⚠️ **Pas encore vérifié en conditions réelles** (build Vercel) — même limite habituelle.
+
 ✅ **SESSION DU 08/08 (suite, 3e passe) — validation du titre + émoji baké en texte littéral dans le nom des playlists.** Deux chantiers distincts décidés dans la même discussion (captures d'écran de la modale à l'appui) — traités ensemble ici.
 
 **1. Validation du titre (jamais optionnel, contrairement à la description)** — nouvelle constante `MIN_PLAYLIST_NAME_LENGTH = 3` (`appConfig.js`). `PlaylistEditContext.jsx` : `isEditedNameValid` (titre `.trim()` ≥ 3 caractères) calculé et réexposé, le repli silencieux sur l'ancien nom (`|| currentPlaylist.name`) est retiré — `handleSavePlaylistDetails` refuse maintenant explicitement de sauvegarder si invalide (garde défensive, en plus du bouton déjà désactivé côté modale). `EditPlaylistModal.jsx` : bouton "Enregistrer" `disabled` + message d'erreur sous le champ titre tant que c'est invalide, même pattern que `EditRoutineModal.jsx` sur cible invalide. La **description**, elle, reste sans AUCUNE contrainte de longueur minimale (confirmé explicitement par l'utilisateur après un 1er malentendu de ma part sur quel champ portait la règle) — n'importe quel contenu est valide, y compris un seul caractère.
