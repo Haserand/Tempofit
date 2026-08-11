@@ -27,7 +27,13 @@ Implémentation : `wizardStep` GARDE ses valeurs numériques habituelles (1/2/3/
 
 Tests : 3 tests existants devenus obsolètes par ce changement VOLONTAIRE de comportement (`tests/views/GeneratorWizard.test.jsx` — "Étape 1 / 4", "Suivant (étape 2) → setWizardStep(3)", "Retour aux réglages → setWizardStep(3)"), mis à jour pour vérifier le NOUVEAU comportement en Allure Constante, chacun accompagné d'un test JUMEAU confirmant explicitement que Crescendo/Fractionné restent inchangés (pas juste supposé). 4 nouveaux tests sur le bloc BPM à l'étape 4 (présent en Constant, absent en Crescendo/Fractionné, interaction du slider).
 
-⚠️ **Pas encore vérifié en conditions réelles** (build Vercel) — même limite habituelle.
+✅ **CONFIRMÉ EN CONDITIONS RÉELLES (build Vercel)** — 2 échecs RÉELS détectés (les seuls de toute cette session, malgré tous les correctifs précédents "vérifiés" par lecture + outils statiques uniquement) : `tests/views/GeneratorWizard.test.jsx`, "déplacer la marge d'erreur (tolérance BPM)" et "le curseur Fondu enchaîné" — tous deux à l'étape 4, contexte de test par défaut (`structureMode: 'constant'`).
+
+**Cause** : ces 2 tests sélectionnaient leur slider par INDEX BRUT (`sliders[0]`/`sliders[1]`, via `querySelectorAll`) — avant la 2e passe du jour, l'étape 4 ne contenait que 2 sliders (tolérance BPM, fondu enchaîné), donc sans ambiguïté. Depuis, en Allure Constante (le mode par défaut de ces tests), un 3e slider (BPM, `renderTargetBpmBlock()`) est apparu EN PREMIER dans le DOM — décalant les 2 index d'un cran. Repéré uniquement par le build réel : ma propre recherche généralisée avant livraison n'avait vérifié QUE les assertions basées sur du texte (`getByText`/`queryByText`), pas les sélections par index positionnel — angle mort réel, pas anticipé.
+
+**Correctif** : plutôt que de corriger les index en dur (fragile — recasserait pareil au prochain slider ajouté à cette étape), les 2 tests basculent sur `structureMode: 'crescendo'` — tolérance BPM/fondu enchaîné existent quel que soit le mode de structure (réglages génériques), donc tester avec un mode où le nouveau slider BPM ne s'affiche PAS à l'étape 4 restaure les index d'origine, sans dépendre d'un compte de sliders qui varie désormais selon le mode.
+
+⚠️ **Leçon pour la suite** : quand un nouvel élément est inséré dans une étape déjà couverte par des tests, généraliser la recherche de régression aux sélecteurs POSITIONNELS (`querySelectorAll(...)[n]`, `container.children[n]`...) de cette même étape, pas seulement au texte affiché — les deux catégories peuvent casser indépendamment l'une de l'autre.
 
 ✅ **SESSION DU 10/08 (suite, 8e trouvaille — retour direct avec captures à l'appui, bug DIFFÉRENT de la famille "course asynchrone" des 7 précédentes) — le badge de compteur de clonages disparaissait après avoir retiré une playlist-template de "Mes Séances".**
 
