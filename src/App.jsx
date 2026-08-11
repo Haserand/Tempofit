@@ -666,6 +666,13 @@ function AppContent({
 
   const { userStats, setUserStats, checkTrophies, unseenTrophyCount, markTrophiesSeen } = useUserStats(showToast, user);
 
+  // `userStatsRef` (check-up 10/08 — 5e occurrence de la même famille de
+  // course cette session, voir `shareImageFileWithTrophy` plus bas pour le
+  // raisonnement complet) — toujours la valeur la PLUS RÉCENTE de
+  // `userStats`, mise à jour à chaque rendu.
+  const userStatsRef = useRef(userStats);
+  userStatsRef.current = userStats;
+
   // MIGRÉ VERS GeneratorContext (chantier God Component, étape 2) : tout ce
   // qui suit vivait ici via `useState('Course à pied')` + `useCustomActivity`
   // + `useGeneratorForm` directement. Ces 3 hooks sont maintenant appelés une
@@ -917,9 +924,28 @@ function AppContent({
   // image téléchargée comptent tous les deux comme un usage réel de la
   // fonctionnalité de partage ; un partage ANNULÉ par l'utilisateur (voir
   // shareImageFile, useShare.js) ne compte pas.
+  //
+  // ⚠️ COURSE CORRIGÉE (check-up 10/08 — 5e occurrence de la même famille
+  // cette session, voir PlaylistDetailView.jsx/PlaylistDetailContext.jsx/
+  // usePlaylistGeneration.js/useCsvImport.js pour les 4 précédentes, et la
+  // FENÊTRE DE COURSE LA PLUS LONGE de toutes : `await shareImageFile(...)`
+  // attend `navigator.share()` avec un fichier — la feuille de partage
+  // native du système, qui reste ouverte tant que l'utilisateur ne l'a pas
+  // fermée/utilisée, potentiellement plusieurs minutes s'il se laisse
+  // distraire. `userStats` a largement le temps de changer ENTRE-temps par
+  // une tout autre action (terminer une séance, remplacer un titre...).
+  // `checkTrophies({ ...userStats, hasSharedSomething: true })` utilisait
+  // le `userStats` FIGÉ au moment du clic sur "Partager" — écrasant tout
+  // changement concurrent au moment où la feuille de partage se ferme
+  // enfin. Corrigé avec le même "patch" que `usePlaylistGeneration.js`
+  // (voir sa docstring) : seul le champ RÉELLEMENT ajouté par CETTE action
+  // (`hasSharedSomething`) est appliqué par-dessus `userStatsRef.current`
+  // (le plus frais), pas l'objet entier.
   const shareImageFileWithTrophy = async (file, title, text) => {
     const result = await shareImageFile(file, title, text);
-    if (result !== 'cancelled' && !userStats.hasSharedSomething) checkTrophies({ ...userStats, hasSharedSomething: true });
+    if (result !== 'cancelled' && !userStatsRef.current.hasSharedSomething) {
+      checkTrophies({ ...userStatsRef.current, hasSharedSomething: true });
+    }
     return result;
   };
 
