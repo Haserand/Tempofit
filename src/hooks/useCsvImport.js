@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { parseGarminCsv } from '../engine/workoutDataEngine';
 import { formatCompletionDate } from '../utils/format';
 
@@ -12,6 +13,23 @@ import { formatCompletionDate } from '../utils/format';
  * PlaylistDetailContext.jsx pour le même raisonnement : une 2e instance créerait
  * un `csvUploadTargetDate` fantôme, jamais celui réellement lu par ce hook).
  * Comportement strictement identique à l'original.
+ *
+ * ⚠️ COURSE CORRIGÉE (check-up 10/08 — 4e occurrence de la même famille cette
+ * session, voir PlaylistDetailView.jsx/PlaylistDetailContext.jsx/
+ * usePlaylistGeneration.js pour les 3 précédentes) : `FileReader.readAsText`
+ * est asynchrone (le fichier est lu en arrière-plan, `onload` se déclenche
+ * une fois la lecture terminée — le plus souvent quasi instantané pour un
+ * petit CSV, mais pas garanti sur un gros fichier ou un appareil lent). Rien
+ * n'empêchait de changer de playlist (ou de la cloner) PENDANT cette lecture
+ * — `onload` reprenait ensuite avec `currentPlaylist`/`savedPlaylists` FIGÉS
+ * au moment du clic, avec le même risque qu'ailleurs : `setCurrentPlaylist`
+ * ramène l'affichage sur l'ANCIENNE playlist, et `setSavedPlaylists(
+ * savedPlaylists.map(...))` avec un tableau obsolète pouvait faire
+ * disparaître une playlist ajoutée entre-temps (DELETE Supabase via
+ * useSyncedCollection.js). `currentPlaylistIdRef`/`savedPlaylistsRef`
+ * (toujours à jour, même pattern qu'ailleurs) permettent de détecter le
+ * changement et d'abandonner (toast informatif) plutôt que d'appliquer un
+ * résultat obsolète.
  */
 export function useCsvImport(
   fileInputRef, csvUploadTargetDate, setCsvUploadTargetDate,
@@ -19,6 +37,11 @@ export function useCsvImport(
   setSelectedAnalysisDate, setSelectedMetric,
   userStats, checkTrophies, changeView, showToast,
 ) {
+  const currentPlaylistIdRef = useRef(currentPlaylist?.id);
+  currentPlaylistIdRef.current = currentPlaylist?.id;
+  const savedPlaylistsRef = useRef(savedPlaylists);
+  savedPlaylistsRef.current = savedPlaylists;
+
   // Déclenche le sélecteur de fichier caché pour l'import CSV Garmin/Strava, en
   // mémorisant d'abord quelle playlist ET quelle date de complétion précise sont
   // concernées (une playlist faite plusieurs fois peut avoir une séance réelle
@@ -51,6 +74,10 @@ export function useCsvImport(
     // à quelle séance rattacher les données.
     if (!file || !currentPlaylist || !csvUploadTargetDate) return;
     const targetDate = csvUploadTargetDate;
+    // Capturés AVANT la lecture asynchrone — voir la docstring du fichier
+    // pour le correctif de course qui en dépend.
+    const playlistIdAtStart = currentPlaylist.id;
+    const playlistAtStart = currentPlaylist;
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
@@ -58,12 +85,17 @@ export function useCsvImport(
         if (!result.ok) { showToast(result.error, 'error'); return; }
         const { data: parsedData, hasCadence, hasHeartRate } = result;
 
+        if (currentPlaylistIdRef.current !== playlistIdAtStart) {
+          showToast("Import annulé : tu as changé de playlist entre-temps.");
+          return;
+        }
+
         // Rattache ces données réelles à la date de complétion précise ciblée
         // (`targetDate`), sans toucher aux données déjà importées pour d'autres
         // dates de la même playlist.
-        const updatedActualDataByDate = { ...(currentPlaylist.actualDataByDate || {}), [targetDate]: parsedData };
-        const updatedPlaylist = { ...currentPlaylist, actualDataByDate: updatedActualDataByDate };
-        setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
+        const updatedActualDataByDate = { ...(playlistAtStart.actualDataByDate || {}), [targetDate]: parsedData };
+        const updatedPlaylist = { ...playlistAtStart, actualDataByDate: updatedActualDataByDate };
+        setSavedPlaylists(savedPlaylistsRef.current.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
         setCurrentPlaylist(updatedPlaylist);
         setSelectedAnalysisDate(targetDate);
         // Bascule sur la métrique effectivement importée pour donner un retour visuel
