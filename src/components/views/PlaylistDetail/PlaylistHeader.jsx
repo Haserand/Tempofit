@@ -83,7 +83,7 @@ export default function PlaylistHeader({
   setPlaylistPlannedDate, bpmChartActivityName,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
   getRankStyle, triggerCSVUpload, removeImportedData,
-  onShare, onViewProfile,
+  onShare, onViewProfile, changeView,
 }) {
   const { bgAccentClass } = theme;
   const {
@@ -222,6 +222,7 @@ export default function PlaylistHeader({
           ownerProfileUsername={ownerProfileUsername}
           onViewProfile={onViewProfile}
           isSaved={isSaved}
+          changeView={changeView}
         />
 
         <PlaylistHeaderActions
