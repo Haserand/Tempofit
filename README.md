@@ -12,30 +12,35 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement. **Check-up général du 13/08** (lecture
-passation → README → CLAUDE-SANDBOX-VERIFICATION.md → HISTORIQUE.md →
-code réel, esbuild + `tsc --checkJs` sur tout `src/`+`tests/`, audit
-généralisé du motif "fermeture async figée sur un state partagé" — aucune
-nouvelle occurrence trouvée au-delà des 7 déjà corrigées le 10/08,
-`officialVitrineProfile.js` revérifié synchronisé) :
-- **3 imports morts corrigés** (aucun impact comportemental, pas de test
-  dédié nécessaire) : `useMemo` (App.jsx), `useState` (RoutinesView.jsx),
-  `Footprints` (TargetModeInputs.jsx).
-- **Aucun bug fonctionnel réel trouvé.**
-- **Lacune de couverture de tests identifiée, pas corrigée cette
-  session** — 11 hooks de `src/hooks/` n'ont AUCUN fichier de test dédié
-  (`usePersistentState.js`, `usePlaylistCompletions.js`,
-  `useSessionAnalysis.js`, `useFavorites.js`, `useSpotifyImport.js`,
-  `useDeezerSearch.js`, `useTrackSearch.js`, `useRoutines.js`,
-  `useTheme.js`, `useToast.js`, `useElapsedTimer.js`) — la plupart
-  couverts INDIRECTEMENT via leurs consommateurs, mais sans test isolé de
-  leur propre logique. Le plus notable : `usePersistentState.js` (173
-  lignes), infrastructure de synchro localStorage/Supabase partagée par 6+
-  hooks (favoris, routines, profil athlétique, stats...), aucun test
-  dédié alors que son sibling `useSyncedCollection.js` en a un. À
-  prioriser si ce chantier de couverture est repris un jour — voir aussi
-  `usePlaylistCompletions.js`/`useSessionAnalysis.js` (logique métier non
-  triviale : complétions, analyse cadence/FC réelle vs cible).
+Rien en cours actuellement. **Chantier "combler la lacune de couverture de
+tests" (13/08), suite directe du check-up du même jour — terminé** : les
+11 hooks de `src/hooks/` identifiés sans fichier de test dédié en ont
+désormais un (`usePersistentState.js`, `usePlaylistCompletions.js`,
+`useSessionAnalysis.js`, `useFavorites.js`, `useSpotifyImport.js`,
+`useDeezerSearch.js`, `useTrackSearch.js`, `useRoutines.js`, `useTheme.js`,
+`useToast.js`, `useElapsedTimer.js`) — voir `tests/hooks/`.
+- **BUG RÉEL trouvé et corrigé en écrivant le test de `useToast.js`** : un
+  2e `showToast()` appelé peu après un 1er ne annulait pas le minuteur du
+  1er (jamais de `clearTimeout`) — le 2e toast pouvait donc se faire
+  effacer prématurément par l'échéance du 1er, avant sa propre durée
+  écoulée (particulièrement gênant pour un toast `'error'`, pensé pour
+  durer 8s, écrasé par un toast plus court parti juste avant). Corrigé
+  avec un `useRef` qui annule le minuteur précédent avant d'en poser un
+  nouveau. Test de régression dédié.
+- **`useSpotifyImport.js` — scope volontairement réduit** : `loginSpotify`
+  (redirection OAuth PKCE, `crypto.subtle.digest`) laissé HORS test —
+  pure plomberie d'API navigateur sans branche métier propre au projet,
+  fragile à simuler fidèlement en `jsdom` pour un gain de couverture
+  quasi nul. Le reste (`syncSpotifyFavorites` — fusion/dédup/3 messages
+  d'erreur distincts —, l'auto-synchro au montage) est couvert.
+- Tous les autres hooks : aucun bug trouvé, comportement déjà correct —
+  tests écrits pour COMBLER la lacune, pas parce qu'un problème était
+  suspecté.
+- Vérifié : `esbuild` (syntaxe) + `tsc --checkJs` (variables non
+  déclarées) sur tout le nouveau lot — 0 anomalie. Aucune exécution réelle
+  de `vitest` possible dans ce bac à sable (voir
+  `CLAUDE-SANDBOX-VERIFICATION.md`) — à confirmer au prochain build
+  Vercel réel, comme d'habitude.
 
 Prochaine session : partir des sections plus bas (décisions
 d'architecture, contraintes, limites connues) et du code réel.
