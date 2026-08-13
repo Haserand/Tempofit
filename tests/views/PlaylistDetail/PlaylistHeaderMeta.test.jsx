@@ -68,6 +68,7 @@ function baseProps(overrides = {}) {
     ownerProfileUsername: null,
     onViewProfile: vi.fn(),
     isSaved: true,
+    changeView: vi.fn(),
     ...overrides,
   };
 }
@@ -92,17 +93,45 @@ describe('PlaylistHeaderMeta — pseudo + compteur de clonages (1er élément de
     expect(onViewProfile).toHaveBeenCalledWith('un_autre_coureur');
   });
 
-  it('sans ownerProfileUsername (ton propre pseudo) : PAS cliquable, rendu en <span>', () => {
+  // ⚠️ MIS À JOUR (10/08, MÊME SESSION, retour direct suivant — "quand
+  // c'est mon propre pseudo je veux que ça ramène vers Mes Séances, connecté
+  // ou invité") : ce test vérifiait AVANT que ton propre pseudo n'était PAS
+  // cliquable (rendu en <span>) — comportement volontairement changé, voir
+  // la docstring du composant pour le raisonnement complet (pas
+  // d'avertissement, ni connecté ni invité, décidé après discussion).
+  it('ton propre pseudo (isSaved, sans ownerProfileUsername) : cliquable, appelle changeView("playlists")', () => {
+    const changeView = vi.fn();
     const onViewProfile = vi.fn();
-    render(<PlaylistHeaderMeta {...baseProps({ ownerLabel: 'mon_pseudo', ownerProfileUsername: null, onViewProfile })} />);
+    render(<PlaylistHeaderMeta {...baseProps({ ownerLabel: 'mon_pseudo', ownerProfileUsername: null, onViewProfile, isSaved: true, changeView })} />);
     const label = screen.getByText('mon_pseudo');
-    expect(label.tagName).toBe('SPAN');
+    expect(label.tagName).toBe('BUTTON');
     fireEvent.click(label);
+    expect(changeView).toHaveBeenCalledWith('playlists');
     expect(onViewProfile).not.toHaveBeenCalled();
   });
 
-  it('ownerProfileUsername fourni MAIS onViewProfile absent : reste un simple texte, pas un bouton', () => {
-    render(<PlaylistHeaderMeta {...baseProps({ ownerLabel: 'TempoFit Officiel', ownerProfileUsername: 'tempofit_officiel', onViewProfile: undefined })} />);
+  // Même comportement pour "Invité" (mode invité) — MÊME branche de rendu
+  // que le pseudo réel ci-dessus (`isSaved` ne distingue pas connecté/
+  // invité), donc rien de spécifique à coder, juste à vérifier
+  // explicitement plutôt que de le supposer.
+  it('"Invité" (mode invité, isSaved) : cliquable aussi, appelle changeView("playlists"), sans avertissement', () => {
+    const changeView = vi.fn();
+    render(<PlaylistHeaderMeta {...baseProps({ ownerLabel: 'Invité', ownerProfileUsername: null, isSaved: true, changeView })} />);
+    fireEvent.click(screen.getByText('Invité'));
+    expect(changeView).toHaveBeenCalledWith('playlists');
+    expect(changeView).toHaveBeenCalledTimes(1);
+  });
+
+  // ⚠️ MIS À JOUR (10/08, MÊME SESSION) : `isSaved: false` ajouté
+  // explicitement — avec le défaut `isSaved: true` de `baseProps`, ce
+  // scénario atteindrait désormais la NOUVELLE branche "ton propre pseudo"
+  // ci-dessus (cliquable) plutôt que le texte simple que ce test veut
+  // vérifier. Le vrai edge case ici (`onViewProfile` manquant malgré un
+  // `ownerProfileUsername` fourni) ne peut se produire QUE si `isSaved` est
+  // aussi `false` en pratique (voir PlaylistHeader.jsx : `ownerProfileUsername`
+  // n'est jamais posé quand `isSaved` est `true`).
+  it('ownerProfileUsername fourni MAIS onViewProfile absent (isSaved=false) : reste un simple texte, pas un bouton', () => {
+    render(<PlaylistHeaderMeta {...baseProps({ ownerLabel: 'TempoFit Officiel', ownerProfileUsername: 'tempofit_officiel', onViewProfile: undefined, isSaved: false })} />);
     const label = screen.getByText('TempoFit Officiel');
     expect(label.tagName).toBe('SPAN');
   });
