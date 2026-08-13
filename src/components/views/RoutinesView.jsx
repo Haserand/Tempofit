@@ -45,7 +45,10 @@ export default function RoutinesView({
       // `updated.name` brut — résout le même nom affiché que partout
       // ailleurs sur cette carte (gère les cas Mode Intime), pas une 2e
       // logique de nommage divergente pour ce seul message.
-      showToast(updated.isPublic ? `🌐 "${getDisplayRoutineName(updated)}" est maintenant visible sur ton profil public.` : `🔒 "${getDisplayRoutineName(updated)}" est de nouveau privée.`);
+      // ⚠️ TEXTE RACCOURCI (10/08, retour direct — "le texte doit tenir sur
+      // une seule ligne") : voir PlaylistsView.jsx pour le raisonnement
+      // complet — même raccourci appliqué aux 3 endroits identiques.
+      showToast(updated.isPublic ? `🌐 "${getDisplayRoutineName(updated)}" est maintenant publique.` : `🔒 "${getDisplayRoutineName(updated)}" est de nouveau privée.`);
       return updated;
     }));
   };
