@@ -220,7 +220,7 @@ describe('PlaylistsView — bascule publique/privée (Feature Sociale, 01/08)', 
 
     fireEvent.click(screen.getByTestId('toggle-public-p1'));
 
-    expect(showToast).toHaveBeenCalledWith('🌐 "Mon 5km" est maintenant visible sur ton profil public.');
+    expect(showToast).toHaveBeenCalledWith('🌐 "Mon 5km" est maintenant publique.');
   });
 });
 
