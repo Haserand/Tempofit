@@ -109,10 +109,16 @@ describe('toggleTrackFavorite', () => {
 });
 
 describe('toggleArtistFavorite', () => {
-  it('artiste pas encore favori : l\'ajoute, sans doublon si déjà présent (Set)', () => {
+  it('artiste pas encore favori : l\'ajoute exactement une fois', () => {
+    // ⚠️ BUILD RÉEL CASSÉ PUIS CORRIGÉ (13/08) — ce test toggluait
+    // 'The Killers', déjà présent dans les favoris PAR DÉFAUT
+    // (useFavorites.js) : `toggleArtistFavorite` bascule (ajoute si absent,
+    // RETIRE si déjà présent) — l'appeler sur un artiste déjà favori le
+    // retirait donc, contredisant le titre du test ("pas encore favori").
+    // Corrigé avec un artiste réellement absent des favoris de départ.
     const { result } = renderHook(() => useFavorites(vi.fn(), false));
-    act(() => { result.current.toggleArtistFavorite('The Killers'); }); // déjà présent par défaut
-    expect(result.current.favorites.artists.filter(a => a === 'The Killers')).toHaveLength(1);
+    act(() => { result.current.toggleArtistFavorite('Muse'); });
+    expect(result.current.favorites.artists.filter(a => a === 'Muse')).toHaveLength(1);
   });
 
   it('artiste déjà favori : le retire', () => {
@@ -146,19 +152,43 @@ describe('addFavoriteArtistValidated — ajout optimiste + correction discrète 
     expect(result.current.isAddingArtist).toBe(false);
   });
 
-  it('Deezer trouve une orthographe différente : corrige discrètement le nom, sans 2e toast', async () => {
+  it('Deezer trouve une orthographe VRAIMENT différente (pas juste la casse) : corrige discrètement le nom, sans 2e toast', async () => {
+    // ⚠️ BUILD RÉEL CASSÉ PUIS CORRIGÉ (13/08) — ce test tapait 'daft punk'
+    // et faisait répondre Deezer 'Daft Punk' : la correction n'était
+    // JAMAIS appliquée, parce que `useFavorites.js` compare
+    // `match.name.toLowerCase() !== query.toLowerCase()` — une différence
+    // de CASSE SEULE ('daft punk' vs 'Daft Punk') est donc volontairement
+    // ignorée (comportement voulu du code, pas un bug : cette comparaison
+    // sert à repérer une vraie faute d'orthographe, pas à reformatter la
+    // casse tapée par l'utilisateur). Corrigé avec une entrée qui diffère
+    // réellement au-delà de la casse (espace manquant).
     mockDeezerFetch.mockResolvedValue({ data: { data: [{ name: 'Daft Punk' }] } });
     const showToast = vi.fn();
     const { result } = renderHook(() => useFavorites(showToast, false));
 
-    act(() => { result.current.addFavoriteArtistValidated('daft punk'); });
-    expect(result.current.favorites.artists).toContain('daft punk');
+    act(() => { result.current.addFavoriteArtistValidated('Daftpunk'); });
+    expect(result.current.favorites.artists).toContain('Daftpunk');
 
     await waitFor(() => {
       expect(result.current.favorites.artists).toContain('Daft Punk');
     });
-    expect(result.current.favorites.artists).not.toContain('daft punk');
+    expect(result.current.favorites.artists).not.toContain('Daftpunk');
     expect(showToast).toHaveBeenCalledTimes(1); // toujours un seul toast, l'immédiat
+  });
+
+  it('Deezer trouve un résultat qui diffère UNIQUEMENT par la casse : ne corrige PAS (comparaison insensible à la casse, volontaire)', async () => {
+    mockDeezerFetch.mockResolvedValue({ data: { data: [{ name: 'Daft Punk' }] } });
+    const { result } = renderHook(() => useFavorites(vi.fn(), false));
+
+    await act(async () => {
+      result.current.addFavoriteArtistValidated('daft punk');
+      await new Promise(r => setTimeout(r, 0));
+    });
+
+    // Le nom tapé (casse d'origine) reste tel quel — jamais reformaté en
+    // 'Daft Punk' juste parce que Deezer le renvoie avec des majuscules.
+    expect(result.current.favorites.artists).toContain('daft punk');
+    expect(result.current.favorites.artists).not.toContain('Daft Punk');
   });
 
   it('Deezer renvoie EXACTEMENT le même nom (casse identique) : ne déclenche pas de correction inutile', async () => {
