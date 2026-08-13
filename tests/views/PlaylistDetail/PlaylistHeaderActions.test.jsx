@@ -102,14 +102,20 @@ describe('PlaylistHeaderActions — import CSV', () => {
 });
 
 describe('PlaylistHeaderActions — action principale', () => {
-  it('isReadOnly=true : "Sauvegarder dans mes séances", le clic appelle handleClonePlaylist', () => {
+  // ⚠️ MIS À JOUR (10/08, retour direct — "'Sauvegarder' sous-entend déjà
+  // 'dans mes séances', pourquoi le préciser ?") : libellés raccourcis,
+  // "Sauvegarder dans mes séances" → "Sauvegarder" et "Ajouter à Mes
+  // Séances" → "Ajouter" — comportement/déclencheurs INCHANGÉS, seul le
+  // texte affiché change (le `title`, testé nulle part ici, garde
+  // l'explication complète).
+  it('isReadOnly=true : "Sauvegarder", le clic appelle handleClonePlaylist', () => {
     const handleClonePlaylist = vi.fn();
     render(<Wrapper {...baseProps({ isReadOnly: true, isSaved: false, handleClonePlaylist })} />);
 
-    expect(screen.getByText('Sauvegarder dans mes séances')).toBeInTheDocument();
-    expect(screen.queryByText('Ajouter à Mes Séances')).not.toBeInTheDocument();
+    expect(screen.getByText('Sauvegarder')).toBeInTheDocument();
+    expect(screen.queryByText('Ajouter')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('Sauvegarder dans mes séances'));
+    fireEvent.click(screen.getByText('Sauvegarder'));
     expect(handleClonePlaylist).toHaveBeenCalled();
   });
 
@@ -117,21 +123,21 @@ describe('PlaylistHeaderActions — action principale', () => {
   // plutôt que de supposer isSaved toujours false quand isReadOnly est vrai.
   it('isReadOnly=true PRIME sur isSaved=true', () => {
     render(<Wrapper {...baseProps({ isReadOnly: true, isSaved: true })} />);
-    expect(screen.getByText('Sauvegarder dans mes séances')).toBeInTheDocument();
+    expect(screen.getByText('Sauvegarder')).toBeInTheDocument();
   });
 
-  it('isSaved=false (et pas isReadOnly) : "Ajouter à Mes Séances", le clic appelle handleSavePlaylist', () => {
+  it('isSaved=false (et pas isReadOnly) : "Ajouter", le clic appelle handleSavePlaylist', () => {
     const handleSavePlaylist = vi.fn();
     render(<Wrapper {...baseProps({ isSaved: false, handleSavePlaylist })} />);
 
-    fireEvent.click(screen.getByText('Ajouter à Mes Séances'));
+    fireEvent.click(screen.getByText('Ajouter'));
     expect(handleSavePlaylist).toHaveBeenCalled();
   });
 
   it('isSaved=true (et pas isReadOnly) : aucun bouton principal (Retirer vit dans PlaylistHeaderBadges)', () => {
     render(<Wrapper {...baseProps({ isSaved: true })} />);
-    expect(screen.queryByText('Ajouter à Mes Séances')).not.toBeInTheDocument();
-    expect(screen.queryByText('Sauvegarder dans mes séances')).not.toBeInTheDocument();
+    expect(screen.queryByText('Ajouter')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sauvegarder')).not.toBeInTheDocument();
   });
 });
 
