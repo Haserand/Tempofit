@@ -12,6 +12,16 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
+✅ **SESSION DU 10/08 (suite) — retour direct avec capture d'écran : "supprimer la ligne pseudo au-dessus du titre de playlist, l'intégrer comme 1re info de la ligne de métadonnées à la place".**
+
+**Déplacé, pas juste retiré** : la ligne pseudo + compteur de clonages vivait dans `PlaylistHeaderTitleBlock.jsx`, sur sa propre ligne au-dessus du titre — déplacée dans `PlaylistHeaderMeta.jsx`, en 1er élément de la ligne d'infos (icône `User`, séparateur "•" avant "Course à pied"). Le compteur de clonages (icône `Copy` + nombre) a suivi le pseudo au même endroit — **la consigne ne parlait QUE du pseudo, mais les deux vivaient dans le même bloc conditionnel `ownerLabel &&` : les dissocier aurait fait disparaître le compteur de l'écran**, signalé explicitement à l'utilisateur avant d'implémenter plutôt que tranché silencieusement.
+
+Le calcul d'`ownerLabel`/`ownerProfileUsername` (branches isSaved/username/sourceTemplateId/ownerUsername) reste identique, dans `PlaylistHeader.jsx` — seule la CIBLE à qui ces valeurs sont transmises a changé (Meta au lieu de TitleBlock).
+
+Tests : 6 tests déplacés de `PlaylistHeaderTitleBlock.test.jsx` vers `PlaylistHeaderMeta.test.jsx` (comportement identique, nouveau composant hôte) + 1 nouveau test (`cloneCount` défini mais `ownerLabel=null` : le compteur reste caché, tout le 1er item est gaté sur `ownerLabel`). `PlaylistHeader.test.jsx` mis à jour : le stub `title-block-mock` ne reçoit plus `ownerLabel`/`ownerProfileUsername`, `meta-mock` les reçoit désormais — les 5 assertions de calcul déplacées vers ce mock, le calcul lui-même non re-testé (déjà couvert, inchangé).
+
+⚠️ **Pas encore vérifié en conditions réelles** (build Vercel) — même limite habituelle.
+
 ✅ **SESSION DU 10/08 (suite) — chantier "GeneratorWizard, redondance étape 2/étape 3" DÉCOUPÉ EN PLUSIEURS PASSES (retour direct, "je veux le truc le plus sécurisé possible") — 1re passe livrée : retrait du bloc durée/distance dupliqué à l'étape 3.**
 
 **Constat de départ** (captures à l'appui) : `<TargetModeInputs>` (durée/distance) était affiché À L'IDENTIQUE à l'étape 2 ET à l'étape 3 (Constant/Crescendo) — même composant, mêmes champs, éditable aux deux endroits, sur le MÊME state (`hours`/`minutes`/`distanceVal`...). Vérifié avant de toucher au code : pour Crescendo/Fractionné, la durée totale reste lisible indirectement via la durée concrète de chaque segment affiché — aucun trou d'info. Pour Allure Constante (aucun segment), l'étape 3 ne montre plus AUCUN repère de durée après ce retrait — **compromis accepté explicitement avec l'utilisateur**, pas découvert après coup.
