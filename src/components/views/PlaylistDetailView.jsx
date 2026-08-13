@@ -556,7 +556,7 @@ function PlaylistDetailViewInner({
         editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
         editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
         getRankStyle={getRankStyle} triggerCSVUpload={triggerCSVUpload} removeImportedData={removeImportedData}
-        onShare={handleShareClick} onViewProfile={onViewProfile}
+        onShare={handleShareClick} onViewProfile={onViewProfile} changeView={changeView}
       />
 
       {/* Bloc d'analyse (courbe BPM + les 2 camemberts) — extrait dans
