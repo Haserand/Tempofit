@@ -34,12 +34,30 @@ import CompletionsList from '../../shared/CompletionsList';
  * séparateur qui suit) disparaît proprement dans ce cas, "Course à pied"
  * redevient naturellement le premier élément de la ligne, sans séparateur
  * orphelin devant lui.
+ *
+ * ⚠️ PSEUDO CLIQUABLE VERS "MES SÉANCES" QUAND `isSaved` (10/08, MÊME
+ * SESSION, retour direct : "quand c'est mon propre pseudo je veux que ça
+ * ramène vers 'Mes Séances', que je sois connecté ou en mode invité") —
+ * décidé APRÈS discussion explicite sur l'avertissement envisagé au
+ * départ : AUCUN popup de confirmation, ni pour un compte connecté (rien
+ * à risquer, simple navigation interne) ni pour l'invité (le seul vrai
+ * risque du mode invité — données non synchronisées — est déjà rappelé en
+ * PERMANENCE par `GuestModeBar.jsx`, pas la peine de le répéter sur CE
+ * clic précis alors qu'aucun autre lien de navigation de l'app ne le
+ * fait — ni "← Retour", qui fait exactement la même navigation). 3
+ * branches désormais dans le rendu du pseudo : `ownerProfileUsername` +
+ * `onViewProfile` fournis → profil d'un AUTRE utilisateur (inchangé) ;
+ * `isSaved` (et PAS de profil à visiter — mutuellement exclusif avec la
+ * branche précédente) → TON pseudo, clique dessus ramène à `changeView(
+ * 'playlists')` ; sinon (ni l'un ni l'autre) → texte simple, non cliquable
+ * (cas défensif : `ownerProfileUsername` fourni mais `onViewProfile`
+ * manquant, voir le test dédié).
  */
 export default function PlaylistHeaderMeta({
   currentPlaylist, theme, isLocked, isReadOnly,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
   triggerCSVUpload, removeImportedData, mostRecentCompletionIso,
-  ownerLabel, ownerProfileUsername, onViewProfile, isSaved,
+  ownerLabel, ownerProfileUsername, onViewProfile, isSaved, changeView,
 }) {
   return (
     <>
@@ -95,9 +113,30 @@ export default function PlaylistHeaderMeta({
                 >
                   {ownerLabel}
                 </button>
+              ) : isSaved ? (
+                // Ton PROPRE pseudo (ou "Invité" en mode invité) — retour
+                // direct (10/08, même session que le déplacement de ce
+                // bloc) : "ça devrait ramener vers Mes Séances, connecté ou
+                // invité, sans avertissement" — pas de popup de
+                // confirmation ici (décidé après discussion : une simple
+                // navigation interne, réversible et sans conséquence, ne
+                // justifie pas d'en ajouter un — le rappel "mode invité"
+                // déjà permanent via GuestModeBar.jsx couvre déjà le seul
+                // vrai risque, pas la peine de le répéter sur CE clic
+                // précis alors qu'aucun autre lien de navigation de l'app
+                // ne le fait). Même style que le pseudo cliquable
+                // ci-dessus (`onViewProfile`) — ce n'est plus "ton pseudo
+                // affiché passivement", c'est un vrai lien.
+                <button
+                  onClick={() => changeView('playlists')}
+                  title="Aller à Mes Séances"
+                  className="truncate underline hover:text-slate-100 cursor-pointer"
+                >
+                  {ownerLabel}
+                </button>
               ) : (
                 <span
-                  title={isSaved ? 'Cette playlist est dans ta bibliothèque' : `Créée par ${ownerLabel}`}
+                  title={`Créée par ${ownerLabel}`}
                   className="truncate"
                 >
                   {ownerLabel}
