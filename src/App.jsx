@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, X, LogOut, Search as SearchIcon } from 'lucide-react';
 import { genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getRankStyle } from './appConfig';
