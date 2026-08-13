@@ -210,7 +210,7 @@ export default function TemplateCard({ theme, template, onPlayTemplate, isNaught
           {template.isOfficial && onViewOfficialProfile ? (
             <button
               onClick={(e) => { e.stopPropagation(); onViewOfficialProfile(); }}
-              className="truncate hover:underline cursor-pointer"
+              className="truncate underline cursor-pointer"
               title="Voir le profil TempoFit Officiel"
             >
               {template.author}
