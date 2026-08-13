@@ -19,11 +19,11 @@ import PlaylistHeaderActions from './PlaylistHeaderActions';
  * dossier — voir chacun pour le détail du bloc qu'il rend :
  * `PlaylistHeaderBadges.jsx` (médaille de rang, "Lecture seule", boutons
  * publique/privée+retirer en overlay), `PlaylistHeaderCover.jsx`
- * (pochette), `PlaylistHeaderTitleBlock.jsx` (pseudo+compteur de
- * clonages, titre/description édition fusionnée), `PlaylistHeaderMeta.jsx`
- * (badge "séance déjà réalisée"+dates, ligne d'infos), et
- * `PlaylistHeaderActions.jsx` (import CSV, action principale, planifier,
- * partager, badge BPM). CE fichier reste le seul à calculer les valeurs
+ * (pochette), `PlaylistHeaderTitleBlock.jsx` (titre/description édition
+ * fusionnée), `PlaylistHeaderMeta.jsx` (pseudo+compteur de clonages —
+ * déplacé ici le 10/08, voir sa docstring —, badge "séance déjà
+ * réalisée"+dates, ligne d'infos), et `PlaylistHeaderActions.jsx` (import
+ * CSV, action principale, planifier, partager, badge BPM). CE fichier reste le seul à calculer les valeurs
  * PARTAGÉES entre plusieurs de ces blocs (`ownerLabel`/`avgBpm`/
  * `currentPlaylistRank`/etc.) et à posséder `usePlaylistDetail()` — les
  * sous-composants les reçoivent tous en props, jamais recalculés en double.
@@ -203,9 +203,6 @@ export default function PlaylistHeader({
           currentPlaylist={currentPlaylist}
           isSaved={isSaved}
           isReadOnly={isReadOnly}
-          ownerLabel={ownerLabel}
-          ownerProfileUsername={ownerProfileUsername}
-          onViewProfile={onViewProfile}
         />
 
         <PlaylistHeaderMeta
@@ -220,6 +217,10 @@ export default function PlaylistHeader({
           triggerCSVUpload={triggerCSVUpload}
           removeImportedData={removeImportedData}
           mostRecentCompletionIso={mostRecentCompletionIso}
+          ownerLabel={ownerLabel}
+          ownerProfileUsername={ownerProfileUsername}
+          onViewProfile={onViewProfile}
+          isSaved={isSaved}
         />
 
         <PlaylistHeaderActions
