@@ -1,0 +1,342 @@
+// Test dédié à useDeezerSearch.js — 0 test jusqu'ici (check-up du 13/08).
+// Aucun `useState`/`useEffect` propre à ce hook (seul `useModalContext()`
+// est appelé) — mocké en plain object, `renderHook`/`jsdom` ne sont donc
+// pas nécessaires, `node` (l'environnement par défaut) suffit.
+// `searchEngine.js` (dedupeAppend/fetchWorldSearchResults/
+// fetchBpmSearchResults) entièrement mocké — logique déjà testée
+// isolément par son propre fichier (implicite, fonctions pures).
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const mockCloseModal = vi.fn();
+vi.mock('../../src/contexts/ModalContext.jsx', () => ({
+  useModalContext: () => ({ closeModal: mockCloseModal }),
+}));
+
+const mockDedupeAppend = vi.fn((prev, incoming, reset) => (reset ? incoming : [...prev, ...incoming]));
+const mockFetchWorldSearchResults = vi.fn();
+const mockFetchBpmSearchResults = vi.fn();
+vi.mock('../../src/engine/searchEngine.js', () => ({
+  dedupeAppend: (...args) => mockDedupeAppend(...args),
+  fetchWorldSearchResults: (...args) => mockFetchWorldSearchResults(...args),
+  fetchBpmSearchResults: (...args) => mockFetchBpmSearchResults(...args),
+}));
+
+import { useDeezerSearch } from '../../src/hooks/useDeezerSearch.js';
+
+// Fabrique un faux `search` (forme de retour de useTrackSearch()) — chaque
+// champ `setXxx` est un vi.fn() espionnable ; les champs lus (searchQuery,
+// searchResultsOffset, searchActiveArtistName, isWorldSearching) sont
+// paramétrables via `overrides` pour simuler l'état au moment de l'appel.
+function makeSearch(overrides = {}) {
+  return {
+    searchQuery: 'daft punk',
+    searchResultsOffset: 0,
+    searchActiveArtistName: null,
+    isWorldSearching: false,
+    setSearchActiveArtistName: vi.fn(),
+    setWorldSearchResults: vi.fn(),
+    setWorldSearchOtherResults: vi.fn(),
+    setResultsContextLabel: vi.fn(),
+    setNoUsableResultsHint: vi.fn(),
+    setSearchResultsOffset: vi.fn(),
+    setSearchHasMoreResults: vi.fn(),
+    setIsWorldSearching: vi.fn(),
+    setIsLoadingMoreResults: vi.fn(),
+    setSearchLoadingMessage: vi.fn(),
+    setSearchQuery: vi.fn(),
+    setIsBpmSearchMode: vi.fn(),
+    setEditingBpmId: vi.fn(),
+    setBpmSearchParams: vi.fn(),
+    ...overrides,
+  };
+}
+
+// Applique un `setXxx(fn)` appelé avec un updater fonctionnel, comme le
+// ferait React — la plupart des tests n'ont besoin que de la valeur passée
+// à l'appel le plus récent.
+function lastCallArg(mockFn) {
+  const calls = mockFn.mock.calls;
+  return calls.length ? calls[calls.length - 1][0] : undefined;
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockDedupeAppend.mockImplementation((prev, incoming, reset) => (reset ? incoming : [...prev, ...incoming]));
+});
+
+describe('searchWorldMusicApi', () => {
+  it('texte vide (ou seulement des espaces) : ne fait rien, aucun appel réseau', async () => {
+    const search = makeSearch({ searchQuery: '   ' });
+    const showToast = vi.fn();
+    const { searchWorldMusicApi } = useDeezerSearch(search, showToast, false);
+
+    await searchWorldMusicApi();
+
+    expect(mockFetchWorldSearchResults).not.toHaveBeenCalled();
+    expect(search.setIsWorldSearching).not.toHaveBeenCalled();
+  });
+
+  it('reset=true alors qu\'une recherche tourne déjà : refuse (garde anti-double-lancement)', async () => {
+    const search = makeSearch({ isWorldSearching: true });
+    const showToast = vi.fn();
+    const { searchWorldMusicApi } = useDeezerSearch(search, showToast, false);
+
+    await searchWorldMusicApi(true);
+
+    expect(mockFetchWorldSearchResults).not.toHaveBeenCalled();
+  });
+
+  it('reset=true : réinitialise l\'affichage AVANT l\'appel réseau (résultats vidés, spinner activé)', async () => {
+    mockFetchWorldSearchResults.mockReturnValue(new Promise(() => {})); // jamais résolue, pour figer l'état "en cours"
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { searchWorldMusicApi } = useDeezerSearch(search, showToast, false);
+
+    searchWorldMusicApi(true); // pas de await : on inspecte l'état synchrone juste après le lancement
+
+    expect(search.setIsWorldSearching).toHaveBeenCalledWith(true);
+    expect(search.setWorldSearchResults).toHaveBeenCalledWith([]);
+    expect(search.setWorldSearchOtherResults).toHaveBeenCalledWith([]);
+    expect(search.setNoUsableResultsHint).toHaveBeenCalledWith(false);
+    expect(search.setSearchHasMoreResults).toHaveBeenCalledWith(false);
+  });
+
+  it('reset=false ("voir plus") : active isLoadingMoreResults, PAS isWorldSearching, ne vide pas les résultats existants', async () => {
+    mockFetchWorldSearchResults.mockResolvedValue({
+      activeArtistName: null, noResults: false, matched: [{ trackId: 'x' }], other: [],
+      contextLabel: null, newOffset: 10, hasMore: true, emptyAfterFormatting: false,
+    });
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { searchWorldMusicApi } = useDeezerSearch(search, showToast, false);
+
+    await searchWorldMusicApi(false);
+
+    expect(search.setIsLoadingMoreResults).toHaveBeenCalledWith(true);
+    expect(search.setIsWorldSearching).not.toHaveBeenCalledWith(true);
+    expect(search.setWorldSearchResults).not.toHaveBeenCalledWith([]);
+  });
+
+  it('succès avec résultats : applique matched/other via dedupeAppend, met à jour offset/hasMore', async () => {
+    mockFetchWorldSearchResults.mockResolvedValue({
+      activeArtistName: 'Daft Punk', noResults: false,
+      matched: [{ trackId: 'a' }], other: [{ trackId: 'b' }],
+      contextLabel: 'Top titres de Daft Punk', newOffset: 25, hasMore: true, emptyAfterFormatting: false,
+    });
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { searchWorldMusicApi } = useDeezerSearch(search, showToast, false);
+
+    await searchWorldMusicApi(true);
+
+    expect(search.setSearchActiveArtistName).toHaveBeenCalledWith('Daft Punk');
+    expect(search.setResultsContextLabel).toHaveBeenCalledWith('Top titres de Daft Punk');
+    expect(search.setSearchResultsOffset).toHaveBeenCalledWith(25);
+    expect(search.setSearchHasMoreResults).toHaveBeenCalledWith(true);
+    expect(search.setNoUsableResultsHint).not.toHaveBeenCalledWith(true);
+    // Fin de la recherche : les 2 spinners doivent retomber à false.
+    expect(search.setIsWorldSearching).toHaveBeenLastCalledWith(false);
+    expect(search.setIsLoadingMoreResults).toHaveBeenLastCalledWith(false);
+  });
+
+  it('noResults=true : signale noUsableResultsHint, ne touche PAS resultsContextLabel/offset/hasMore', async () => {
+    mockFetchWorldSearchResults.mockResolvedValue({ activeArtistName: null, noResults: true });
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { searchWorldMusicApi } = useDeezerSearch(search, showToast, false);
+
+    await searchWorldMusicApi(true);
+
+    expect(search.setNoUsableResultsHint).toHaveBeenCalledWith(true);
+    expect(search.setResultsContextLabel).not.toHaveBeenCalledWith(expect.anything());
+    expect(search.setSearchResultsOffset).not.toHaveBeenCalled();
+  });
+
+  it('emptyAfterFormatting=true sur un reset : signale AUSSI noUsableResultsHint (titres trouvés, mais sans BPM connu)', async () => {
+    mockFetchWorldSearchResults.mockResolvedValue({
+      activeArtistName: null, noResults: false, matched: [], other: [],
+      contextLabel: null, newOffset: 0, hasMore: false, emptyAfterFormatting: true,
+    });
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { searchWorldMusicApi } = useDeezerSearch(search, showToast, false);
+
+    await searchWorldMusicApi(true);
+
+    expect(search.setNoUsableResultsHint).toHaveBeenCalledWith(true);
+  });
+
+  it('erreur réseau (fetchWorldSearchResults rejette) : toast erreur, journalise, retombe proprement sur les spinners', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockFetchWorldSearchResults.mockRejectedValue(new Error('network down'));
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { searchWorldMusicApi } = useDeezerSearch(search, showToast, false);
+
+    await searchWorldMusicApi(true);
+
+    expect(showToast).toHaveBeenCalledWith('Erreur réseau lors de la recherche.', 'error');
+    expect(search.setIsWorldSearching).toHaveBeenLastCalledWith(false);
+    consoleSpy.mockRestore();
+  });
+});
+
+describe('commitBpmEdit', () => {
+  it('ferme toujours l\'édition (setEditingBpmId(null)), même si la valeur est invalide', () => {
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { commitBpmEdit } = useDeezerSearch(search, showToast, false);
+
+    commitBpmEdit({ trackId: 'x', bpm: 120 }, 'abc');
+
+    expect(search.setEditingBpmId).toHaveBeenCalledWith(null);
+  });
+
+  it('valeur invalide (NaN, 0, négative) : ne modifie rien, pas de toast', () => {
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { commitBpmEdit } = useDeezerSearch(search, showToast, false);
+
+    commitBpmEdit({ trackId: 'x', bpm: 120 }, '0');
+
+    expect(search.setWorldSearchResults).not.toHaveBeenCalled();
+    expect(showToast).not.toHaveBeenCalled();
+  });
+
+  it('valeur IDENTIQUE au BPM actuel : ne modifie rien (rien à faire)', () => {
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { commitBpmEdit } = useDeezerSearch(search, showToast, false);
+
+    commitBpmEdit({ trackId: 'x', bpm: 120 }, '120');
+
+    expect(search.setWorldSearchResults).not.toHaveBeenCalled();
+  });
+
+  it('valeur valide et différente : met à jour LE bon titre dans les deux listes (résultats + réserve cachée), marque _bpmSource="manual"', () => {
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { commitBpmEdit } = useDeezerSearch(search, showToast, false);
+
+    commitBpmEdit({ trackId: 'x', bpm: 120 }, '135');
+
+    const updateResults = lastCallArg(search.setWorldSearchResults);
+    const updated = updateResults([{ trackId: 'x', bpm: 120 }, { trackId: 'y', bpm: 90 }]);
+    expect(updated).toEqual([{ trackId: 'x', bpm: 135, _bpmSource: 'manual' }, { trackId: 'y', bpm: 90 }]);
+
+    const updateOther = lastCallArg(search.setWorldSearchOtherResults);
+    expect(typeof updateOther).toBe('function');
+
+    expect(showToast).toHaveBeenCalledWith('BPM corrigé : 135');
+  });
+});
+
+describe('closeSearchModal', () => {
+  it('ferme la modale ET réinitialise tout l\'état de recherche', () => {
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { closeSearchModal } = useDeezerSearch(search, showToast, false);
+
+    closeSearchModal();
+
+    expect(mockCloseModal).toHaveBeenCalled();
+    expect(search.setSearchQuery).toHaveBeenCalledWith('');
+    expect(search.setIsBpmSearchMode).toHaveBeenCalledWith(false);
+    expect(search.setWorldSearchResults).toHaveBeenCalledWith([]);
+    expect(search.setWorldSearchOtherResults).toHaveBeenCalledWith([]);
+    expect(search.setResultsContextLabel).toHaveBeenCalledWith(null);
+    expect(search.setNoUsableResultsHint).toHaveBeenCalledWith(false);
+    expect(search.setSearchResultsOffset).toHaveBeenCalledWith(0);
+    expect(search.setSearchHasMoreResults).toHaveBeenCalledWith(false);
+    expect(search.setSearchActiveArtistName).toHaveBeenCalledWith(null);
+    expect(search.setEditingBpmId).toHaveBeenCalledWith(null);
+  });
+});
+
+describe('searchTracksByBpm', () => {
+  it('une recherche tourne déjà (isWorldSearching=true) : refuse (défense en profondeur, même garde que le bouton désactivé côté UI)', async () => {
+    const search = makeSearch({ isWorldSearching: true });
+    const showToast = vi.fn();
+    const { searchTracksByBpm } = useDeezerSearch(search, showToast, false);
+
+    await searchTracksByBpm(140, 10, ['Rock']);
+
+    expect(mockFetchBpmSearchResults).not.toHaveBeenCalled();
+    expect(search.setBpmSearchParams).not.toHaveBeenCalled();
+  });
+
+  it('mémorise les paramètres de recherche (bpm/tolerance/genres), même en cas de genres omis', async () => {
+    mockFetchBpmSearchResults.mockResolvedValue({ results: [{ trackId: 'a' }] });
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { searchTracksByBpm } = useDeezerSearch(search, showToast, false);
+
+    await searchTracksByBpm(140, 10, undefined);
+
+    expect(search.setBpmSearchParams).toHaveBeenCalledWith({ bpm: 140, tolerance: 10, genres: [] });
+  });
+
+  it('genre fragile (K-pop/Musique asiatique/Bandes originales) : message de chargement dédié "Recherche plus approfondie"', async () => {
+    mockFetchBpmSearchResults.mockResolvedValue({ results: [] });
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { searchTracksByBpm } = useDeezerSearch(search, showToast, false);
+
+    await searchTracksByBpm(140, 10, ['K-pop']);
+
+    expect(search.setSearchLoadingMessage).toHaveBeenCalledWith('Recherche plus approfondie pour ce genre...');
+  });
+
+  it('genre standard : message de chargement tiré parmi SEARCH_LOADING_MESSAGES (pas le message dédié genre fragile)', async () => {
+    mockFetchBpmSearchResults.mockResolvedValue({ results: [] });
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { searchTracksByBpm } = useDeezerSearch(search, showToast, false);
+
+    await searchTracksByBpm(140, 10, ['Rock']);
+
+    expect(search.setSearchLoadingMessage).not.toHaveBeenCalledWith('Recherche plus approfondie pour ce genre...');
+  });
+
+  it('applique la progression (onProgress) EN COURS de recherche avant le résultat final', async () => {
+    let capturedOnProgress;
+    mockFetchBpmSearchResults.mockImplementation(async (bpm, tol, genres, onProgress) => {
+      capturedOnProgress = onProgress;
+      onProgress([{ trackId: 'partiel-1' }]);
+      return { results: [{ trackId: 'partiel-1' }, { trackId: 'final-2' }] };
+    });
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { searchTracksByBpm } = useDeezerSearch(search, showToast, false);
+
+    await searchTracksByBpm(140, 10, ['Rock']);
+
+    expect(typeof capturedOnProgress).toBe('function');
+    expect(search.setWorldSearchResults).toHaveBeenCalledWith([{ trackId: 'partiel-1' }]);
+    expect(search.setWorldSearchResults).toHaveBeenLastCalledWith([{ trackId: 'partiel-1' }, { trackId: 'final-2' }]);
+  });
+
+  it('résultat final vide : signale noUsableResultsHint', async () => {
+    mockFetchBpmSearchResults.mockResolvedValue({ results: [] });
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { searchTracksByBpm } = useDeezerSearch(search, showToast, false);
+
+    await searchTracksByBpm(140, 10, ['Rock']);
+
+    expect(search.setNoUsableResultsHint).toHaveBeenCalledWith(true);
+  });
+
+  it('erreur réseau : toast erreur, retombe sur isWorldSearching=false', async () => {
+    mockFetchBpmSearchResults.mockRejectedValue(new Error('network down'));
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { searchTracksByBpm } = useDeezerSearch(search, showToast, false);
+
+    await searchTracksByBpm(140, 10, ['Rock']);
+
+    expect(showToast).toHaveBeenCalledWith('Erreur réseau lors de la recherche.', 'error');
+    expect(search.setIsWorldSearching).toHaveBeenLastCalledWith(false);
+  });
+});
