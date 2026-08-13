@@ -109,12 +109,20 @@ describe('usePlaylistLibrary — compteur de clonages (handleClonePlaylist)', ()
     // usePlaylistLibrary.js pour le raisonnement complet. `currentPlaylist`
     // porte ici les champs D'AFFICHAGE posés par `handleOpenPublicPlaylist`
     // (App.jsx) pour la playlist ÉTRANGÈRE consultée : `user_id` (le
-    // PROPRIÉTAIRE D'ORIGINE), `ownerUsername`, `cloneCount`. Avant ce
-    // correctif, le spread `...currentPlaylist` les reportait tels quels
-    // sur la copie — désormais possédée par l'utilisateur, qui se
-    // retrouvait avec l'UUID/le pseudo de quelqu'un d'autre dans son
-    // propre `content`, synchronisé tel quel vers Supabase.
-    it('la copie clonée ne garde JAMAIS le user_id/ownerUsername/cloneCount du propriétaire d\'origine (BUG CORRIGÉ 07/08)', () => {
+    // PROPRIÉTAIRE D'ORIGINE), `ownerUsername`. Avant ce correctif, le
+    // spread `...currentPlaylist` les reportait tels quels sur la copie —
+    // désormais possédée par l'utilisateur, qui se retrouvait avec l'UUID/
+    // le pseudo de quelqu'un d'autre dans son propre `content`,
+    // synchronisé tel quel vers Supabase.
+    //
+    // ⚠️ `cloneCount` RETIRÉ DE CE TEST (10/08, retour direct avec 4
+    // captures d'écran — "quand je l'ajoute à Mes Séances il n'y a plus le
+    // compteur de clones ?") : contrairement à `user_id`/`ownerUsername`
+    // (identifiants de PROPRIÉTÉ, un vrai risque de logique à les garder),
+    // `cloneCount` est un simple chiffre d'affichage — le réinitialiser ne
+    // protégeait rien, ça faisait juste disparaître le badge sur la copie
+    // fraîchement créée. Voir le test dédié juste en dessous.
+    it('la copie clonée ne garde JAMAIS le user_id/ownerUsername du propriétaire d\'origine (BUG CORRIGÉ 07/08)', () => {
       const setSavedPlaylists = vi.fn();
       const foreignPlaylist = {
         id: 'pl-A-original', user_id: 'user-A', name: 'Playlist de A',
@@ -127,12 +135,46 @@ describe('usePlaylistLibrary — compteur de clonages (handleClonePlaylist)', ()
       const cloned = setSavedPlaylists.mock.calls[0][0][0];
       expect(cloned.user_id).toBeUndefined();
       expect(cloned.ownerUsername).toBeUndefined();
-      expect(cloned.cloneCount).toBeUndefined();
       // Le lien de lignée, lui, reste bien posé — seuls les champs
       // D'AFFICHAGE de l'ancien propriétaire sont retirés, pas la
       // traçabilité réelle (`parentId`/`parentUserId`, colonnes dédiées).
       expect(cloned.parentId).toBe('pl-A-original');
       expect(cloned.parentUserId).toBe('user-A');
+    });
+
+    // NOUVEAU (10/08, régression — même retour direct que ci-dessus) —
+    // `cloneCount`, LUI, doit survivre au clonage, contrairement à
+    // `user_id`/`ownerUsername` juste au-dessus : c'est un simple chiffre
+    // d'affichage (voir PlaylistHeaderBadges.jsx, gaté sur
+    // `cloneCount !== undefined`), pas un identifiant de propriété — le
+    // réinitialiser faisait juste disparaître le badge sur la copie
+    // fraîchement créée, sans protéger quoi que ce soit.
+    it('la copie clonée GARDE cloneCount (badge de clonages) — régression 10/08, contrairement à user_id/ownerUsername ci-dessus', () => {
+      const setSavedPlaylists = vi.fn();
+      const foreignPlaylist = {
+        id: 'pl-A-original', user_id: 'user-A', name: 'Playlist de A',
+        isReadOnly: true, ownerUsername: 'pseudo_de_a', cloneCount: 42,
+      };
+      const result = renderLibrary(foreignPlaylist, { setSavedPlaylists });
+
+      result.current.handleClonePlaylist();
+
+      const cloned = setSavedPlaylists.mock.calls[0][0][0];
+      expect(cloned.cloneCount).toBe(42);
+    });
+
+    it('la copie clonée : cloneCount jamais défini (undefined) sur l\'original se propage tel quel — pas de faux 0 inventé', () => {
+      const setSavedPlaylists = vi.fn();
+      const foreignPlaylist = {
+        id: 'pl-A-original', user_id: 'user-A', name: 'Playlist de A',
+        isReadOnly: true, ownerUsername: 'pseudo_de_a', cloneCount: undefined,
+      };
+      const result = renderLibrary(foreignPlaylist, { setSavedPlaylists });
+
+      result.current.handleClonePlaylist();
+
+      const cloned = setSavedPlaylists.mock.calls[0][0][0];
+      expect(cloned.cloneCount).toBeUndefined();
     });
 
     // "Clone" vs "Enfant" (02/08) — une copie FRAÎCHE démarre toujours
