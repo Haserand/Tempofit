@@ -91,7 +91,7 @@ export default function PlaylistHeaderMeta({
                 <button
                   onClick={() => onViewProfile(ownerProfileUsername)}
                   title={`Voir le profil de ${ownerLabel}`}
-                  className="truncate hover:underline hover:text-slate-100 cursor-pointer"
+                  className="truncate underline hover:text-slate-100 cursor-pointer"
                 >
                   {ownerLabel}
                 </button>
