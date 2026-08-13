@@ -1,20 +1,36 @@
-import { Lock, Globe, Trash2 } from 'lucide-react';
+import { Lock, Globe, Trash2, Copy } from 'lucide-react';
 
 /**
- * PlaylistHeaderBadges.jsx — les 3 éléments qui flottent en overlay
- * absolu au-dessus de la carte d'en-tête (jamais dans le flux normal) :
- * médaille de rang (coin haut-droit, en dehors de la carte), badge
- * "Lecture seule" (coin haut-droit, à l'intérieur), boutons icône seule
- * publique/privée + retirer (même coin, juste en dessous). Extrait de
- * `PlaylistHeader.jsx` (chantier découpage, 08/08) — voir ce fichier pour
- * le raisonnement complet sur pourquoi ces 3 éléments coexistent au même
- * coin sans jamais se chevaucher (offsets différents, `isSaved`/
- * `!isSaved` mutuellement exclusifs sur médaille+lecture-seule).
+ * PlaylistHeaderBadges.jsx — les éléments qui flottent en overlay absolu
+ * au-dessus de la carte d'en-tête (jamais dans le flux normal) : médaille
+ * de rang (coin haut-droit, en dehors de la carte), et une rangée
+ * compteur de clonages + badge "Lecture seule"/boutons publique-privée
+ * + retirer (même coin, juste en dessous). Extrait de `PlaylistHeader.jsx`
+ * (chantier découpage, 08/08) — voir ce fichier pour le raisonnement
+ * complet sur pourquoi ces éléments coexistent au même coin sans jamais
+ * se chevaucher (offsets différents, `isSaved`/`!isSaved` mutuellement
+ * exclusifs sur médaille+lecture-seule).
  *
- * Rendu en `<>...</>` (fragment) — ces 3 blocs sont des ENFANTS DIRECTS
+ * Rendu en `<>...</>` (fragment) — ces éléments sont des ENFANTS DIRECTS
  * du conteneur `relative` de `PlaylistHeader.jsx`, pas un wrapper imbriqué
  * (chacun se positionne en `absolute` par rapport à CE conteneur externe,
  * pas par rapport à un div propre à ce composant).
+ *
+ * ⚠️ COMPTEUR DE CLONAGES DÉPLACÉ ICI (10/08, retour direct avec capture
+ * d'écran — "je le veux davantage sur la même ligne que le bouton public/
+ * corbeille, à leur gauche ; laisse le pseudo où il est, dans les
+ * métadonnées c'est très bien") — 2e déplacement de ce compteur dans la
+ * même session : d'abord `PlaylistHeaderTitleBlock.jsx` →
+ * `PlaylistHeaderMeta.jsx` (avec le pseudo), maintenant SÉPARÉ du pseudo
+ * pour rejoindre cette rangée d'icônes. Gaté sur
+ * `currentPlaylist.cloneCount !== undefined` (inchangé) — indépendant de
+ * `isSaved`/`isReadOnly` (peut apparaître aux 2 côtés du Lock OU du
+ * Globe/Trash2, jamais les 2 en même temps par construction), donc rendu
+ * DANS le même conteneur flex que ces derniers plutôt qu'en bloc séparé —
+ * l'ancien code avait 2 conteneurs `absolute top-4 right-4` distincts
+ * (Lock d'un côté, Globe/Trash2 de l'autre, mutuellement exclusifs) ;
+ * fusionnés en UN SEUL flex ici pour que le compteur puisse se positionner
+ * proprement "à gauche de ce qui s'affiche", peu importe lequel des 2.
  */
 export default function PlaylistHeaderBadges({
   currentPlaylist, currentPlaylistRank, currentPlaylistRankStyle,
@@ -31,25 +47,37 @@ export default function PlaylistHeaderBadges({
         </span>
       )}
 
-      {/* Badge "Lecture seule" — jamais affiché en même temps que la
-          médaille ci-dessus (un rang suppose des complétions, donc une
-          playlist déjà sauvegardée). Icône seule + `title` natif du
-          navigateur pour l'explication complète au survol. */}
-      {!isSaved && (
-        <span
-          title="Lecture seule — tu ne peux pas modifier cette playlist tant qu'elle n'est pas ajoutée à Mes Séances"
-          className="absolute top-4 right-4 bg-slate-800/80 border border-slate-700 text-slate-300 p-2 rounded-full flex items-center justify-center z-10"
-        >
-          <Lock size={12} />
-        </span>
-      )}
-
-      {/* Rendre publique/privée (Globe) PUIS Retirer (Trash2), même ordre
-          que PlaylistCard.jsx ("Mes Séances" en carte). Fond au SURVOL
-          uniquement (contrairement au badge "Lecture seule" ci-dessus,
-          volontairement toujours visible — un STATUT à signaler
-          passivement, pas la même famille que ces 2 actions). */}
       <div className="absolute top-4 right-4 flex items-center gap-1 z-10">
+        {currentPlaylist.cloneCount !== undefined && (
+          <span
+            className="bg-slate-800/80 border border-slate-700 text-slate-300 text-xs font-bold p-2 rounded-full flex items-center gap-1"
+            title="Nombre de fois où cette playlist a été clonée"
+          >
+            <Copy size={12} />{currentPlaylist.cloneCount || 0}
+          </span>
+        )}
+
+        {/* Badge "Lecture seule" — jamais affiché en même temps que la
+            médaille ci-dessus (un rang suppose des complétions, donc une
+            playlist déjà sauvegardée), ni en même temps que Globe/Trash2
+            ci-dessous (mutuellement exclusifs sur `isSaved`). Icône seule
+            + `title` natif du navigateur pour l'explication complète au
+            survol. */}
+        {!isSaved && (
+          <span
+            title="Lecture seule — tu ne peux pas modifier cette playlist tant qu'elle n'est pas ajoutée à Mes Séances"
+            className="bg-slate-800/80 border border-slate-700 text-slate-300 p-2 rounded-full flex items-center justify-center"
+          >
+            <Lock size={12} />
+          </span>
+        )}
+
+        {/* Rendre publique/privée (Globe) PUIS Retirer (Trash2), même ordre
+            que PlaylistCard.jsx ("Mes Séances" en carte). Fond au SURVOL
+            uniquement (contrairement au compteur/badge "Lecture seule"
+            ci-dessus, volontairement toujours visibles — un STATUT/une
+            info à signaler passivement, pas la même famille que ces 2
+            actions). */}
         {isSaved && !isReadOnly && (
           <button
             onClick={handleTogglePlaylistPublic}
