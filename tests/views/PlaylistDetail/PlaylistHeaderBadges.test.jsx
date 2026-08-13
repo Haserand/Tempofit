@@ -5,6 +5,12 @@
 // `currentPlaylistRankStyle` sont reçus ici en props DIRECTES (le calcul
 // du classement lui-même reste testé côté PlaylistHeader.test.jsx, qui
 // vérifie que la bonne valeur est transmise).
+//
+// ⚠️ COMPTEUR DE CLONAGES : NOUVEAU ICI (10/08, retour direct avec capture
+// d'écran, même session que le déplacement précédent vers
+// PlaylistHeaderMeta.jsx — "je le veux davantage sur la même ligne que le
+// bouton public/corbeille, à leur gauche") — voir la docstring du
+// composant pour l'historique complet des 2 déplacements.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
@@ -18,7 +24,7 @@ afterEach(() => {
 });
 
 function makePlaylist(overrides = {}) {
-  return { completions: [], isPublic: false, ...overrides };
+  return { completions: [], isPublic: false, cloneCount: undefined, ...overrides };
 }
 
 function baseProps(overrides = {}) {
@@ -33,6 +39,40 @@ function baseProps(overrides = {}) {
     ...overrides,
   };
 }
+
+describe('PlaylistHeaderBadges — compteur de clonages (icône + nombre, à gauche du reste de la rangée)', () => {
+  it('cloneCount défini : affiche le compteur, même à 0, à gauche du badge "Lecture seule" (isSaved=false)', () => {
+    render(<PlaylistHeaderBadges {...baseProps({ isSaved: false, currentPlaylist: makePlaylist({ cloneCount: 0 }) })} />);
+    expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('0');
+    expect(screen.getByTitle(/Lecture seule/)).toBeInTheDocument();
+  });
+
+  it('cloneCount défini avec une vraie valeur : affiche le nombre', () => {
+    render(<PlaylistHeaderBadges {...baseProps({ currentPlaylist: makePlaylist({ cloneCount: 42 }) })} />);
+    expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('42');
+  });
+
+  it('cloneCount JAMAIS défini (undefined) : aucun compteur affiché', () => {
+    render(<PlaylistHeaderBadges {...baseProps({ currentPlaylist: makePlaylist({ cloneCount: undefined }) })} />);
+    expect(screen.queryByTitle('Nombre de fois où cette playlist a été clonée')).not.toBeInTheDocument();
+  });
+
+  // Le vrai point de ce déplacement (retour direct) : le compteur doit
+  // rester visible à côté de Globe/Trash2 (isSaved=true), PAS seulement à
+  // côté du badge "Lecture seule" (isSaved=false) — indépendant de
+  // isSaved, contrairement au Lock/Globe+Trash2 eux-mêmes qui restent
+  // mutuellement exclusifs entre eux.
+  it('cloneCount défini + isSaved=true : reste affiché, à gauche des boutons publique/retirer', () => {
+    render(<PlaylistHeaderBadges {...baseProps({ isSaved: true, isReadOnly: false, currentPlaylist: makePlaylist({ cloneCount: 7 }) })} />);
+    expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('7');
+    expect(screen.getByTitle('Rendre cette playlist visible sur ton profil public')).toBeInTheDocument();
+  });
+
+  it('cloneCount défini + isReadOnly=true (ni Lock ni Globe/Trash2 affichés) : reste affiché seul', () => {
+    render(<PlaylistHeaderBadges {...baseProps({ isSaved: true, isReadOnly: true, currentPlaylist: makePlaylist({ cloneCount: 3 }) })} />);
+    expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('3');
+  });
+});
 
 describe('PlaylistHeaderBadges', () => {
   it('médaille de rang affichée seulement si currentPlaylistRankStyle est fourni', () => {
