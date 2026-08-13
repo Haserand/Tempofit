@@ -1,4 +1,4 @@
-import { Clock, Footprints, MapPin, ChevronUp, ChevronDown } from 'lucide-react';
+import { Clock, MapPin, ChevronUp, ChevronDown } from 'lucide-react';
 import { syncClampedInput } from '../../utils/numberInput';
 import { isTargetValueValid, snapDistanceOnBlur } from '../../utils/targetValidation';
 
