@@ -52,9 +52,30 @@ describe('PlaylistHeaderBadges — compteur de clonages (icône + nombre, à gau
     expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('42');
   });
 
-  it('cloneCount JAMAIS défini (undefined) : aucun compteur affiché', () => {
-    render(<PlaylistHeaderBadges {...baseProps({ currentPlaylist: makePlaylist({ cloneCount: undefined }) })} />);
+  // ⚠️ MIS À JOUR (10/08, MÊME SESSION, retour direct suivant : "j'ai
+  // changé d'avis, il faut le compteur pour les séances même en mode
+  // invité, pas grave si ce sera toujours à 0") — ce test utilisait AVANT
+  // le défaut `isSaved: true` de `baseProps` pour vérifier "aucun
+  // compteur affiché" ; avec la nouvelle condition
+  // `isSaved || cloneCount !== undefined`, ce même défaut ferait
+  // désormais APPARAÎTRE le badge (à "0") — `isSaved: false` ajouté
+  // explicitement pour continuer à tester le VRAI cas "rien affiché"
+  // (playlist pas encore sauvegardée, sans cloneCount connu).
+  it('cloneCount JAMAIS défini (undefined) ET isSaved=false : aucun compteur affiché', () => {
+    render(<PlaylistHeaderBadges {...baseProps({ isSaved: false, currentPlaylist: makePlaylist({ cloneCount: undefined }) })} />);
     expect(screen.queryByTitle('Nombre de fois où cette playlist a été clonée')).not.toBeInTheDocument();
+  });
+
+  // NOUVEAU (10/08, MÊME SESSION) — le vrai point du retour direct
+  // ci-dessus : une playlist "à toi" (`isSaved`, connectée OU en mode
+  // invité) affiche TOUJOURS le compteur, même sans `cloneCount` jamais
+  // posé (cas d'une playlist générée puis sauvegardée, voir
+  // handleSavePlaylist, usePlaylistLibrary.js) — "0" honnête plutôt que
+  // rien du tout, pour rester cohérent visuellement et signaler que la
+  // fonctionnalité existe.
+  it('isSaved=true ET cloneCount JAMAIS défini : affiche quand même le compteur, à "0"', () => {
+    render(<PlaylistHeaderBadges {...baseProps({ isSaved: true, currentPlaylist: makePlaylist({ cloneCount: undefined }) })} />);
+    expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('0');
   });
 
   // Le vrai point de ce déplacement (retour direct) : le compteur doit
