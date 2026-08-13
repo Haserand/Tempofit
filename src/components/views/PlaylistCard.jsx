@@ -212,7 +212,7 @@ export default function PlaylistCard({
               <Globe size={18} />
             </button>
           )}
-          <button onClick={(e) => { e.stopPropagation(); onDelete(playlist.id); }} className="p-2 rounded-lg text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100">
+          <button onClick={(e) => { e.stopPropagation(); onDelete(playlist.id); }} title="Supprimer cette playlist" className="p-2 rounded-lg text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100">
             <Trash2 size={18} />
           </button>
         </div>
