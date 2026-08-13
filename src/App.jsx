@@ -1513,7 +1513,17 @@ function AppContent({
              toast.variant === 'ambiance' ? <Heart size={18} className="text-rose-500 fill-rose-500" /> :
              toast.variant === 'error' ? <AlertCircle size={18} className="text-red-500" /> :
              <Check size={18} className={textColorClass} />}
-            <span className={`font-medium ${toast.variant === 'error' ? 'text-red-600 dark:text-red-400' : textHighlight}`}>{toast.message}</span>
+            {/* `whitespace-nowrap` (retour direct — "le texte doit tenir
+                sur une seule ligne") : garde-fou technique EN PLUS des
+                textes raccourcis à la source (voir PlaylistsView.jsx/
+                RoutinesView.jsx/PlaylistDetailContext.jsx) — pas un
+                remplacement. Sans texte suffisamment court, un très long
+                nom de playlist/routine (aucune longueur maximale
+                imposée, voir MIN_PLAYLIST_NAME_LENGTH seul dans
+                appConfig.js) pourrait toujours élargir ce toast au point
+                de dépasser l'écran sur mobile — accepté comme limite
+                connue, pas vérifiable ici sans rendu réel. */}
+            <span className={`font-medium whitespace-nowrap ${toast.variant === 'error' ? 'text-red-600 dark:text-red-400' : textHighlight}`}>{toast.message}</span>
           </div>
         )}
 
