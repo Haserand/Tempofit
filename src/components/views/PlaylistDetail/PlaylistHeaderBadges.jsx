@@ -48,9 +48,14 @@ export default function PlaylistHeaderBadges({
       )}
 
       <div className="absolute top-4 right-4 flex items-center gap-1 z-10">
+        {/* Pas de fond/bordure gris ici, contrairement au badge "Lecture
+            seule"/aux boutons juste après (retour direct : "je veux pas
+            de la zone grise qui entoure le compteur de clonages") — texte
+            + icône seuls, `p-2` gardé pour l'alignement vertical avec ses
+            voisins (même hauteur de ligne), pas pour un fond visible. */}
         {currentPlaylist.cloneCount !== undefined && (
           <span
-            className="bg-slate-800/80 border border-slate-700 text-slate-300 text-xs font-bold p-2 rounded-full flex items-center gap-1"
+            className="text-slate-300 text-xs font-bold p-2 flex items-center gap-1"
             title="Nombre de fois où cette playlist a été clonée"
           >
             <Copy size={12} />{currentPlaylist.cloneCount || 0}
