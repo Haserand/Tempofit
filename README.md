@@ -12,6 +12,16 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
+✅ **SESSION DU 10/08 (suite) — retour direct, MÊME SESSION que les chantiers précédents sur ce compteur : "par cohérence on devrait aussi voir le même compteur dans Mes Séances, à côté du bouton Marquer comme faite".**
+
+**Ajouté à `PlaylistCard.jsx`** (utilisée par les 3 sections de "Mes Séances") — même badge, même philosophie que `PlaylistHeaderBadges.jsx` (toujours affiché, `|| 0` en repli honnête). Pas de condition `isSaved` à vérifier ici contrairement à la fiche détail : cette carte n'est utilisée QUE pour des playlists déjà sauvegardées, par construction.
+
+**Généralisation faite avant de livrer** : cette carte a 2 mises en page JSX INDÉPENDANTES selon `isCompleted` (bouton "Marquer comme faite" vs pilule "Faite Nx") — le badge a été ajouté aux DEUX, pas seulement à celle demandée dans le retour direct, sinon il aurait disparu dès qu'une séance est marquée comme faite.
+
+Tests : nouveau describe dédié dans `tests/views/PlaylistCard.test.jsx` (aucun test n'existait avant pour ce badge) — 4 tests couvrant les 2 mises en page, une vraie valeur, et le cas `cloneCount` jamais défini (doit quand même afficher "0").
+
+⚠️ **Pas encore vérifié en conditions réelles** (build Vercel) — même limite habituelle.
+
 ✅ **SESSION DU 10/08 (suite) — retour direct, MÊME SESSION que les chantiers précédents sur ce compteur : "j'ai changé d'avis, il faut le compteur de clonages pour les séances même en mode invité, pas grave si ce sera toujours à 0 — cohérence visuelle + les invités voient que la fonctionnalité existe".**
 
 **Changement de philosophie assumé** : jusqu'ici, le badge était gaté sur `cloneCount !== undefined` — absent pour toute playlist où cette valeur n'avait jamais été posée (typiquement une playlist générée puis sauvegardée directement, jamais passée par Découvrir). Désormais : `(isSaved || cloneCount !== undefined)` — toute playlist "à toi" (Mes Séances, connecté OU invité) affiche SYSTÉMATIQUEMENT le badge, avec `|| 0` en repli honnête plutôt qu'un calcul. Le cas "pas encore sauvegardé" (template/playlist étrangère en lecture seule) garde l'ancienne condition, inchangé — ces cas ont de toute façon presque toujours `cloneCount` déjà posé à l'ouverture.
