@@ -1,4 +1,4 @@
-import { Lock, Activity, Clock, Music, User, Copy } from 'lucide-react';
+import { Lock, Activity, Clock, Music, User } from 'lucide-react';
 import { getGenresForDisplay, genreDisplayLabel } from '../../../musicCatalog';
 import { formatDuration } from '../../../utils/format';
 import TopCompletionDate from '../../shared/TopCompletionDate';
@@ -12,23 +12,28 @@ import CompletionsList from '../../shared/CompletionsList';
  * regroupés ici car tous deux purement informatifs (pas d'action
  * principale), à la différence de `PlaylistHeaderActions.jsx`.
  *
- * ⚠️ PSEUDO + COMPTEUR DE CLONAGES DÉPLACÉS ICI (10/08, retour direct avec
- * capture d'écran — "supprimer la ligne pseudo/compteur au-dessus du
- * titre pour épurer le design, l'intégrer comme première info de la
- * ligne de métadonnées à la place"). Vivait auparavant dans
- * `PlaylistHeaderTitleBlock.jsx`, sur sa propre ligne au-dessus du titre
- * — voir sa docstring pour le "avant". Le compteur de clonages (Copy +
- * nombre) SUIT le pseudo ici comme il le faisait déjà avant ce
- * déplacement — la consigne d'origine ne parlait QUE du pseudo, mais les
- * dissocier aurait fait disparaître le compteur de l'écran (les deux
- * vivaient dans le MÊME bloc conditionnel `ownerLabel &&`) : choix fait
- * de les déplacer ENSEMBLE plutôt que de perdre cette info au passage —
- * signalé explicitement à l'utilisateur au moment de cette implémentation.
+ * ⚠️ PSEUDO DÉPLACÉ ICI (10/08, retour direct avec capture d'écran —
+ * "supprimer la ligne pseudo/compteur au-dessus du titre pour épurer le
+ * design, l'intégrer comme première info de la ligne de métadonnées à la
+ * place"). Vivait auparavant dans `PlaylistHeaderTitleBlock.jsx`, sur sa
+ * propre ligne au-dessus du titre — voir sa docstring pour le "avant".
+ *
+ * ⚠️ COMPTEUR DE CLONAGES REPARTI AILLEURS (10/08, MÊME SESSION, retour
+ * direct suivant : "je le veux davantage sur la même ligne que le bouton
+ * public/corbeille, à leur gauche ; laisse le pseudo où il est, dans les
+ * métadonnées c'est très bien") — a suivi le pseudo ici dans un 1er temps
+ * (les deux vivaient dans le même bloc conditionnel `ownerLabel &&` de
+ * `PlaylistHeaderTitleBlock.jsx`, les dissocier aurait fait disparaître le
+ * compteur de l'écran lors du 1er déplacement), puis déplacé une 2e fois,
+ * séparément du pseudo cette fois, vers `PlaylistHeaderBadges.jsx` (rangée
+ * d'icônes en haut à droite de la carte) — voir sa docstring. Ce fichier
+ * ne porte donc plus QUE le pseudo, plus le compteur.
+ *
  * Gaté sur `ownerLabel` (peut être `null` — génération fraîche pas encore
  * sauvegardée, voir PlaylistHeader.jsx) : tout le 1er item (icône + nom +
- * clonages + séparateur qui suit) disparaît proprement dans ce cas,
- * "Course à pied" redevient naturellement le premier élément de la ligne,
- * sans séparateur orphelin devant lui.
+ * séparateur qui suit) disparaît proprement dans ce cas, "Course à pied"
+ * redevient naturellement le premier élément de la ligne, sans séparateur
+ * orphelin devant lui.
  */
 export default function PlaylistHeaderMeta({
   currentPlaylist, theme, isLocked, isReadOnly,
@@ -96,11 +101,6 @@ export default function PlaylistHeaderMeta({
                   className="truncate"
                 >
                   {ownerLabel}
-                </span>
-              )}
-              {currentPlaylist.cloneCount !== undefined && (
-                <span className="flex items-center gap-1 shrink-0 ml-1" title="Nombre de fois où cette playlist a été clonée">
-                  <Copy size={11} />{currentPlaylist.cloneCount || 0}
                 </span>
               )}
             </div>
