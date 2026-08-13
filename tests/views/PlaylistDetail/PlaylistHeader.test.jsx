@@ -128,6 +128,7 @@ function baseProps(overrides = {}) {
     getRankStyle: vi.fn(() => null),
     triggerCSVUpload: vi.fn(),
     onShare: vi.fn(),
+    changeView: vi.fn(),
     ...overrides,
   };
 }
