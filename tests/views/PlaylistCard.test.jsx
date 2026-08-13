@@ -260,3 +260,35 @@ describe('PlaylistCard — pas de pseudo affiché (retiré le 07/08, non-régres
     expect(screen.queryByText('Invité')).not.toBeInTheDocument();
   });
 });
+
+// NOUVEAU (10/08, retour direct — "par cohérence on devrait aussi voir le
+// même compteur dans Mes Séances, à côté du bouton Marquer comme faite")
+// — premier test pour ce badge sur cette carte. Cette carte n'est
+// utilisée QUE pour des playlists déjà sauvegardées (voir la docstring en
+// tête de ce fichier), donc pas de condition `isSaved` à tester ici comme
+// pour PlaylistHeaderBadges.jsx — toujours affiché, `|| 0` en repli.
+// Testé dans LES 2 mises en page (pas encore faite / déjà faite), qui ont
+// chacune leur propre JSX indépendant.
+describe('PlaylistCard — compteur de clonages (à côté de "Marquer comme faite"/"Faite Nx")', () => {
+  it('pas encore faite : affiche le compteur à côté de "Marquer comme faite", même à 0', () => {
+    render(<PlaylistCard {...baseProps({ playlist: makePlaylist({ cloneCount: 0, completions: [] }) })} />);
+    expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('0');
+    expect(screen.getByText('Marquer comme faite')).toBeInTheDocument();
+  });
+
+  it('pas encore faite : affiche une vraie valeur', () => {
+    render(<PlaylistCard {...baseProps({ playlist: makePlaylist({ cloneCount: 12, completions: [] }) })} />);
+    expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('12');
+  });
+
+  it('cloneCount jamais défini (undefined) : affiche quand même "0" (repli honnête, pas d\'absence)', () => {
+    render(<PlaylistCard {...baseProps({ playlist: makePlaylist({ cloneCount: undefined, completions: [] }) })} />);
+    expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('0');
+  });
+
+  it('déjà faite : affiche aussi le compteur, à côté de "Faite Nx" (mise en page différente, même badge)', () => {
+    render(<PlaylistCard {...baseProps({ playlist: makePlaylist({ cloneCount: 5, completions: ['2026-01-01'] }) })} />);
+    expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('5');
+    expect(screen.getByText('Faite 1x')).toBeInTheDocument();
+  });
+});
