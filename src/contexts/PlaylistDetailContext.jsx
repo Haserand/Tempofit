@@ -176,7 +176,10 @@ export function PlaylistDetailProvider({
     // pour les routines) — 3 implémentations indépendantes de la bascule
     // elle-même (voir leurs docstrings respectives), donc 3 endroits à
     // toucher pour ce même changement, pas un seul point central.
-    showToast(updatedPlaylist.isPublic ? `🌐 "${updatedPlaylist.name}" est maintenant visible sur ton profil public.` : `🔒 "${updatedPlaylist.name}" est de nouveau privée.`);
+    // ⚠️ TEXTE RACCOURCI (10/08, retour direct — "le texte doit tenir sur
+    // une seule ligne") : voir PlaylistsView.jsx pour le raisonnement
+    // complet — même raccourci appliqué aux 3 endroits identiques.
+    showToast(updatedPlaylist.isPublic ? `🌐 "${updatedPlaylist.name}" est maintenant publique.` : `🔒 "${updatedPlaylist.name}" est de nouveau privée.`);
   };
 
   // --- Description libre (Vague 2, Chantier 3 — "description texte libre
