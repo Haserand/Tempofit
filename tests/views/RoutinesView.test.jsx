@@ -154,7 +154,7 @@ describe('RoutinesView', () => {
     render(<RoutinesView {...baseProps({ showToast, setRoutines })} />);
 
     fireEvent.click(screen.getAllByTitle('Rendre cette routine visible sur ton profil public')[0]);
-    expect(showToast).toHaveBeenCalledWith(`🌐 "${routineB.name}" est maintenant visible sur ton profil public.`);
+    expect(showToast).toHaveBeenCalledWith(`🌐 "${routineB.name}" est maintenant publique.`);
   });
 
   // ⚠️ SIMPLIFIÉ (03/08, refonte lignée serveur, voir supabase-schema.sql)
