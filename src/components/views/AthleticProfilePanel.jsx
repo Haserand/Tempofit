@@ -260,8 +260,8 @@ export default function AthleticProfilePanel({ theme, showToast, changeView }) {
                     onKeyDown={(e) => e.key === 'Enter' && confirmAddCustomActivity()}
                     className={`bg-transparent text-sm font-bold outline-hidden w-28 px-2 ${textHighlight}`}
                   />
-                  <button onClick={confirmAddCustomActivity} className={`p-1.5 rounded-full text-white ${bgAccentClass}`}><Plus size={14}/></button>
-                  <button onClick={() => { setShowAddCustomActivity(false); setNewCustomActivityName(''); }} className={`p-1.5 rounded-full ${textMuted} hover:text-red-500`}><Trash2 size={14}/></button>
+                  <button onClick={confirmAddCustomActivity} title="Confirmer" className={`p-1.5 rounded-full text-white ${bgAccentClass}`}><Plus size={14}/></button>
+                  <button onClick={() => { setShowAddCustomActivity(false); setNewCustomActivityName(''); }} title="Annuler" className={`p-1.5 rounded-full ${textMuted} hover:text-red-500`}><Trash2 size={14}/></button>
                 </div>
               )}
             </div>
