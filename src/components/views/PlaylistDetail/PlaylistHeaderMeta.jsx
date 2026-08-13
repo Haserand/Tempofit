@@ -1,4 +1,4 @@
-import { Lock, Activity, Clock, Music } from 'lucide-react';
+import { Lock, Activity, Clock, Music, User, Copy } from 'lucide-react';
 import { getGenresForDisplay, genreDisplayLabel } from '../../../musicCatalog';
 import { formatDuration } from '../../../utils/format';
 import TopCompletionDate from '../../shared/TopCompletionDate';
@@ -7,15 +7,34 @@ import CompletionsList from '../../shared/CompletionsList';
 /**
  * PlaylistHeaderMeta.jsx — badge "séance déjà réalisée" + dernière date
  * (+ liste des autres dates), suivi de la ligne d'infos brutes de la
- * playlist (type d'activité, durée, nb de titres, genres). Extrait de
- * `PlaylistHeader.jsx` (chantier découpage, 08/08) — 2 blocs regroupés
- * ici car tous deux purement informatifs (pas d'action principale), à la
- * différence de `PlaylistHeaderActions.jsx`.
+ * playlist (créateur, type d'activité, durée, nb de titres, genres).
+ * Extrait de `PlaylistHeader.jsx` (chantier découpage, 08/08) — 2 blocs
+ * regroupés ici car tous deux purement informatifs (pas d'action
+ * principale), à la différence de `PlaylistHeaderActions.jsx`.
+ *
+ * ⚠️ PSEUDO + COMPTEUR DE CLONAGES DÉPLACÉS ICI (10/08, retour direct avec
+ * capture d'écran — "supprimer la ligne pseudo/compteur au-dessus du
+ * titre pour épurer le design, l'intégrer comme première info de la
+ * ligne de métadonnées à la place"). Vivait auparavant dans
+ * `PlaylistHeaderTitleBlock.jsx`, sur sa propre ligne au-dessus du titre
+ * — voir sa docstring pour le "avant". Le compteur de clonages (Copy +
+ * nombre) SUIT le pseudo ici comme il le faisait déjà avant ce
+ * déplacement — la consigne d'origine ne parlait QUE du pseudo, mais les
+ * dissocier aurait fait disparaître le compteur de l'écran (les deux
+ * vivaient dans le MÊME bloc conditionnel `ownerLabel &&`) : choix fait
+ * de les déplacer ENSEMBLE plutôt que de perdre cette info au passage —
+ * signalé explicitement à l'utilisateur au moment de cette implémentation.
+ * Gaté sur `ownerLabel` (peut être `null` — génération fraîche pas encore
+ * sauvegardée, voir PlaylistHeader.jsx) : tout le 1er item (icône + nom +
+ * clonages + séparateur qui suit) disparaît proprement dans ce cas,
+ * "Course à pied" redevient naturellement le premier élément de la ligne,
+ * sans séparateur orphelin devant lui.
  */
 export default function PlaylistHeaderMeta({
   currentPlaylist, theme, isLocked, isReadOnly,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
   triggerCSVUpload, removeImportedData, mostRecentCompletionIso,
+  ownerLabel, ownerProfileUsername, onViewProfile, isSaved,
 }) {
   return (
     <>
@@ -59,6 +78,35 @@ export default function PlaylistHeaderMeta({
       {/* Ligne d'infos de la playlist SEULES — icônes + `text-slate-300`
           (fixe, cohérent avec le fond toujours sombre de cette carte). */}
       <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-4 gap-y-1.5 text-sm font-medium text-slate-300">
+        {ownerLabel && (
+          <>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <User size={16} className="text-slate-400 shrink-0"/>
+              {ownerProfileUsername && onViewProfile ? (
+                <button
+                  onClick={() => onViewProfile(ownerProfileUsername)}
+                  title={`Voir le profil de ${ownerLabel}`}
+                  className="truncate hover:underline hover:text-slate-100 cursor-pointer"
+                >
+                  {ownerLabel}
+                </button>
+              ) : (
+                <span
+                  title={isSaved ? 'Cette playlist est dans ta bibliothèque' : `Créée par ${ownerLabel}`}
+                  className="truncate"
+                >
+                  {ownerLabel}
+                </span>
+              )}
+              {currentPlaylist.cloneCount !== undefined && (
+                <span className="flex items-center gap-1 shrink-0 ml-1" title="Nombre de fois où cette playlist a été clonée">
+                  <Copy size={11} />{currentPlaylist.cloneCount || 0}
+                </span>
+              )}
+            </div>
+            <span className="text-slate-600">•</span>
+          </>
+        )}
         <div className="flex items-center gap-1.5"><Activity size={16} className="text-slate-400"/><span>{currentPlaylist.workoutType}</span></div>
         <span className="text-slate-600">•</span>
         <div className="flex items-center gap-1.5"><Clock size={16} className="text-slate-400"/><span>{formatDuration(currentPlaylist.totalDuration)}</span></div>
