@@ -96,7 +96,15 @@ export default function PlaylistsView({
       // sur un `find()` séparé sur `savedPlaylists` déjà obsolète à ce
       // stade (state pas encore réellement mis à jour tant que ce
       // `setSavedPlaylists` n'a pas été appliqué).
-      showToast(updated.isPublic ? `🌐 "${updated.name}" est maintenant visible sur ton profil public.` : `🔒 "${updated.name}" est de nouveau privée.`);
+      // ⚠️ TEXTE RACCOURCI (10/08, retour direct — "le texte doit tenir sur
+      // une seule ligne") : "est maintenant visible sur ton profil public"
+      // → "est maintenant publique" — l'émoji 🌐 communique déjà "visible
+      // publiquement", pas la peine de le redire en toutes lettres. Même
+      // raccourci appliqué aux 2 AUTRES endroits qui affichent ce même
+      // message (RoutinesView.jsx/PlaylistDetailContext.jsx — 3
+      // implémentations indépendantes, voir la docstring de
+      // handleTogglePlaylistPublic dans PlaylistDetailContext.jsx).
+      showToast(updated.isPublic ? `🌐 "${updated.name}" est maintenant publique.` : `🔒 "${updated.name}" est de nouveau privée.`);
       return updated;
     }));
   };
