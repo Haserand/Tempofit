@@ -20,6 +20,8 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 Tests : les 3 tests cloneCount + le test "gaté sur ownerLabel" (devenu obsolète, cloneCount n'est plus attaché à ownerLabel du tout) déplacés de `PlaylistHeaderMeta.test.jsx` vers `PlaylistHeaderBadges.test.jsx`, remplacés par 2 nouveaux tests plus ciblés couvrant le vrai point de ce déplacement : le compteur reste affiché aussi bien à côté du cadenas (isSaved=false) qu'à côté de Globe/Trash2 (isSaved=true), et reste seul si isReadOnly masque les 2 autres. 1 test de non-régression ajouté à `PlaylistHeaderMeta.test.jsx` (cloneCount n'a plus aucun effet là-bas).
 
+⚠️ **Retouche visuelle immédiate (retour direct, capture à l'appui)** : le fond gris (`bg-slate-800/80 border border-slate-700 rounded-full`) hérité de son ancien emplacement retiré du badge compteur de clonages — texte + icône seuls désormais, cohérent avec le style "juste une info" plutôt que "bouton/statut" des badges Lecture seule/Globe/Trash2 juste à côté.
+
 ⚠️ **Pas encore vérifié en conditions réelles** (build Vercel) — même limite habituelle. Vérification supplémentaire faite cette fois (suite à l'incident du build précédent, contenu erroné sous le nom `PlaylistHeaderTitleBlock.test.jsx`) : chaque fichier de test touché importe bien le sujet correspondant exactement à son propre nom de fichier.
 
 ✅ **SESSION DU 10/08 (suite) — retour direct avec capture d'écran : "supprimer la ligne pseudo au-dessus du titre de playlist, l'intégrer comme 1re info de la ligne de métadonnées à la place".**
