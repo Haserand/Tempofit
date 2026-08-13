@@ -123,6 +123,15 @@ describe('PlaylistCard — clics et propagation', () => {
     expect(onDelete).toHaveBeenCalledWith('pl1');
     expect(onClick).not.toHaveBeenCalled();
   });
+
+  // NOUVEAU (10/08, retour direct — "pourquoi j'ai une infobulle pour la
+  // date/le public et pas pour la corbeille ?") : oubli pur et simple,
+  // seul le bouton Supprimer n'avait jamais eu de `title`, contrairement à
+  // ses 2 voisins (Planifier/Public) — corrigé.
+  it('le bouton Supprimer a un title, comme ses voisins Planifier/Public', () => {
+    render(<PlaylistCard {...baseProps()} />);
+    expect(screen.getByTitle('Supprimer cette playlist')).toBeInTheDocument();
+  });
 });
 
 describe('PlaylistCard — bascule publique/privée (Feature Sociale, 01/08)', () => {
