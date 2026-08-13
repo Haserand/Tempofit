@@ -12,6 +12,16 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
+✅ **SESSION DU 10/08 (suite) — retour direct, MÊME SESSION que les 2 déplacements précédents du pseudo/compteur de clonages : "quand c'est mon propre pseudo, ramener vers Mes Séances, connecté ou invité, avec un avertissement avant".**
+
+**Discussion AVANT implémentation** (le chantier touchait 3 fichiers avec câblage de prop sur 3 niveaux — plus gros que les retouches CSS précédentes) : l'avertissement envisagé au départ a été discuté puis abandonné, des deux côtés (connecté ET invité) — voir la docstring de `PlaylistHeaderMeta.jsx` pour le raisonnement complet ("aucun risque réel pour un compte connecté ; pour l'invité, le seul vrai risque — données non synchronisées — est déjà rappelé en PERMANENCE par `GuestModeBar.jsx`, pas la peine de le répéter sur ce clic précis alors qu'aucune autre navigation de l'app ne le fait, y compris '← Retour' qui fait exactement le même trajet").
+
+**Implémentation** : `changeView` (déjà disponible dans `PlaylistDetailView.jsx`) enfilé à travers `PlaylistHeader.jsx` jusqu'à `PlaylistHeaderMeta.jsx`. Le pseudo affiché en `<span>` (ton PROPRE pseudo, connecté ou "Invité") devient un `<button>` — même style que le pseudo cliquable vers le profil d'un AUTRE utilisateur (souligné en permanence, pas juste au survol — voir l'entrée juste en dessous). 3 branches désormais : profil d'un autre utilisateur (inchangé) → ton propre pseudo (`isSaved`, nouveau : `changeView('playlists')`) → texte simple non cliquable (cas défensif résiduel, `onViewProfile` manquant).
+
+Tests : 2 tests existants mis à jour — l'un testait explicitement "PAS cliquable" (comportement inversé, réécrit), l'autre dépendait IMPLICITEMENT de la valeur par défaut d'`isSaved` dans son helper de test pour atteindre la bonne branche (cassé par le nouveau découpage en 3 branches, corrigé en fixant `isSaved: false` explicitement — le vrai edge case qu'il visait ne peut de toute façon se produire qu'à `isSaved: false` en pratique). 2 nouveaux tests (pseudo réel + "Invité", les deux vérifiant l'absence de tout avertissement).
+
+⚠️ **Pas encore vérifié en conditions réelles** (build Vercel) — même limite habituelle. Identité des fichiers de test touchés vérifiée explicitement (suite à l'incident du build précédent).
+
 ✅ **SESSION DU 10/08 (suite) — retour direct avec capture d'écran, MÊME SESSION que le déplacement précédent : "le compteur de clonages, je le veux davantage sur la même ligne que le bouton public/corbeille, à leur gauche ; laisse le pseudo où il est, dans les métadonnées c'est très bien".**
 
 **2e déplacement du compteur de clonages en une session** — d'abord sorti de `PlaylistHeaderTitleBlock.jsx` vers `PlaylistHeaderMeta.jsx` (avec le pseudo, voir l'entrée juste en dessous), maintenant SÉPARÉ du pseudo pour rejoindre `PlaylistHeaderBadges.jsx` (rangée d'icônes flottante en haut à droite : cadenas "Lecture seule" OU boutons publique/retirer, selon `isSaved`). Le pseudo, lui, reste bien dans les métadonnées, inchangé.
