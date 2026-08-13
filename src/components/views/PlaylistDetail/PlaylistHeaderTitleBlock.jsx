@@ -1,19 +1,21 @@
-import { Edit3, Copy } from 'lucide-react';
+import { Edit3 } from 'lucide-react';
 import { usePlaylistEditActions } from '../../../contexts/PlaylistEditContext';
 
 /**
- * PlaylistHeaderTitleBlock.jsx — ligne "chapeau" (pseudo cliquable +
- * compteur de clonages) suivie du titre + description de la playlist.
- * Extrait de `PlaylistHeader.jsx` (chantier découpage, 08/08) —
- * `ownerLabel`/`ownerProfileUsername` restent calculés/possédés par le
- * parent (`PlaylistHeader.jsx`/`usePlaylistDetail()`), ce composant reste
- * "dumb", uniquement du rendu.
+ * PlaylistHeaderTitleBlock.jsx — titre + description de la playlist.
+ * Extrait de `PlaylistHeader.jsx` (chantier découpage, 08/08) — ce
+ * composant reste "dumb", uniquement du rendu.
  *
- * Compteur de clonages gaté sur `currentPlaylist.cloneCount !== undefined`
- * (PAS `isReadOnly` seul — un template ouvert DIRECTEMENT depuis Découvrir
- * reçoit un `cloneCount` réel sans `isReadOnly: true` à côté, voir
- * README) — TOUJOURS affiché même à 0, mêmes icône/gabarit que
- * `TemplateCard.jsx`.
+ * ⚠️ RETIRÉ (10/08, retour direct avec capture d'écran — "supprimer la
+ * ligne pseudo/compteur de clonages au-dessus du titre pour épurer le
+ * design, l'intégrer comme première info de la ligne de métadonnées à la
+ * place") : la ligne "pseudo cliquable + compteur de clonages" qui vivait
+ * ici a été DÉPLACÉE dans `PlaylistHeaderMeta.jsx` (première info de la
+ * ligne d'infos, icône `User` + séparateur "•" avant "Course à pied"),
+ * PAS supprimée — `ownerLabel`/`ownerProfileUsername`/`onViewProfile` ne
+ * sont donc plus reçus en props ICI, uniquement par `PlaylistHeaderMeta.jsx`
+ * désormais (voir sa docstring pour le détail complet, y compris le
+ * compteur de clonages qui a suivi le pseudo au même endroit).
  *
  * ⚠️ ÉDITION PASSÉE EN MODALE (retour direct, captures à l'appui : "l'édition
  * inline crée un layout shift désagréable qui décale les stats/boutons vers
@@ -49,41 +51,11 @@ import { usePlaylistEditActions } from '../../../contexts/PlaylistEditContext';
  */
 export default function PlaylistHeaderTitleBlock({
   currentPlaylist, isSaved, isReadOnly,
-  ownerLabel, ownerProfileUsername, onViewProfile,
 }) {
   const { handleOpenEditPlaylistModal } = usePlaylistEditActions();
 
   return (
     <>
-      {ownerLabel && (
-        <div className="flex items-center gap-2 justify-center md:justify-start text-xs font-bold text-slate-400">
-          {ownerProfileUsername && onViewProfile ? (
-            <button
-              onClick={() => onViewProfile(ownerProfileUsername)}
-              title={`Voir le profil de ${ownerLabel}`}
-              className="truncate hover:underline hover:text-slate-200 cursor-pointer"
-            >
-              {ownerLabel}
-            </button>
-          ) : (
-            <span
-              title={isSaved ? 'Cette playlist est dans ta bibliothèque' : `Créée par ${ownerLabel}`}
-              className="truncate"
-            >
-              {ownerLabel}
-            </span>
-          )}
-          {currentPlaylist.cloneCount !== undefined && (
-            <>
-              <span className="text-slate-600">•</span>
-              <span className="flex items-center gap-1 shrink-0" title="Nombre de fois où cette playlist a été clonée">
-                <Copy size={11} />{currentPlaylist.cloneCount || 0}
-              </span>
-            </>
-          )}
-        </div>
-      )}
-
       <h2 className="text-xl font-bold flex items-center gap-3 justify-center md:justify-start text-white">
         {/* ⚠️ Émoji NON dérivé ici (retiré 08/08, chantier "émoji baké en
             texte littéral dans le titre", voir musicEngine.js/useNavigation.js) —
