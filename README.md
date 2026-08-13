@@ -12,6 +12,14 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
+✅ **SESSION DU 10/08 (suite) — retour direct, MÊME SESSION que les chantiers précédents sur ce compteur : "j'ai changé d'avis, il faut le compteur de clonages pour les séances même en mode invité, pas grave si ce sera toujours à 0 — cohérence visuelle + les invités voient que la fonctionnalité existe".**
+
+**Changement de philosophie assumé** : jusqu'ici, le badge était gaté sur `cloneCount !== undefined` — absent pour toute playlist où cette valeur n'avait jamais été posée (typiquement une playlist générée puis sauvegardée directement, jamais passée par Découvrir). Désormais : `(isSaved || cloneCount !== undefined)` — toute playlist "à toi" (Mes Séances, connecté OU invité) affiche SYSTÉMATIQUEMENT le badge, avec `|| 0` en repli honnête plutôt qu'un calcul. Le cas "pas encore sauvegardé" (template/playlist étrangère en lecture seule) garde l'ancienne condition, inchangé — ces cas ont de toute façon presque toujours `cloneCount` déjà posé à l'ouverture.
+
+Tests : 1 test devenu obsolète par ce changement VOLONTAIRE (dépendait implicitement du défaut `isSaved: true` de son helper pour tester "rien affiché" — `isSaved: false` ajouté explicitement pour continuer à tester le vrai cas visé). 1 nouveau test confirmant le cœur du retour direct : `isSaved` + `cloneCount` jamais défini → affiche "0" quand même.
+
+⚠️ **Pas encore vérifié en conditions réelles** (build Vercel) — même limite habituelle.
+
 ✅ **SESSION DU 10/08 (suite) — retour direct avec 4 captures d'écran, MÊME SESSION que les chantiers précédents sur ce compteur : "quand je l'ajoute à Mes Séances il n'y a plus le compteur de clones ?" — 2e chemin de sauvegarde qui l'effaçait, distinct de celui déjà corrigé.**
 
 **2 chemins de sauvegarde différents dans `PlaylistHeaderActions.jsx`**, pas un seul : `handleSavePlaylist` ("Ajouter à Mes Séances", playlist pas en lecture seule) préservait déjà `cloneCount` (spread simple). `handleClonePlaylist` ("Sauvegarder dans mes séances", playlist en VRAIE lecture seule — `isReadOnly: true`) l'effaçait explicitement (`cloneCount: undefined`), décision prise le 07/08 EN MÊME TEMPS que le reset de `user_id`/`ownerUsername` — les 3 traités à tort comme la même famille de champ à l'époque.
