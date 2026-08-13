@@ -107,24 +107,17 @@ describe('PlaylistHeaderMeta — pseudo + compteur de clonages (1er élément de
     expect(label.tagName).toBe('SPAN');
   });
 
-  it('cloneCount défini : affiche le compteur, même à 0', () => {
-    render(<PlaylistHeaderMeta {...baseProps({ ownerLabel: 'Invité', currentPlaylist: makePlaylist({ cloneCount: 0 }) })} />);
-    expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('0');
-  });
-
-  it('cloneCount défini avec une vraie valeur : affiche le nombre', () => {
+  // ⚠️ RETIRÉ (10/08, retour direct suivant, même session — "le compteur
+  // de clonages, je le veux davantage sur la même ligne que le bouton
+  // public/corbeille") : les tests cloneCount vivaient ici juste au-dessus
+  // (compteur affiché à 0/avec une valeur/absent si undefined, et le cas
+  // "gaté sur ownerLabel") — déplacés dans PlaylistHeaderBadges.test.jsx,
+  // ce composant ne rend plus DU TOUT le compteur de clonages, uniquement
+  // le pseudo désormais.
+  it('cloneCount (sur currentPlaylist) n\'a plus aucun effet ici, quelle que soit sa valeur', () => {
     render(<PlaylistHeaderMeta {...baseProps({ ownerLabel: 'Invité', currentPlaylist: makePlaylist({ cloneCount: 42 }) })} />);
-    expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('42');
-  });
-
-  it('cloneCount JAMAIS défini (undefined) : aucun compteur affiché', () => {
-    render(<PlaylistHeaderMeta {...baseProps({ ownerLabel: 'Invité', currentPlaylist: makePlaylist({ cloneCount: undefined }) })} />);
     expect(screen.queryByTitle('Nombre de fois où cette playlist a été clonée')).not.toBeInTheDocument();
-  });
-
-  it('cloneCount défini MAIS ownerLabel=null : le compteur reste caché (tout le 1er item est gaté sur ownerLabel)', () => {
-    render(<PlaylistHeaderMeta {...baseProps({ ownerLabel: null, currentPlaylist: makePlaylist({ cloneCount: 5 }) })} />);
-    expect(screen.queryByTitle('Nombre de fois où cette playlist a été clonée')).not.toBeInTheDocument();
+    expect(screen.queryByText('42')).not.toBeInTheDocument();
   });
 });
 
