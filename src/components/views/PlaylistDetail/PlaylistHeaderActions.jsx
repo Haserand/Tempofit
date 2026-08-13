@@ -125,17 +125,21 @@ export default function PlaylistHeaderActions({
 
       {/* Badge BPM/Zone — `ml-auto` le pousse à droite dans CETTE MÊME
           rangée, jamais un élément flottant isolé ailleurs sur la carte.
-          `py-2`/`self-center` (retour direct, capture d'écran — "je veux
-          que le bas du badge soit sur la même ligne que celle des
-          boutons") : `py-1` (plus petit que les boutons voisins, `py-2`)
-          laissait ce badge visuellement plus bas/désaligné malgré
-          `items-center` sur le conteneur — même hauteur que
-          "Sauvegarder"/"Partager" désormais, `self-center` en plus par
-          sécurité si jamais ce conteneur est un jour repris ailleurs avec
-          un `items-*` différent. */}
+          `h-9` EXPLICITE (retour direct, 2e passage — "je vois encore un
+          très léger désalignement") : `py-2` seul (1er correctif) ne
+          suffisait pas à égaliser la hauteur totale avec les boutons
+          voisins, malgré un padding identique — ce badge utilise `text-xs`
+          (hauteur de ligne ~16px) contre `text-sm` sur les boutons
+          (~20px), un écart de ~4px que le padding seul ne pouvait pas
+          compenser. `h-9` = 36px, calculé pour matcher EXACTEMENT la
+          hauteur réelle des boutons voisins (`py-2` 8px+8px + `text-sm`
+          20px de hauteur de ligne = 36px) — une hauteur FIXE, indépendante
+          de la taille de police du contenu, plutôt que de recompter sur
+          un padding qui ne suffisait pas. Position horizontale INCHANGÉE
+          (`ml-auto` toujours à droite, rien d'autre touché). */}
       {bpmBadgeColor && (
         <div
-          className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-semibold border ml-auto self-center"
+          className="inline-flex items-center gap-1.5 px-2.5 h-9 rounded-lg text-xs font-semibold border ml-auto self-center"
           style={{ backgroundColor: `${bpmBadgeColor}26`, borderColor: `${bpmBadgeColor}66`, color: bpmBadgeColor }}
         >
           <Gauge size={14} />
