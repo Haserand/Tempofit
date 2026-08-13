@@ -44,21 +44,17 @@ vi.mock('../../../src/components/views/PlaylistDetail/PlaylistHeaderCover.jsx', 
 }));
 
 vi.mock('../../../src/components/views/PlaylistDetail/PlaylistHeaderTitleBlock.jsx', () => ({
-  default: ({ ownerLabel, ownerProfileUsername }) => (
-    <div
-      data-testid="title-block-mock"
-      data-owner-label={ownerLabel === null ? '' : ownerLabel}
-      data-owner-profile-username={ownerProfileUsername === null ? '' : ownerProfileUsername}
-    />
-  ),
+  default: () => <div data-testid="title-block-mock" />,
 }));
 
 vi.mock('../../../src/components/views/PlaylistDetail/PlaylistHeaderMeta.jsx', () => ({
-  default: ({ mostRecentCompletionIso, isLocked }) => (
+  default: ({ mostRecentCompletionIso, isLocked, ownerLabel, ownerProfileUsername }) => (
     <div
       data-testid="meta-mock"
       data-most-recent-completion-iso={mostRecentCompletionIso || ''}
       data-is-locked={String(isLocked)}
+      data-owner-label={ownerLabel === null ? '' : ownerLabel}
+      data-owner-profile-username={ownerProfileUsername === null ? '' : ownerProfileUsername}
     />
   ),
 }));
@@ -156,11 +152,16 @@ describe('PlaylistHeader — composition (les 5 sous-composants sont bien rendus
 
 // Voir la docstring d'`ownerLabel`/`ownerProfileUsername` dans
 // PlaylistHeader.jsx pour le raisonnement complet des branches testées ici.
+// ⚠️ CIBLE `meta-mock`, PAS `title-block-mock` (10/08, retour direct avec
+// capture d'écran) — `ownerLabel`/`ownerProfileUsername` transmis à
+// PlaylistHeaderMeta.jsx désormais (pseudo+compteur de clonages déplacés
+// là-bas, voir sa docstring) ; le CALCUL de ces 2 valeurs, testé ici,
+// reste strictement inchangé — seule la CIBLE du mock a bougé.
 describe('PlaylistHeader — calcul d\'ownerLabel/ownerProfileUsername', () => {
   it('isSaved=true + username : ownerLabel=username, ownerProfileUsername=null (jamais cliquable sur soi-même)', () => {
     mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: true, username: 'mon_pseudo' }));
     render(<PlaylistHeader {...baseProps()} />);
-    const el = screen.getByTestId('title-block-mock');
+    const el = screen.getByTestId('meta-mock');
     expect(el).toHaveAttribute('data-owner-label', 'mon_pseudo');
     expect(el).toHaveAttribute('data-owner-profile-username', '');
   });
@@ -168,7 +169,7 @@ describe('PlaylistHeader — calcul d\'ownerLabel/ownerProfileUsername', () => {
   it('isSaved=true SANS username (mode invité) : ownerLabel="Invité"', () => {
     mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: true, username: null }));
     render(<PlaylistHeader {...baseProps()} />);
-    expect(screen.getByTestId('title-block-mock')).toHaveAttribute('data-owner-label', 'Invité');
+    expect(screen.getByTestId('meta-mock')).toHaveAttribute('data-owner-label', 'Invité');
   });
 
   it('isSaved=false + sourceTemplateId : ownerLabel="TempoFit Officiel", ownerProfileUsername="tempofit_officiel"', () => {
@@ -176,7 +177,7 @@ describe('PlaylistHeader — calcul d\'ownerLabel/ownerProfileUsername', () => {
       isSaved: false, username: null, currentPlaylist: makePlaylist({ sourceTemplateId: 'tpl-cardio' }),
     }));
     render(<PlaylistHeader {...baseProps()} />);
-    const el = screen.getByTestId('title-block-mock');
+    const el = screen.getByTestId('meta-mock');
     expect(el).toHaveAttribute('data-owner-label', 'TempoFit Officiel');
     expect(el).toHaveAttribute('data-owner-profile-username', 'tempofit_officiel');
   });
@@ -186,7 +187,7 @@ describe('PlaylistHeader — calcul d\'ownerLabel/ownerProfileUsername', () => {
       isSaved: false, username: null, currentPlaylist: makePlaylist({ ownerUsername: 'un_autre_coureur' }),
     }));
     render(<PlaylistHeader {...baseProps()} />);
-    const el = screen.getByTestId('title-block-mock');
+    const el = screen.getByTestId('meta-mock');
     expect(el).toHaveAttribute('data-owner-label', 'un_autre_coureur');
     expect(el).toHaveAttribute('data-owner-profile-username', 'un_autre_coureur');
   });
@@ -194,7 +195,7 @@ describe('PlaylistHeader — calcul d\'ownerLabel/ownerProfileUsername', () => {
   it('isSaved=false, ni sourceTemplateId ni ownerUsername (génération fraîche) : ownerLabel=null', () => {
     mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: false, username: null, currentPlaylist: makePlaylist() }));
     render(<PlaylistHeader {...baseProps()} />);
-    expect(screen.getByTestId('title-block-mock')).toHaveAttribute('data-owner-label', '');
+    expect(screen.getByTestId('meta-mock')).toHaveAttribute('data-owner-label', '');
   });
 });
 
