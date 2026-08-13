@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { ListPlus, Plus, Edit3, Trash2, Layers, Info, Loader2, PlaySquare, Globe } from 'lucide-react';
 import { useModalContext } from '../../contexts/ModalContext';
 import ViewHeader from '../shared/ViewHeader';
