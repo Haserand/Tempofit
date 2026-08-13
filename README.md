@@ -12,6 +12,18 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
+✅ **SESSION DU 10/08 (suite) — retour direct avec 4 captures d'écran, MÊME SESSION que les chantiers précédents sur ce compteur : "quand je l'ajoute à Mes Séances il n'y a plus le compteur de clones ?" — 2e chemin de sauvegarde qui l'effaçait, distinct de celui déjà corrigé.**
+
+**2 chemins de sauvegarde différents dans `PlaylistHeaderActions.jsx`**, pas un seul : `handleSavePlaylist` ("Ajouter à Mes Séances", playlist pas en lecture seule) préservait déjà `cloneCount` (spread simple). `handleClonePlaylist` ("Sauvegarder dans mes séances", playlist en VRAIE lecture seule — `isReadOnly: true`) l'effaçait explicitement (`cloneCount: undefined`), décision prise le 07/08 EN MÊME TEMPS que le reset de `user_id`/`ownerUsername` — les 3 traités à tort comme la même famille de champ à l'époque.
+
+**Pourquoi c'était une fausse bonne idée** : `user_id`/`ownerUsername` sont des identifiants de PROPRIÉTÉ — les garder ferait traiter à tort la copie comme encore possédée par quelqu'un d'autre, un vrai risque de logique. `cloneCount` n'est qu'un chiffre d'affichage (déjà établi 2 fois aujourd'hui, `removeSavedPlaylist`/`PlaylistHeaderBadges.jsx`) — le réinitialiser ne protégeait rien, ça faisait juste disparaître le badge sur la copie fraîchement créée.
+
+**Correctif** : `cloneCount: undefined` retiré de l'objet `cloned` — hérite désormais du spread `...currentPlaylist`, comme `handleSavePlaylist` le fait déjà. `user_id`/`ownerUsername` restent réinitialisés (correctif du 07/08 toujours valide, sans rapport).
+
+Tests : le test existant (07/08) qui vérifiait `cloneCount === undefined` après clonage a été scindé en 2 nouveaux tests reflétant le nouveau comportement voulu — `cloneCount` survit (valeur réelle) ET `cloneCount` `undefined` sur l'original se propage tel quel (pas de faux 0 inventé) — le test original conservé pour `user_id`/`ownerUsername` seuls.
+
+⚠️ **Pas encore vérifié en conditions réelles** (build Vercel) — même limite habituelle.
+
 ✅ **SESSION DU 10/08 (suite) — retour direct, MÊME SESSION que les 2 déplacements précédents du pseudo/compteur de clonages : "quand c'est mon propre pseudo, ramener vers Mes Séances, connecté ou invité, avec un avertissement avant".**
 
 **Discussion AVANT implémentation** (le chantier touchait 3 fichiers avec câblage de prop sur 3 niveaux — plus gros que les retouches CSS précédentes) : l'avertissement envisagé au départ a été discuté puis abandonné, des deux côtés (connecté ET invité) — voir la docstring de `PlaylistHeaderMeta.jsx` pour le raisonnement complet ("aucun risque réel pour un compte connecté ; pour l'invité, le seul vrai risque — données non synchronisées — est déjà rappelé en PERMANENCE par `GuestModeBar.jsx`, pas la peine de le répéter sur ce clic précis alors qu'aucune autre navigation de l'app ne le fait, y compris '← Retour' qui fait exactement le même trajet").
