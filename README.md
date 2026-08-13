@@ -12,6 +12,16 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
+✅ **SESSION DU 10/08 (suite) — retour direct avec capture d'écran, MÊME SESSION que le déplacement précédent : "le compteur de clonages, je le veux davantage sur la même ligne que le bouton public/corbeille, à leur gauche ; laisse le pseudo où il est, dans les métadonnées c'est très bien".**
+
+**2e déplacement du compteur de clonages en une session** — d'abord sorti de `PlaylistHeaderTitleBlock.jsx` vers `PlaylistHeaderMeta.jsx` (avec le pseudo, voir l'entrée juste en dessous), maintenant SÉPARÉ du pseudo pour rejoindre `PlaylistHeaderBadges.jsx` (rangée d'icônes flottante en haut à droite : cadenas "Lecture seule" OU boutons publique/retirer, selon `isSaved`). Le pseudo, lui, reste bien dans les métadonnées, inchangé.
+
+**Point technique important** : le cadenas et les boutons publique/retirer étaient jusqu'ici 2 conteneurs `absolute top-4 right-4` SÉPARÉS, mutuellement exclusifs sur `isSaved`. Fusionnés en UN SEUL conteneur flex ici — nécessaire pour que le compteur de clonages (INDÉPENDANT de `isSaved`, peut apparaître aux 2 côtés) se positionne proprement à gauche de celui des deux qui s'affiche, sans dupliquer sa propre position.
+
+Tests : les 3 tests cloneCount + le test "gaté sur ownerLabel" (devenu obsolète, cloneCount n'est plus attaché à ownerLabel du tout) déplacés de `PlaylistHeaderMeta.test.jsx` vers `PlaylistHeaderBadges.test.jsx`, remplacés par 2 nouveaux tests plus ciblés couvrant le vrai point de ce déplacement : le compteur reste affiché aussi bien à côté du cadenas (isSaved=false) qu'à côté de Globe/Trash2 (isSaved=true), et reste seul si isReadOnly masque les 2 autres. 1 test de non-régression ajouté à `PlaylistHeaderMeta.test.jsx` (cloneCount n'a plus aucun effet là-bas).
+
+⚠️ **Pas encore vérifié en conditions réelles** (build Vercel) — même limite habituelle. Vérification supplémentaire faite cette fois (suite à l'incident du build précédent, contenu erroné sous le nom `PlaylistHeaderTitleBlock.test.jsx`) : chaque fichier de test touché importe bien le sujet correspondant exactement à son propre nom de fichier.
+
 ✅ **SESSION DU 10/08 (suite) — retour direct avec capture d'écran : "supprimer la ligne pseudo au-dessus du titre de playlist, l'intégrer comme 1re info de la ligne de métadonnées à la place".**
 
 **Déplacé, pas juste retiré** : la ligne pseudo + compteur de clonages vivait dans `PlaylistHeaderTitleBlock.jsx`, sur sa propre ligne au-dessus du titre — déplacée dans `PlaylistHeaderMeta.jsx`, en 1er élément de la ligne d'infos (icône `User`, séparateur "•" avant "Course à pied"). Le compteur de clonages (icône `Copy` + nombre) a suivi le pseudo au même endroit — **la consigne ne parlait QUE du pseudo, mais les deux vivaient dans le même bloc conditionnel `ownerLabel &&` : les dissocier aurait fait disparaître le compteur de l'écran**, signalé explicitement à l'utilisateur avant d'implémenter plutôt que tranché silencieusement.
