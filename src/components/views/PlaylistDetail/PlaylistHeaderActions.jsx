@@ -124,10 +124,18 @@ export default function PlaylistHeaderActions({
       </button>
 
       {/* Badge BPM/Zone — `ml-auto` le pousse à droite dans CETTE MÊME
-          rangée, jamais un élément flottant isolé ailleurs sur la carte. */}
+          rangée, jamais un élément flottant isolé ailleurs sur la carte.
+          `py-2`/`self-center` (retour direct, capture d'écran — "je veux
+          que le bas du badge soit sur la même ligne que celle des
+          boutons") : `py-1` (plus petit que les boutons voisins, `py-2`)
+          laissait ce badge visuellement plus bas/désaligné malgré
+          `items-center` sur le conteneur — même hauteur que
+          "Sauvegarder"/"Partager" désormais, `self-center` en plus par
+          sécurité si jamais ce conteneur est un jour repris ailleurs avec
+          un `items-*` différent. */}
       {bpmBadgeColor && (
         <div
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ml-auto"
+          className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-semibold border ml-auto self-center"
           style={{ backgroundColor: `${bpmBadgeColor}26`, borderColor: `${bpmBadgeColor}66`, color: bpmBadgeColor }}
         >
           <Gauge size={14} />
