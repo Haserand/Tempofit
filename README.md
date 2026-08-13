@@ -12,10 +12,33 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement — le dernier chantier livré (10/08, ci-dessous)
-est fermé, vérifié syntaxiquement/statiquement, tests à jour. Prochaine
-session : partir des sections plus bas (décisions d'architecture,
-contraintes, limites connues) et du code réel.
+Rien en cours actuellement. **Check-up général du 13/08** (lecture
+passation → README → CLAUDE-SANDBOX-VERIFICATION.md → HISTORIQUE.md →
+code réel, esbuild + `tsc --checkJs` sur tout `src/`+`tests/`, audit
+généralisé du motif "fermeture async figée sur un state partagé" — aucune
+nouvelle occurrence trouvée au-delà des 7 déjà corrigées le 10/08,
+`officialVitrineProfile.js` revérifié synchronisé) :
+- **3 imports morts corrigés** (aucun impact comportemental, pas de test
+  dédié nécessaire) : `useMemo` (App.jsx), `useState` (RoutinesView.jsx),
+  `Footprints` (TargetModeInputs.jsx).
+- **Aucun bug fonctionnel réel trouvé.**
+- **Lacune de couverture de tests identifiée, pas corrigée cette
+  session** — 11 hooks de `src/hooks/` n'ont AUCUN fichier de test dédié
+  (`usePersistentState.js`, `usePlaylistCompletions.js`,
+  `useSessionAnalysis.js`, `useFavorites.js`, `useSpotifyImport.js`,
+  `useDeezerSearch.js`, `useTrackSearch.js`, `useRoutines.js`,
+  `useTheme.js`, `useToast.js`, `useElapsedTimer.js`) — la plupart
+  couverts INDIRECTEMENT via leurs consommateurs, mais sans test isolé de
+  leur propre logique. Le plus notable : `usePersistentState.js` (173
+  lignes), infrastructure de synchro localStorage/Supabase partagée par 6+
+  hooks (favoris, routines, profil athlétique, stats...), aucun test
+  dédié alors que son sibling `useSyncedCollection.js` en a un. À
+  prioriser si ce chantier de couverture est repris un jour — voir aussi
+  `usePlaylistCompletions.js`/`useSessionAnalysis.js` (logique métier non
+  triviale : complétions, analyse cadence/FC réelle vs cible).
+
+Prochaine session : partir des sections plus bas (décisions
+d'architecture, contraintes, limites connues) et du code réel.
 
 ### Historique détaillé (08/08 fin + 10/08) — archivé dans `HISTORIQUE.md`, bloc 3
 
