@@ -62,13 +62,22 @@ export default function PlaylistHeaderActions({
           la branche "Ajouter à Mes Séances" habituelle qui garderait à
           tort le même id que l'original (voir handleClonePlaylist,
           usePlaylistLibrary.js). */}
+      {/* Libellés RACCOURCIS (retour direct — "'Sauvegarder' sous-entend
+          déjà 'dans mes séances', pourquoi le préciser ?") : "Sauvegarder
+          dans mes séances" → "Sauvegarder", "Ajouter à Mes Séances" →
+          "Ajouter" — les deux ensemble plutôt qu'un seul, pour rester
+          cohérents entre eux (2 boutons pour un geste équivalent du point
+          de vue de l'utilisateur, une longueur très différente aurait été
+          plus incohérente que redondante). Le `title` (tooltip au survol)
+          garde l'explication complète dans les deux cas — aucune perte
+          d'information, juste moins de texte visible en permanence. */}
       {isReadOnly ? (
         <button
           onClick={handleClonePlaylist}
           title="Sauvegarde une copie personnelle de cette playlist, modifiable, dans 'Mes Séances'."
           className="flex items-center gap-2 px-5 py-2 rounded-lg font-medium text-sm shrink-0 bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20 transition-colors"
         >
-          <Save size={16} /> <span>Sauvegarder dans mes séances</span>
+          <Save size={16} /> <span>Sauvegarder</span>
         </button>
       ) : isSaved ? null : (
         <button
@@ -76,7 +85,7 @@ export default function PlaylistHeaderActions({
           title="Ajoute cette séance à 'Mes Séances', ton journal de séances (passées et à venir)."
           className="flex items-center gap-2 px-5 py-2 rounded-lg font-medium text-sm shrink-0 bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20 transition-colors"
         >
-          <Save size={16} /> <span>Ajouter à Mes Séances</span>
+          <Save size={16} /> <span>Ajouter</span>
         </button>
       )}
 
