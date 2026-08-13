@@ -156,25 +156,40 @@ export function usePlaylistLibrary(
       // reporte aussi les champs D'AFFICHAGE posés par
       // `handleOpenPublicPlaylist` (App.jsx) pour la playlist ÉTRANGÈRE
       // qu'on vient de consulter — `user_id` (l'UUID du propriétaire
-      // D'ORIGINE), `ownerUsername`, `cloneCount` (figé au moment du
-      // clonage). Sans ce reset, ces 3 champs restaient indéfiniment dans
-      // `content` de la copie — désormais possédée par l'utilisateur —
-      // synchronisés tels quels vers Supabase. Aucun symptôme visible
-      // aujourd'hui (les 2 seuls endroits qui les lisent, le bouton
-      // Cloner et le badge de clonages de `PlaylistHeader.jsx`, sont gatés
-      // sur `isReadOnly`, qui redevient `false` juste en dessous) — mais
-      // un futur code qui lirait `currentPlaylist.user_id` SANS vérifier
-      // `isReadOnly`/`isSaved` en premier traiterait à tort cette copie,
-      // pourtant possédée, comme une playlist étrangère : même famille de
-      // piège que celui déjà documenté plus haut sur la clé composite
-      // `(id, user_id)` ("toujours filtrer par les deux ensemble").
-      // `handleClonePublicRoutine` (App.jsx), l'équivalent côté routines,
-      // n'a jamais eu ce problème : il part de `{ ...row.content }` (le
-      // contenu brut, sans `user_id`) plutôt que de l'objet aplati — divergence
-      // entre les deux implémentations, pas un choix voulu.
+      // D'ORIGINE) et `ownerUsername`. Sans ce reset, ces 2 champs
+      // restaient indéfiniment dans `content` de la copie — désormais
+      // possédée par l'utilisateur — synchronisés tels quels vers
+      // Supabase. Un futur code qui lirait `currentPlaylist.user_id` SANS
+      // vérifier `isReadOnly`/`isSaved` en premier traiterait à tort cette
+      // copie, pourtant possédée, comme une playlist étrangère : même
+      // famille de piège que celui déjà documenté plus haut sur la clé
+      // composite `(id, user_id)` ("toujours filtrer par les deux
+      // ensemble"). `handleClonePublicRoutine` (App.jsx), l'équivalent
+      // côté routines, n'a jamais eu ce problème : il part de `{
+      // ...row.content }` (le contenu brut, sans `user_id`) plutôt que de
+      // l'objet aplati — divergence entre les deux implémentations, pas un
+      // choix voulu.
       user_id: undefined,
       ownerUsername: undefined,
-      cloneCount: undefined,
+      // ⚠️ `cloneCount` NE FAIT PLUS PARTIE DE CE RESET (10/08, retour
+      // direct avec 4 captures d'écran — "quand je l'ajoute à Mes Séances
+      // il n'y a plus le compteur de clones ?") : le 07/08, ce champ avait
+      // été réinitialisé avec `user_id`/`ownerUsername` ci-dessus, en le
+      // qualifiant à tort de champ de la MÊME famille — CE N'EST PAS le
+      // cas. `user_id`/`ownerUsername` sont des identifiants de
+      // PROPRIÉTÉ : les garder ferait traiter à tort la copie comme
+      // encore possédée par quelqu'un d'autre (vrai risque de logique).
+      // `cloneCount`, lui, est un simple CHIFFRE D'AFFICHAGE (déjà établi
+      // 2 fois aujourd'hui, `removeSavedPlaylist` plus bas et
+      // `PlaylistHeaderBadges.jsx`) — le réinitialiser ne protège rien,
+      // ça fait juste disparaître le badge (gaté sur `cloneCount !==
+      // undefined`) sur la copie qu'on vient de créer, alors que l'AUTRE
+      // chemin de sauvegarde (`handleSavePlaylist`, juste au-dessus) l'a
+      // toujours préservé sans qu'aucun souci ne remonte. Potentiellement
+      // légèrement périmé (le vrai total a pu changer depuis l'ouverture)
+      // — acceptable pour un chiffre de vanité, largement mieux que
+      // l'absence totale, même raisonnement déjà retenu pour
+      // `removeSavedPlaylist` plus bas dans ce fichier.
       // Ne conserver le lien que s'il pointe vers un VRAI utilisateur
       // (`parentUserId` défini) — sinon (playlist issue d'un template de
       // la vitrine, `sourceTemplateId` déjà propagé par le spread
