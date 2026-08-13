@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Music2, ArrowUpRight, Trash2, CheckCircle, Circle, Activity, List, Calendar, GripVertical, Globe } from 'lucide-react';
+import { Music2, ArrowUpRight, Trash2, CheckCircle, Circle, Activity, List, Calendar, GripVertical, Globe, Copy } from 'lucide-react';
 import { buildCoverUrl } from '../../utils/coverArt';
 import CompletionsList from '../shared/CompletionsList';
 
@@ -224,8 +224,15 @@ export default function PlaylistCard({
         {isCompleted ? (
           <div className="flex flex-col gap-2 w-full">
             <div className="flex items-center justify-between">
-              <div className="flex items-center text-green-600 dark:text-green-400 text-xs font-bold bg-green-100 dark:bg-green-900/30 px-3 py-1.5 rounded-lg">
-                <CheckCircle size={14} className="mr-1.5"/> Faite {playlist.completions.length}x
+              <div className="flex items-center gap-3">
+                <div className="flex items-center text-green-600 dark:text-green-400 text-xs font-bold bg-green-100 dark:bg-green-900/30 px-3 py-1.5 rounded-lg">
+                  <CheckCircle size={14} className="mr-1.5"/> Faite {playlist.completions.length}x
+                </div>
+                {/* Même badge, même raisonnement que dans la branche
+                    "pas encore faite" ci-dessous — voir son commentaire. */}
+                <span className={`flex items-center gap-1 text-xs font-bold ${textMuted}`} title="Nombre de fois où cette playlist a été clonée">
+                  <Copy size={12} />{playlist.cloneCount || 0}
+                </span>
               </div>
               <span className={`text-[10px] uppercase font-bold tracking-wider ${textMuted}`}>Créée le {playlist.createdAt}</span>
             </div>
@@ -294,9 +301,24 @@ export default function PlaylistCard({
           </div>
         ) : (
           <>
-            <button onClick={(e) => { e.stopPropagation(); markPlaylistAsCompleted(playlist.id); }} className={`flex items-center text-gray-500 hover:text-green-600 text-xs font-bold ${inputBg} hover:bg-green-100 px-3 py-1.5 rounded-lg transition-colors border ${inputBorder}`}>
-              <Circle size={14} className="mr-1.5"/> Marquer comme faite
-            </button>
+            <div className="flex items-center gap-3">
+              <button onClick={(e) => { e.stopPropagation(); markPlaylistAsCompleted(playlist.id); }} className={`flex items-center text-gray-500 hover:text-green-600 text-xs font-bold ${inputBg} hover:bg-green-100 px-3 py-1.5 rounded-lg transition-colors border ${inputBorder}`}>
+                <Circle size={14} className="mr-1.5"/> Marquer comme faite
+              </button>
+              {/* Compteur de clonages (retour direct — "par cohérence on
+                  devrait aussi le voir dans Mes Séances") — cette carte
+                  n'est utilisée QUE pour des playlists déjà sauvegardées
+                  (voir la docstring en tête de ce fichier, "Mes Séances"),
+                  donc pas de condition `isSaved`/`cloneCount !== undefined`
+                  à vérifier ici comme pour PlaylistHeaderBadges.jsx :
+                  toujours affiché, `|| 0` en repli honnête — même
+                  philosophie que le badge de la fiche détail, appliquée
+                  ici pour rester cohérent visuellement entre les deux
+                  vues. */}
+              <span className={`flex items-center gap-1 text-xs font-bold ${textMuted}`} title="Nombre de fois où cette playlist a été clonée">
+                <Copy size={12} />{playlist.cloneCount || 0}
+              </span>
+            </div>
             <span className={`text-[10px] uppercase font-bold tracking-wider ${textMuted}`}>Créée le {playlist.createdAt}</span>
           </>
         )}
