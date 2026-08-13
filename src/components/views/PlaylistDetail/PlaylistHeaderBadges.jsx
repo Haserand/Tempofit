@@ -52,8 +52,27 @@ export default function PlaylistHeaderBadges({
             seule"/aux boutons juste après (retour direct : "je veux pas
             de la zone grise qui entoure le compteur de clonages") — texte
             + icône seuls, `p-2` gardé pour l'alignement vertical avec ses
-            voisins (même hauteur de ligne), pas pour un fond visible. */}
-        {currentPlaylist.cloneCount !== undefined && (
+            voisins (même hauteur de ligne), pas pour un fond visible.
+            ⚠️ CONDITION ÉLARGIE (10/08, retour direct — "j'ai changé
+            d'avis, il faut le compteur pour les séances même en mode
+            invité, pas grave si ce sera toujours à 0") : avant, gaté
+            UNIQUEMENT sur `cloneCount !== undefined` — une playlist
+            fraîchement générée puis sauvegardée n'a jamais eu cette
+            valeur posée (voir handleSavePlaylist, usePlaylistLibrary.js),
+            donc le badge n'apparaissait jamais pour elle, même une fois
+            dans "Mes Séances". Maintenant : `isSaved` fait apparaître le
+            badge SYSTÉMATIQUEMENT pour toute playlist "à toi" (connecté
+            OU invité), `|| 0` affichant honnêtement "0" plutôt qu'un
+            calcul — cohérence visuelle voulue explicitement (toujours au
+            même endroit sur la carte) plutôt qu'une apparition/disparition
+            selon l'origine de la playlist, et un signal que la
+            fonctionnalité EXISTE même pour un invité qui n'a encore rien
+            fait cloner. Le cas "pas encore sauvegardé" (template/playlist
+            étrangère consultée en lecture seule) garde l'ancienne
+            condition — ces cas ont de toute façon presque toujours
+            `cloneCount` déjà posé (App.jsx/TemplateCard.jsx à
+            l'ouverture), rien à changer là. */}
+        {(isSaved || currentPlaylist.cloneCount !== undefined) && (
           <span
             className="text-slate-300 text-xs font-bold p-2 flex items-center gap-1"
             title="Nombre de fois où cette playlist a été clonée"
