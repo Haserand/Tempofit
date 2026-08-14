@@ -141,14 +141,15 @@ export default function ShareModal({
             href={summaryImagePreviewUrl} download="tempofit-bilan-de-seance.png"
             className={`w-full py-3 mt-2 rounded-xl text-sm font-bold ${textMuted} hover:text-main transition-colors flex items-center justify-center gap-2`}
           >
-            {/* Condensé (08/08, retour direct — capture montrant 2 lignes :
-                "condense le texte en une seule ligne") — 96 → 43
-                caractères. Clause "ou si le partage natif n'est pas
-                disponible" retirée : secondaire (le bouton lui-même est
-                déjà CE repli, le préciser en toutes lettres n'ajoute rien
-                d'essentiel), gardée seulement l'info qui manque vraiment
-                ailleurs (quelles plateformes). */}
-            <Download size={16}/> Télécharger le visuel (WhatsApp/X/Facebook)
+            {/* Suffixe "(WhatsApp/X/Facebook)" retiré (14/08, retour direct
+                avec capture) — redondant avec la position de ce bouton,
+                juste SOUS les tuiles WhatsApp/X/Facebook ci-dessus : le
+                contexte est déjà donné visuellement, pas besoin de le
+                répéter dans le texte. Avant ça (08/08), le texte avait déjà
+                été condensé en 1 seule ligne (96 → 43 caractères) en
+                gardant ce suffixe — cette fois-ci c'est le suffixe
+                lui-même qui saute. */}
+            <Download size={16}/> Télécharger le visuel
           </a>
         )}
 
