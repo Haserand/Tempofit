@@ -115,12 +115,24 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sess
     }
   });
 
+  // ⚠️ RESTRUCTURÉ (14/08, sur demande explicite après l'avoir signalé comme
+  // "pas juste ajouter title=") — `bars` porte désormais un `title` DISTINCT
+  // de `label` (l'abrégé affiché), pour les deux branches :
+  //   - Zones réelles (matchedAnyZone) : `title` = `z.label` (le libellé
+  //     COMPLET déjà présent sur l'objet zone, appConfig.js — ex. "Seuil"
+  //     affiché, "Seuil / Tempo" en infobulle, même convention que
+  //     PlaylistHeaderActions.jsx/TrackItem.jsx/AthleticProfilePanel.jsx/
+  //     StatsView.jsx pour ce même motif zone.shortLabel/zone.label).
+  //   - Repli tranches BPM : `getBpmBucketLabel` (ex. "140-159") n'a PAS de
+  //     forme abrégée/complète distincte à la source — `title` reformule
+  //     juste la même info en phrase complète ("De 140 à 159 BPM") plutôt
+  //     que de dupliquer bêtement le texte déjà visible.
   let bars;
   if (matchedAnyZone) {
     const totalZoneSeconds = Object.values(zoneSeconds).reduce((s, v) => s + v, 0);
     bars = ATHLETIC_ZONES
       .filter(z => zoneSeconds[z.key] > 0)
-      .map(z => ({ label: z.shortLabel, pct: totalZoneSeconds > 0 ? Math.round((zoneSeconds[z.key] / totalZoneSeconds) * 100) : 0, color: z.color }));
+      .map(z => ({ label: z.shortLabel, title: z.label, pct: totalZoneSeconds > 0 ? Math.round((zoneSeconds[z.key] / totalZoneSeconds) * 100) : 0, color: z.color }));
   } else {
     // Répartition par tranche de BPM générique — mêmes fonctions PARTAGÉES
     // que StatsView/PlaylistDetailContext (getBpmBucketStart/Label/Color),
@@ -136,7 +148,10 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sess
     bars = Object.keys(bucketSeconds)
       .map(Number)
       .sort((a, b) => a - b)
-      .map(start => ({ label: getBpmBucketLabel(start), pct: totalBucketSeconds > 0 ? Math.round((bucketSeconds[start] / totalBucketSeconds) * 100) : 0, color: getBpmBucketColor(start) }));
+      .map(start => ({
+        label: getBpmBucketLabel(start), title: `De ${start} à ${start + 19} BPM`,
+        pct: totalBucketSeconds > 0 ? Math.round((bucketSeconds[start] / totalBucketSeconds) * 100) : 0, color: getBpmBucketColor(start),
+      }));
   }
 
   // Top 3 titres — les 3 premiers de la playlist (ordre de lecture), pas un
@@ -250,12 +265,12 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sess
             <p className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: '#9ca3af' }}>{matchedAnyZone ? "Zones d'intensité" : "Répartition par BPM"}</p>
             <div className="w-full h-3 rounded-full overflow-hidden flex">
               {bars.map((b, i) => (
-                <div key={i} style={{ width: `${b.pct}%`, backgroundColor: b.color }} />
+                <div key={i} style={{ width: `${b.pct}%`, backgroundColor: b.color }} title={b.title} />
               ))}
             </div>
             <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
               {bars.map((b, i) => (
-                <div key={i} className="flex items-center gap-1">
+                <div key={i} className="flex items-center gap-1" title={b.title}>
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: b.color }} />
                   <span className="text-[10px] font-semibold" style={{ color: '#9ca3af' }}>{b.label} · {b.pct}%</span>
                 </div>
