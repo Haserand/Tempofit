@@ -1240,12 +1240,21 @@ function AppContent({
       ? `${source.distanceVal} ${source.distanceUnit}`
       : `${source.hours || 0}h ${source.minutes || 0}m`;
     const genres = source.selectedGenres && source.selectedGenres.length > 0 ? source.selectedGenres : [];
+    // Infobulles ajoutées (14/08) — seul le "Nombre de titres" (passé en
+    // `extra` par PlaylistCard.jsx) en avait une jusqu'ici, oubli plutôt que
+    // choix volontaire (retour direct utilisateur, capture d'écran à
+    // l'appui) : les 4 icônes ci-dessous n'étaient pas plus "évidentes"
+    // intrinsèquement, juste les premières écrites. Cohérence avec le
+    // reste de l'app (habitude déjà actée : toute icône seule sans texte
+    // adjacent a son infobulle, voir CLAUDE-SANDBOX-VERIFICATION.md).
+    const bpmLabel = source.isCrescendoMode ? 'Crescendo (3 phases)' : (source.isIntervalMode ? `${(source.segments || []).length} phases` : `${source.bpm} BPM`);
+    const bpmTitle = source.isCrescendoMode ? 'Mode Crescendo' : (source.isIntervalMode ? 'Nombre de phases (fractionné)' : 'BPM cible');
     return (
       <div className={`text-sm flex flex-wrap items-center gap-x-3 gap-y-1 ${textMuted} mt-2`}>
-        <div className="flex items-center space-x-1"><Activity size={14}/><span>{source.workoutType}{source.customActivity ? ` (${source.customActivity})` : ''}</span></div>
-        <div className="flex items-center space-x-1"><Clock size={14}/><span>{distanceOrDuration}</span></div>
-        <div className="flex items-center space-x-1"><Zap size={14}/><span>{source.isCrescendoMode ? 'Crescendo (3 phases)' : (source.isIntervalMode ? `${(source.segments || []).length} phases` : `${source.bpm} BPM`)}</span></div>
-        {genres.length > 0 && <div className="flex items-center space-x-1"><Music size={14}/><span>{genres.map(genreDisplayLabel).join(', ')}</span></div>}
+        <div className="flex items-center space-x-1" title="Type de séance"><Activity size={14}/><span>{source.workoutType}{source.customActivity ? ` (${source.customActivity})` : ''}</span></div>
+        <div className="flex items-center space-x-1" title={source.targetMode === 'distance' ? 'Distance' : 'Durée'}><Clock size={14}/><span>{distanceOrDuration}</span></div>
+        <div className="flex items-center space-x-1" title={bpmTitle}><Zap size={14}/><span>{bpmLabel}</span></div>
+        {genres.length > 0 && <div className="flex items-center space-x-1" title="Genres musicaux"><Music size={14}/><span>{genres.map(genreDisplayLabel).join(', ')}</span></div>}
         {extra}
       </div>
     );
