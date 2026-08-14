@@ -488,7 +488,7 @@ export default function AthleticProfilePanel({ theme, showToast, changeView }) {
                 <div key={z.key} className={`p-3 rounded-xl border ${inputBorder} ${inputBg} text-center`}>
                   <div className="flex items-center justify-center gap-1.5 mb-1">
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
-                    <span className={`text-[11px] font-bold uppercase tracking-wide ${textMuted}`}>{z.shortLabel}</span>
+                    <span className={`text-[11px] font-bold uppercase tracking-wide ${textMuted}`} title={z.label}>{z.shortLabel}</span>
                   </div>
                   <div className={`text-xl font-black ${textHighlight}`}>{activeProfile?.[z.key] ?? defaultPreviewProfile[z.key]}</div>
                   <div className={`text-[10px] ${textMuted}`}>{zoneBpmUnit}</div>
