@@ -248,6 +248,40 @@ describe('usePersistentState — pull initial à la connexion (stratégie serveu
 
     expect(() => renderHook(() => usePersistentState('theme', () => 'light'))).not.toThrow();
   });
+
+  it('valeur distante IDENTIQUE à la valeur locale (no-op React) : n\'empêche PAS le prochain vrai changement local de se synchroniser (correctif du 13/08)', async () => {
+    // ⚠️ Documente le correctif direct de `isApplyingRemoteRef` — voir sa
+    // docstring dans usePersistentState.js. Avant : `data.value === 'light'`
+    // (identique à la valeur locale de départ) ne déclenchait aucun
+    // re-render (bail-out React), donc `isApplyingRemoteRef` restait
+    // bloqué à `true` pour toujours — le TOUT PROCHAIN `setState` réel de
+    // l'utilisateur se faisait avaler silencieusement par l'effet de push,
+    // qui le prenait à tort pour un pull. Ce test vérifie qu'un changement
+    // local qui suit un pull "sans effet visible" se synchronise bien.
+    const pullBuilder = makeBuilder({ data: { value: 'light' }, error: null }); // IDENTIQUE à l'initialValue ci-dessous
+    mockFrom.mockReturnValue(pullBuilder);
+    setAuth(loggedInUser);
+
+    const { result } = renderHook(() => usePersistentState('theme', () => 'light'));
+    // Le pull a bien eu la main (readyForPushRef posé), même si `state`
+    // n'a visiblement pas bougé (toujours 'light').
+    await waitFor(() => expect(mockFrom).toHaveBeenCalledTimes(1));
+    await new Promise(r => setTimeout(r, 0)); // laisse le `finally` du pull s'exécuter (readyForPushRef)
+    expect(result.current[0]).toBe('light');
+
+    mockFrom.mockClear();
+    const pushBuilder = makeBuilder({ data: null, error: null });
+    mockFrom.mockReturnValueOnce(pushBuilder);
+
+    // Un VRAI changement local, cette fois — ne doit PAS être avalé par un
+    // `isApplyingRemoteRef` resté bloqué à `true`.
+    act(() => { result.current[1]('dark'); });
+
+    await waitFor(() => expect(pushBuilder.upsert).toHaveBeenCalled());
+    expect(pushBuilder.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      user_id: 'user-uuid-1', key: 'theme', value: 'dark',
+    }));
+  });
 });
 
 describe('usePersistentState — push vers Supabase à chaque changement LOCAL', () => {
