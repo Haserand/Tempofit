@@ -50,7 +50,11 @@ describe('SessionSummaryCard — en-tête et méta', () => {
     const { rerender } = render(<SessionSummaryCard playlist={basePlaylist({
       targetMode: 'distance', config: { distanceVal: 5 }, distanceUnit: 'km',
     })} />);
-    expect(screen.getByText('5 km')).toBeInTheDocument();
+    // Regex plutôt que chaîne exacte : `getByText` compare le texte des
+    // nœuds DIRECTS de l'élément, qui inclut ici le "· " précédent dans le
+    // même <span> (voir le JSX : `· <MapPin/> {distanceLabel}`) — le texte
+    // réel de ce nœud est "· 5 km", pas juste "5 km".
+    expect(screen.getByText(/5 km/)).toBeInTheDocument();
 
     rerender(<SessionSummaryCard playlist={basePlaylist({ targetMode: 'time' })} />);
     expect(screen.queryByText(/km/)).toBeNull();
@@ -72,7 +76,13 @@ describe('SessionSummaryCard — en-tête et méta', () => {
       isNaughtyMode={true}
     />);
     expect(screen.getByText('Course à pied')).toBeInTheDocument();
-    expect(screen.getByText('TempoIntime')).toBeInTheDocument();
+    // "TempoIntime" est réparti entre un nœud texte "Tempo" et un <span>
+    // imbriqué "Intime" (couleur différente) — `getByText` ne concatène
+    // JAMAIS le texte d'un élément enfant à celui de son parent (seuls les
+    // nœuds texte DIRECTS comptent). "Intime" seul, sans ambiguïté
+    // possible avec le mode Sport ("Fit" à la place), suffit à confirmer
+    // que le Mode Intime est bien actif.
+    expect(screen.getByText('Intime')).toBeInTheDocument();
   });
 });
 
@@ -95,7 +105,11 @@ describe('SessionSummaryCard — badge BPM moyen', () => {
       getProfileForWorkout={getProfileForWorkout}
     />);
     expect(screen.getByText('140 • Seuil')).toBeInTheDocument();
-    expect(screen.getByTitle('Seuil / Tempo')).toBeInTheDocument();
+    // Avec ce même profil/cette même piste, la section "Zones d'intensité"
+    // s'affiche AUSSI (voir le describe suivant) — le libellé complet
+    // "Seuil / Tempo" apparaît donc sur 3 éléments simultanément (badge +
+    // segment de barre + légende), pas seulement le badge.
+    expect(screen.getAllByTitle('Seuil / Tempo').length).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -121,7 +135,9 @@ describe('SessionSummaryCard — barres de répartition (zones réelles vs repli
     render(<SessionSummaryCard playlist={basePlaylist({ tracks: [makeTrack({ bpm: 145 })] })} />);
     expect(screen.getByText('Répartition par BPM')).toBeInTheDocument();
     expect(screen.getByText('140-159 · 100%')).toBeInTheDocument();
-    expect(screen.getByTitle('De 140 à 159 BPM')).toBeInTheDocument();
+    // Le segment de la barre colorée ET sa légende portent tous les deux
+    // ce title — 2 éléments, pas 1 (même motif que le describe précédent).
+    expect(screen.getAllByTitle('De 140 à 159 BPM')).toHaveLength(2);
   });
 
   it('aucun titre avec BPM : aucune section de répartition affichée (ni zones, ni repli)', () => {
