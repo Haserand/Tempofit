@@ -234,3 +234,108 @@ describe('StatsView — vue publique du profil', () => {
     expect(screen.queryByText('Vue publique de ton profil')).not.toBeInTheDocument();
   });
 });
+
+// Section "Zones cardio" — jamais testée jusqu'ici (voir la docstring en
+// tête de ce fichier, "aucune ambition de couvrir les graphiques"), ajoutée
+// le 14/08 en même temps que les 3 infobulles manquantes sur cette section
+// précise (chantier "infobulles" du même jour). Volontairement scopée à CE
+// point précis (les infobulles + les gardes qui déclenchent chaque bloc),
+// pas une couverture exhaustive de tout StatsView.jsx.
+//
+// Un jeu de données unique sert aux 3 tests : 2 playlists, 2 ACTIVITÉS
+// différentes ("Course à pied"/"Cyclisme", pour dépasser la garde
+// `zoneBreakdownByActivity.length > 1`), toutes deux classées dans la même
+// zone (BPM 140 → "Seuil", profil zone1..4 identique pour les deux
+// activités). Complétions dans le MÊME mois (juin) — volontaire : "Ton
+// évolution par zone" (graphique du dessus, testé séparément avec SON
+// PROPRE jeu de données) exige ≥2 MOIS distincts pour s'afficher ; le
+// garder absent ici évite que ses libellés de zone (toujours les 4,
+// inconditionnellement) ne se mélangent avec ceux du camembert ci-dessous
+// dans les mêmes assertions `getByText`/`getByTitle`.
+const zoneSavedPlaylists = [
+  {
+    id: 'pl-zone-1', workoutType: 'Course à pied', totalDuration: 200,
+    config: { bpm: 140, selectedGenres: ['Rock'] }, completions: ['2026-06-01'], isNaughty: false,
+    tracks: [{ title: 'Titre CAP', artist: 'Artiste A', bpm: 140, duration: 200, genre: 'Rock' }],
+  },
+  {
+    id: 'pl-zone-2', workoutType: 'Cyclisme', totalDuration: 300,
+    config: { bpm: 140, selectedGenres: ['Rock'] }, completions: ['2026-06-15'], isNaughty: false,
+    tracks: [{ title: 'Titre Vélo', artist: 'Artiste B', bpm: 140, duration: 300, genre: 'Rock' }],
+  },
+];
+// Jeu SÉPARÉ pour "Ton évolution par zone" — 2 MOIS distincts cette fois
+// (une seule activité suffit, cette légende est inconditionnelle).
+const zoneTrendSavedPlaylists = [
+  {
+    id: 'pl-trend-1', workoutType: 'Course à pied', totalDuration: 200,
+    config: { bpm: 140, selectedGenres: ['Rock'] }, completions: ['2026-06-01'], isNaughty: false,
+    tracks: [{ title: 'Titre CAP', artist: 'Artiste A', bpm: 140, duration: 200, genre: 'Rock' }],
+  },
+  {
+    id: 'pl-trend-2', workoutType: 'Course à pied', totalDuration: 200,
+    config: { bpm: 140, selectedGenres: ['Rock'] }, completions: ['2026-07-01'], isNaughty: false,
+    tracks: [{ title: 'Titre CAP 2', artist: 'Artiste A', bpm: 140, duration: 200, genre: 'Rock' }],
+  },
+];
+const zoneGetProfileForWorkout = () => ({ zone1: 100, zone2: 120, zone3: 140, zone4: 160 });
+
+describe('StatsView — zones cardio (infobulles ajoutées le 14/08)', () => {
+  it('"Ton évolution par zone" (≥2 mois distincts) : légende toujours affichée pour les 4 zones, chacune avec le libellé COMPLET en infobulle', async () => {
+    mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
+    render(<StatsView {...baseProps({
+      savedPlaylists: zoneTrendSavedPlaylists, getProfileForWorkout: zoneGetProfileForWorkout,
+    })} />);
+
+    expect(await screen.findByText('Ton évolution par zone')).toBeInTheDocument();
+    // Cette légende reste TOUJOURS les 4 zones complètes (ATHLETIC_ZONES),
+    // qu'elles aient ou non des données — contrairement au camembert
+    // testé séparément ci-dessous, qui ne liste que les zones présentes.
+    expect(screen.getByTitle('Récupération / Échauffement')).toBeInTheDocument();
+    expect(screen.getByTitle('Endurance fondamentale / Footing')).toBeInTheDocument();
+    expect(screen.getByTitle('Seuil / Tempo')).toBeInTheDocument();
+    expect(screen.getByTitle('Vitesse / VMA')).toBeInTheDocument();
+  });
+
+  it('camembert "Tes zones d\'intensité" (bascule "Zones d\'effort") : la légende n\'affiche que les zones PRÉSENTES, libellé abrégé visible + libellé complet en infobulle', async () => {
+    mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
+    render(<StatsView {...baseProps({
+      savedPlaylists: zoneSavedPlaylists, getProfileForWorkout: zoneGetProfileForWorkout,
+    })} />);
+
+    // Mode par défaut = 'bpm' (répartition brute) — bascule explicite requise.
+    const toggle = await screen.findByText("Zones d'effort");
+    fireEvent.click(toggle);
+
+    expect(screen.getByText('Seuil')).toBeInTheDocument();
+    expect(screen.getByTitle('Seuil / Tempo')).toBeInTheDocument();
+    // Seule "Seuil" a des données dans ce jeu de test — les 3 autres zones
+    // n'apparaissent PAS dans CETTE légende ("Ton évolution par zone",
+    // inconditionnelle, n'est pas affichée ici : un seul mois de données,
+    // voir le commentaire sur zoneSavedPlaylists plus haut).
+    expect(screen.queryByText('Récupération')).not.toBeInTheDocument();
+  });
+
+  it('"Détail par activité" (≥2 activités classées) : chaque ligne de zone porte aussi le libellé complet en infobulle', async () => {
+    mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
+    render(<StatsView {...baseProps({
+      savedPlaylists: zoneSavedPlaylists, getProfileForWorkout: zoneGetProfileForWorkout,
+    })} />);
+
+    const toggle = await screen.findByText("Zones d'effort");
+    fireEvent.click(toggle);
+
+    expect(await screen.findByText('Détail par activité')).toBeInTheDocument();
+    // "Course à pied"/"Cyclisme" apparaissent aussi dans la répartition
+    // générale par activité (plus haut sur la page) — getAllByText plutôt
+    // que getByText, au moins 2 occurrences chacune (générale + détail par
+    // activité de CETTE section).
+    expect(screen.getAllByText('Course à pied').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('Cyclisme').length).toBeGreaterThanOrEqual(2);
+    // Au moins 2 éléments porteurs du libellé complet "Seuil / Tempo" à ce
+    // stade : la légende du camembert (test précédent) + au moins une ligne
+    // de détail par activité (pas 3 ici — "Ton évolution par zone" n'est
+    // pas affichée avec ce jeu de données, un seul mois).
+    expect(screen.getAllByTitle('Seuil / Tempo').length).toBeGreaterThanOrEqual(2);
+  });
+});
