@@ -228,6 +228,27 @@ Deux règles simples, à appliquer par réflexe dans tout nouveau code UI :
    PROPRE copie légèrement différente de la même logique (`PlaylistCard.jsx`
    avait le sien, à côté, pas dans `App.jsx`).
 
+### Pseudo/nom d'auteur cliquable vers un profil — `underline` PERMANENT
+
+Vérifié le 14/08 (question directe, "faudrait pas centraliser ça aussi ?")
+— **déjà cohérent partout où ce motif existe**, rien à corriger, mais
+documenté pour ne pas dériver à l'avenir :
+- Un pseudo/nom d'auteur qui ouvre le PROFIL de quelqu'un (`onViewProfile`,
+  `onViewOfficialProfile`, ou "aller à Mes Séances" pour son propre pseudo)
+  est toujours souligné en PERMANENCE (`underline`, jamais seulement
+  `hover:underline`) — voir `PlaylistHeaderMeta.jsx`/`TemplateCard.jsx`,
+  toujours accompagné d'un `title=` explicite ("Voir le profil de X").
+- Ne PAS confondre avec un lien vers un autre type de contenu (ex. le nom
+  d'une PLAYLIST dans `MiniPlayerBar.jsx`) — celui-là peut légitimement se
+  contenter d'un `hover:underline` (souligné seulement au survol), le
+  distinguo permanent/hover marque justement "ceci mène à un PROFIL
+  d'utilisateur" par rapport au reste de l'app.
+- Exception légitime, pas à "corriger" par réflexe : une LISTE de
+  résultats où toute la ligne est cliquable (avatar + pseudo, fond qui
+  change au survol — voir `SearchUsersModal.jsx`) suit un paradigme UI
+  différent (ligne entière = affordance cliquable) ; le soulignement du
+  texte seul n'y a pas sa place.
+
 ## Décisions actées, pas encore implémentées — chantier Pulses/Leaderboard
 
 Suite à l'arrivée de "Running Mode" chez Spotify (juillet 2026) : **pas de pivot**. Le positionnement reste Sport + Mode Intime, on renforce l'existant plutôt que de reconstruire une couche sociale généraliste (feed 24h, avatars, follow) — décision explicitement actée, pas un oubli. Si ça change un jour, ce paragraphe doit changer avec.
