@@ -140,7 +140,7 @@ export default function TrackItem({
         >
           {track.bpm} BPM
         </span>
-        {zone && <span className={`text-[10px] font-bold ${textMuted}`}>{zone.shortLabel}</span>}
+        {zone && <span className={`text-[10px] font-bold ${textMuted}`} title={zone.label}>{zone.shortLabel}</span>}
         <div className={`text-[11px] font-mono ${textMuted}`} title="Moment où ce titre démarre dans la séance">
           {track.startTimeStr || '0m 00s'} · {formatDuration(track.duration)}
         </div>
