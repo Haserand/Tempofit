@@ -251,48 +251,50 @@ describe('usePersistentState — pull initial à la connexion (stratégie serveu
 });
 
 describe('usePersistentState — push vers Supabase à chaque changement LOCAL', () => {
-  // ⚠️ DÉCOUVERTE (13/08, build Vercel réel — les 3 tests de cette section
-  // échouaient tous avec "expected N times, but got N+1") : au montage,
-  // QUAND un compte est déjà connecté, l'effet de PUSH ([state]) se
-  // déclenche TOUJOURS lui aussi — pas seulement l'effet de PULL — car les
-  // deux s'exécutent dans la MÊME passe d'effets synchrones, avant qu'aucun
-  // des deux n'ait eu la main sur le réseau. Le PUSH ne dépend QUE de
-  // `userRef.current` (jamais d'`authLoading`/du résultat du PULL) — voir
-  // sa docstring dans usePersistentState.js, qui documente déjà le risque
-  // symétrique ("si cet effet dépendait de `user`, il se déclencherait dès
-  // la connexion... risquant d'écraser une valeur distante plus récente")
-  // sans couvrir ce cas précis : le PUSH s'exécute de toute façon au tout
-  // premier montage, y compris quand le PULL n'a pas encore eu la main.
-  // Concrètement : à chaque montage avec un compte déjà connu,
-  // `supabase.from('user_data')` est appelé DEUX FOIS avant que quoi que ce
-  // soit ne soit réellement résolu — un PULL (select/maybeSingle) ET un
-  // PUSH prématuré (upsert de la valeur locale de départ, AVANT que le pull
-  // ait pu la corriger). Comportement PRÉ-EXISTANT (pas introduit par ces
-  // tests) — signalé dans la réponse à l'utilisateur, pas corrigé
-  // silencieusement ici (touche la logique de synchro Supabase, mérite une
-  // vraie discussion avant d'y toucher). Les 3 tests ci-dessous sont
-  // réécrits pour vérifier le comportement RÉEL (2 appels au montage),
-  // plutôt que l'hypothèse erronée d'un seul.
+  // ⚠️ Cette section testait, jusqu'au 13/08, un comportement RÉEL mais NON
+  // VOULU : au montage avec un compte déjà connecté, l'effet de push
+  // partait AVANT que le pull ait eu la main (2 appels systématiques),
+  // risquant d'écraser une valeur distante avec la valeur locale de départ.
+  // Corrigé dans usePersistentState.js le même jour (voir la docstring de
+  // `readyForPushRef`) — le push attend désormais que le pull ait fini
+  // d'essayer pour l'utilisateur courant avant de pouvoir partir. Les tests
+  // ci-dessous vérifient le comportement CORRIGÉ : un seul appel au
+  // montage (le pull), le push n'entrant en jeu que pour un changement
+  // local qui survient une fois le pull réglé.
+  it('ne pousse RIEN au montage tant que le pull n\'a pas eu la main (correctif du 13/08)', async () => {
+    // Le test qui documente directement le correctif : avant, au montage
+    // avec un compte déjà connecté, le push partait AVANT même que le pull
+    // ait pu contacter le serveur — 2 appels systématiques, dont un
+    // parfaitement inutile (voire risqué : la valeur locale de départ
+    // pouvait écraser une valeur distante plus récente). Le pull ne se
+    // résout JAMAIS dans ce test (`.then` qui n'appelle jamais `resolve`) —
+    // n'importe quel appel à `mockFrom` au-delà du premier (le pull
+    // lui-même) prouverait que le push est bien parti prématurément.
+    const neverResolvingBuilder = { select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn(), then: () => {} };
+    neverResolvingBuilder.select.mockReturnValue(neverResolvingBuilder);
+    neverResolvingBuilder.eq.mockReturnValue(neverResolvingBuilder);
+    neverResolvingBuilder.maybeSingle.mockReturnValue(neverResolvingBuilder);
+    mockFrom.mockReturnValue(neverResolvingBuilder);
+    setAuth(loggedInUser);
+
+    renderHook(() => usePersistentState('theme', () => 'light'));
+
+    // Un seul appel (le pull) — jamais un 2e (le push, qui devrait rester
+    // bloqué puisque le pull, ici, ne se résout jamais).
+    expect(mockFrom).toHaveBeenCalledTimes(1);
+  });
+
+
   it('un setState APRÈS le pull initial pousse la nouvelle valeur vers Supabase (upsert)', async () => {
-    // ⚠️ BUILD RÉEL CASSÉ PUIS CORRIGÉ (13/08) — ce test posait au départ une
-    // valeur "serveur" ('light') IDENTIQUE à la valeur locale de départ
-    // ('light') : le `setState('light')` du pull était alors un no-op pour
-    // React (bail-out, aucun re-render), donc `isApplyingRemoteRef` ne
-    // repassait JAMAIS à `false` (seul un re-render déclenché par un VRAI
-    // changement d'état fait re-tourner l'effet de push, qui le consomme).
-    // Le `setState('dark')` explicite de CE test se faisait alors avaler
-    // silencieusement par ce flag resté bloqué à `true` — `pushBuilder`
-    // n'était jamais appelé. Corrigé avec une valeur "serveur" DIFFÉRENTE
-    // ('dark' ≠ 'light'), pour que le pull déclenche un vrai changement
-    // d'état et laisse le flag correctement retombé à `false` avant l'action
-    // du test.
     const initialBuilder = makeBuilder({ data: { value: 'dark' }, error: null });
     mockFrom.mockReturnValue(initialBuilder);
     setAuth(loggedInUser);
 
     const { result } = renderHook(() => usePersistentState('theme', () => 'light'));
-    await waitFor(() => expect(mockFrom).toHaveBeenCalledTimes(2)); // pull + push prématuré, voir plus haut
-    await waitFor(() => expect(result.current[0]).toBe('dark')); // le pull a bien pris la main, isApplyingRemoteRef consommé
+    // Un seul appel au montage — le push est bloqué tant que le pull n'a
+    // pas fini d'essayer pour cet utilisateur (voir readyForPushRef).
+    await waitFor(() => expect(mockFrom).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(result.current[0]).toBe('dark')); // le pull a bien pris la main
 
     mockFrom.mockClear();
     const pushBuilder = makeBuilder({ data: null, error: null });
@@ -306,29 +308,22 @@ describe('usePersistentState — push vers Supabase à chaque changement LOCAL',
     }));
   });
 
-  it('le setState déclenché PAR le pull lui-même (isApplyingRemoteRef) ne repousse PAS un 3e appel', async () => {
+  it('le setState déclenché PAR le pull lui-même (isApplyingRemoteRef) ne repousse PAS un 2e appel', async () => {
     // Le pull applique `data.value` via `setState` — sans le garde-fou
     // `isApplyingRemoteRef`, cette écriture locale serait interprétée comme
     // un changement UTILISATEUR et repoussée aussitôt vers Supabase (un
     // aller-retour inutile, potentiellement une valeur périmée si le
-    // serveur a changé entre-temps). Les 2 premiers appels (pull + push
-    // prématuré du montage, voir plus haut) restent inévitables ; ce test
-    // vérifie qu'il n'y en a PAS de 3e une fois la valeur distante appliquée.
-    // (Ce test-ci n'avait pas de bug propre — le "3 appels au lieu de 2"
-    // observé au build venait d'une fuite depuis le test précédent, voir le
-    // commentaire sur `resetAllMocks()` plus haut dans ce fichier — mais il
-    // en profite aussi, comme tous les autres, maintenant qu'elle est
-    // corrigée.)
+    // serveur a changé entre-temps).
     const builder = makeBuilder({ data: { value: 'dark' }, error: null });
     mockFrom.mockReturnValue(builder);
     setAuth(loggedInUser);
 
     renderHook(() => usePersistentState('theme', () => 'light'));
 
-    await waitFor(() => expect(mockFrom).toHaveBeenCalledTimes(2));
-    // Laisse le temps à un éventuel 3e appel non désiré de se produire.
+    await waitFor(() => expect(mockFrom).toHaveBeenCalledTimes(1));
+    // Laisse le temps à un éventuel 2e appel non désiré de se produire.
     await new Promise(r => setTimeout(r, 0));
-    expect(mockFrom).toHaveBeenCalledTimes(2);
+    expect(mockFrom).toHaveBeenCalledTimes(1);
   });
 
   it('mode invité (jamais connecté) : setState ne pousse jamais vers Supabase', () => {
@@ -341,21 +336,12 @@ describe('usePersistentState — push vers Supabase à chaque changement LOCAL',
   });
 
   it('erreur Supabase au push : journalise en silence, ne fait pas planter le hook', async () => {
-    // ⚠️ MÊME PIÈGE que le test précédent (build réel cassé puis corrigé,
-    // 13/08) : valeur "serveur" volontairement DIFFÉRENTE ('dark') de la
-    // valeur locale de départ ('light'), pour que `isApplyingRemoteRef` soit
-    // bien consommé par un vrai re-render — sinon le `setState('dark')`
-    // explicite de ce test se serait fait avaler par le flag resté bloqué à
-    // `true`, le push n'aurait JAMAIS eu lieu, et ce test aurait été un FAUX
-    // POSITIF : il "passerait" sans jamais exercer le chemin d'erreur qu'il
-    // prétend vérifier (aucune assertion sur `errorBuilder.upsert` dans la
-    // version d'origine — corrigé aussi ici).
     const initialBuilder = makeBuilder({ data: { value: 'dark' }, error: null });
     mockFrom.mockReturnValue(initialBuilder);
     setAuth(loggedInUser);
 
     const { result } = renderHook(() => usePersistentState('theme', () => 'light'));
-    await waitFor(() => expect(mockFrom).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mockFrom).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(result.current[0]).toBe('dark'));
 
     mockFrom.mockClear();
