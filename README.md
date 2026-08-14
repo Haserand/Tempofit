@@ -27,6 +27,23 @@ désormais un (`usePersistentState.js`, `usePlaylistCompletions.js`,
   durer 8s, écrasé par un toast plus court parti juste avant). Corrigé
   avec un `useRef` qui annule le minuteur précédent avant d'en poser un
   nouveau. Test de régression dédié.
+- **BUG RÉEL trouvé (en écrivant le test de `usePersistentState.js`) et
+  corrigé sur demande explicite — "push prématuré au montage"** : quand un
+  compte était DÉJÀ connecté au montage de ce hook (page rechargée avec
+  une session existante, hook monté après coup dans un composant qui
+  n'apparaît qu'une fois connecté...), l'effet de pull ET l'effet de push
+  se déclenchaient TOUS LES DEUX dans la même passe d'effets synchrones,
+  avant qu'aucun des deux n'ait eu la main sur le réseau — le push
+  envoyait donc systématiquement la valeur locale de départ
+  (potentiellement périmée) vers Supabase, AVANT que le pull ait eu la
+  moindre chance de récupérer la valeur distante. Risque réel de perte de
+  données si cette valeur locale périmée écrasait une valeur distante plus
+  récente et légitime. Corrigé avec un nouveau ref (`readyForPushRef`) qui
+  bloque le push tant que le pull n'a pas fini d'essayer (valeur
+  appliquée, confirmé vide, ou erreur) pour l'utilisateur courant — voir
+  la docstring dans `usePersistentState.js`. Tests réécrits pour vérifier
+  le comportement corrigé (1 seul appel au montage, pas 2), plus un
+  nouveau test dédié qui documente directement le correctif.
 - **`useSpotifyImport.js` — scope volontairement réduit** : `loginSpotify`
   (redirection OAuth PKCE, `crypto.subtle.digest`) laissé HORS test —
   pure plomberie d'API navigateur sans branche métier propre au projet,
@@ -36,11 +53,32 @@ désormais un (`usePersistentState.js`, `usePlaylistCompletions.js`,
 - Tous les autres hooks : aucun bug trouvé, comportement déjà correct —
   tests écrits pour COMBLER la lacune, pas parce qu'un problème était
   suspecté.
+- **Autre subtilité repérée en écrivant ces tests, PAS corrigée (hors
+  scope de la demande) — signalée ici pour une future session** : si la
+  valeur "distante" récupérée par le pull est IDENTIQUE à la valeur locale
+  de départ, le `setState` du pull est un no-op pour React (bail-out,
+  aucun re-render) — `isApplyingRemoteRef` ne repasse alors jamais à
+  `false` (seul un re-render déclenché par un VRAI changement d'état fait
+  re-tourner l'effet de push, qui le consomme). Le TOUT PROCHAIN
+  changement local légitime de l'utilisateur se ferait alors avaler
+  silencieusement par ce flag resté bloqué à `true` — pas de crash, juste
+  un changement qui ne se synchronise pas avec Supabase tant qu'un 2e
+  changement local ne survient pas. Scénario plausible (valeur locale par
+  défaut qui coïncide avec la valeur déjà synchronisée, ex. thème 'light'
+  resté inchangé). Pas traité cette session — touche encore à
+  `isApplyingRemoteRef`, mérite sa propre discussion.
 - Vérifié : `esbuild` (syntaxe) + `tsc --checkJs` (variables non
-  déclarées) sur tout le nouveau lot — 0 anomalie. Aucune exécution réelle
-  de `vitest` possible dans ce bac à sable (voir
-  `CLAUDE-SANDBOX-VERIFICATION.md`) — à confirmer au prochain build
-  Vercel réel, comme d'habitude.
+  déclarées) sur tout le nouveau lot — 0 anomalie à chaque étape. **3
+  allers-retours avec de vrais échecs de build Vercel** sur ce chantier
+  (tous corrigés, voir `HISTORIQUE.md` si besoin du détail complet) —
+  aucune exécution réelle de `vitest` n'étant possible dans ce bac à sable
+  (voir `CLAUDE-SANDBOX-VERIFICATION.md`), plusieurs erreurs de logique
+  fine (un piège "même valeur = no-op React", une fuite de
+  `mockReturnValueOnce` non consommé entre deux tests via
+  `clearAllMocks()`) n'ont pu être détectées qu'au build réel, pas à la
+  seule lecture. `afterEach` de `usePersistentState.test.js` utilise
+  désormais `resetAllMocks()` plutôt que `clearAllMocks()` pour éviter
+  toute fuite similaire à l'avenir.
 
 Prochaine session : partir des sections plus bas (décisions
 d'architecture, contraintes, limites connues) et du code réel.
