@@ -92,6 +92,14 @@ describe('AthleticProfilePanel', () => {
     expect(screen.getByText('Enregistrer mon profil et générer →')).toBeInTheDocument();
   });
 
+  it('infobulle (14/08) : chaque libellé court de zone (grille des 4 zones) porte le libellé complet en title=', () => {
+    mockUseAthleticContext.mockReturnValue(makeContextValue());
+    render(<AthleticProfilePanel {...baseProps} />);
+    // ATHLETIC_ZONES réel (appConfig.js, non mocké dans ce fichier) — zone3
+    // = "Seuil" (court) / "Seuil / Tempo" (complet).
+    expect(screen.getByTitle('Seuil / Tempo')).toBeInTheDocument();
+  });
+
   it('saisir un BPM invalide (vide) et cliquer "Calculer mes zones" affiche une erreur, sans appeler setBaseBpmForActivity', () => {
     const setBaseBpmForActivity = vi.fn();
     mockUseAthleticContext.mockReturnValue(makeContextValue({ setBaseBpmForActivity }));
