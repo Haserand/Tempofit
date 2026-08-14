@@ -82,6 +82,28 @@ export function usePersistentState(key, initialValue) {
   // chaque frappe qui re-render ce hook) — mémorise POUR QUEL utilisateur
   // c'est déjà fait.
   const hasSyncedForUserRef = useRef(null);
+  // ⚠️ BUG RÉEL CORRIGÉ (13/08, découvert en écrivant les tests dédiés —
+  // voir usePersistentState.test.js) — "push prématuré au montage" : quand
+  // un compte est DÉJÀ connecté au montage de ce hook (page rechargée avec
+  // une session existante, ou hook monté après coup dans un composant qui
+  // n'apparaît qu'une fois connecté), l'effet de pull et l'effet de push
+  // ci-dessous se déclenchent TOUS LES DEUX dans la MÊME passe d'effets
+  // synchrones — avant qu'aucun des deux n'ait eu la main sur le réseau. Le
+  // push ne dépendant QUE de `userRef.current` (jamais du résultat du
+  // pull), il partait donc systématiquement AVANT que le pull n'ait eu la
+  // moindre chance de récupérer la valeur distante — envoyant la valeur
+  // locale de départ (potentiellement périmée) vers Supabase, au double
+  // risque d'un aller-retour réseau inutile ET, plus grave, d'une vraie
+  // perte de données si cette valeur locale périmée écrasait une valeur
+  // distante plus récente et légitime.
+  // `readyForPushRef` bloque désormais le push tant que le pull n'a pas eu
+  // la main pour l'utilisateur courant (valeur appliquée, confirmé vide, ou
+  // erreur/exception — dans tous les cas, "le pull a fini d'essayer"). Mis
+  // à `false` SYNCHRONEMENT dès que le pull démarre un vrai cycle pour un
+  // utilisateur (juste avant son IIFE async, voir plus bas) — donc déjà à
+  // `false`, dans la MÊME passe d'effets, au moment où l'effet de push
+  // vérifie sa valeur au premier montage avec un compte déjà connu.
+  const readyForPushRef = useRef(false);
 
   // Cache local — INCHANGÉ (voir docstring), actif que l'utilisateur soit
   // connecté ou non.
@@ -102,9 +124,10 @@ export function usePersistentState(key, initialValue) {
   // le montage initial si déjà connecté) le redéclenche.
   useEffect(() => {
     if (!isSupabaseConfigured || authLoading) return;
-    if (!user) { hasSyncedForUserRef.current = null; return; }
+    if (!user) { hasSyncedForUserRef.current = null; readyForPushRef.current = true; return; }
     if (hasSyncedForUserRef.current === user.id) return;
     hasSyncedForUserRef.current = user.id;
+    readyForPushRef.current = false; // voir la docstring de readyForPushRef plus haut
 
     let cancelled = false;
     (async () => {
@@ -128,6 +151,11 @@ export function usePersistentState(key, initialValue) {
       } catch (e) {
         // Échec silencieux volontaire (hors-ligne au moment de la connexion,
         // etc.) — même philosophie que le cache local ci-dessus.
+      } finally {
+        // Que le pull ait réussi, trouvé le serveur vide, ou échoué : il a
+        // fini d'essayer pour cet utilisateur — le push peut désormais
+        // reprendre la main normalement pour tout changement local à venir.
+        if (!cancelled) readyForPushRef.current = true;
       }
     })();
 
@@ -144,6 +172,14 @@ export function usePersistentState(key, initialValue) {
   useEffect(() => {
     if (isApplyingRemoteRef.current) { isApplyingRemoteRef.current = false; return; }
     if (!isSupabaseConfigured || !userRef.current) return;
+    // Voir la docstring de `readyForPushRef` plus haut — tant que le pull
+    // n'a pas eu la main pour cet utilisateur (typiquement : au tout
+    // premier montage avec un compte déjà connu), on ne pousse rien. Le
+    // prochain VRAI changement local, une fois le pull réglé, repoussera de
+    // toute façon la valeur COURANTE (qui inclut déjà celui-ci) — rien
+    // n'est perdu, juste retardé de quelques centaines de millisecondes le
+    // temps que le pull ait fini d'essayer.
+    if (!readyForPushRef.current) return;
     // BUG RÉEL CORRIGÉ (crash fatal signalé : "upsert(...).catch is not a
     // function") — `supabase.from(...).upsert(...)` renvoie un objet
     // "thenable" (implémente `.then()`, pour fonctionner avec `await`),
