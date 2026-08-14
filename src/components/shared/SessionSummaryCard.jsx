@@ -230,6 +230,7 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sess
               <div
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-black border w-fit"
                 style={{ backgroundColor: `${bpmBadgeColor}26`, borderColor: `${bpmBadgeColor}66`, color: bpmBadgeColor }}
+                title={avgBpmZone ? avgBpmZone.label : 'BPM moyen'}
               >
                 <span>{avgBpm}{avgBpmZone ? ` • ${avgBpmZone.shortLabel}` : ''}</span>
               </div>
