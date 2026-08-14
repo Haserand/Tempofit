@@ -191,4 +191,11 @@ describe('PlaylistHeaderActions — badge BPM', () => {
     render(<Wrapper {...baseProps({ avgBpm: null, bpmZone: null, bpmBadgeColor: null })} />);
     expect(screen.queryByText(/BPM/)).not.toBeInTheDocument();
   });
+
+  it('infobulle : le libellé COMPLET de la zone (pas l\'abrégé affiché), quand bpmZone.label est fourni', () => {
+    render(<Wrapper {...baseProps({
+      avgBpm: 150, bpmZone: { shortLabel: 'Seuil', label: 'Seuil / Tempo', color: '#f59e0b' }, bpmBadgeColor: '#f59e0b',
+    })} />);
+    expect(screen.getByTitle('Seuil / Tempo')).toBeInTheDocument();
+  });
 });
