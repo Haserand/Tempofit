@@ -166,6 +166,14 @@ describe('PlaylistHeaderMeta — ligne d\'infos', () => {
     render(<PlaylistHeaderMeta {...baseProps({ currentPlaylist: makePlaylist({ config: {}, tracks: [{ ...track1, genre: 'Techno' }] }) })} />);
     expect(screen.getByText('Techno')).toBeInTheDocument();
   });
+
+  it('infobulles (14/08) : type de séance, durée, nombre de titres et genres ont chacun leur title=, cohérence avec le pseudo juste au-dessus', () => {
+    render(<PlaylistHeaderMeta {...baseProps({ currentPlaylist: makePlaylist({ config: { selectedGenres: ['Rock'] } }) })} />);
+    expect(screen.getByTitle('Type de séance')).toBeInTheDocument();
+    expect(screen.getByTitle('Durée')).toBeInTheDocument();
+    expect(screen.getByTitle('Nombre de titres')).toBeInTheDocument();
+    expect(screen.getByTitle('Genres musicaux')).toBeInTheDocument();
+  });
 });
 
 describe('PlaylistHeaderMeta — badge "séance déjà réalisée"', () => {
