@@ -307,8 +307,13 @@ describe('StatsView — zones cardio (infobulles ajoutées le 14/08)', () => {
     const toggle = await screen.findByText("Zones d'effort");
     fireEvent.click(toggle);
 
-    expect(screen.getByText('Seuil')).toBeInTheDocument();
-    expect(screen.getByTitle('Seuil / Tempo')).toBeInTheDocument();
+    // "Détail par activité" s'affiche EN MÊME TEMPS que le camembert (même
+    // bloc `statsChartMode === 'zones'`) — "Seuil" apparaît donc aussi sur
+    // ses 2 lignes (Course à pied + Cyclisme, toutes deux classées dans
+    // cette zone), en plus de la légende du camembert : 3 éléments au
+    // total, pas 1 — `getAllByText`/`getAllByTitle`, pas les singuliers.
+    expect(screen.getAllByText('Seuil').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByTitle('Seuil / Tempo').length).toBeGreaterThanOrEqual(1);
     // Seule "Seuil" a des données dans ce jeu de test — les 3 autres zones
     // n'apparaissent PAS dans CETTE légende ("Ton évolution par zone",
     // inconditionnelle, n'est pas affichée ici : un seul mois de données,
