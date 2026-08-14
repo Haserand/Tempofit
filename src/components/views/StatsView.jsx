@@ -1110,7 +1110,7 @@ export default function StatsView({
                 {ATHLETIC_ZONES.map(z => (
                   <div key={z.key} className="flex items-center gap-1.5 text-xs font-bold">
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
-                    <span className={textMuted}>{z.shortLabel}</span>
+                    <span className={textMuted} title={z.label}>{z.shortLabel}</span>
                   </div>
                 ))}
               </div>
@@ -1287,7 +1287,7 @@ export default function StatsView({
                             <div key={i} className="w-full flex items-center justify-between text-sm px-1.5 py-1">
                               <div className="flex items-center gap-2 min-w-0">
                                 <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
-                                <span className={`truncate font-semibold ${textHighlight}`}>{z.shortLabel}</span>
+                                <span className={`truncate font-semibold ${textHighlight}`} title={z.label}>{z.shortLabel}</span>
                               </div>
                               <span className={`shrink-0 ${textMuted}`}>{pct}% · {formatDuration(z.seconds)}</span>
                             </div>
@@ -1314,7 +1314,7 @@ export default function StatsView({
                               </div>
                               <div className="flex flex-wrap gap-x-3 mt-1 text-xs">
                                 {a.zones.map((z, i) => (
-                                  <span key={i} className={textMuted}><span className={`font-semibold ${textHighlight}`}>{z.pct}%</span> {z.shortLabel}</span>
+                                  <span key={i} className={textMuted} title={z.label}><span className={`font-semibold ${textHighlight}`}>{z.pct}%</span> {z.shortLabel}</span>
                                 ))}
                               </div>
                             </div>
