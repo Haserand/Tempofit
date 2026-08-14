@@ -150,6 +150,7 @@ export default function PlaylistHeaderActions({
         <div
           className="inline-flex items-center gap-1.5 px-2.5 h-9 rounded-lg text-xs font-semibold border ml-auto self-center"
           style={{ backgroundColor: `${bpmBadgeColor}26`, borderColor: `${bpmBadgeColor}66`, color: bpmBadgeColor }}
+          title={bpmZone ? bpmZone.label : 'BPM moyen'}
         >
           <Gauge size={14} />
           <span>{avgBpm} BPM{bpmZone ? ` • ${bpmZone.shortLabel}` : ''}</span>
