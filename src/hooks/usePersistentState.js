@@ -138,7 +138,31 @@ export function usePersistentState(key, initialValue) {
           .maybeSingle();
         if (cancelled) return;
         if (!error && data) {
-          isApplyingRemoteRef.current = true;
+          // ⚠️ BUG RÉEL CORRIGÉ (13/08, découvert en écrivant les tests
+          // dédiés — voir "isApplyingRemoteRef ne repasse JAMAIS à false
+          // si..." dans usePersistentState.test.js) — si `data.value` est
+          // STRICTEMENT IDENTIQUE (`Object.is`, mêmes semantiques que le
+          // bail-out interne de React) à la valeur locale actuelle,
+          // `setState(data.value)` juste en dessous ne déclenche AUCUN
+          // re-render (React reconnaît qu'il n'y a rien à faire). Or c'est
+          // justement CE re-render qui fait retourner l'effet de push
+          // ci-dessous, qui consomme `isApplyingRemoteRef` (le repasse à
+          // `false`) — sans re-render, il n'y a personne pour le faire.
+          // Résultat avant ce correctif : `isApplyingRemoteRef` restait
+          // bloqué à `true` indéfiniment, et le TOUT PROCHAIN changement
+          // local RÉEL de l'utilisateur se faisait avaler silencieusement
+          // par l'effet de push (qui le prend pour un pull, alors que ça
+          // n'en est pas un) — pas de crash, juste un changement qui ne se
+          // synchronise pas avec Supabase tant qu'un 2e changement ne
+          // survient pas. Scénario plausible et pas rare : une valeur
+          // locale par défaut qui coïncide avec la valeur déjà
+          // synchronisée (ex. thème resté sur 'light'). Corrigé en
+          // n'armant `isApplyingRemoteRef` que quand un VRAI changement est
+          // sur le point de se produire — dans le cas contraire, rien ne
+          // change, donc rien à protéger d'un push erroné.
+          if (!Object.is(data.value, state)) {
+            isApplyingRemoteRef.current = true;
+          }
           setState(data.value);
         } else {
           // `trackWrite` (08/08) — voir pendingWrites.js : enregistre cette
