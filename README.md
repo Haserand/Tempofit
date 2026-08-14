@@ -188,6 +188,46 @@ Leçon du chantier "cible à 0" (`targetValidation.js`, 04/08) : valider un form
 ### Login Wall des profils publics
 - Double verrou : droits d'exécution SQL retirés à `anon` sur `get_public_profile_summary`/`search_public_profiles` (`revoke ... from anon`) **et** vérification explicite `auth.uid() is null` en tout premier dans chaque fonction — voir `supabase-schema.sql`.
 
+## Convention UI — infobulles (`title=`) sur les icônes seules
+
+Actée le 14/08, après 2 allers-retours sur le même motif (retour direct
+avec capture d'écran : "pourquoi seul le nombre de titres a une infobulle
+au survol, pas le reste ?" — étendu ensuite à toute l'app sur demande).
+Deux règles simples, à appliquer par réflexe dans tout nouveau code UI :
+
+1. **Toute icône seule (sans mot qui l'explique déjà à côté) porte un
+   `title=`.** Un chiffre nu à côté d'une icône (`<List/> 5`, `<Gauge/> 150
+   BPM`) est ambigu sans légende — contrairement à une icône suivie d'un
+   mot déjà explicite (`<Activity/> Course à pied`), qui n'a
+   techniquement pas BESOIN d'infobulle mais en gagne une quand même si
+   ses voisines directes (même ligne/groupe visuel) en ont — voir la règle
+   2.
+2. **Cohérence au sein d'un même groupe visuel > cas par cas.** Le vrai
+   signal d'un oubli n'est presque jamais "cette icône est ambiguë dans
+   l'absolu", mais "SA VOISINE a une infobulle et pas elle" (ex. le pseudo
+   d'une carte a un `title=` mais pas les 4 icônes de métadonnées juste en
+   dessous, dans le MÊME composant). Réflexe à avoir en touchant une carte/
+   ligne d'infos : vérifier CHAQUE élément du même groupe, pas seulement
+   celui qu'on modifie.
+3. **Cas à plus forte valeur : un libellé ABRÉGÉ affiché alors qu'un
+   libellé COMPLET existe déjà dans les données** (ex. `zone.shortLabel`
+   "Seuil" affiché, `zone.label` "Seuil / Tempo" disponible sur le même
+   objet, `appConfig.js`/`ATHLETIC_ZONES`) — l'infobulle n'y est alors plus
+   seulement cosmétique, elle restitue une info réellement absente à
+   l'écran. Prioritaire sur le reste si on doit choisir où mettre l'effort.
+4. **Exception assumée, pas un oubli** : les boutons de fermeture (icône
+   `X`) des modales n'ont volontairement PAS de `title="Fermer"` — motif
+   uniforme sur les 11 modales du projet (vérifié le 14/08), une croix de
+   fermeture est un standard UI suffisamment universel. Ne pas "corriger"
+   cette exception par réflexe de cohérence si elle est repérée à nouveau —
+   elle est déjà cohérente, juste sans infobulle nulle part.
+5. Fonction PARTAGÉE entre plusieurs vues (ex. `renderConfigInfoLine` dans
+   `App.jsx`, utilisée par `PlaylistsView`/`RoutinesView`) : corriger UNE
+   FOIS à la source suffit, pas la peine de dupliquer le correctif dans
+   chaque appelant — mais bien vérifier qu'aucun autre appelant n'a SA
+   PROPRE copie légèrement différente de la même logique (`PlaylistCard.jsx`
+   avait le sien, à côté, pas dans `App.jsx`).
+
 ## Décisions actées, pas encore implémentées — chantier Pulses/Leaderboard
 
 Suite à l'arrivée de "Running Mode" chez Spotify (juillet 2026) : **pas de pivot**. Le positionnement reste Sport + Mode Intime, on renforce l'existant plutôt que de reconstruire une couche sociale généraliste (feed 24h, avatars, follow) — décision explicitement actée, pas un oubli. Si ça change un jour, ce paragraphe doit changer avec.
