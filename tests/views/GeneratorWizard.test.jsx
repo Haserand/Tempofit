@@ -17,7 +17,7 @@
 // (déjà testé dans tests/DualRangeSlider.test.jsx, Palier 2).
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 // jsdom n'implémente pas ResizeObserver (utilisé par l'étape 3 du wizard
