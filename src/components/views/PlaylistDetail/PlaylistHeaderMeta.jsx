@@ -146,11 +146,11 @@ export default function PlaylistHeaderMeta({
             <span className="text-slate-600">•</span>
           </>
         )}
-        <div className="flex items-center gap-1.5"><Activity size={16} className="text-slate-400"/><span>{currentPlaylist.workoutType}</span></div>
+        <div className="flex items-center gap-1.5" title="Type de séance"><Activity size={16} className="text-slate-400"/><span>{currentPlaylist.workoutType}</span></div>
         <span className="text-slate-600">•</span>
-        <div className="flex items-center gap-1.5"><Clock size={16} className="text-slate-400"/><span>{formatDuration(currentPlaylist.totalDuration)}</span></div>
+        <div className="flex items-center gap-1.5" title="Durée"><Clock size={16} className="text-slate-400"/><span>{formatDuration(currentPlaylist.totalDuration)}</span></div>
         <span className="text-slate-600">•</span>
-        <div className="flex items-center gap-1.5"><Music size={16} className="text-slate-400"/><span>{currentPlaylist.tracks.length} titres</span></div>
+        <div className="flex items-center gap-1.5" title="Nombre de titres"><Music size={16} className="text-slate-400"/><span>{currentPlaylist.tracks.length} titres</span></div>
         {(() => {
           const cfg = currentPlaylist.config || {};
           // Les genres SÉLECTIONNÉS (cfg.selectedGenres) sont déjà des noms
@@ -162,7 +162,7 @@ export default function PlaylistHeaderMeta({
             return (
               <>
                 <span className="text-slate-600">•</span>
-                <div className="flex items-center gap-1.5"><Music size={16} className="text-slate-400"/><span>{cfg.selectedGenres.map(genreDisplayLabel).join(', ')}</span></div>
+                <div className="flex items-center gap-1.5" title="Genres musicaux"><Music size={16} className="text-slate-400"/><span>{cfg.selectedGenres.map(genreDisplayLabel).join(', ')}</span></div>
               </>
             );
           }
@@ -170,7 +170,7 @@ export default function PlaylistHeaderMeta({
           return genres.length > 0 && (
             <>
               <span className="text-slate-600">•</span>
-              <div className="flex items-center gap-1.5"><Music size={16} className="text-slate-400"/><span>{Array.from(new Set(genres.flatMap(getGenresForDisplay))).join(', ')}</span></div>
+              <div className="flex items-center gap-1.5" title="Genres musicaux"><Music size={16} className="text-slate-400"/><span>{Array.from(new Set(genres.flatMap(getGenresForDisplay))).join(', ')}</span></div>
             </>
           );
         })()}
