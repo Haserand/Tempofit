@@ -214,6 +214,17 @@ describe('TrackItem', () => {
     expect(screen.getByText('Seuil')).toBeInTheDocument();
   });
 
+  it('infobulle (14/08) : le libellé court de la zone porte le libellé COMPLET en title=', async () => {
+    mockUsePlaylistDetail.mockReturnValue(
+      makeContextValue({ getProfileForWorkout: vi.fn(() => ({ isConfigured: true })) })
+    );
+    const appConfig = await import('../../../src/appConfig.js');
+    appConfig.getZoneForValue.mockReturnValue({ key: 'zone3', shortLabel: 'Seuil', label: 'Seuil / Tempo', color: '#f59e0b' });
+
+    render(<TrackItem {...baseProps()} />);
+    expect(screen.getByTitle('Seuil / Tempo')).toBeInTheDocument();
+  });
+
   it('affiche l\'avertissement "Genre non confirmé" quand _genreMismatch est vrai', () => {
     mockUsePlaylistDetail.mockReturnValue(makeContextValue());
     render(<TrackItem {...baseProps({ track: { ...track, _genreMismatch: true } })} />);
