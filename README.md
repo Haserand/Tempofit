@@ -53,20 +53,22 @@ désormais un (`usePersistentState.js`, `usePlaylistCompletions.js`,
 - Tous les autres hooks : aucun bug trouvé, comportement déjà correct —
   tests écrits pour COMBLER la lacune, pas parce qu'un problème était
   suspecté.
-- **Autre subtilité repérée en écrivant ces tests, PAS corrigée (hors
-  scope de la demande) — signalée ici pour une future session** : si la
-  valeur "distante" récupérée par le pull est IDENTIQUE à la valeur locale
-  de départ, le `setState` du pull est un no-op pour React (bail-out,
-  aucun re-render) — `isApplyingRemoteRef` ne repasse alors jamais à
-  `false` (seul un re-render déclenché par un VRAI changement d'état fait
-  re-tourner l'effet de push, qui le consomme). Le TOUT PROCHAIN
-  changement local légitime de l'utilisateur se ferait alors avaler
-  silencieusement par ce flag resté bloqué à `true` — pas de crash, juste
-  un changement qui ne se synchronise pas avec Supabase tant qu'un 2e
-  changement local ne survient pas. Scénario plausible (valeur locale par
-  défaut qui coïncide avec la valeur déjà synchronisée, ex. thème 'light'
-  resté inchangé). Pas traité cette session — touche encore à
-  `isApplyingRemoteRef`, mérite sa propre discussion.
+- **Autre subtilité repérée en écrivant ces tests, corrigée sur demande
+  explicite (13/08, même session)** — si la valeur "distante" récupérée
+  par le pull est IDENTIQUE à la valeur locale de départ, le `setState` du
+  pull est un no-op pour React (bail-out, aucun re-render) —
+  `isApplyingRemoteRef` ne repassait alors jamais à `false` (seul un
+  re-render déclenché par un VRAI changement d'état fait re-tourner
+  l'effet de push, qui le consomme). Le TOUT PROCHAIN changement local
+  légitime de l'utilisateur se faisait alors avaler silencieusement par ce
+  flag resté bloqué à `true` — pas de crash, juste un changement qui ne se
+  synchronisait pas avec Supabase tant qu'un 2e changement local ne
+  survenait pas. Scénario plausible (valeur locale par défaut qui coïncide
+  avec la valeur déjà synchronisée, ex. thème 'light' resté inchangé).
+  Corrigé en n'armant `isApplyingRemoteRef` que quand la valeur distante
+  diffère réellement (`Object.is`, mêmes semantiques que le bail-out
+  interne de React) — voir la docstring dans `usePersistentState.js`. Test
+  dédié qui vérifie explicitement ce correctif.
 - Vérifié : `esbuild` (syntaxe) + `tsc --checkJs` (variables non
   déclarées) sur tout le nouveau lot — 0 anomalie à chaque étape. **3
   allers-retours avec de vrais échecs de build Vercel** sur ce chantier
