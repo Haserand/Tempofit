@@ -1050,7 +1050,7 @@ export default function GeneratorWizard({
                   </div>
                   <input type="range" min="0" max="30" value={bpmTolerance} onChange={(e) => setBpmTolerance(parseInt(e.target.value))} className={`w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer select-none ${isNaughtyMode ?
                     'accent-rose-500' : 'accent-red-500'}`} />
-                  <p className={`text-xs ${textMuted}`}>Tolérance faible = Précision militaire. Tolérance élevée = Plus de pépites !</p>
+                  <p className={`text-xs ${textMuted}`}>Faible = précision militaire. Élevée = plus de pépites !</p>
                 </div>
 
                 <div className={`space-y-4 p-5 rounded-2xl ${inputBg} border ${inputBorder}`}>
