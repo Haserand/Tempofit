@@ -1072,7 +1072,7 @@ export default function GeneratorWizard({
                     <label className={`text-sm font-bold flex items-center space-x-2 ${textMuted}`}>
                       <Clock size={18} /><span>Titres de plus de 6 min</span>
                     </label>
-                    <p className={`text-xs mt-1 ${textMuted}`}>Autorise les morceaux longs (épiques, prog...) dans la sélection.</p>
+                    <p className={`text-xs mt-1 ${textMuted}`}>Inclut les titres longs (épiques, prog...).</p>
                   </div>
                   <button
                     onClick={() => setAllowLongTracks(!allowLongTracks)}
