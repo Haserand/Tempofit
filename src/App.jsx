@@ -882,6 +882,12 @@ function AppContent({
   // réellement plutôt qu'en avertissement statique avant de cliquer (retour
   // direct : plus pertinent à ce moment précis qu'en amont).
   const [isGeneratingSlowGenre, setIsGeneratingSlowGenre] = useState(false);
+  // NOUVEAU (14/08, retour direct : "l'utilisateur a cru que ça avait
+  // planté" — génération d'une séance de plus d'1h) — même principe que
+  // `isGeneratingSlowGenre` juste au-dessus, 2e facteur connu de lenteur :
+  // voir la docstring dans usePlaylistGeneration.js pour le détail complet
+  // (calcul `involvesLongPlaylist`, seuil, limite Fractionné assumée).
+  const [isGeneratingLongPlaylist, setIsGeneratingLongPlaylist] = useState(false);
   // Chrono affiché dans le bandeau de génération — avant, le message restait
   // statique tout du long d'UNE playlist (seul le spinner tournait), ce qui
   // pouvait sembler figé/ennuyeux sur une génération un peu longue. Démarre à 0
@@ -1359,6 +1365,7 @@ function AppContent({
     setCurrentPlaylist, changeView,
     savedPlaylists, setSavedPlaylists,
     setIsGenerating, setGeneratingTotal, setGeneratingDone, setIsGeneratingSlowGenre,
+    setIsGeneratingLongPlaylist,
   );
 
   const { toggleNaughtyMode, handleSaveRoutine, applyRoutineEditOnce, applyRoutineEditPermanently } = useRoutineActions(
@@ -1550,9 +1557,13 @@ function AppContent({
             <span className={`font-medium text-sm ${textHighlight}`}>
               {generatingTotal > 1
                 ? `Génération ${generatingDone}/${generatingTotal}...`
-                : isGeneratingSlowGenre
-                  ? "Génération en cours (genre plus long à cibler)..."
-                  : "Génération en cours..."}
+                : isGeneratingSlowGenre && isGeneratingLongPlaylist
+                  ? "Génération en cours (séance longue + genre plus long à cibler)..."
+                  : isGeneratingSlowGenre
+                    ? "Génération en cours (genre plus long à cibler)..."
+                    : isGeneratingLongPlaylist
+                      ? "Génération en cours (séance longue, plusieurs titres à trouver)..."
+                      : "Génération en cours..."}
             </span>
             <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${textMuted} bg-black/5 dark:bg-white/10`}>
               {Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, '0')}
