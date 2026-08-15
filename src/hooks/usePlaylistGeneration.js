@@ -32,6 +32,7 @@ export function usePlaylistGeneration(
   setCurrentPlaylist, changeView,
   savedPlaylists, setSavedPlaylists,
   setIsGenerating, setGeneratingTotal, setGeneratingDone, setIsGeneratingSlowGenre,
+  setIsGeneratingLongPlaylist,
 ) {
   const { checkGenreWeightDeviation } = useGeneratorContext();
 
@@ -100,6 +101,7 @@ export function usePlaylistGeneration(
     if (activeCancelTokenRef.current) activeCancelTokenRef.current.cancelled = true;
     setIsGenerating(false);
     setIsGeneratingSlowGenre(false);
+    setIsGeneratingLongPlaylist(false);
     showToast('Génération annulée.');
   };
 
@@ -152,6 +154,26 @@ export function usePlaylistGeneration(
     const involvesSlowGenre = (config.selectedGenres || []).some(g => WEAK_DEEZER_KEYWORD_GENRES.includes(g))
       || (config.segments || []).some(s => (s.selectedGenres || []).some(g => WEAK_DEEZER_KEYWORD_GENRES.includes(g)));
     setIsGeneratingSlowGenre(involvesSlowGenre);
+    // NOUVEAU (14/08, retour direct : "l'utilisateur a cru que ça avait
+    // planté" — génération d'une séance de plus d'1h) — même principe que
+    // `involvesSlowGenre` juste au-dessus, pour un 2e facteur connu de
+    // lenteur : une séance LONGUE demande de résoudre proportionnellement
+    // plus de titres (recherche multi-genres, détection audio en direct
+    // quand Deezer n'a pas le BPM...), donc prend mécaniquement plus de
+    // temps — contrairement au genre lent, PRÉVISIBLE à l'avance à partir
+    // de la configuration, pas besoin d'un chrono/chiffre inventé pour le
+    // signaler. Mode Fractionné (`isIntervalMode`) volontairement HORS
+    // scope ici (les segments se somment différemment, pas juste
+    // hours/minutes) — un fractionné long resterait sans ce message
+    // particulier, limite connue et acceptée plutôt que complexifier ce
+    // calcul pour un cas qui n'était pas celui du retour direct.
+    const unitPaceSecs = (parseInt(config.paceMin) || 0) * 60 + (parseInt(config.paceSec) || 0) || 330;
+    const totalMinutes = config.isIntervalMode ? 0
+      : config.targetMode === 'distance'
+        ? ((parseFloat(config.distanceVal) || 0) * unitPaceSecs) / 60
+        : (parseInt(config.hours) || 0) * 60 + (parseInt(config.minutes) || 0);
+    const involvesLongPlaylist = totalMinutes >= 45;
+    setIsGeneratingLongPlaylist(involvesLongPlaylist);
     let statsUpdated = false;
     let newStats = { ...userStats };
 
@@ -248,6 +270,7 @@ export function usePlaylistGeneration(
     }
     setIsGenerating(false);
     setIsGeneratingSlowGenre(false);
+    setIsGeneratingLongPlaylist(false);
 
     // Génération annulée entre-temps (voir cancelGeneration) : on jette le
     // résultat sans y toucher — pas de trophée, pas de sauvegarde, pas de
