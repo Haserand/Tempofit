@@ -62,6 +62,7 @@ function renderGenerationHook(initialProps) {
       props.setCurrentPlaylist, props.changeView,
       props.savedPlaylists, props.setSavedPlaylists,
       props.setIsGenerating, props.setGeneratingTotal, props.setGeneratingDone, props.setIsGeneratingSlowGenre,
+      props.setIsGeneratingLongPlaylist,
     ),
     { initialProps }
   );
@@ -85,6 +86,7 @@ function baseProps(overrides = {}) {
     setGeneratingTotal: vi.fn(),
     setGeneratingDone: vi.fn(),
     setIsGeneratingSlowGenre: vi.fn(),
+    setIsGeneratingLongPlaylist: vi.fn(),
     ...overrides,
   };
 }
@@ -199,4 +201,84 @@ describe('usePlaylistGeneration — course "Générer" / changement concurrent e
     // — nom suffixé "(Session N)" pour count > 1, voir executeGeneration.
     expect(applied.filter(p => p.name && p.name.startsWith('Séance test'))).toHaveLength(2);
   }, 10000);
+});
+
+// NOUVEAU (14/08, retour direct — "l'utilisateur a cru que ça avait planté"
+// sur une séance de plus d'1h) — même principe que `isGeneratingSlowGenre`
+// (déjà dans ce hook, pas testé directement ici non plus, hors périmètre de
+// ce fichier avant ce chantier) : voir la docstring de `executeGeneration`
+// pour le raisonnement complet (seuil, mode Fractionné hors scope).
+describe('usePlaylistGeneration — isGeneratingLongPlaylist (NOUVEAU, 14/08)', () => {
+  function immediateProps(overrides = {}) {
+    // `createPlaylistData` résout IMMÉDIATEMENT ici (contrairement aux
+    // tests de course plus haut, qui ont besoin d'une promesse contrôlée) —
+    // seul le state POSÉ AU DÉBUT de `executeGeneration` nous intéresse
+    // dans cette section, pas une course avec un changement concurrent.
+    mockCreatePlaylistData.mockResolvedValue(makeFakePlaylist());
+    return baseProps(overrides);
+  }
+
+  it('mode Temps, ≥45 minutes : pose isGeneratingLongPlaylist(true)', async () => {
+    const setIsGeneratingLongPlaylist = vi.fn();
+    const { result } = renderGenerationHook(immediateProps({ setIsGeneratingLongPlaylist }));
+
+    await act(async () => {
+      await result.current.executeGeneration({ targetMode: 'time', hours: 1, minutes: 0, isIntervalMode: false, selectedGenres: [] }, 1);
+    });
+
+    expect(setIsGeneratingLongPlaylist).toHaveBeenCalledWith(true);
+  });
+
+  it('mode Temps, < 45 minutes : pose isGeneratingLongPlaylist(false)', async () => {
+    const setIsGeneratingLongPlaylist = vi.fn();
+    const { result } = renderGenerationHook(immediateProps({ setIsGeneratingLongPlaylist }));
+
+    await act(async () => {
+      await result.current.executeGeneration({ targetMode: 'time', hours: 0, minutes: 20, isIntervalMode: false, selectedGenres: [] }, 1);
+    });
+
+    expect(setIsGeneratingLongPlaylist).toHaveBeenCalledWith(false);
+  });
+
+  it('mode Distance, longue distance à une allure lente : convertie en minutes et comparée au même seuil', async () => {
+    const setIsGeneratingLongPlaylist = vi.fn();
+    const { result } = renderGenerationHook(immediateProps({ setIsGeneratingLongPlaylist }));
+
+    // 15 km à 6:00/km (360s/km) = 90 minutes — largement au-dessus du seuil.
+    await act(async () => {
+      await result.current.executeGeneration({
+        targetMode: 'distance', distanceVal: 15, paceMin: 6, paceSec: 0, isIntervalMode: false, selectedGenres: [],
+      }, 1);
+    });
+
+    expect(setIsGeneratingLongPlaylist).toHaveBeenCalledWith(true);
+  });
+
+  it('mode Fractionné : jamais signalé comme long, quelle que soit la config (hors scope assumé)', async () => {
+    const setIsGeneratingLongPlaylist = vi.fn();
+    const { result } = renderGenerationHook(immediateProps({ setIsGeneratingLongPlaylist }));
+
+    await act(async () => {
+      await result.current.executeGeneration({
+        targetMode: 'time', isIntervalMode: true, selectedGenres: [],
+        segments: [{ durationValue: 60 }, { durationValue: 60 }],
+      }, 1);
+    });
+
+    expect(setIsGeneratingLongPlaylist).toHaveBeenCalledWith(false);
+  });
+
+  it('annulation en cours de route : réinitialise isGeneratingLongPlaylist à false', () => {
+    const setIsGeneratingLongPlaylist = vi.fn();
+    const deferred = createDeferred();
+    mockCreatePlaylistData.mockImplementationOnce(() => deferred.promise);
+    const { result } = renderGenerationHook(baseProps({ setIsGeneratingLongPlaylist }));
+
+    act(() => {
+      result.current.executeGeneration({ targetMode: 'time', hours: 1, minutes: 0, isIntervalMode: false, selectedGenres: [] }, 1);
+    });
+    act(() => { result.current.cancelGeneration(); });
+
+    expect(setIsGeneratingLongPlaylist).toHaveBeenLastCalledWith(false);
+  });
 });
