@@ -12,7 +12,21 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement. Deux chantiers enchaînés, mêmes 24-48h :
+Rien en cours actuellement. Trois chantiers enchaînés, mêmes 24-48h :
+
+**14/08 (suite) — compteur de clonages élargi à Découvrir.** Retour direct
+avec 4 captures : "pourquoi je vois quand même le compteur de clonage à 0
+pour la playlist que j'ai pourtant clonée ?". Diagnostic : `template_clone_counts`
+ne s'incrémentait QUE via `handleClonePlaylist` (bouton "Sauvegarder" d'un
+template ouvert depuis la vitrine `@tempofit_officiel`, chemin peu
+emprunté) — jamais via `handleSavePlaylist` (bouton "Ajouter" d'un
+template ouvert directement depuis Découvrir, LE chemin le plus emprunté
+de très loin). Distinction délibérée à l'origine (02/08, voir
+`TemplateCard.jsx`), reconsidérée sur confirmation explicite de
+l'utilisateur : les deux chemins créditent désormais le même compteur, même
+garde-fou (`sourceTemplateId`) et même philosophie fire-and-forget que
+`handleClonePlaylist`. Tests dédiés ajoutés dans
+`tests/hooks/usePlaylistLibrary.test.js`.
 
 **13/08 — couverture de tests des hooks, suite du check-up du même jour.**
 Les 11 hooks de `src/hooks/` sans fichier de test dédié en ont désormais
