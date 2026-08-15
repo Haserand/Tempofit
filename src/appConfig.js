@@ -36,28 +36,42 @@ const TROPHIES_DATA = [
   { id: 't_regular', name: 'Athlète Régulier', desc: 'Complète 5 sessions. La constance est la clé !', icon: '🥈', category: 'progression', requirement: { type: 'total', count: 5 } },
   { id: 't_machine', name: 'La Machine', desc: 'Complète 30 sessions. Un mois entier d\'efforts.', icon: '🏆', category: 'progression', requirement: { type: 'total', count: 30 } },
   { id: 't_lover', name: 'Tempo Lover', desc: 'Complète une session avec le mode "Intime".', icon: '🔥', category: 'feature', requirement: { type: 'naughty', count: 1 } },
-  { id: 't_data', name: 'Data Scientist', desc: 'Importe tes données réelles (cadence et/ou fréquence cardiaque, via Garmin/Strava) pour analyse.', icon: '📊', category: 'feature', requirement: { type: 'data', count: 1 } },
+  // ⚠️ Description condensée (14/08, retour direct avec capture : "toutes
+  // les descriptions doivent tenir en 1 ligne") — 98 → 50 caractères.
+  { id: 't_data', name: 'Data Scientist', desc: 'Importe tes données Garmin/Strava (cadence, FC).', icon: '📊', category: 'feature', requirement: { type: 'data', count: 1 } },
   { id: 't_marathon', name: 'Le Marathonien', desc: 'Génère une session de plus de 42 km ou 4 heures.', icon: '🏅', secret: true, requirement: { type: 'custom', key: 'hasMarathon' } },
-  { id: 't_bolt', name: 'La Foudre', desc: 'Génère une session avec un rythme extrême (> 180 BPM ou < 4:00/km).', icon: '⚡', secret: true, requirement: { type: 'custom', key: 'hasBolt' } },
-  { id: 't_hiit', name: 'Maître du HIIT', desc: 'Génère une session fractionnée complexe (5 portions ou plus).', icon: '📈', secret: true, requirement: { type: 'custom', key: 'hasHiitMaster' } },
-  { id: 't_dj', name: 'Le Mixeur', desc: 'Utilise le bouton "Remplacer" 3 fois pour parfaire tes playlists.', icon: '🎛️', category: 'habit', requirement: { type: 'replace', count: 3 } },
+  // Condensé (14/08, même chantier) — 69 → 54 caractères.
+  { id: 't_bolt', name: 'La Foudre', desc: 'Génère une session extrême (> 180 BPM ou < 4:00/km).', icon: '⚡', secret: true, requirement: { type: 'custom', key: 'hasBolt' } },
+  // Condensé (14/08, même chantier) — 63 → 53 caractères.
+  { id: 't_hiit', name: 'Maître du HIIT', desc: 'Génère un fractionné complexe (5 portions ou plus).', icon: '📈', secret: true, requirement: { type: 'custom', key: 'hasHiitMaster' } },
+  // Condensé (14/08, même chantier) — 66 → 42 caractères.
+  { id: 't_dj', name: 'Le Mixeur', desc: 'Utilise "Remplacer" 3 fois sur tes titres.', icon: '🎛️', category: 'habit', requirement: { type: 'replace', count: 3 } },
   { id: 't_night', name: 'Oiseau de Nuit', desc: 'Complète une session entre 22h et 5h du matin.', icon: '🦉', secret: true, requirement: { type: 'custom', key: 'hasNightOwl' } },
   { id: 't_rickroll', name: 'Never Gonna Give You Up', desc: 'Tu as trouvé le secret ultime de l\'application.', icon: '🕺', secret: true, requirement: { type: 'custom', key: 'hasRickroll' } },
   // --- Ajoutés lors d'une passe de mise à jour, pour couvrir des fonctionnalités
   // (Crescendo, planification, mode clair) arrivées après le premier jeu de
   // trophées et jamais reflétées ici depuis. ---
-  { id: 't_structures', name: 'Les 3 Visages de l\'Effort', desc: 'Génère au moins une fois chacune des 3 structures : Allure Constante, Crescendo et Fractionné.', icon: '🎭', category: 'feature', requirement: { type: 'custom', key: 'hasAllStructures' } },
+  // Condensé (14/08, même chantier) — 97 → 35 caractères. Noms des 3
+  // structures retirés (Allure Constante/Crescendo/Fractionné) : les
+  // garder tous les 3 rendait toute reformulation trop longue pour 1
+  // ligne, quelle que soit la tournure — l'essentiel (générer les 3) reste.
+  { id: 't_structures', name: 'Les 3 Visages de l\'Effort', desc: 'Essaie les 3 structures de séance.', icon: '🎭', category: 'feature', requirement: { type: 'custom', key: 'hasAllStructures' } },
   { id: 't_crescendo', name: 'Le Grimpeur', desc: 'Complète une séance en mode Crescendo.', icon: '⛰️', category: 'feature', requirement: { type: 'custom', key: 'hasCrescendoCompleted' } },
-  { id: 't_onTime', name: 'Pile à l\'Heure', desc: 'Complète une séance exactement à la date que tu avais planifiée.', icon: '🎯', secret: true, requirement: { type: 'custom', key: 'hasOnTimeCompletion' } },
-  { id: 't_allTypes', name: 'Touche-à-Tout', desc: 'Complète au moins une séance de Course à pied, Musculation ET Cyclisme.', icon: '🤹', category: 'habit', requirement: { type: 'custom', key: 'hasAllWorkoutTypes' } },
+  // Condensé (14/08, même chantier) — 66 → 46 caractères.
+  { id: 't_onTime', name: 'Pile à l\'Heure', desc: 'Complète une séance pile à la date planifiée.', icon: '🎯', secret: true, requirement: { type: 'custom', key: 'hasOnTimeCompletion' } },
+  // Condensé (14/08, même chantier) — 73 → 49 caractères.
+  { id: 't_allTypes', name: 'Touche-à-Tout', desc: 'Pratique Course à pied, Musculation ET Cyclisme.', icon: '🤹', category: 'habit', requirement: { type: 'custom', key: 'hasAllWorkoutTypes' } },
   { id: 't_100km', name: '100 Bornes au Compteur', desc: 'Cumule 100 km parcourus sur l\'ensemble de tes séances.', icon: '🛣️', secret: true, requirement: { type: 'custom', key: 'has100km' } },
-  { id: 't_lightMode', name: 'Adepte de la Lumière', desc: 'Active le mode clair au moins une fois. Bienvenue de l\'autre côté.', icon: '☀️', category: 'feature', requirement: { type: 'custom', key: 'hasLightMode' } },
+  // Condensé (14/08, même chantier) — 68 → 34 caractères.
+  { id: 't_lightMode', name: 'Adepte de la Lumière', desc: 'Active le mode clair. Bienvenue !', icon: '☀️', category: 'feature', requirement: { type: 'custom', key: 'hasLightMode' } },
   { id: 't_streak', name: 'Sur ta Lancée', desc: 'Complète une séance 3 jours d\'affilée.', icon: '🔗', secret: true, requirement: { type: 'custom', key: 'hasStreak3' } },
   // --- Ajoutés lors d'une 2e passe, après clarification : la logique
   // trophées vise avant tout à inciter à ESSAYER chaque fonctionnalité de
   // l'app, pas juste à récompenser du volume. ---
-  { id: 't_extraGenre', name: 'Explorateur de Genres', desc: 'Déplie "+ Plus de genres" et génère une session avec l\'un d\'eux.', icon: '🧭', category: 'feature', requirement: { type: 'custom', key: 'hasExtraGenre' } },
-  { id: 't_planner', name: 'Planificateur', desc: 'Donne une date à une playlist dans "Mes Séances", pour la première fois.', icon: '📅', category: 'feature', requirement: { type: 'custom', key: 'hasPlannedSession' } },
+  // Condensé (14/08, même chantier) — 66 → 45 caractères.
+  { id: 't_extraGenre', name: 'Explorateur de Genres', desc: 'Déplie "+ Plus de genres" et choisis-en un.', icon: '🧭', category: 'feature', requirement: { type: 'custom', key: 'hasExtraGenre' } },
+  // Condensé (14/08, même chantier) — 74 → 37 caractères.
+  { id: 't_planner', name: 'Planificateur', desc: 'Planifie une date pour une playlist.', icon: '📅', category: 'feature', requirement: { type: 'custom', key: 'hasPlannedSession' } },
   { id: 't_autoGen', name: 'Pilote Automatique', desc: 'Active la génération automatique sur une routine.', icon: '🤖', category: 'feature', requirement: { type: 'custom', key: 'hasAutoGen' } },
   { id: 't_firstRoutine', name: 'Ma Première Routine', desc: 'Sauvegarde ta toute première routine réutilisable.', icon: '📋', category: 'feature', requirement: { type: 'custom', key: 'hasFirstRoutine' } },
   { id: 't_sharer', name: 'Ambassadeur', desc: 'Utilise le bouton Partager, sur une playlist ou un trophée.', icon: '📣', category: 'habit', requirement: { type: 'custom', key: 'hasSharedSomething' } },
