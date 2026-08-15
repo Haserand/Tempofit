@@ -76,6 +76,34 @@ export function usePlaylistLibrary(
     // (ex. planifier une date juste après avoir sauvegardé).
     setCurrentPlaylist(saved);
     showToast("Playlist ajoutée à Mes Séances !");
+
+    // Compteur de clonages de template — AJOUTÉ (14/08, retour direct avec
+    // capture : "pourquoi je vois quand même le compteur à 0 pour la
+    // playlist que j'ai pourtant clonée ?"). Jusqu'ici, `template_clone_counts`
+    // ne s'incrémentait QUE via `handleClonePlaylist` (le bouton
+    // "Sauvegarder" d'un template ouvert depuis la vitrine
+    // `@tempofit_officiel`, `isReadOnly: true`) — JAMAIS via CE chemin-ci
+    // ("Ajouter", le bouton d'un template ouvert directement depuis
+    // Découvrir, `isReadOnly` absent). Distinction délibérée à l'origine
+    // (02/08, TemplateCard.jsx : "ce geste génère sa propre nouvelle
+    // séance, ce n'est pas 'copier le contenu de quelqu'un'"), mais
+    // Découvrir étant de très loin le chemin le plus emprunté pour
+    // récupérer un template, le compteur restait quasi systématiquement à
+    // 0 en pratique — plus trompeur qu'honnête. Les deux chemins créditent
+    // désormais le MÊME compteur, avec le MÊME garde-fou
+    // (`sourceTemplateId`, absent sur une playlist fraîchement générée par
+    // le wizard — jamais compté à tort comme un clonage de template) et la
+    // MÊME philosophie fire-and-forget que `handleClonePlaylist` plus bas
+    // (échec silencieux, jamais remonté à l'utilisateur — un compteur de
+    // vanité qui rate une fois ne justifie pas une erreur visible sur une
+    // action qui, de son point de vue, a déjà pleinement réussi).
+    if (currentPlaylist.sourceTemplateId) {
+      supabase.rpc('increment_template_clone_count', {
+        target_template_id: currentPlaylist.sourceTemplateId,
+      }).then(({ error }) => {
+        if (error) console.error('[usePlaylistLibrary] increment_template_clone_count (Découvrir) a échoué :', error);
+      });
+    }
   };
 
   /**
