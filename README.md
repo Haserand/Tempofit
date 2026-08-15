@@ -12,7 +12,22 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement. Trois chantiers enchaînés, mêmes 24-48h :
+Rien en cours actuellement. Quatre chantiers enchaînés, mêmes 24-48h :
+
+**14/08 (suite) — bandeau de génération, séance longue.** Retour direct :
+"passé la minute de génération, l'utilisateur a cru que ça avait planté"
+sur une séance de plus d'1h. Réflexion faite AVANT d'implémenter (temps
+"indicatif" chiffré écarté — pas de vraie donnée de timing pour le
+calibrer, un chiffre inventé pourrait devenir une source d'inquiétude
+supplémentaire s'il est dépassé) : la durée cible d'une séance est un
+signal PRÉVISIBLE à l'avance, contrairement à un genre lent. Étendu le
+mécanisme déjà existant pour les genres à mot-clé Deezer fragile
+(`isGeneratingSlowGenre`) avec un 2e flag symétrique
+(`isGeneratingLongPlaylist`, seuil ≥45 min, modes Temps/Distance — mode
+Fractionné hors scope assumé, segments à sommer différemment). Le bandeau
+combine désormais les deux raisons possibles (genre lent, séance longue,
+ou les deux à la fois) plutôt qu'un message générique statique. Tests
+dédiés ajoutés dans `tests/hooks/usePlaylistGeneration.test.js`.
 
 **14/08 (suite) — compteur de clonages élargi à Découvrir.** Retour direct
 avec 4 captures : "pourquoi je vois quand même le compteur de clonage à 0
