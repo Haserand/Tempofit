@@ -52,14 +52,14 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode, use
   // de clonage... honnête, 0 par défaut") — table PUBLIQUE en lecture
   // (`template_clone_counts`, supabase-schema.sql), MÊME source que la
   // vitrine `@tempofit_officiel` (officialVitrineProfile.js) : un
-  // template affiche donc TOUJOURS le même nombre ici et là-bas. Ce
-  // compteur ne s'incrémente QUE via le clonage depuis la vitrine (voir
-  // la docstring de TemplateCard.jsx) — "Utiliser ce modèle" ici
-  // n'incrémente rien, ce chiffre reste donc souvent bas, ce qui est
-  // honnête plutôt qu'un problème. Un seul fetch au montage (table petite,
-  // ~30 templates + 4 routines fictives — pas la peine de re-fetch à
-  // chaque changement de recherche/catégorie, purement des filtres locaux
-  // qui ne changent jamais ce total).
+  // template affiche donc TOUJOURS le même nombre ici et là-bas. ⚠️
+  // RÉÉLARGI (14/08) : s'incrémente désormais aussi bien depuis Découvrir
+  // ("Ajouter", handleSavePlaylist) que depuis la vitrine ("Sauvegarder",
+  // handleClonePlaylist) — voir la docstring de TemplateCard.jsx pour le
+  // détail de ce changement. Un seul fetch au montage (table petite, ~30
+  // templates + 4 routines fictives — pas la peine de re-fetch à chaque
+  // changement de recherche/catégorie, purement des filtres locaux qui ne
+  // changent jamais ce total).
   const [realCloneCounts, setRealCloneCounts] = useState({});
 
   useEffect(() => {
