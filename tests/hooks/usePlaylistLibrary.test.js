@@ -364,6 +364,58 @@ describe('usePlaylistLibrary — handleSavePlaylist', () => {
 
     expect(setSavedPlaylists).not.toHaveBeenCalled();
   });
+
+  // NOUVEAU (14/08, retour direct avec capture — "pourquoi je vois quand
+  // même le compteur à 0 pour la playlist que j'ai pourtant clonée ?") :
+  // jusqu'ici, seul `handleClonePlaylist` (le bouton "Sauvegarder" d'un
+  // template ouvert depuis la vitrine `@tempofit_officiel`) incrémentait
+  // `template_clone_counts` — jamais CE chemin-ci ("Ajouter" depuis
+  // Découvrir, de très loin le plus emprunté). Voir la docstring de
+  // `handleSavePlaylist` dans usePlaylistLibrary.js pour le raisonnement
+  // complet du changement.
+  describe('compteur de clonages de template (NOUVEAU, 14/08)', () => {
+    it('un template ouvert depuis Découvrir (sourceTemplateId) appelle increment_template_clone_count', () => {
+      mockRpc.mockResolvedValue({ error: null });
+      const discoverTemplate = { id: 'pl-curated-tpl-cardio-123', sourceTemplateId: 'tpl-cardio', name: 'Cardio Express' };
+      const result = renderLibrary(discoverTemplate, { setSavedPlaylists: vi.fn(), setCurrentPlaylist: vi.fn() });
+
+      result.current.handleSavePlaylist();
+
+      expect(mockRpc).toHaveBeenCalledWith('increment_template_clone_count', { target_template_id: 'tpl-cardio' });
+    });
+
+    it('une playlist fraîchement générée par le wizard (pas de sourceTemplateId) n\'appelle AUCUNE RPC — jamais comptée à tort comme un clonage de template', () => {
+      const freshGeneration = { id: 'pl-fresh-123', name: 'Ma séance' };
+      const result = renderLibrary(freshGeneration, { setSavedPlaylists: vi.fn(), setCurrentPlaylist: vi.fn() });
+
+      result.current.handleSavePlaylist();
+
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it('template déjà ajouté (bascule sur la copie existante) : ne recompte PAS un 2e clonage', () => {
+      const existingClone = { id: 'pl-curated-tpl-cardio-111', sourceTemplateId: 'tpl-cardio', name: 'Cardio Express' };
+      const reopenedPreview = { id: 'pl-curated-tpl-cardio-222', sourceTemplateId: 'tpl-cardio', name: 'Cardio Express' };
+      const result = renderLibrary(reopenedPreview, { savedPlaylists: [existingClone], setSavedPlaylists: vi.fn(), setCurrentPlaylist: vi.fn() });
+
+      result.current.handleSavePlaylist();
+
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it('échec réseau de la RPC : échec silencieux (journalisé), la sauvegarde locale reste pleinement effective', () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockRpc.mockResolvedValue({ error: { message: 'boom' } });
+      const setSavedPlaylists = vi.fn();
+      const discoverTemplate = { id: 'pl-curated-tpl-cardio-123', sourceTemplateId: 'tpl-cardio', name: 'Cardio Express' };
+      const result = renderLibrary(discoverTemplate, { setSavedPlaylists, setCurrentPlaylist: vi.fn() });
+
+      expect(() => result.current.handleSavePlaylist()).not.toThrow();
+
+      expect(setSavedPlaylists).toHaveBeenCalledTimes(1); // la sauvegarde locale a bien eu lieu, indépendamment de la RPC
+      consoleSpy.mockRestore();
+    });
+  });
 });
 
 // NOUVEAU (check-up 10/08, retour direct — captures à l'appui : "je supprime
