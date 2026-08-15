@@ -67,16 +67,20 @@ import { CATEGORY_DESCRIPTIONS } from '../../data/curatedSessions';
  * (`fakeCloneCountForId`, RETIRÉE de curatedSessions.js, "ambitieux mais
  * faux"). `cloneCount` est maintenant une PROP fournie par
  * `DiscoverView.jsx`, qui la récupère depuis la vraie table
- * `template_clone_counts` (supabase-schema.sql). Ce compteur ne
- * s'incrémente QUE quand quelqu'un clique "Cloner" sur la vitrine
- * `@tempofit_officiel` (`PublicRoutinePreviewModal`/`handleClonePlaylist`
- * pour les playlists) — PAS en cliquant "Utiliser ce modèle" ici : ce
- * geste génère sa PROPRE nouvelle séance, ce n'est pas "copier le contenu
- * de quelqu'un" au sens où ce compteur l'entend ailleurs dans l'app
- * (playlists/routines RÉELLES). Conséquence assumée : ce nombre reste
- * probablement bas pour la plupart des templates (Découvrir, le chemin le
- * plus emprunté, ne l'incrémente jamais) — c'est le prix d'un compteur
- * honnête plutôt qu'un gonflé artificiellement.
+ * `template_clone_counts` (supabase-schema.sql).
+ *
+ * ⚠️ RÉÉLARGI (14/08, retour direct avec capture : "pourquoi je vois quand
+ * même le compteur à 0 pour la playlist que j'ai pourtant clonée ?") — ce
+ * compteur s'incrémentait JUSQU'ICI uniquement quand quelqu'un cliquait
+ * "Sauvegarder" sur la vitrine `@tempofit_officiel`
+ * (`PublicRoutinePreviewModal`/`handleClonePlaylist` pour les playlists),
+ * PAS en cliquant "Ajouter" ici (Découvrir) — la distinction de départ
+ * ("Ajouter" génère sa propre nouvelle séance, ce n'est pas "copier le
+ * contenu de quelqu'un") tenait sur le papier, mais Découvrir étant de
+ * très loin le chemin le plus emprunté pour récupérer un template, le
+ * compteur restait quasi systématiquement à 0 en pratique — plus trompeur
+ * qu'honnête. Les deux chemins créditent désormais le MÊME compteur (voir
+ * `handleSavePlaylist`, usePlaylistLibrary.js).
  *
  * RETOUR DIRECT (8e passe, 02/08, "mets les descriptions aussi, pour voir
  * à quoi ça ressemble visuellement") — d'abord un texte de remplissage
