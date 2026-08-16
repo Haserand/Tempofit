@@ -274,19 +274,26 @@ describe('DiscoverView — clic sur une carte', () => {
 
 // Feature Sociale "Cold Start" (02/08) — 0 test jusqu'ici pour cette
 // transmission de prop précise.
-describe('DiscoverView — auteur cliquable (transmission de onViewOfficialProfile)', () => {
-  it('le clic sur l\'auteur d\'un template appelle onViewOfficialProfile, PAS onPlayTemplate', () => {
+// ⚠️ MIS À JOUR (14/08, retour direct : "TEMPOFIT sur la pochette ET
+// TempoFit Officiel en dessous, le 2e est redondant" — auteur retiré de
+// TemplateCard.jsx, le clic vers le profil vit maintenant sur le BADGE de
+// la pochette) — le bouton cliquable porte désormais le texte du badge
+// ("TempoFit", le texte COURT codé en dur dans TemplateCard.jsx), pas
+// `template.author` ("TempoFit Officiel", le nom COMPLET) — ces deux
+// chaînes ont toujours été différentes, seul l'ÉLÉMENT cliquable a changé.
+describe('DiscoverView — badge cliquable (transmission de onViewOfficialProfile)', () => {
+  it('le clic sur le badge d\'un template appelle onViewOfficialProfile, PAS onPlayTemplate', () => {
     const onViewOfficialProfile = vi.fn();
     const onPlayTemplate = vi.fn();
     render(<DiscoverView {...baseProps({ onViewOfficialProfile, onPlayTemplate })} />);
 
-    // TOUS les templates du catalogue partagent le même texte d'auteur
-    // ("TempoFit Officiel") — `getByRole` seul, sans les cibler d'abord,
-    // trouverait plusieurs boutons à la fois et planterait. `within(...)`
-    // restreint la recherche à LA carte précise de `knownTemplate`, repérée
-    // par son titre UNIQUE ("Midnight Runner 160").
+    // TOUS les templates du catalogue partagent le même texte de badge
+    // ("TempoFit") — `getByRole` seul, sans les cibler d'abord, trouverait
+    // plusieurs boutons à la fois et planterait. `within(...)` restreint
+    // la recherche à LA carte précise de `knownTemplate`, repérée par son
+    // titre UNIQUE ("Midnight Runner 160").
     const card = screen.getByText(knownTemplate.title).closest('.group');
-    fireEvent.click(within(card).getByRole('button', { name: knownTemplate.author }));
+    fireEvent.click(within(card).getByRole('button', { name: 'TempoFit' }));
 
     expect(onViewOfficialProfile).toHaveBeenCalledTimes(1);
     expect(onPlayTemplate).not.toHaveBeenCalled();
