@@ -1026,6 +1026,16 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
   // valide : rien ne prouve que le mot-clé 'metal' pose le même problème de
   // collision que 'asian' pour K-pop.
   const needsDeepCatalogSearch = genresForQuery.length > 0 && genresForQuery.every(g => GENRES_NEEDING_DEEP_CATALOG_SEARCH.includes(g));
+  // Voir la docstring de `onProgress` en tête de fonction — portée FONCTION
+  // (pas juste le bloc `if` ci-dessous, où vivait déjà `genreValidDurationSoFar`
+  // avant ce correctif) : le bloc CATALOGUE D'ARTISTES plus bas doit
+  // pouvoir CHAÎNER sa propre progression à la suite de celle-ci, pas
+  // repartir de `progressBaseCount` tout court comme si la recherche
+  // généraliste n'avait rien trouvé — sans quoi le compteur affiché
+  // semblerait STAGNER (pas forcément redescendre, mais ne plus avancer
+  // pendant un moment) à la transition entre les deux sources, le temps
+  // que le catalogue rattrape le niveau déjà atteint.
+  let generalSearchEstimate = 0;
 
   if (!allEffectiveGenresWeak) {
     try {
@@ -1088,7 +1098,8 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
       });
       // Voir la docstring de `onProgress` en tête de fonction — ESTIMATION,
       // pas le décompte final (la sélection réelle vient plus bas).
-      if (onProgress) onProgress(progressBaseCount + estimateTrackCountFromDuration(genreValidDurationSoFar));
+      generalSearchEstimate = estimateTrackCountFromDuration(genreValidDurationSoFar);
+      if (onProgress) onProgress(progressBaseCount + generalSearchEstimate);
     }
 
     for (const full of allResolvedCandidates) {
@@ -1141,13 +1152,19 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
       // conversion durée→titres comme pour la recherche généraliste : cette
       // branche n'accumule pas de durée "bon genre" au fil de l'eau, compter
       // directement les candidats est plus simple et tout aussi honnête.
+      // CHAÎNÉ à `generalSearchEstimate` (pas juste `progressBaseCount`) —
+      // ce bloc tourne SOUVENT en complément de la recherche généraliste
+      // ci-dessus, dans le MÊME appel de fonction (pas seulement pour les
+      // genres à mot-clé fragile) : sans ce chaînage, le compteur semblerait
+      // stagner un moment à la transition, le temps que `catalogValidCount`
+      // rattrape le niveau déjà atteint par la recherche généraliste.
       let catalogValidCount = 0;
       const details = await fetchInBatches(stubs.slice(0, needsDeepCatalogSearch ? 60 : 30), 10, async (s) => {
         const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
         return full;
       }, onProgress ? (batchResults) => {
         catalogValidCount += batchResults.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm && f.preview).length;
-        onProgress(progressBaseCount + catalogValidCount);
+        onProgress(progressBaseCount + generalSearchEstimate + catalogValidCount);
       } : null);
       const validDetails = details.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm && f.preview);
       // VÉRIFICATION DU VRAI GENRE (album Deezer) pour chaque candidat, plutôt
