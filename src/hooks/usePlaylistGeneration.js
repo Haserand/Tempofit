@@ -32,7 +32,7 @@ export function usePlaylistGeneration(
   setCurrentPlaylist, changeView,
   savedPlaylists, setSavedPlaylists,
   setIsGenerating, setGeneratingTotal, setGeneratingDone, setIsGeneratingSlowGenre,
-  setIsGeneratingLongPlaylist,
+  setIsGeneratingLongPlaylist, setGeneratingEstimatedTracksFound,
 ) {
   const { checkGenreWeightDeviation } = useGeneratorContext();
 
@@ -102,6 +102,7 @@ export function usePlaylistGeneration(
     setIsGenerating(false);
     setIsGeneratingSlowGenre(false);
     setIsGeneratingLongPlaylist(false);
+    setGeneratingEstimatedTracksFound(0);
     showToast('Génération annulée.');
   };
 
@@ -139,6 +140,7 @@ export function usePlaylistGeneration(
     setIsGenerating(true);
     setGeneratingTotal(count);
     setGeneratingDone(0);
+    setGeneratingEstimatedTracksFound(0);
     // Nouveau jeton pour CETTE exécution — voir cancelGeneration plus haut.
     // Capturé dans la closure ci-dessous (variable locale `cancelToken`, pas
     // une relecture de la ref au moment de vérifier) : si une 2e génération
@@ -239,7 +241,16 @@ export function usePlaylistGeneration(
 
     const generatedPlaylists = [];
     for (let i = 0; i < count; i++) {
-      const pl = await createPlaylistData(config, rollingExcludeIds, favorites, spotifyTrackPool, isNaughtyMode);
+      // Callback de progression (14/08) — voir la docstring de `createPlaylistData`
+      // dans musicEngine.js pour ce qu'elle représente vraiment (une ESTIMATION du
+      // pool, pas le décompte final). Garde-fou `cancelToken.cancelled` : sans lui,
+      // un appel réseau encore en vol au moment d'un clic sur "Annuler" pourrait
+      // reposer ce state APRÈS que `cancelGeneration` l'a remis à 0 — voir la même
+      // garde `if (cancelled) return;`/`cancelToken` déjà utilisée plus bas dans
+      // cette boucle pour jeter le résultat final d'une génération annulée.
+      const pl = await createPlaylistData(config, rollingExcludeIds, favorites, spotifyTrackPool, isNaughtyMode, (estimatedCount) => {
+        if (!cancelToken.cancelled) setGeneratingEstimatedTracksFound(estimatedCount);
+      });
       if (count > 1) pl.name = `${pl.name} (Session ${i + 1})`;
       generatedPlaylists.push(pl);
       setGeneratingDone(i + 1);
@@ -271,6 +282,7 @@ export function usePlaylistGeneration(
     setIsGenerating(false);
     setIsGeneratingSlowGenre(false);
     setIsGeneratingLongPlaylist(false);
+    setGeneratingEstimatedTracksFound(0);
 
     // Génération annulée entre-temps (voir cancelGeneration) : on jette le
     // résultat sans y toucher — pas de trophée, pas de sauvegarde, pas de
