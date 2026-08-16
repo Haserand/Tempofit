@@ -13,7 +13,34 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
 Rien en cours actuellement. Cinq chantiers enchaînés, mêmes 24-48h,
-**+ 4 correctifs trouvés/demandés en creusant après coup** :
+**+ 5 correctifs trouvés/demandés en creusant après coup, et une nouvelle
+habitude actée à l'issue de cette série** :
+
+**14/08 — dernier angle mort : silence total pendant le repli réseau
+final.** Trouvé à la 5e relecture demandée ("continue à creuser au cas
+où"). La boucle de repli final (`getSingleMatchingTrack`, quand le pool
+ne suffit pas — rare, "BPM/genre très restrictif") fait ses PROPRES
+appels réseau, entièrement APRÈS la construction du pool où `onProgress`
+s'arrêtait jusqu'ici — pas juste une stagnation temporaire comme les
+correctifs précédents, un silence total tant qu'elle tournait. Corrigé en
+basculant, à ce stade, du compte de pool ESTIMÉ au compte RÉEL de titres
+déjà retenus pour le segment (`selected.length`) — le clamp anti-régression
+déjà en place gère la transition si ce compte réel démarre plus bas que
+la dernière estimation affichée. Même traitement appliqué au filet de
+sécurité ultime (segment resté vide) pour cohérence, fenêtre de silence
+plus courte mais réelle.
+
+**Nouvelle habitude actée dans `CLAUDE-SANDBOX-VERIFICATION.md`** : après
+5 relectures demandées sur le même chantier, chacune trouvant quelque
+chose de réel mais de moins en moins grave, l'utilisateur a fait
+remarquer que ça vaudrait le coup de systématiser ce réflexe plutôt que
+de compter sur lui pour insister à chaque fois. Actée : après tout
+chantier touchant un fichier déjà identifié comme sensible dans ce projet
+(`musicEngine.js`, la logique de synchro Supabase, ou plus généralement
+du code à plusieurs branches/boucles alimentant une même valeur
+affichée/partagée), faire au moins une relecture complète et attentive
+dédiée AVANT de considérer la livraison terminée — pas seulement vérifier
+que ça compile.
 
 **14/08 — anti-doublon dans le comptage catalogue.** Trouvé en creusant
 encore ("continue à creuser au cas où, même la cosmétique a de
