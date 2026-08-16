@@ -1163,7 +1163,16 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
         const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
         return full;
       }, onProgress ? (batchResults) => {
-        catalogValidCount += batchResults.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm && f.preview).length;
+        // `!seenIds.has(...)` (14/08, même relecture, trouvé sans retour
+        // direct) — `seenIds` porte déjà tous les IDs retenus par la
+        // recherche généraliste à ce stade (son propre `addIfValid`,
+        // juste au-dessus, tourne AVANT ce bloc catalogue). Sans ce
+        // filtre, un même titre trouvé par les DEUX sources (Deezer en
+        // direct ET catalogue d'artistes) aurait compté deux fois dans le
+        // compteur affiché — une SURESTIMATION discrète mais réelle,
+        // jamais visible en tant que régression/stagnation (les deux
+        // seuls symptômes déjà couverts), donc plus facile à manquer.
+        catalogValidCount += batchResults.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm && f.preview && !seenIds.has(`deezer-${f.id}`)).length;
         onProgress(progressBaseCount + generalSearchEstimate + catalogValidCount);
       } : null);
       const validDetails = details.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm && f.preview);
