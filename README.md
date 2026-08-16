@@ -13,7 +13,22 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
 Rien en cours actuellement. Cinq chantiers enchaînés, mêmes 24-48h,
-**+ 2 correctifs trouvés/demandés en creusant après coup** :
+**+ 3 correctifs trouvés/demandés en creusant après coup** :
+
+**14/08 — chaînage de la progression entre recherche généraliste et
+catalogue d'artistes.** Trouvé en re-creusant après le correctif
+précédent (question ouverte "tu vois d'autres trucs ?", pas de retour
+direct cette fois) : le chemin catalogue tourne SOUVENT en complément de
+la recherche généraliste, dans le MÊME appel de fonction — mais sa
+progression repartait de `progressBaseCount` tout court, sans tenir
+compte de ce que la recherche généraliste avait déjà trouvé. Pas une
+régression visible (déjà couverte par le clamp du correctif précédent),
+mais un compteur qui aurait pu sembler STAGNER un moment à la transition
+entre les deux sources, le temps que le catalogue "rattrape" le niveau
+déjà atteint. Corrigé en hissant `generalSearchEstimate` en variable de
+PORTÉE FONCTION (pas juste le bloc où vivait `genreValidDurationSoFar`
+avant ce correctif), pour que le bloc catalogue puisse chaîner sa propre
+progression à la suite plutôt que de repartir à zéro.
 
 **14/08 — angle mort comblé sur demande explicite : progression aussi pour
 le chemin catalogue d'artistes.** Signalé au check-up précédent comme
