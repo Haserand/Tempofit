@@ -12,9 +12,25 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement. Six chantiers enchaînés, mêmes 24-48h,
+Rien en cours actuellement. Sept chantiers enchaînés, mêmes 24-48h,
 **+ 6 correctifs trouvés/demandés en creusant après coup, et une nouvelle
 habitude actée à l'issue de cette série** :
+
+**14/08 — Découvrir : compteur de clonages déplacé sur la pochette.**
+Retour direct : "pour gagner de la place, le compteur en bas à droite de
+la pochette ?". Complète le badge "TempoFit" en haut à gauche par une
+symétrie diagonale — la ligne "chapeau" sous la pochette, qui ne
+contenait plus que ce compteur depuis le retrait de l'auteur (chantier
+précédent), est retirée entièrement : le titre suit désormais directement
+la pochette. `z-10` posé DIRECTEMENT sur ce nouveau badge dès l'écriture
+(pas après coup) — leçon tirée du bug juste précédent (badge "TempoFit"
+inatteignable au clic, empilement CSS) appliquée immédiatement à ce badge
+non cliquable, pour une cohérence purement esthétique (éviter qu'il
+s'assombrisse au survol contrairement au badge "TempoFit"). Toujours
+affiché même à 0 (comportement inchangé, juste déplacé). Tests réécrits
+dans `TemplateCard.test.jsx` (le compteur est vérifié DANS le conteneur
+de la pochette, plus "précédant le titre dans un `<p>`" — cet élément
+n'existe plus).
 
 **14/08 — bug réel raté au 1er passage : badge cliquable inatteignable
 (empilement CSS).** Retour direct après déploiement : "TEMPOFIT est pas
