@@ -12,9 +12,28 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement. Cinq chantiers enchaînés, mêmes 24-48h,
+Rien en cours actuellement. Six chantiers enchaînés, mêmes 24-48h,
 **+ 5 correctifs trouvés/demandés en creusant après coup, et une nouvelle
 habitude actée à l'issue de cette série** :
+
+**14/08 — Découvrir : badge "TempoFit" cliquable, auteur redondant
+retiré.** Retour direct avec capture : "on a déjà TEMPOFIT sur la
+pochette ET TempoFit Officiel en dessous, le 2e est redondant — est-ce
+qu'on peut pas juste rendre le badge cliquable ?" (repris de la question
+"le premier suffirait pas ?" — avis donné avant d'agir : oui redondant
+aujourd'hui, mais raison documentée le 02/08 pour garder l'auteur
+cliquable — anticipation d'un contenu non-officiel futur, jamais planifié
+concrètement). Le clic vers le profil (Feature Sociale "Cold Start",
+02/08) vit désormais sur le badge de la pochette (`TemplateCard.jsx`) —
+même garde `isOfficial && onViewOfficialProfile`, même `stopPropagation`
+— plus sur un texte auteur séparé (retiré). Si du contenu non-officiel
+apparaît un jour, réintroduire l'affichage différencié de l'auteur sera
+un changement naturel à ce moment-là, pas une régression de celui-ci.
+Tests réécrits dans `TemplateCard.test.jsx` (section renommée "badge
+cliquable") et `DiscoverView.test.jsx` (nom accessible du bouton changé :
+"TempoFit", le texte du badge, plus "TempoFit Officiel", l'ancien
+`template.author`).
+
 
 **14/08 — dernier angle mort : silence total pendant le repli réseau
 final.** Trouvé à la 5e relecture demandée ("continue à creuser au cas
