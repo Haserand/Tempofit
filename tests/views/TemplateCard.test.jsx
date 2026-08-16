@@ -241,6 +241,19 @@ describe('TemplateCard', () => {
   // remplissage Lorem ipsum d'une passe précédente par la VRAIE source
   // partagée (`CATEGORY_DESCRIPTIONS`, curatedSessions.js), la même que
   // la vitrine ET la playlist réellement ouverte.
+  // NOUVEAU (14/08, retour direct : "il manque pas les infobulles sur les
+  // metadata de Découvrir ?") — motif DIFFÉRENT de la convention "icônes
+  // seules" (README.md) : ici, pas d'icône du tout, c'est du texte
+  // TRONQUÉ (`truncate`/`line-clamp-1`) sans moyen de voir le reste au
+  // survol. 3 éléments concernés sur cette carte (titre, métadonnées,
+  // description) — vérifiés ensemble, même chantier.
+  it('le titre, la ligne de métadonnées et la description tronqués portent chacun un title= avec leur texte complet', () => {
+    render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
+    expect(screen.getByTitle('Cardio Blast')).toBeInTheDocument();
+    expect(screen.getByTitle('Course à pied • 6 min • 155 BPM')).toBeInTheDocument();
+    expect(screen.getByTitle(CATEGORY_DESCRIPTIONS['Cardio Express'])).toBeInTheDocument();
+  });
+
   it('affiche la description de la CATÉGORIE du template (source partagée avec la vitrine et l\'ouverture réelle de la playlist)', () => {
     render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
     expect(screen.getByText(CATEGORY_DESCRIPTIONS['Cardio Express'])).toBeInTheDocument();
