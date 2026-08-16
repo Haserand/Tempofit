@@ -107,4 +107,28 @@ describe('fetchInBatches', () => {
     }
     expect(threw).toBe(true);
   });
+
+  // NOUVEAU (14/08, chantier "titres trouvés au fur et à mesure" — voir
+  // buildSegmentTracks/musicEngine.js, chemin catalogue d'artistes) —
+  // paramètre optionnel, `null` par défaut : les 7 tests ci-dessus ne le
+  // passent jamais, donc déjà une preuve de rétrocompatibilité en soi.
+  describe('onBatchDone (4e paramètre optionnel)', () => {
+    it('reçoit UNIQUEMENT les résultats du lot qui vient de se terminer, pas le cumul depuis le début', async () => {
+      const seenBatches = [];
+      await fetchInBatches([1, 2, 3, 4, 5], 2, async (n) => n * 10, (batchResults) => {
+        seenBatches.push([...batchResults]);
+      });
+      expect(seenBatches).toEqual([[10, 20], [30, 40], [50]]);
+    });
+
+    it('items vide : jamais appelé (aucun lot à terminer)', async () => {
+      const onBatchDone = () => { throw new Error('ne devrait jamais être appelé'); };
+      await expect(fetchInBatches([], 3, async () => {}, onBatchDone)).resolves.toEqual([]);
+    });
+
+    it('non fourni (undefined) : comportement inchangé, aucune erreur', async () => {
+      const result = await fetchInBatches([1, 2, 3], 2, async (n) => n * 2);
+      expect(result).toEqual([2, 4, 6]);
+    });
+  });
 });
