@@ -12,7 +12,27 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement. Cinq chantiers enchaînés, mêmes 24-48h :
+Rien en cours actuellement. Cinq chantiers enchaînés, mêmes 24-48h,
+**+ 1 correctif trouvé au check-up qui a suivi** :
+
+**14/08 — check-up post-chantier "titres au fur et à mesure" : clamp
+anti-régression.** Pas un retour direct cette fois — trouvé en relisant
+en détail la logique juste livrée (habitude actée : "vérifier son propre
+travail avant de le considérer terminé", surtout sur du code sensible).
+Cas limite réel : avec PLUSIEURS genres pondérés ensemble
+(`config.genreWeights`), le moteur enchaîne une sous-recherche par genre —
+chacune vise un pool à 1.5x la durée réellement nécessaire (marge pour la
+sélection finale). L'estimation affichée pendant la recherche d'UN genre
+pouvait donc dépasser le compte RÉEL finalement retenu pour ce même
+genre ; au passage au genre suivant, la progression reprenait sur ce
+compte réel (souvent plus bas) — le compteur du bandeau pouvait
+visiblement REDESCENDRE d'un coup, l'air buggé plutôt qu'indicatif.
+Corrigé par un clamp au niveau de l'affichage (`usePlaylistGeneration.js`,
+PAS retouché dans musicEngine.js — la source du problème n'a pas besoin
+d'être touchée pour le corriger, plus sûr) : le compteur affiché
+n'accepte plus qu'une valeur strictement supérieure à la dernière
+affichée, réinitialisé proprement à chaque nouvelle playlist d'un lot. 3
+tests dédiés ajoutés.
 
 **14/08 (suite) — bandeau de génération, système à paliers de temps +
 compte de titres en direct.** Suite directe du chantier précédent
