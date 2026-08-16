@@ -405,12 +405,19 @@ const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeTrackIds,
  * première pause, ce qui a confirmé que la rafale intra-génération restait le
  * vrai goulot d'étranglement.
  */
-const fetchInBatches = async (items, batchSize, fn) => {
+const fetchInBatches = async (items, batchSize, fn, onBatchDone = null) => {
   const results = [];
   for (let i = 0; i < items.length; i += batchSize) {
     const batch = items.slice(i, i + batchSize);
     const batchResults = await Promise.all(batch.map(fn));
     results.push(...batchResults);
+    // `onBatchDone(batchResults)` — AJOUTÉ (14/08, même chantier que
+    // `onProgress` dans buildSegmentTracks/createPlaylistData) : callback
+    // optionnel, reçoit UNIQUEMENT les résultats de CE lot (pas le total
+    // cumulé) — à l'appelant d'accumuler ce qui l'intéresse. `null` par
+    // défaut, sans le moindre effet sur les 7 autres appels existants de
+    // cette fonction dans ce fichier.
+    if (onBatchDone) onBatchDone(batchResults);
     if (i + batchSize < items.length) {
       await new Promise(resolve => setTimeout(resolve, 250));
     }
@@ -1123,10 +1130,25 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
       // les réglages habituels suffisent, Deezer en direct ayant déjà pu
       // apporter l'essentiel du pool.
       const stubs = await searchArtistsForBpm(catalogArtists, minBpm, maxBpm, localExcludeIds, needsDeepCatalogSearch ? 20 : 8, needsDeepCatalogSearch ? 10 : 6);
+      // Progression (14/08, complète la couverture de `onProgress` — voir sa
+      // docstring en tête de fonction — au chemin de repli par catalogue
+      // d'artistes, jusqu'ici sans le moindre signal pendant sa recherche :
+      // c'est LE SEUL chemin emprunté pour les genres à mot-clé Deezer
+      // fragile, voir `allEffectiveGenresWeak` plus haut — la recherche
+      // généraliste, seule instrumentée jusqu'ici, y est entièrement
+      // sautée). Compte les candidats VALABLES (même filtre BPM/preview que
+      // `validDetails` juste en dessous) lot par lot, plutôt qu'une
+      // conversion durée→titres comme pour la recherche généraliste : cette
+      // branche n'accumule pas de durée "bon genre" au fil de l'eau, compter
+      // directement les candidats est plus simple et tout aussi honnête.
+      let catalogValidCount = 0;
       const details = await fetchInBatches(stubs.slice(0, needsDeepCatalogSearch ? 60 : 30), 10, async (s) => {
         const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
         return full;
-      });
+      }, onProgress ? (batchResults) => {
+        catalogValidCount += batchResults.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm && f.preview).length;
+        onProgress(progressBaseCount + catalogValidCount);
+      } : null);
       const validDetails = details.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm && f.preview);
       // VÉRIFICATION DU VRAI GENRE (album Deezer) pour chaque candidat, plutôt
       // que de lui coller tel quel le genre supposé par le catalogue — même
