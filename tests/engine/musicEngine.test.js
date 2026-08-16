@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deduceCrescendoBpm, buildCrescendoSegments, pickByDurationProximity, recalculateTimeline, buildGeneratedPlaylistName } from '../../src/engine/musicEngine.js';
+import { deduceCrescendoBpm, buildCrescendoSegments, pickByDurationProximity, recalculateTimeline, buildGeneratedPlaylistName, estimateTrackCountFromDuration } from '../../src/engine/musicEngine.js';
 
 /**
  * musicEngine.test.js — sécurise le cœur du moteur de génération : dérivation
@@ -142,5 +142,36 @@ describe('buildGeneratedPlaylistName', () => {
     const name = buildGeneratedPlaylistName({ isCrescendoMode: true, isIntervalMode: true, routineName: 'Mon 5km' }, false, 'Course à pied');
     expect(name).toContain('Depuis : Mon 5km');
     expect(name).not.toContain('Crescendo');
+  });
+});
+
+// NOUVEAU (14/08, chantier "titres trouvés au fur et à mesure" dans le
+// bandeau de génération) — extraite de `buildSegmentTracks` pour la même
+// raison que `buildGeneratedPlaylistName` ci-dessus : pure, sans réseau,
+// testable en isolation. Sert UNIQUEMENT à un affichage indicatif (voir sa
+// docstring dans musicEngine.js) — jamais à une vraie décision de sélection
+// de titres, donc pas besoin d'une précision au titre près ici non plus.
+describe('estimateTrackCountFromDuration', () => {
+  it('arrondit à l\'entier le plus proche (pas systématiquement vers le bas)', () => {
+    // 210s = 1 titre pile (AVG_TRACK_DURATION_SECONDS) — cas simple, sans arrondi.
+    expect(estimateTrackCountFromDuration(210)).toBe(1);
+    // 315s = 1.5 → arrondit à 2, pas 1 (Math.round, pas Math.floor — voir
+    // la docstring : une estimation qui arrondit toujours vers le bas
+    // donnerait l'impression d'être perpétuellement "en retard").
+    expect(estimateTrackCountFromDuration(315)).toBe(2);
+  });
+
+  it('0 seconde → 0 titre', () => {
+    expect(estimateTrackCountFromDuration(0)).toBe(0);
+  });
+
+  it('valeur absente/undefined → 0, ne plante pas', () => {
+    expect(estimateTrackCountFromDuration(undefined)).toBe(0);
+    expect(estimateTrackCountFromDuration(null)).toBe(0);
+  });
+
+  it('une longue durée (séance de plus d\'1h, le cas réel remonté) donne une estimation à 2 chiffres plausible', () => {
+    // 1h = 3600s ÷ 210s/titre ≈ 17.14 → 17
+    expect(estimateTrackCountFromDuration(3600)).toBe(17);
   });
 });
