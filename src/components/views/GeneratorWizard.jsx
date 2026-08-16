@@ -1132,7 +1132,7 @@ export default function GeneratorWizard({
                     </div>
                   </button>
                   <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 w-64 p-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-medium text-center rounded-xl shadow-2xl opacity-0 group-hover/memorize:opacity-100 transition-opacity pointer-events-none z-20">
-                    {"Sauvegarde ces réglages pour relancer cette session en un claquement de doigts la prochaine fois."}
+                    {"Relance cette séance en un clic la prochaine fois."}
                   </div>
                 </div>
               </div>
