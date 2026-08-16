@@ -12,9 +12,23 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement. Huit chantiers enchaînés, mêmes 24-48h,
+Rien en cours actuellement. Neuf chantiers enchaînés, mêmes 24-48h,
 **+ 6 correctifs trouvés/demandés en creusant après coup, et une nouvelle
 habitude actée à l'issue de cette série** :
+
+**14/08 — Découvrir : infobulles sur le texte tronqué (motif DISTINCT des
+icônes).** Retour direct : "il manque pas les infobulles sur les metadata
+de Découvrir ? je pensais qu'on les avait systématisées partout" — bonne
+occasion de clarifier : la convention actée jusqu'ici portait sur les
+ICÔNES seules, pas sur le texte TRONQUÉ (`truncate`, ellipsis) sans
+`title=`, un motif différent bien que lié. `TemplateCard.jsx` corrigé (3
+éléments : titre, ligne de métadonnées, description). **Ampleur du motif
+plus large constatée en vérifiant : 71 éléments `truncate`/`line-clamp-*`
+dans `src/components/`, seulement 5 avec un `title=`** — pas traité dans
+son ensemble ce jour-là (seule la carte visée par le retour direct
+corrigée), nouvelle règle actée dans README.md pour tout nouveau code à
+partir de maintenant, chantier de rattrapage à part entière si repris un
+jour. Test dédié ajouté dans `TemplateCard.test.jsx`.
 
 **14/08 — bouton final du wizard : texte raccourci + couleur de marque
 restaurée.** Retour direct : "Générer suffit pas ? et pourquoi le bouton
@@ -444,6 +458,21 @@ Deux règles simples, à appliquer par réflexe dans tout nouveau code UI :
    chaque appelant — mais bien vérifier qu'aucun autre appelant n'a SA
    PROPRE copie légèrement différente de la même logique (`PlaylistCard.jsx`
    avait le sien, à côté, pas dans `App.jsx`).
+6. **Motif DISTINCT, à ne pas confondre avec les 5 règles ci-dessus (icônes)
+   — texte TRONQUÉ (`truncate`/`line-clamp-*`) sans `title=`.** Trouvé le
+   14/08 (retour direct sur `TemplateCard.jsx` : "il manque pas les
+   infobulles sur les metadata de Découvrir ?") — ici, pas d'icône du tout,
+   juste du texte coupé à l'ellipsis sans aucun moyen de voir le reste au
+   survol. **Ampleur constatée à cette date : 71 éléments `truncate`/
+   `line-clamp-*` dans `src/components/`, 5 seulement avec un `title=`** —
+   un chantier à part entière si repris un jour, PAS traité dans son
+   ensemble le 14/08 (seul `TemplateCard.jsx`, la carte visée par le
+   retour direct, corrigé ce jour-là) : `<h3 title={template.title}>`,
+   metadata (`title=` avec le texte complet reconstruit), description
+   (`title={CATEGORY_DESCRIPTIONS[...]}`). Réflexe à avoir pour tout NOUVEAU
+   `truncate`/`line-clamp-*` écrit à partir de maintenant : poser le
+   `title=` correspondant du premier coup, plutôt que de laisser le trou
+   grossir.
 
 ### Pseudo/nom d'auteur cliquable vers un profil — `underline` PERMANENT
 
