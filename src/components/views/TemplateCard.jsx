@@ -148,28 +148,32 @@ export default function TemplateCard({ theme, template, onPlayTemplate, isNaught
           <Music2 size={56} className="text-white/80 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)] transition-opacity duration-300 group-hover:opacity-0" />
         </div>
 
-        {/* ⚠️ RECONÇU (14/08, retour direct : "on a déjà TEMPOFIT sur la
-            pochette ET TempoFit Officiel en dessous, le 2e est redondant —
-            est-ce qu'on peut pas juste rendre le badge cliquable ?") — ce
-            badge PORTE maintenant lui-même le clic vers le profil, à la
-            place du texte auteur qui vivait juste en dessous (retiré, voir
-            plus bas). Même garde `template.isOfficial && onViewOfficialProfile`
-            que l'ancien bouton auteur, même raisonnement pour le
-            `stopPropagation` (toute la carte a déjà son propre `onClick`).
-            Si `onViewOfficialProfile` n'est pas fourni (ou template non
-            officiel), repli sur un simple badge non cliquable — comportement
-            inchangé pour ce cas. */}
+        {/* ⚠️ BUG RÉEL CORRIGÉ (14/08, retour direct : "TEMPOFIT est pas
+            cliquable alors qu'on a dit que c'était l'emplacement dédié
+            pour le pseudo") — le clic était bien câblé (onClick +
+            stopPropagation), mais jamais ATTEINT : l'overlay du bouton
+            play juste en dessous (`absolute inset-0`, transparent tant
+            qu'on ne survole pas) vient APRÈS ce badge dans le DOM — sans
+            z-index explicite, 2 éléments en `position: absolute`
+            s'empilent selon leur ordre DANS LE DOM, celui qui vient après
+            passe AU-DESSUS, même invisible. Cet overlay couvre TOUTE la
+            carte (`inset-0`), donc il recouvrait le coin du badge et
+            interceptait le clic avant qu'il n'atteigne le bouton en
+            dessous — remontant alors jusqu'au `onClick` de la carte
+            entière (ouvrir la playlist) au lieu du badge (voir profil).
+            `z-10` fait gagner le badge dans l'empilement, quel que soit
+            l'ordre DOM. */}
         {template.isOfficial && (
           onViewOfficialProfile ? (
             <button
               onClick={(e) => { e.stopPropagation(); onViewOfficialProfile(); }}
-              className="absolute top-2 left-2 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-black/50 backdrop-blur-md text-white hover:bg-black/70 transition-colors cursor-pointer"
+              className="absolute top-2 left-2 z-10 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-black/50 backdrop-blur-md text-white hover:bg-black/70 transition-colors cursor-pointer"
               title="Voir le profil TempoFit Officiel"
             >
               TempoFit
             </button>
           ) : (
-            <span className="absolute top-2 left-2 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-black/50 backdrop-blur-md text-white">
+            <span className="absolute top-2 left-2 z-10 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-black/50 backdrop-blur-md text-white">
               TempoFit
             </span>
           )
