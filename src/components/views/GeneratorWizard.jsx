@@ -1104,9 +1104,23 @@ export default function GeneratorWizard({
 
               {/* Boutons finaux : génération immédiate, ou sauvegarde en routine réutilisable */}
               <div className="flex flex-col sm:flex-row gap-4 pt-6 mt-6 border-t border-gray-100 dark:border-gray-800">
-                <button onClick={() => executeGeneration({ isIntervalMode, isCrescendoMode, targetMode, distanceVal, distanceUnit, paceMin, paceSec, segments, bpm, hours, minutes, selectedGenres, bpmTolerance, crossfade, allowLongTracks, genreWeights, workoutName: getActiveWorkoutName() })} disabled={isGenerating} className={`flex-1 text-xl font-black py-5 rounded-2xl flex items-center justify-center space-x-3 transition-transform active:scale-95 shadow-xl ${isNaughtyMode ?
-                  'bg-rose-500 hover:bg-rose-600 text-white' : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200'}`}>
-                  {isGenerating ? <Loader2 size={28} className="animate-spin" /> : <><Zap size={28} /><span>Générer ma Playlist</span></>}
+                {/* ⚠️ 2 correctifs (14/08, retour direct : "Générer suffit
+                    pas, et pourquoi le bouton est blanc ?") :
+                    1. Texte raccourci "Générer ma Playlist" → "Générer" —
+                       redondant à ce stade du wizard (plusieurs étapes de
+                       configuration déjà faites, l'utilisateur sait déjà
+                       ce qu'il génère).
+                    2. Couleur passée à `bgAccentClass` (rouge Sport/rose
+                       Intime) — c'était `bg-gray-900 dark:bg-white`
+                       codé en dur, sans lien avec la couleur de marque
+                       utilisée PARTOUT ailleurs dans ce même fichier
+                       (progression du wizard, badges...) : la CTA la plus
+                       importante de tout le wizard était la seule à ne PAS
+                       porter la couleur d'accent — oubli plutôt que choix
+                       délibéré (aucune trace d'un raisonnement contraire
+                       dans l'historique du projet). */}
+                <button onClick={() => executeGeneration({ isIntervalMode, isCrescendoMode, targetMode, distanceVal, distanceUnit, paceMin, paceSec, segments, bpm, hours, minutes, selectedGenres, bpmTolerance, crossfade, allowLongTracks, genreWeights, workoutName: getActiveWorkoutName() })} disabled={isGenerating} className={`flex-1 text-xl font-black py-5 rounded-2xl flex items-center justify-center space-x-3 transition-transform active:scale-95 shadow-xl text-white hover:brightness-110 ${bgAccentClass}`}>
+                  {isGenerating ? <Loader2 size={28} className="animate-spin" /> : <><Zap size={28} /><span>Générer</span></>}
                 </button>
 
                 <div className="relative group/memorize sm:w-1/3">
