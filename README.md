@@ -13,7 +13,23 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
 Rien en cours actuellement. Cinq chantiers enchaînés, mêmes 24-48h,
-**+ 3 correctifs trouvés/demandés en creusant après coup** :
+**+ 4 correctifs trouvés/demandés en creusant après coup** :
+
+**14/08 — anti-doublon dans le comptage catalogue.** Trouvé en creusant
+encore ("continue à creuser au cas où, même la cosmétique a de
+l'importance") : le comptage en direct du bloc catalogue ne dédoublonnait
+pas contre les titres déjà retenus par les sources précédentes (favoris,
+Spotify, recherche généraliste) — un même titre trouvé par deux sources
+pouvait compter deux fois, gonflant légèrement le chiffre affiché au-delà
+de la réalité du pool. Corrigé en réutilisant `seenIds` (déjà tenu à jour
+par `addIfValid` pour TOUTES les sources, pas seulement la recherche
+généraliste) dans le filtre de comptage — bénéfice plus large que prévu
+au départ (dédoublonne aussi contre favoris/Spotify, pas seulement contre
+la recherche généraliste). Pas de test dédié ajouté : logique trop
+imbriquée dans l'accumulation de `seenIds` sur toute la fonction pour
+être extraite proprement en fonction pure, comme les autres morceaux déjà
+testés de ce chantier — cohérent avec la convention déjà actée pour cette
+fonction (non testable en isolation, appels réseau réels).
 
 **14/08 — chaînage de la progression entre recherche généraliste et
 catalogue d'artistes.** Trouvé en re-creusant après le correctif
