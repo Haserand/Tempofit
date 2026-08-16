@@ -34,7 +34,7 @@ const mockTemplate = {
 };
 
 describe('TemplateCard', () => {
-  it('affiche le titre, l\'auteur, le type de séance et la durée calculée depuis les titres', () => {
+  it('affiche le titre, le type de séance et la durée calculée depuis les titres', () => {
     render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
     expect(screen.getByText('Cardio Blast')).toBeInTheDocument();
     // (180+200)/60 = 6.33 -> arrondi à 6 min
@@ -43,30 +43,27 @@ describe('TemplateCard', () => {
 
   // ⚠️ CORRIGÉ (07/08, retour direct : "mettre les pseudos avant le nom de
   // la playlist, et le compteur de clones, sur la même ligne") — le BPM
-  // moyen n'est plus "à côté de l'auteur" (ligne "chapeau", désormais
-  // réservée à auteur+compteur de clonages) mais sur la ligne de
-  // métadonnées (workoutType/durée), même distinction "composition de la
-  // séance" vs "accueil social" appliquée dans PlaylistHeader.jsx.
-  it('affiche le BPM moyen sur la ligne de métadonnées (avec l\'activité et la durée), pas à côté de l\'auteur', () => {
+  // moyen n'est plus "à côté de l'auteur" (l'ancienne ligne "chapeau" —
+  // depuis le 14/08, celle-ci ne contient même plus l'auteur du tout, voir
+  // plus bas) mais sur la ligne de métadonnées (workoutType/durée), même
+  // distinction "composition de la séance" vs "accueil social" appliquée
+  // dans PlaylistHeader.jsx.
+  it('affiche le BPM moyen sur la ligne de métadonnées, avec l\'activité et la durée', () => {
     render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
     // (150+160)/2 = 155
     expect(screen.getByText('Course à pied • 6 min • 155 BPM')).toBeInTheDocument();
   });
 
-  // ⚠️ CORRIGÉ (07/08) — le compteur de clonages vit désormais DANS le
-  // même <p> que l'auteur (ligne "chapeau"), donc son texte complet
-  // n'égale plus exactement "TempoFit" (il inclut aussi "• 🔄0") —
-  // `getByText('TempoFit', { selector: 'p' })` (exact) ne matcherait plus
-  // rien. Regex substring à la place, comme le test "auteur cliquable"
-  // juste plus bas dans ce fichier, qui affrontait déjà ce même piège.
+  // ⚠️ Simplifié (14/08, retour direct : "TEMPOFIT sur la pochette ET
+  // TempoFit Officiel en dessous, le 2e est redondant" — auteur retiré de
+  // la ligne "chapeau", voir TemplateCard.jsx) — l'ancien contournement
+  // "TempoFit apparaît à 2 endroits" (nécessaire tant que l'auteur ET le
+  // badge portaient tous deux ce texte) n'a plus lieu d'être : il n'y a
+  // plus qu'un seul "TempoFit" sur la carte (le badge), donc plus besoin
+  // de cibler un `<p>` précis pour vérifier l'absence de BPM.
   it('n\'affiche AUCUN BPM quand le modèle n\'a aucun titre (tracks vide)', () => {
     const templateSansTracks = { ...mockTemplate, tracks: [] };
     render(<TemplateCard theme={mockTheme} template={templateSansTracks} onPlayTemplate={() => {}} isNaughtyMode={false} />);
-    // ⚠️ "TempoFit" apparaît à 2 endroits ici (le badge "officiel" ET le nom
-    // d'auteur du mock, qui vaut aussi "TempoFit") — `selector: 'p'` cible
-    // spécifiquement la ligne auteur (seule à contenir "TempoFit" en <p>),
-    // pas le badge (un <span>), pour lever l'ambiguïté.
-    expect(screen.getByText(/TempoFit/, { selector: 'p' })).toBeInTheDocument();
     expect(screen.queryByText(/BPM/)).toBeNull();
   });
 
@@ -120,23 +117,22 @@ describe('TemplateCard', () => {
     expect(onPlayTemplate).toHaveBeenCalledWith(mockTemplate, { cloneCount: 7 });
   });
 
-  // Feature Sociale "Cold Start" (02/08) — auteur cliquable. 0 test
-  // jusqu'ici.
-  describe('auteur cliquable (profil vitrine)', () => {
-    it('sans onViewOfficialProfile fourni : l\'auteur reste du texte simple, pas de bouton', () => {
-      const { container } = render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
+  // ⚠️ RECONÇU (14/08, retour direct : "on a déjà TEMPOFIT sur la pochette
+  // ET TempoFit Officiel en dessous, le 2e est redondant — est-ce qu'on
+  // peut pas juste rendre le badge cliquable ?") — le clic vers le profil
+  // (Feature Sociale "Cold Start", 02/08) vit désormais sur le BADGE
+  // lui-même, plus sur un texte auteur séparé (retiré, voir
+  // TemplateCard.jsx). Section renommée et tests réécrits en conséquence
+  // — le comportement testé (garde `isOfficial && onViewOfficialProfile`,
+  // `stopPropagation`) reste le même, juste porté par un élément différent.
+  describe('badge "TempoFit" cliquable (profil vitrine)', () => {
+    it('sans onViewOfficialProfile fourni : le badge reste un simple span, pas de bouton', () => {
+      render(<TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />);
       expect(screen.queryByRole('button', { name: 'TempoFit' })).toBeNull();
-      // Regex (recherche PARTIELLE), pas une chaîne exacte : ce <p> contient
-      // aussi le BPM ("TempoFit • 155 BPM", 2 nœuds de texte distincts) —
-      // `getByText('TempoFit', ...)` avec une chaîne exige que ce soit TOUT
-      // le contenu de l'élément, ce qui n'est pas le cas ici (contrairement
-      // au test "n'affiche AUCUN BPM" juste au-dessus, où le <p> ne contient
-      // QUE "TempoFit" puisque tracks est vide).
-      expect(screen.getByText(/TempoFit/, { selector: 'p' })).toBeInTheDocument();
-      expect(container.querySelector('p button')).toBeNull();
+      expect(screen.getByText('TempoFit', { selector: 'span' })).toBeInTheDocument();
     });
 
-    it('template.isOfficial=false : l\'auteur reste du texte simple, MÊME avec onViewOfficialProfile fourni (garde-fou pour du contenu non-officiel futur)', () => {
+    it('template.isOfficial=false : aucun badge du tout, ni span ni bouton, même avec onViewOfficialProfile fourni', () => {
       render(
         <TemplateCard
           theme={mockTheme} template={{ ...mockTemplate, isOfficial: false }}
@@ -144,9 +140,10 @@ describe('TemplateCard', () => {
         />
       );
       expect(screen.queryByRole('button', { name: 'TempoFit' })).toBeNull();
+      expect(screen.queryByText('TempoFit', { selector: 'span' })).toBeNull();
     });
 
-    it('isOfficial=true ET onViewOfficialProfile fourni : l\'auteur devient un bouton cliquable', () => {
+    it('isOfficial=true ET onViewOfficialProfile fourni : le badge devient un bouton cliquable', () => {
       render(
         <TemplateCard
           theme={mockTheme} template={mockTemplate}
@@ -156,7 +153,7 @@ describe('TemplateCard', () => {
       expect(screen.getByRole('button', { name: 'TempoFit' })).toBeInTheDocument();
     });
 
-    it('le clic sur l\'auteur appelle onViewOfficialProfile, SANS déclencher onPlayTemplate (stopPropagation)', () => {
+    it('le clic sur le badge appelle onViewOfficialProfile, SANS déclencher onPlayTemplate (stopPropagation)', () => {
       const onPlayTemplate = vi.fn();
       const onViewOfficialProfile = vi.fn();
       render(
@@ -171,6 +168,18 @@ describe('TemplateCard', () => {
       expect(onViewOfficialProfile).toHaveBeenCalledTimes(1);
       expect(onPlayTemplate).not.toHaveBeenCalled();
     });
+  });
+
+  it('le nom de l\'auteur (template.author) n\'est plus affiché en texte nulle part sur la carte (redondant avec le badge, retiré le 14/08)', () => {
+    render(
+      <TemplateCard
+        theme={mockTheme} template={mockTemplate}
+        onPlayTemplate={() => {}} isNaughtyMode={false} onViewOfficialProfile={() => {}}
+      />
+    );
+    // Le SEUL "TempoFit" visible est celui du badge (devenu bouton ici,
+    // puisque onViewOfficialProfile est fourni) — un seul élément, pas deux.
+    expect(screen.getAllByText('TempoFit')).toHaveLength(1);
   });
 
   // ⚠️ RÉÉCRIT le 02/08 (2e retour direct : "je veux que ce compteur soit
@@ -190,17 +199,20 @@ describe('TemplateCard', () => {
 
     // NOUVEAU (07/08, retour direct, capture annotée : "mettre les pseudos
     // avant le nom de la playlist, et le compteur de clones, sur la même
-    // ligne") — vérifie la vraie demande : auteur + compteur regroupés
-    // dans la MÊME ligne, PRÉCÉDANT le titre dans le DOM (pas juste "les
-    // deux existent quelque part sur la carte").
-    it('la ligne auteur+compteur de clonages précède immédiatement le titre dans le DOM', () => {
+    // ligne") — vérifie la vraie demande : le compteur PRÉCÈDE le titre
+    // dans le DOM (pas juste "il existe quelque part sur la carte").
+    // ⚠️ Mis à jour (14/08) — cette ligne "chapeau" contenait aussi
+    // l'auteur ("TempoFit") jusqu'ici ; depuis le retrait de l'auteur (le
+    // texte est redondant avec le badge sur la pochette, voir
+    // TemplateCard.jsx), elle ne contient plus QUE le compteur.
+    it('la ligne du compteur de clonages précède immédiatement le titre dans le DOM', () => {
       const { container } = render(
         <TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} cloneCount={3} />
       );
       const h3 = container.querySelector('h3');
       const byline = h3.previousElementSibling;
       expect(byline.tagName).toBe('P');
-      expect(byline).toHaveTextContent('TempoFit');
+      expect(byline).toHaveTextContent('3');
       expect(byline.querySelector('[title="Nombre de fois où cette playlist a été clonée"]')).not.toBeNull();
     });
   });
