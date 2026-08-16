@@ -208,23 +208,30 @@ describe('TemplateCard', () => {
       expect(screen.getByTitle('Nombre de fois où cette playlist a été clonée')).toHaveTextContent('0');
     });
 
-    // NOUVEAU (07/08, retour direct, capture annotée : "mettre les pseudos
-    // avant le nom de la playlist, et le compteur de clones, sur la même
-    // ligne") — vérifie la vraie demande : le compteur PRÉCÈDE le titre
-    // dans le DOM (pas juste "il existe quelque part sur la carte").
-    // ⚠️ Mis à jour (14/08) — cette ligne "chapeau" contenait aussi
-    // l'auteur ("TempoFit") jusqu'ici ; depuis le retrait de l'auteur (le
-    // texte est redondant avec le badge sur la pochette, voir
-    // TemplateCard.jsx), elle ne contient plus QUE le compteur.
-    it('la ligne du compteur de clonages précède immédiatement le titre dans le DOM', () => {
+    // ⚠️ RÉÉCRIT le 14/08 (retour direct : "pour gagner de la place, le
+    // compteur en bas à droite de la pochette ?") — le compteur ne vit
+    // plus DEVANT le titre (l'ancien `<p>` "chapeau" a été retiré
+    // entièrement, voir TemplateCard.jsx) mais EN OVERLAY sur la pochette
+    // elle-même, coin inférieur droit, symétrique au badge "TempoFit" en
+    // haut à gauche.
+    it('le compteur de clonages est affiché en overlay SUR la pochette, pas dans le bloc texte en dessous', () => {
       const { container } = render(
         <TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} cloneCount={3} />
       );
+      const badge = screen.getByTitle('Nombre de fois où cette playlist a été clonée');
+      const coverContainer = container.querySelector('.aspect-square');
+      expect(coverContainer.contains(badge)).toBe(true);
+      expect(badge).toHaveTextContent('3');
+    });
+
+    it('le titre suit directement la pochette, sans ligne "chapeau" intermédiaire (retirée entièrement)', () => {
+      const { container } = render(
+        <TemplateCard theme={mockTheme} template={mockTemplate} onPlayTemplate={() => {}} isNaughtyMode={false} />
+      );
       const h3 = container.querySelector('h3');
-      const byline = h3.previousElementSibling;
-      expect(byline.tagName).toBe('P');
-      expect(byline).toHaveTextContent('3');
-      expect(byline.querySelector('[title="Nombre de fois où cette playlist a été clonée"]')).not.toBeNull();
+      // Premier enfant du bloc texte sous la pochette — plus aucun <p>
+      // "chapeau" avant lui (ni auteur ni compteur, tous deux déménagés).
+      expect(h3.previousElementSibling).toBeNull();
     });
   });
 
