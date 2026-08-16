@@ -153,6 +153,17 @@ describe('TemplateCard', () => {
       expect(screen.getByRole('button', { name: 'TempoFit' })).toBeInTheDocument();
     });
 
+    // ⚠️ LIMITE CONNUE de ce test (14/08, découverte via un vrai bug raté
+    // ICI MÊME au premier passage) — `fireEvent.click(élément)` déclenche
+    // le clic DIRECTEMENT sur l'élément ciblé, sans le moindre test de
+    // recouvrement visuel réel (jsdom ne fait AUCUNE mise en page/rendu
+    // CSS) : ce test passait DÉJÀ avant le correctif `z-10` (voir
+    // TemplateCard.jsx), alors que dans un vrai navigateur, cliquer au
+    // même endroit à l'écran atteignait l'overlay du bouton play
+    // au-dessus (ordre DOM, sans z-index) plutôt que ce badge. Ce test
+    // vérifie que le CÂBLAGE (onClick + stopPropagation) est correct — pas
+    // que le badge est RÉELLEMENT atteignable au clic dans un navigateur
+    // réel, ce que jsdom ne peut pas vérifier.
     it('le clic sur le badge appelle onViewOfficialProfile, SANS déclencher onPlayTemplate (stopPropagation)', () => {
       const onPlayTemplate = vi.fn();
       const onViewOfficialProfile = vi.fn();
