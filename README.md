@@ -13,7 +13,28 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
 Rien en cours actuellement. Cinq chantiers enchaînés, mêmes 24-48h,
-**+ 1 correctif trouvé au check-up qui a suivi** :
+**+ 2 correctifs trouvés/demandés en creusant après coup** :
+
+**14/08 — angle mort comblé sur demande explicite : progression aussi pour
+le chemin catalogue d'artistes.** Signalé au check-up précédent comme
+angle mort acceptable (pas corrigé sur le moment), puis demandé quand
+même ("tan qu'à faire"). Le chemin de repli par catalogue d'artistes
+(`ARTIST_CATALOG`, musicEngine.js) — SEUL chemin emprunté pour les genres
+à mot-clé Deezer fragile (K-pop, etc.), et systématiquement en complément
+pour les genres normaux — n'avait aucun signal de progression, contrairement
+à la recherche généraliste Deezer. `fetchInBatches` (utilitaire partagé,
+8 appels dans musicEngine.js) accepte désormais un 4e paramètre optionnel
+`onBatchDone`, rétrocompatible (`null` par défaut, aucun effet sur les 7
+autres appels). Utilisé sur CE chemin précis pour compter les candidats
+valables lot par lot, plutôt qu'une conversion durée→titres (cette branche
+n'accumule pas de durée "bon genre" comme la recherche généraliste).
+⚠️ Cette 2e branche de progression tourne parfois APRÈS la recherche
+généraliste dans le MÊME appel à `buildSegmentTracks`, sans être chaînée à
+son compte — un vrai risque de régression visible (le compteur qui
+redescend), mais déjà couvert par le clamp anti-régression posé juste
+avant au niveau de l'affichage (`usePlaylistGeneration.js`) : aucun
+changement nécessaire là, la protection était déjà générique. Tests
+ajoutés dans `tests/engine/fetchInBatches.test.js`.
 
 **14/08 — check-up post-chantier "titres au fur et à mesure" : clamp
 anti-régression.** Pas un retour direct cette fois — trouvé en relisant
