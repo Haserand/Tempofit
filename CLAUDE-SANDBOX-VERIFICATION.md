@@ -55,6 +55,45 @@ dans cet ordre :
 7. **Mettre à jour `README.md` avant de conclure** : (a) si une décision d'architecture a été touchée (voir la section précédente) ; (b) **systématiquement si un chantier a démarré, avancé ou terminé** — la section "🚧 État d'avancement" en tête du README doit toujours refléter où en est réellement le projet, sinon une session future repart à l'aveugle en croyant qu'aucun chantier n'est en cours.
 8. **`PASSATION.md` n'est PAS un fichier du dépôt à tenir à jour en continu — ne PAS le créer/modifier/livrer sauf demande explicite.** Correction actée le 13/08 (retour direct après avoir livré une passation dans le repo sans qu'on le demande : "ce doc est pas dans mon zip, c'est juste ce que je t'envoie par message quand je démarre une nouvelle session avec toi"). Le fichier "PASSATION — session du XX/XX" vu en tout début d'une conversation est fourni **par l'utilisateur, en pièce jointe/message**, pas extrait du zip du projet — un résumé chronologique et narratif de LA session précédente, écrit à la toute fin de celle-ci **uniquement si l'utilisateur le demande à ce moment-là**. Ce fichier n'a jamais vocation à vivre dans le dépôt GitHub aux côtés de README.md/CLAUDE-SANDBOX-VERIFICATION.md/HISTORIQUE.md — ces trois-là oui, PASSATION.md non. Règle concrète : à la lecture d'une passation fournie en début de session, la lire une fois (comme d'habitude) puis repartir du README/habitudes — mais ne jamais, de sa propre initiative, écrire un nouveau fichier `PASSATION.md` en fin de session ni le proposer dans un lot de fichiers à livrer. Si l'utilisateur demande explicitement "fais-moi une passation" en fin de session, la rédiger alors comme un texte de réponse normal (ou un artefact, selon ce qui est demandé) — jamais comme un fichier destiné au repo avec un chemin GitHub.
 
+### Habitude de travail : relecture approfondie systématique après un chantier sur du code SENSIBLE — ne pas attendre qu'on me demande de creuser
+Actée le 14/08, après une série de "tu vois d'autres trucs en creusant
+plus ?" sur le même chantier (compteur de titres en direct pendant la
+génération, `musicEngine.js`) : la 1ère relecture avait trouvé un vrai
+bug utilisateur (compteur qui redescend visiblement), la 2e un glitch
+plus discret (compteur qui stagne à la transition entre deux sources), la
+3e une surestimation cosmétique (doublons non filtrés), la 4e un silence
+total sur un chemin de repli entièrement hors radar. Chaque relecture a
+trouvé quelque chose de RÉEL, mais de MOINS EN MOINS grave que la
+précédente — jusqu'à ce que l'utilisateur fasse remarquer, à raison, que
+ça vaudrait le coup de systématiser ce réflexe plutôt que de compter sur
+lui pour insister à chaque fois ("autant continuer à te le demander
+jusqu'à ce que t'aies plus rien").
+
+**Règle concrète** : après tout chantier qui touche un fichier déjà
+identifié comme sensible dans ce projet (`musicEngine.js` — moteur de
+génération —, la logique de synchro dans `usePersistentState.js`/
+`useSyncedCollection.js`, ou plus généralement tout code avec plusieurs
+branches/boucles/appels récursifs qui alimentent une MÊME valeur
+affichée/partagée), **faire au moins une relecture complète et attentive
+dédiée avant de considérer la livraison terminée** — pas seulement
+vérifier que ça compile (`esbuild`/`tsc`), une relecture qui cherche
+spécifiquement :
+- Des chemins/branches multiples qui alimentent la même valeur affichée
+  et pourraient ne pas se composer correctement entre eux (une régresse,
+  une stagne, une surestime — trois symptômes différents pour le même
+  genre de cause).
+- Des points d'entrée secondaires (repli, cas d'erreur, filet de
+  sécurité) qui font le même genre de travail que le chemin principal
+  déjà couvert, mais qu'on a oublié d'instrumenter/vérifier pareil.
+- Des hypothèses de portée/scope (une variable accessible ici mais pas
+  là, un état qui devrait persister entre deux appels mais ne le fait
+  pas) qui ne sautent pas aux yeux à la première écriture.
+
+Faire ça **avant** que l'utilisateur redemande de creuser, pas après —
+le but n'est pas de répondre à la question "tu vois autre chose ?" de
+mieux en mieux à chaque fois qu'on la pose, mais de ne plus avoir besoin
+qu'elle soit posée du tout pour ce niveau de rigueur.
+
 ### Habitude de travail : cadrer CHAQUE demande avant d'itérer — dire explicitement si c'est utile ou pas
 Trouvé le 04/08 (retour direct : "je veux désormais que tu me cadres à chaque demande avant d'itérer en me disant si tu la trouves utile ou pas" — puis, une fois oublié à nouveau plus tard dans la même session : "je veux que le fait que tu me cadres [...] soit systématisé et écrite dans les docs de travail pour ne pas avoir à te le redire, tu as tendance à oublier"). Le 2e retour est le signal important : une instruction donnée en cours de conversation ne suffit pas à elle seule à devenir un réflexe durable — sans trace écrite ici, elle ne survit pas au-delà de la session (ou même au-delà de quelques échanges dans la MÊME session, comme cette fois).
 Règle : avant de commencer à exécuter une demande (surtout un ajustement UI/UX, un réglage fin, ou toute demande où "c'est utile" n'est pas évident), donner un avis franc et bref sur son utilité — pas juste foncer dans l'exécution. Concrètement :
