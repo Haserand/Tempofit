@@ -309,6 +309,49 @@ describe('usePlaylistGeneration — generatingEstimatedTracksFound (NOUVEAU, 14/
     expect(setGeneratingEstimatedTracksFound).toHaveBeenCalledWith(7);
   });
 
+  // Trouvé en RELECTURE après coup (14/08, pas au premier passage) — voir le
+  // commentaire "Clamp anti-régression" dans usePlaylistGeneration.js pour le
+  // raisonnement complet (genres pondérés multiples, marge de pool 1.5x).
+  it('clamp anti-régression : une estimation qui redescend (transition entre genres pondérés) n\'est PAS relayée telle quelle', async () => {
+    const setGeneratingEstimatedTracksFound = vi.fn();
+    mockCreatePlaylistData.mockImplementationOnce(async (config, exclude, favorites, pool, naughty, onProgress) => {
+      onProgress(8); // estimation haute pendant la recherche du 1er genre
+      onProgress(5); // le genre suivant démarre sur le compte RÉEL, plus bas
+      onProgress(9); // puis remonte normalement
+      return makeFakePlaylist();
+    });
+    const { result } = renderGenerationHook(baseProps({ setGeneratingEstimatedTracksFound }));
+
+    await act(async () => {
+      await result.current.executeGeneration({ targetMode: 'time', hours: 0, minutes: 20, isIntervalMode: false, selectedGenres: [] }, 1);
+    });
+
+    expect(setGeneratingEstimatedTracksFound).toHaveBeenCalledWith(8);
+    expect(setGeneratingEstimatedTracksFound).not.toHaveBeenCalledWith(5); // avalé par le clamp, jamais affiché
+    expect(setGeneratingEstimatedTracksFound).toHaveBeenCalledWith(9);
+  });
+
+  it('clamp anti-régression : repart bien de zéro pour CHAQUE playlist d\'un lot (pas de fuite entre elles)', async () => {
+    const setGeneratingEstimatedTracksFound = vi.fn();
+    mockCreatePlaylistData
+      .mockImplementationOnce(async (config, exclude, favorites, pool, naughty, onProgress) => {
+        onProgress(10); // 1ère playlist du lot : monte haut
+        return makeFakePlaylist();
+      })
+      .mockImplementationOnce(async (config, exclude, favorites, pool, naughty, onProgress) => {
+        onProgress(2); // 2e playlist : recherche indépendante, repart bas — doit quand même passer
+        return makeFakePlaylist();
+      });
+    const { result } = renderGenerationHook(baseProps({ setGeneratingEstimatedTracksFound }));
+
+    await act(async () => {
+      await result.current.executeGeneration({ targetMode: 'time', hours: 0, minutes: 20, isIntervalMode: false, selectedGenres: [] }, 2);
+    });
+
+    expect(setGeneratingEstimatedTracksFound).toHaveBeenCalledWith(10);
+    expect(setGeneratingEstimatedTracksFound).toHaveBeenCalledWith(2); // pas avalé par le clamp de la 1ère playlist
+  });
+
   it('réinitialisé à 0 au tout début de chaque génération, avant le 1er appel du moteur', async () => {
     const setGeneratingEstimatedTracksFound = vi.fn();
     mockCreatePlaylistData.mockResolvedValueOnce(makeFakePlaylist());
