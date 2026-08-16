@@ -12,7 +12,45 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement. Quatre chantiers enchaînés, mêmes 24-48h :
+Rien en cours actuellement. Cinq chantiers enchaînés, mêmes 24-48h :
+
+**14/08 (suite) — bandeau de génération, système à paliers de temps +
+compte de titres en direct.** Suite directe du chantier précédent
+(`isGeneratingSlowGenre`/`isGeneratingLongPlaylist`) — l'utilisateur a
+validé le principe d'un système à 3 paliers de temps (0-15s inchangé,
+15-45s "un peu plus long que d'habitude", 45s+ normalise explicitement),
+PUIS demandé si un temps indicatif selon la config était possible malgré
+tout, PUIS si le nombre de titres pouvait évoluer EN DIRECT plutôt qu'une
+simple estimation statique — 2 réflexions successives données avant
+d'implémenter quoi que ce soit (temps chiffré réaffirmé écarté ; chantier
+"live" évalué comme plus lourd — touche musicEngine.js — et validé
+explicitement seulement après ça).
+- **`musicEngine.js`** — `buildSegmentTracks`/`createPlaylistData`
+  acceptent désormais un callback `onProgress(estimatedCount)`, threadé à
+  travers la boucle de pages Deezer, la branche récursive des genres
+  pondérés (cumul par compte RÉEL entre sous-appels, pas une estimation
+  qui s'additionnerait sur elle-même), et les segments multiples en mode
+  Fractionné (offset = titres déjà confirmés par les segments
+  précédents). ⚠️ C'est une ESTIMATION du pool de candidats, PAS le
+  décompte des titres FINAUX (la sélection réelle se fait d'un coup, une
+  fois le pool construit) — voir la docstring complète dans le fichier.
+  Calcul d'estimation extrait en fonction pure
+  `estimateTrackCountFromDuration` (exportée, testée en isolation — même
+  réflexe que `buildGeneratedPlaylistName`, 08/08, ces fonctions moteur
+  n'étant pas testables directement, appels réseau réels).
+- **`usePlaylistGeneration.js`** — nouveau paramètre
+  `setGeneratingEstimatedTracksFound`, relayé depuis le callback du
+  moteur avec garde-fou contre une mise à jour APRÈS annulation
+  (`cancelToken.cancelled`, même principe que pour jeter le résultat
+  final d'une génération annulée), réinitialisé à 0 au début, à
+  l'annulation, et à la fin.
+- **`App.jsx`** — nouvelle fonction `getGenerationBannerMessage()`
+  (remplace un ternaire imbriqué devenu difficile à lire) : paliers 15-45s
+  et 45s+ affichent le compte de titres réunis dès qu'il est disponible,
+  sinon retombent sur le message de réassurance générique par palier.
+- Tests dédiés dans `tests/engine/musicEngine.test.js` (la fonction pure
+  extraite) et `tests/hooks/usePlaylistGeneration.test.js` (relais correct
+  du callback, réinitialisations, garde-fou post-annulation).
 
 **14/08 (suite) — bandeau de génération, séance longue.** Retour direct :
 "passé la minute de génération, l'utilisateur a cru que ça avait planté"
