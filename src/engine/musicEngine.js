@@ -237,6 +237,21 @@ const resolveBpmForCandidates = async (details, minBpm, maxBpm) => {
 // juste parce que sa durée comble bien ce qu'il reste à remplir (voir addIfValid
 // dans buildSegmentTracks et les filtres équivalents dans getSingleMatchingTrack).
 const MAX_TRACK_DURATION = 360;
+// Utilisée UNIQUEMENT pour convertir une durée de pool couverte en une
+// estimation de NOMBRE de titres, affichée au fil de la génération (voir
+// `onProgress` dans buildSegmentTracks/createPlaylistData, 14/08). Valeur
+// ronde, pas calculée sur un vrai historique (aucune télémétrie dans ce
+// projet) — sert uniquement à un affichage indicatif "~X titres trouvés",
+// jamais à une décision de sélection réelle des titres.
+const AVG_TRACK_DURATION_SECONDS = 210;
+
+// Extraite (14/08, même raisonnement que buildGeneratedPlaylistName ci-dessous,
+// 08/08 : `buildSegmentTracks`/`createPlaylistData` ne sont pas testables en
+// isolation, appels réseau Deezer réels) — pour pouvoir tester CE calcul
+// précis sans mock réseau. Volontairement `Math.round` (pas `Math.floor`) :
+// une estimation qui arrondit toujours vers le bas donnerait l'impression
+// d'être perpétuellement "en retard" sur elle-même au fil des paliers.
+const estimateTrackCountFromDuration = (durationSeconds) => Math.round((durationSeconds || 0) / AVG_TRACK_DURATION_SECONDS);
 
 const pickByDurationProximity = (candidates, preferredDuration) => {
   if (!preferredDuration || candidates.length <= 1) {
@@ -866,7 +881,20 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
  * durée cible, on retombe sur `getSingleMatchingTrack` (GetSongBPM + repli
  * extrême) pour terminer, qui garantit qu'on ne reste jamais bloqué.
  */
-const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, spotifyTrackPool, historyExcludeIds = []) => {
+// `onProgress(estimatedCount)` — AJOUTÉ (14/08, retour direct + réflexion
+// discutée avant implémentation) : callback optionnel
+// appelé au fil de la recherche Deezer, avec une ESTIMATION du nombre de
+// titres actuellement réunis dans le pool de candidats — PAS un décompte
+// des titres FINAUX retenus (la sélection réelle, plus bas dans cette
+// fonction, ne se fait qu'une fois le pool entièrement construit). Sert
+// uniquement à un message d'attente indicatif côté UI (bandeau de
+// génération, App.jsx) — jamais utilisé pour une décision de sélection.
+// `progressBaseCount` : offset à ajouter à l'estimation LOCALE de cet appel
+// — nécessaire pour 2 cas où plusieurs appels à cette fonction contribuent
+// au MÊME total affiché à l'utilisateur : (a) genres pondérés (branche
+// récursive juste en dessous, un sous-appel par genre) et (b) segments
+// multiples en mode Fractionné (géré par l'appelant, createPlaylistData).
+const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, spotifyTrackPool, historyExcludeIds = [], onProgress = null, progressBaseCount = 0) => {
   // Genre effectif pour CE segment : si la portion a un genre spécifique défini
   // (override manuel à l'étape 3 du wizard), il prime sur le genre global de la
   // séance (config.selectedGenres) — sinon comportement inchangé.
@@ -891,14 +919,21 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
   if (usingGlobalGenres && effectiveGenres.length > 1 && config.genreWeights && Object.keys(config.genreWeights).length > 1) {
     let allSelected = [];
     let runningExcludeIds = [...excludeTrackIds];
+    // Compte RÉEL (pas une estimation) des titres déjà retenus par les
+    // genres précédents dans cette boucle — sert de `progressBaseCount` au
+    // sous-appel suivant, pour que la progression affichée reste cumulative
+    // et cohérente d'un genre à l'autre plutôt que de "repartir de zéro" à
+    // chaque nouveau genre.
+    let confirmedCountSoFar = progressBaseCount;
     for (const genre of effectiveGenres) {
       const weight = config.genreWeights[genre];
       if (!weight || weight <= 0) continue; // un genre mis à 0% est simplement ignoré
       const subDurationSeconds = segment.durationSeconds * (weight / 100);
       if (subDurationSeconds < 20) continue; // trop court pour espérer y caser un titre
       const subSegment = { ...segment, durationSeconds: subDurationSeconds, selectedGenres: [genre] };
-      const subTracks = await buildSegmentTracks(subSegment, config, runningExcludeIds, favorites, spotifyTrackPool, historyExcludeIds);
+      const subTracks = await buildSegmentTracks(subSegment, config, runningExcludeIds, favorites, spotifyTrackPool, historyExcludeIds, onProgress, confirmedCountSoFar);
       allSelected = [...allSelected, ...subTracks];
+      confirmedCountSoFar += subTracks.length;
       runningExcludeIds = [...runningExcludeIds, ...subTracks.map(t => t.trackId)];
     }
     return allSelected;
@@ -1044,6 +1079,9 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
           genreValidDurationSoFar += (t.duration || 180);
         }
       });
+      // Voir la docstring de `onProgress` en tête de fonction — ESTIMATION,
+      // pas le décompte final (la sélection réelle vient plus bas).
+      if (onProgress) onProgress(progressBaseCount + estimateTrackCountFromDuration(genreValidDurationSoFar));
     }
 
     for (const full of allResolvedCandidates) {
@@ -1544,7 +1582,13 @@ const buildGeneratedPlaylistName = (config, isNaughtyMode, finalWorkoutName) => 
   return `${getActivityEmoji(finalWorkoutName)} ${generatedName}`;
 };
 
-const createPlaylistData = async (config, initialExcludeIds = [], favorites, spotifyTrackPool, isNaughtyMode) => {
+// `onProgress(estimatedCount)` — voir la docstring complète de
+// `buildSegmentTracks` juste au-dessus, même paramètre transmis tel quel.
+// Pour un mode Fractionné (plusieurs segments), l'offset passé à CHAQUE
+// segment est `tracks.length` — le compte RÉEL des titres déjà CONFIRMÉS
+// par les segments précédents — pour que la progression affichée reste
+// cumulative sur toute la séance, pas seulement le segment en cours.
+const createPlaylistData = async (config, initialExcludeIds = [], favorites, spotifyTrackPool, isNaughtyMode, onProgress = null) => {
   let activeSegments = [];
   const unitPaceSecs = config.targetMode === 'distance' ? ((parseInt(config.paceMin)||0)*60 + (parseInt(config.paceSec)||0)) : 330;
 
@@ -1573,7 +1617,10 @@ const createPlaylistData = async (config, initialExcludeIds = [], favorites, spo
       // durée cible comme un problème de "somme de sous-ensemble" (voir
       // buildSegmentTracks) — plutôt que d'ajouter des morceaux un par un sans
       // vue d'ensemble, ce qui pouvait faire largement dépasser la cible.
-      const segmentTracks = await buildSegmentTracks(segment, config, usedTrackIds, favorites, spotifyTrackPool, initialExcludeIds);
+      const segmentTracks = await buildSegmentTracks(
+        segment, config, usedTrackIds, favorites, spotifyTrackPool, initialExcludeIds,
+        onProgress, tracks.length,
+      );
       segmentTracks.forEach((randomTrack) => {
           if (randomTrack._isFallback) fallbackCount++;
           tracks.push({
@@ -1624,6 +1671,7 @@ export {
   resolveDeezerTrackByTitleArtist,
   searchDeezerForGenres,
   buildGeneratedPlaylistName,
+  estimateTrackCountFromDuration,
   getSingleMatchingTrack,
   buildSegmentTracks,
   deduceCrescendoBpm,
