@@ -12,9 +12,22 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement. Sept chantiers enchaînés, mêmes 24-48h,
+Rien en cours actuellement. Huit chantiers enchaînés, mêmes 24-48h,
 **+ 6 correctifs trouvés/demandés en creusant après coup, et une nouvelle
 habitude actée à l'issue de cette série** :
+
+**14/08 — bouton final du wizard : texte raccourci + couleur de marque
+restaurée.** Retour direct : "Générer suffit pas ? et pourquoi le bouton
+est blanc ?". "Générer ma Playlist" → "Générer" (redondant à ce stade,
+plusieurs étapes de configuration déjà faites). Couleur : c'était
+`bg-gray-900 dark:bg-white` codé en dur, sans lien avec `bgAccentClass`
+(rouge Sport/rose Intime) utilisé PARTOUT ailleurs dans ce même fichier —
+la CTA la plus importante de tout le wizard était la seule à ne pas
+porter la couleur de marque, aucune trace d'un raisonnement voulu dans
+l'historique du projet. Passé à `bgAccentClass`, qui bascule déjà
+automatiquement rouge/rose via CSS (`--color-primary`, index.css) — plus
+besoin du ternaire `isNaughtyMode` local, supprimé. Test mis à jour dans
+`GeneratorWizard.test.jsx`.
 
 **14/08 — Découvrir : compteur de clonages déplacé sur la pochette.**
 Retour direct : "pour gagner de la place, le compteur en bas à droite de
