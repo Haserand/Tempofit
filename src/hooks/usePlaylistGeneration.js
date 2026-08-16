@@ -240,7 +240,24 @@ export function usePlaylistGeneration(
     let rollingExcludeIds = sourceRoutine ? [...(sourceRoutine.recentTrackIds || [])] : [];
 
     const generatedPlaylists = [];
+    // Clamp anti-régression (14/08, trouvé en relecture après coup, pas au
+    // premier passage) — PLUSIEURS genres pondérés ENSEMBLE (config.genreWeights)
+    // font que `createPlaylistData` enchaîne plusieurs sous-recherches, une par
+    // genre (voir la branche récursive dans buildSegmentTracks, musicEngine.js).
+    // Le pool visé par CHAQUE sous-recherche fait volontairement 1.5x la durée
+    // visée (marge pour laisser le choix à la sélection finale) — l'ESTIMATION
+    // affichée en cours de recherche pour un genre peut donc dépasser le compte
+    // RÉEL finalement retenu pour ce même genre une fois la sélection faite.
+    // Au passage au genre SUIVANT, la progression repart de ce compte RÉEL
+    // (souvent plus bas que la dernière estimation affichée) — sans ce clamp,
+    // le compteur du bandeau pourrait visiblement REDESCENDRE d'un coup, l'air
+    // buggé plutôt qu'indicatif. Local à cette fonction (pas un state, pas
+    // besoin de re-render pour lui-même) — réinitialisé à chaque nouvelle
+    // playlist du lot (`i` change), une nouvelle recherche repart légitimement
+    // de zéro.
+    let lastReportedTrackCount = 0;
     for (let i = 0; i < count; i++) {
+      lastReportedTrackCount = 0;
       // Callback de progression (14/08) — voir la docstring de `createPlaylistData`
       // dans musicEngine.js pour ce qu'elle représente vraiment (une ESTIMATION du
       // pool, pas le décompte final). Garde-fou `cancelToken.cancelled` : sans lui,
@@ -249,7 +266,10 @@ export function usePlaylistGeneration(
       // garde `if (cancelled) return;`/`cancelToken` déjà utilisée plus bas dans
       // cette boucle pour jeter le résultat final d'une génération annulée.
       const pl = await createPlaylistData(config, rollingExcludeIds, favorites, spotifyTrackPool, isNaughtyMode, (estimatedCount) => {
-        if (!cancelToken.cancelled) setGeneratingEstimatedTracksFound(estimatedCount);
+        if (cancelToken.cancelled) return;
+        if (estimatedCount <= lastReportedTrackCount) return; // voir le clamp anti-régression ci-dessus
+        lastReportedTrackCount = estimatedCount;
+        setGeneratingEstimatedTracksFound(estimatedCount);
       });
       if (count > 1) pl.name = `${pl.name} (Session ${i + 1})`;
       generatedPlaylists.push(pl);
