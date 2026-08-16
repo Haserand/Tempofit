@@ -13,8 +13,27 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
 Rien en cours actuellement. Six chantiers enchaînés, mêmes 24-48h,
-**+ 5 correctifs trouvés/demandés en creusant après coup, et une nouvelle
+**+ 6 correctifs trouvés/demandés en creusant après coup, et une nouvelle
 habitude actée à l'issue de cette série** :
+
+**14/08 — bug réel raté au 1er passage : badge cliquable inatteignable
+(empilement CSS).** Retour direct après déploiement : "TEMPOFIT est pas
+cliquable". Le câblage (`onClick`+`stopPropagation`) était correct, mais
+JAMAIS atteint dans un vrai navigateur — l'overlay du bouton play
+(`absolute inset-0`, transparent hors survol) vient APRÈS le badge dans
+le DOM ; sans z-index explicite, 2 éléments `position: absolute`
+s'empilent selon leur ordre DOM, celui d'après passe AU-DESSUS même
+invisible. Cet overlay couvre toute la carte, recouvrait donc le coin du
+badge et interceptait le clic avant qu'il n'atteigne le bouton en dessous
+— remontant jusqu'au clic de la carte entière (ouvrir la playlist) au
+lieu du badge (voir profil). Corrigé avec `z-10` sur le badge. **Limite
+honnêtement notée dans le test existant** : `fireEvent.click()` en jsdom
+cible l'élément directement, sans aucun test de recouvrement visuel réel
+— ce test passait DÉJÀ avant le correctif, il vérifie le câblage, pas
+l'atteignabilité réelle au clic dans un navigateur, que jsdom ne peut pas
+simuler. Recherche du même motif ailleurs dans le projet (badge cliquable
+en coin + overlay plein cadre après lui dans le DOM) — aucune autre
+occurrence trouvée, cas isolé à ce fichier.
 
 **14/08 — Découvrir : badge "TempoFit" cliquable, auteur redondant
 retiré.** Retour direct avec capture : "on a déjà TEMPOFIT sur la
