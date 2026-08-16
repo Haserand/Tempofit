@@ -62,7 +62,7 @@ function renderGenerationHook(initialProps) {
       props.setCurrentPlaylist, props.changeView,
       props.savedPlaylists, props.setSavedPlaylists,
       props.setIsGenerating, props.setGeneratingTotal, props.setGeneratingDone, props.setIsGeneratingSlowGenre,
-      props.setIsGeneratingLongPlaylist,
+      props.setIsGeneratingLongPlaylist, props.setGeneratingEstimatedTracksFound,
     ),
     { initialProps }
   );
@@ -87,6 +87,7 @@ function baseProps(overrides = {}) {
     setGeneratingDone: vi.fn(),
     setIsGeneratingSlowGenre: vi.fn(),
     setIsGeneratingLongPlaylist: vi.fn(),
+    setGeneratingEstimatedTracksFound: vi.fn(),
     ...overrides,
   };
 }
@@ -280,5 +281,82 @@ describe('usePlaylistGeneration — isGeneratingLongPlaylist (NOUVEAU, 14/08)', 
     act(() => { result.current.cancelGeneration(); });
 
     expect(setIsGeneratingLongPlaylist).toHaveBeenLastCalledWith(false);
+  });
+});
+
+// NOUVEAU (14/08, même retour direct — chantier plus lourd validé
+// explicitement après discussion sur le rapport effort/risque) : `createPlaylistData` accepte désormais un callback
+// `onProgress`, appelé par le VRAI moteur (musicEngine.js, mocké ici) au
+// fil de sa recherche — ces tests vérifient seulement que
+// `usePlaylistGeneration.js` relaie correctement ce que le moteur lui
+// envoie, PAS le calcul d'estimation lui-même (couvert séparément dans
+// musicEngine.test.js).
+describe('usePlaylistGeneration — generatingEstimatedTracksFound (NOUVEAU, 14/08)', () => {
+  it('relaie chaque appel du onProgress du moteur vers setGeneratingEstimatedTracksFound', async () => {
+    const setGeneratingEstimatedTracksFound = vi.fn();
+    mockCreatePlaylistData.mockImplementationOnce(async (config, exclude, favorites, pool, naughty, onProgress) => {
+      onProgress(3);
+      onProgress(7);
+      return makeFakePlaylist();
+    });
+    const { result } = renderGenerationHook(baseProps({ setGeneratingEstimatedTracksFound }));
+
+    await act(async () => {
+      await result.current.executeGeneration({ targetMode: 'time', hours: 0, minutes: 20, isIntervalMode: false, selectedGenres: [] }, 1);
+    });
+
+    expect(setGeneratingEstimatedTracksFound).toHaveBeenCalledWith(3);
+    expect(setGeneratingEstimatedTracksFound).toHaveBeenCalledWith(7);
+  });
+
+  it('réinitialisé à 0 au tout début de chaque génération, avant le 1er appel du moteur', async () => {
+    const setGeneratingEstimatedTracksFound = vi.fn();
+    mockCreatePlaylistData.mockResolvedValueOnce(makeFakePlaylist());
+    const { result } = renderGenerationHook(baseProps({ setGeneratingEstimatedTracksFound }));
+
+    await act(async () => {
+      await result.current.executeGeneration({ targetMode: 'time', hours: 0, minutes: 20, isIntervalMode: false, selectedGenres: [] }, 1);
+    });
+
+    expect(setGeneratingEstimatedTracksFound.mock.calls[0]).toEqual([0]);
+  });
+
+  it('réinitialisé à 0 par cancelGeneration', () => {
+    const setGeneratingEstimatedTracksFound = vi.fn();
+    const deferred = createDeferred();
+    mockCreatePlaylistData.mockImplementationOnce(() => deferred.promise);
+    const { result } = renderGenerationHook(baseProps({ setGeneratingEstimatedTracksFound }));
+
+    act(() => {
+      result.current.executeGeneration({ targetMode: 'time', hours: 0, minutes: 20, isIntervalMode: false, selectedGenres: [] }, 1);
+    });
+    setGeneratingEstimatedTracksFound.mockClear(); // ne garder que les appels APRÈS l'annulation
+    act(() => { result.current.cancelGeneration(); });
+
+    expect(setGeneratingEstimatedTracksFound).toHaveBeenCalledWith(0);
+  });
+
+  it('un appel du onProgress APRÈS une annulation n\'est PAS relayé (state déjà remis à 0 par cancelGeneration, pas réécrasé après coup)', async () => {
+    const setGeneratingEstimatedTracksFound = vi.fn();
+    let capturedOnProgress;
+    const deferred = createDeferred();
+    mockCreatePlaylistData.mockImplementationOnce((config, exclude, favorites, pool, naughty, onProgress) => {
+      capturedOnProgress = onProgress;
+      return deferred.promise;
+    });
+    const { result } = renderGenerationHook(baseProps({ setGeneratingEstimatedTracksFound }));
+
+    act(() => {
+      result.current.executeGeneration({ targetMode: 'time', hours: 0, minutes: 20, isIntervalMode: false, selectedGenres: [] }, 1);
+    });
+    act(() => { result.current.cancelGeneration(); });
+    setGeneratingEstimatedTracksFound.mockClear();
+
+    // Appel réseau "encore en vol" au moment de l'annulation, qui ne s'est
+    // résolu qu'après — sans le garde-fou `cancelToken.cancelled`, ceci
+    // réécraserait le 0 déjà posé par cancelGeneration.
+    act(() => { capturedOnProgress(5); });
+
+    expect(setGeneratingEstimatedTracksFound).not.toHaveBeenCalled();
   });
 });
