@@ -230,7 +230,7 @@ export default function TemplateCard({ theme, template, onPlayTemplate, isNaught
             sur la pochette (coin inférieur droit, voir plus haut), sur
             demande explicite ("pour gagner de la place"). Le titre suit
             donc directement la pochette, sans ligne intermédiaire. */}
-        <h3 className={`font-bold text-sm truncate ${textHighlight}`}>{template.title}</h3>
+        <h3 className={`font-bold text-sm truncate ${textHighlight}`} title={template.title}>{template.title}</h3>
         {/* RETOUR RECUL (harmonisation contraste, juillet 2026) : `opacity-70`
             retirée — elle atténuait un texte DÉJÀ atténué (`textMuted`),
             contraste final ~1.8:1 sur fond clair (illisible, cause directe
@@ -238,7 +238,17 @@ export default function TemplateCard({ theme, template, onPlayTemplate, isNaught
             correction du token --color-muted dans index.css) suffit
             largement à distinguer cette ligne du titre au-dessus. */}
         <div className={`flex items-center gap-1 text-xs truncate ${textMuted} ${isNaughtyMode ? 'dark:text-white' : ''}`}>
-          <span className="truncate">{template.workoutType} • {totalMinutes} min{avgBpm != null ? ` • ${avgBpm} BPM` : ''}</span>
+          {/* `title=` (14/08, retour direct : "il manque pas les infobulles
+              sur les metadata de Découvrir ?") — motif DIFFÉRENT de la
+              convention "icônes seules" déjà actée (README.md) : ici pas
+              d'icône du tout, c'est du texte TRONQUÉ (`truncate`,
+              ellipsis) sans moyen de voir le reste au survol. Même
+              correctif appliqué au titre juste au-dessus (`h3`, lui aussi
+              tronqué). Motif bien plus large que cette seule carte — voir
+              README.md, nouvelle section dédiée. */}
+          <span className="truncate" title={`${template.workoutType} • ${totalMinutes} min${avgBpm != null ? ` • ${avgBpm} BPM` : ''}`}>
+            {template.workoutType} • {totalMinutes} min{avgBpm != null ? ` • ${avgBpm} BPM` : ''}
+          </span>
         </div>
         {/* Description par CATÉGORIE (9e passe, 02/08) — voir la docstring
             en tête de fichier : même source que la vitrine ET la playlist
@@ -247,7 +257,7 @@ export default function TemplateCard({ theme, template, onPlayTemplate, isNaught
             `line-clamp-2` — retour direct : "je voulais UNE ligne max ;
             pas 2"), même convention que PublicItemCard (ProfileView.jsx)
             pour une vraie playlist/routine. */}
-        <p className={`text-xs mt-1 line-clamp-1 ${textMuted} ${isNaughtyMode ? 'dark:text-white' : ''}`}>
+        <p className={`text-xs mt-1 line-clamp-1 ${textMuted} ${isNaughtyMode ? 'dark:text-white' : ''}`} title={CATEGORY_DESCRIPTIONS[template.category]}>
           {CATEGORY_DESCRIPTIONS[template.category]}
         </p>
       </div>
