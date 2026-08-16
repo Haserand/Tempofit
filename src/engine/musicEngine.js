@@ -1354,6 +1354,20 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
     extra._isFallback = true;
     selected.push(extra);
     remaining -= extra.duration;
+    // Progression (14/08, dernier angle mort trouvé sur ce chantier — pas de
+    // retour direct, juste continuer à creuser) : CETTE boucle fait ses
+    // PROPRES appels réseau (voir getSingleMatchingTrack — GetSongBPM + repli
+    // extrême), APRÈS la construction du pool où `onProgress` s'arrêtait
+    // jusqu'ici — un silence total, pas juste une stagnation temporaire,
+    // tant qu'elle tournait (rare, mais un BPM/genre très restrictif peut la
+    // faire tourner un moment). On bascule ici du compte de POOL ESTIMÉ
+    // (`generalSearchEstimate`/`catalogValidCount`, une estimation devenue
+    // obsolète dès qu'on entre dans cette boucle) au compte RÉEL de titres
+    // déjà retenus pour ce segment (`selected.length`) — le clamp
+    // anti-régression posé côté affichage (usePlaylistGeneration.js) gère
+    // déjà la transition si ce compte réel démarre plus bas que la dernière
+    // estimation affichée.
+    if (onProgress) onProgress(progressBaseCount + selected.length);
   }
 
   // Filet de sécurité ultime : un segment ne doit jamais rester totalement vide.
@@ -1361,6 +1375,10 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
     const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, effectiveGenres, excludeTrackIds, favorites, spotifyTrackPool, segment.durationSeconds, historyExcludeIds, config.allowLongTracks);
     extra._isFallback = true;
     selected.push(extra);
+    // Même raisonnement que la boucle juste au-dessus — un seul appel ici
+    // (pas une boucle), donc une fenêtre de silence bien plus courte, mais
+    // autant rester cohérent.
+    if (onProgress) onProgress(progressBaseCount + selected.length);
   }
 
   // Le genre ET la vérification/extrait des titres locaux sont maintenant résolus
