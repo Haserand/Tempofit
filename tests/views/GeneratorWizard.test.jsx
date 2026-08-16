@@ -439,13 +439,16 @@ describe('GeneratorWizard — étape 4 (genres & génération)', () => {
     expect(searchTracksByBpm).toHaveBeenCalledWith(150, 10, ['Rock']);
   });
 
-  it('"Générer ma Playlist" appelle executeGeneration avec les réglages courants', () => {
+  // ⚠️ Texte raccourci le 14/08 (retour direct : "Générer suffit pas ?" —
+  // avis donné : redondant à ce stade du wizard) — "Générer ma Playlist"
+  // → "Générer".
+  it('"Générer" appelle executeGeneration avec les réglages courants', () => {
     const executeGeneration = vi.fn();
     const getActiveWorkoutName = vi.fn(() => 'Course à pied');
     mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 4, bpm: 150, bpmTolerance: 10, getActiveWorkoutName }));
     render(<GeneratorWizard {...baseProps({ executeGeneration })} />);
 
-    fireEvent.click(screen.getByText('Générer ma Playlist'));
+    fireEvent.click(screen.getByText('Générer'));
 
     expect(executeGeneration).toHaveBeenCalledWith(expect.objectContaining({ bpm: 150, bpmTolerance: 10, workoutName: 'Course à pied' }));
   });
@@ -453,9 +456,9 @@ describe('GeneratorWizard — étape 4 (genres & génération)', () => {
   it('le bouton de génération est désactivé pendant isGenerating', () => {
     mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 4 }));
     const { container } = render(<GeneratorWizard {...baseProps({ isGenerating: true })} />);
-    // Le bouton n'a plus de texte "Générer ma Playlist" pendant le
-    // chargement (affiche un loader à la place) — on le cible via sa
-    // classe stable plutôt qu'un texte absent dans cet état précis.
+    // Le bouton n'a plus de texte "Générer" pendant le chargement (affiche
+    // un loader à la place) — on le cible via sa classe stable plutôt
+    // qu'un texte absent dans cet état précis.
     const generateButton = container.querySelector('.flex-1.text-xl.font-black');
     expect(generateButton).toBeDisabled();
   });
