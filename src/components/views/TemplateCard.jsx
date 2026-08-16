@@ -148,10 +148,31 @@ export default function TemplateCard({ theme, template, onPlayTemplate, isNaught
           <Music2 size={56} className="text-white/80 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)] transition-opacity duration-300 group-hover:opacity-0" />
         </div>
 
+        {/* ⚠️ RECONÇU (14/08, retour direct : "on a déjà TEMPOFIT sur la
+            pochette ET TempoFit Officiel en dessous, le 2e est redondant —
+            est-ce qu'on peut pas juste rendre le badge cliquable ?") — ce
+            badge PORTE maintenant lui-même le clic vers le profil, à la
+            place du texte auteur qui vivait juste en dessous (retiré, voir
+            plus bas). Même garde `template.isOfficial && onViewOfficialProfile`
+            que l'ancien bouton auteur, même raisonnement pour le
+            `stopPropagation` (toute la carte a déjà son propre `onClick`).
+            Si `onViewOfficialProfile` n'est pas fourni (ou template non
+            officiel), repli sur un simple badge non cliquable — comportement
+            inchangé pour ce cas. */}
         {template.isOfficial && (
-          <span className="absolute top-2 left-2 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-black/50 backdrop-blur-md text-white">
-            TempoFit
-          </span>
+          onViewOfficialProfile ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); onViewOfficialProfile(); }}
+              className="absolute top-2 left-2 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-black/50 backdrop-blur-md text-white hover:bg-black/70 transition-colors cursor-pointer"
+              title="Voir le profil TempoFit Officiel"
+            >
+              TempoFit
+            </button>
+          ) : (
+            <span className="absolute top-2 left-2 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-black/50 backdrop-blur-md text-white">
+              TempoFit
+            </span>
+          )
         )}
 
         {/* Overlay + bouton play — invisible tant qu'on ne survole pas la
@@ -176,56 +197,27 @@ export default function TemplateCard({ theme, template, onPlayTemplate, isNaught
       </div>
 
       <div className="mt-2 px-0.5">
-        {/* Ligne "chapeau" — auteur (cliquable) + compteur de clonages,
-            AU-DESSUS du titre (07/08, retour direct, capture annotée sur
-            la fiche détail : "mettre les pseudos avant le nom de la
-            playlist, et le compteur de clones, sur la même ligne" —
-            appliqué ici aussi pour la cohérence, même convention EXACTE
-            que PlaylistHeader.jsx, voir sa docstring pour tout
-            l'historique). AVANT (jusqu'au 07/08) : auteur+BPM sur une
-            ligne SOUS le titre, compteur de clonages sur une 3e ligne
-            séparée avec workoutType/durée — 2 infos de la même famille
-            (qui a fait ça, quel accueil) écartées sans raison. `avgBpm`
-            déménagé sur la ligne de métadonnées juste en dessous (avec
-            workoutType/durée — même distinction "composition de la
-            séance" vs "accueil social" déjà appliquée dans
-            PlaylistHeader.jsx).
-            Auteur cliquable (Feature Sociale "Cold Start", 02/08) — gaté
-            sur `template.isOfficial` ET `onViewOfficialProfile` fourni :
-            TOUS les templates actuels du catalogue sont officiels
-            (`author: OFFICIAL_VITRINE_DISPLAY_NAME` partout, voir
-            data/curatedSessions.js), mais si du contenu non-officiel
-            apparaissait un jour, son auteur ne doit PAS pointer par
-            erreur vers cette vitrine précise. `stopPropagation` : toute
-            la carte a déjà son propre `onClick` (ouvrir/écouter la
-            playlist) — sans lui, cliquer sur le nom de l'auteur aurait
-            AUSSI déclenché `onPlayTemplate`. */}
-        {/* Pas de `<span>` autour de l'auteur dans le cas NON cliquable
-            (texte brut, comme avant ce chantier) — volontaire : le badge
-            "officiel" en coin (`<span>TempoFit</span>`, ci-dessus) et cet
-            auteur peuvent tous deux valoir exactement "TempoFit" pour un
-            template officiel — les envelopper TOUS LES DEUX dans un
-            `<span>` créerait une collision réelle (2 éléments distincts
-            avec exactement le même texte, le même tag), déjà un piège
-            documenté ailleurs dans les tests de ce fichier. Texte brut ici
-            évite le problème à la source plutôt que de le contourner côté
-            test. */}
+        {/* Ligne "chapeau" — compteur de clonages, AU-DESSUS du titre (07/08,
+            retour direct — voir plus bas pour l'historique complet).
+            ⚠️ Auteur RETIRÉ d'ici (14/08, retour direct : "on a déjà
+            TEMPOFIT sur la pochette ET TempoFit Officiel en dessous, le 2e
+            est redondant") — tous les templates actuels du catalogue sont
+            officiels, donc ce texte disait EXACTEMENT la même chose que le
+            badge sur la pochette, sur 100% des cartes de cette vue. Le clic
+            vers le profil (Feature Sociale "Cold Start", 02/08) vit
+            maintenant sur le badge lui-même (voir plus haut) — rien n'est
+            perdu, juste plus de doublon visuel. Si du contenu non-officiel
+            apparaît un jour dans ce catalogue, réafficher l'auteur ici sera
+            un changement naturel à ce moment-là (pas une régression de
+            celui-ci) — pas une raison de garder la redondance visible dès
+            maintenant pour un scénario non planifié à ce jour. */}
         <p className={`flex items-center gap-1 text-xs truncate ${textMuted} ${isNaughtyMode ? 'dark:text-white' : ''}`}>
-          {template.isOfficial && onViewOfficialProfile ? (
-            <button
-              onClick={(e) => { e.stopPropagation(); onViewOfficialProfile(); }}
-              className="truncate underline cursor-pointer"
-              title="Voir le profil TempoFit Officiel"
-            >
-              {template.author}
-            </button>
-          ) : template.author}
           {/* Compteur de clonages (02/08) — `shrink-0` : ne doit jamais
               être celui des deux qui se fait tronquer par le `truncate`
               du texte à sa gauche, un nombre coupé au milieu serait pire
               qu'un titre d'activité tronqué. */}
           <span className="flex items-center gap-0.5 shrink-0" title="Nombre de fois où cette playlist a été clonée">
-            • <Copy size={11} />{cloneCount}
+            <Copy size={11} />{cloneCount}
           </span>
         </p>
         <h3 className={`font-bold text-sm truncate ${textHighlight}`}>{template.title}</h3>
