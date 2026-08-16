@@ -179,6 +179,27 @@ export default function TemplateCard({ theme, template, onPlayTemplate, isNaught
           )
         )}
 
+        {/* Compteur de clonages (02/08) — DÉPLACÉ sur la pochette (14/08,
+            retour direct : "pour gagner de la place, le compteur en bas à
+            droite de la pochette ?") — complète le badge "TempoFit" en
+            haut à gauche par une symétrie diagonale, et libère la ligne
+            "chapeau" entière qui ne contenait plus que lui depuis le
+            retrait de l'auteur (voir plus bas). `z-10` posé DIRECTEMENT
+            ici dès l'écriture — pas après coup cette fois — même leçon que
+            le badge "TempoFit" juste au-dessus : sans lui, l'overlay du
+            bouton play (`absolute inset-0`, juste en dessous dans le DOM)
+            s'empilerait par-dessus lui à l'assombrissement du survol
+            (`group-hover:bg-black/20`), l'atténuant visiblement alors que
+            le badge "TempoFit", lui, resterait net — incohérence purement
+            esthétique ici (ce badge n'est pas cliquable, pas de bug
+            fonctionnel possible), mais autant les traiter à égalité. */}
+        <span
+          className="absolute bottom-2 right-2 z-10 flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-black/50 backdrop-blur-md text-white"
+          title="Nombre de fois où cette playlist a été clonée"
+        >
+          <Copy size={10} />{cloneCount}
+        </span>
+
         {/* Overlay + bouton play — invisible tant qu'on ne survole pas la
             pochette (opacity-0 → 100 sur .group:hover). Le bouton n'est PLUS
             positionné en absolute lui-même (ancien bottom-2 right-2, en
@@ -201,29 +222,14 @@ export default function TemplateCard({ theme, template, onPlayTemplate, isNaught
       </div>
 
       <div className="mt-2 px-0.5">
-        {/* Ligne "chapeau" — compteur de clonages, AU-DESSUS du titre (07/08,
-            retour direct — voir plus bas pour l'historique complet).
-            ⚠️ Auteur RETIRÉ d'ici (14/08, retour direct : "on a déjà
-            TEMPOFIT sur la pochette ET TempoFit Officiel en dessous, le 2e
-            est redondant") — tous les templates actuels du catalogue sont
-            officiels, donc ce texte disait EXACTEMENT la même chose que le
-            badge sur la pochette, sur 100% des cartes de cette vue. Le clic
-            vers le profil (Feature Sociale "Cold Start", 02/08) vit
-            maintenant sur le badge lui-même (voir plus haut) — rien n'est
-            perdu, juste plus de doublon visuel. Si du contenu non-officiel
-            apparaît un jour dans ce catalogue, réafficher l'auteur ici sera
-            un changement naturel à ce moment-là (pas une régression de
-            celui-ci) — pas une raison de garder la redondance visible dès
-            maintenant pour un scénario non planifié à ce jour. */}
-        <p className={`flex items-center gap-1 text-xs truncate ${textMuted} ${isNaughtyMode ? 'dark:text-white' : ''}`}>
-          {/* Compteur de clonages (02/08) — `shrink-0` : ne doit jamais
-              être celui des deux qui se fait tronquer par le `truncate`
-              du texte à sa gauche, un nombre coupé au milieu serait pire
-              qu'un titre d'activité tronqué. */}
-          <span className="flex items-center gap-0.5 shrink-0" title="Nombre de fois où cette playlist a été clonée">
-            <Copy size={11} />{cloneCount}
-          </span>
-        </p>
+        {/* Ligne "chapeau" (auteur + compteur de clonages) — RETIRÉE
+            ENTIÈREMENT (14/08). Historique : l'auteur avait déjà été
+            retiré plus tôt le même jour (redondant avec le badge
+            "TempoFit" sur la pochette) ; ce qui restait — le seul
+            compteur de clonages — vient maintenant lui aussi de déménager
+            sur la pochette (coin inférieur droit, voir plus haut), sur
+            demande explicite ("pour gagner de la place"). Le titre suit
+            donc directement la pochette, sans ligne intermédiaire. */}
         <h3 className={`font-bold text-sm truncate ${textHighlight}`}>{template.title}</h3>
         {/* RETOUR RECUL (harmonisation contraste, juillet 2026) : `opacity-70`
             retirée — elle atténuait un texte DÉJÀ atténué (`textMuted`),
