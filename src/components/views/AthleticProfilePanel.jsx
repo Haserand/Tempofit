@@ -518,7 +518,7 @@ export default function AthleticProfilePanel({ theme, showToast, changeView }) {
                   <div key={z.key} className={`flex items-center justify-between gap-3 p-3 rounded-xl border ${inputBorder} ${inputBg}`}>
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
-                      <span className={`text-sm font-bold truncate ${textHighlight}`}>{z.label}</span>
+                      <span className={`text-sm font-bold truncate ${textHighlight}`} title={z.label}>{z.label}</span>
                     </div>
                     <div className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-lg border ${inputBorder} ${cardBg}`}>
                       {/* BUG CORRIGÉ (25/07) : `min`/`max` HTML ne bloquent
