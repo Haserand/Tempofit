@@ -309,8 +309,8 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sess
                   </div>
                 )}
                 <div className="min-w-0 flex-1 py-1.5">
-                  <p className="text-sm font-bold truncate" style={{ lineHeight: 1.8, color: '#ffffff' }}>{t.title}</p>
-                  <p className="text-xs truncate" style={{ lineHeight: 1.8, color: '#9ca3af' }}>{t.artist}</p>
+                  <p className="text-sm font-bold truncate" style={{ lineHeight: 1.8, color: '#ffffff' }} title={t.title}>{t.title}</p>
+                  <p className="text-xs truncate" style={{ lineHeight: 1.8, color: '#9ca3af' }} title={t.artist}>{t.artist}</p>
                 </div>
               </div>
             ))}
