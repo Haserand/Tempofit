@@ -153,7 +153,7 @@ export default function PlaylistCard({
                 PlaylistHeaderTitleBlock.jsx : `playlist.name` porte déjà
                 l'émoji tel quel pour toute playlist créée APRÈS ce
                 changement, le recalculer ici l'aurait affiché EN DOUBLE. */}
-            <span className="truncate">{playlist.name}</span>
+            <span className="truncate" title={playlist.name}>{playlist.name}</span>
             {playlist.config?.isIntervalMode && (
               <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full text-white shrink-0 ${bgAccentClass}`}>
                 {playlist.config?.isCrescendoMode ? 'Crescendo' : 'Fractionné'}
