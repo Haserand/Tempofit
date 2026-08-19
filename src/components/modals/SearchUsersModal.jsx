@@ -120,7 +120,7 @@ export default function SearchUsersModal({ theme, isOpen, onClose, user, onViewP
                       {r.username.charAt(0).toUpperCase()}
                     </div>
                   )}
-                  <span className={`font-bold text-sm truncate ${textHighlight}`}>@{r.username}</span>
+                  <span className={`font-bold text-sm truncate ${textHighlight}`} title={`@${r.username}`}>@{r.username}</span>
                 </button>
               ))}
             </div>
