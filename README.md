@@ -12,383 +12,84 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement. Dix chantiers enchaînés, mêmes 24-48h,
-**+ 6 correctifs trouvés/demandés en creusant après coup, et une nouvelle
-habitude actée à l'issue de cette série** :
+Rien en cours actuellement — le dernier chantier livré (14/08, ci-dessous)
+est fermé, vérifié syntaxiquement/statiquement, tests à jour. Prochaine
+session : partir des sections plus bas (décisions d'architecture,
+contraintes, limites connues) et du code réel.
 
-**14/08 — rattrapage complet des infobulles sur texte tronqué.** Suite
-directe du chantier précédent (`TemplateCard.jsx` seul, motif plus large
-signalé sans être traité) — confirmé explicitement ("on le fait
-maintenant"). Les 71 éléments `truncate`/`line-clamp-*` recensés dans
-`src/components/` passés en revue un par un, dans 19 fichiers :
-`StatsView.jsx` (12), `SettingsView.jsx` (6), `ProfileView.jsx` (4),
-`PlaylistCharts.jsx` (5/6, 1 exception), `ViewHeader.jsx`,
-`PlaylistHeaderTitleBlock.jsx`, `MiniPlayerBar.jsx` (1/2, 1 exception),
-`TrackItem.jsx` (2), `SessionSummaryCard.jsx` (2), `SearchModal.jsx` (2),
-`PublicRoutinePreviewModal.jsx` (2), `ImportSharedPlaylistModal.jsx` (2),
-`RoutinesView.jsx`, `PlaylistCard.jsx`, `FavoritesView.jsx` (2),
-`AthleticProfilePanel.jsx`, `Sidebar.jsx`, `SearchUsersModal.jsx` — plus
-`PlaylistHeaderMeta.jsx`, déjà entièrement bon (le comptage initial au
-grep simple n'avait pas vu les `title=` déjà posés sur une ligne
-différente du `className`). 2 exceptions assumées, détaillées dans la
-règle 6 du README (tooltip de graphique déjà affiché au survol ; un
-bouton dont le `title=` décrit l'action plutôt que de répéter le texte).
-Vérifié : aucune collision avec un `getByTitle`/`getAllByTitle` déjà
-testé dans les fichiers à risque (croisement des valeurs mock utilisées).
-Règle 6 du README mise à jour (ne mentionne plus "66 restants").
+### Historique détaillé (13-14/08) — archivé dans `HISTORIQUE.md`, bloc 4
 
-**14/08 — Découvrir : infobulles sur le texte tronqué (motif DISTINCT des
-icônes).** Retour direct : "il manque pas les infobulles sur les metadata
-de Découvrir ? je pensais qu'on les avait systématisées partout" — bonne
-occasion de clarifier : la convention actée jusqu'ici portait sur les
-ICÔNES seules, pas sur le texte TRONQUÉ (`truncate`, ellipsis) sans
-`title=`, un motif différent bien que lié. `TemplateCard.jsx` corrigé (3
-éléments : titre, ligne de métadonnées, description). Ampleur du motif
-plus large constatée en vérifiant (71 éléments au total, voir le
-rattrapage complet ci-dessus). Test dédié ajouté dans
-`TemplateCard.test.jsx`.
+Récit chronologique complet déplacé le 14/08 (4e élagage — la session la
+plus longue et la plus dense à ce jour, largement au-delà de celle du
+10/08). Index :
 
-**14/08 — bouton final du wizard : texte raccourci + couleur de marque
-restaurée.** Retour direct : "Générer suffit pas ? et pourquoi le bouton
-est blanc ?". "Générer ma Playlist" → "Générer" (redondant à ce stade,
-plusieurs étapes de configuration déjà faites). Couleur : c'était
-`bg-gray-900 dark:bg-white` codé en dur, sans lien avec `bgAccentClass`
-(rouge Sport/rose Intime) utilisé PARTOUT ailleurs dans ce même fichier —
-la CTA la plus importante de tout le wizard était la seule à ne pas
-porter la couleur de marque, aucune trace d'un raisonnement voulu dans
-l'historique du projet. Passé à `bgAccentClass`, qui bascule déjà
-automatiquement rouge/rose via CSS (`--color-primary`, index.css) — plus
-besoin du ternaire `isNaughtyMode` local, supprimé. Test mis à jour dans
-`GeneratorWizard.test.jsx`.
-
-**14/08 — Découvrir : compteur de clonages déplacé sur la pochette.**
-Retour direct : "pour gagner de la place, le compteur en bas à droite de
-la pochette ?". Complète le badge "TempoFit" en haut à gauche par une
-symétrie diagonale — la ligne "chapeau" sous la pochette, qui ne
-contenait plus que ce compteur depuis le retrait de l'auteur (chantier
-précédent), est retirée entièrement : le titre suit désormais directement
-la pochette. `z-10` posé DIRECTEMENT sur ce nouveau badge dès l'écriture
-(pas après coup) — leçon tirée du bug juste précédent (badge "TempoFit"
-inatteignable au clic, empilement CSS) appliquée immédiatement à ce badge
-non cliquable, pour une cohérence purement esthétique (éviter qu'il
-s'assombrisse au survol contrairement au badge "TempoFit"). Toujours
-affiché même à 0 (comportement inchangé, juste déplacé). Tests réécrits
-dans `TemplateCard.test.jsx` (le compteur est vérifié DANS le conteneur
-de la pochette, plus "précédant le titre dans un `<p>`" — cet élément
-n'existe plus).
-
-**14/08 — bug réel raté au 1er passage : badge cliquable inatteignable
-(empilement CSS).** Retour direct après déploiement : "TEMPOFIT est pas
-cliquable". Le câblage (`onClick`+`stopPropagation`) était correct, mais
-JAMAIS atteint dans un vrai navigateur — l'overlay du bouton play
-(`absolute inset-0`, transparent hors survol) vient APRÈS le badge dans
-le DOM ; sans z-index explicite, 2 éléments `position: absolute`
-s'empilent selon leur ordre DOM, celui d'après passe AU-DESSUS même
-invisible. Cet overlay couvre toute la carte, recouvrait donc le coin du
-badge et interceptait le clic avant qu'il n'atteigne le bouton en dessous
-— remontant jusqu'au clic de la carte entière (ouvrir la playlist) au
-lieu du badge (voir profil). Corrigé avec `z-10` sur le badge. **Limite
-honnêtement notée dans le test existant** : `fireEvent.click()` en jsdom
-cible l'élément directement, sans aucun test de recouvrement visuel réel
-— ce test passait DÉJÀ avant le correctif, il vérifie le câblage, pas
-l'atteignabilité réelle au clic dans un navigateur, que jsdom ne peut pas
-simuler. Recherche du même motif ailleurs dans le projet (badge cliquable
-en coin + overlay plein cadre après lui dans le DOM) — aucune autre
-occurrence trouvée, cas isolé à ce fichier.
-
-**14/08 — Découvrir : badge "TempoFit" cliquable, auteur redondant
-retiré.** Retour direct avec capture : "on a déjà TEMPOFIT sur la
-pochette ET TempoFit Officiel en dessous, le 2e est redondant — est-ce
-qu'on peut pas juste rendre le badge cliquable ?" (repris de la question
-"le premier suffirait pas ?" — avis donné avant d'agir : oui redondant
-aujourd'hui, mais raison documentée le 02/08 pour garder l'auteur
-cliquable — anticipation d'un contenu non-officiel futur, jamais planifié
-concrètement). Le clic vers le profil (Feature Sociale "Cold Start",
-02/08) vit désormais sur le badge de la pochette (`TemplateCard.jsx`) —
-même garde `isOfficial && onViewOfficialProfile`, même `stopPropagation`
-— plus sur un texte auteur séparé (retiré). Si du contenu non-officiel
-apparaît un jour, réintroduire l'affichage différencié de l'auteur sera
-un changement naturel à ce moment-là, pas une régression de celui-ci.
-Tests réécrits dans `TemplateCard.test.jsx` (section renommée "badge
-cliquable") et `DiscoverView.test.jsx` (nom accessible du bouton changé :
-"TempoFit", le texte du badge, plus "TempoFit Officiel", l'ancien
-`template.author`).
-
-
-**14/08 — dernier angle mort : silence total pendant le repli réseau
-final.** Trouvé à la 5e relecture demandée ("continue à creuser au cas
-où"). La boucle de repli final (`getSingleMatchingTrack`, quand le pool
-ne suffit pas — rare, "BPM/genre très restrictif") fait ses PROPRES
-appels réseau, entièrement APRÈS la construction du pool où `onProgress`
-s'arrêtait jusqu'ici — pas juste une stagnation temporaire comme les
-correctifs précédents, un silence total tant qu'elle tournait. Corrigé en
-basculant, à ce stade, du compte de pool ESTIMÉ au compte RÉEL de titres
-déjà retenus pour le segment (`selected.length`) — le clamp anti-régression
-déjà en place gère la transition si ce compte réel démarre plus bas que
-la dernière estimation affichée. Même traitement appliqué au filet de
-sécurité ultime (segment resté vide) pour cohérence, fenêtre de silence
-plus courte mais réelle.
-
-**Nouvelle habitude actée dans `CLAUDE-SANDBOX-VERIFICATION.md`** : après
-5 relectures demandées sur le même chantier, chacune trouvant quelque
-chose de réel mais de moins en moins grave, l'utilisateur a fait
-remarquer que ça vaudrait le coup de systématiser ce réflexe plutôt que
-de compter sur lui pour insister à chaque fois. Actée : après tout
-chantier touchant un fichier déjà identifié comme sensible dans ce projet
-(`musicEngine.js`, la logique de synchro Supabase, ou plus généralement
-du code à plusieurs branches/boucles alimentant une même valeur
-affichée/partagée), faire au moins une relecture complète et attentive
-dédiée AVANT de considérer la livraison terminée — pas seulement vérifier
-que ça compile.
-
-**14/08 — anti-doublon dans le comptage catalogue.** Trouvé en creusant
-encore ("continue à creuser au cas où, même la cosmétique a de
-l'importance") : le comptage en direct du bloc catalogue ne dédoublonnait
-pas contre les titres déjà retenus par les sources précédentes (favoris,
-Spotify, recherche généraliste) — un même titre trouvé par deux sources
-pouvait compter deux fois, gonflant légèrement le chiffre affiché au-delà
-de la réalité du pool. Corrigé en réutilisant `seenIds` (déjà tenu à jour
-par `addIfValid` pour TOUTES les sources, pas seulement la recherche
-généraliste) dans le filtre de comptage — bénéfice plus large que prévu
-au départ (dédoublonne aussi contre favoris/Spotify, pas seulement contre
-la recherche généraliste). Pas de test dédié ajouté : logique trop
-imbriquée dans l'accumulation de `seenIds` sur toute la fonction pour
-être extraite proprement en fonction pure, comme les autres morceaux déjà
-testés de ce chantier — cohérent avec la convention déjà actée pour cette
-fonction (non testable en isolation, appels réseau réels).
-
-**14/08 — chaînage de la progression entre recherche généraliste et
-catalogue d'artistes.** Trouvé en re-creusant après le correctif
-précédent (question ouverte "tu vois d'autres trucs ?", pas de retour
-direct cette fois) : le chemin catalogue tourne SOUVENT en complément de
-la recherche généraliste, dans le MÊME appel de fonction — mais sa
-progression repartait de `progressBaseCount` tout court, sans tenir
-compte de ce que la recherche généraliste avait déjà trouvé. Pas une
-régression visible (déjà couverte par le clamp du correctif précédent),
-mais un compteur qui aurait pu sembler STAGNER un moment à la transition
-entre les deux sources, le temps que le catalogue "rattrape" le niveau
-déjà atteint. Corrigé en hissant `generalSearchEstimate` en variable de
-PORTÉE FONCTION (pas juste le bloc où vivait `genreValidDurationSoFar`
-avant ce correctif), pour que le bloc catalogue puisse chaîner sa propre
-progression à la suite plutôt que de repartir à zéro.
-
-**14/08 — angle mort comblé sur demande explicite : progression aussi pour
-le chemin catalogue d'artistes.** Signalé au check-up précédent comme
-angle mort acceptable (pas corrigé sur le moment), puis demandé quand
-même ("tan qu'à faire"). Le chemin de repli par catalogue d'artistes
-(`ARTIST_CATALOG`, musicEngine.js) — SEUL chemin emprunté pour les genres
-à mot-clé Deezer fragile (K-pop, etc.), et systématiquement en complément
-pour les genres normaux — n'avait aucun signal de progression, contrairement
-à la recherche généraliste Deezer. `fetchInBatches` (utilitaire partagé,
-8 appels dans musicEngine.js) accepte désormais un 4e paramètre optionnel
-`onBatchDone`, rétrocompatible (`null` par défaut, aucun effet sur les 7
-autres appels). Utilisé sur CE chemin précis pour compter les candidats
-valables lot par lot, plutôt qu'une conversion durée→titres (cette branche
-n'accumule pas de durée "bon genre" comme la recherche généraliste).
-⚠️ Cette 2e branche de progression tourne parfois APRÈS la recherche
-généraliste dans le MÊME appel à `buildSegmentTracks`, sans être chaînée à
-son compte — un vrai risque de régression visible (le compteur qui
-redescend), mais déjà couvert par le clamp anti-régression posé juste
-avant au niveau de l'affichage (`usePlaylistGeneration.js`) : aucun
-changement nécessaire là, la protection était déjà générique. Tests
-ajoutés dans `tests/engine/fetchInBatches.test.js`.
-
-**14/08 — check-up post-chantier "titres au fur et à mesure" : clamp
-anti-régression.** Pas un retour direct cette fois — trouvé en relisant
-en détail la logique juste livrée (habitude actée : "vérifier son propre
-travail avant de le considérer terminé", surtout sur du code sensible).
-Cas limite réel : avec PLUSIEURS genres pondérés ensemble
-(`config.genreWeights`), le moteur enchaîne une sous-recherche par genre —
-chacune vise un pool à 1.5x la durée réellement nécessaire (marge pour la
-sélection finale). L'estimation affichée pendant la recherche d'UN genre
-pouvait donc dépasser le compte RÉEL finalement retenu pour ce même
-genre ; au passage au genre suivant, la progression reprenait sur ce
-compte réel (souvent plus bas) — le compteur du bandeau pouvait
-visiblement REDESCENDRE d'un coup, l'air buggé plutôt qu'indicatif.
-Corrigé par un clamp au niveau de l'affichage (`usePlaylistGeneration.js`,
-PAS retouché dans musicEngine.js — la source du problème n'a pas besoin
-d'être touchée pour le corriger, plus sûr) : le compteur affiché
-n'accepte plus qu'une valeur strictement supérieure à la dernière
-affichée, réinitialisé proprement à chaque nouvelle playlist d'un lot. 3
-tests dédiés ajoutés.
-
-**14/08 (suite) — bandeau de génération, système à paliers de temps +
-compte de titres en direct.** Suite directe du chantier précédent
-(`isGeneratingSlowGenre`/`isGeneratingLongPlaylist`) — l'utilisateur a
-validé le principe d'un système à 3 paliers de temps (0-15s inchangé,
-15-45s "un peu plus long que d'habitude", 45s+ normalise explicitement),
-PUIS demandé si un temps indicatif selon la config était possible malgré
-tout, PUIS si le nombre de titres pouvait évoluer EN DIRECT plutôt qu'une
-simple estimation statique — 2 réflexions successives données avant
-d'implémenter quoi que ce soit (temps chiffré réaffirmé écarté ; chantier
-"live" évalué comme plus lourd — touche musicEngine.js — et validé
-explicitement seulement après ça).
-- **`musicEngine.js`** — `buildSegmentTracks`/`createPlaylistData`
-  acceptent désormais un callback `onProgress(estimatedCount)`, threadé à
-  travers la boucle de pages Deezer, la branche récursive des genres
-  pondérés (cumul par compte RÉEL entre sous-appels, pas une estimation
-  qui s'additionnerait sur elle-même), et les segments multiples en mode
-  Fractionné (offset = titres déjà confirmés par les segments
-  précédents). ⚠️ C'est une ESTIMATION du pool de candidats, PAS le
-  décompte des titres FINAUX (la sélection réelle se fait d'un coup, une
-  fois le pool construit) — voir la docstring complète dans le fichier.
-  Calcul d'estimation extrait en fonction pure
-  `estimateTrackCountFromDuration` (exportée, testée en isolation — même
-  réflexe que `buildGeneratedPlaylistName`, 08/08, ces fonctions moteur
-  n'étant pas testables directement, appels réseau réels).
-- **`usePlaylistGeneration.js`** — nouveau paramètre
-  `setGeneratingEstimatedTracksFound`, relayé depuis le callback du
-  moteur avec garde-fou contre une mise à jour APRÈS annulation
-  (`cancelToken.cancelled`, même principe que pour jeter le résultat
-  final d'une génération annulée), réinitialisé à 0 au début, à
-  l'annulation, et à la fin.
-- **`App.jsx`** — nouvelle fonction `getGenerationBannerMessage()`
-  (remplace un ternaire imbriqué devenu difficile à lire) : paliers 15-45s
-  et 45s+ affichent le compte de titres réunis dès qu'il est disponible,
-  sinon retombent sur le message de réassurance générique par palier.
-- Tests dédiés dans `tests/engine/musicEngine.test.js` (la fonction pure
-  extraite) et `tests/hooks/usePlaylistGeneration.test.js` (relais correct
-  du callback, réinitialisations, garde-fou post-annulation).
-
-**14/08 (suite) — bandeau de génération, séance longue.** Retour direct :
-"passé la minute de génération, l'utilisateur a cru que ça avait planté"
-sur une séance de plus d'1h. Réflexion faite AVANT d'implémenter (temps
-"indicatif" chiffré écarté — pas de vraie donnée de timing pour le
-calibrer, un chiffre inventé pourrait devenir une source d'inquiétude
-supplémentaire s'il est dépassé) : la durée cible d'une séance est un
-signal PRÉVISIBLE à l'avance, contrairement à un genre lent. Étendu le
-mécanisme déjà existant pour les genres à mot-clé Deezer fragile
-(`isGeneratingSlowGenre`) avec un 2e flag symétrique
-(`isGeneratingLongPlaylist`, seuil ≥45 min, modes Temps/Distance — mode
-Fractionné hors scope assumé, segments à sommer différemment). Le bandeau
-combine désormais les deux raisons possibles (genre lent, séance longue,
-ou les deux à la fois) plutôt qu'un message générique statique. Tests
-dédiés ajoutés dans `tests/hooks/usePlaylistGeneration.test.js`.
-
-**14/08 (suite) — compteur de clonages élargi à Découvrir.** Retour direct
-avec 4 captures : "pourquoi je vois quand même le compteur de clonage à 0
-pour la playlist que j'ai pourtant clonée ?". Diagnostic : `template_clone_counts`
-ne s'incrémentait QUE via `handleClonePlaylist` (bouton "Sauvegarder" d'un
-template ouvert depuis la vitrine `@tempofit_officiel`, chemin peu
-emprunté) — jamais via `handleSavePlaylist` (bouton "Ajouter" d'un
-template ouvert directement depuis Découvrir, LE chemin le plus emprunté
-de très loin). Distinction délibérée à l'origine (02/08, voir
-`TemplateCard.jsx`), reconsidérée sur confirmation explicite de
-l'utilisateur : les deux chemins créditent désormais le même compteur, même
-garde-fou (`sourceTemplateId`) et même philosophie fire-and-forget que
-`handleClonePlaylist`. Tests dédiés ajoutés dans
-`tests/hooks/usePlaylistLibrary.test.js`.
-
-**13/08 — couverture de tests des hooks, suite du check-up du même jour.**
-Les 11 hooks de `src/hooks/` sans fichier de test dédié en ont désormais
-un (`usePersistentState.js`, `usePlaylistCompletions.js`,
-`useSessionAnalysis.js`, `useFavorites.js`, `useSpotifyImport.js`,
-`useDeezerSearch.js`, `useTrackSearch.js`, `useRoutines.js`, `useTheme.js`,
-`useToast.js`, `useElapsedTimer.js`) — voir `tests/hooks/`. 3 vrais bugs
-trouvés en écrivant ces tests, tous corrigés :
-- `useToast.js` — un 2e `showToast()` rapproché ne annulait pas le
-  minuteur du 1er (`clearTimeout` manquant) : un toast pouvait s'effacer
-  avant sa propre durée écoulée. Corrigé (`useRef` + annulation).
-- `usePersistentState.js`, **"push prématuré au montage"** — avec un
-  compte déjà connecté, l'effet de push partait AVANT que le pull ait eu
-  la main sur le réseau (2 appels systématiques au montage, dont un
-  parfaitement inutile — et un vrai risque d'écraser une valeur distante
-  plus récente avec la valeur locale de départ). Corrigé avec
-  `readyForPushRef`, qui bloque le push tant que le pull n'a pas fini
-  d'essayer pour l'utilisateur courant.
-- `usePersistentState.js`, **`isApplyingRemoteRef` jamais réinitialisé
-  si le pull ramène une valeur IDENTIQUE à la locale** — no-op React
-  (aucun re-render), donc le flag restait bloqué à `true`, avalant
-  silencieusement le TOUT PROCHAIN changement local légitime. Corrigé en
-  n'armant le flag que si la valeur diffère réellement (`Object.is`).
-- `useSpotifyImport.js` — scope volontairement réduit : `loginSpotify`
-  (OAuth PKCE, `crypto.subtle.digest`) laissé hors test, pure plomberie
-  navigateur sans branche métier, fragile à simuler en `jsdom`.
-- **3 allers-retours de build Vercel réel** sur ce chantier (tous
-  corrigés) — plusieurs erreurs de logique fine (piège "même valeur =
-  no-op React", fuite d'un `mockReturnValueOnce` non consommé entre 2
-  tests via `clearAllMocks()`) n'ont pu être détectées qu'au build réel,
-  jamais à la seule lecture. `afterEach` de `usePersistentState.test.js`
-  utilise désormais `resetAllMocks()` (pas `clearAllMocks()`), pour éviter
-  toute fuite similaire à l'avenir.
-
-**14/08 — infobulles manquantes, généralisé à toute l'app.** Parti d'un
-retour direct avec capture d'écran (Mes Séances/Mes Routines), généralisé
-en script de recherche sur tout `src/`. Trouvé et corrigé : ligne de
-métadonnées de `App.jsx`/`PlaylistHeaderMeta.jsx` (4 icônes sans
-infobulle), et un motif à plus forte valeur — un libellé ABRÉGÉ de zone
-cardio affiché (`zone.shortLabel`, ex. "Seuil") sans jamais restituer le
-libellé COMPLET déjà présent sur la donnée (`zone.label`, ex.
-"Seuil / Tempo") — corrigé à 6 endroits
-(`TrackItem.jsx`/`AthleticProfilePanel.jsx`/`StatsView.jsx`(×3)/
-`PlaylistHeaderActions.jsx`/`SessionSummaryCard.jsx`, ce dernier
-nécessitant de restructurer `bars` pour porter un `title` distinct du
-`label` affiché). 2 nouvelles conventions actées dans ce README (section
-dédiée plus bas) : infobulles sur icônes seules, soulignement permanent
-d'un pseudo cliquable vers un profil (déjà cohérent partout, rien à
-corriger sur ce 2e point — juste documenté). Couverture de tests comblée
-en même temps : `tests/shared/SessionSummaryCard.test.jsx` (nouveau, 0
-test avant), nouvelle section dans `tests/views/StatsView.test.jsx` pour
-les 3 infobulles de zones cardio de cette page.
-
-Prochaine session : partir des sections plus bas (décisions
-d'architecture, contraintes, limites connues) et du code réel.
-
-### Historique détaillé (08/08 fin + 10/08) — archivé dans `HISTORIQUE.md`, bloc 3
-
-Récit chronologique complet déplacé le 10/08 (3e élagage — la section
-"État d'avancement" avait de nouveau dépassé 300 lignes, la session la
-plus longue et la plus dense à ce jour : une vingtaine de chantiers
-enchaînés sans interruption). Index :
-
-- **Chantier "course asynchrone" (10/08, 7 occurrences trouvées et corrigées)** — un motif de bug récurrent (fermeture JS figée sur un state/une collection partagée, capturée avant un point d'attente async) trouvé 7 fois dans des endroits différents : re-render inutile (`PlaylistEditContext.jsx`/`AthleticContext.jsx`), puis 5 vraies races avec risque de perte de données (`PlaylistDetailView.jsx` "Partager"/"Cloner", `PlaylistDetailContext.jsx` "Remplacer un titre" — la plus sérieuse, DELETE Supabase possible —, `usePlaylistGeneration.js`, `useCsvImport.js`, `shareImageFileWithTrophy` App.jsx). Nouvelle habitude de travail actée dans `CLAUDE-SANDBOX-VERIFICATION.md` suite à ce chantier : généraliser la recherche d'un motif de bug dès sa 2e occurrence, pas continuer à corriger au coup par coup.
-- **Chantier compteur de clonages (10/08, ~10 itérations, retours directs successifs avec captures d'écran)** — badge disparaissant après retrait d'un template de "Mes Séances" (`openCuratedPlaylist` sans `extraFields`), déplacé 2 fois (titre → métadonnées, puis séparé du pseudo vers la rangée d'icônes en haut à droite), fond gris retiré, alignement vertical avec les boutons d'action corrigé en 2 passes, préservé lors du clonage (`handleClonePlaylist`, 2e chemin de sauvegarde qui l'effaçait), rendu systématique pour toute playlist sauvegardée (changement de philosophie assumé, "0" honnête plutôt qu'absence), étendu à `PlaylistCard.jsx` (vue "Mes Séances") et `TemplateCard.jsx` (soulignement permanent du pseudo cliquable, cohérent avec la fiche détail).
-- **Chantier "GeneratorWizard, redondance étape 2/étape 3" (10/08, 2 passes, découpé volontairement pour rester sécurisé)** — 1re passe : bloc durée/distance dupliqué entre l'étape 2 et l'étape 3 retiré. 2e passe : pour l'Allure Constante, le slider BPM fusionné avec la sélection de genre (étape 4) — ce mode ne visite plus l'étape 3 du tout (navigation adaptée, `wizardStep` garde ses valeurs habituelles). 2 échecs RÉELS détectés par le build Vercel après coup (tests sélectionnant un slider par index, décalé par le nouveau slider BPM) — corrigés, seul incident de build de toute la session malgré ~20 chantiers.
-- **Pseudo cliquable vers "Mes Séances"** quand c'est le sien (`isSaved`, connecté ou invité) — décidé après discussion explicite : aucun avertissement, ni pour un compte connecté ni pour l'invité (le rappel mode invité est déjà permanent via `GuestModeBar.jsx`).
-- **Petites retouches de texte** — 2 boutons de sauvegarde raccourcis ("Sauvegarder"/"Ajouter", redondants avec leur contexte), toast de bascule publique/privée raccourci + `whitespace-nowrap` (garde-fou technique en plus du texte court), infobulles manquantes ajoutées sur 2 boutons à icône seule (`PlaylistCard.jsx` Supprimer, `AthleticProfilePanel.jsx` Confirmer/Annuler).
-- **08/08 (fin de journée, suite du bloc 2 ci-dessus)** — validation du titre de playlist (3 caractères min) + émoji d'activité baké en texte littéral dans le nom, édition titre+description passée d'inline à une modale dédiée (`EditPlaylistModal.jsx`), `AudioPlayerContext.jsx` mémoïsé, `GeneratorContext.jsx` découpé (`AthleticContext.jsx` isolé, `CustomActivityModal.jsx` découplée du wizard), `PlaylistHeader.jsx` découpé en 5 sous-composants (836 → 254 lignes) avec leurs propres tests dédiés, `PlaylistDetailContext.jsx` découpé en 2 Contextes (re-render à chaque frappe éliminé).
-- **Incident de build Vercel réel (10/08, distinct du chantier GeneratorWizard ci-dessus)** — mauvais contenu (`PlaylistHeaderMeta.jsx`) commité sous le nom `PlaylistHeaderTitleBlock.test.jsx` lors d'une copie manuelle vers le repo, attrapé par `testFileIdentityTrap.test.js` — fichier correct redonné, aucun bug côté code généré.
+- **13/08 — check-up général + couverture de tests des 11 hooks sans test
+  dédié** (`usePersistentState.js`, `usePlaylistCompletions.js`,
+  `useSessionAnalysis.js`, `useFavorites.js`, `useSpotifyImport.js`,
+  `useDeezerSearch.js`, `useTrackSearch.js`, `useRoutines.js`,
+  `useTheme.js`, `useToast.js`, `useElapsedTimer.js`) — 3 vrais bugs
+  trouvés EN ÉCRIVANT ces tests, tous corrigés : `useToast.js` (un 2e
+  toast rapproché effaçait le 1er avant sa propre durée), et 2 bugs de
+  synchro Supabase dans `usePersistentState.js` — "push prématuré au
+  montage" (`readyForPushRef`, le push partait avant que le pull ait eu la
+  main) et `isApplyingRemoteRef` jamais réinitialisé quand la valeur
+  distante est identique à la locale (`Object.is`, no-op React). **3
+  allers-retours de build Vercel réel** pour stabiliser ces tests (piège
+  "même valeur = no-op React" qui rendait un test invalide, fuite d'un
+  `mockReturnValueOnce` non consommé entre 2 tests via `clearAllMocks()`
+  — corrigé en passant à `resetAllMocks()`).
+- **14/08 — convention infobulles (icônes seules) actée et systématisée**
+  — parti d'un retour direct sur les cartes de séances/routines,
+  généralisé à toute l'app par script. Trouvé et corrigé : ligne de
+  métadonnées de `App.jsx`/`PlaylistHeaderMeta.jsx`, et un motif à plus
+  forte valeur — libellé ABRÉGÉ de zone cardio affiché sans le libellé
+  COMPLET déjà présent sur la donnée (`appConfig.js`), corrigé à 6
+  endroits. 2 conventions actées dans ce README (infobulles sur icônes
+  seules ; soulignement PERMANENT d'un pseudo cliquable vers un profil —
+  vérifié déjà cohérent partout, rien à corriger sur ce 2e point).
+- **14/08 — compteur de titres trouvés EN DIRECT pendant la génération**
+  (`musicEngine.js`) — chantier en plusieurs étapes discutées avant
+  d'implémenter (système à paliers de temps validé, temps indicatif
+  chiffré explicitement écarté, extension au chemin catalogue
+  d'artistes). **5 relectures successives demandées** ("tu vois d'autres
+  trucs en creusant ?"), chacune trouvant un vrai problème de moins en
+  moins grave : régression visible (compteur qui redescend) → stagnation
+  (compteur figé à une transition) → surestimation (doublons non
+  filtrés) → silence total (chemin de repli réseau hors radar). **Nouvelle
+  habitude actée dans `CLAUDE-SANDBOX-VERIFICATION.md`** : après tout
+  chantier touchant du code déjà identifié comme sensible, faire au moins
+  une relecture complète et attentive dédiée AVANT de considérer la
+  livraison terminée — sans attendre qu'on la redemande.
+- **14/08 — compteur de clonages élargi à Découvrir** — le bouton
+  "Ajouter" (Découvrir, le chemin le plus emprunté) n'incrémentait jamais
+  `template_clone_counts`, contrairement au bouton "Sauvegarder" de la
+  vitrine — distinction délibérée à l'origine (02/08), reconsidérée sur
+  confirmation explicite : les deux chemins créditent désormais le même
+  compteur.
+- **14/08 — série de retouches Découvrir/`TemplateCard.jsx`** — badge
+  "TempoFit" rendu cliquable vers le profil (remplace le texte auteur
+  redondant avec le badge) ; **bug réel raté au 1er passage** : le clic
+  était bien câblé mais jamais atteignable dans un vrai navigateur
+  (empilement CSS — un overlay transparent passait au-dessus du badge
+  dans l'ordre DOM, corrigé avec `z-10`) ; compteur de clonages déplacé
+  en overlay sur la pochette (coin inférieur droit, symétrie diagonale
+  avec le badge).
+- **14/08 — bouton final du wizard ("Générer")** — texte raccourci
+  ("Générer ma Playlist" → "Générer", redondant à ce stade), couleur de
+  marque restaurée (`bgAccentClass`, était `bg-gray-900 dark:bg-white`
+  codé en dur sans lien avec le reste du fichier).
+- **14/08 — rattrapage complet des infobulles sur texte TRONQUÉ** (motif
+  DISTINCT des icônes — texte coupé à l'ellipsis, `truncate`/
+  `line-clamp-*`, sans `title=`) — 71 éléments recensés et passés en
+  revue dans 19 fichiers, 2 exceptions assumées (tooltip de graphique déjà
+  affiché au survol ; un bouton dont le `title=` décrit l'action plutôt
+  que de répéter le texte). Nouvelle règle actée dans ce README.
 
 Pour le détail complet d'un point précis (qui a demandé quoi, pourquoi
 telle option plutôt qu'une autre, incidents de build et diagnostic) :
-ouvrir `HISTORIQUE.md`, bloc 3, chercher la date ou le mot-clé — le
+ouvrir `HISTORIQUE.md`, bloc 4, chercher la date ou le mot-clé — le
 contenu y est identique à ce qui vivait ici avant l'élagage, rien n'a été
 résumé.
-
-
-### Historique détaillé (08/08, signOut → check-up 07/08) — archivé dans `HISTORIQUE.md`, bloc 2
-
-Récit chronologique complet déplacé le 08/08 (2e élagage de la journée —
-la section "État d'avancement" avait regrossi au-delà de 600 lignes en une
-seule journée, chantiers de mémoïsation en cascade). Index :
-
-- **`signOut()` attend les écritures Supabase en vol** avant de couper la session (`src/utils/pendingWrites.js`, nouveau).
-- **Édition inline titre+description fusionnée** (un seul crayon) — historique uniquement, ce comportement est REMPLACÉ depuis par une modale dédiée (`EditPlaylistModal.jsx`, voir plus haut dans ce README).
-- **Description libre retirée pour les routines**, conservée pour les playlists (retour direct, capture à l'appui — texte tronqué illisible sur une carte de routine).
-- **Check-up du 07/08** (lecture passation → README → habitudes → code réel) — plusieurs corrections mineures, détail dans l'archive.
-
-Pour le détail complet d'un point précis : ouvrir `HISTORIQUE.md`, chercher la date ou le mot-clé (contenu identique à ce qui vivait ici, rien résumé).
-
-
-### Historique détaillé (02/08 → 05/08) — archivé dans `HISTORIQUE.md`
-
-Le récit chronologique complet de cette période (627 lignes, une
-quinzaine de chantiers) a été déplacé dans `HISTORIQUE.md` le 08/08 pour
-garder cette section rapide à relire en début de session — voir l'en-tête
-de ce fichier pour le raisonnement. Index ci-dessous, un lien par
-chantier :
-
-- **05/08 (check-up + suites 1 à 12)** — check-up initial (2 bugs + 1 optim), badge "compteur de clones" clarifié, mode invité affiché sur la pochette (`Guest Mode`), constantes "TempoFit Officiel" harmonisées, chevauchement pochette/texte corrigé, pseudo du créateur ajouté sur une playlist ouverte, doublon de clonage empêché (Découvrir → 2 clics), incident de build (fichier écrasé par son propre test, diagnostic long — voir `CLAUDE-SANDBOX-VERIFICATION.md` §4nonies), infobulle BPM raccourcie (2 incidents de build en cascade sur un `grep` insuffisant, voir §4sexies/§4septies), page Réglages vide en mode invité corrigée, garde-fou "fichiers rangés au bon endroit" ajouté (`testFileIdentityTrap.test.js`), reformulation description resserrée à 1 ligne.
-- **04/08** — vérification en conditions réelles du bloc du 03/08 (confirmée bonne), puis chaîne de correctifs en cascade (détail dans `HISTORIQUE.md`).
-- **03/08 (2e moitié)** — plusieurs petits chantiers UI/perf groupés (liste détaillée dans `HISTORIQUE.md`).
-- **03/08 — refonte traçabilité de lignée** (`parent_id`/`parent_user_id` résolus côté serveur, `supabase-schema.sql`, action manuelle Supabase requise) et **anti-abus clonage** (`clone_ledger`, permanent, survit à la suppression locale de la copie).
-- **02/08** — compteur de clonages honnête (`clone_count` réel, remplace un compteur simulé), vitrine `@tempofit_officiel` resynchronisée avec les fonctionnalités réelles, description texte libre sur playlists/routines publiques, UI publique des routines (Vague 2 Chantier 1), recherche & filtres sur les profils publics (`useProfileSearchFilter.js`).
-
-Pour le détail complet d'un point précis (qui a demandé quoi, pourquoi
-telle option plutôt qu'une autre, incidents de build et diagnostic) :
-ouvrir `HISTORIQUE.md` et chercher la date ou le mot-clé — le contenu y
-est identique à ce qui vivait ici avant l'élagage, rien n'a été résumé.
-
 
 ## Contraintes de travail
 
