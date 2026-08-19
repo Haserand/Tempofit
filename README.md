@@ -12,9 +12,30 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement. Neuf chantiers enchaînés, mêmes 24-48h,
+Rien en cours actuellement. Dix chantiers enchaînés, mêmes 24-48h,
 **+ 6 correctifs trouvés/demandés en creusant après coup, et une nouvelle
 habitude actée à l'issue de cette série** :
+
+**14/08 — rattrapage complet des infobulles sur texte tronqué.** Suite
+directe du chantier précédent (`TemplateCard.jsx` seul, motif plus large
+signalé sans être traité) — confirmé explicitement ("on le fait
+maintenant"). Les 71 éléments `truncate`/`line-clamp-*` recensés dans
+`src/components/` passés en revue un par un, dans 19 fichiers :
+`StatsView.jsx` (12), `SettingsView.jsx` (6), `ProfileView.jsx` (4),
+`PlaylistCharts.jsx` (5/6, 1 exception), `ViewHeader.jsx`,
+`PlaylistHeaderTitleBlock.jsx`, `MiniPlayerBar.jsx` (1/2, 1 exception),
+`TrackItem.jsx` (2), `SessionSummaryCard.jsx` (2), `SearchModal.jsx` (2),
+`PublicRoutinePreviewModal.jsx` (2), `ImportSharedPlaylistModal.jsx` (2),
+`RoutinesView.jsx`, `PlaylistCard.jsx`, `FavoritesView.jsx` (2),
+`AthleticProfilePanel.jsx`, `Sidebar.jsx`, `SearchUsersModal.jsx` — plus
+`PlaylistHeaderMeta.jsx`, déjà entièrement bon (le comptage initial au
+grep simple n'avait pas vu les `title=` déjà posés sur une ligne
+différente du `className`). 2 exceptions assumées, détaillées dans la
+règle 6 du README (tooltip de graphique déjà affiché au survol ; un
+bouton dont le `title=` décrit l'action plutôt que de répéter le texte).
+Vérifié : aucune collision avec un `getByTitle`/`getAllByTitle` déjà
+testé dans les fichiers à risque (croisement des valeurs mock utilisées).
+Règle 6 du README mise à jour (ne mentionne plus "66 restants").
 
 **14/08 — Découvrir : infobulles sur le texte tronqué (motif DISTINCT des
 icônes).** Retour direct : "il manque pas les infobulles sur les metadata
@@ -22,13 +43,10 @@ de Découvrir ? je pensais qu'on les avait systématisées partout" — bonne
 occasion de clarifier : la convention actée jusqu'ici portait sur les
 ICÔNES seules, pas sur le texte TRONQUÉ (`truncate`, ellipsis) sans
 `title=`, un motif différent bien que lié. `TemplateCard.jsx` corrigé (3
-éléments : titre, ligne de métadonnées, description). **Ampleur du motif
-plus large constatée en vérifiant : 71 éléments `truncate`/`line-clamp-*`
-dans `src/components/`, seulement 5 avec un `title=`** — pas traité dans
-son ensemble ce jour-là (seule la carte visée par le retour direct
-corrigée), nouvelle règle actée dans README.md pour tout nouveau code à
-partir de maintenant, chantier de rattrapage à part entière si repris un
-jour. Test dédié ajouté dans `TemplateCard.test.jsx`.
+éléments : titre, ligne de métadonnées, description). Ampleur du motif
+plus large constatée en vérifiant (71 éléments au total, voir le
+rattrapage complet ci-dessus). Test dédié ajouté dans
+`TemplateCard.test.jsx`.
 
 **14/08 — bouton final du wizard : texte raccourci + couleur de marque
 restaurée.** Retour direct : "Générer suffit pas ? et pourquoi le bouton
@@ -463,16 +481,25 @@ Deux règles simples, à appliquer par réflexe dans tout nouveau code UI :
    14/08 (retour direct sur `TemplateCard.jsx` : "il manque pas les
    infobulles sur les metadata de Découvrir ?") — ici, pas d'icône du tout,
    juste du texte coupé à l'ellipsis sans aucun moyen de voir le reste au
-   survol. **Ampleur constatée à cette date : 71 éléments `truncate`/
-   `line-clamp-*` dans `src/components/`, 5 seulement avec un `title=`** —
-   un chantier à part entière si repris un jour, PAS traité dans son
-   ensemble le 14/08 (seul `TemplateCard.jsx`, la carte visée par le
-   retour direct, corrigé ce jour-là) : `<h3 title={template.title}>`,
-   metadata (`title=` avec le texte complet reconstruit), description
-   (`title={CATEGORY_DESCRIPTIONS[...]}`). Réflexe à avoir pour tout NOUVEAU
-   `truncate`/`line-clamp-*` écrit à partir de maintenant : poser le
-   `title=` correspondant du premier coup, plutôt que de laisser le trou
-   grossir.
+   survol. **Rattrapage complet fait le 14/08, même session** (sur
+   confirmation explicite, "on le fait maintenant") : les 71 éléments
+   `truncate`/`line-clamp-*` recensés dans `src/components/` ont chacun été
+   vérifiés — la plupart corrigés (`title=` avec le texte complet, souvent
+   reconstruit via template literal quand le texte affiché combine
+   plusieurs champs), quelques-uns déjà bons sans qu'un premier passage au
+   grep simple l'ait vu (title posé sur une ligne différente du
+   `className`, ou une `<div>` englobante dont l'enfant direct porte déjà
+   le `title=`), 2 exceptions assumées :
+   - Le tooltip d'un graphique Recharts (`PlaylistCharts.jsx`,
+     `data.trackName`) — poser un `title=` HTML natif à l'intérieur d'un
+     contenu qui s'affiche DÉJÀ au survol du graphique n'apporte rien (il
+     faudrait déjà survoler pour le voir).
+   - Un bouton dont le `title=` décrit délibérément l'ACTION plutôt que de
+     répéter le texte tronqué (`MiniPlayerBar.jsx`, "Aller à cette
+     playlist") — plus utile qu'une simple répétition ici, laissé tel quel.
+   Réflexe à avoir pour tout NOUVEAU `truncate`/`line-clamp-*` écrit à
+   partir de maintenant : poser le `title=` correspondant du premier coup,
+   plutôt que de laisser un nouveau trou se former.
 
 ### Pseudo/nom d'auteur cliquable vers un profil — `underline` PERMANENT
 
