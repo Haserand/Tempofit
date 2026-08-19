@@ -834,7 +834,7 @@ export default function StatsView({
         <div className={`min-h-[425px] flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-2xl ${cardBorder}`}>
           <Activity size={48} className={`mx-auto mb-4 ${textMuted}`} />
           <h3 className="text-lg font-bold mb-2 text-white">Rien à montrer pour l'instant</h3>
-          <p className={`text-sm mb-6 max-w-sm mx-auto line-clamp-1 ${textMuted}`}>
+          <p className={`text-sm mb-6 max-w-sm mx-auto line-clamp-1 ${textMuted}`} title={statsMode === 'naughty' ? "Aucune séance Mode Intime marquée pour l'instant." : 'Termine une séance pour voir tes stats démarrer.'}>
             {statsMode === 'naughty'
               ? "Aucune séance Mode Intime marquée pour l'instant."
               : 'Termine une séance pour voir tes stats démarrer.'}
@@ -910,7 +910,7 @@ export default function StatsView({
                     className={`w-full flex items-center justify-between gap-3 text-sm rounded-xl px-3 py-2.5 transition-colors hover:bg-black/5 dark:hover:bg-white/5 border ${cardBorder}`}
                   >
                     <div className="min-w-0 text-left">
-                      <div className={`font-semibold truncate ${textHighlight}`}>{playlist.name}</div>
+                      <div className={`font-semibold truncate ${textHighlight}`} title={playlist.name}>{playlist.name}</div>
                       <div className={`text-xs ${textMuted}`}>{dates.length} import{dates.length > 1 ? 's' : ''} · dernier le {formatSessionDate(dates[0])}</div>
                     </div>
                     <ChevronRight size={16} className={`shrink-0 ${textMuted}`} />
@@ -1193,7 +1193,7 @@ export default function StatsView({
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length] }}></span>
-                        <span className={`truncate font-semibold ${textHighlight}`}>{genreDisplayLabel(g.genre)}</span>
+                        <span className={`truncate font-semibold ${textHighlight}`} title={genreDisplayLabel(g.genre)}>{genreDisplayLabel(g.genre)}</span>
                       </div>
                       <span className={`shrink-0 ${textMuted}`}>{g.sessions} séance{g.sessions > 1 ? 's' : ''} · {formatDuration(Math.round(g.seconds))}</span>
                     </button>
@@ -1221,8 +1221,8 @@ export default function StatsView({
                       {topNTracksFromMap(statsZoomTrackCounts, Infinity).map((t, i) => (
                         <div key={i} className={`flex items-center justify-between gap-2 px-1.5 py-1 rounded-lg ${i % 2 === 0 ? '' : 'bg-black/5 dark:bg-white/5'}`}>
                           <div className="min-w-0">
-                            <div className={`font-semibold truncate ${textHighlight}`}>{t.title}</div>
-                            <div className={`text-xs truncate ${textMuted}`}>{t.artist}{avgBpmForTrack(t) ? ` · ~${avgBpmForTrack(t)} BPM` : ''}</div>
+                            <div className={`font-semibold truncate ${textHighlight}`} title={t.title}>{t.title}</div>
+                            <div className={`text-xs truncate ${textMuted}`} title={`${t.artist}${avgBpmForTrack(t) ? ` · ~${avgBpmForTrack(t)} BPM` : ''}`}>{t.artist}{avgBpmForTrack(t) ? ` · ~${avgBpmForTrack(t)} BPM` : ''}</div>
                           </div>
                           <span className={`shrink-0 text-xs font-bold ${textMuted}`}>{t.count}x</span>
                         </div>
@@ -1355,7 +1355,7 @@ export default function StatsView({
                           >
                             <div className="flex items-center gap-2 min-w-0">
                               <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: b.color }}></span>
-                              <span className={`truncate font-semibold ${textHighlight}`}>{b.label} BPM</span>
+                              <span className={`truncate font-semibold ${textHighlight}`} title={`${b.label} BPM`}>{b.label} BPM</span>
                             </div>
                             <span className={`shrink-0 ${textMuted}`}>{b.count} titre{b.count > 1 ? 's' : ''}</span>
                           </button>
@@ -1405,8 +1405,8 @@ export default function StatsView({
                         {topNTracksFromMap(statsZoomTrackCounts, Infinity).map((t, i) => (
                           <div key={i} className={`flex items-center justify-between gap-2 px-1.5 py-1 rounded-lg ${i % 2 === 0 ? '' : 'bg-black/5 dark:bg-white/5'}`}>
                             <div className="min-w-0">
-                              <div className={`font-semibold truncate ${textHighlight}`}>{t.title}</div>
-                              <div className={`text-xs truncate ${textMuted}`}>{t.artist}{avgBpmForTrack(t) ? ` · ~${avgBpmForTrack(t)} BPM` : ''}</div>
+                              <div className={`font-semibold truncate ${textHighlight}`} title={t.title}>{t.title}</div>
+                              <div className={`text-xs truncate ${textMuted}`} title={`${t.artist}${avgBpmForTrack(t) ? ` · ~${avgBpmForTrack(t)} BPM` : ''}`}>{t.artist}{avgBpmForTrack(t) ? ` · ~${avgBpmForTrack(t)} BPM` : ''}</div>
                             </div>
                             <span className={`shrink-0 text-xs font-bold ${textMuted}`}>{t.count}x</span>
                           </div>
@@ -1437,9 +1437,9 @@ export default function StatsView({
                       <div className="flex items-center gap-2 min-w-0">
                         <span className={`w-5 shrink-0 font-black text-xs ${textMuted}`}>#{i + 1}</span>
                         <div className="min-w-0">
-                          <div className={`truncate font-semibold ${textHighlight}`}>{a.artist}</div>
+                          <div className={`truncate font-semibold ${textHighlight}`} title={a.artist}>{a.artist}</div>
                           {a.activity && (
-                            <div className={`truncate text-xs ${textMuted}`}>
+                            <div className={`truncate text-xs ${textMuted}`} title={`Surtout en ${a.activity}${a.avgBpm ? ` · ~${a.avgBpm} BPM` : ''}`}>
                               Surtout en {a.activity}{a.avgBpm ? ` · ~${a.avgBpm} BPM` : ''}
                             </div>
                           )}
@@ -1462,8 +1462,8 @@ export default function StatsView({
                       <div className="flex items-center gap-2 min-w-0">
                         <span className={`w-5 shrink-0 font-black text-xs ${textMuted}`}>#{i + 1}</span>
                         <div className="min-w-0">
-                          <div className={`truncate font-semibold ${textHighlight}`}>{t.title}</div>
-                          <div className={`truncate text-xs ${textMuted}`}>
+                          <div className={`truncate font-semibold ${textHighlight}`} title={t.title}>{t.title}</div>
+                          <div className={`truncate text-xs ${textMuted}`} title={`${t.artist}${t.activity ? ` · ${t.activity}` : ''}${t.avgBpm ? ` · ~${t.avgBpm} BPM` : ''}`}>
                             {t.artist}{t.activity ? ` · ${t.activity}` : ''}{t.avgBpm ? ` · ~${t.avgBpm} BPM` : ''}
                           </div>
                         </div>
