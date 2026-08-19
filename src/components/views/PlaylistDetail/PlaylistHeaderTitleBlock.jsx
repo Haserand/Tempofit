@@ -91,7 +91,7 @@ export default function PlaylistHeaderTitleBlock({
               flex ne descend jamais sous la largeur de son contenu
               par défaut, `line-clamp` n'a alors rien pour s'appuyer
               (même piège documenté dans ViewHeader.jsx). */}
-          <p className="whitespace-pre-line line-clamp-1 flex-1 min-w-0">{currentPlaylist.description}</p>
+          <p className="whitespace-pre-line line-clamp-1 flex-1 min-w-0" title={currentPlaylist.description}>{currentPlaylist.description}</p>
         </div>
       ) : (
         // Indice discret, NON cliquable — signale que le champ EXISTE
