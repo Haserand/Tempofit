@@ -57,8 +57,8 @@ export default function PublicRoutinePreviewModal({ theme, isOpen, onClose, rout
           <div className="flex items-center gap-2 mb-3">
             <span className="text-2xl">{content.coverIcon || '⚡'}</span>
             <div className="min-w-0">
-              <h4 className={`font-bold truncate ${textHighlight}`}>{content.name || 'Routine'}</h4>
-              <p className={`text-xs truncate ${textMuted}`}>{content.workoutType}{content.customActivity ? ` (${content.customActivity})` : ''}</p>
+              <h4 className={`font-bold truncate ${textHighlight}`} title={content.name || 'Routine'}>{content.name || 'Routine'}</h4>
+              <p className={`text-xs truncate ${textMuted}`} title={`${content.workoutType}${content.customActivity ? ` (${content.customActivity})` : ''}`}>{content.workoutType}{content.customActivity ? ` (${content.customActivity})` : ''}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold">
