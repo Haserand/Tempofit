@@ -293,8 +293,8 @@ export default function PlaylistCharts({
                 <ChevronRight size={18}/>
               </button>
               <div className="flex-1 min-w-0">
-                <div className={`font-bold text-sm truncate ${textHighlight}`}>{trackSegments[selectedSegmentIdx].track.title}</div>
-                <div className={`text-xs truncate ${textMuted}`}>{trackSegments[selectedSegmentIdx].track.artist}{trackSegments[selectedSegmentIdx].track.genre ? ` · ${getGenresForDisplay(trackSegments[selectedSegmentIdx].track.genre, trackSegments[selectedSegmentIdx].track.artist, trackSegments[selectedSegmentIdx].track.title).join(', ')}` : ''}{trackSegments[selectedSegmentIdx].track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Genre Deezer différent — peut quand même correspondre.">⚠️ Genre non confirmé</span>}</div>
+                <div className={`font-bold text-sm truncate ${textHighlight}`} title={trackSegments[selectedSegmentIdx].track.title}>{trackSegments[selectedSegmentIdx].track.title}</div>
+                <div className={`text-xs truncate ${textMuted}`} title={`${trackSegments[selectedSegmentIdx].track.artist}${trackSegments[selectedSegmentIdx].track.genre ? ` · ${getGenresForDisplay(trackSegments[selectedSegmentIdx].track.genre, trackSegments[selectedSegmentIdx].track.artist, trackSegments[selectedSegmentIdx].track.title).join(', ')}` : ''}`}>{trackSegments[selectedSegmentIdx].track.artist}{trackSegments[selectedSegmentIdx].track.genre ? ` · ${getGenresForDisplay(trackSegments[selectedSegmentIdx].track.genre, trackSegments[selectedSegmentIdx].track.artist, trackSegments[selectedSegmentIdx].track.title).join(', ')}` : ''}{trackSegments[selectedSegmentIdx].track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Genre Deezer différent — peut quand même correspondre.">⚠️ Genre non confirmé</span>}</div>
               </div>
               <div className={`text-xs font-mono ${textMuted} shrink-0 hidden md:block`}>
                 Début : {formatDuration(trackSegments[selectedSegmentIdx].startTime)}<br/>
@@ -548,8 +548,8 @@ export default function PlaylistCharts({
               {currentPlaylist.tracks.filter(trackMatchesDetailFilter).map((t, i) => (
                 <div key={i} className="flex items-center justify-between gap-2 text-sm py-1">
                   <div className="min-w-0">
-                    <div className={`font-semibold truncate ${textHighlight}`}>{t.title}</div>
-                    <div className={`text-xs truncate ${textMuted}`}>{t.artist}</div>
+                    <div className={`font-semibold truncate ${textHighlight}`} title={t.title}>{t.title}</div>
+                    <div className={`text-xs truncate ${textMuted}`} title={t.artist}>{t.artist}</div>
                   </div>
                   <span className={`shrink-0 text-xs font-bold ${textColorClass}`}>{t.bpm} BPM</span>
                 </div>
@@ -667,8 +667,8 @@ export default function PlaylistCharts({
               {currentPlaylist.tracks.filter(trackMatchesDetailFilter).map((t, i) => (
                 <div key={i} className="flex items-center justify-between gap-2 text-sm py-1">
                   <div className="min-w-0">
-                    <div className={`font-semibold truncate ${textHighlight}`}>{t.title}</div>
-                    <div className={`text-xs truncate ${textMuted}`}>{t.artist}</div>
+                    <div className={`font-semibold truncate ${textHighlight}`} title={t.title}>{t.title}</div>
+                    <div className={`text-xs truncate ${textMuted}`} title={t.artist}>{t.artist}</div>
                   </div>
                   <span className={`shrink-0 text-xs font-bold ${textColorClass}`}>{t.bpm} BPM</span>
                 </div>
