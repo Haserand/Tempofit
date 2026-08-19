@@ -152,8 +152,8 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
         <div className="min-w-0 flex-1 flex items-center gap-2">
           <Music2 size={16} className={`shrink-0 hidden sm:block ${textMuted}`}/>
           <div className="min-w-0">
-            <p className={`text-sm font-bold truncate ${textHighlight}`}>{currentTrack.title}</p>
-            <p className={`text-xs truncate ${textMuted}`}>{currentTrack.artist}{currentTrack.bpm ? ` · ${currentTrack.bpm} BPM` : ''}</p>
+            <p className={`text-sm font-bold truncate ${textHighlight}`} title={currentTrack.title}>{currentTrack.title}</p>
+            <p className={`text-xs truncate ${textMuted}`} title={`${currentTrack.artist}${currentTrack.bpm ? ` · ${currentTrack.bpm} BPM` : ''}`}>{currentTrack.artist}{currentTrack.bpm ? ` · ${currentTrack.bpm} BPM` : ''}</p>
           </div>
         </div>
 
