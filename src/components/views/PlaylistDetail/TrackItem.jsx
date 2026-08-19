@@ -124,8 +124,8 @@ export default function TrackItem({
           : playingPreviewId === track.trackId ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor" className="ml-0.5"/>}
       </button>
       <div className="flex-1 px-2 min-w-0">
-        <div className={"font-bold text-sm truncate " + textHighlight}>{track.title}</div>
-        <div className={"text-xs truncate " + textMuted}>
+        <div className={"font-bold text-sm truncate " + textHighlight} title={track.title}>{track.title}</div>
+        <div className={"text-xs truncate " + textMuted} title={`${track.artist}${track.genre ? ` · ${getGenresForDisplay(track.genre, track.artist, track.title).join(', ')}` : ''}`}>
           {track.artist}{track.genre ? ` · ${getGenresForDisplay(track.genre, track.artist, track.title).join(', ')}` : ''}
           {track._genreMismatch && <span className="ml-1 text-amber-500 font-bold" title="Genre Deezer différent — peut quand même correspondre.">⚠️ Genre non confirmé</span>}
         </div>
