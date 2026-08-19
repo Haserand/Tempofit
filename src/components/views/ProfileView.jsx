@@ -154,8 +154,8 @@ function PublicItemCard({ item, theme, onClick, kind = 'playlist' }) {
           </div>
         )}
         <div className="min-w-0">
-          <h4 className={`font-bold text-sm truncate ${textHighlight}`}>{content.name || 'Séance'}</h4>
-          {content.workoutType && <p className={`text-xs truncate ${textMuted}`}>{content.workoutType}</p>}
+          <h4 className={`font-bold text-sm truncate ${textHighlight}`} title={content.name || 'Séance'}>{content.name || 'Séance'}</h4>
+          {content.workoutType && <p className={`text-xs truncate ${textMuted}`} title={content.workoutType}>{content.workoutType}</p>}
         </div>
       </div>
       {/* Badge "Clone"/"Enfant" (02/08, discussion produit ; refonte
@@ -225,7 +225,7 @@ function PublicItemCard({ item, theme, onClick, kind = 'playlist' }) {
           en `line-clamp-1` — même décision de troncature sèche partout,
           sans "Voir plus" nulle part). */}
       {!isRoutine && content.description && (
-        <p className={`text-xs mt-2 line-clamp-1 ${textMuted}`}>{content.description}</p>
+        <p className={`text-xs mt-2 line-clamp-1 ${textMuted}`} title={content.description}>{content.description}</p>
       )}
     </div>
   );
@@ -608,7 +608,7 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
               </div>
             )}
             <div className="min-w-0">
-              <h1 className={`text-2xl font-black truncate ${textHighlight}`}>@{username}</h1>
+              <h1 className={`text-2xl font-black truncate ${textHighlight}`} title={`@${username}`}>@{username}</h1>
               <p className={`text-sm ${textMuted}`}>Profil TempoFit</p>
             </div>
           </div>
