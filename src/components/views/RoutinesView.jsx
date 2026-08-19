@@ -173,7 +173,7 @@ export default function RoutinesView({
                     {getDisplayRoutineIcon(routine)}
                   </div>
                   <h3 className={`font-bold text-xl flex items-center gap-2 min-w-0 ${textHighlight}`}>
-                    <span className="truncate">{getDisplayRoutineName(routine)}</span>
+                    <span className="truncate" title={getDisplayRoutineName(routine)}>{getDisplayRoutineName(routine)}</span>
                     {routine.isIntervalMode && (
                       <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full text-white shrink-0 ${bgAccentClass}`}>
                         {routine.isCrescendoMode ? 'Crescendo' : 'Fractionné'}
