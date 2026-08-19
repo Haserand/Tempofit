@@ -543,6 +543,7 @@ export default function Sidebar({
             target="_blank"
             rel="noopener noreferrer"
             className={`text-xs font-medium truncate ${textMuted}`}
+            title="Un projet créé par Damien Grangé"
           >
             {/* Signature redevenue discrète (27/07, retour direct : "trop
                 bruyante, `font-bold` + highlight") — `font-bold`/
