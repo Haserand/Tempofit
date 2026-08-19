@@ -144,7 +144,7 @@ export default function ViewHeader({ theme, icon, title, subtitle, right = null,
             (donc en mode standard, ou en Mode Intime + thème clair), le
             sous-titre garde `textMuted` comme avant — comportement
             inchangé partout ailleurs. */}
-        <p className={`mt-1 text-sm leading-tight ${textMuted} line-clamp-1 ${isNaughtyMode ? 'dark:text-white' : ''}`}>{subtitle}</p>
+        <p className={`mt-1 text-sm leading-tight ${textMuted} line-clamp-1 ${isNaughtyMode ? 'dark:text-white' : ''}`} title={subtitle}>{subtitle}</p>
       </div>
       {right && <div className="shrink-0 flex items-center gap-2">{right}</div>}
     </div>
