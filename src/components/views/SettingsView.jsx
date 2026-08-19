@@ -487,10 +487,10 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
             <div className={`mt-4 p-4 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10`}>
               <div className="flex items-start gap-2 text-sm font-bold text-amber-700 dark:text-amber-400 mb-2">
                 <AlertTriangle size={16} className="shrink-0 mt-0.5"/>
-                <span className="flex-1 min-w-0 line-clamp-1">Erreur "redirect_uri" ? Enregistre cette URL dans ton Dashboard développeur Spotify.</span>
+                <span className="flex-1 min-w-0 line-clamp-1" title={`Erreur "redirect_uri" ? Enregistre cette URL dans ton Dashboard développeur Spotify.`}>Erreur "redirect_uri" ? Enregistre cette URL dans ton Dashboard développeur Spotify.</span>
               </div>
               <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${inputBorder} ${inputBg}`}>
-                <code className={`flex-1 text-xs font-mono truncate ${textHighlight}`}>{spotifyRedirectUri}</code>
+                <code className={`flex-1 text-xs font-mono truncate ${textHighlight}`} title={spotifyRedirectUri}>{spotifyRedirectUri}</code>
                 <button
                   onClick={copyRedirectUri}
                   title="Copier cette URL"
@@ -553,7 +553,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                   précis...), le bouton n'est un raccourci en plus, jamais
                   un remplacement forcé. */}
               <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${inputBorder} ${inputBg} mb-4`}>
-                <code className={`flex-1 text-xs font-mono truncate selectable-text ${textHighlight}`}>tempofit.app/?profile={username}</code>
+                <code className={`flex-1 text-xs font-mono truncate selectable-text ${textHighlight}`} title={`tempofit.app/?profile=${username}`}>tempofit.app/?profile={username}</code>
                 <button
                   onClick={copyProfileLink}
                   title="Copier le lien de profil"
@@ -722,7 +722,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           {(user || !isSupabaseConfigured) && (
           <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
             <h3 className={`font-bold text-xl mb-2 ${textHighlight}`}>Informations & Sécurité</h3>
-            <p className={`text-sm mb-6 line-clamp-1 ${textMuted}`}>Gère tes identifiants d'accès et la sécurité de ton compte.</p>
+            <p className={`text-sm mb-6 line-clamp-1 ${textMuted}`} title="Gère tes identifiants d'accès et la sécurité de ton compte.">Gère tes identifiants d'accès et la sécurité de ton compte.</p>
 
             {!isSupabaseConfigured ? (
               <div className={`p-4 rounded-2xl border ${inputBorder} ${inputBg} text-sm ${textMuted}`}>
@@ -753,7 +753,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                           <AtSign size={22} />
                         </div>
                         <div className="min-w-0">
-                          <h4 className={`font-bold text-lg truncate ${textHighlight}`}>@{username}</h4>
+                          <h4 className={`font-bold text-lg truncate ${textHighlight}`} title={`@${username}`}>@{username}</h4>
                           <p className={`text-sm ${textMuted}`}>Pseudonyme</p>
                         </div>
                       </div>
@@ -826,7 +826,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                       </form>
                     ) : (
                       <div className="min-w-0">
-                        <h4 className={`font-bold text-lg truncate ${textHighlight}`}>{user.email}</h4>
+                        <h4 className={`font-bold text-lg truncate ${textHighlight}`} title={user.email}>{user.email}</h4>
                         <p className={`text-sm ${textMuted}`}>Adresse e-mail</p>
                       </div>
                     )}
