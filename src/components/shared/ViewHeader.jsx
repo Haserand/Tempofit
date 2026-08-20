@@ -1,7 +1,9 @@
 /**
  * ViewHeader — en-tête standard de TOUTE vue de premier niveau (celles
- * listées dans la Sidebar : Nouvelle séance, Mes Routines, Découvrir, Mes
- * Séances, Mes Favoris, Statistiques, Trophées, Options & Comptes...).
+ * listées dans la Sidebar : Nouvelle séance, Mes Séances, Découvrir, Mes
+ * Routines, Mes Favoris, Statistiques, Trophées, Options & Comptes...
+ * — ordre mis à jour le 20/08, voir Sidebar.jsx : "Mes Séances"/"Mes
+ * Routines" ont échangé leur place).
  *
  * NAISSANCE DE CE COMPOSANT (25/07) — après un chantier "uniformisation des
  * largeurs de vues et alignement vertical" qui a dû corriger le même pattern
