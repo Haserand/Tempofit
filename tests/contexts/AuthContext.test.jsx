@@ -668,3 +668,64 @@ describe('AuthContext — isSupabaseConfigured=false (no-op silencieux, sans dé
     expect(mockAuth.signOut).not.toHaveBeenCalled();
   });
 });
+
+// NOUVEAU (19/08, check-up global) — `value`/les 11 fonctions sont
+// désormais mémoïsées (`useMemo`/`useCallback`), même chantier que les 7
+// autres Contexts du projet (08/08, "value non mémoïsée re-render tout le
+// monde"), appliqué ici tardivement. Concrètement plus important pour CE
+// Contexte que pour les autres : `usePersistentState.js`/
+// `useSyncedCollection.js` (appelés une fois PAR CLÉ persistée dans toute
+// l'app) lisent tous les deux `useAuthContext()` en interne — sans cette
+// stabilité, un changement d'état interne à AuthContext SANS RAPPORT avec
+// `user`/`authLoading` (ex. `usernameLoading`) recréait `value` en entier,
+// et donc re-rendait indirectement TOUS ces hooks à travers toute l'app.
+describe('AuthContext — stabilité référentielle (useMemo/useCallback, correctif 19/08)', () => {
+  it('un re-rendu du Provider sans changement d\'état réel renvoie la MÊME value (même référence)', async () => {
+    const { result, rerender } = renderAuth();
+    await waitFor(() => expect(result.current.authLoading).toBe(false));
+    const before = result.current;
+    rerender();
+    const after = result.current;
+    expect(after).toBe(before);
+  });
+
+  it('chaque fonction exposée garde la MÊME référence entre deux rendus sans changement d\'état', async () => {
+    const { result, rerender } = renderAuth();
+    await waitFor(() => expect(result.current.authLoading).toBe(false));
+    const before = result.current;
+    rerender();
+    const after = result.current;
+    // Les 11 fonctions stabilisées via useCallback — vérifiées une à une
+    // plutôt qu'en bloc, pour qu'un échec pointe directement la bonne.
+    expect(after.signUp).toBe(before.signUp);
+    expect(after.signIn).toBe(before.signIn);
+    expect(after.signOut).toBe(before.signOut);
+    expect(after.resetPassword).toBe(before.resetPassword);
+    expect(after.updateEmail).toBe(before.updateEmail);
+    expect(after.updatePassword).toBe(before.updatePassword);
+    expect(after.exportUserData).toBe(before.exportUserData);
+    expect(after.deleteAccount).toBe(before.deleteAccount);
+    expect(after.checkUsernameAvailable).toBe(before.checkUsernameAvailable);
+    expect(after.setUsername).toBe(before.setUsername);
+    expect(after.updatePrivacySettings).toBe(before.updatePrivacySettings);
+  });
+
+  it('un VRAI changement d\'état (connexion) fait bien recalculer la value (pas figée pour toujours)', async () => {
+    mockAuth.getSession.mockResolvedValueOnce({ data: { session: null } });
+    const { result } = renderAuth();
+    await waitFor(() => expect(result.current.authLoading).toBe(false));
+    const before = result.current;
+
+    mockAuth.signInWithPassword.mockResolvedValueOnce({ error: null });
+    await act(async () => { await result.current.signIn('a@b.com', 'pw'); });
+    // signIn() lui-même ne pose pas `user` directement (c'est
+    // onAuthStateChange qui le fait, voir AuthContext.jsx) — on simule ici
+    // ce que fait la souscription mockée en déclenchant son callback.
+    const onAuthStateChangeCallback = mockAuth.onAuthStateChange.mock.calls[0][0];
+    act(() => { onAuthStateChangeCallback('SIGNED_IN', { user: { id: 'u1' } }); });
+
+    const after = result.current;
+    expect(after).not.toBe(before);
+    expect(after.user).toEqual({ id: 'u1' });
+  });
+});
