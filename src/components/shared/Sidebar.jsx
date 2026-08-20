@@ -1,4 +1,4 @@
-import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, ListPlus, Compass, Sun, Moon } from 'lucide-react';
+import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, Compass, Sun, Moon } from 'lucide-react';
 import { MINI_PLAYER_BAR_HEIGHT_PX, GUEST_MODE_BAR_HEIGHT_PX } from '../../layout/bottomBarLayout';
 import { VIEW_HEADER_TOP_PADDING } from '../../layout/viewHeaderLayout';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
@@ -346,19 +346,22 @@ export default function Sidebar({
             <span className="font-bold text-sm">Nouvelle séance</span>
           </button>
 
-          {/* ÉCHANGÉ avec "Mes Routines" ci-dessous (retour direct, 20/08 :
+          {/* Rapprochée de "Nouvelle séance" (retour direct, 20/08 :
               "les séances juste en dessous du bouton de génération de
-              séance, et les routines au niveau actuel des séances") —
-              "Nouvelle séance" produit directement UNE séance, la
-              rapprocher de son résultat direct crée un flux
-              créer→consulter lisible. Catégorisation par INTENTION
-              ("Création"/"Mon Espace", 25/07) assouplie ici : "Mes
-              Routines" est jugée à cheval entre les deux (relancer une
-              routine crée AUSSI une nouvelle séance) — pas de raison
-              structurelle de la garder à tout prix dans "Création" plutôt
-              que "Mon Espace", contrairement à "Découvrir" (parcourir des
-              templates d'AUTRES utilisateurs, jamais "quelque chose qui
-              existe déjà à MOI"), qui reste ici sans ambiguïté. */}
+              séance") — "Nouvelle séance" produit directement UNE séance,
+              la rapprocher de son résultat direct crée un flux
+              créer→consulter lisible.
+              ⚠️ Historique du même jour : d'abord un simple ÉCHANGE de
+              position avec "Mes Routines" (qui descendait dans "Mon
+              Espace"), PUIS "Mes Routines" fusionnée en onglet DANS "Mes
+              Séances" (voir plus bas, "Mes Routines RETIRÉ D'ICI" —
+              PlaylistsView.jsx) — l'échange initial est donc devenu sans
+              objet, il n'y a plus qu'un seul bouton "Mes Séances" ici,
+              plus de bouton "Mes Routines" à placer où que ce soit dans la
+              Sidebar. Raisonnement d'origine gardé ci-dessus : il explique
+              toujours pourquoi "Mes Séances" est montée ici plutôt que
+              dans "Mon Espace", même si sa 2e moitié (où va "Mes
+              Routines") ne s'applique plus telle quelle. */}
           <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <List size={18} className={view === 'playlists' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Mes Séances</span>
@@ -388,13 +391,16 @@ export default function Sidebar({
         <div className={`flex flex-col ${linkGap}`}>
           <div className={`px-3 ${sectionTitleMargin} text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Mon Espace{!user && ' • Invité'}</div>
 
-          {/* ÉCHANGÉ avec "Mes Séances" ci-dessus (20/08) — voir la
-              docstring de "Mes Séances" dans le bloc "Création" pour le
-              raisonnement complet. */}
-          <button onClick={() => changeView('routines')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'routines' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
-            <ListPlus size={18} className={view === 'routines' ? 'text-white' : textColorClass} />
-            <span className="font-bold text-sm">Mes Routines</span>
-          </button>
+          {/* "Mes Routines" RETIRÉ D'ICI (20/08, fusion en onglet — retour
+              direct : "j'imagine la partie routines comme un onglet
+              spécifique du menu séance, comme sur un profil utilisateur").
+              Ce n'est plus une entrée de Sidebar séparée : c'est maintenant
+              le 2e onglet de "Mes Séances" (bouton juste au-dessus, dans
+              "Création") — voir PlaylistsView.jsx pour le détail complet.
+              L'échange de position du 20/08 ("Mes Séances" ↔ "Mes
+              Routines" entre les 2 sections, voir commit précédent) est
+              donc devenu sans objet : il n'y a plus qu'UN SEUL lien ici,
+              plus besoin de choisir sa section. */}
 
           <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Star size={18} className={favorites.useFavorites && favorites.artists.length > 0 ? "text-yellow-500 fill-yellow-500/20" : (view === 'favorites' ? 'text-white' : '')} />
