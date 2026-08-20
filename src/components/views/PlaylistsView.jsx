@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
-import { List, Library, Plus, Calendar, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { List, Library, Plus, Calendar, CheckCircle, ChevronLeft, ChevronRight, ListPlus } from 'lucide-react';
 import PlaylistCard from './PlaylistCard';
+import RoutinesView from './RoutinesView';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 
@@ -13,6 +14,26 @@ import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHe
  * appConfig.js... Rétabli ici pour que le titre de la page matche enfin la
  * Sidebar et le reste de l'app, plutôt que l'inverse).
  *
+ * ⚠️ FUSION AVEC "Mes Routines" (20/08, retour direct — "prends du recul,
+ * j'imagine la partie routines comme un onglet spécifique du menu séance ;
+ * un peu comme quand on voit la vue d'un profil utilisateur où les 2 sont
+ * présents dans la même page") — "Mes Routines" n'est plus une entrée de
+ * Sidebar séparée : c'est maintenant le 2e onglet de CETTE vue, exactement
+ * le même schéma que l'onglet Playlists/Routines déjà en place sur
+ * `ProfileView.jsx` (visite du profil de QUELQU'UN D'AUTRE) — visiter SON
+ * PROPRE espace suit désormais la même logique que visiter celui d'un
+ * autre. `RoutinesView.jsx` a été réduit à son seul corps (grille) — plus
+ * de `<ViewHeader/>` ni de wrapper propres, ce composant-CI les possède
+ * pour les 2 onglets, en changeant titre/sous-titre/icône selon l'onglet
+ * actif. `initialTab` : MÊME mécanisme exact que `SettingsView.jsx`
+ * (`initialTab`/`handleOpenSettings`, App.jsx) — `null` par défaut (onglet
+ * "Séances", comportement historique de la Sidebar), posé à `'routine'`
+ * juste avant `changeView('playlists')` par les 2 points d'entrée qui
+ * naviguaient avant vers `changeView('routines')` (App.jsx : cloner une
+ * routine publique, consulter sa PROPRE routine publique depuis son
+ * profil) — voir `handleOpenPlaylists`, App.jsx, le nouveau point d'entrée
+ * UNIQUE qui remplace ces 2 anciens appels directs à `changeView`.
+ *
  * Fusionne ce qui était avant deux pages séparées ("Mes Playlists" et "Ma
  * File d'attente", voir passation) suite à un retour direct : une file
  * séparée n'apportait pas grand-chose de plus qu'un simple ordre + une date
@@ -20,7 +41,7 @@ import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHe
  * était l'onglet "Historique" (HistoryView.jsx, retiré) : depuis que la
  * planification/les dates sont intégrées ici, cet écran couvre toute la
  * ligne de temps d'une séance (à venir → faite), un onglet séparé pour le
- * passé faisait doublon. 3 sections, dans cet ordre :
+ * passé faisait doublon. 3 sections, dans cet ordre (onglet "Séances") :
  *
  * 1. "À planifier" — playlists non terminées SANS date. Réordonnables à la
  *    main par glisser-déposer (même mécanisme que l'ordre des titres dans
@@ -64,11 +85,30 @@ export default function PlaylistsView({
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate, triggerCSVUpload,
   removeImportedData,
   showToast,
+  // NOUVEAU (20/08, fusion "Mes Routines") — transmises telles quelles au
+  // corps RoutinesView.jsx (voir la docstring de ce fichier) quand l'onglet
+  // actif est 'routine'. Mêmes props qu'App.jsx passait avant à
+  // `<RoutinesView/>` directement, moins celles déjà partagées avec
+  // l'onglet Séances (`theme`/`isNaughtyMode`/`getRankStyle`/
+  // `renderConfigInfoLine`/`changeView`/`showToast`, déjà dans la liste
+  // au-dessus).
+  routines, setRoutines, routineBatchCounts, setRoutineBatchCounts,
+  getDisplayRoutineIcon, getDisplayRoutineName, setEditingRoutine, executeGeneration, isGenerating,
+  // `initialTab` — MÊME mécanisme que SettingsView.jsx (voir sa docstring
+  // et celle de ce fichier) : `null` = onglet "Séances" par défaut.
+  initialTab = null,
 }) {
   const { cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
   const [draggedId, setDraggedId] = useState(null);
   const [plannedPage, setPlannedPage] = useState(0);
   const [completedPage, setCompletedPage] = useState(0);
+  // Onglet actif — lazy init comme SettingsView.jsx : ce composant est
+  // démonté/remonté à chaque changement de vue (pas de `key` ni de state
+  // persistant, voir App.jsx), donc `initialTab` est systématiquement relu
+  // à la valeur EXACTE que l'appelant vient de poser juste avant
+  // `changeView('playlists')`, jamais une valeur périmée d'une visite
+  // précédente.
+  const [activeTab, setActiveTab] = useState(() => initialTab || 'playlist');
 
   const isCompleted = (p) => p.completions && p.completions.length > 0;
 
@@ -252,14 +292,41 @@ export default function PlaylistsView({
   const isEmpty = visiblePlaylists.length === 0;
 
   return (
-    <div className={`${VIEW_CONTENT_WRAPPER} space-y-10`}>
+    <div className={`${VIEW_CONTENT_WRAPPER} space-y-6`}>
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
-        icon={<Library className={textColorClass} size={VIEW_HEADER_ICON_SIZE} />}
-        title="Mes Séances"
-        subtitle="Retrouve tes playlists générées, planifie tes écoutes et consulte ton historique."
+        icon={activeTab === 'routine'
+          ? <ListPlus className={textColorClass} size={VIEW_HEADER_ICON_SIZE} />
+          : <Library className={textColorClass} size={VIEW_HEADER_ICON_SIZE} />}
+        title={activeTab === 'routine' ? 'Mes Routines' : 'Mes Séances'}
+        subtitle={activeTab === 'routine'
+          ? 'Génère instantanément des séances à partir de tes configurations.'
+          : 'Retrouve tes séances générées, planifie tes écoutes et consulte ton historique.'}
       />
+
+      {/* Onglets Séances/Routines (20/08, fusion — voir la docstring de ce
+          fichier) — MÊME markup exact que l'onglet Playlists/Routines de
+          ProfileView.jsx (visite du profil de quelqu'un d'autre), pour que
+          visiter SON PROPRE espace se comporte pareil visuellement. */}
+      <div className="flex items-center gap-1" role="tablist">
+        {[
+          { value: 'playlist', label: 'Séances', count: visiblePlaylists.length },
+          { value: 'routine', label: 'Routines', count: routines.length },
+        ].map(tab => (
+          <button
+            key={tab.value}
+            role="tab"
+            aria-selected={activeTab === tab.value}
+            onClick={() => setActiveTab(tab.value)}
+            className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-colors ${
+              activeTab === tab.value ? `${bgAccentClass} text-white` : `${textMuted} hover:text-main`
+            }`}
+          >
+            {tab.label} <span className="opacity-70">({tab.count})</span>
+          </button>
+        ))}
+      </div>
 
       {/* Notice "mode invité" RETIRÉE D'ICI (25/07) — vivait en double ici et
           dans StatsView.jsx, avec deux conditions de déclenchement légèrement
@@ -269,62 +336,83 @@ export default function PlaylistsView({
           bloc centralisé désormais, dans Sidebar.jsx (persistante sur toutes
           les vues) — voir son commentaire pour le raisonnement complet. */}
 
-      {isEmpty ? (
-        <div className={`py-16 text-center border-2 border-dashed rounded-2xl ${isNaughtyMode ? 'border-slate-400' : 'border-slate-700'}`}>
-          <List size={48} className={`mx-auto mb-4 ${textMuted}`} />
-          <h3 className={`text-lg font-bold mb-2 ${textHighlight}`}>Aucune playlist sauvegardée</h3>
-          <p className={`text-sm mb-6 max-w-sm mx-auto ${textMuted}`}>Génère une playlist et sauvegarde-la pour la retrouver ici.</p>
-          <button onClick={() => changeView('generator')} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
-            Générer ma première playlist
-          </button>
-        </div>
+      {activeTab === 'routine' ? (
+        <RoutinesView
+          theme={theme} isNaughtyMode={isNaughtyMode} routines={routines} setRoutines={setRoutines}
+          routineBatchCounts={routineBatchCounts} setRoutineBatchCounts={setRoutineBatchCounts}
+          getDisplayRoutineIcon={getDisplayRoutineIcon} getDisplayRoutineName={getDisplayRoutineName}
+          renderConfigInfoLine={renderConfigInfoLine} getRankStyle={getRankStyle}
+          setEditingRoutine={setEditingRoutine}
+          executeGeneration={executeGeneration} isGenerating={isGenerating} changeView={changeView}
+          showToast={showToast}
+        />
       ) : (
-        <>
-          {/* --- À PLANIFIER (pas de date, ordre manuel par glisser-déposer, PAS paginée) --- */}
-          <div className="space-y-4">
-            <h2 className={`text-sm font-bold uppercase tracking-wider ${textMuted}`}>À planifier</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Zone vide "Générer une nouvelle playlist" (retour direct :
-                  "le texte gris clair et le + sont illisibles") — même
-                  schéma slate normalisé que le reste de cette vue. */}
-              {/* Ménage "Centraliser les règles de couleur" (29/07) —
-                  ternaire `isNaughtyMode` retiré, remplacé par les tokens
-                  déjà adaptatifs de useTheme.js (voir RoutinesView.jsx pour
-                  le détail identique). */}
-              <button onClick={() => changeView('generator')} className={`rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 py-10 font-bold transition-colors ${cardBorder} ${textMuted} hover:text-main`}>
-                <Plus size={28} />
-                <span>Générer une nouvelle playlist</span>
+        <div className="space-y-10">
+          {isEmpty ? (
+            <div className={`py-16 text-center border-2 border-dashed rounded-2xl ${isNaughtyMode ? 'border-slate-400' : 'border-slate-700'}`}>
+              <List size={48} className={`mx-auto mb-4 ${textMuted}`} />
+              <h3 className={`text-lg font-bold mb-2 ${textHighlight}`}>Aucune séance sauvegardée</h3>
+              <p className={`text-sm mb-6 max-w-sm mx-auto ${textMuted}`}>Génère une séance et sauvegarde-la pour la retrouver ici.</p>
+              <button onClick={() => changeView('generator')} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
+                Générer ma première playlist
               </button>
-              {toPlan.map(p => renderCard(p, { draggableSection: true }))}
             </div>
-          </div>
-
-          {/* --- PLANIFIÉES (une date a été choisie, triées par date, paginée) --- */}
-          {planned.length > 0 && (
-            <div className="space-y-4">
-              <h2 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${textMuted}`}>
-                <Calendar size={14} /> Planifiées
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {plannedPageItems.map(p => renderCard(p))}
+          ) : (
+            <>
+              {/* --- À PLANIFIER (pas de date, ordre manuel par glisser-déposer, PAS paginée) --- */}
+              <div className="space-y-4">
+                <h2 className={`text-sm font-bold uppercase tracking-wider ${textMuted}`}>À planifier</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Zone vide "Générer une nouvelle playlist" (retour direct :
+                      "le texte gris clair et le + sont illisibles") — même
+                      schéma slate normalisé que le reste de cette vue.
+                      Texte aligné sur "séance" (20/08, même raisonnement que
+                      les 2 autres juste au-dessus — voir la docstring de ce
+                      fichier) — dernières occurrences visibles de "playlist"
+                      dans le texte de cette vue, hormis le bouton CTA
+                      lui-même (`changeView('generator')` mène au générateur,
+                      dont le libellé "Générer ma première playlist" est un
+                      chantier séparé, pas touché ici). */}
+                  {/* Ménage "Centraliser les règles de couleur" (29/07) —
+                      ternaire `isNaughtyMode` retiré, remplacé par les tokens
+                      déjà adaptatifs de useTheme.js (voir RoutinesView.jsx pour
+                      le détail identique). */}
+                  <button onClick={() => changeView('generator')} className={`rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 py-10 font-bold transition-colors ${cardBorder} ${textMuted} hover:text-main`}>
+                    <Plus size={28} />
+                    <span>Créer une nouvelle séance</span>
+                  </button>
+                  {toPlan.map(p => renderCard(p, { draggableSection: true }))}
+                </div>
               </div>
-              {renderPager(plannedSafePage, plannedTotalPages, setPlannedPage)}
-            </div>
-          )}
 
-          {/* --- TERMINÉES (fusionne l'ancien "Historique", paginée) --- */}
-          {completedPlaylists.length > 0 && (
-            <div className="space-y-4">
-              <h2 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${textMuted}`}>
-                <CheckCircle size={14} /> Terminées
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {completedPageItems.map(p => renderCard(p))}
-              </div>
-              {renderPager(completedSafePage, completedTotalPages, setCompletedPage)}
-            </div>
+              {/* --- PLANIFIÉES (une date a été choisie, triées par date, paginée) --- */}
+              {planned.length > 0 && (
+                <div className="space-y-4">
+                  <h2 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${textMuted}`}>
+                    <Calendar size={14} /> Planifiées
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {plannedPageItems.map(p => renderCard(p))}
+                  </div>
+                  {renderPager(plannedSafePage, plannedTotalPages, setPlannedPage)}
+                </div>
+              )}
+
+              {/* --- TERMINÉES (fusionne l'ancien "Historique", paginée) --- */}
+              {completedPlaylists.length > 0 && (
+                <div className="space-y-4">
+                  <h2 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${textMuted}`}>
+                    <CheckCircle size={14} /> Terminées
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {completedPageItems.map(p => renderCard(p))}
+                  </div>
+                  {renderPager(completedSafePage, completedTotalPages, setCompletedPage)}
+                </div>
+              )}
+            </>
           )}
-        </>
+        </div>
       )}
     </div>
   );
