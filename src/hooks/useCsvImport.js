@@ -30,6 +30,13 @@ import { formatCompletionDate } from '../utils/format';
  * (toujours à jour, même pattern qu'ailleurs) permettent de détecter le
  * changement et d'abandonner (toast informatif) plutôt que d'appliquer un
  * résultat obsolète.
+ *
+ * ⚠️ 2e COURSE CORRIGÉE (19/08, check-up global) — même famille que ci-dessus,
+ * mais sur `csvUploadTargetDate` plutôt que `currentPlaylist`/
+ * `savedPlaylists` : le `finally` de `handleCSVUpload` effaçait ce state SANS
+ * CONDITION, pouvant clairer par erreur la date d'un 2e import lancé pendant
+ * que le 1er lisait encore son fichier. `csvUploadTargetDateRef` (même
+ * convention que les 2 refs ci-dessus) protège maintenant ce 3e point.
  */
 export function useCsvImport(
   fileInputRef, csvUploadTargetDate, setCsvUploadTargetDate,
@@ -41,6 +48,12 @@ export function useCsvImport(
   currentPlaylistIdRef.current = currentPlaylist?.id;
   const savedPlaylistsRef = useRef(savedPlaylists);
   savedPlaylistsRef.current = savedPlaylists;
+  // AJOUTÉ (19/08, check-up global — même motif structurel que la course
+  // déjà corrigée dans ce fichier le 10/08, mais sur `csvUploadTargetDate`
+  // plutôt que sur `currentPlaylist`/`savedPlaylists`) : voir la docstring
+  // du `finally` de `handleCSVUpload` plus bas pour le détail du risque.
+  const csvUploadTargetDateRef = useRef(csvUploadTargetDate);
+  csvUploadTargetDateRef.current = csvUploadTargetDate;
 
   // Déclenche le sélecteur de fichier caché pour l'import CSV Garmin/Strava, en
   // mémorisant d'abord quelle playlist ET quelle date de complétion précise sont
@@ -112,7 +125,25 @@ export function useCsvImport(
           : "Fréquence cardiaque importée";
         showToast(`${importedLabel} pour la séance du ${formatCompletionDate(targetDate)} !`);
       } catch(err) { showToast("Erreur lors de la lecture du fichier CSV.", 'error'); }
-      finally { setCsvUploadTargetDate(null); }
+      // BUG CORRIGÉ (19/08, check-up global) — MÊME motif structurel que le
+      // correctif de course du 10/08 sur cette fonction (voir la docstring
+      // du fichier) : ce `finally` s'exécutait AVANT sans condition,
+      // pouvant effacer `csvUploadTargetDate` d'un 2e import DÉJÀ EN COURS
+      // pour une AUTRE date de complétion, déclenché par l'utilisateur
+      // pendant que CETTE lecture (async, `FileReader.readAsText`) tournait
+      // encore. Scénario concret : import CSV pour la date A lancé, lecture
+      // en vol ; l'utilisateur lance un 2e import pour la date B avant que
+      // A ne finisse (`triggerCSVUpload` pose `csvUploadTargetDate = B`) ;
+      // la lecture de A se termine enfin et son `finally` remettait
+      // `csvUploadTargetDate` à `null` sans condition — la garde
+      // `if (!csvUploadTargetDate) return;` en tête de `handleCSVUpload`
+      // (voir plus haut) faisait alors échouer SILENCIEUSEMENT l'import de
+      // B dès que l'utilisateur sélectionnait enfin son fichier, sans le
+      // moindre message d'erreur. Corrigé en ne clairant QUE si
+      // `csvUploadTargetDate` vaut TOUJOURS `targetDate` (capturé au tout
+      // début de cette fonction, avant la lecture async) — même principe
+      // que `currentPlaylistIdRef`/`savedPlaylistsRef` juste au-dessus.
+      finally { if (csvUploadTargetDateRef.current === targetDate) setCsvUploadTargetDate(null); }
     };
     reader.readAsText(file);
     e.target.value = '';
