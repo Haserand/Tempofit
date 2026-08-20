@@ -833,12 +833,25 @@ export default function StatsView({
         // un signe si de nouvelles réductions restent sans effet visible.
         <div className={`min-h-[425px] flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-2xl ${cardBorder}`}>
           <Activity size={48} className={`mx-auto mb-4 ${textMuted}`} />
-          <h3 className="text-lg font-bold mb-2 text-white">Rien à montrer pour l'instant</h3>
-          <p className={`text-sm mb-6 max-w-sm mx-auto line-clamp-1 ${textMuted}`} title={statsMode === 'naughty' ? "Aucune séance Mode Intime marquée pour l'instant." : 'Termine une séance pour voir tes stats démarrer.'}>
+          {/* Fusionné en UNE ligne (retour direct, 20/08 — capture à l'appui :
+              "titre blanc" + "sous-titre gris qui redit presque la même
+              chose" faisait trop). Avant : `<h3>` "Rien à montrer pour
+              l'instant" + `<p>` gris en dessous expliquant quoi faire —
+              redondant, le titre n'apportait rien que le sous-titre
+              n'expliquait pas déjà mieux. Un seul texte, orienté ACTION
+              ("Termine une séance...", pas "Rien à montrer..."), en blanc
+              comme l'ancien titre. Le `line-clamp-1`/`title=` (infobulle de
+              secours contre la troncature) de l'ancien `<p>` disparaissent
+              avec lui : ce texte est court, pas de risque de débordement à
+              gérer. Variante Mode Intime alignée sur la MÊME construction
+              ("Termine une séance... pour voir tes stats") plutôt que
+              redite séparément — à confirmer si "marquée" avait un sens
+              plus précis que "générée en Mode Intime".*/}
+          <h3 className="text-lg font-bold mb-6 max-w-sm mx-auto text-white">
             {statsMode === 'naughty'
-              ? "Aucune séance Mode Intime marquée pour l'instant."
-              : 'Termine une séance pour voir tes stats démarrer.'}
-          </p>
+              ? 'Termine une séance en Mode Intime pour voir tes stats'
+              : 'Termine une séance pour voir tes stats'}
+          </h3>
           <button onClick={() => changeView('generator')} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
             Générer ma première playlist
           </button>
