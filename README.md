@@ -63,6 +63,40 @@ imports, piège Tailwind, vérification mécanique de `supabase-schema.sql`
   l'utilisateur (19/08), maintenant documenté dans "Contraintes de travail"
   plus bas plutôt que redit ici.
 
+### 19/08 (suite) — généralisation du motif "clear inconditionnel après un `await`", 2 bugs réels de plus trouvés et corrigés
+
+Après le check-up ci-dessus, retour à l'habitude "un bug trouvé =
+généraliser sa recherche" (voir `CLAUDE-SANDBOX-VERIFICATION.md`) : le motif
+exact du bug `ModalContext.jsx` corrigé plus haut (un state "ressource
+active actuelle" remis à `null` SANS CONDITION après un `await`, sans
+revérifier qu'il s'agit toujours de la bonne ressource) cherché ailleurs
+dans le projet.
+
+- **`useCsvImport.js` — `csvUploadTargetDate` effacé sans condition** dans le
+  `finally` de `handleCSVUpload` (qui lit un fichier CSV de façon
+  asynchrone). Scénario réel : import CSV pour une date A lancé, lecture en
+  vol ; l'utilisateur lance un 2e import pour une date B avant que A ne
+  finisse ; la lecture de A se termine et efface la date de B par erreur —
+  le 2e import échoue SILENCIEUSEMENT dès que l'utilisateur sélectionne son
+  fichier, sans le moindre message. **Corrigé** avec un `Ref`
+  (`csvUploadTargetDateRef`), même convention que les 2 refs déjà en place
+  dans ce fichier pour le correctif de course du 10/08. 2 tests de
+  régression ajoutés.
+- **`useAudioPreview.js` — `resolveAndPlay`, même famille mais plus
+  consé­quente.** Le garde-fou existant (`resolvingTrackId === track.id`)
+  ne bloquait qu'un double-clic sur LE MÊME titre — rien n'empêchait de
+  cliquer un titre B pendant que la résolution Deezer (réseau) d'un titre A
+  était encore en vol. Si A se résolvait APRÈS que B ait été demandé,
+  `playTrack` lançait quand même la lecture de A, alors que l'utilisateur
+  ne l'avait plus demandé. Décision tranchée (19/08, utilisateur) : une
+  résolution devenue obsolète doit être **ignorée entièrement**, jamais
+  jouée après coup. **Corrigé** avec `resolvingTrackIdRef`, même
+  convention — la résolution la plus ancienne se voit ignorée en silence
+  (pas de toast, pas de lecture) si une plus récente a pris sa place entre
+  temps ; son `finally` ne clairé plus non plus l'indicateur de chargement
+  d'une résolution plus récente. Tests de régression ajoutés (course A/B
+  complète, + les 3 cas de base qui n'avaient encore aucun test).
+
 ### Historique détaillé (13-14/08) — archivé dans `HISTORIQUE.md`, bloc 4
 
 Récit chronologique complet déplacé le 14/08 (4e élagage — la session la
