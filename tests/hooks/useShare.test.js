@@ -152,7 +152,11 @@ describe('useShare — copyToClipboard', () => {
 
     expect(writeText).toHaveBeenCalledWith('Regarde ça https://tempofit.example');
     expect(showToast).toHaveBeenCalledWith('Lien copié dans le presse-papier !');
-    expect(mockCloseModal).toHaveBeenCalled();
+    // BUG CORRIGÉ (19/08, check-up global) — closeModal() était appelé SANS
+    // argument (fermeture inconditionnelle) après un `await` presse-papier,
+    // ce qui pouvait fermer une AUTRE modale ouverte entre-temps. Doit
+    // maintenant être scopé à 'SHARE'.
+    expect(mockCloseModal).toHaveBeenCalledWith('SHARE');
     expect(execSpy).not.toHaveBeenCalled();
   });
 
@@ -165,7 +169,7 @@ describe('useShare — copyToClipboard', () => {
     await act(async () => { await result.current.copyToClipboard(); });
 
     expect(showToast).toHaveBeenCalledWith('Lien copié dans le presse-papier !');
-    expect(mockCloseModal).toHaveBeenCalled();
+    expect(mockCloseModal).toHaveBeenCalledWith('SHARE'); // voir le commentaire du test ci-dessus (19/08)
   });
 
   it('BUG CORRIGÉ (31/07) — execCommand renvoie false (échec silencieux) : toast d\'ERREUR, pas de faux succès', async () => {
@@ -209,7 +213,10 @@ describe('useShare — partage natif (texte)', () => {
     await act(async () => { await result.current.shareNative(); });
 
     expect(share).toHaveBeenCalledWith({ title: 'Ma Séance', text: 'Regarde ça', url: 'https://tempofit.example' });
-    expect(mockCloseModal).toHaveBeenCalled();
+    // BUG CORRIGÉ (19/08, check-up global) — voir le commentaire équivalent
+    // sur copyToClipboard plus haut : fenêtre d'attente encore plus longue
+    // ici (boîte de dialogue système), donc risque plus réel.
+    expect(mockCloseModal).toHaveBeenCalledWith('SHARE');
   });
 
   it('l\'utilisateur annule (navigator.share rejette) : pas de crash, modale pas fermée', async () => {
