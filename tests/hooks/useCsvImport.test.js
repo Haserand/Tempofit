@@ -133,3 +133,59 @@ describe('useCsvImport — course "Importer CSV" / changement de playlist pendan
     expect(setSavedPlaylists).toHaveBeenCalledTimes(1);
   });
 });
+
+// RÉGRESSION (19/08, check-up global) — 2e occurrence du même motif
+// structurel dans ce fichier (voir la docstring de useCsvImport.js) : le
+// `finally` de handleCSVUpload effaçait `csvUploadTargetDate` SANS
+// CONDITION, pouvant clairer par erreur la date d'un 2e import lancé
+// pendant que le 1er lisait encore son fichier — même famille de bug que
+// le correctif du 10/08 ci-dessus, mais sur un state différent
+// (csvUploadTargetDate plutôt que currentPlaylist/savedPlaylists).
+describe('useCsvImport — course "2e import lancé pendant la lecture du 1er" (régression 19/08)', () => {
+  it('un 2e import (autre date) lancé pendant la lecture du 1er n\'efface PAS csvUploadTargetDate à tort', () => {
+    const setCsvUploadTargetDate = vi.fn();
+    const setCurrentPlaylist = vi.fn();
+    const showToast = vi.fn();
+    mockParseGarminCsv.mockReturnValue({ ok: true, data: [{ t: 0, cadence: 170 }], hasCadence: true, hasHeartRate: false });
+
+    const playlistA = makePlaylist({ id: 'plA' });
+    const { result, rerender } = renderCsvImportHook(
+      baseProps({ currentPlaylist: playlistA, savedPlaylists: [playlistA], csvUploadTargetDate: '2026-08-10', setCsvUploadTargetDate, setCurrentPlaylist, showToast })
+    );
+
+    // Import pour la date A (2026-08-10) lancé, lecture en vol.
+    act(() => { result.current.handleCSVUpload(makeFakeEvent()); });
+    expect(FakeFileReader.instances).toHaveLength(1);
+
+    // L'utilisateur lance un 2e import, pour une AUTRE date (2026-08-12),
+    // AVANT que la lecture du 1er fichier ne se termine — csvUploadTargetDate
+    // passe donc à la nouvelle date avant même que le finally du 1er import
+    // ne s'exécute.
+    rerender(baseProps({ currentPlaylist: playlistA, savedPlaylists: [playlistA], csvUploadTargetDate: '2026-08-12', setCsvUploadTargetDate, setCurrentPlaylist, showToast }));
+
+    // La lecture du 1er fichier (date A) se termine enfin.
+    act(() => { FakeFileReader.instances[0].onload({ target: { result: 'fake,csv,content' } }); });
+
+    // Le finally du 1er import ne doit PAS avoir effacé csvUploadTargetDate
+    // (qui vaut désormais '2026-08-12', pas '2026-08-10' capturé au départ
+    // du 1er import) — sinon le 2e import échouerait silencieusement dès
+    // que l'utilisateur choisirait son fichier.
+    expect(setCsvUploadTargetDate).not.toHaveBeenCalled();
+  });
+
+  it('SANS 2e import concurrent, csvUploadTargetDate est bien effacé normalement (comportement inchangé)', () => {
+    const setCsvUploadTargetDate = vi.fn();
+    const showToast = vi.fn();
+    mockParseGarminCsv.mockReturnValue({ ok: true, data: [{ t: 0, cadence: 170 }], hasCadence: true, hasHeartRate: false });
+
+    const playlistA = makePlaylist({ id: 'plA' });
+    const { result } = renderCsvImportHook(
+      baseProps({ currentPlaylist: playlistA, savedPlaylists: [playlistA], csvUploadTargetDate: '2026-08-10', setCsvUploadTargetDate, showToast })
+    );
+
+    act(() => { result.current.handleCSVUpload(makeFakeEvent()); });
+    act(() => { FakeFileReader.instances[0].onload({ target: { result: 'fake,csv,content' } }); });
+
+    expect(setCsvUploadTargetDate).toHaveBeenCalledWith(null);
+  });
+});
