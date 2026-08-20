@@ -22,7 +22,7 @@ import { useModalContext } from '../contexts/ModalContext';
  * rien d'autre à changer côté lecture.
  */
 export function useShare(showToast) {
-  const { activeModal, modalData, openModal, closeModal } = useModalContext();
+  const { activeModal, modalData, openModal, closeModalIfActive } = useModalContext();
   const isShareModalOpen = activeModal === 'SHARE';
   const shareData = isShareModalOpen ? modalData : null;
 
@@ -93,8 +93,8 @@ export function useShare(showToast) {
     // Scopé à 'SHARE' (19/08, check-up global) — l'écriture presse-papier
     // ci-dessus est asynchrone (`await`) : sans ce nom, une AUTRE modale
     // ouverte par l'utilisateur pendant cette attente se fermerait par
-    // erreur. Voir la docstring de `closeModal` dans ModalContext.jsx.
-    closeModal('SHARE');
+    // erreur. Voir la docstring de `closeModalIfActive` dans ModalContext.jsx.
+    closeModalIfActive('SHARE');
   };
 
   // Partage natif du téléphone/OS (menu "Partager" habituel avec toutes les
@@ -109,7 +109,7 @@ export function useShare(showToast) {
       // équivalent dans copyToClipboard ci-dessus, même raisonnement mais
       // fenêtre d'attente plus longue ici (boîte de dialogue système de
       // partage de l'OS, peut rester ouverte un moment).
-      closeModal('SHARE');
+      closeModalIfActive('SHARE');
     } catch (e) {
       // L'utilisateur a annulé le partage, ou l'API a échoué : on ne fait rien de spécial.
     }
