@@ -145,6 +145,27 @@ branchée ailleurs en JSX (`onClick={fn}`) est dangereux — React y passe
 toujours l'événement comme 1er argument. Dans ce genre de cas, mieux vaut
 une fonction au nom DISTINCT qu'un paramètre optionnel ambigu.
 
+### 19/08 (suite 3) — 2e passage du build Vercel réel, 1 dernier bug (import manquant)
+
+Sur 1444 tests, 1 seul en échec : `tests/contexts/ModalContext.test.jsx`
+(le test qui reproduit le piège `onClick={closeModal}` avec un vrai clic
+JSX) plantait avec `Invalid Chai property: toHaveTextContent`. Cause :
+**ce projet n'a PAS de `setupFiles` global** dans `vite.config.js` — chaque
+fichier de test qui utilise un matcher `jest-dom` (`toHaveTextContent`,
+`toBeInTheDocument`...) doit l'étendre lui-même via
+`import '@testing-library/jest-dom/vitest';` (voir
+`PlaylistEditContext.test.jsx` pour la convention déjà en place). Oublié
+dans ce nouveau fichier de test. **Corrigé** — import ajouté. Vérifié
+qu'aucun autre fichier créé/modifié le même jour n'a le même oubli (grep
+sur les matchers `jest-dom` usuels croisé avec la présence de cet import).
+
+**Motif à retenir (2)** : ce projet n'a pas de `setupFiles` vitest — TOUJOURS
+vérifier qu'un nouveau fichier de test qui monte un composant React ET
+utilise un matcher `jest-dom` importe bien `@testing-library/jest-dom/vitest`
+lui-même, une convention facile à oublier puisqu'aucune erreur ne se
+manifeste avant l'exécution réelle (jamais vue dans ce bac à sable, esbuild/tsc
+ne peuvent pas la détecter).
+
 ### Historique détaillé (13-14/08) — archivé dans `HISTORIQUE.md`, bloc 4
 
 Récit chronologique complet déplacé le 14/08 (4e élagage — la session la
