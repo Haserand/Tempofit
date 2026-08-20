@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase, isSupabaseConfigured } from '../supabaseClient';
 import { USERNAME_REGEX, isReservedUsername, RESERVED_USERNAME_ERROR } from '../utils/username';
 import { clearLocalCache } from '../utils/localCache';
@@ -27,6 +27,29 @@ import { waitForPendingWrites } from '../utils/pendingWrites';
  * dans ce cas, tout ici devient un no-op silencieux : l'app doit rester
  * utilisable EXACTEMENT comme avant (localStorage seul, mode invité) sans
  * configuration Supabase, les comptes sont un ajout, jamais une dépendance dure.
+ *
+ * ⚠️ CORRIGÉ (19/08, check-up global) — `value` mémoïsée (`useMemo`) et
+ * chaque fonction stabilisée (`useCallback`), même chantier que
+ * GeneratorContext.jsx/AthleticContext.jsx/CustomActivityContext.jsx/
+ * AudioPlayerContext.jsx/ModalContext.jsx/PlaylistDetailContext.jsx/
+ * PlaylistEditContext.jsx (08/08, "value non mémoïsée re-render tout le
+ * monde") — oublié ici jusqu'à présent. Concrètement plus important qu'il
+ * n'y paraît pour CE Contexte précis : `usePersistentState.js` ET
+ * `useSyncedCollection.js` (les 2 hooks de synchro Supabase, appelés une
+ * fois PAR CLÉ persistée — thème, favoris, profil athlétique, playlists,
+ * routines...) lisent tous les deux `useAuthContext()` en interne. Avant ce
+ * correctif, un changement d'état interne à ce Contexte SANS RAPPORT avec
+ * `user`/`authLoading` (ex. `usernameLoading` qui bascule pendant la
+ * synchro initiale du profil, `profilePrivacy` mis à jour après un
+ * changement de réglage de confidentialité) recréait `value` en entier,
+ * donc re-rendait INDIRECTEMENT tous ces hooks à travers toute l'app,
+ * même ceux dont `user`/`authLoading` n'avaient pas changé de valeur.
+ * Sévérité réelle plus faible que les cas déjà corrigés le 08/08
+ * (`AuthProvider` est monté à la racine absolue dans `main.jsx`, donc ne
+ * re-rend jamais à cause d'un parent — seulement pour ses propres
+ * changements d'état, eux-mêmes peu fréquents en usage normal) mais un
+ * angle mort réel : c'est le SEUL des 8 Contexts du projet où cette
+ * convention n'avait jamais été appliquée.
  */
 const AuthContext = createContext(null);
 
@@ -141,12 +164,15 @@ export function AuthProvider({ children }) {
   // même principe que `get_registered_users_count` plus bas) : elle seule
   // contourne RLS pour cette vérification précise, et ne renvoie qu'un
   // booléen — jamais la ligne de profil elle-même.
-  const checkUsernameAvailable = async (candidate) => {
+  // `useCallback([])` — ne lit aucun state React (`isSupabaseConfigured`/
+  // `supabase` sont des constantes de module, importées, jamais recréées),
+  // référentiellement stable pour toute la durée de vie du Provider.
+  const checkUsernameAvailable = useCallback(async (candidate) => {
     if (!isSupabaseConfigured) return { available: false, error: "Les comptes ne sont pas encore configurés côté serveur." };
     const { data, error } = await supabase.rpc('is_username_available', { candidate });
     if (error) return { available: false, error: error.message };
     return { available: data === true, error: null };
-  };
+  }, []);
 
   // Regex + vérification des pseudos réservés désormais PARTAGÉES
   // (src/utils/username.js, Correctif UX 02/08) avec AuthModal.jsx/
@@ -161,7 +187,9 @@ export function AuthProvider({ children }) {
   // (le state ci-dessus) est déjà renseigné — immutabilité en profondeur,
   // en plus de l'absence de policy `update` côté Postgres (voir
   // supabase-schema.sql) et de l'absence de bouton "Modifier" côté UI.
-  const setUsername = async (candidate) => {
+  // `useCallback([user, username, checkUsernameAvailable])` — lit `user`/
+  // `username` (state) et `checkUsernameAvailable` (déjà stable ci-dessus).
+  const setUsername = useCallback(async (candidate) => {
     if (!isSupabaseConfigured || !user) return { error: "Non connecté." };
     if (username) return { error: "Un pseudonyme est déjà défini pour ce compte — il ne peut pas être changé." };
     if (!USERNAME_REGEX.test(candidate)) return { error: "3 à 20 caractères : minuscules, chiffres et underscore uniquement." };
@@ -175,7 +203,7 @@ export function AuthProvider({ children }) {
     if (error) return { error: error.code === '23505' ? "Ce pseudonyme vient d'être pris par quelqu'un d'autre." : error.message };
     setUsernameState(candidate);
     return { error: null };
-  };
+  }, [user, username, checkUsernameAvailable]);
 
   // `signUp` — `username` maintenant obligatoire (voir le brief,
   // "pseudonyme unique immuable à l'inscription"), déposé dans
@@ -186,7 +214,9 @@ export function AuthProvider({ children }) {
   // plus haut pour la suite). Revalidation format + disponibilité ICI,
   // même si AuthModal.jsx la fait déjà avant d'appeler cette fonction —
   // dernier rempart, pas une redite superflue.
-  const signUp = async (email, password, usernameCandidate) => {
+  // `useCallback([checkUsernameAvailable])` — ne lit ni `user` ni `username`
+  // (avant inscription, il n'y a par définition ni l'un ni l'autre).
+  const signUp = useCallback(async (email, password, usernameCandidate) => {
     if (!isSupabaseConfigured) return { error: "Les comptes ne sont pas encore configurés côté serveur." };
     if (!USERNAME_REGEX.test(usernameCandidate || '')) {
       return { error: "Pseudonyme invalide : 3 à 20 caractères, minuscules/chiffres/underscore uniquement." };
@@ -212,7 +242,7 @@ export function AuthProvider({ children }) {
       if (!insertError) setUsernameState(usernameCandidate);
     }
     return { error: null };
-  };
+  }, [checkUsernameAvailable]);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -245,13 +275,18 @@ export function AuthProvider({ children }) {
     });
   }, [user]);
 
-  const signIn = async (email, password) => {
+  // `useCallback([])` — aucune dépendance à un state React.
+  const signIn = useCallback(async (email, password) => {
     if (!isSupabaseConfigured) return { error: "Les comptes ne sont pas encore configurés côté serveur." };
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error ? error.message : null };
-  };
+  }, []);
 
-  const signOut = async () => {
+  // `useCallback([])` — aucune dépendance à un state React. Doit rester
+  // DÉFINI AVANT `deleteAccount` plus bas (qui la référence dans son propre
+  // tableau de dépendances) — ordre déjà correct dans ce fichier, ne pas
+  // réordonner.
+  const signOut = useCallback(async () => {
     if (!isSupabaseConfigured) return;
     // CORRIGÉ (08/08) — `clearLocalCache()` plus bas repose sur l'idée que
     // "tout changement local a déjà été poussé vers Supabase" : vrai la
@@ -279,7 +314,7 @@ export function AuthProvider({ children }) {
     // point (voir `waitForPendingWrites()` juste au-dessus), rien n'est
     // perdu, juste un vrai re-pull à la prochaine connexion.
     clearLocalCache();
-  };
+  }, []);
 
   // "Mot de passe oublié" (retour direct) — même convention EXACTE que
   // signUp/signIn ci-dessus : garde `isSupabaseConfigured`, renvoie
@@ -288,11 +323,12 @@ export function AuthProvider({ children }) {
   // cette fonction reçue en prop). Supabase envoie lui-même l'e-mail
   // contenant le lien de réinitialisation — rien à construire ici, juste
   // déclencher l'envoi.
-  const resetPassword = async (email) => {
+  // `useCallback([])` — aucune dépendance à un state React.
+  const resetPassword = useCallback(async (email) => {
     if (!isSupabaseConfigured) return { error: "Les comptes ne sont pas encore configurés côté serveur." };
     const { error } = await supabase.auth.resetPasswordForEmail(email);
     return { error: error ? error.message : null };
-  };
+  }, []);
 
   // Modifier l'adresse e-mail (retour direct, "aucun moyen de modifier son
   // e-mail dans Options & Comptes") — même convention encore une fois :
@@ -303,22 +339,24 @@ export function AuthProvider({ children }) {
   // jour QUE via `onAuthStateChange` une fois ce lien confirmé, jamais de
   // façon optimiste ici — SettingsView.jsx affiche donc encore l'ancienne
   // adresse jusque-là, ce qui est le comportement honnête à afficher.
-  const updateEmail = async (newEmail) => {
+  // `useCallback([])` — aucune dépendance à un state React.
+  const updateEmail = useCallback(async (newEmail) => {
     if (!isSupabaseConfigured) return { error: "Les comptes ne sont pas encore configurés côté serveur." };
     const { error } = await supabase.auth.updateUser({ email: newEmail });
     return { error: error ? error.message : null };
-  };
+  }, []);
 
   // Changer de mot de passe (Refactor UI, 28/07, "Réglages — Mon Compte")
   // — même convention que updateEmail : `supabase.auth.updateUser` gère
   // tout lui-même côté serveur, aucune vérification manuelle de l'ancien
   // mot de passe ici (Supabase l'exige déjà via la session active — un
   // utilisateur qui n'est PAS authentifié ne peut pas atteindre cet appel).
-  const updatePassword = async (newPassword) => {
+  // `useCallback([])` — aucune dépendance à un state React.
+  const updatePassword = useCallback(async (newPassword) => {
     if (!isSupabaseConfigured) return { error: "Les comptes ne sont pas encore configurés côté serveur." };
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     return { error: error ? error.message : null };
-  };
+  }, []);
 
   // Mise à jour des bascules de confidentialité (Feature, 01/08,
   // "Confidentialité & Profil Public") — `fields` : un sous-ensemble de
@@ -329,7 +367,10 @@ export function AuthProvider({ children }) {
   // l'occasion). Mise à jour OPTIMISTE de `profilePrivacy` après succès
   // (pas de refetch) — cohérent avec `setUsernameState(candidate)` juste
   // au-dessus dans `setUsername`, même principe déjà en place ici.
-  const updatePrivacySettings = async (fields) => {
+  // `useCallback([user])` — `setProfilePrivacy` utilise une mise à jour
+  // fonctionnelle (`prev =>`, déjà stable), seule `user` doit figurer en
+  // dépendance réelle.
+  const updatePrivacySettings = useCallback(async (fields) => {
     if (!isSupabaseConfigured || !user) return { error: "Non connecté." };
     // BUG CORRIGÉ (01/08, suite — "le bouton reste bloqué après un 1er
     // clic") — try/catch ajouté ici en complément du try/finally côté
@@ -353,7 +394,7 @@ export function AuthProvider({ children }) {
       console.error('updatePrivacySettings a échoué :', e);
       return { error: e?.message || "Une erreur inattendue est survenue." };
     }
-  };
+  }, [user]);
 
   // Export RGPD (portabilité, Refactor UI, 28/07) — récupère TOUTES les
   // lignes `user_data` de l'utilisateur connecté (favoris, routines, stats,
@@ -363,13 +404,14 @@ export function AuthProvider({ children }) {
   // strictement une LECTURE (RLS déjà en place, un utilisateur ne peut lire
   // que ses propres lignes, `eq('user_id', ...)` ici est une garde
   // supplémentaire côté client, pas la vraie protection).
-  const exportUserData = async () => {
+  // `useCallback([user])` — lit `user.id` directement.
+  const exportUserData = useCallback(async () => {
     if (!isSupabaseConfigured || !user) return { data: null, error: "Non connecté." };
     const { data, error } = await supabase.from('user_data').select('key, value').eq('user_id', user.id);
     if (error) return { data: null, error: error.message };
     const asObject = Object.fromEntries(data.map(row => [row.key, row.value]));
     return { data: asObject, error: null };
-  };
+  }, [user]);
 
   // Suppression RÉELLE du compte (Edge Function, 29/07 — chantier en
   // suspens depuis la passation du 28/07, "vraie suppression de compte").
@@ -390,7 +432,9 @@ export function AuthProvider({ children }) {
   // le pseudonyme, les playlists et les routines relationnelles
   // disparaissent d'eux-mêmes dès que la fonction supprime la ligne
   // `auth.users`.
-  const deleteAccount = async () => {
+  // `useCallback([user, signOut])` — `signOut` déjà stabilisée plus haut
+  // dans ce même fichier (voir sa note "doit rester DÉFINI AVANT").
+  const deleteAccount = useCallback(async () => {
     if (!isSupabaseConfigured || !user) return { error: "Non connecté." };
 
     const { data, error } = await supabase.functions.invoke('delete-account');
@@ -420,10 +464,25 @@ export function AuthProvider({ children }) {
     // suite, pas d'attente du prochain refresh pour que l'app réagisse.
     await signOut();
     return { error: null };
-  };
+  }, [user, signOut]);
+
+  // `useMemo` (19/08, check-up global — voir la docstring en tête de
+  // fichier) — sûr maintenant que les 11 fonctions ci-dessus sont toutes
+  // stabilisées via `useCallback` avec les bonnes dépendances : ce
+  // `useMemo` ne recalcule QUE quand un de ces champs change réellement,
+  // jamais à cause d'un rendu du Provider sans rapport.
+  const value = useMemo(() => ({
+    user, authLoading, signUp, signIn, signOut, resetPassword, updateEmail, updatePassword,
+    exportUserData, deleteAccount, isSupabaseConfigured, userCount, username, usernameLoading,
+    checkUsernameAvailable, setUsername, profilePrivacy, updatePrivacySettings,
+  }), [
+    user, authLoading, signUp, signIn, signOut, resetPassword, updateEmail, updatePassword,
+    exportUserData, deleteAccount, userCount, username, usernameLoading,
+    checkUsernameAvailable, setUsername, profilePrivacy, updatePrivacySettings,
+  ]);
 
   return (
-    <AuthContext.Provider value={{ user, authLoading, signUp, signIn, signOut, resetPassword, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, userCount, username, usernameLoading, checkUsernameAvailable, setUsername, profilePrivacy, updatePrivacySettings }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
