@@ -466,3 +466,27 @@ Aucun de ces scripts n'exécute réellement `vitest` — une affirmation
 attentive (syntaxe + logique + imports), jamais une exécution confirmée.
 Le premier vrai passage de la suite de tests reste celui du build Vercel
 réel, après que l'utilisateur a poussé les fichiers via l'interface GitHub.
+
+## 5bis. Angle mort concret trouvé le 19/08 : matcher `jest-dom` manquant, invisible à `esbuild`/`tsc`
+
+Ce projet n'a **aucun `setupFiles` global** dans `vite.config.js` — chaque
+fichier de test qui utilise un matcher `jest-dom` (`toHaveTextContent`,
+`toBeInTheDocument`, `toBeVisible`, `toHaveClass`, `toHaveValue`,
+`toHaveAttribute`, `toBeChecked`, etc.) doit l'étendre lui-même via
+`import '@testing-library/jest-dom/vitest';` en tête de fichier (voir
+`tests/contexts/PlaylistEditContext.test.jsx` pour la convention déjà en
+place). Un fichier de test qui l'omet ne plante NULLE PART avant
+l'exécution réelle — ni `esbuild`, ni `tsc --checkJs` ne peuvent le
+détecter (l'import est syntaxiquement valide, `expect(...).toHaveTextContent`
+n'est qu'une méthode manquante sur un objet à l'exécution, pas une erreur
+de type visible statiquement dans ce setup). Se manifeste au build Vercel
+réel par `Error: Invalid Chai property: <nom du matcher>`.
+
+**Vérification à faire manuellement, pour tout nouveau fichier de test**
+(monté React + matcher `jest-dom`) avant de le livrer :
+```bash
+# Repère les matchers jest-dom utilisés SANS l'import qui les active :
+grep -E "toHaveTextContent|toBeInTheDocument|toBeVisible|toBeDisabled|toHaveClass|toHaveValue|toHaveAttribute|toBeChecked" <fichier> \
+  && ! grep -q "jest-dom" <fichier> \
+  && echo "⚠️ import manquant"
+```
