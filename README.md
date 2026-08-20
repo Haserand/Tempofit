@@ -12,10 +12,56 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement — le dernier chantier livré (14/08, ci-dessous)
-est fermé, vérifié syntaxiquement/statiquement, tests à jour. Prochaine
-session : partir des sections plus bas (décisions d'architecture,
-contraintes, limites connues) et du code réel.
+Rien en cours actuellement — le dernier chantier livré (19/08, check-up
+global, ci-dessous) est fermé, vérifié syntaxiquement/statiquement, tests à
+jour. Prochaine session : partir des sections plus bas (décisions
+d'architecture, contraintes, limites connues) et du code réel.
+
+### 19/08 — check-up global du projet, 2 bugs réels corrigés + couverture de tests comblée
+
+Check-up demandé sans chantier précis en tête ("vois-tu des erreurs ou des
+optimisations à réaliser ?") — méthode : README/HISTORIQUE d'abord, puis
+`esbuild`+`tsc --checkJs` sur 100% de `src/`+`tests/`, résolution des
+imports, piège Tailwind, vérification mécanique de `supabase-schema.sql`
+(tout propre, 0 régression), puis lecture ciblée des zones à risque.
+
+- **`ModalContext.jsx` — `closeModal()` fermait TOUJOURS sans condition,
+  même appelé tardivement après un `await`.** Un commentaire affirmait à
+  tort qu'un filet de sécurité existait déjà. Risque réel identifié :
+  `shareNative()`/`copyToClipboard()` (`useShare.js`) attendent une
+  opération asynchrone avant de fermer — si l'utilisateur ouvrait une AUTRE
+  modale entre-temps, l'ancien `closeModal()` la fermait par erreur.
+  **Corrigé** : `closeModal(name)` accepte désormais un nom de modale
+  optionnel et ne ferme que si c'est bien elle qui est active ; seuls les 2
+  points d'appel réellement asynchrones (`useShare.js`) passent ce nom, les
+  8 autres appelants (synchrones, sans risque) restent inchangés. Tests :
+  `tests/contexts/ModalContext.test.jsx` (nouveau, jusqu'ici 0 test dédié)
+  + assertions renforcées dans `useShare.test.js`.
+- **`AuthContext.jsx` — seul des 8 Contexts du projet où le correctif
+  "value non mémoïsée" (08/08) n'avait jamais été appliqué.** Plus important
+  qu'il n'y paraît ici : `usePersistentState.js`/`useSyncedCollection.js`
+  (appelés une fois PAR CLÉ persistée dans toute l'app) lisent tous les deux
+  `useAuthContext()` en interne — un changement d'état interne sans rapport
+  avec `user`/`authLoading` (ex. `usernameLoading`) re-rendait indirectement
+  tous ces hooks à travers toute l'app. **Corrigé** : les 11 fonctions
+  stabilisées via `useCallback` (dépendances vérifiées une à une), `value`
+  mémoïsée via `useMemo`. Tests de stabilité référentielle ajoutés dans
+  `tests/contexts/AuthContext.test.jsx`.
+- **Couverture de tests comblée** (aucun bug trouvé dans ces fichiers,
+  simple lacune) : `spotifyEngine.js` (159 lignes, jamais testé — cascade de
+  résolution BPM, pagination, distinction 401/403), les 5 fichiers
+  `src/layout/*.js` (constantes pures, mais testées avec de VRAIES
+  vérifications de synchronisation contre le code source consommateur —
+  pas de simples assertions de valeur), `GeneratorContext.jsx` et
+  `AudioPlayerContext.jsx` (les 2 derniers Contexts sans test dédié).
+- **Repéré, pas corrigé (hors scope du check-up)** : `AuthContext.jsx`
+  n'est pas couvert par le garde-fou `criticalExportsTrap.test.js` (qui
+  vérifie que les Providers exportent bien ce qu'ils promettent) —
+  contrairement aux 6 autres Contexts du projet. À ajouter si une session
+  future touche ce garde-fou.
+- `vercel.json` (`"deploymentEnabled": false`) — confirmé volontaire par
+  l'utilisateur (19/08), maintenant documenté dans "Contraintes de travail"
+  plus bas plutôt que redit ici.
 
 ### Historique détaillé (13-14/08) — archivé dans `HISTORIQUE.md`, bloc 4
 
@@ -94,6 +140,12 @@ résumé.
 ## Contraintes de travail
 
 - **Aucun terminal côté utilisateur** — tout passe par l'interface web de GitHub (créer/éditer des fichiers à la main) ; vérification via un vrai déploiement Vercel (logs collés dans la conversation avec Claude).
+- **Déploiement automatique Vercel désactivé** (`vercel.json`,
+  `"deploymentEnabled": false` — confirmé volontaire, 19/08) : un push
+  GitHub ne déclenche PAS de build Vercel tout seul, contrairement au
+  comportement par défaut — choix délibéré pour ne pas épuiser le quota
+  gratuit Vercel. Le déploiement doit être déclenché manuellement
+  (dashboard Vercel) avant de pouvoir coller les logs dans la conversation.
 - **Bac à sable Claude sans accès réseau** — `npm install`/`vitest run` réels impossibles. Voir `CLAUDE-SANDBOX-VERIFICATION.md` pour les outils de vérification disponibles quand même (validation de syntaxe réelle via `esbuild`, résolution d'imports).
 - Le build Vercel (`npm run build`) lance `vitest run` avant `vite build` (voir `package.json`, script `build`) — un test qui échoue bloque le déploiement.
 
