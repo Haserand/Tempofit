@@ -166,6 +166,46 @@ lui-même, une convention facile à oublier puisqu'aucune erreur ne se
 manifeste avant l'exécution réelle (jamais vue dans ce bac à sable, esbuild/tsc
 ne peuvent pas la détecter).
 
+### 20/08 — "Mes Routines" fusionnée en onglet de "Mes Séances" (retour direct + suite d'un échange de position)
+
+Retour direct, capture à l'appui : "j'imagine la partie routines comme un
+onglet spécifique du menu séance ; un peu comme quand on voit la vue d'un
+profil utilisateur où les 2 sont présents dans la même page" — précédé le
+même jour d'un simple échange de position Séances/Routines entre les 2
+sections de la Sidebar (devenu sans objet suite à cette fusion complète).
+Même pattern d'onglets EXACTEMENT que celui déjà en place sur
+`ProfileView.jsx` (visite du profil de quelqu'un d'autre) — visiter SON
+PROPRE espace suit désormais la même logique que visiter celui d'un autre.
+
+- **`RoutinesView.jsx`** réduit à son seul CORPS (grille de cartes) — plus
+  de `<ViewHeader/>` ni de wrapper propres, devient un sous-composant
+  monté directement (import statique, pas lazy) par `PlaylistsView.jsx`.
+- **`PlaylistsView.jsx`** devient le shell : titre/sous-titre/icône du
+  `<ViewHeader/>` changent selon l'onglet actif (`activeTab`), sélecteur
+  d'onglets Séances/Routines (même markup que `ProfileView.jsx`, avec
+  compteur). `initialTab` — MÊME mécanisme exact que
+  `initialTab`/`handleOpenSettings` de `SettingsView.jsx` (lazy init via
+  `useState`, jamais une valeur périmée d'une visite précédente). Derniers
+  textes visibles "playlist" → "séance" alignés au passage dans cette vue
+  (cohérent avec le renommage StatsView.jsx du même jour) — le bouton CTA
+  "Générer ma première playlist" lui-même volontairement PAS touché, pas
+  explicitement validé.
+- **`App.jsx`** : nouveau point d'entrée unique `handleOpenPlaylists(tab)`
+  (même schéma que `handleOpenSettings`), remplace les 2 anciens
+  `changeView('routines')` (clonage d'une routine publique + consultation
+  de sa propre routine publique depuis son profil). Bloc de rendu séparé
+  `view === 'routines'` retiré ; import `lazy()` mort de `RoutinesView`
+  retiré (n'est plus une route de premier niveau).
+- **`Sidebar.jsx`** : bouton "Mes Routines" retiré de "Mon Espace" (plus
+  qu'un seul lien, "Mes Séances", dans "Création") ; import `ListPlus`
+  mort retiré.
+- Tests : `RoutinesView.test.jsx` n'a eu besoin d'AUCUNE modification
+  (aucune de ses assertions ne portait sur l'en-tête retiré) — juste sa
+  docstring mise à jour. `PlaylistsView.test.jsx` enrichi (`baseProps`
+  avec le jeu minimal de props routines, nouvelle section dédiée à la
+  bascule d'onglet — compteurs, changement d'en-tête, contenu réel de
+  `RoutinesView.jsx` non mocké, `initialTab`).
+
 ### Historique détaillé (13-14/08) — archivé dans `HISTORIQUE.md`, bloc 4
 
 Récit chronologique complet déplacé le 14/08 (4e élagage — la session la
