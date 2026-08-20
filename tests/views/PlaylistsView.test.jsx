@@ -6,6 +6,16 @@
 // dans tests/PlaylistCard.test.jsx — pas la peine de re-tester son rendu
 // interne). `ViewHeader.jsx` laissé réel : composant purement présentatif,
 // aucune dépendance externe compliquée à mocker.
+//
+// ⚠️ FUSION AVEC "Mes Routines" (20/08, voir la docstring de
+// PlaylistsView.jsx) — `RoutinesView.jsx` laissé RÉEL lui aussi (pas mocké)
+// : c'est maintenant un sous-composant direct de PlaylistsView.jsx (import
+// statique, pas passé en prop), impossible de le mocker sans mocker le
+// MODULE entier — inutile de toute façon, `RoutinesView.test.jsx` couvre
+// déjà son comportement interne en détail ; ce fichier-ci se contente de
+// vérifier que l'onglet bascule bien vers LUI, pas de retester sa logique.
+// `baseProps()` inclut donc désormais un jeu minimal MAIS VALIDE de props
+// routines (sinon le rendu de l'onglet Routines planterait).
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
@@ -41,6 +51,7 @@ afterEach(() => {
 const mockTheme = {
   cardBorder: 'mock-border', textHighlight: 'mock-highlight', textMuted: 'mock-muted',
   textColorClass: 'mock-text-color', bgAccentClass: 'mock-accent-bg',
+  cardBg: 'mock-card-bg', inputBg: 'mock-input-bg', inputBorder: 'mock-input-border',
 };
 
 function makePlaylist(overrides = {}) {
@@ -67,6 +78,18 @@ function baseProps(overrides = {}) {
     editingCompletion: null, setEditingCompletion: vi.fn(),
     editCompletionDate: vi.fn(), removeCompletionDate: vi.fn(), triggerCSVUpload: vi.fn(),
     showToast: vi.fn(),
+    // NOUVEAU (20/08, fusion "Mes Routines") — jeu minimal mais valide,
+    // requis même quand on ne teste QUE l'onglet Séances (le compteur du
+    // sélecteur d'onglet lit `routines.length` inconditionnellement).
+    routines: [],
+    setRoutines: vi.fn(),
+    routineBatchCounts: {},
+    setRoutineBatchCounts: vi.fn(),
+    getDisplayRoutineIcon: vi.fn(() => '🏃'),
+    getDisplayRoutineName: vi.fn((r) => r.name),
+    setEditingRoutine: vi.fn(),
+    executeGeneration: vi.fn(),
+    isGenerating: false,
     ...overrides,
   };
 }
@@ -74,7 +97,10 @@ function baseProps(overrides = {}) {
 describe('PlaylistsView — état vide', () => {
   it('aucune playlist : affiche l\'état vide avec le bouton "Générer ma première playlist"', () => {
     render(<PlaylistsView {...baseProps({ savedPlaylists: [] })} />);
-    expect(screen.getByText('Aucune playlist sauvegardée')).toBeInTheDocument();
+    // Texte renommé 20/08 ("Aucune playlist sauvegardée" → "Aucune séance
+    // sauvegardée", cohérence terminologique — voir la docstring de
+    // PlaylistsView.jsx).
+    expect(screen.getByText('Aucune séance sauvegardée')).toBeInTheDocument();
 
     const changeView = vi.fn();
     cleanup();
@@ -277,5 +303,70 @@ describe('PlaylistsView — pagination (section "Terminées")', () => {
     fireEvent.click(nextButtons[1]); // 2e bouton = Suivant
 
     expect(screen.getByText('Page 2 / 2')).toBeInTheDocument();
+  });
+});
+
+// NOUVEAU (20/08, fusion "Mes Routines" en onglet — voir la docstring de
+// PlaylistsView.jsx) — jusqu'ici aucune couverture de la fonctionnalité
+// d'onglet elle-même. `RoutinesView.jsx` réel (pas mocké, voir la
+// docstring en tête de fichier) : ces tests exercent aussi, en creux, que
+// le passage de props vers ce sous-composant fonctionne (une routine
+// s'affiche vraiment quand on bascule dessus).
+describe('PlaylistsView — onglets Séances/Routines (fusion 20/08)', () => {
+  it('démarre sur l\'onglet Séances par défaut (initialTab non fourni) — titre/sous-titre "Mes Séances"', () => {
+    render(<PlaylistsView {...baseProps()} />);
+    expect(screen.getByText('Mes Séances')).toBeInTheDocument();
+    expect(screen.getByText(/Retrouve tes séances générées/)).toBeInTheDocument();
+  });
+
+  it('affiche les 2 onglets avec le bon compte (Séances/Routines)', () => {
+    const pl = makePlaylist({ id: 'p1' });
+    const routine = { id: 'r1', name: 'Routine A', manualGenerations: 0, workoutType: 'Course à pied', targetMode: 'time', hours: 0, minutes: 30 };
+    render(<PlaylistsView {...baseProps({ savedPlaylists: [pl], routines: [routine] })} />);
+
+    expect(screen.getByRole('tab', { name: /Séances/ })).toHaveTextContent('Séances (1)');
+    expect(screen.getByRole('tab', { name: /Routines/ })).toHaveTextContent('Routines (1)');
+  });
+
+  it('cliquer sur l\'onglet Routines change le titre/sous-titre ET affiche le contenu de RoutinesView', () => {
+    const routine = { id: 'r1', name: 'Ma Routine', manualGenerations: 0, workoutType: 'Course à pied', targetMode: 'time', hours: 0, minutes: 30 };
+    render(<PlaylistsView {...baseProps({ routines: [routine] })} />);
+
+    fireEvent.click(screen.getByRole('tab', { name: /Routines/ }));
+
+    expect(screen.getByText('Mes Routines')).toBeInTheDocument();
+    expect(screen.getByText(/Génère instantanément des séances/)).toBeInTheDocument();
+    // Contenu RÉEL de RoutinesView.jsx (pas mocké) — preuve que le
+    // sous-composant reçoit bien ses props et s'affiche pour de vrai.
+    expect(screen.getByText('Ma Routine')).toBeInTheDocument();
+    // Le contenu de l'onglet Séances (état vide ici) ne doit PLUS être
+    // affiché en même temps.
+    expect(screen.queryByText('Aucune séance sauvegardée')).not.toBeInTheDocument();
+  });
+
+  it('revenir sur l\'onglet Séances après avoir visité Routines restaure le bon en-tête et contenu', () => {
+    const pl = makePlaylist({ id: 'p1', name: 'Ma Séance' });
+    const routine = { id: 'r1', name: 'Ma Routine', manualGenerations: 0, workoutType: 'Course à pied', targetMode: 'time', hours: 0, minutes: 30 };
+    render(<PlaylistsView {...baseProps({ savedPlaylists: [pl], routines: [routine] })} />);
+
+    fireEvent.click(screen.getByRole('tab', { name: /Routines/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /Séances/ }));
+
+    expect(screen.getByText('Mes Séances')).toBeInTheDocument();
+    expect(screen.getByText('Ma Séance')).toBeInTheDocument();
+    expect(screen.queryByText('Ma Routine')).not.toBeInTheDocument();
+  });
+
+  it('initialTab="routine" démarre directement sur l\'onglet Routines (même mécanisme que SettingsView.jsx)', () => {
+    const routine = { id: 'r1', name: 'Routine Directe', manualGenerations: 0, workoutType: 'Course à pied', targetMode: 'time', hours: 0, minutes: 30 };
+    render(<PlaylistsView {...baseProps({ routines: [routine], initialTab: 'routine' })} />);
+
+    expect(screen.getByText('Mes Routines')).toBeInTheDocument();
+    expect(screen.getByText('Routine Directe')).toBeInTheDocument();
+  });
+
+  it('initialTab=null (valeur par défaut explicite de la Sidebar) démarre bien sur Séances, pas Routines', () => {
+    render(<PlaylistsView {...baseProps({ initialTab: null })} />);
+    expect(screen.getByText('Mes Séances')).toBeInTheDocument();
   });
 });
