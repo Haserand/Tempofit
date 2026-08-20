@@ -63,6 +63,16 @@ export function useCsvImport(
     e.stopPropagation();
     setCurrentPlaylist(playlist);
     setCsvUploadTargetDate(targetDateIso);
+    // Écrit aussi le ref DIRECTEMENT, de façon SYNCHRONE (19/08, même
+    // correctif que useAudioPreview.js le même jour, rattrapé par le build
+    // Vercel réel sur CE fichier-là) — la ligne du haut de ce hook
+    // (`csvUploadTargetDateRef.current = csvUploadTargetDate;`) ne
+    // réassigne CE ref qu'au PROCHAIN rendu, jamais de façon synchrone :
+    // en pratique le délai avant le prochain déclenchement (sélecteur de
+    // fichier OS, lecture FileReader) laisse largement le temps à React de
+    // re-render, mais rien ne le GARANTIT structurellement. Cette écriture
+    // immédiate élimine le doute plutôt que de compter sur ce délai.
+    csvUploadTargetDateRef.current = targetDateIso;
     if(fileInputRef.current) fileInputRef.current.click();
   };
 
