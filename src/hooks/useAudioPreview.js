@@ -61,8 +61,30 @@ export function useAudioPreview(showToast) {
   // `csvUploadTargetDateRef` dans useCsvImport.js (correctif du même jour) :
   // permet à `resolveAndPlay` de savoir, APRÈS son `await` réseau, si une
   // AUTRE résolution a démarré entre-temps pour un titre différent (state
-  // React lu directement serait figé dans la fermeture d'origine). Voir la
-  // docstring de `resolveAndPlay` plus bas pour le détail du correctif.
+  // React lu directement serait figé dans la fermeture d'origine).
+  //
+  // ⚠️ BUG CORRIGÉ (même jour, rattrapé par le build Vercel réel AVANT tout
+  // déploiement — voir les logs) : la 1ère version de ce correctif ne
+  // mettait à jour ce ref QU'ICI, à chaque RENDU (`resolvingTrackIdRef.current
+  // = resolvingTrackId`) — jamais au moment même de l'appel à
+  // `setResolvingTrackId` dans `resolveAndPlay`. Comme un `setState` ne
+  // déclenche un re-rendu (donc cette ligne) qu'au tour suivant de la
+  // boucle d'événements, et JAMAIS de façon synchrone, rien ne garantissait
+  // que React ait eu le temps de re-render avant que l'`await` de
+  // `resolveAndPlay` ne se résolve — la comparaison
+  // `resolvingTrackIdRef.current !== track.id` pouvait alors être FAUSSE
+  // MÊME SANS AUCUNE COURSE RÉELLE, sur une résolution parfaitement seule
+  // : le ref lisait encore SA VALEUR D'AVANT L'APPEL. Détecté par
+  // `tests/hooks/useAudioPreview.test.js` en environnement de test (mock
+  // résolu quasi instantanément, plus rapide que le cycle de rendu React),
+  // mais le même risque existe en production dès que
+  // `resolveDeezerTrackByTitleArtist` répond plus vite que le rendu suivant
+  // — pas garanti impossible avec un réseau rapide/en cache. Corrigé en
+  // écrivant CE REF DIRECTEMENT, de façon SYNCHRONE, au moment même de
+  // chaque `setResolvingTrackId` dans `resolveAndPlay` (voir plus bas) —
+  // la ligne ci-dessous reste utile en complément (rattrape un changement
+  // venu d'ailleurs qu'un rendu), mais n'est plus la SEULE source de
+  // vérité.
   const resolvingTrackIdRef = useRef(null);
   resolvingTrackIdRef.current = resolvingTrackId;
 
@@ -144,9 +166,20 @@ export function useAudioPreview(showToast) {
    */
   const resolveAndPlay = async (track, getNextTrack) => {
     if (track.preview) { playTrack(track, getNextTrack); return track; }
-    if (resolvingTrackId === track.id) return null;
+    // Lit le REF (pas `resolvingTrackId`, le state fermé de ce rendu) — un
+    // 2e clic rapproché sur LE MÊME titre doit être détecté même si React
+    // n'a pas encore eu l'occasion de re-render depuis le 1er clic (même
+    // raison que l'écriture synchrone ci-dessous).
+    if (resolvingTrackIdRef.current === track.id) return null;
 
     setResolvingTrackId(track.id);
+    // Écrit le ref DIRECTEMENT, de façon SYNCHRONE — ne PAS attendre le
+    // prochain rendu (qui réassignerait cette même valeur via la ligne du
+    // haut du hook, mais seulement APRÈS que React ait eu l'occasion de
+    // re-render, jamais garanti avant que l'`await` juste en dessous ne se
+    // résolve). Voir la docstring de `resolvingTrackIdRef` plus haut pour
+    // le détail du bug que ça corrige.
+    resolvingTrackIdRef.current = track.id;
     try {
       const resolved = await resolveDeezerTrackByTitleArtist(track.title, track.artist);
       // Une AUTRE résolution a démarré entre-temps (l'utilisateur a cliqué
@@ -165,8 +198,15 @@ export function useAudioPreview(showToast) {
     } finally {
       // Scopé au même titre — ne clairer QUE si c'est toujours CETTE
       // résolution qui est en cours (sinon on effacerait à tort
-      // l'indicateur de chargement d'une résolution plus récente).
-      if (resolvingTrackIdRef.current === track.id) setResolvingTrackId(null);
+      // l'indicateur de chargement d'une résolution plus récente). Le ref
+      // est aussi écrit ici de façon SYNCHRONE (même raison que dans le
+      // `setResolvingTrackId(track.id)` plus haut) : un 2e clic sur ce
+      // MÊME titre, juste après que cette résolution se termine, doit
+      // immédiatement voir le ref à `null` sans attendre le rendu suivant.
+      if (resolvingTrackIdRef.current === track.id) {
+        setResolvingTrackId(null);
+        resolvingTrackIdRef.current = null;
+      }
     }
   };
 
