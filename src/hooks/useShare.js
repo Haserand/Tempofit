@@ -90,7 +90,11 @@ export function useShare(showToast) {
     const succeeded = await copyTextToClipboard(textToCopy);
     if (succeeded) showToast("Lien copié dans le presse-papier !");
     else showToast("Impossible de copier le lien automatiquement — copie-le manuellement.", 'error');
-    closeModal();
+    // Scopé à 'SHARE' (19/08, check-up global) — l'écriture presse-papier
+    // ci-dessus est asynchrone (`await`) : sans ce nom, une AUTRE modale
+    // ouverte par l'utilisateur pendant cette attente se fermerait par
+    // erreur. Voir la docstring de `closeModal` dans ModalContext.jsx.
+    closeModal('SHARE');
   };
 
   // Partage natif du téléphone/OS (menu "Partager" habituel avec toutes les
@@ -101,7 +105,11 @@ export function useShare(showToast) {
     if (!shareData || !navigator.share) return;
     try {
       await navigator.share({ title: shareData.title, text: shareData.text, url: shareData.url });
-      closeModal();
+      // Scopé à 'SHARE' (19/08, check-up global) — voir le commentaire
+      // équivalent dans copyToClipboard ci-dessus, même raisonnement mais
+      // fenêtre d'attente plus longue ici (boîte de dialogue système de
+      // partage de l'OS, peut rester ouverte un moment).
+      closeModal('SHARE');
     } catch (e) {
       // L'utilisateur a annulé le partage, ou l'API a échoué : on ne fait rien de spécial.
     }
