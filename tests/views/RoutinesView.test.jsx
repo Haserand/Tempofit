@@ -5,6 +5,13 @@
 // mocker ici — tout le reste (routines, setters, callbacks de rendu comme
 // `getDisplayRoutineIcon`/`renderConfigInfoLine`/`getRankStyle`) sont des
 // props classiques, comme au Palier 2.
+//
+// ⚠️ ARCHITECTURE CHANGÉE (20/08, fusion "Mes Routines" en onglet de "Mes
+// Séances", voir PlaylistsView.jsx) — RoutinesView.jsx ne rend plus son
+// propre `<ViewHeader/>` ni son propre wrapper, seulement le corps
+// (grille) : ce fichier de test n'a PAS eu besoin d'être modifié, aucune
+// de ses assertions ne portait sur l'en-tête retiré (titre "Mes Routines"/
+// sous-titre), qui vit maintenant dans PlaylistsView.test.jsx à la place.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
