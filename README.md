@@ -97,6 +97,54 @@ dans le projet.
   d'une résolution plus récente. Tests de régression ajoutés (course A/B
   complète, + les 3 cas de base qui n'avaient encore aucun test).
 
+### 19/08 (suite 2) — build Vercel réel cassé, 3 bugs distincts rattrapés AVANT déploiement
+
+Le build a échoué sur 4 tests dans 3 fichiers — aucun n'était un faux
+positif, les 3 étaient de VRAIS bugs, dont un a nécessité de revenir sur le
+design du correctif `ModalContext.jsx` ci-dessus.
+
+- **`ModalContext.jsx` — le 1er correctif ("closeModal(name) optionnel")
+  cassait tout branchement JSX direct.** `onClick={closeModal}` /
+  `onClose={closeModal}` (12 endroits : `ModalContainer.jsx`, `App.jsx`,
+  `EditPlaylistModal.jsx`) font que React appelle la fonction avec l'OBJET
+  ÉVÉNEMENT comme 1er argument — qui devenait `name`, empêchant la modale de
+  se fermer (l'événement n'est jamais `undefined`, ni égal au nom de la
+  modale active). Détecté par un test PRÉEXISTANT
+  (`PlaylistEditContext.test.jsx`), pas un nouveau test — preuve que la
+  couverture existante suffisait à l'attraper. **Corrigé en profondeur** :
+  `closeModal()` redevient une fonction à ZÉRO paramètre déclaré (donc
+  totalement insensible à ce qu'on lui passe, sûre en JSX direct), la
+  version scopée devient une fonction au nom DISTINCT,
+  `closeModalIfActive(name)` — jamais branchée directement en JSX, plus
+  aucune ambiguïté possible. `useShare.js` mis à jour en conséquence. Un
+  test de régression DIRECTE de ce piège ajouté (monte un vrai
+  `onClick={closeModal}` et simule un vrai clic).
+- **`useAudioPreview.js` — le ref `resolvingTrackIdRef` du correctif
+  précédent pouvait être PÉRIMÉ même SANS aucune course réelle.** Il n'était
+  réassigné qu'au RENDU suivant (`resolvingTrackIdRef.current =
+  resolvingTrackId`, en haut du hook) — jamais de façon synchrone au moment
+  de l'appel. Comme un `setState` ne déclenche un re-rendu qu'au tour
+  suivant de la boucle d'événements, rien ne garantissait que React ait
+  re-rendu avant que l'`await` réseau de `resolveAndPlay` ne se résolve : la
+  comparaison pouvait échouer sur une résolution parfaitement seule.
+  Détecté par les tests ajoutés la veille (mock résolu quasi
+  instantanément). **Corrigé** en écrivant ce ref DIRECTEMENT, de façon
+  SYNCHRONE, au moment même de chaque `setResolvingTrackId` — la ligne au
+  rendu reste en complément, mais n'est plus la seule source de vérité. Même
+  correctif défensif appliqué à `csvUploadTargetDateRef`
+  (`useCsvImport.js`, `triggerCSVUpload`) par cohérence, même si sa fenêtre
+  de risque réelle est plus large (délai OS/FileReader) et n'avait pas
+  encore été prise en défaut.
+- **`spotifyEngine.test.js` — bug de test pur (pas de code source).**
+  `const fetchSpy = vi.stubGlobal('fetch', vi.fn())` — `vi.stubGlobal`
+  renvoie `vi` lui-même (chaînage), jamais la valeur stubbée. Corrigé en
+  capturant le mock à part avant de le passer à `stubGlobal`.
+
+**Motif à retenir** : ajouter un paramètre optionnel à une fonction déjà
+branchée ailleurs en JSX (`onClick={fn}`) est dangereux — React y passe
+toujours l'événement comme 1er argument. Dans ce genre de cas, mieux vaut
+une fonction au nom DISTINCT qu'un paramètre optionnel ambigu.
+
 ### Historique détaillé (13-14/08) — archivé dans `HISTORIQUE.md`, bloc 4
 
 Récit chronologique complet déplacé le 14/08 (4e élagage — la session la
