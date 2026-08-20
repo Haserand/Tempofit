@@ -15,14 +15,14 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { renderHook, act, cleanup } from '@testing-library/react';
 
 const mockOpenModal = vi.fn();
-const mockCloseModal = vi.fn();
+const mockCloseModalIfActive = vi.fn();
 let mockModalState = { activeModal: null, modalData: null };
 vi.mock('../../src/contexts/ModalContext.jsx', () => ({
   useModalContext: () => ({
     activeModal: mockModalState.activeModal,
     modalData: mockModalState.modalData,
     openModal: mockOpenModal,
-    closeModal: mockCloseModal,
+    closeModalIfActive: mockCloseModalIfActive,
   }),
 }));
 
@@ -138,7 +138,7 @@ describe('useShare — copyToClipboard', () => {
     const { result } = renderUseShare(showToast);
     await act(async () => { await result.current.copyToClipboard(); });
     expect(showToast).not.toHaveBeenCalled();
-    expect(mockCloseModal).not.toHaveBeenCalled();
+    expect(mockCloseModalIfActive).not.toHaveBeenCalled();
   });
 
   it('navigator.clipboard disponible et réussit : toast de succès, ferme la modale, PAS de repli execCommand', async () => {
@@ -152,11 +152,14 @@ describe('useShare — copyToClipboard', () => {
 
     expect(writeText).toHaveBeenCalledWith('Regarde ça https://tempofit.example');
     expect(showToast).toHaveBeenCalledWith('Lien copié dans le presse-papier !');
-    // BUG CORRIGÉ (19/08, check-up global) — closeModal() était appelé SANS
-    // argument (fermeture inconditionnelle) après un `await` presse-papier,
-    // ce qui pouvait fermer une AUTRE modale ouverte entre-temps. Doit
-    // maintenant être scopé à 'SHARE'.
-    expect(mockCloseModal).toHaveBeenCalledWith('SHARE');
+    // BUG CORRIGÉ (19/08, check-up global) — `closeModal()` était appelé
+    // SANS argument (fermeture inconditionnelle) après un `await`
+    // presse-papier, ce qui pouvait fermer une AUTRE modale ouverte
+    // entre-temps. Doit maintenant appeler `closeModalIfActive('SHARE')`
+    // (fonction séparée, PAS `closeModal(name)` — voir ModalContext.jsx,
+    // "CORRECTIF DÉFINITIF" : la 1ère version avait cassé tout branchement
+    // direct `onClick={closeModal}` ailleurs dans le projet).
+    expect(mockCloseModalIfActive).toHaveBeenCalledWith('SHARE');
     expect(execSpy).not.toHaveBeenCalled();
   });
 
@@ -169,7 +172,7 @@ describe('useShare — copyToClipboard', () => {
     await act(async () => { await result.current.copyToClipboard(); });
 
     expect(showToast).toHaveBeenCalledWith('Lien copié dans le presse-papier !');
-    expect(mockCloseModal).toHaveBeenCalledWith('SHARE'); // voir le commentaire du test ci-dessus (19/08)
+    expect(mockCloseModalIfActive).toHaveBeenCalledWith('SHARE'); // voir le commentaire du test ci-dessus (19/08)
   });
 
   it('BUG CORRIGÉ (31/07) — execCommand renvoie false (échec silencieux) : toast d\'ERREUR, pas de faux succès', async () => {
@@ -202,7 +205,7 @@ describe('useShare — partage natif (texte)', () => {
   it('sans navigator.share : ne fait rien', async () => {
     const { result } = renderUseShare();
     await act(async () => { await result.current.shareNative(); });
-    expect(mockCloseModal).not.toHaveBeenCalled();
+    expect(mockCloseModalIfActive).not.toHaveBeenCalled();
   });
 
   it('navigator.share réussit : appelé avec title/text/url, puis ferme la modale', async () => {
@@ -216,7 +219,7 @@ describe('useShare — partage natif (texte)', () => {
     // BUG CORRIGÉ (19/08, check-up global) — voir le commentaire équivalent
     // sur copyToClipboard plus haut : fenêtre d'attente encore plus longue
     // ici (boîte de dialogue système), donc risque plus réel.
-    expect(mockCloseModal).toHaveBeenCalledWith('SHARE');
+    expect(mockCloseModalIfActive).toHaveBeenCalledWith('SHARE');
   });
 
   it('l\'utilisateur annule (navigator.share rejette) : pas de crash, modale pas fermée', async () => {
@@ -225,7 +228,7 @@ describe('useShare — partage natif (texte)', () => {
 
     await act(async () => { await result.current.shareNative(); });
 
-    expect(mockCloseModal).not.toHaveBeenCalled();
+    expect(mockCloseModalIfActive).not.toHaveBeenCalled();
   });
 });
 
