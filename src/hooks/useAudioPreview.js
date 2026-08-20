@@ -57,6 +57,14 @@ export function useAudioPreview(showToast) {
   const currentTrackRef = useRef(null);
   const autoAdvanceResolverRef = useRef(null);
   const handleEndedRef = useRef(() => {});
+  // AJOUTÉ (19/08, check-up global) — même convention que
+  // `csvUploadTargetDateRef` dans useCsvImport.js (correctif du même jour) :
+  // permet à `resolveAndPlay` de savoir, APRÈS son `await` réseau, si une
+  // AUTRE résolution a démarré entre-temps pour un titre différent (state
+  // React lu directement serait figé dans la fermeture d'origine). Voir la
+  // docstring de `resolveAndPlay` plus bas pour le détail du correctif.
+  const resolvingTrackIdRef = useRef(null);
+  resolvingTrackIdRef.current = resolvingTrackId;
 
   const playTrack = (track, getNextTrack) => {
     if (!previewAudioRef.current) {
@@ -117,6 +125,22 @@ export function useAudioPreview(showToast) {
    * (`trackId`/`preview` résolus) pour que l'appelant fasse ce qu'il veut
    * de cette mise en cache (voir PlaylistDetailView.jsx, qui l'écrit dans
    * `currentPlaylist.tracks`).
+   *
+   * ⚠️ COURSE CORRIGÉE (19/08, check-up global — même famille que
+   * useCsvImport.js, corrigé le même jour) : le garde-fou
+   * `resolvingTrackId === track.id` ci-dessous ne bloque qu'un double-clic
+   * sur LE MÊME titre — rien n'empêchait de cliquer un titre B pendant que
+   * la résolution (réseau, `resolveDeezerTrackByTitleArtist`) d'un titre A
+   * était encore en vol. Si la résolution de A se terminait APRÈS que B ait
+   * été demandé, `playTrack(updatedTrack, ...)` lançait quand même la
+   * lecture de A — un titre que l'utilisateur n'avait plus demandé pouvait
+   * ainsi interrompre ou suivre B de façon inattendue. Question tranchée
+   * (19/08) : une résolution devenue obsolète doit être IGNORÉE
+   * ENTIÈREMENT, jamais jouée après coup, même si elle aboutit — pas
+   * seulement son indicateur de chargement (`resolvingTrackId`) qu'il
+   * fallait de toute façon aussi corriger (même risque que
+   * `csvUploadTargetDate`, voir useCsvImport.js). `resolvingTrackIdRef`
+   * (déclaré plus haut) permet de vérifier l'un ET l'autre après l'`await`.
    */
   const resolveAndPlay = async (track, getNextTrack) => {
     if (track.preview) { playTrack(track, getNextTrack); return track; }
@@ -125,6 +149,12 @@ export function useAudioPreview(showToast) {
     setResolvingTrackId(track.id);
     try {
       const resolved = await resolveDeezerTrackByTitleArtist(track.title, track.artist);
+      // Une AUTRE résolution a démarré entre-temps (l'utilisateur a cliqué
+      // un autre titre pendant cette attente) : celle-ci est devenue
+      // obsolète, on l'ignore ENTIÈREMENT — ni toast d'erreur, ni lecture,
+      // ni valeur de retour utile pour l'appelant (qui de toute façon ne
+      // s'attend plus à CE titre précis).
+      if (resolvingTrackIdRef.current !== track.id) return null;
       if (!resolved || !resolved.preview) {
         showToast("Extrait audio introuvable pour ce titre.", 'error');
         return null;
@@ -133,7 +163,10 @@ export function useAudioPreview(showToast) {
       playTrack(updatedTrack, getNextTrack);
       return updatedTrack;
     } finally {
-      setResolvingTrackId(null);
+      // Scopé au même titre — ne clairer QUE si c'est toujours CETTE
+      // résolution qui est en cours (sinon on effacerait à tort
+      // l'indicateur de chargement d'une résolution plus récente).
+      if (resolvingTrackIdRef.current === track.id) setResolvingTrackId(null);
     }
   };
 
