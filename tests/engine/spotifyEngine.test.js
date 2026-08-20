@@ -37,7 +37,15 @@ describe('resolveRealBPM — cascade Deezer → GetSongBPM → estimation mathé
     mockDeezerFetch
       .mockResolvedValueOnce({ data: { data: [{ id: 42 }] } }) // recherche
       .mockResolvedValueOnce({ data: { bpm: '128.4', preview: 'https://deezer.example/preview.mp3' } }); // détail du titre
-    const fetchSpy = vi.stubGlobal('fetch', vi.fn());
+    // BUG CORRIGÉ (19/08, check-up global, rattrapé par le build Vercel réel
+    // AVANT tout déploiement — voir les logs) : `vi.stubGlobal(name, value)`
+    // renvoie `vi` LUI-MÊME (pour permettre le chaînage), PAS la valeur
+    // stubbée passée en 2e argument. `const fetchSpy = vi.stubGlobal(...)`
+    // liait donc `fetchSpy` à l'objet `vi`, jamais au mock — faisait planter
+    // `expect(fetchSpy).not.toHaveBeenCalled()` ("is not a spy"). Le mock
+    // doit être capturé À PART, puis seulement PASSÉ à `vi.stubGlobal`.
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
 
     const result = await resolveRealBPM('Titre Test', 'Artiste Test');
 
