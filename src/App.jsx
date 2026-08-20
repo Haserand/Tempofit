@@ -76,7 +76,14 @@ import { useSessionAnalysis } from './hooks/useSessionAnalysis';
 const SettingsView = lazy(() => import('./components/views/SettingsView'));
 const FavoritesView = lazy(() => import('./components/views/FavoritesView'));
 const TrophiesView = lazy(() => import('./components/views/TrophiesView'));
-const RoutinesView = lazy(() => import('./components/views/RoutinesView'));
+// `RoutinesView` RETIRÉ d'ici (20/08, fusion "Mes Routines" en onglet de
+// "Mes Séances") — plus une vue de premier niveau chargée en lazy depuis
+// App.jsx : `PlaylistsView.jsx` l'importe désormais directement (import
+// statique, pas lazy) comme sous-composant de son propre corps — voir la
+// docstring de PlaylistsView.jsx. Lazy-loader un sous-composant toujours
+// nécessaire dès que son Provider l'est (changement d'onglet = instantané,
+// côté client) n'aurait fait qu'ajouter un flash de chargement inutile au
+// changement d'onglet.
 const PlaylistsView = lazy(() => import('./components/views/PlaylistsView'));
 import DualRangeSlider from './components/shared/DualRangeSlider';
 const StatsView = lazy(() => import('./components/views/StatsView'));
@@ -263,13 +270,17 @@ function AppContent({
   //
   // Même garde-fou EXACT que `handleOpenPublicPlaylist` pour le cas "je
   // consulte ma PROPRE routine publique depuis mon propre profil" — pas de
-  // clonage de sa propre routine sur elle-même, on va directement à \"Mes
-  // Routines\" à la place, où elle est de toute façon déjà éditable
+  // clonage de sa propre routine sur elle-même, on va directement à "Mes
+  // Routines" à la place, où elle est de toute façon déjà éditable
   // normalement (pas besoin d'un aperçu en lecture seule de son propre
   // contenu).
+  // ⚠️ MIS À JOUR (20/08, fusion "Mes Routines" en onglet) — `changeView
+  // ('routines')` remplacé par `handleOpenPlaylists('routine')` : cette
+  // route dédiée n'existe plus, "Mes Routines" est maintenant l'onglet
+  // 'routine' de "Mes Séances" (voir PlaylistsView.jsx).
   const handleOpenPublicRoutine = (row) => {
     if (user && row.user_id === user.id) {
-      changeView('routines');
+      handleOpenPlaylists('routine');
       return;
     }
     openModal('PUBLIC_ROUTINE_PREVIEW', row);
@@ -312,7 +323,9 @@ function AppContent({
     };
     setRoutines(prev => [cloned, ...prev]);
     closeModal();
-    changeView('routines');
+    // ⚠️ MIS À JOUR (20/08, fusion "Mes Routines" en onglet) — même
+    // raisonnement que handleOpenPublicRoutine plus haut.
+    handleOpenPlaylists('routine');
     showToast('⚡ Routine clonée dans Mes Routines !');
 
     // Compteur de clonages RÉEL — REFONTE (03/08) : UN SEUL appel RPC
@@ -398,6 +411,27 @@ function AppContent({
   // `initialTab`, SettingsView.jsx, pour pourquoi ça reste fiable malgré
   // un `useState` simple ici plutôt qu'un state plus élaboré).
   const [settingsInitialTab, setSettingsInitialTab] = useState(null);
+
+  // Onglet initial de PlaylistsView / "Mes Séances" (20/08, fusion "Mes
+  // Routines" en onglet — voir la docstring de PlaylistsView.jsx) — MÊME
+  // mécanisme exact que `settingsInitialTab` juste au-dessus : `null` =
+  // onglet "Séances" par défaut (bouton Sidebar, comportement historique),
+  // posé à `'routine'` juste avant CHAQUE `changeView('playlists')` qui
+  // doit atterrir directement sur l'onglet Routines (jamais laissé à une
+  // valeur périmée d'une visite précédente — même raisonnement que
+  // `settingsInitialTab`).
+  const [playlistsInitialTab, setPlaylistsInitialTab] = useState(null);
+
+  // Point d'entrée UNIQUE vers "Mes Séances" — `tab` optionnel (`null` par
+  // défaut = onglet Séances, utilisé par la Sidebar) ; remplace les 2
+  // anciens appels directs à `changeView('routines')` (route retirée le
+  // 20/08 — "Mes Routines" n'est plus une vue de premier niveau séparée,
+  // voir PlaylistsView.jsx). Même schéma que `handleOpenSettings` juste
+  // au-dessus.
+  const handleOpenPlaylists = (tab = null) => {
+    setPlaylistsInitialTab(tab);
+    changeView('playlists');
+  };
 
   // Point d'entrée UNIQUE vers "Réglages" pour la Sidebar (garde le
   // comportement par défaut — jamais 'account' forcé) — la Sidebar
@@ -1912,18 +1946,6 @@ function AppContent({
               <ProfileView theme={themeTokens} username={viewingProfileUsername} isNaughtyMode={isNaughtyMode} changeView={changeView} user={user} openModal={openModal} onOpenPlaylist={handleOpenPublicPlaylist} onOpenRoutine={handleOpenPublicRoutine} />
             )}
 
-            {view === 'routines' && (
-              <RoutinesView
-                theme={themeTokens} isNaughtyMode={isNaughtyMode} routines={routines} setRoutines={setRoutines}
-                routineBatchCounts={routineBatchCounts} setRoutineBatchCounts={setRoutineBatchCounts}
-                getDisplayRoutineIcon={getDisplayRoutineIcon} getDisplayRoutineName={getDisplayRoutineName}
-                renderConfigInfoLine={renderConfigInfoLine} getRankStyle={getRankStyle}
-                setEditingRoutine={setEditingRoutine}
-                executeGeneration={executeGeneration} isGenerating={isGenerating} changeView={changeView}
-                showToast={showToast}
-              />
-            )}
-
             {/* ===================== VIEW: PLAYLISTS / MES SÉANCES ===================== */}
             {/* Fusionne planification (à venir) ET historique (terminées) sur un seul
                 écran chronologique — voir PlaylistsView pour le détail des 3 sections.
@@ -1932,7 +1954,16 @@ function AppContent({
                 dates y a été intégré. Vérifié le 25/07 : HistoryView.jsx, useQueue.js
                 et QueueView.jsx n'existent déjà plus sur le disque — nettoyage déjà
                 fait lors d'une session antérieure, ce commentaire ne demandait plus
-                rien de réel. */}
+                rien de réel.
+                ⚠️ FUSIONNÉ AVEC "Mes Routines" (20/08) — `view === 'routines'` (bloc
+                séparé, `<RoutinesView/>` montée seule) RETIRÉ : "Mes Routines" est
+                maintenant l'onglet 'routine' de CETTE vue, voir la docstring de
+                PlaylistsView.jsx. Les props `routines`/`setRoutines`/... (avant
+                passées à `<RoutinesView/>` directement) sont maintenant transmises
+                ICI, PlaylistsView.jsx les retransmet à son tour au corps
+                RoutinesView.jsx quand l'onglet actif est 'routine'. `initialTab`
+                (`playlistsInitialTab`, posé par `handleOpenPlaylists`) — MÊME
+                mécanisme exact que `settingsInitialTab`/`<SettingsView/>` plus bas. */}
             {view === 'playlists' && (
               <PlaylistsView
                 theme={themeTokens} isNaughtyMode={isNaughtyMode}
@@ -1946,6 +1977,12 @@ function AppContent({
                 triggerCSVUpload={triggerCSVUpload} removeImportedData={removeImportedData}
                 markPlaylistAsCompleted={markPlaylistAsCompleted}
                 showToast={showToast}
+                routines={routines} setRoutines={setRoutines}
+                routineBatchCounts={routineBatchCounts} setRoutineBatchCounts={setRoutineBatchCounts}
+                getDisplayRoutineIcon={getDisplayRoutineIcon} getDisplayRoutineName={getDisplayRoutineName}
+                setEditingRoutine={setEditingRoutine}
+                executeGeneration={executeGeneration} isGenerating={isGenerating}
+                initialTab={playlistsInitialTab}
               />
             )}
 
