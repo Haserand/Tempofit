@@ -27,6 +27,13 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, act, cleanup, fireEvent, screen } from '@testing-library/react';
+// BUG CORRIGÉ (build Vercel réel) — oublié dans la 1ère version de ce
+// fichier : ce projet n'a pas de `setupFiles` global (voir vite.config.js),
+// chaque fichier de test qui utilise un matcher jest-dom (`toHaveTextContent`
+// ici) doit l'importer lui-même. Sans cet import, `expect(...).toHaveTextContent`
+// échoue avec "Invalid Chai property" — Chai (le moteur d'assertion sous
+// `expect`) ne connaît pas ce matcher tant que jest-dom ne l'a pas étendu.
+import '@testing-library/jest-dom/vitest';
 import { ModalProvider, useModalContext } from '../../src/contexts/ModalContext.jsx';
 
 afterEach(() => {
