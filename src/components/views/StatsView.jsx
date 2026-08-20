@@ -847,9 +847,22 @@ export default function StatsView({
               ("Termine une séance... pour voir tes stats") plutôt que
               redite séparément — à confirmer si "marquée" avait un sens
               plus précis que "générée en Mode Intime".*/}
+          {/* Condensé (retour direct, 20/08 — capture à l'appui : la variante
+              Mode Intime cassait sur 2 lignes, 53 caractères contre 38 pour
+              la variante normale qui tient sur 1 ligne — le budget réel à
+              cette largeur/taille de police tourne autour de 38-40
+              caractères). "Mode Intime" (majuscule, le terme employé
+              PARTOUT ailleurs dans l'app) ne rentre dans AUCUNE formulation
+              testée sans dépasser ce budget — abandonné ici au profit de
+              "intime" (minuscule, adjectif) pour tenir sur une ligne.
+              ⚠️ Pas mesuré dans un vrai navigateur (aucun disponible dans ce
+              bac à sable, voir CLAUDE-SANDBOX-VERIFICATION.md §5) — à
+              confirmer après déploiement, marge de sécurité volontaire
+              (40 caractères, quasi identique au budget de la variante
+              normale déjà validée) plutôt que de coller pile au max estimé. */}
           <h3 className="text-lg font-bold mb-6 max-w-sm mx-auto text-white">
             {statsMode === 'naughty'
-              ? 'Termine une séance en Mode Intime pour voir tes stats'
+              ? 'Termine une séance intime pour tes stats'
               : 'Termine une séance pour voir tes stats'}
           </h3>
           <button onClick={() => changeView('generator')} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
