@@ -30,41 +30,65 @@ import { createContext, useContext, useState, useCallback, useMemo } from 'react
  * via ModalContainer.jsx — le faire transiter par un composant central sans
  * bénéfice réel aurait juste déplacé la complexité, pas réduit.
  *
- * `closeModal` ne vide QUE si la modale fermée est bien celle actuellement
- * active — filet de sécurité contre une fermeture tardive (ex. un timeout) qui
- * fermerait par erreur une AUTRE modale ouverte entre-temps.
+ * ⚠️ CORRIGÉ (19/08, check-up global) — `closeModal()` ferme désormais SCOPÉ
+ * à un nom de modale optionnel : `closeModal('SHARE')` ne fait rien si une
+ * AUTRE modale est devenue active entre-temps, `closeModal()` sans argument
+ * garde l'ancien comportement (ferme sans condition). Avant ce correctif,
+ * `closeModal()` ne prenait aucun argument et fermait TOUJOURS sans
+ * condition — un commentaire ici affirmait à tort qu'un filet de sécurité
+ * existait déjà ("ne vide QUE si la modale fermée est bien celle
+ * actuellement active"), alors qu'aucun appelant ne lui passait de nom.
+ * Risque réel identifié : `shareNative()`/`copyToClipboard()` (`useShare.js`)
+ * attendent une opération asynchrone (`navigator.share()` — boîte de
+ * dialogue système pouvant rester ouverte un moment — ou l'écriture presse-
+ * papier) AVANT de fermer ; si l'utilisateur ouvre une AUTRE modale pendant
+ * cette attente, l'ancien `closeModal()` inconditionnel la fermerait par
+ * erreur au lieu de ne rien faire. Seuls `useShare.js` (`copyToClipboard`/
+ * `shareNative`, modale `'SHARE'`) ont un vrai `await` entre l'ouverture et
+ * la fermeture — vérifié sur les 8 appelants du projet
+ * (`useRoutines.js`/`useRoutineActions.js`/`useDeezerSearch.js`/`App.jsx`/
+ * `PlaylistEditContext.jsx` ferment tous de façon strictement synchrone,
+ * sans fenêtre de course possible : `closeModal()` sans argument y reste
+ * correct, pas la peine de leur ajouter un nom par réflexe).
  */
 const ModalContext = createContext(null);
 
 export function ModalProvider({ children }) {
-  const [activeModal, setActiveModal] = useState(null); // null | 'AUTH' | 'IMPORT_SHARED_PLAYLIST' | 'PENDING_NAVIGATION' | 'PENDING_UNSAVE'
-  const [modalData, setModalData] = useState(null);
+  // Combinés en UN SEUL state (plutôt que 2 useState séparés comme avant ce
+  // correctif) : `closeModal(name)` a besoin de lire `activeModal` ET
+  // `modalData` de façon ATOMIQUE au moment de la vérification, dans le
+  // MÊME functional updater — 2 state séparés n'auraient pas permis à la
+  // fonction updater de `modalData` de consulter la valeur courante
+  // d'`activeModal` pour décider si elle doit se vider ou non.
+  const [modalState, setModalState] = useState({ name: null, data: null }); // name: null | 'AUTH' | 'IMPORT_SHARED_PLAYLIST' | 'PENDING_NAVIGATION' | 'PENDING_UNSAVE' | ...
 
   const openModal = useCallback((name, data = null) => {
-    setActiveModal(name);
-    setModalData(data);
+    setModalState({ name, data });
   }, []);
 
-  const closeModal = useCallback(() => {
-    setActiveModal(null);
-    setModalData(null);
+  // `name` optionnel — voir la docstring plus haut pour le détail complet
+  // du comportement scopé vs legacy.
+  const closeModal = useCallback((name) => {
+    setModalState(current => {
+      if (name !== undefined && current.name !== name) return current; // pas la modale attendue : ne rien faire
+      return { name: null, data: null };
+    });
   }, []);
 
   // `useMemo` (08/08, chantier "value non mémoïsée re-render tout le
   // monde") — sûr et complet ICI (contrairement à PlaylistDetailContext.jsx,
   // qui a eu besoin d'un vrai découpage en 2 Contextes) : les 4 champs de
   // cette valeur sont soit du state simple qui ne change QUE quand une
-  // modale s'ouvre/se ferme (`activeModal`/`modalData`, pas à chaque
-  // frappe dans un formulaire — chaque modale garde SON PROPRE state de
-  // formulaire ailleurs, voir la docstring plus haut), soit déjà stables
-  // par eux-mêmes (`openModal`/`closeModal`, `useCallback([])`). Ce
-  // `useMemo` élimine donc un objet `value` neuf à CHAQUE rendu de
-  // n'importe quel composant qui monte `<ModalProvider>` au-dessus de lui
-  // (React.StrictMode/re-render du parent), même quand aucune modale ne
-  // change réellement d'état.
+  // modale s'ouvre/se ferme (`modalState`, pas à chaque frappe dans un
+  // formulaire — chaque modale garde SON PROPRE state de formulaire
+  // ailleurs, voir la docstring plus haut), soit déjà stables par eux-mêmes
+  // (`openModal`/`closeModal`, `useCallback([])`). Ce `useMemo` élimine donc
+  // un objet `value` neuf à CHAQUE rendu de n'importe quel composant qui
+  // monte `<ModalProvider>` au-dessus de lui (React.StrictMode/re-render du
+  // parent), même quand aucune modale ne change réellement d'état.
   const value = useMemo(
-    () => ({ activeModal, modalData, openModal, closeModal }),
-    [activeModal, modalData, openModal, closeModal],
+    () => ({ activeModal: modalState.name, modalData: modalState.data, openModal, closeModal }),
+    [modalState, openModal, closeModal],
   );
 
   return (
