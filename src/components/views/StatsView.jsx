@@ -962,13 +962,13 @@ export default function StatsView({
                       colonne. Emphase sur "terminée" conservée (c'est LA
                       condition d'accès à cette fonctionnalité). Détail du
                       type de donnée (cadence/FC) et le chemin exact
-                      ("Mes Séances") retirés du texte : déjà couverts par
+                      ("Mes Playlists") retirés du texte : déjà couverts par
                       le titre de la carte et le bouton "Aller à Mes
-                      Séances →" juste en dessous. */}
+                      Playlists →" juste en dessous. */}
                   Depuis une séance <span className={`font-semibold ${textHighlight}`}>terminée</span>, importe un CSV Garmin/Strava pour te comparer.
                 </p>
                 <button onClick={() => changeView('playlists')} className={`mt-3 text-sm ${INLINE_NAV_LINK_CLASS} ${textColorClass}`}>
-                  Aller à Mes Séances →
+                  Aller à Mes Playlists →
                 </button>
               </div>
             </div>
