@@ -121,11 +121,11 @@ export function useNavigation(
       id: `pl-curated-${template.id}-${Date.now()}`,
       name: buildCuratedPlaylistName(template, finalWorkoutType),
       // BUG ÉVITÉ (trouvé en vérifiant le pare-feu Mode Intime signalé sur
-      // Mes Séances/Découvrir) : `workoutType` était TOUJOURS
+      // Mes Playlists/Découvrir) : `workoutType` était TOUJOURS
       // `template.workoutType` tel quel, `isNaughty` TOUJOURS `false` — une
       // playlist ouverte depuis un template du catalogue Intime (voir
       // NAUGHTY_DISCOVER_TEMPLATES, DiscoverView.jsx) se serait donc
-      // retrouvée classée comme standard dans Mes Séances (le filtre par
+      // retrouvée classée comme standard dans Mes Playlists (le filtre par
       // mode, lui correct, l'aurait alors fait disparaître de la vue Intime
       // qui vient de la générer — invisible immédiatement après son propre
       // clic). `workoutType` suit maintenant EXACTEMENT la même règle que
@@ -181,7 +181,7 @@ export function useNavigation(
       description: CATEGORY_DESCRIPTIONS[template.category],
       // Trace de l'origine (retour direct : "je devrais revenir à la
       // playlist telle que j'ai cliqué dessus au départ" après un
-      // renommage/édition suivi d'un retrait de "Mes Séances") — permet à
+      // renommage/édition suivi d'un retrait de "Mes Playlists") — permet à
       // `removeSavedPlaylist` (voir usePlaylistLibrary.js) de retrouver le
       // template BRUT et pristine dans data/curatedSessions.js, plutôt que de
       // laisser affiché un `currentPlaylist` qui garderait les modifications
