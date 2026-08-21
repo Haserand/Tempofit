@@ -555,13 +555,66 @@ Ordre de priorité retenu (voir aussi les passations pour le détail du raisonne
 - `PlaylistDetailContext.jsx` (Provider) n'a **pas** de couverture exhaustive — juste un test ciblé sur `isSaved`/`isReadOnly` (`tests/contexts/PlaylistDetailContext.test.jsx`). Le monter en entier exigerait de mocker `GeneratorContext` + `AudioPlayerContext` + le moteur de recalcul de timeline ; jugé disproportionné pour ce qui reste, à part ce point précis, de la logique triviale déjà couverte indirectement ailleurs.
 - Aucune exécution réelle de `vitest` n'est possible dans le bac à sable Claude — voir `CLAUDE-SANDBOX-VERIFICATION.md`.
 
-## Décisions actées, pas encore implémentées — découpage `App.jsx`
+## Découpage `App.jsx` — chantier REPRIS le 20/08 (1er lot fait)
 
-**Repoussé volontairement (08/08, retour direct)** — voir plus haut, section "État d'avancement", pour le découpage déjà fait de `PlaylistHeader.jsx` (836 → 254 lignes, même famille de chantier). `App.jsx` (2227 lignes, `AppContent` avec 40+ `useState` interdépendants) reste le plus gros fichier du projet, mais N'EST PAS découpé maintenant :
+**Repoussé volontairement le 08/08** (retour direct) — voir plus haut, section "État d'avancement", pour le découpage déjà fait de `PlaylistHeader.jsx` (836 → 254 lignes, même famille de chantier). Raison du report à l'époque : refonte intégrale du menu de navigation + nouvelles fonctionnalités prévues dans les prochains jours — découper avant aurait obligé à deviner des frontières qui allaient de toute façon bouger. Approche retenue en attendant : écrire toute nouvelle fonctionnalité directement dans son PROPRE hook/context dédié plutôt que comme un `useState` de plus dans `AppContent` — le découpage se fait ainsi organiquement, au fil de l'eau (voir tous les `Context.jsx` déjà extraits : `GeneratorContext`/`AthleticContext`/`AudioPlayerContext`/`CustomActivityContext`/`ModalContext`/`PlaylistDetailContext`/`PlaylistEditContext`).
 
-- **Raison du report** : refonte intégrale du menu de navigation + nouvelles fonctionnalités prévues dans les prochains jours. La navigation vit au cœur d'`App.jsx` et irrigue presque tout le reste (quelle vue est affichée, quel state est visible à quel moment) — découper maintenant obligerait à deviner des frontières qui vont de toute façon bouger avec la refonte, avec un vrai risque de devoir refaire une partie du travail une 2e fois.
-- **Approche retenue à la place** : laisser `App.jsx` tel quel pour l'instant, mais écrire la refonte de la navigation ET toute nouvelle fonctionnalité directement dans leur PROPRE hook/context dédié, plutôt que comme des `useState` de plus ajoutés dans `AppContent`. Le découpage se fait ainsi organiquement, au fil de l'eau, sans gros chantier de refactoring risqué à un instant T — et une fois la navigation isolée, ce qui reste dans `App.jsx` sera plus facile à lire pour identifier les bonnes frontières pour la suite.
-- **À reprendre** : une fois la refonte de navigation stabilisée (et si le rythme des nouvelles fonctionnalités ralentit), revisiter le découpage du reste d'`App.jsx` — évaluer alors ce qui reste vraiment à extraire, plutôt que de refaire ce raisonnement depuis zéro.
+**Repris le 20/08** — "les modifs de navigation auxquelles je pensais" jugées faites. Avant d'agir : inventaire complet des `useState` restants dans `AppContent` (28 → 22 après ce 1er lot), classés par cluster, plutôt que de redécouper au hasard.
+
+### 1er lot fait : cluster StatsView (6 `useState` rapatriés)
+
+`showAdvancedStats`/`statsMode`/`selectedStatsGenre`/`selectedStatsBpmBucket`/
+`expandedDetailGenre`/`expandedDetailArtist` vivaient dans `AppContent` pour
+une raison devenue **obsolète** : à l'époque, `StatsView` était rendue en
+IIFE directement dans le JSX d'`AppContent` (`view === 'stats' &&
+(() => {...})()`), un `useState` local aurait violé les règles des Hooks.
+Depuis l'extraction de `StatsView.jsx` en vrai composant séparé, cette
+contrainte ne s'applique plus. Vérifié AVANT de bouger quoi que ce soit :
+tous les 6 n'étaient utilisés QUE comme props de `<StatsView/>`, nulle part
+ailleurs dans `App.jsx` — extraction sûre en `useState` local.
+
+**Changement de comportement assumé, pas caché** : ce state ne persiste
+plus en naviguant hors de "Mes Statistiques" puis en y revenant (ex. un
+genre déplié dans la vue détaillée se replie). Aucun commentaire n'affirmait
+cette persistance volontaire — un simple effet de bord de la contrainte
+technique ci-dessus, jamais corrigé après coup.
+
+Tests : `StatsView.test.jsx` — 2 tests qui pilotaient `statsMode`
+DIRECTEMENT par prop (`re-fetch quand statsMode change`, `en Mode Intime`)
+réécrits pour piloter `isNaughtyMode` à la place (la vraie prop restante,
+qui déclenche l'effet interne de synchronisation `[isNaughtyMode]` —
+vérifié dans le code avant de faire confiance au test). `baseProps()`
+nettoyée des 6 props mortes.
+
+### Clusters restants dans `AppContent` (inventoriés, PAS traités ce 20/08)
+
+- **Génération** (`isGenerating`/`generatingTotal`/`generatingDone`/
+  `isGeneratingSlowGenre`/`isGeneratingLongPlaylist`/
+  `generatingEstimatedTracksFound`, 6 `useState`) — candidat naturel pour
+  rejoindre `usePlaylistGeneration.js` (hook déjà existant) plutôt que
+  vivre à part. Pas encore vérifié si `currentPlaylist`/`setCurrentPlaylist`
+  (partagé bien plus largement — MiniPlayerBar, PlaylistsView, Sidebar)
+  peut/doit suivre ou doit rester dans `AppContent`.
+- **Image de partage** (`summaryImageStatus`/`summaryImageFile`/
+  `summaryImagePreviewUrl`/`includeSummaryImage`, 4 `useState`) — à
+  vérifier s'ils sont exclusifs à un seul consommateur (comme le cluster
+  StatsView l'était) ou génuinement partagés (le commentaire de
+  `PlaylistDetailContext.jsx` les mentionne comme "partagés avec ShareModal,
+  un modal global" — probablement PAS un candidat aussi simple).
+- **Navigation** (`view`/`viewingProfileUsername`/`isMobileMenuOpen`/
+  `isUserMenuOpen`/`settingsInitialTab`/`playlistsInitialTab`/`isScrolled`/
+  `isGuestBarDismissed`, 8 `useState`) — genuinement partagés (Sidebar,
+  menu avatar, points d'entrée `handleOpenSettings`/`handleOpenPlaylists`) :
+  PAS un candidat pour un simple rapatriement vers un composant, plutôt
+  pour un futur `NavigationContext.jsx` dédié si le chantier continue —
+  plus gros, plus risqué, pas entrepris ce 20/08.
+- **Autres** : `editingCompletion` (1), `currentPlaylist`/`setCurrentPlaylist`
+  (partagé très largement, presque certainement à garder dans `AppContent`).
+
+**À reprendre** : le cluster Génération semble le prochain candidat le plus
+sûr (même logique de vérification qu'aujourd'hui : confirmer qu'il n'est
+QUE consommé par `usePlaylistGeneration.js`/le rendu du wizard avant de le
+bouger). Navigation, plus risqué, mieux traité comme un chantier à part.
 
 ## Corrigé (20/08) — anciennement "Limite connue, non traitée : écritures concurrentes de MÊME TYPE sur la MÊME playlist"
 
