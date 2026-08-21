@@ -415,8 +415,25 @@ ENSEMBLE si l'un bouge un jour ; pas fusionnées en une seule constante
 pour autant, ce sont 2 besoins distincts. Tests ajoutés aux deux niveaux :
 `sidebarLayout.test.js` (comparaison structurelle des 2 valeurs, pas juste
 une égalité de chaînes — le point de cette constante EST qu'elles
-matchent) et `Sidebar.test.jsx` (classe `mb-5` bien présente sur le
+matchent à l'époque) et `Sidebar.test.jsx` (classe présente sur le
 conteneur réel en Mode Intime).
+
+**Resserrement -2px par trait, 3e passe le même jour** (retour direct
+avec capture annotée de 5 traits rouges : "supprime 2 pixels à chaque
+trait rouge pour que je puisse voir le bouton découvrir dans la vue
+intime sans scroll") — désynchronise DÉLIBÉRÉMENT
+`SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM` de `SIDEBAR_SEPARATOR_MARGIN`
+(`mb-5` → `mb-[18px]`, l'égalité testée dans le correctif précédent
+n'était vraie qu'à ce moment précis, pas un invariant à vie) ; 2 NOUVELLES
+variantes Mode Intime pour des constantes qui n'en avaient jamais eu
+(`SIDEBAR_SEPARATOR_MARGIN_COMPACT` = `mt-[18px] mb-5`,
+`SIDEBAR_DISCOVER_SEPARATOR_MARGIN_COMPACT` = `mt-[18px] mb-2.5` — seul le
+HAUT de chacune bouge, le bas n'était pas marqué) ; et le padding du
+bouton "Quitter le Mode Intime" recalculé (`pt-0.5 pb-3.5` → `pt-0 pb-3`)
+en conservant l'égalité qui le centre (12=12, contre 14=14 avant) — 2
+traits marqués touchaient précisément ce couple. Mode normal totalement
+épargné : les 2 séparateurs distinguent enfin normal/compact comme les 4
+autres constantes du fichier le faisaient déjà.
 ⚠️ Retour utilisateur explicite : "je vais y aller par étape" — d'autres
 ajustements Mode Intime à prévoir dans une session future, celui-ci n'est
 qu'un 1er correctif ciblé, pas une passe de stabilisation complète comme
