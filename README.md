@@ -12,301 +12,74 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement — le dernier chantier livré (19/08, check-up
-global, ci-dessous) est fermé, vérifié syntaxiquement/statiquement, tests à
-jour. Prochaine session : partir des sections plus bas (décisions
-d'architecture, contraintes, limites connues) et du code réel.
+Rien en cours actuellement — le dernier chantier livré (20/08, découpage
+`App.jsx`, 1er lot fait — voir la section dédiée plus bas) est fermé,
+vérifié syntaxiquement/statiquement, tests à jour. Prochaine session :
+partir des sections plus bas (décisions d'architecture, contraintes,
+limites connues) et du code réel — reprendre éventuellement le découpage
+d'`App.jsx` (clusters Génération/Image de partage/Navigation, tous
+génuinement partagés, nécessitent un vrai Contexte dédié plutôt qu'une
+simple redescente de state).
 
-### 19/08 — check-up global du projet, 2 bugs réels corrigés + couverture de tests comblée
+### Historique détaillé (19-20/08) — archivé dans `HISTORIQUE.md`, bloc 5
 
-Check-up demandé sans chantier précis en tête ("vois-tu des erreurs ou des
-optimisations à réaliser ?") — méthode : README/HISTORIQUE d'abord, puis
-`esbuild`+`tsc --checkJs` sur 100% de `src/`+`tests/`, résolution des
-imports, piège Tailwind, vérification mécanique de `supabase-schema.sql`
-(tout propre, 0 régression), puis lecture ciblée des zones à risque.
+Récit chronologique complet déplacé le 20/08 (5e élagage — session
+particulièrement dense : check-up global, plusieurs vagues de correctifs
+de bugs récurrents, renommage terminologique complet, fusion Routines/
+Playlists en onglet, réorganisation Sidebar/Découvrir, correctif
+d'écritures concurrentes différé depuis le 10/08). Index :
 
-- **`ModalContext.jsx` — `closeModal()` fermait TOUJOURS sans condition,
-  même appelé tardivement après un `await`.** Un commentaire affirmait à
-  tort qu'un filet de sécurité existait déjà. Risque réel identifié :
-  `shareNative()`/`copyToClipboard()` (`useShare.js`) attendent une
-  opération asynchrone avant de fermer — si l'utilisateur ouvrait une AUTRE
-  modale entre-temps, l'ancien `closeModal()` la fermait par erreur.
-  **Corrigé** : `closeModal(name)` accepte désormais un nom de modale
-  optionnel et ne ferme que si c'est bien elle qui est active ; seuls les 2
-  points d'appel réellement asynchrones (`useShare.js`) passent ce nom, les
-  8 autres appelants (synchrones, sans risque) restent inchangés. Tests :
-  `tests/contexts/ModalContext.test.jsx` (nouveau, jusqu'ici 0 test dédié)
-  + assertions renforcées dans `useShare.test.js`.
-- **`AuthContext.jsx` — seul des 8 Contexts du projet où le correctif
-  "value non mémoïsée" (08/08) n'avait jamais été appliqué.** Plus important
-  qu'il n'y paraît ici : `usePersistentState.js`/`useSyncedCollection.js`
-  (appelés une fois PAR CLÉ persistée dans toute l'app) lisent tous les deux
-  `useAuthContext()` en interne — un changement d'état interne sans rapport
-  avec `user`/`authLoading` (ex. `usernameLoading`) re-rendait indirectement
-  tous ces hooks à travers toute l'app. **Corrigé** : les 11 fonctions
-  stabilisées via `useCallback` (dépendances vérifiées une à une), `value`
-  mémoïsée via `useMemo`. Tests de stabilité référentielle ajoutés dans
-  `tests/contexts/AuthContext.test.jsx`.
-- **Couverture de tests comblée** (aucun bug trouvé dans ces fichiers,
-  simple lacune) : `spotifyEngine.js` (159 lignes, jamais testé — cascade de
-  résolution BPM, pagination, distinction 401/403), les 5 fichiers
-  `src/layout/*.js` (constantes pures, mais testées avec de VRAIES
-  vérifications de synchronisation contre le code source consommateur —
-  pas de simples assertions de valeur), `GeneratorContext.jsx` et
-  `AudioPlayerContext.jsx` (les 2 derniers Contexts sans test dédié).
-- **Repéré, pas corrigé (hors scope du check-up)** : `AuthContext.jsx`
-  n'est pas couvert par le garde-fou `criticalExportsTrap.test.js` (qui
-  vérifie que les Providers exportent bien ce qu'ils promettent) —
-  contrairement aux 6 autres Contexts du projet. À ajouter si une session
-  future touche ce garde-fou.
-- `vercel.json` (`"deploymentEnabled": false`) — confirmé volontaire par
-  l'utilisateur (19/08), maintenant documenté dans "Contraintes de travail"
-  plus bas plutôt que redit ici.
+- **19/08 — check-up global** (demandé sans chantier précis en tête) : 2
+  bugs réels trouvés (`ModalContext.jsx` fermait la mauvaise modale après
+  un `await` ; `AuthContext.jsx` seul des 8 Contexts sans `value`
+  mémoïsée) + couverture de tests comblée (`spotifyEngine.js`,
+  `src/layout/*.js`, `GeneratorContext`/`AudioPlayerContext`). Généralisé
+  ensuite au même motif ailleurs : `useCsvImport.js`/`useAudioPreview.js`
+  avaient la MÊME classe de bug ("clear inconditionnel après un `await`").
+- **19-20/08 — 4 allers-retours de build Vercel réel**, tous corrigés :
+  1er correctif `closeModal(name)` cassait tout `onClick={closeModal}`
+  direct (React y passe l'événement) — corrigé en 2 fonctions séparées
+  (`closeModal()`/`closeModalIfActive(name)`) plutôt qu'un paramètre
+  optionnel ambigu ; ref de timing non synchrone dans
+  `useAudioPreview.js` ; bug `vi.stubGlobal` (renvoie `vi`, pas le mock) ;
+  import `jest-dom` manquant (ce projet n'a pas de `setupFiles` global —
+  nouvelle habitude actée dans `CLAUDE-SANDBOX-VERIFICATION.md`, §5bis).
+- **20/08 — "Mes Routines" fusionnée en onglet de "Mes Playlists"**
+  (retour direct, comparé à la vue profil public déjà en onglets) —
+  `RoutinesView.jsx` réduite à son seul corps, `PlaylistsView.jsx` devient
+  le shell avec sélecteur d'onglet et en-tête dynamique. Cassait
+  `viewHeaderLayout.test.js` (garde-fou du 19/08 qui a fait son travail),
+  ajusté en conséquence.
+- **20/08 — renommage complet "séance" → "playlist"** (retour terrain :
+  "la notion de séance parle au cœur de cible mais pas aux curieux, ils
+  ne savent pas qu'il y a une playlist") — "Nouvelle Playlist"/"Mes
+  Playlists" sur ~30 fichiers, en distinguant strictement le nom propre de
+  destination (renommé) de l'usage générique du mot "séance" (conservé).
+  2 citations verbatim de retours utilisateurs historiques préservées
+  intactes malgré un remplacement automatique trop large. "Mes
+  Statistiques" ajoutée ensuite par cohérence (pas "Mes Réglages",
+  convention universelle "Réglages" seul).
+- **20/08 — recherche de profils fusionnée dans "Découvrir"** — pastille
+  séparée retirée, remplacée par un vrai onglet Séances/Profils sur la
+  même barre de recherche. Décision de sécurité assumée : la recherche
+  reste verrouillée aux comptes connectés côté serveur (même verrou que la
+  consultation de profil), message incitatif pour les invités plutôt
+  qu'un simple masquage.
+- **20/08 — écritures concurrentes corrigées** (chantier différé depuis le
+  10/08, repris une fois la navigation stabilisée) — `applyPlaylistUpdate`
+  accepte une fonction de transformation appliquée sur le state le plus
+  frais ; recherche par ID stable plutôt que par index pour les 2
+  remplacements async. Voir la section "Corrigé (20/08)" plus bas pour le
+  détail technique complet (pas archivée, reste à jour).
+- **20/08 — bouton "Précédent" du wizard incohérent entre les étapes**
+  (retour direct, capture annotée) — dérive de style non documentée entre
+  2 boutons faisant la même chose, alignés + extraits en constante locale
+  partagée pour rendre la dérive future impossible.
+- **20/08 — découpage `App.jsx` repris** — voir la section dédiée
+  "Découpage App.jsx" plus bas (pas archivée, reste à jour) pour le détail
+  complet du 1er lot fait (cluster StatsView) et l'inventaire vérifié des
+  clusters restants.
 
-### 19/08 (suite) — généralisation du motif "clear inconditionnel après un `await`", 2 bugs réels de plus trouvés et corrigés
-
-Après le check-up ci-dessus, retour à l'habitude "un bug trouvé =
-généraliser sa recherche" (voir `CLAUDE-SANDBOX-VERIFICATION.md`) : le motif
-exact du bug `ModalContext.jsx` corrigé plus haut (un state "ressource
-active actuelle" remis à `null` SANS CONDITION après un `await`, sans
-revérifier qu'il s'agit toujours de la bonne ressource) cherché ailleurs
-dans le projet.
-
-- **`useCsvImport.js` — `csvUploadTargetDate` effacé sans condition** dans le
-  `finally` de `handleCSVUpload` (qui lit un fichier CSV de façon
-  asynchrone). Scénario réel : import CSV pour une date A lancé, lecture en
-  vol ; l'utilisateur lance un 2e import pour une date B avant que A ne
-  finisse ; la lecture de A se termine et efface la date de B par erreur —
-  le 2e import échoue SILENCIEUSEMENT dès que l'utilisateur sélectionne son
-  fichier, sans le moindre message. **Corrigé** avec un `Ref`
-  (`csvUploadTargetDateRef`), même convention que les 2 refs déjà en place
-  dans ce fichier pour le correctif de course du 10/08. 2 tests de
-  régression ajoutés.
-- **`useAudioPreview.js` — `resolveAndPlay`, même famille mais plus
-  consé­quente.** Le garde-fou existant (`resolvingTrackId === track.id`)
-  ne bloquait qu'un double-clic sur LE MÊME titre — rien n'empêchait de
-  cliquer un titre B pendant que la résolution Deezer (réseau) d'un titre A
-  était encore en vol. Si A se résolvait APRÈS que B ait été demandé,
-  `playTrack` lançait quand même la lecture de A, alors que l'utilisateur
-  ne l'avait plus demandé. Décision tranchée (19/08, utilisateur) : une
-  résolution devenue obsolète doit être **ignorée entièrement**, jamais
-  jouée après coup. **Corrigé** avec `resolvingTrackIdRef`, même
-  convention — la résolution la plus ancienne se voit ignorée en silence
-  (pas de toast, pas de lecture) si une plus récente a pris sa place entre
-  temps ; son `finally` ne clairé plus non plus l'indicateur de chargement
-  d'une résolution plus récente. Tests de régression ajoutés (course A/B
-  complète, + les 3 cas de base qui n'avaient encore aucun test).
-
-### 19/08 (suite 2) — build Vercel réel cassé, 3 bugs distincts rattrapés AVANT déploiement
-
-Le build a échoué sur 4 tests dans 3 fichiers — aucun n'était un faux
-positif, les 3 étaient de VRAIS bugs, dont un a nécessité de revenir sur le
-design du correctif `ModalContext.jsx` ci-dessus.
-
-- **`ModalContext.jsx` — le 1er correctif ("closeModal(name) optionnel")
-  cassait tout branchement JSX direct.** `onClick={closeModal}` /
-  `onClose={closeModal}` (12 endroits : `ModalContainer.jsx`, `App.jsx`,
-  `EditPlaylistModal.jsx`) font que React appelle la fonction avec l'OBJET
-  ÉVÉNEMENT comme 1er argument — qui devenait `name`, empêchant la modale de
-  se fermer (l'événement n'est jamais `undefined`, ni égal au nom de la
-  modale active). Détecté par un test PRÉEXISTANT
-  (`PlaylistEditContext.test.jsx`), pas un nouveau test — preuve que la
-  couverture existante suffisait à l'attraper. **Corrigé en profondeur** :
-  `closeModal()` redevient une fonction à ZÉRO paramètre déclaré (donc
-  totalement insensible à ce qu'on lui passe, sûre en JSX direct), la
-  version scopée devient une fonction au nom DISTINCT,
-  `closeModalIfActive(name)` — jamais branchée directement en JSX, plus
-  aucune ambiguïté possible. `useShare.js` mis à jour en conséquence. Un
-  test de régression DIRECTE de ce piège ajouté (monte un vrai
-  `onClick={closeModal}` et simule un vrai clic).
-- **`useAudioPreview.js` — le ref `resolvingTrackIdRef` du correctif
-  précédent pouvait être PÉRIMÉ même SANS aucune course réelle.** Il n'était
-  réassigné qu'au RENDU suivant (`resolvingTrackIdRef.current =
-  resolvingTrackId`, en haut du hook) — jamais de façon synchrone au moment
-  de l'appel. Comme un `setState` ne déclenche un re-rendu qu'au tour
-  suivant de la boucle d'événements, rien ne garantissait que React ait
-  re-rendu avant que l'`await` réseau de `resolveAndPlay` ne se résolve : la
-  comparaison pouvait échouer sur une résolution parfaitement seule.
-  Détecté par les tests ajoutés la veille (mock résolu quasi
-  instantanément). **Corrigé** en écrivant ce ref DIRECTEMENT, de façon
-  SYNCHRONE, au moment même de chaque `setResolvingTrackId` — la ligne au
-  rendu reste en complément, mais n'est plus la seule source de vérité. Même
-  correctif défensif appliqué à `csvUploadTargetDateRef`
-  (`useCsvImport.js`, `triggerCSVUpload`) par cohérence, même si sa fenêtre
-  de risque réelle est plus large (délai OS/FileReader) et n'avait pas
-  encore été prise en défaut.
-- **`spotifyEngine.test.js` — bug de test pur (pas de code source).**
-  `const fetchSpy = vi.stubGlobal('fetch', vi.fn())` — `vi.stubGlobal`
-  renvoie `vi` lui-même (chaînage), jamais la valeur stubbée. Corrigé en
-  capturant le mock à part avant de le passer à `stubGlobal`.
-
-**Motif à retenir** : ajouter un paramètre optionnel à une fonction déjà
-branchée ailleurs en JSX (`onClick={fn}`) est dangereux — React y passe
-toujours l'événement comme 1er argument. Dans ce genre de cas, mieux vaut
-une fonction au nom DISTINCT qu'un paramètre optionnel ambigu.
-
-### 19/08 (suite 3) — 2e passage du build Vercel réel, 1 dernier bug (import manquant)
-
-Sur 1444 tests, 1 seul en échec : `tests/contexts/ModalContext.test.jsx`
-(le test qui reproduit le piège `onClick={closeModal}` avec un vrai clic
-JSX) plantait avec `Invalid Chai property: toHaveTextContent`. Cause :
-**ce projet n'a PAS de `setupFiles` global** dans `vite.config.js` — chaque
-fichier de test qui utilise un matcher `jest-dom` (`toHaveTextContent`,
-`toBeInTheDocument`...) doit l'étendre lui-même via
-`import '@testing-library/jest-dom/vitest';` (voir
-`PlaylistEditContext.test.jsx` pour la convention déjà en place). Oublié
-dans ce nouveau fichier de test. **Corrigé** — import ajouté. Vérifié
-qu'aucun autre fichier créé/modifié le même jour n'a le même oubli (grep
-sur les matchers `jest-dom` usuels croisé avec la présence de cet import).
-
-**Motif à retenir (2)** : ce projet n'a pas de `setupFiles` vitest — TOUJOURS
-vérifier qu'un nouveau fichier de test qui monte un composant React ET
-utilise un matcher `jest-dom` importe bien `@testing-library/jest-dom/vitest`
-lui-même, une convention facile à oublier puisqu'aucune erreur ne se
-manifeste avant l'exécution réelle (jamais vue dans ce bac à sable, esbuild/tsc
-ne peuvent pas la détecter).
-
-### 20/08 — "Mes Routines" fusionnée en onglet de "Mes Séances" (retour direct + suite d'un échange de position)
-
-Retour direct, capture à l'appui : "j'imagine la partie routines comme un
-onglet spécifique du menu séance ; un peu comme quand on voit la vue d'un
-profil utilisateur où les 2 sont présents dans la même page" — précédé le
-même jour d'un simple échange de position Séances/Routines entre les 2
-sections de la Sidebar (devenu sans objet suite à cette fusion complète).
-Même pattern d'onglets EXACTEMENT que celui déjà en place sur
-`ProfileView.jsx` (visite du profil de quelqu'un d'autre) — visiter SON
-PROPRE espace suit désormais la même logique que visiter celui d'un autre.
-
-- **`RoutinesView.jsx`** réduit à son seul CORPS (grille de cartes) — plus
-  de `<ViewHeader/>` ni de wrapper propres, devient un sous-composant
-  monté directement (import statique, pas lazy) par `PlaylistsView.jsx`.
-- **`PlaylistsView.jsx`** devient le shell : titre/sous-titre/icône du
-  `<ViewHeader/>` changent selon l'onglet actif (`activeTab`), sélecteur
-  d'onglets Séances/Routines (même markup que `ProfileView.jsx`, avec
-  compteur). `initialTab` — MÊME mécanisme exact que
-  `initialTab`/`handleOpenSettings` de `SettingsView.jsx` (lazy init via
-  `useState`, jamais une valeur périmée d'une visite précédente). Derniers
-  textes visibles "playlist" → "séance" alignés au passage dans cette vue
-  (cohérent avec le renommage StatsView.jsx du même jour) — le bouton CTA
-  "Générer ma première playlist" lui-même volontairement PAS touché, pas
-  explicitement validé.
-- **`App.jsx`** : nouveau point d'entrée unique `handleOpenPlaylists(tab)`
-  (même schéma que `handleOpenSettings`), remplace les 2 anciens
-  `changeView('routines')` (clonage d'une routine publique + consultation
-  de sa propre routine publique depuis son profil). Bloc de rendu séparé
-  `view === 'routines'` retiré ; import `lazy()` mort de `RoutinesView`
-  retiré (n'est plus une route de premier niveau).
-- **`Sidebar.jsx`** : bouton "Mes Routines" retiré de "Mon Espace" (plus
-  qu'un seul lien, "Mes Séances", dans "Création") ; import `ListPlus`
-  mort retiré.
-- Tests : `RoutinesView.test.jsx` n'a eu besoin d'AUCUNE modification
-  (aucune de ses assertions ne portait sur l'en-tête retiré) — juste sa
-  docstring mise à jour. `PlaylistsView.test.jsx` enrichi (`baseProps`
-  avec le jeu minimal de props routines, nouvelle section dédiée à la
-  bascule d'onglet — compteurs, changement d'en-tête, contenu réel de
-  `RoutinesView.jsx` non mocké, `initialTab`).
-
-### 20/08 (suite) — build Vercel réel cassé par la fusion, 1 garde-fou à ajuster (pas un bug)
-
-`tests/layout/viewHeaderLayout.test.js` (écrit la veille, check-up global)
-a fait exactement son travail : `RoutinesView.jsx` a gardé son nom en
-"*View.jsx" (continuité historique, extraite de App.jsx le 25/07) mais
-n'est PLUS une vraie vue de premier niveau depuis la fusion ci-dessus — le
-garde-fou l'a détecté (`VIEW_CONTENT_WRAPPER`/`VIEW_HEADER_ICON_SIZE`
-absents). Pas un bug de la fusion elle-même : `RoutinesView.jsx` ne DOIT
-plus les utiliser (c'est `PlaylistsView.jsx` qui les possède pour les 2
-onglets désormais) — c'est le garde-fou qui devait être mis à jour pour
-refléter cette nouvelle réalité. **Corrigé** : `RoutinesView.jsx` exclue
-explicitement du filtre `viewFiles()` (commentaire détaillé sur le
-pourquoi), les 2 seuils numériques ajustés au compte réel actuel (10 → 9
-fichiers de vue, 8 → 7 utilisant l'icône standard). Chaque assertion
-rejouée manuellement en Node avant livraison (aucun `vitest` réel
-disponible dans ce bac à sable).
-
-### 20/08 (suite 4) — retour terrain, renommage complet "séance" → "playlist" sur les 2 destinations principales
-
-Retour direct, capture à l'appui : "la notion de 'séance' parle aux
-utilisateurs qui font du sport régulièrement (cœur de cible) mais beaucoup
-moins à ceux qui testent juste par curiosité, ils se disent pas qu'il y a
-une playlist même si on fait bien plus." Décision : "Nouvelle séance" →
-"**Nouvelle Playlist**", "Mes Séances" → "**Mes Playlists**" — assumée
-réversible par l'utilisateur.
-
-**Ce que ça referme, en creusant** : "Mes Playlists" est en fait le nom
-D'ORIGINE de cette vue (avant le renommage du 25/07 vers "Mes Séances",
-lui-même motivé par la cohérence avec le reste de l'app à l'époque). Pas
-une hésitation : deux signaux différents à 3 semaines d'écart, chacun
-valide en soi (cohérence terminologique interne le 25/07, clarté pour un
-public élargi le 20/08).
-
-**Portée du renommage** : les 2 labels de la Sidebar + TOUT le texte
-utilisateur qui référence "Mes Séances" comme nom de destination
-(boutons, toasts, tooltips) dans ~15 fichiers — mais PAS les usages
-génériques du mot "séance" (une playlist/un entraînement individuel,
-ex. "cette séance déjà réalisée"), non demandés et non touchés. Onglet
-"Mes Routines" (2e onglet de la même vue fusionnée) non concerné.
-
-**2 citations verbatim historiques rattrapées** (`usePlaylistLibrary.js`)
-— un remplacement global (`sed`) avait d'abord altéré à tort 2 retours
-utilisateur cités entre guillemets, datés du 10/08 (époque où la
-destination s'appelait encore "Mes Séances") : restaurées pour rester
-fidèles à ce qui a vraiment été dit à l'époque, plutôt que de réécrire
-l'histoire avec le vocabulaire d'aujourd'hui.
-
-**1 vrai oubli rattrapé avant livraison** : 4 assertions de
-`PlaylistsView.test.jsx` (écrites la veille pour la fusion en onglet)
-vérifiaient encore l'ancien titre "Mes Séances" — auraient fait planter
-le prochain build si non corrigées. Trouvé par un grep de vérification
-systématique sur `tests/`, pas par une exécution réelle (toujours
-indisponible dans ce bac à sable).
-
-### 20/08 (suite 5) — recherche de profils fusionnée dans "Découvrir" (retour direct)
-
-Retour direct : "pouvoir chercher un compte utilisateur directement depuis
-l'onglet découvrir, via un onglet dans la barre de recherche." Investigation
-avant d'implémenter : la fonction serveur `search_public_profiles` a le
-MÊME double verrou (`revoke ... from anon`) que la consultation de profil
-(`get_public_profile_summary`) — ouvrir la recherche aux invités aurait
-défait une décision de sécurité délibérée du 01/08 (énumération de pseudos
-existants par un visiteur anonyme, sujet différent de "peut-on consulter un
-profil déjà trouvé"). Décision retenue après échange : déplacer la
-recherche pour les connectés maintenant, message incitatif pour les
-invités à la place de la recherche elle-même (pas juste un masquage comme
-avant).
-
-- **`DiscoverView.jsx`** — l'ancienne pastille "Profils" séparée (01/08,
-  masquée pour un invité, ouvrait `SearchUsersModal.jsx`) est retirée,
-  remplacée par un VRAI sélecteur de mode ("Séances"/"Profils", même
-  markup que les onglets déjà en place sur `PlaylistsView.jsx`/
-  `ProfileView.jsx`) juste au-dessus de la barre de recherche — la MÊME
-  barre sert aux deux, seul ce qu'elle interroge change. Logique de
-  recherche de profils (debounce 350ms, `search_public_profiles`) reprise
-  À L'IDENTIQUE de `SearchUsersModal.jsx` (toujours d'actualité,
-  accessible aussi depuis le menu avatar — 2 chemins vers la même
-  fonctionnalité, pas dupliquée en profondeur). Invité sur l'onglet
-  "Profils" : message incitatif ("Rejoins la communauté TempoFit...")
-  avec CTA vers `AUTH`, pas de champ de recherche actif.
-- **`App.jsx`** — nouvelle prop `onViewProfile={handleViewProfile}`
-  passée à `DiscoverView` (callback générique déjà utilisé par
-  `SearchUsersModal`/`handleOpenPublicRoutine`, pas dupliqué).
-- Tests : bloc "pastille Profils" entièrement réécrit
-  (`DiscoverView.test.jsx`) — mock `supabase.rpc` ajouté (absent
-  jusqu'ici, aurait planté au 1er test touchant l'onglet), fake timers
-  SCOPÉS au nouveau bloc de tests uniquement (pas globaux : un test
-  existant plus bas utilise `waitFor` avec de vrais timers pour le
-  compteur de clonages, les mélanger l'aurait cassé).
-
-### 20/08 (suite 6) — écritures concurrentes corrigées (chantier différé depuis le 10/08)
-
-"Les modifs de navigation auxquelles je pensais" jugées faites — chantier
-lancé volontairement APRÈS elles, comme annoncé le 10/08. Voir la
-section dédiée plus bas ("Corrigé (20/08)", anciennement "Limite connue,
-non traitée") pour le détail technique complet du correctif
-(`applyPlaylistUpdate`, recherche par ID stable). Chantier de découpage
-d'`App.jsx` — l'autre moitié de ce qui était différé au même titre —
-PAS entrepris dans la foulée : plus gros, plus risqué, volontairement
-laissé pour une session séparée plutôt que d'enchaîner deux chantiers
-structurels d'affilée.
 
 ### Historique détaillé (13-14/08) — archivé dans `HISTORIQUE.md`, bloc 4
 
