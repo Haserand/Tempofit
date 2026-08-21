@@ -30,7 +30,7 @@ import { supabase } from '../supabaseClient';
  * appel JSX qu'à celui de PlaylistDetailView) :
  *
  * RÉELLEMENT DÉPLACÉ ICI (exclusif à cette vue, vérifié) :
- * sauvegarde/retrait de "Mes Séances" DEPUIS la vue détail, drag-and-drop
+ * sauvegarde/retrait de "Mes Playlists" DEPUIS la vue détail, drag-and-drop
  * (liste ET graphique — `moveTrackTo` sert aux deux, jamais dupliqué),
  * dupliquer/remplacer/remplacer-même-artiste/retirer un titre, menu par
  * titre, tout le calcul du graphique BPM (données unifiées, segments,
@@ -172,7 +172,7 @@ export function PlaylistDetailProvider({
     // 'ambiance'/'special' (réservés à une mise en avant/un déblocage de
     // trophée, pas une simple confirmation d'action réversible). Généralisé
     // aux 2 AUTRES endroits où une bascule publique/privée existe
-    // (PlaylistsView.jsx pour les cartes de "Mes Séances", RoutinesView.jsx
+    // (PlaylistsView.jsx pour les cartes de "Mes Playlists", RoutinesView.jsx
     // pour les routines) — 3 implémentations indépendantes de la bascule
     // elle-même (voir leurs docstrings respectives), donc 3 endroits à
     // toucher pour ce même changement, pas un seul point central.
@@ -618,7 +618,7 @@ export function PlaylistDetailProvider({
   // elle est désormais utilisée dans son calcul, voir juste en dessous.
   const isReadOnly = !!currentPlaylist?.isReadOnly;
 
-  // isSaved — la playlist courante est-elle déjà dans "Mes Séances" ?
+  // isSaved — la playlist courante est-elle déjà dans "Mes Playlists" ?
   // Calculé UNE SEULE FOIS ici (currentPlaylist/savedPlaylists déjà reçus en
   // props du Provider) plutôt que recalculé indépendamment par chaque
   // consommateur (PlaylistHeader en avait sa propre copie ; TrackItem/
