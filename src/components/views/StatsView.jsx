@@ -26,20 +26,46 @@ import { supabase } from '../../supabaseClient';
  * ⚠️ Piège déjà rencontré (voir passation, section 4) : `createPlaylistData`
  * stocke `selectedGenres`/`bpm` DANS `config`, jamais au niveau racine de la
  * playlist. Toujours lire `pl.config?.selectedGenres` / `pl.config?.bpm`.
+ *
+ * ⚠️ RAPATRIEMENT (20/08, découpage App.jsx — chantier différé depuis le
+ * 10/08, repris une fois la refonte de navigation stabilisée, voir README)
+ * — `statsMode`/`selectedStatsGenre`/`selectedStatsBpmBucket`/
+ * `showAdvancedStats`/`expandedDetailGenre`/`expandedDetailArtist`
+ * étaient reçus en PROPS depuis App.jsx (`useState` posés là-bas) pour une
+ * raison devenue OBSOLÈTE : à l'époque, ce composant était rendu en IIFE
+ * directement dans le JSX d'AppContent, un `useState` local aurait violé
+ * les règles des Hooks. Depuis que ce fichier existe en composant séparé,
+ * cette contrainte ne s'applique plus — désormais du `useState` local,
+ * comme `statsChartMode`/`receivedCloneCount` juste plus bas, qui l'étaient
+ * déjà. `isNaughtyMode` reste en PROP (source de vérité réellement partagée
+ * ailleurs, AthleticContext.jsx) — seul CE cluster spécifique à cette vue
+ * a bougé.
+ *
+ * ⚠️ CHANGEMENT DE COMPORTEMENT (assumé, pas caché — voir aussi App.jsx à
+ * l'endroit où ce cluster vivait avant) : ce state ne PERSISTE plus en
+ * naviguant hors de cette vue puis en y revenant (ex. un genre déplié dans
+ * la vue détaillée se replie). Aucun commentaire n'affirmait cette
+ * persistance volontaire — un simple effet de bord de la contrainte
+ * technique ci-dessus, jamais corrigé après coup.
  */
 export default function StatsView({
   theme, savedPlaylists, userStats, changeView, setCurrentPlaylist, athleticProfile, getProfileForWorkout, getProfileForWorkoutOrDefault,
   shareImageFile, showToast,
   isNaughtyMode,
-  statsMode, setStatsMode,
-  selectedStatsGenre, setSelectedStatsGenre,
-  selectedStatsBpmBucket, setSelectedStatsBpmBucket,
-  showAdvancedStats, setShowAdvancedStats,
-  expandedDetailGenre, setExpandedDetailGenre,
-  expandedDetailArtist, setExpandedDetailArtist,
   user, username, profilePrivacy, onViewOwnProfile, onManageProfilePrivacy,
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
+
+  // Cluster rapatrié depuis App.jsx (20/08) — voir la docstring ci-dessus
+  // pour le raisonnement complet. Même ordre/mêmes valeurs initiales
+  // qu'avant, juste local maintenant.
+  const [statsMode, setStatsMode] = useState('standard');
+  const [selectedStatsGenre, setSelectedStatsGenre] = useState(() => new Set());
+  const [selectedStatsBpmBucket, setSelectedStatsBpmBucket] = useState(() => new Set());
+  const [showAdvancedStats, setShowAdvancedStats] = useState(false);
+  const [expandedDetailGenre, setExpandedDetailGenre] = useState(null);
+  const [expandedDetailArtist, setExpandedDetailArtist] = useState(null);
+
 
   // Clonages reçus (compteur, 02/08) — FRAÎCHEMENT récupéré via une requête
   // dédiée à chaque changement de `statsMode`/`user`, PAS depuis
