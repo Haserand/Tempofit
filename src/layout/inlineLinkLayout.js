@@ -5,7 +5,7 @@
 //
 // Audit réalisé à cette occasion sur TOUS les liens de ce type dans l'app :
 // la convention existait déjà en pratique à 4 endroits (StatsView.jsx —
-// "Aller à Mes Séances →", "Voir l'aperçu de mon profil public →", "Gérer
+// "Aller à Mes Playlists →", "Voir l'aperçu de mon profil public →", "Gérer
 // ma visibilité →", "Configurer mon Profil Athlétique →" — et FavoritesView.jsx
 // — "Synchroniser mes comptes →", le modèle cité par l'utilisateur) mais
 // jamais formalisée : chaque bouton répétait `font-bold underline` en dur.
