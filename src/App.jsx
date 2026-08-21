@@ -447,30 +447,6 @@ function AppContent({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isUserMenuOpen]);
-  const [isScrolled, setIsScrolled] = useState(false);
-  // ⚠️ BUG CORRIGÉ (21/08, audit du cluster "Navigation" avant extraction
-  // éventuelle en Contexte) — `isScrolled` était déclaré et lu dans le JSX
-  // (header flottant desktop juste en dessous, opacité/translation
-  // conditionnelles) mais `setIsScrolled` n'était appelé NULLE PART dans
-  // tout le projet : ce header ne pouvait donc jamais apparaître, quelle
-  // que soit la position de scroll — resté à `false` en permanence depuis
-  // sa création. Listener posé sur le vrai conteneur qui scrolle
-  // (`#main-scroll-area`, PAS `window` — layout Dashboard avec `<body>`
-  // volontairement figé, `h-screen overflow-hidden`, voir le commentaire
-  // juste avant le JSX plus bas), même convention qu'un listener de scroll
-  // déjà en place ailleurs dans le projet (`step3ScrollRef`,
-  // GeneratorWizard.jsx) — petit seuil (`> 8`) plutôt que `> 0` pour éviter
-  // un clignotement sur un scroll d'à peine 1-2px (rebond tactile iOS,
-  // molette imprécise).
-  const mainScrollRef = useRef(null);
-  useEffect(() => {
-    const el = mainScrollRef.current;
-    if (!el) return;
-    const handleScroll = () => setIsScrolled(el.scrollTop > 8);
-    handleScroll(); // état initial correct si déjà scrollé au montage (ex. retour arrière navigateur)
-    el.addEventListener('scroll', handleScroll);
-    return () => el.removeEventListener('scroll', handleScroll);
-  }, []);
   // Mode clair/sombre — persisté (voir usePersistentState) pour ne pas devoir
   // rebasculer à chaque visite. Toute la palette de couleurs (useTheme.js)
   // avait déjà son pendant `dark:` sur chaque classe Tailwind depuis le
@@ -760,7 +736,7 @@ function AppContent({
     paceSec, setPaceSec,
     segments, setSegments,
     expandedSegmentGenreId, setExpandedSegmentGenreId,
-    availableGenres, displaySubtitleGen,
+    availableGenres,
     equalSplitWeights, setGenreWeight, toggleGenre,
     toggleSegmentGenre, resetSegmentGenre, checkGenreWeightDeviation,
     getActiveWorkoutName,
@@ -1659,22 +1635,6 @@ function AppContent({
             </button>
           </header>
 
-          {/* Header desktop flottant, n'apparaît qu'après un certain scroll (isScrolled) */}
-          <header className={`hidden md:flex absolute top-0 left-0 right-0 p-6 z-30 transition-all duration-300 pointer-events-none ${isScrolled ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-            <div className={`bg-surface/80 backdrop-blur-md border ${cardBorder} shadow-lg px-6 py-3 rounded-full flex items-center space-x-4 pointer-events-auto`}>
-              {/* STATIQUE (Refactor UI "Suppression du lien de retour sur les
-                  titres de pages", 29/07, retour direct : capture montrant
-                  l'infobulle "Retour à l'accueil" superposée au titre de
-                  page) — cette pastille flottante dupliquait le comportement
-                  du logo Sidebar (toujours visible juste à côté sur
-                  desktop) : `onClick`/`title`/`cursor-pointer` retirés,
-                  `<button>` redevient un `<span>` neutre. */}
-              <span className={`font-bold text-sm ${textHighlight}`}>Tempo<span className={textColorClass}>{isNaughtyMode ? 'Intime' : 'Fit'}</span></span>
-              <div className={`w-1 h-1 rounded-full ${bgAccentClass}`}></div>
-              <span className={`text-sm font-medium ${textMuted}`}>{displaySubtitleGen}</span>
-            </div>
-          </header>
-
           {/* Padding supérieur RÉDUIT (25/07, "uniformisation des largeurs de
               vues et alignement vertical") — `pt-6 sm:pt-8` (aligné sur le
               padding latéral `px-4 sm:px-8`), contre `pt-20 sm:pt-24` avant.
@@ -1713,7 +1673,7 @@ function AppContent({
               documenté : sans navigateur réel dans cet environnement, la
               valeur exacte qui suffit ne peut être confirmée qu'en
               conditions réelles (voir CLAUDE-SANDBOX-VERIFICATION.md). */}
-          <main id="main-scroll-area" ref={mainScrollRef} className={`relative flex-1 overflow-y-auto ${VIEW_HEADER_TOP_PADDING} px-4 sm:px-8 pb-4 sm:pb-6 no-scrollbar`}>
+          <main id="main-scroll-area" className={`relative flex-1 overflow-y-auto ${VIEW_HEADER_TOP_PADDING} px-4 sm:px-8 pb-4 sm:pb-6 no-scrollbar`}>
 
             {/* Bloc connexion — Polish UX (28/07, "icône standard haut-
                 droite") : remplace le bouton pilule "Se connecter" (texte +
