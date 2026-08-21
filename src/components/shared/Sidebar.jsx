@@ -4,7 +4,9 @@ import { VIEW_HEADER_TOP_PADDING } from '../../layout/viewHeaderLayout';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import {
   SIDEBAR_LINK_PADDING, SIDEBAR_LINK_GAP, SIDEBAR_SECTION_TITLE_MARGIN,
-  SIDEBAR_SEPARATOR_MARGIN, SIDEBAR_DISCOVER_SEPARATOR_MARGIN, SIDEBAR_SCROLL_PADDING, SIDEBAR_FOOTER_LINK_PADDING,
+  SIDEBAR_SEPARATOR_MARGIN, SIDEBAR_SEPARATOR_MARGIN_COMPACT,
+  SIDEBAR_DISCOVER_SEPARATOR_MARGIN, SIDEBAR_DISCOVER_SEPARATOR_MARGIN_COMPACT,
+  SIDEBAR_SCROLL_PADDING, SIDEBAR_FOOTER_LINK_PADDING,
   SIDEBAR_LINK_PADDING_COMPACT, SIDEBAR_LINK_GAP_COMPACT, SIDEBAR_SECTION_TITLE_MARGIN_COMPACT,
   SIDEBAR_SCROLL_PADDING_COMPACT, SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM,
 } from '../../layout/sidebarLayout';
@@ -111,6 +113,15 @@ export default function Sidebar({
   // de scroll restant") — même principe, sur le padding du conteneur
   // scrollable lui-même cette fois (voir sidebarLayout.js).
   const scrollPadding = isNaughtyMode ? SIDEBAR_SCROLL_PADDING_COMPACT : SIDEBAR_SCROLL_PADDING;
+  // 4e/5e itérations (21/08, retour direct : "supprime 2 pixels à chaque
+  // trait rouge pour voir Découvrir sans scroll") — même principe, sur les
+  // 2 séparateurs de la zone scrollable cette fois. Jusqu'ici ces 2
+  // constantes n'avaient JAMAIS de variante compacte (contrairement aux 4
+  // ci-dessus) — le Mode Intime héritait silencieusement des mêmes valeurs
+  // que le mode normal pour ces 2 traits précis, jusqu'à ce que ça pose
+  // problème concrètement (Découvrir hors champ sans scroll).
+  const separatorMargin = isNaughtyMode ? SIDEBAR_SEPARATOR_MARGIN_COMPACT : SIDEBAR_SEPARATOR_MARGIN;
+  const discoverSeparatorMargin = isNaughtyMode ? SIDEBAR_DISCOVER_SEPARATOR_MARGIN_COMPACT : SIDEBAR_DISCOVER_SEPARATOR_MARGIN;
 
   // BUG CORRIGÉ (25/07, retour direct : "je ne peux pas cliquer sur Options
   // & Comptes quand le lecteur audio est actif") — le padding précédent
@@ -280,7 +291,7 @@ export default function Sidebar({
           qu'apportait jusqu'ici le conteneur unique qu'on scinde ici. */}
       <div className={`flex-1 overflow-y-auto no-scrollbar ${scrollPadding}`}>
       {isNaughtyMode && (
-        <div className={`pt-0.5 pb-3.5 ${SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM} border-b ${cardBorder}`}>
+        <div className={`pt-0 pb-3 ${SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM} border-b ${cardBorder}`}>
           {/* Padding ASYMÉTRIQUE (Refactor UI "Centrage du bouton Quitter le
               Mode Intime", 29/07, 3e itération, retour direct : "pile entre
               le trait du logo en haut et le liseret de Création en bas") —
@@ -288,23 +299,32 @@ export default function Sidebar({
               réellement le bouton : le conteneur scrollable parent ajoute
               DÉJÀ 12px au-dessus (`scrollPadding` compact, py-3, voir
               sidebarLayout.js) avant que ce wrapper ne commence, alors que
-              rien d'équivalent ne s'ajoute après sa bordure — l'espace
-              "au-dessus" du bouton était donc 12+8=20px contre seulement
-              8px "en-dessous", visiblement décentré vers le bas.
-              Calcul : espace_haut = 12 (scrollPadding compact) + pt ;
-              espace_bas = pb ; on veut les 2 égaux, en gardant pt+pb=16
-              (même total qu'avant, donc AUCUN changement de hauteur ici) —
-              12+pt = 16−pt => pt = 2px (`pt-0.5`), pb = 14px (`pb-3.5`) :
-              espace_haut = 12+2 = 14px = espace_bas. Les 2 valeurs
-              (`scrollPadding` ET ce padding) sont calculées ENSEMBLE —
-              changer l'une sans l'autre décale à nouveau le bouton.
-              ⚠️ `SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM` (`mb-5`, 21/08, retour
-              direct) AJOUTÉE en plus de ce padding, PAS en remplacement —
-              une MARGE (hors bordure), sans effet sur le centrage
-              ci-dessus qui ne dépend que du PADDING (dans la bordure). Sans
-              elle, "Création" collait directement à cette bordure (0px),
-              contre 20px pour "Mon Espace" — l'asymétrie remontée par
-              capture. Voir sidebarLayout.js pour le détail complet. */}
+              rien d'équivalent ne s'ajoute après sa bordure.
+              Calcul D'ORIGINE (29/07) : espace_haut = 12 (scrollPadding
+              compact) + pt ; espace_bas = pb ; les 2 égaux, pt+pb=16
+              (même total qu'avant) — 12+pt = 16−pt => pt = 2px (`pt-0.5`),
+              pb = 14px (`pb-3.5`) : espace_haut = 12+2 = 14px = espace_bas.
+              ⚠️ RECALCULÉ (21/08, retour direct : "supprime 2 pixels à
+              chaque trait rouge pour voir Découvrir sans scroll") — 2
+              traits marqués touchaient PRÉCISÉMENT ce couple (l'espace
+              au-dessus du bouton ET l'espace en-dessous, avant la
+              bordure) : les 2 réduits de 2px chacun EN GARDANT L'ÉGALITÉ
+              (condition de centrage) — espace_haut cible = 14−2 = 12px =
+              12 (scrollPadding, inchangé) + pt => pt = 0px (`pt-0`) ;
+              espace_bas cible = 12px = pb (`pb-3`). Toujours égaux
+              (12=12), le bouton reste centré — seul le total pt+pb passe
+              de 16 à 12 (4px de moins, DÉLIBÉRÉMENT : c'est tout le point
+              de la demande, réduire la hauteur totale). `scrollPadding`
+              (compact, `py-3`) N'A PAS bougé — seul `pt`/`pb` de CE
+              wrapper ont changé, donc pas besoin de recalculer quoi que ce
+              soit ailleurs. Les 2 valeurs (`scrollPadding` ET ce padding)
+              restent calculées ENSEMBLE — changer l'une sans l'autre
+              décale à nouveau le bouton.
+              `SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM` (`mb-[18px]`, 21/08)
+              AJOUTÉE en plus de ce padding, PAS en remplacement — une
+              MARGE (hors bordure), sans effet sur le centrage ci-dessus
+              qui ne dépend que du PADDING (dans la bordure). Voir
+              sidebarLayout.js pour le détail complet des 2 correctifs. */}
           <button
             onClick={toggleNaughtyMode}
             className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer text-rose-500 hover:bg-rose-500/10`}
@@ -415,7 +435,7 @@ export default function Sidebar({
             cardBorder/cardBorderStrong partout ailleurs dans l'app (voir
             useTheme.js). Marge (`SIDEBAR_SEPARATOR_MARGIN`) centralisée dans
             sidebarLayout.js — voir ce fichier pour la valeur actuelle. */}
-        <div className={`border-t ${cardBorder} w-full ${SIDEBAR_SEPARATOR_MARGIN}`}></div>
+        <div className={`border-t ${cardBorder} w-full ${separatorMargin}`}></div>
 
         {/* --- MON ESPACE --- */}
         <div className={`flex flex-col ${linkGap}`}>
@@ -450,7 +470,7 @@ export default function Sidebar({
             (`SIDEBAR_DISCOVER_SEPARATOR_MARGIN`, pas `SIDEBAR_SEPARATOR_MARGIN`)
             — resserrée de 10px en bas (21/08, retour direct), voir
             sidebarLayout.js pour le détail complet. */}
-        <div className={`border-t ${cardBorder} w-full ${SIDEBAR_DISCOVER_SEPARATOR_MARGIN}`}></div>
+        <div className={`border-t ${cardBorder} w-full ${discoverSeparatorMargin}`}></div>
 
         {/* --- DÉCOUVERTE (retour direct, 21/08) ---
             "Découvrir" vivait dans CRÉATION depuis la refonte du 25/07 (voir
