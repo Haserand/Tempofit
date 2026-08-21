@@ -399,6 +399,29 @@ retoucher aussi l'aurait décalé, hors périmètre de cette demande.
 9) — valeurs figées + vérification structurelle que le séparateur dédié
 reste bien MOINS espacé que le partagé (pas juste différent).
 
+**Asymétrie Mode Intime corrigée (même jour, retour direct suite à
+2e capture)** — "pour le mode intime c'est tout cassé" : le conteneur du
+bouton "Quitter le Mode Intime" a un `border-b` (la barre juste au-dessus
+de "Création") mais AUCUNE marge après cette bordure — "Création" collait
+dessus (0px), contre 20px (`my-5`, `SIDEBAR_SEPARATOR_MARGIN`) pour "Mon
+Espace". Nouvelle constante `SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM` (`mb-5`,
+21/08) ajoutée EN PLUS du padding `pt-0.5`/`pb-3.5` déjà en place (PAS en
+remplacement) — une MARGE (hors bordure) n'a aucun effet sur le calcul de
+centrage du bouton, qui ne dépend que du PADDING (dans la bordure) : les
+deux réglages coexistent sans interférence. Valeur choisie délibérément
+égale à la moitié basse de `SIDEBAR_SEPARATOR_MARGIN` — les 2 écarts
+(Création vs Mon Espace) doivent rester identiques, donc les changer
+ENSEMBLE si l'un bouge un jour ; pas fusionnées en une seule constante
+pour autant, ce sont 2 besoins distincts. Tests ajoutés aux deux niveaux :
+`sidebarLayout.test.js` (comparaison structurelle des 2 valeurs, pas juste
+une égalité de chaînes — le point de cette constante EST qu'elles
+matchent) et `Sidebar.test.jsx` (classe `mb-5` bien présente sur le
+conteneur réel en Mode Intime).
+⚠️ Retour utilisateur explicite : "je vais y aller par étape" — d'autres
+ajustements Mode Intime à prévoir dans une session future, celui-ci n'est
+qu'un 1er correctif ciblé, pas une passe de stabilisation complète comme
+celle du 28-29/07.
+
 ## Composant partagé `TabPills.jsx` (21/08) — standardisation des onglets
 
 Retour direct : "pourquoi c'est pas le même modèle pour Routines et pour
