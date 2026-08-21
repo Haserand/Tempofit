@@ -6,7 +6,7 @@ import {
   SIDEBAR_LINK_PADDING, SIDEBAR_LINK_GAP, SIDEBAR_SECTION_TITLE_MARGIN,
   SIDEBAR_SEPARATOR_MARGIN, SIDEBAR_DISCOVER_SEPARATOR_MARGIN, SIDEBAR_SCROLL_PADDING, SIDEBAR_FOOTER_LINK_PADDING,
   SIDEBAR_LINK_PADDING_COMPACT, SIDEBAR_LINK_GAP_COMPACT, SIDEBAR_SECTION_TITLE_MARGIN_COMPACT,
-  SIDEBAR_SCROLL_PADDING_COMPACT,
+  SIDEBAR_SCROLL_PADDING_COMPACT, SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM,
 } from '../../layout/sidebarLayout';
 
 /**
@@ -280,7 +280,7 @@ export default function Sidebar({
           qu'apportait jusqu'ici le conteneur unique qu'on scinde ici. */}
       <div className={`flex-1 overflow-y-auto no-scrollbar ${scrollPadding}`}>
       {isNaughtyMode && (
-        <div className={`pt-0.5 pb-3.5 border-b ${cardBorder}`}>
+        <div className={`pt-0.5 pb-3.5 ${SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM} border-b ${cardBorder}`}>
           {/* Padding ASYMÉTRIQUE (Refactor UI "Centrage du bouton Quitter le
               Mode Intime", 29/07, 3e itération, retour direct : "pile entre
               le trait du logo en haut et le liseret de Création en bas") —
@@ -297,7 +297,14 @@ export default function Sidebar({
               12+pt = 16−pt => pt = 2px (`pt-0.5`), pb = 14px (`pb-3.5`) :
               espace_haut = 12+2 = 14px = espace_bas. Les 2 valeurs
               (`scrollPadding` ET ce padding) sont calculées ENSEMBLE —
-              changer l'une sans l'autre décale à nouveau le bouton. */}
+              changer l'une sans l'autre décale à nouveau le bouton.
+              ⚠️ `SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM` (`mb-5`, 21/08, retour
+              direct) AJOUTÉE en plus de ce padding, PAS en remplacement —
+              une MARGE (hors bordure), sans effet sur le centrage
+              ci-dessus qui ne dépend que du PADDING (dans la bordure). Sans
+              elle, "Création" collait directement à cette bordure (0px),
+              contre 20px pour "Mon Espace" — l'asymétrie remontée par
+              capture. Voir sidebarLayout.js pour le détail complet. */}
           <button
             onClick={toggleNaughtyMode}
             className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer text-rose-500 hover:bg-rose-500/10`}
