@@ -280,7 +280,7 @@ describe('usePlaylistLibrary — compteur de clonages (handleClonePlaylist)', ()
       expect(setSavedPlaylists).not.toHaveBeenCalled();
       expect(mockRpc).not.toHaveBeenCalled();
       expect(setCurrentPlaylist).toHaveBeenCalledWith(existingClone);
-      expect(showToast).toHaveBeenCalledWith('Déjà dans Mes Séances — retour sur ta copie.');
+      expect(showToast).toHaveBeenCalledWith('Déjà dans Mes Playlists — retour sur ta copie.');
     });
 
     it('template de la vitrine déjà cloné (sourceTemplateId matche) : bascule dessus, ne clone PAS une 2e fois', () => {
@@ -342,7 +342,7 @@ describe('usePlaylistLibrary — handleSavePlaylist', () => {
 
     expect(setSavedPlaylists).not.toHaveBeenCalled();
     expect(setCurrentPlaylist).toHaveBeenCalledWith(existingClone);
-    expect(showToast).toHaveBeenCalledWith('Déjà dans Mes Séances — retour sur ta copie.');
+    expect(showToast).toHaveBeenCalledWith('Déjà dans Mes Playlists — retour sur ta copie.');
   });
 
   it('2 templates DIFFÉRENTS (sourceTemplateId distincts) ne se confondent jamais', () => {
