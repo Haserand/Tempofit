@@ -586,35 +586,46 @@ qui déclenche l'effet interne de synchronisation `[isNaughtyMode]` —
 vérifié dans le code avant de faire confiance au test). `baseProps()`
 nettoyée des 6 props mortes.
 
-### Clusters restants dans `AppContent` (inventoriés, PAS traités ce 20/08)
+### Clusters restants dans `AppContent` — VÉRIFIÉS le 20/08, aucun n'est un candidat aussi simple que StatsView
+
+Contrairement à ce que l'inventaire initial laissait penser, les 2 autres
+clusters "petits" ont été vérifiés individuellement — et ni l'un ni
+l'autre n'est un simple oubli comme StatsView l'était :
 
 - **Génération** (`isGenerating`/`generatingTotal`/`generatingDone`/
   `isGeneratingSlowGenre`/`isGeneratingLongPlaylist`/
-  `generatingEstimatedTracksFound`, 6 `useState`) — candidat naturel pour
-  rejoindre `usePlaylistGeneration.js` (hook déjà existant) plutôt que
-  vivre à part. Pas encore vérifié si `currentPlaylist`/`setCurrentPlaylist`
-  (partagé bien plus largement — MiniPlayerBar, PlaylistsView, Sidebar)
-  peut/doit suivre ou doit rester dans `AppContent`.
+  `generatingEstimatedTracksFound`, 6 `useState`) — **PAS déplaçable
+  tel quel**, et ce n'est pas un oubli : `usePlaylistGeneration.js` le
+  documente déjà explicitement depuis le 25/07 ("le state de progression
+  reste dans App.jsx — lu directement par son propre JSX (bandeau de
+  progression) et transmis à GeneratorView/RoutinesView, donc pas
+  déplaçable ici"). Le bandeau flottant (`fixed bottom-4`, visible peu
+  importe la vue active) est rendu directement dans le JSX propre
+  d'`AppContent`, pas dans un composant enfant — c'est une décision déjà
+  réfléchie, pas de la dette laissée de côté. Le déplacer demanderait de
+  sortir le bandeau LUI-MÊME dans un composant/Contexte dédié — un
+  chantier plus gros, pas entrepris ici.
 - **Image de partage** (`summaryImageStatus`/`summaryImageFile`/
-  `summaryImagePreviewUrl`/`includeSummaryImage`, 4 `useState`) — à
-  vérifier s'ils sont exclusifs à un seul consommateur (comme le cluster
-  StatsView l'était) ou génuinement partagés (le commentaire de
-  `PlaylistDetailContext.jsx` les mentionne comme "partagés avec ShareModal,
-  un modal global" — probablement PAS un candidat aussi simple).
+  `summaryImagePreviewUrl`/`includeSummaryImage`, 4 `useState`) — **PAS
+  déplaçable tel quel** non plus : vérifié, ce cluster est passé à LA FOIS
+  à `<PlaylistDetailView/>` (qui le DÉFINIT — génère/capture l'image) ET à
+  `<ShareModal/>` (qui l'AFFICHE/l'utilise pour le partage), 2 composants
+  distincts, pas un seul. Genuinement partagé, pas un oubli non plus.
 - **Navigation** (`view`/`viewingProfileUsername`/`isMobileMenuOpen`/
   `isUserMenuOpen`/`settingsInitialTab`/`playlistsInitialTab`/`isScrolled`/
-  `isGuestBarDismissed`, 8 `useState`) — genuinement partagés (Sidebar,
-  menu avatar, points d'entrée `handleOpenSettings`/`handleOpenPlaylists`) :
-  PAS un candidat pour un simple rapatriement vers un composant, plutôt
-  pour un futur `NavigationContext.jsx` dédié si le chantier continue —
-  plus gros, plus risqué, pas entrepris ce 20/08.
-- **Autres** : `editingCompletion` (1), `currentPlaylist`/`setCurrentPlaylist`
-  (partagé très largement, presque certainement à garder dans `AppContent`).
+  `isGuestBarDismissed`, 8 `useState`) — également partagé (Sidebar, menu
+  avatar, points d'entrée `handleOpenSettings`/`handleOpenPlaylists`), pas
+  vérifié plus avant ce 20/08.
 
-**À reprendre** : le cluster Génération semble le prochain candidat le plus
-sûr (même logique de vérification qu'aujourd'hui : confirmer qu'il n'est
-QUE consommé par `usePlaylistGeneration.js`/le rendu du wizard avant de le
-bouger). Navigation, plus risqué, mieux traité comme un chantier à part.
+**Conclusion de ce chantier (20/08)** : le cluster StatsView était
+vraisemblablement LE candidat "dette oubliée, extraction sûre" disponible
+dans ce fichier — les 3 clusters restants sont tous génuinement PARTAGÉS
+entre plusieurs composants, pas de simples oublis. Les déplacer
+demanderait de créer de VRAIS Contextes dédiés (ex. `ShareImageContext.jsx`,
+`NavigationContext.jsx`) — une décision architecturale plus lourde qu'une
+simple redescente de state, pas entreprise dans la foulée. À la charge de
+l'utilisateur de décider si ce chantier plus large vaut le coup, plutôt que
+de le lancer sans consultation supplémentaire.
 
 ## Corrigé (20/08) — anciennement "Limite connue, non traitée : écritures concurrentes de MÊME TYPE sur la MÊME playlist"
 
