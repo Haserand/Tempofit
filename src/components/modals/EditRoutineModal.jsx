@@ -150,7 +150,7 @@ export default function EditRoutineModal({
           {isTargetInvalid && (
             <p className="text-xs font-bold text-red-500 -mt-3">
               {isPureIntervalMode
-                ? `Portion(s) invalide(s) (BPM ou ${editingRoutine.targetMode === 'distance' ? 'distance' : 'durée'} à 0) — recrée cette routine via "Nouvelle séance" pour corriger les portions.`
+                ? `Portion(s) invalide(s) (BPM ou ${editingRoutine.targetMode === 'distance' ? 'distance' : 'durée'} à 0) — recrée cette routine via "Nouvelle Playlist" pour corriger les portions.`
                 : (editingRoutine.targetMode === 'distance' ? 'Renseigne une distance supérieure à 0.' : 'Renseigne une durée supérieure à 0.')}
             </p>
           )}
