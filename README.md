@@ -434,6 +434,21 @@ en conservant l'égalité qui le centre (12=12, contre 14=14 avant) — 2
 traits marqués touchaient précisément ce couple. Mode normal totalement
 épargné : les 2 séparateurs distinguent enfin normal/compact comme les 4
 autres constantes du fichier le faisaient déjà.
+
+**4e passe, même jour** (retour direct : "il manque encore quelques
+pixels, à peu près autant que pour la précédente passe") — encore -2px
+sur les 5 mêmes écarts : `SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM`
+(`mb-[18px]`→`mb-[16px]`), `SIDEBAR_SEPARATOR_MARGIN_COMPACT`/
+`SIDEBAR_DISCOVER_SEPARATOR_MARGIN_COMPACT` (`mt-[18px]`→`mt-[16px]`
+chacune, bas inchangé). Nouveauté cette passe : le `pt` du bouton
+"Quitter" était déjà tombé à `pt-0` (minimum atteignable, pas de padding
+négatif) à la passe précédente — impossible de resserrer encore l'espace
+AU-DESSUS du bouton sans toucher `SIDEBAR_SCROLL_PADDING_COMPACT`,
+épargnée jusqu'ici. Devient asymétrique (`py-3` symétrique →
+`pt-[10px] pb-3`, -2px sur le haut uniquement, le bas — après "Découvrir"
+— n'était pas concerné). Bouton recentré en conséquence :
+`pb-3`→`pb-2.5` (10px, égal au nouveau haut effectif 10+0=10). Mode
+normal toujours épargné.
 ⚠️ Retour utilisateur explicite : "je vais y aller par étape" — d'autres
 ajustements Mode Intime à prévoir dans une session future, celui-ci n'est
 qu'un 1er correctif ciblé, pas une passe de stabilisation complète comme
