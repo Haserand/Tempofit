@@ -20,13 +20,19 @@ import {
  * pur sans icône) sous "Générer"/"Bibliothèque" — invisibles au premier coup
  * d'œil et pénibles sur mobile/tablette (pas de survol pour les révéler).
  * Tous les liens sont maintenant au même niveau, regroupés par INTENTION
- * sous 3 en-têtes discrets plutôt que par imbrication visuelle :
- * CRÉATION (démarrer quelque chose de nouveau), MON ESPACE (consulter ce qui
- * existe déjà), RÉGLAGES (configuration, séparé par une bordure + `mt-auto`
- * comme avant). Tous les boutons partagent maintenant le même style actif
- * (`bgAccentClass text-white shadow-lg`) — avant, seul "Générer" l'avait,
- * les autres utilisaient un simple `bg-surface-hover` plus discret, une
- * incohérence sans raison fonctionnelle.
+ * sous des en-têtes discrets plutôt que par imbrication visuelle : à
+ * l'origine 3 groupes — CRÉATION (démarrer quelque chose de nouveau), MON
+ * ESPACE (consulter ce qui existe déjà POUR SOI), RÉGLAGES (configuration,
+ * séparé par une bordure + `mt-auto` comme avant). Un 4e groupe,
+ * DÉCOUVERTE, est venu s'ajouter le 21/08 (voir plus bas, section
+ * "--- DÉCOUVERTE ---") — "Découvrir" vivait dans CRÉATION jusque-là, par
+ * défaut plutôt que par un vrai choix : ce n'est ni créer pour soi, ni
+ * consulter ce qui est à soi, mais parcourir ce que D'AUTRES ont fait,
+ * une intention distincte des 2 premières. Tous les boutons partagent
+ * maintenant le même style actif (`bgAccentClass text-white shadow-lg`) —
+ * avant, seul "Générer" l'avait, les autres utilisaient un simple
+ * `bg-surface-hover` plus discret, une incohérence sans raison
+ * fonctionnelle.
  *
  * Renommages associés : "Générer" → "Nouvelle séance" (plus explicite sur ce
  * que fait ce bouton) ; "Bibliothèque" → "Mes Séances" (revient au nom déjà
@@ -380,11 +386,6 @@ export default function Sidebar({
             <List size={18} className={view === 'playlists' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Mes Playlists</span>
           </button>
-
-          <button onClick={() => changeView('discover')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'discover' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
-            <Compass size={18} className={view === 'discover' ? 'text-white' : textColorClass} />
-            <span className="font-bold text-sm">Découvrir</span>
-          </button>
         </div>
 
         {/* Séparateur physique (28/07, "Polish UI — normalisation du rythme
@@ -424,6 +425,36 @@ export default function Sidebar({
           <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Activity size={18} className={view === 'stats' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Mes Statistiques</span>
+          </button>
+        </div>
+
+        {/* Séparateur — même traitement que celui entre Création et Mon
+            Espace juste au-dessus (voir sa docstring pour le raisonnement
+            complet du choix `border-divider` micro plutôt que
+            `border-divider-strong`). */}
+        <div className={`border-t ${cardBorder} w-full ${SIDEBAR_SEPARATOR_MARGIN}`}></div>
+
+        {/* --- DÉCOUVERTE (retour direct, 21/08) ---
+            "Découvrir" vivait dans CRÉATION depuis la refonte du 25/07 (voir
+            docstring en tête de fichier) — mais n'y correspond pas vraiment :
+            CRÉATION, c'est démarrer quelque chose de SOI-MÊME (générer une
+            séance) ; MON ESPACE, c'est consulter ce qui existe déjà POUR SOI
+            (ses propres playlists/favoris/stats). Découvrir, lui, sert à
+            parcourir ce que D'AUTRES ont fait (modèles du catalogue,
+            profils publics) — une 3e intention, ni l'une ni l'autre, qui
+            méritait sa propre section plutôt que d'être rattachée à
+            CRÉATION par défaut faute d'un meilleur endroit à l'époque.
+            Position choisie : juste au-dessus du pied de page fixe
+            (Réglages) — dernière section de la zone scrollable, donc
+            visuellement adjacente à Réglages sans toucher au budget de
+            hauteur strict de son conteneur (`creditRowHeight`, voir la
+            docstring du pied de page plus bas). */}
+        <div className={`flex flex-col ${linkGap}`}>
+          <div className={`px-3 ${sectionTitleMargin} text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Découverte</div>
+
+          <button onClick={() => changeView('discover')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'discover' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
+            <Compass size={18} className={view === 'discover' ? 'text-white' : textColorClass} />
+            <span className="font-bold text-sm">Découvrir</span>
           </button>
         </div>
 
