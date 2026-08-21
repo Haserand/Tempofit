@@ -1939,7 +1939,7 @@ function AppContent({
             )}
 
             {view === 'discover' && (
-              <DiscoverView theme={themeTokens} onPlayTemplate={openCuratedPlaylist} isNaughtyMode={isNaughtyMode} user={user} openModal={openModal} onViewOfficialProfile={() => handleViewProfile(OFFICIAL_VITRINE_USERNAME)} />
+              <DiscoverView theme={themeTokens} onPlayTemplate={openCuratedPlaylist} isNaughtyMode={isNaughtyMode} user={user} openModal={openModal} onViewOfficialProfile={() => handleViewProfile(OFFICIAL_VITRINE_USERNAME)} onViewProfile={handleViewProfile} />
             )}
 
             {view === 'profile' && (
