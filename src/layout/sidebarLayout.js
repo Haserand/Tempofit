@@ -77,6 +77,21 @@ export const SIDEBAR_SECTION_TITLE_MARGIN_COMPACT = 'mb-2.5';
 // testée puis abandonnée (voir 6e passe, historique complet dans Sidebar.jsx).
 export const SIDEBAR_SEPARATOR_MARGIN = 'my-5';
 
+// Variante Mode Intime (21/08, retour direct : "supprime 2 pixels à chaque
+// trait rouge pour voir Découvrir sans scroll") — AVANT ce correctif,
+// cette constante n'avait JAMAIS de variante COMPACT (contrairement à
+// SIDEBAR_LINK_PADDING/SIDEBAR_LINK_GAP/SIDEBAR_SECTION_TITLE_MARGIN
+// juste au-dessus), donc le Mode Intime héritait de la même valeur que le
+// mode normal pour ce séparateur précis. `mt-[18px]` (18px, -2px depuis
+// `mt-5`/20px — SEUL le HAUT bouge, l'écart entre "Mes Playlists" et la
+// ligne elle-même, seul marqué en rouge) ; `mb-5` (20px) INCHANGÉ (l'écart
+// entre la ligne et "Mon Espace" n'était pas marqué — ne pas y toucher).
+// Valeur arbitraire `[18px]`, pas une valeur d'échelle Tailwind standard
+// (pas de "4.5" dans l'échelle par défaut, contrairement à 3.5/2.5/1.5) —
+// écrite en toutes lettres ici, donc scannée par le JIT sans piège (voir
+// la docstring en tête de fichier).
+export const SIDEBAR_SEPARATOR_MARGIN_COMPACT = 'mt-[18px] mb-5';
+
 // Séparateur entre "Mon Espace" et "Découvrir" (21/08, retour direct :
 // "réduire l'espace Découvrir de 10px en haut et 10px en bas") — DISTINCT
 // de SIDEBAR_SEPARATOR_MARGIN ci-dessus : seul CET écart précis devait être
@@ -88,6 +103,15 @@ export const SIDEBAR_SEPARATOR_MARGIN = 'my-5';
 // ci-dessous pour les -10px en BAS (après "Découvrir", avant le pied de
 // page).
 export const SIDEBAR_DISCOVER_SEPARATOR_MARGIN = 'mt-5 mb-2.5';
+
+// Variante Mode Intime (21/08, retour direct : "supprime 2 pixels à chaque
+// trait rouge pour voir Découvrir sans scroll") — même principe que
+// SIDEBAR_SEPARATOR_MARGIN_COMPACT juste au-dessus : `mt-[18px]` (18px,
+// -2px depuis `mt-5`/20px, seul le HAUT — écart entre "Mes Statistiques"
+// et la ligne — était marqué en rouge) ; `mb-2.5` (10px) INCHANGÉ, déjà
+// resserré par le correctif "Découvrir" du même jour, pas remarqué cette
+// fois.
+export const SIDEBAR_DISCOVER_SEPARATOR_MARGIN_COMPACT = 'mt-[18px] mb-2.5';
 
 // Padding du conteneur scrollable LUI-MÊME (englobe Création + séparateur +
 // Mon Espace + Découvrir) — seule source de l'espacement haut/bas de cette
@@ -130,12 +154,14 @@ export const SIDEBAR_FOOTER_LINK_PADDING = 'px-3 py-1.5';
 // pb-3.5 border-b`, Sidebar.jsx) n'avait AUCUNE marge après sa bordure :
 // "Création" collait directement dessus (0px), contre 20px (`my-5`,
 // SIDEBAR_SEPARATOR_MARGIN) pour "Mon Espace" — d'où l'asymétrie remontée
-// (capture à l'appui). `mb-5` reprend délibérément la MÊME valeur que la
-// moitié basse de SIDEBAR_SEPARATOR_MARGIN — les 2 écarts doivent rester
-// identiques, donc les changer ENSEMBLE si l'un bouge un jour ; pas une
-// raison de les fusionner en une seule constante pour autant, ce sont 2
-// besoins distincts (l'un ferme un séparateur physique entre 2 sections,
-// l'autre ferme un bouton conditionnel Mode Intime qui a par ailleurs SON
-// PROPRE padding `pt-0.5`/`pb-3.5` calculé pour centrer le bouton
-// lui-même — une logique de calcul différente et sans rapport).
-export const SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM = 'mb-5';
+// (capture à l'appui). `mb-5` reprenait délibérément la MÊME valeur que la
+// moitié basse de SIDEBAR_SEPARATOR_MARGIN.
+// ⚠️ RÉDUITE À `mb-[18px]` (même jour, retour direct suivant : "supprime 2
+// pixels à chaque trait rouge pour voir Découvrir sans scroll") — reste
+// UNIQUEMENT en Mode Intime (pas besoin d'une variante _COMPACT séparée,
+// cette constante entière n'existe déjà que pour ce mode). Se désynchronise
+// donc DÉLIBÉRÉMENT de SIDEBAR_SEPARATOR_MARGIN (restée à 20px, jamais
+// mentionnée dans cette 2e demande) — l'égalité entre les 2 n'était vraie
+// qu'en mode normal de toute façon, ce correctif étant explicitement
+// Mode Intime only.
+export const SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM = 'mb-[18px]';
