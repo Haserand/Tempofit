@@ -35,7 +35,7 @@ function viewFiles() {
   // test a fait exactement son travail) — `RoutinesView.jsx` A GARDÉ son
   // nom en "*View.jsx" (continuité historique : extrait de App.jsx le
   // 25/07, `view === 'routines'`) mais n'est PLUS une vraie vue de premier
-  // niveau depuis la fusion "Mes Routines" en onglet de "Mes Séances" (voir
+  // niveau depuis la fusion "Mes Routines" en onglet de "Mes Playlists" (voir
   // PlaylistsView.jsx) : elle ne rend plus qu'un CORPS (grille), sans
   // `<ViewHeader/>` ni `VIEW_CONTENT_WRAPPER` propres — ce sont
   // `PlaylistsView.jsx` qui les possède désormais pour les 2 onglets. La
@@ -60,7 +60,7 @@ describe('viewHeaderLayout — synchronisation réelle avec les fichiers qui la 
   it('VIEW_CONTENT_WRAPPER est bien interpolé (${VIEW_CONTENT_WRAPPER}) dans TOUS les fichiers components/views/*View.jsx', () => {
     const files = viewFiles();
     // 9 (pas 8) depuis le 20/08 — `PlaylistsView.jsx` compte maintenant
-    // pour "Mes Séances" ET "Mes Routines" (fusion en onglet), et
+    // pour "Mes Playlists" ET "Mes Routines" (fusion en onglet), et
     // `RoutinesView.jsx` est exclue par `viewFiles()` (voir sa docstring).
     expect(files.length).toBeGreaterThanOrEqual(9);
     const missing = files.filter(f => !readSrc(`components/views/${f}`).includes('${VIEW_CONTENT_WRAPPER}'));
