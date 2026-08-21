@@ -309,7 +309,7 @@ function rowToItem(row) {
   // reste, mais `parent_id`/`parent_user_id` (colonnes réelles, jamais
   // dans `content` par construction côté serveur) doivent être rapatriés
   // explicitement ici pour que le badge Clone/Enfant fonctionne aussi
-  // depuis SA PROPRE collection (Mes Séances/Mes Routines) — `content`
+  // depuis SA PROPRE collection (Mes Playlists/Mes Routines) — `content`
   // seul ne les contient que s'ils y ont été mirroirés à l'insertion (voir
   // `itemToInsertRow`), ce qui est déjà le cas pour une ligne créée par ce
   // client, mais pas garanti pour une ligne migrée depuis l'ancien blob
