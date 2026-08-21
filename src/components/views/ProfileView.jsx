@@ -6,6 +6,7 @@ import { buildCoverUrl } from '../../utils/coverArt';
 import { OFFICIAL_VITRINE_USERNAME, buildOfficialVitrineProfile, buildOfficialVitrinePlaylistRows, buildOfficialVitrineRoutineRows } from '../../data/officialVitrineProfile';
 import { useProfileSearchFilter } from '../../hooks/useProfileSearchFilter';
 import { VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
+import TabPills from '../shared/TabPills';
 
 /**
  * ProfileView — profil PUBLIC d'un utilisateur, atteint via le paramètre
@@ -740,25 +741,20 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
                   titre statique "Playlists partagées" : chaque onglet
                   affiche son propre compte, un visiteur qui veut
                   spécifiquement les routines n'a plus à scroller une
-                  grille de playlists pour les trouver. */}
-              <div className="flex items-center gap-1" role="tablist">
-                {[
-                  { value: 'playlist', label: 'Playlists', count: visiblePlaylists.length },
-                  { value: 'routine', label: 'Routines', count: visibleRoutines.length },
-                ].map(tab => (
-                  <button
-                    key={tab.value}
-                    role="tab"
-                    aria-selected={activeProfileTab === tab.value}
-                    onClick={() => setActiveProfileTab(tab.value)}
-                    className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-colors ${
-                      activeProfileTab === tab.value ? `${bgAccentClass} text-white` : `${textMuted} hover:text-main`
-                    }`}
-                  >
-                    {tab.label} <span className="opacity-70">({tab.count})</span>
-                  </button>
-                ))}
-              </div>
+                  grille de playlists pour les trouver.
+                  Standardisé sur TabPills.jsx (21/08, retour direct) —
+                  même composant partagé désormais avec
+                  PlaylistsView.jsx/DiscoverView.jsx/SettingsView.jsx/
+                  TrophiesView.jsx. */}
+              <TabPills
+                theme={theme}
+                activeTab={activeProfileTab}
+                onChange={setActiveProfileTab}
+                tabs={[
+                  { value: 'playlist', label: <>Playlists <span className="opacity-70">({visiblePlaylists.length})</span></> },
+                  { value: 'routine', label: <>Routines <span className="opacity-70">({visibleRoutines.length})</span></> },
+                ]}
+              />
               {/* Total de clonages reçus — seulement si > 0 (même
                   raisonnement que le badge par item, voir PublicItemCard :
                   "0 clonage" n'est pas une information à mettre en avant).
