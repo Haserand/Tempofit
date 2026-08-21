@@ -1,9 +1,11 @@
 // Premier fichier de test pour sidebarLayout.js — lacune de couverture
-// identifiée lors du check-up global du 19/08. 9 constantes issues d'un
-// réglage fin en plusieurs passes (voir la docstring du fichier) — ce test
-// fige les valeurs ACTUELLES pour qu'un futur ajustement accidentel (plutôt
-// que délibéré) se voie immédiatement, et vérifie qu'elles restent bien
-// importées par Sidebar.jsx plutôt que recopiées en dur.
+// identifiée lors du check-up global du 19/08. 10 constantes issues d'un
+// réglage fin en plusieurs passes (voir la docstring du fichier — 9 à
+// l'origine, +1 le 21/08 pour resserrer spécifiquement l'espace autour de
+// "Découvrir") — ce test fige les valeurs ACTUELLES pour qu'un futur
+// ajustement accidentel (plutôt que délibéré) se voie immédiatement, et
+// vérifie qu'elles restent bien importées par Sidebar.jsx plutôt que
+// recopiées en dur.
 
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
@@ -17,6 +19,7 @@ import {
   SIDEBAR_LINK_GAP_COMPACT,
   SIDEBAR_SECTION_TITLE_MARGIN_COMPACT,
   SIDEBAR_SEPARATOR_MARGIN,
+  SIDEBAR_DISCOVER_SEPARATOR_MARGIN,
   SIDEBAR_SCROLL_PADDING,
   SIDEBAR_SCROLL_PADDING_COMPACT,
   SIDEBAR_FOOTER_LINK_PADDING,
@@ -50,21 +53,36 @@ describe('sidebarLayout — valeurs stabilisées actuelles (état final après 9
     expect(pyCompact).toBeLessThan(pyNormal);
   });
 
-  it('séparateur et paddings de conteneur', () => {
+  it('séparateur Création/Mon Espace et paddings de conteneur', () => {
     expect(SIDEBAR_SEPARATOR_MARGIN).toBe('my-5');
-    expect(SIDEBAR_SCROLL_PADDING).toBe('py-4 px-4');
+    // `pt-4` inchangé, `pb-1.5` (21/08, retour direct : "réduire l'espace
+    // Découvrir de 10px en haut et en bas") — 16px → 6px, la moitié "bas"
+    // des -10px demandés (l'autre moitié vit dans
+    // SIDEBAR_DISCOVER_SEPARATOR_MARGIN, testée séparément ci-dessous).
+    expect(SIDEBAR_SCROLL_PADDING).toBe('pt-4 pb-1.5 px-4');
     expect(SIDEBAR_SCROLL_PADDING_COMPACT).toBe('py-3 px-4');
     expect(SIDEBAR_FOOTER_LINK_PADDING).toBe('px-3 py-1.5');
+  });
+
+  it('séparateur avant "Découvrir" — DISTINCT du séparateur Création/Mon Espace, resserré de 10px en bas', () => {
+    expect(SIDEBAR_DISCOVER_SEPARATOR_MARGIN).toBe('mt-5 mb-2.5');
+    // `mt-5` = même écart que SIDEBAR_SEPARATOR_MARGIN (haut inchangé,
+    // jamais mentionné dans la demande) ; `mb-2.5` (10px) contre `mb-5`
+    // (20px) qu'aurait donné la constante partagée — la moitié "haut" des
+    // -10px demandés autour de "Découvrir".
+    const mbDiscover = parseFloat(SIDEBAR_DISCOVER_SEPARATOR_MARGIN.match(/mb-([\d.]+)/)[1]);
+    const mbShared = parseFloat(SIDEBAR_SEPARATOR_MARGIN.match(/my-([\d.]+)/)[1]);
+    expect(mbDiscover).toBeLessThan(mbShared);
   });
 });
 
 describe('sidebarLayout — importé par Sidebar.jsx (pas recopié en dur)', () => {
-  it('les 9 constantes sont bien importées depuis ce module', () => {
+  it('les 10 constantes sont bien importées depuis ce module', () => {
     expect(SIDEBAR_JSX).toMatch(/from ['"].*sidebarLayout['"]/);
     for (const name of [
       'SIDEBAR_LINK_PADDING', 'SIDEBAR_LINK_GAP', 'SIDEBAR_SECTION_TITLE_MARGIN',
       'SIDEBAR_LINK_PADDING_COMPACT', 'SIDEBAR_LINK_GAP_COMPACT', 'SIDEBAR_SECTION_TITLE_MARGIN_COMPACT',
-      'SIDEBAR_SEPARATOR_MARGIN', 'SIDEBAR_SCROLL_PADDING', 'SIDEBAR_SCROLL_PADDING_COMPACT',
+      'SIDEBAR_SEPARATOR_MARGIN', 'SIDEBAR_DISCOVER_SEPARATOR_MARGIN', 'SIDEBAR_SCROLL_PADDING', 'SIDEBAR_SCROLL_PADDING_COMPACT',
       'SIDEBAR_FOOTER_LINK_PADDING',
     ]) {
       expect(SIDEBAR_JSX).toContain(name);
