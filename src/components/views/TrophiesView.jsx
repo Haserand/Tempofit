@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Award, Share2, HelpCircle, Lock } from 'lucide-react';
 import { TROPHIES_DATA, TROPHY_CATEGORIES } from '../../appConfig';
 import ViewHeader from '../shared/ViewHeader';
+import TabPills from '../shared/TabPills';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 
 /**
@@ -37,7 +38,7 @@ import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHe
  *   ce qui irait à l'encontre de la surprise qui fait leur intérêt.
  */
 export default function TrophiesView({ theme, userStats, handleShare, isNaughtyMode, markTrophiesSeen }) {
-  const { cardBg, cardBorder, textHighlight, textMuted, bgAccentClass } = theme;
+  const { cardBg, cardBorder, textHighlight, textMuted } = theme;
 
   // Badge de notification "vu/pas vu" (03/08, retour direct, capture
   // d'écran — voir la docstring complète de `markTrophiesSeen`,
@@ -93,23 +94,31 @@ export default function TrophiesView({ theme, userStats, handleShare, isNaughtyM
         subtitle="Le mur des légendes. Accomplis tes sessions pour débloquer ces succès."
       />
 
-      {/* Onglets — même style de pilule que les autres bascules à 2 options de
-          l'app (ex. Temps/Distance dans PlaylistDetailView), pour rester
-          visuellement cohérent. */}
-      <div className={`inline-flex items-center bg-surface-hover rounded-xl p-1`}>
-        <button
-          onClick={() => setActiveTab('visible')}
-          className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'visible' ? `${bgAccentClass} text-white shadow-xs` : `${textMuted} hover:text-main`}`}
-        >
-          Trophées ({visibleTrophies.filter(t => userStats.unlockedTrophies.includes(t.id)).length}/{visibleTrophies.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('secret')}
-          className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-1.5 ${activeTab === 'secret' ? `${bgAccentClass} text-white shadow-xs` : `${textMuted} hover:text-main`}`}
-        >
-          <Lock size={13}/> Secrets ({unlockedSecretCount}/{secretTrophies.length})
-        </button>
-      </div>
+      {/* Onglets — standardisé sur TabPills.jsx (21/08, retour direct),
+          même composant partagé désormais avec PlaylistsView.jsx/
+          ProfileView.jsx/DiscoverView.jsx/SettingsView.jsx. Perd son style
+          "contrôle segmenté" propre (fond `bg-surface-hover`, boutons
+          `shadow-xs`) au profit du style plat majoritaire ailleurs — voir
+          TabPills.jsx pour le raisonnement complet de cette décision.
+          L'icône `Lock` devient un `<span>` inline-flex DANS le label
+          plutôt qu'un `flex` sur le bouton lui-même (TabPills.jsx n'en
+          propose pas, chaque appelant compose son propre label). */}
+      <TabPills
+        theme={theme}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        tabs={[
+          { value: 'visible', label: `Trophées (${visibleTrophies.filter(t => userStats.unlockedTrophies.includes(t.id)).length}/${visibleTrophies.length})` },
+          {
+            value: 'secret',
+            label: (
+              <span className="inline-flex items-center gap-1.5">
+                <Lock size={13}/> Secrets ({unlockedSecretCount}/{secretTrophies.length})
+              </span>
+            ),
+          },
+        ]}
+      />
 
       {activeTab === 'visible' ? (
         <div className="space-y-10">
