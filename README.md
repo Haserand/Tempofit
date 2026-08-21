@@ -385,6 +385,20 @@ clic), comblé au passage. Un test vérifie explicitement l'ABSENCE du
 texte "Découverte" (non-régression si quelqu'un le réintroduit un jour
 sans repasser par ce raisonnement).
 
+**Espacement resserré (même jour, retour direct suite à capture)** :
+-10px en haut et en bas de "Découvrir" — 2 constantes distinctes dans
+`sidebarLayout.js` : `SIDEBAR_DISCOVER_SEPARATOR_MARGIN` (`mt-5 mb-2.5`,
+séparateur DÉDIÉ, distinct de `SIDEBAR_SEPARATOR_MARGIN` partagé avec
+Création/Mon Espace — jamais mentionné, resté inchangé à `my-5`) pour le
+haut, et `SIDEBAR_SCROLL_PADDING` désormais asymétrique (`pt-4 pb-1.5`,
+au lieu de `py-4` symétrique) pour le bas. Variante COMPACTE (Mode Intime)
+volontairement NON touchée — son budget est calculé main dans la main
+avec le centrage du bouton "Quitter le Mode Intime", la modifier sans y
+retoucher aussi l'aurait décalé, hors périmètre de cette demande.
+`sidebarLayout.test.js` mis à jour (10 constantes désormais, au lieu de
+9) — valeurs figées + vérification structurelle que le séparateur dédié
+reste bien MOINS espacé que le partagé (pas juste différent).
+
 ## Composant partagé `TabPills.jsx` (21/08) — standardisation des onglets
 
 Retour direct : "pourquoi c'est pas le même modèle pour Routines et pour
