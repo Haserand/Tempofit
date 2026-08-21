@@ -192,10 +192,10 @@ describe('Sidebar', () => {
     expect(screen.queryByText(/Invité/)).toBeNull();
   });
 
-  it('section "Découverte" présente, avec "Découvrir" comme seul lien — retour direct 21/08, plus dans "Création"', () => {
+  it('"Découvrir" présent hors de "Création", SANS titre de section au-dessus (retour direct 21/08 — un en-tête pour un seul lien au nom quasi-identique ne groupait rien)', () => {
     render(<Sidebar {...baseProps} />);
-    expect(screen.getByText('Découverte')).toBeInTheDocument();
     expect(screen.getByText('Découvrir')).toBeInTheDocument();
+    expect(screen.queryByText('Découverte')).toBeNull();
   });
 
   it('le clic sur "Découvrir" appelle changeView(\'discover\')', () => {
