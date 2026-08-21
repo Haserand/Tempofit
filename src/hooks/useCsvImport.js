@@ -170,7 +170,7 @@ export function useCsvImport(
    * tout de suite ; impossible de simplement revenir à "rien d'importé".
    * Signature `(playlist, isoDate)` explicite (comme `triggerCSVUpload`,
    * pas implicitement `currentPlaylist`) — réutilisable depuis n'importe
-   * quelle carte de "Mes Séances" plus tard, pas seulement la vue détail
+   * quelle carte de "Mes Playlists" plus tard, pas seulement la vue détail
    * actuellement ouverte, même si le seul appelant pour l'instant est
    * PlaylistHeader.jsx (voir sa docstring, bouton "Données importées").
    * Extrait un NOUVEL objet `actualDataByDate` sans la clé `isoDate`
