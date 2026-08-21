@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { UserX, Loader2, Clock, Gauge, ListMusic, Heart, Lock, Eye, Info, Zap, Search, SlidersHorizontal, ChevronDown, X, SearchX, Copy } from 'lucide-react';
+import { UserX, Loader2, Clock, Gauge, ListMusic, Heart, Lock, Eye, Zap, Search, SlidersHorizontal, ChevronDown, X, SearchX, Copy } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../supabaseClient';
 import { formatDuration } from '../../utils/format';
 import { buildCoverUrl } from '../../utils/coverArt';
@@ -625,20 +625,51 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
                 <p className={`text-sm ${textMuted}`}>{isOfficialVitrine ? 'Compte vitrine TempoFit' : 'Profil TempoFit'}</p>
               </div>
             </div>
-            {/* Retour direct (21/08, "je pensais le texte à l'intérieur du
-                composant en dessous") — 1er essai en bandeau séparé
-                au-dessus (même style que "Aperçu de ton profil" juste
-                au-dessus) jugé trop "alerte" pour une simple info
-                d'identité : repensé pour vivre directement DANS la carte
-                qui montre déjà cette identité, comme une ligne d'info
-                supplémentaire plutôt qu'un avertissement à part — même
-                pattern `pt-3 border-t` qu'ailleurs dans l'app pour une
-                ligne secondaire au sein d'une carte (StatsView.jsx,
-                PlaylistCharts.jsx). */}
+            {/* Retour direct (21/08) — 2 essais précédents rejetés : d'abord
+                un bandeau séparé façon alerte (même style que "Aperçu de ton
+                profil" au-dessus), puis une ligne repliée dans la carte mais
+                encore traitée comme une notice système (icône, texte
+                `textMuted`, séparateur `border-t`). Ce que l'utilisateur
+                avait en tête depuis le début : un vrai encart de
+                présentation façon BIO, texte `textHighlight` (blanc en mode
+                sombre — vérifié dans index.css, `--color-main: 255 255
+                255`) plutôt que `textMuted`, sans icône ni séparateur — pour
+                que ça se lise comme un compte qui se présente, pas comme un
+                avertissement de l'appli.
+                ⚠️ GALOP D'ESSAI pour une fonctionnalité future PAS ENCORE
+                CONSTRUITE (dixit l'utilisateur) : une vraie phrase de bio
+                éditable par CHAQUE utilisateur, pas seulement la vitrine.
+                Cette carte sert donc À DESSEIN de test de mise en forme
+                pour ce futur champ — le texte ci-dessous est câblé en dur
+                pour l'instant (`profile.bio` n'existe nulle part encore,
+                ni dans `officialVitrineProfile.js` ni dans
+                `get_public_profile_summary`, voir supabase-schema.sql) —
+                mais le style est celui qu'un vrai `profile.bio` devra
+                reprendre le jour où ce chantier démarre. Voir README pour
+                le suivi de cette décision.
+                COMPORTEMENT aligné (21/08, retour direct) sur la
+                description de playlist déjà existante
+                (`PlaylistHeaderTitleBlock.jsx`, `currentPlaylist.description`)
+                — `whitespace-pre-line` (préserve les retours à la ligne
+                d'un futur texte utilisateur) + `title=` (tooltip natif si
+                tronqué). `line-clamp-3` plutôt que le `line-clamp-1` de la
+                playlist : ce contexte a toute une carte pour lui (pas de
+                liste de titres/contrôles à côté avec qui cohabiter), une
+                bio mérite plus qu'une seule ligne avant de couper. Couleur
+                PAS alignée à dessein : `text-slate-300` (playlist) est codé
+                en dur, ne s'adapte pas au mode clair — `textHighlight`
+                (déjà utilisé ici) reste le bon choix, un token sémantique
+                cohérent avec le reste de cette vue. Pas de wrapper flex
+                nécessaire ici (contrairement à PlaylistHeaderTitleBlock.jsx,
+                qui doit s'appuyer sur `flex-1 min-w-0` pour que
+                `line-clamp` fonctionne DANS un parent flex) — ce `<p>` est
+                un enfant direct, pas dans une rangée flex. */}
             {isOfficialVitrine && (
-              <p className={`text-sm mt-4 pt-4 border-t ${cardBorder} ${textMuted}`}>
-                <Info size={14} className="inline mr-1.5 -mt-0.5" />
-                Les séances et statistiques ci-dessous sont des exemples fictifs, pour découvrir l'app avant de créer ton propre profil.
+              <p
+                className={`text-sm mt-3 whitespace-pre-line line-clamp-3 ${textHighlight}`}
+                title="Compte vitrine officiel de TempoFit — les séances et statistiques ci-dessous sont des exemples fictifs, pour découvrir l'app avant de créer ton propre profil."
+              >
+                Compte vitrine officiel de TempoFit — les séances et statistiques ci-dessous sont des exemples fictifs, pour découvrir l'app avant de créer ton propre profil.
               </p>
             )}
           </div>
