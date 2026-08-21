@@ -3,7 +3,7 @@ import { useModalContext } from '../contexts/ModalContext';
 import { supabase } from '../supabaseClient';
 
 /**
- * usePlaylistLibrary — regroupe les actions de gestion de "Mes Séances" :
+ * usePlaylistLibrary — regroupe les actions de gestion de "Mes Playlists" :
  * sauvegarder/retirer une playlist, savoir si elle a un vrai historique à perdre,
  * le point d'entrée commun de retrait AVEC confirmation, et la planification d'une
  * date optionnelle.
@@ -26,7 +26,7 @@ export function usePlaylistLibrary(
 ) {
   const { openModal } = useModalContext();
 
-  // Ajoute la playlist en cours d'affichage à "Mes Séances" (si pas déjà sauvegardée).
+  // Ajoute la playlist en cours d'affichage à "Mes Playlists" (si pas déjà sauvegardée).
   const handleSavePlaylist = () => {
     if (!currentPlaylist) return;
     if (savedPlaylists.find(p => p.id === currentPlaylist.id)) return;
@@ -53,7 +53,7 @@ export function usePlaylistLibrary(
       const existing = savedPlaylists.find(p => p.sourceTemplateId === currentPlaylist.sourceTemplateId);
       if (existing) {
         setCurrentPlaylist(existing);
-        showToast('Déjà dans Mes Séances — retour sur ta copie.');
+        showToast('Déjà dans Mes Playlists — retour sur ta copie.');
         return;
       }
     }
@@ -75,7 +75,7 @@ export function usePlaylistLibrary(
     // divergence silencieuse entre les deux au fil des actions suivantes
     // (ex. planifier une date juste après avoir sauvegardé).
     setCurrentPlaylist(saved);
-    showToast("Playlist ajoutée à Mes Séances !");
+    showToast("Playlist ajoutée à Mes Playlists !");
 
     // Compteur de clonages de template — AJOUTÉ (14/08, retour direct avec
     // capture : "pourquoi je vois quand même le compteur à 0 pour la
@@ -154,7 +154,7 @@ export function usePlaylistLibrary(
         : null;
     if (existing) {
       setCurrentPlaylist(existing);
-      showToast('Déjà dans Mes Séances — retour sur ta copie.');
+      showToast('Déjà dans Mes Playlists — retour sur ta copie.');
       return;
     }
 
@@ -201,7 +201,10 @@ export function usePlaylistLibrary(
       ownerUsername: undefined,
       // ⚠️ `cloneCount` NE FAIT PLUS PARTIE DE CE RESET (10/08, retour
       // direct avec 4 captures d'écran — "quand je l'ajoute à Mes Séances
-      // il n'y a plus le compteur de clones ?") : le 07/08, ce champ avait
+      // il n'y a plus le compteur de clones ?" — citation verbatim de
+      // l'époque : la destination s'appelait "Mes Séances" le 10/08, pas
+      // "Mes Playlists" [nom actuel depuis le 20/08, voir Sidebar.jsx])
+      // : le 07/08, ce champ avait
       // été réinitialisé avec `user_id`/`ownerUsername` ci-dessus, en le
       // qualifiant à tort de champ de la MÊME famille — CE N'EST PAS le
       // cas. `user_id`/`ownerUsername` sont des identifiants de
@@ -242,7 +245,7 @@ export function usePlaylistLibrary(
     // éditable au prochain rendu, sans navigation séparée nécessaire (on
     // reste sur la même vue détail, seul l'objet affiché change).
     setCurrentPlaylist(cloned);
-    showToast("🎵 Playlist clonée dans Mes Séances !");
+    showToast("🎵 Playlist clonée dans Mes Playlists !");
 
     // Compteur de clonages RÉEL — REFONTE (03/08) : UN SEUL appel RPC
     // désormais (au lieu de 2 avant) — `increment_playlist_clone_count`
@@ -279,9 +282,9 @@ export function usePlaylistLibrary(
   };
 
   /**
-   * Retire une playlist de "Mes Séances" par id — fonction UNIQUE utilisée à
+   * Retire une playlist de "Mes Playlists" par id — fonction UNIQUE utilisée à
    * la fois par le bouton "Sauvegardée..." de la vue détail (retrait) et par
-   * la poubelle des cartes dans "Mes Séances" (PlaylistsView/PlaylistCard) :
+   * la poubelle des cartes dans "Mes Playlists" (PlaylistsView/PlaylistCard) :
    * c'est littéralement la même opération (retirer un id de `savedPlaylists`),
    * pas la peine de la dupliquer. `playlistId` plutôt que `currentPlaylist`
    * pour fonctionner aussi bien depuis la liste (pas de "playlist courante"
@@ -334,12 +337,12 @@ export function usePlaylistLibrary(
       const originalTemplate = catalog.find(t => t.id === currentPlaylist.sourceTemplateId);
       if (originalTemplate) {
         openCuratedPlaylist(originalTemplate, { isReadOnly: true, isPublic: true, cloneCount: currentPlaylist.cloneCount });
-        showToast("Playlist retirée de Mes Séances — le modèle original a été restauré.");
+        showToast("Playlist retirée de Mes Playlists — le modèle original a été restauré.");
         return;
       }
     }
 
-    showToast("Playlist retirée de Mes Séances.");
+    showToast("Playlist retirée de Mes Playlists.");
   };
 
   // A-t-elle du VRAI historique à perdre (pas juste "jamais utilisée") ?
@@ -353,8 +356,8 @@ export function usePlaylistLibrary(
    * UNIQUEMENT si la playlist a déjà des complétions ou des données
    * importées (une playlist "fraîche", jamais faite, est retirée
    * directement, sans friction inutile) — que ce soit depuis le bouton
-   * "Sauvegardée dans Mes Séances" de la vue détail ou depuis la poubelle
-   * d'une carte dans "Mes Séances" : même garde-fou aux deux endroits
+   * "Sauvegardée dans Mes Playlists" de la vue détail ou depuis la poubelle
+   * d'une carte dans "Mes Playlists" : même garde-fou aux deux endroits
    * (retour direct après un audit de cohérence — l'un avait la confirmation,
    * l'autre pas, pour la même perte de données possible).
    */
@@ -369,7 +372,7 @@ export function usePlaylistLibrary(
   };
 
   // Planifie (ou déplanifie, si dateStr est vide) une date optionnelle pour une
-  // playlist — sert uniquement de clé de TRI dans "Mes Séances" (section
+  // playlist — sert uniquement de clé de TRI dans "Mes Playlists" (section
   // "Planifiées"), jamais une contrainte bloquante : une playlist sans date
   // reste utilisable normalement, juste triable manuellement à la place (voir
   // PlaylistsView, glisser-déposer de la section "À planifier"). PARTAGÉE avec
