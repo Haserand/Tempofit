@@ -35,10 +35,11 @@ import CompletionsList from '../../shared/CompletionsList';
  * redevient naturellement le premier élément de la ligne, sans séparateur
  * orphelin devant lui.
  *
- * ⚠️ PSEUDO CLIQUABLE VERS "MES SÉANCES" QUAND `isSaved` (10/08, MÊME
+ * ⚠️ PSEUDO CLIQUABLE VERS "MES PLAYLISTS" QUAND `isSaved` (10/08, MÊME
  * SESSION, retour direct : "quand c'est mon propre pseudo je veux que ça
- * ramène vers 'Mes Séances', que je sois connecté ou en mode invité") —
- * décidé APRÈS discussion explicite sur l'avertissement envisagé au
+ * ramène vers 'Mes Séances', que je sois connecté ou en mode invité" — nom
+ * de destination renommé le 20/08, "Mes Séances" → "Mes Playlists", voir
+ * Sidebar.jsx) — décidé APRÈS discussion explicite sur l'avertissement envisagé au
  * départ : AUCUN popup de confirmation, ni pour un compte connecté (rien
  * à risquer, simple navigation interne) ni pour l'invité (le seul vrai
  * risque du mode invité — données non synchronisées — est déjà rappelé en
@@ -129,7 +130,7 @@ export default function PlaylistHeaderMeta({
                 // affiché passivement", c'est un vrai lien.
                 <button
                   onClick={() => changeView('playlists')}
-                  title="Aller à Mes Séances"
+                  title="Aller à Mes Playlists"
                   className="truncate underline hover:text-slate-100 cursor-pointer"
                 >
                   {ownerLabel}
