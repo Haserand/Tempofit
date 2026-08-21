@@ -51,7 +51,7 @@ import { supabase } from '../../supabaseClient';
  * l'onglet Profil est déjà ouvert.
  */
 export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, userCount, isNaughtyMode, showToast, changeView, username, usernameLoading, checkUsernameAvailable, setUsername, profilePrivacy, updatePrivacySettings, onViewOwnProfile, initialTab = null }) {
-  const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg, textColorClass, borderAccentClass } = theme;
+  const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg, textColorClass, bgAccentClass } = theme;
 
   // Onglet actif — `initialTab` (03/08, "cliquer sur mon compte" depuis le
   // menu déroulant avatar) prend le dessus sur le repli par défaut quand
@@ -421,31 +421,45 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           déconnecte pendant qu'elle y était déjà. Les 2 masquages sont
           INDÉPENDANTS l'un de l'autre : un compte invité EN Mode Intime ne
           voit ainsi plus que "Services Musicaux", seul onglet valide dans
-          les 2 cas à la fois. */}
-      <div className={`flex space-x-6 border-b ${cardBorder}`}>
+          les 2 cas à la fois.
+          Style ALIGNÉ (21/08, retour direct) sur le standard pastille du
+          reste de l'app (PlaylistsView.jsx/ProfileView.jsx/
+          TrophiesView.jsx/DiscoverView.jsx — même markup `role="tablist"`/
+          `role="tab"`/`aria-selected`, `bgAccentClass`+texte blanc quand
+          actif) — auparavant en soulignement (`border-b-2`), seul endroit
+          du projet dans ce cas, datant du 28/07, avant que le style
+          pastille ne devienne la convention de facto ailleurs. Masquage
+          conditionnel inchangé, juste le style visuel du bouton. */}
+      <div className="flex items-center gap-1" role="tablist">
         {!isNaughtyMode && (
           <button
+            role="tab"
+            aria-selected={activeTab === 'profile'}
             onClick={() => setActiveTab('profile')}
-            className={`pb-3 -mb-px text-sm font-bold border-b-2 transition-colors ${
-              activeTab === 'profile' ? `${textHighlight} ${borderAccentClass}` : `${textMuted} border-transparent hover:text-main`
+            className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-colors ${
+              activeTab === 'profile' ? `${bgAccentClass} text-white` : `${textMuted} hover:text-main`
             }`}
           >
             Profil Athlétique
           </button>
         )}
         <button
+          role="tab"
+          aria-selected={activeTab === 'music'}
           onClick={() => setActiveTab('music')}
-          className={`pb-3 -mb-px text-sm font-bold border-b-2 transition-colors ${
-            activeTab === 'music' ? `${textHighlight} ${borderAccentClass}` : `${textMuted} border-transparent hover:text-main`
+          className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-colors ${
+            activeTab === 'music' ? `${bgAccentClass} text-white` : `${textMuted} hover:text-main`
           }`}
         >
           Services Musicaux
         </button>
         {user && (
           <button
+            role="tab"
+            aria-selected={activeTab === 'account'}
             onClick={() => setActiveTab('account')}
-            className={`pb-3 -mb-px text-sm font-bold border-b-2 transition-colors ${
-              activeTab === 'account' ? `${textHighlight} ${borderAccentClass}` : `${textMuted} border-transparent hover:text-main`
+            className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-colors ${
+              activeTab === 'account' ? `${bgAccentClass} text-white` : `${textMuted} hover:text-main`
             }`}
           >
             Mon Compte
