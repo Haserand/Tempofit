@@ -449,6 +449,21 @@ AU-DESSUS du bouton sans toucher `SIDEBAR_SCROLL_PADDING_COMPACT`,
 — n'était pas concerné). Bouton recentré en conséquence :
 `pb-3`→`pb-2.5` (10px, égal au nouveau haut effectif 10+0=10). Mode
 normal toujours épargné.
+
+**5e passe, même jour** (retour direct : "il manque encore quelques
+pixels", sans traits précis cette fois) — ⚠️ vérifié AVANT d'agir : les 3
+constantes compactes restantes (`SIDEBAR_LINK_PADDING_COMPACT`/
+`SIDEBAR_LINK_GAP_COMPACT`/`SIDEBAR_SECTION_TITLE_MARGIN_COMPACT`) avaient
+déjà été testées plus serrées le 29/07 (`py-1.5`/`space-y-1`/`mb-1`) puis
+EXPLICITEMENT desserrées le même jour ("trop agressif, tasse trop la
+navigation") — les retoucher aurait rouvert une décision déjà tranchée et
+rejetée, donc volontairement laissées de côté SANS consultation
+préalable, à signaler plutôt qu'à faire silencieusement. Seul levier
+restant : le BAS de `SIDEBAR_SCROLL_PADDING_COMPACT` (jamais touché,
+contrairement au haut) — `pb-3`(12px) → `pb-[10px]` (-2px), l'espace
+après "Découvrir" avant le pied de page. N'affecte PAS le centrage du
+bouton "Quitter" (qui ne dépend que du HAUT de cette constante + son
+propre padding, tous deux inchangés cette passe).
 ⚠️ Retour utilisateur explicite : "je vais y aller par étape" — d'autres
 ajustements Mode Intime à prévoir dans une session future, celui-ci n'est
 qu'un 1er correctif ciblé, pas une passe de stabilisation complète comme
