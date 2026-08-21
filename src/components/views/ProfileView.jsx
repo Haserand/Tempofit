@@ -600,17 +600,6 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
               sans ce rappel, se voir soi-même sur cette page pourrait
               laisser croire à tort qu'il s'agit de la vue normale "Mes
               Séances" plutôt que d'un aperçu délibérément restreint. */}
-          {isOfficialVitrine && (
-            <div className={`flex items-center gap-3 p-4 rounded-2xl border ${cardBorder} ${cardBg}`}>
-              <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${bgAccentClass} text-white`}>
-                <Info size={16} />
-              </div>
-              <p className={`text-sm font-medium ${textHighlight}`}>
-                Compte vitrine TempoFit — les séances et statistiques ci-dessous sont des exemples fictifs, pour découvrir l'app avant de créer ton propre profil.
-              </p>
-            </div>
-          )}
-
           {isSelf && (
             <div className={`flex items-center gap-3 p-4 rounded-2xl border ${cardBorder} ${cardBg}`}>
               <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${bgAccentClass} text-white`}>
@@ -622,18 +611,36 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
             </div>
           )}
 
-          <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl flex items-center gap-4`}>
-            {profile.avatar_url ? (
-              <img src={profile.avatar_url} alt="" className="w-16 h-16 rounded-full object-cover shrink-0" />
-            ) : (
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center shrink-0 ${bgAccentClass} text-white font-black text-2xl`}>
-                {username.charAt(0).toUpperCase()}
+          <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
+            <div className="flex items-center gap-4">
+              {profile.avatar_url ? (
+                <img src={profile.avatar_url} alt="" className="w-16 h-16 rounded-full object-cover shrink-0" />
+              ) : (
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center shrink-0 ${bgAccentClass} text-white font-black text-2xl`}>
+                  {username.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0">
+                <h1 className={`text-2xl font-black truncate ${textHighlight}`} title={`@${username}`}>@{username}</h1>
+                <p className={`text-sm ${textMuted}`}>{isOfficialVitrine ? 'Compte vitrine TempoFit' : 'Profil TempoFit'}</p>
               </div>
-            )}
-            <div className="min-w-0">
-              <h1 className={`text-2xl font-black truncate ${textHighlight}`} title={`@${username}`}>@{username}</h1>
-              <p className={`text-sm ${textMuted}`}>Profil TempoFit</p>
             </div>
+            {/* Retour direct (21/08, "je pensais le texte à l'intérieur du
+                composant en dessous") — 1er essai en bandeau séparé
+                au-dessus (même style que "Aperçu de ton profil" juste
+                au-dessus) jugé trop "alerte" pour une simple info
+                d'identité : repensé pour vivre directement DANS la carte
+                qui montre déjà cette identité, comme une ligne d'info
+                supplémentaire plutôt qu'un avertissement à part — même
+                pattern `pt-3 border-t` qu'ailleurs dans l'app pour une
+                ligne secondaire au sein d'une carte (StatsView.jsx,
+                PlaylistCharts.jsx). */}
+            {isOfficialVitrine && (
+              <p className={`text-sm mt-4 pt-4 border-t ${cardBorder} ${textMuted}`}>
+                <Info size={14} className="inline mr-1.5 -mt-0.5" />
+                Les séances et statistiques ci-dessous sont des exemples fictifs, pour découvrir l'app avant de créer ton propre profil.
+              </p>
+            )}
           </div>
 
           {showSportBlock && (
