@@ -223,6 +223,43 @@ fichiers de vue, 8 → 7 utilisant l'icône standard). Chaque assertion
 rejouée manuellement en Node avant livraison (aucun `vitest` réel
 disponible dans ce bac à sable).
 
+### 20/08 (suite 4) — retour terrain, renommage complet "séance" → "playlist" sur les 2 destinations principales
+
+Retour direct, capture à l'appui : "la notion de 'séance' parle aux
+utilisateurs qui font du sport régulièrement (cœur de cible) mais beaucoup
+moins à ceux qui testent juste par curiosité, ils se disent pas qu'il y a
+une playlist même si on fait bien plus." Décision : "Nouvelle séance" →
+"**Nouvelle Playlist**", "Mes Séances" → "**Mes Playlists**" — assumée
+réversible par l'utilisateur.
+
+**Ce que ça referme, en creusant** : "Mes Playlists" est en fait le nom
+D'ORIGINE de cette vue (avant le renommage du 25/07 vers "Mes Séances",
+lui-même motivé par la cohérence avec le reste de l'app à l'époque). Pas
+une hésitation : deux signaux différents à 3 semaines d'écart, chacun
+valide en soi (cohérence terminologique interne le 25/07, clarté pour un
+public élargi le 20/08).
+
+**Portée du renommage** : les 2 labels de la Sidebar + TOUT le texte
+utilisateur qui référence "Mes Séances" comme nom de destination
+(boutons, toasts, tooltips) dans ~15 fichiers — mais PAS les usages
+génériques du mot "séance" (une playlist/un entraînement individuel,
+ex. "cette séance déjà réalisée"), non demandés et non touchés. Onglet
+"Mes Routines" (2e onglet de la même vue fusionnée) non concerné.
+
+**2 citations verbatim historiques rattrapées** (`usePlaylistLibrary.js`)
+— un remplacement global (`sed`) avait d'abord altéré à tort 2 retours
+utilisateur cités entre guillemets, datés du 10/08 (époque où la
+destination s'appelait encore "Mes Séances") : restaurées pour rester
+fidèles à ce qui a vraiment été dit à l'époque, plutôt que de réécrire
+l'histoire avec le vocabulaire d'aujourd'hui.
+
+**1 vrai oubli rattrapé avant livraison** : 4 assertions de
+`PlaylistsView.test.jsx` (écrites la veille pour la fusion en onglet)
+vérifiaient encore l'ancien titre "Mes Séances" — auraient fait planter
+le prochain build si non corrigées. Trouvé par un grep de vérification
+systématique sur `tests/`, pas par une exécution réelle (toujours
+indisponible dans ce bac à sable).
+
 ### Historique détaillé (13-14/08) — archivé dans `HISTORIQUE.md`, bloc 4
 
 Récit chronologique complet déplacé le 14/08 (4e élagage — la session la
