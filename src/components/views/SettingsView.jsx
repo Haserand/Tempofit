@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Gauge, Link as LinkIcon, Globe, Copy, Check, AlertTriangle, User as UserIcon, X, Key, Download, Trash2, AtSign, Lock, Loader2, Eye, Heart, Sparkles } from 'lucide-react';
 import ViewHeader from '../shared/ViewHeader';
+import TabPills from '../shared/TabPills';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 import AthleticProfilePanel from './AthleticProfilePanel';
 import { USERNAME_REGEX, isReservedUsername, RESERVED_USERNAME_ERROR } from '../../utils/username';
@@ -51,7 +52,7 @@ import { supabase } from '../../supabaseClient';
  * l'onglet Profil est déjà ouvert.
  */
 export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, userCount, isNaughtyMode, showToast, changeView, username, usernameLoading, checkUsernameAvailable, setUsername, profilePrivacy, updatePrivacySettings, onViewOwnProfile, initialTab = null }) {
-  const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg, textColorClass, bgAccentClass } = theme;
+  const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg, textColorClass } = theme;
 
   // Onglet actif — `initialTab` (03/08, "cliquer sur mon compte" depuis le
   // menu déroulant avatar) prend le dessus sur le repli par défaut quand
@@ -422,50 +423,23 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
           INDÉPENDANTS l'un de l'autre : un compte invité EN Mode Intime ne
           voit ainsi plus que "Services Musicaux", seul onglet valide dans
           les 2 cas à la fois.
-          Style ALIGNÉ (21/08, retour direct) sur le standard pastille du
-          reste de l'app (PlaylistsView.jsx/ProfileView.jsx/
-          TrophiesView.jsx/DiscoverView.jsx — même markup `role="tablist"`/
-          `role="tab"`/`aria-selected`, `bgAccentClass`+texte blanc quand
-          actif) — auparavant en soulignement (`border-b-2`), seul endroit
-          du projet dans ce cas, datant du 28/07, avant que le style
-          pastille ne devienne la convention de facto ailleurs. Masquage
-          conditionnel inchangé, juste le style visuel du bouton. */}
-      <div className="flex items-center gap-1" role="tablist">
-        {!isNaughtyMode && (
-          <button
-            role="tab"
-            aria-selected={activeTab === 'profile'}
-            onClick={() => setActiveTab('profile')}
-            className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-colors ${
-              activeTab === 'profile' ? `${bgAccentClass} text-white` : `${textMuted} hover:text-main`
-            }`}
-          >
-            Profil Athlétique
-          </button>
-        )}
-        <button
-          role="tab"
-          aria-selected={activeTab === 'music'}
-          onClick={() => setActiveTab('music')}
-          className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-colors ${
-            activeTab === 'music' ? `${bgAccentClass} text-white` : `${textMuted} hover:text-main`
-          }`}
-        >
-          Services Musicaux
-        </button>
-        {user && (
-          <button
-            role="tab"
-            aria-selected={activeTab === 'account'}
-            onClick={() => setActiveTab('account')}
-            className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-colors ${
-              activeTab === 'account' ? `${bgAccentClass} text-white` : `${textMuted} hover:text-main`
-            }`}
-          >
-            Mon Compte
-          </button>
-        )}
-      </div>
+          Standardisé sur TabPills.jsx (21/08, retour direct) — même
+          composant partagé désormais avec PlaylistsView.jsx/
+          ProfileView.jsx/DiscoverView.jsx/TrophiesView.jsx. Masquage
+          conditionnel géré par `.filter(Boolean)` sur le tableau plutôt
+          que par un rendu JSX conditionnel par bouton — TabPills.jsx ne
+          connaît que la liste finale d'onglets à afficher, jamais la
+          logique de masquage elle-même. */}
+      <TabPills
+        theme={theme}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        tabs={[
+          !isNaughtyMode && { value: 'profile', label: 'Profil Athlétique' },
+          { value: 'music', label: 'Services Musicaux' },
+          user && { value: 'account', label: 'Mon Compte' },
+        ].filter(Boolean)}
+      />
 
       {activeTab === 'profile' ? (
         <AthleticProfilePanel theme={theme} showToast={showToast} changeView={changeView} />
