@@ -1222,8 +1222,14 @@ export default function GeneratorWizard({
         )}
         {wizardStep === 4 && (
           <div className="mt-4 flex justify-start">
-            <button onClick={goToPreviousWizardStepFromStep4} disabled={isGenerating} className={`px-6 py-2 rounded-xl font-bold flex items-center space-x-2 ${textMuted} hover:text-main transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}>
-              <ChevronLeft size={18}/> <span>Retour aux réglages</span>
+            {/* Aligné sur le style de "Précédent" (étapes 1-3, voir plus haut)
+                — retour direct : les deux boutons font la même chose (reculer
+                d'une étape), ils n'ont aucune raison d'avoir un poids visuel
+                différent. Avant : pas de fond, icône 18px, py-2 — dérive non
+                documentée entre 2 sessions d'édition, pas un choix de
+                hiérarchie voulu (aucun commentaire ne le justifiait). */}
+            <button onClick={goToPreviousWizardStepFromStep4} disabled={isGenerating} className={`px-6 py-3 rounded-xl font-bold flex items-center space-x-2 ${textMuted} hover:text-main bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}>
+              <ChevronLeft size={20}/> <span>Retour aux réglages</span>
             </button>
           </div>
         )}
