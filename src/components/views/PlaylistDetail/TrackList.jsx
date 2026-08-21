@@ -101,7 +101,7 @@ export default function TrackList({
           </div>
         ) : !isSaved ? (
           <div className={"p-3 bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center gap-2 text-xs font-bold text-center " + textMuted}>
-            Ajoute cette séance à "Mes Séances" pour pouvoir ajouter, dupliquer, remplacer ou retirer des titres
+            Ajoute cette séance à "Mes Playlists" pour pouvoir ajouter, dupliquer, remplacer ou retirer des titres
           </div>
         ) : (
           <div className="p-2 bg-gray-50 dark:bg-gray-900/50">
