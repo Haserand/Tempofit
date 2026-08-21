@@ -260,6 +260,42 @@ le prochain build si non corrigées. Trouvé par un grep de vérification
 systématique sur `tests/`, pas par une exécution réelle (toujours
 indisponible dans ce bac à sable).
 
+### 20/08 (suite 5) — recherche de profils fusionnée dans "Découvrir" (retour direct)
+
+Retour direct : "pouvoir chercher un compte utilisateur directement depuis
+l'onglet découvrir, via un onglet dans la barre de recherche." Investigation
+avant d'implémenter : la fonction serveur `search_public_profiles` a le
+MÊME double verrou (`revoke ... from anon`) que la consultation de profil
+(`get_public_profile_summary`) — ouvrir la recherche aux invités aurait
+défait une décision de sécurité délibérée du 01/08 (énumération de pseudos
+existants par un visiteur anonyme, sujet différent de "peut-on consulter un
+profil déjà trouvé"). Décision retenue après échange : déplacer la
+recherche pour les connectés maintenant, message incitatif pour les
+invités à la place de la recherche elle-même (pas juste un masquage comme
+avant).
+
+- **`DiscoverView.jsx`** — l'ancienne pastille "Profils" séparée (01/08,
+  masquée pour un invité, ouvrait `SearchUsersModal.jsx`) est retirée,
+  remplacée par un VRAI sélecteur de mode ("Séances"/"Profils", même
+  markup que les onglets déjà en place sur `PlaylistsView.jsx`/
+  `ProfileView.jsx`) juste au-dessus de la barre de recherche — la MÊME
+  barre sert aux deux, seul ce qu'elle interroge change. Logique de
+  recherche de profils (debounce 350ms, `search_public_profiles`) reprise
+  À L'IDENTIQUE de `SearchUsersModal.jsx` (toujours d'actualité,
+  accessible aussi depuis le menu avatar — 2 chemins vers la même
+  fonctionnalité, pas dupliquée en profondeur). Invité sur l'onglet
+  "Profils" : message incitatif ("Rejoins la communauté TempoFit...")
+  avec CTA vers `AUTH`, pas de champ de recherche actif.
+- **`App.jsx`** — nouvelle prop `onViewProfile={handleViewProfile}`
+  passée à `DiscoverView` (callback générique déjà utilisé par
+  `SearchUsersModal`/`handleOpenPublicRoutine`, pas dupliqué).
+- Tests : bloc "pastille Profils" entièrement réécrit
+  (`DiscoverView.test.jsx`) — mock `supabase.rpc` ajouté (absent
+  jusqu'ici, aurait planté au 1er test touchant l'onglet), fake timers
+  SCOPÉS au nouveau bloc de tests uniquement (pas globaux : un test
+  existant plus bas utilise `waitFor` avec de vrais timers pour le
+  compteur de clonages, les mélanger l'aurait cassé).
+
 ### Historique détaillé (13-14/08) — archivé dans `HISTORIQUE.md`, bloc 4
 
 Récit chronologique complet déplacé le 14/08 (4e élagage — la session la
