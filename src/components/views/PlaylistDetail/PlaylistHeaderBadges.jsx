@@ -60,7 +60,7 @@ export default function PlaylistHeaderBadges({
             fraîchement générée puis sauvegardée n'a jamais eu cette
             valeur posée (voir handleSavePlaylist, usePlaylistLibrary.js),
             donc le badge n'apparaissait jamais pour elle, même une fois
-            dans "Mes Séances". Maintenant : `isSaved` fait apparaître le
+            dans "Mes Playlists". Maintenant : `isSaved` fait apparaître le
             badge SYSTÉMATIQUEMENT pour toute playlist "à toi" (connecté
             OU invité), `|| 0` affichant honnêtement "0" plutôt qu'un
             calcul — cohérence visuelle voulue explicitement (toujours au
@@ -89,7 +89,7 @@ export default function PlaylistHeaderBadges({
             survol. */}
         {!isSaved && (
           <span
-            title="Lecture seule — tu ne peux pas modifier cette playlist tant qu'elle n'est pas ajoutée à Mes Séances"
+            title="Lecture seule — tu ne peux pas modifier cette playlist tant qu'elle n'est pas ajoutée à Mes Playlists"
             className="bg-slate-800/80 border border-slate-700 text-slate-300 p-2 rounded-full flex items-center justify-center"
           >
             <Lock size={12} />
@@ -97,7 +97,7 @@ export default function PlaylistHeaderBadges({
         )}
 
         {/* Rendre publique/privée (Globe) PUIS Retirer (Trash2), même ordre
-            que PlaylistCard.jsx ("Mes Séances" en carte). Fond au SURVOL
+            que PlaylistCard.jsx ("Mes Playlists" en carte). Fond au SURVOL
             uniquement (contrairement au compteur/badge "Lecture seule"
             ci-dessus, volontairement toujours visibles — un STATUT/une
             info à signaler passivement, pas la même famille que ces 2
@@ -118,7 +118,7 @@ export default function PlaylistHeaderBadges({
         {isSaved && !isReadOnly && (
           <button
             onClick={handleUnsavePlaylist}
-            title="Retirer cette séance de 'Mes Séances'"
+            title="Retirer cette séance de 'Mes Playlists'"
             className="p-2 rounded-full flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-white/10 transition-colors"
           >
             <Trash2 size={14} />
