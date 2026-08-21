@@ -8,6 +8,7 @@ import { buildCoverUrlPng } from '../../utils/coverArt';
 import { deezerFetch } from '../../engine/musicEngine';
 import SessionSummaryCard from '../shared/SessionSummaryCard';
 import { PlaylistDetailProvider, usePlaylistDetail } from '../../contexts/PlaylistDetailContext';
+import { useShareImage } from '../../contexts/ShareImageContext';
 import { PlaylistEditProvider } from '../../contexts/PlaylistEditContext';
 import EditPlaylistModal from '../modals/EditPlaylistModal';
 import TrackList from './PlaylistDetail/TrackList';
@@ -38,8 +39,6 @@ function PlaylistDetailViewInner({
   theme, colorMode,
   currentPlaylist, setCurrentPlaylist, savedPlaylists,
   handleShare, showToast,
-  summaryImageStatus, setSummaryImageStatus, summaryImageFile, setSummaryImageFile,
-  summaryImagePreviewUrl, setSummaryImagePreviewUrl, includeSummaryImage, setIncludeSummaryImage,
   favorites, toggleTrackFavorite, toggleArtistFavorite,
   setIsBpmSearchMode,
   setPlaylistPlannedDate,
@@ -58,6 +57,16 @@ function PlaylistDetailViewInner({
     togglePreview, resolveAndPlay,
     setSelectedSegmentIdx,
   } = usePlaylistDetail();
+  // RATTRAPÉ (21/08, découpage App.jsx, cluster "Image de partage") —
+  // summaryImage*/includeSummaryImage venaient en props depuis App.jsx (2
+  // niveaux de prop-drilling, via PlaylistDetailView ci-dessous) ; lus
+  // maintenant directement via le Contexte dédié (voir ShareImageContext.jsx
+  // pour le détail complet — génération/logique de course inchangées, reste
+  // entièrement ici).
+  const {
+    summaryImageStatus, setSummaryImageStatus, summaryImageFile, setSummaryImageFile,
+    summaryImagePreviewUrl, setSummaryImagePreviewUrl, includeSummaryImage, setIncludeSummaryImage,
+  } = useShareImage();
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass } = theme;
   // Replié par défaut : ce tableau ne sert qu'à vérifier ponctuellement une
   // correspondance de données (import CSV Garmin/Strava), pas à un usage courant.
@@ -661,13 +670,16 @@ function PlaylistDetailViewInner({
  * globalement) — puis rend le vrai composant d'affichage
  * (`PlaylistDetailViewInner`, ci-dessus) à l'intérieur.
  *
- * Reçoit encore 39 props d'AppContent : 18 pour le Provider (dont 13 dont
- * PlaylistDetailViewInner lui-même n'a plus besoin directement — ex.
- * `setSavedPlaylists`/`spotifyTrackPool`/`userStats`/`checkTrophies`, utiles
- * uniquement aux handlers internes au contexte), 26 pour la vue elle-même
- * (5 en commun avec le Provider). Ce nombre ne baissera que si ces
- * dépendances cessent elles-mêmes d'être partagées avec PlaylistsView/
- * ShareModal ailleurs dans l'app — hors périmètre de ce chantier.
+ * Reçoit encore un paquet de props d'AppContent, réparties entre le Provider
+ * (dont plusieurs dont PlaylistDetailViewInner lui-même n'a plus besoin
+ * directement — ex. `setSavedPlaylists`/`spotifyTrackPool`/`userStats`/
+ * `checkTrophies`, utiles uniquement aux handlers internes au contexte) et
+ * la vue elle-même. RÉDUIT de 8 (21/08, extraction ShareImageContext.jsx —
+ * summaryImageStatus/summaryImageFile/summaryImagePreviewUrl/
+ * includeSummaryImage + leurs 4 setters, plus prop-drillés du tout) — ce
+ * nombre ne baissera encore que si les dépendances restantes cessent
+ * elles-mêmes d'être partagées avec PlaylistsView/ShareModal ailleurs dans
+ * l'app — hors périmètre de ce chantier.
  */
 export default function PlaylistDetailView({
   currentPlaylist, setCurrentPlaylist, savedPlaylists, setSavedPlaylists,
@@ -677,8 +689,6 @@ export default function PlaylistDetailView({
   dataOffset, setDataOffset,
   selectedAnalysisDate, setSelectedAnalysisDate, availableMetrics,
   theme, colorMode, handleShare,
-  summaryImageStatus, setSummaryImageStatus, summaryImageFile, setSummaryImageFile,
-  summaryImagePreviewUrl, setSummaryImagePreviewUrl, includeSummaryImage, setIncludeSummaryImage,
   toggleTrackFavorite, toggleArtistFavorite,
   setIsBpmSearchMode, setPlaylistPlannedDate,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
@@ -730,10 +740,6 @@ export default function PlaylistDetailView({
           theme={theme} colorMode={colorMode}
           currentPlaylist={currentPlaylist} setCurrentPlaylist={setCurrentPlaylist} savedPlaylists={savedPlaylists}
           handleShare={handleShare} showToast={showToast}
-          summaryImageStatus={summaryImageStatus} setSummaryImageStatus={setSummaryImageStatus}
-          summaryImageFile={summaryImageFile} setSummaryImageFile={setSummaryImageFile}
-          summaryImagePreviewUrl={summaryImagePreviewUrl} setSummaryImagePreviewUrl={setSummaryImagePreviewUrl}
-          includeSummaryImage={includeSummaryImage} setIncludeSummaryImage={setIncludeSummaryImage}
           favorites={favorites} toggleTrackFavorite={toggleTrackFavorite} toggleArtistFavorite={toggleArtistFavorite}
           setIsBpmSearchMode={setIsBpmSearchMode}
           setPlaylistPlannedDate={setPlaylistPlannedDate}
