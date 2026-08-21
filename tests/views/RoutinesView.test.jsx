@@ -270,7 +270,9 @@ describe('RoutinesView', () => {
       segments: [{ id: 's1', bpm: 150, durationValue: 0 }],
     };
     render(<RoutinesView {...baseProps({ routines: [intervalRoutine] })} />);
-    expect(screen.getByText(/Nouvelle séance/)).toBeInTheDocument();
+    // Texte renommé 20/08 (retour terrain utilisateur — "Nouvelle séance"
+    // → "Nouvelle Playlist", voir la docstring de Sidebar.jsx).
+    expect(screen.getByText(/Nouvelle Playlist/)).toBeInTheDocument();
   });
 
   it('une routine Fractionné dont TOUS les segments sont valides génère normalement', () => {
