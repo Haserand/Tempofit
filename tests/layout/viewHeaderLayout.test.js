@@ -23,13 +23,26 @@ function readSrc(relPath) {
 }
 
 function viewFiles() {
-  // Seuls les vrais fichiers de VUE (une page entière) se terminent par
-  // "View.jsx" — le dossier components/views/ contient aussi des
-  // sous-composants (PlaylistCard.jsx, TemplateCard.jsx,
-  // AthleticProfilePanel.jsx, GeneratorWizard.jsx, TargetModeInputs.jsx...)
-  // qui n'ont AUCUNE raison d'utiliser VIEW_CONTENT_WRAPPER eux-mêmes —
-  // c'est leur vue parente qui l'applique une seule fois.
-  return fs.readdirSync(VIEWS_DIR).filter(f => f.endsWith('View.jsx'));
+  // Seuls les vrais fichiers de VUE (une page entière, avec son propre
+  // <ViewHeader/>) se terminent par "View.jsx" — le dossier
+  // components/views/ contient aussi des sous-composants (PlaylistCard.jsx,
+  // TemplateCard.jsx, AthleticProfilePanel.jsx, GeneratorWizard.jsx,
+  // TargetModeInputs.jsx...) qui n'ont AUCUNE raison d'utiliser
+  // VIEW_CONTENT_WRAPPER eux-mêmes — c'est leur vue parente qui l'applique
+  // une seule fois.
+  //
+  // ⚠️ EXCLUSION AJOUTÉE (20/08, rattrapée par le build Vercel réel — ce
+  // test a fait exactement son travail) — `RoutinesView.jsx` A GARDÉ son
+  // nom en "*View.jsx" (continuité historique : extrait de App.jsx le
+  // 25/07, `view === 'routines'`) mais n'est PLUS une vraie vue de premier
+  // niveau depuis la fusion "Mes Routines" en onglet de "Mes Séances" (voir
+  // PlaylistsView.jsx) : elle ne rend plus qu'un CORPS (grille), sans
+  // `<ViewHeader/>` ni `VIEW_CONTENT_WRAPPER` propres — ce sont
+  // `PlaylistsView.jsx` qui les possède désormais pour les 2 onglets. La
+  // filtrer ici plutôt que la renommer (`RoutinesBody.jsx` aurait été plus
+  // exact, mais un renommage de fichier est un changement plus large,
+  // pas fait dans ce chantier).
+  return fs.readdirSync(VIEWS_DIR).filter(f => f.endsWith('View.jsx') && f !== 'RoutinesView.jsx');
 }
 
 describe('viewHeaderLayout — valeurs actuelles', () => {
@@ -46,7 +59,10 @@ describe('viewHeaderLayout — valeurs actuelles', () => {
 describe('viewHeaderLayout — synchronisation réelle avec les fichiers qui la consomment', () => {
   it('VIEW_CONTENT_WRAPPER est bien interpolé (${VIEW_CONTENT_WRAPPER}) dans TOUS les fichiers components/views/*View.jsx', () => {
     const files = viewFiles();
-    expect(files.length).toBeGreaterThanOrEqual(8); // au moins les 8 vues d'origine (README, 6e itération)
+    // 9 (pas 8) depuis le 20/08 — `PlaylistsView.jsx` compte maintenant
+    // pour "Mes Séances" ET "Mes Routines" (fusion en onglet), et
+    // `RoutinesView.jsx` est exclue par `viewFiles()` (voir sa docstring).
+    expect(files.length).toBeGreaterThanOrEqual(9);
     const missing = files.filter(f => !readSrc(`components/views/${f}`).includes('${VIEW_CONTENT_WRAPPER}'));
     expect(missing).toEqual([]);
   });
@@ -63,9 +79,13 @@ describe('viewHeaderLayout — synchronisation réelle avec les fichiers qui la 
     expect(content).toContain('${VIEW_HEADER_TOP_PADDING}');
   });
 
-  it('VIEW_HEADER_ICON_SIZE est utilisé comme size={...} dans au moins 8 fichiers de vue', () => {
+  it('VIEW_HEADER_ICON_SIZE est utilisé comme size={...} dans au moins 7 fichiers de vue', () => {
+    // 7 (pas 8) depuis le 20/08 — voir la docstring de viewFiles() plus
+    // haut. `ProfileView.jsx`/`PlaylistDetailView.jsx` n'ont jamais utilisé
+    // ce pattern (en-tête sur mesure, déjà le cas avant ce chantier) —
+    // seule la perte de `RoutinesView.jsx` change le compte ici (8 → 7).
     const files = viewFiles();
     const usingIt = files.filter(f => readSrc(`components/views/${f}`).includes('size={VIEW_HEADER_ICON_SIZE}'));
-    expect(usingIt.length).toBeGreaterThanOrEqual(8);
+    expect(usingIt.length).toBeGreaterThanOrEqual(7);
   });
 });
