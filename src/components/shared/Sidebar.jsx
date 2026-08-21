@@ -291,40 +291,47 @@ export default function Sidebar({
           qu'apportait jusqu'ici le conteneur unique qu'on scinde ici. */}
       <div className={`flex-1 overflow-y-auto no-scrollbar ${scrollPadding}`}>
       {isNaughtyMode && (
-        <div className={`pt-0 pb-3 ${SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM} border-b ${cardBorder}`}>
+        <div className={`pt-0 pb-2.5 ${SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM} border-b ${cardBorder}`}>
           {/* Padding ASYMÉTRIQUE (Refactor UI "Centrage du bouton Quitter le
               Mode Intime", 29/07, 3e itération, retour direct : "pile entre
               le trait du logo en haut et le liseret de Création en bas") —
               l'ancien `py-2` (8px/8px, symétrique) ne centrait PAS
               réellement le bouton : le conteneur scrollable parent ajoute
-              DÉJÀ 12px au-dessus (`scrollPadding` compact, py-3, voir
+              DÉJÀ de la hauteur au-dessus (`scrollPadding` compact, voir
               sidebarLayout.js) avant que ce wrapper ne commence, alors que
               rien d'équivalent ne s'ajoute après sa bordure.
               Calcul D'ORIGINE (29/07) : espace_haut = 12 (scrollPadding
-              compact) + pt ; espace_bas = pb ; les 2 égaux, pt+pb=16
-              (même total qu'avant) — 12+pt = 16−pt => pt = 2px (`pt-0.5`),
-              pb = 14px (`pb-3.5`) : espace_haut = 12+2 = 14px = espace_bas.
-              ⚠️ RECALCULÉ (21/08, retour direct : "supprime 2 pixels à
-              chaque trait rouge pour voir Découvrir sans scroll") — 2
-              traits marqués touchaient PRÉCISÉMENT ce couple (l'espace
-              au-dessus du bouton ET l'espace en-dessous, avant la
-              bordure) : les 2 réduits de 2px chacun EN GARDANT L'ÉGALITÉ
-              (condition de centrage) — espace_haut cible = 14−2 = 12px =
-              12 (scrollPadding, inchangé) + pt => pt = 0px (`pt-0`) ;
-              espace_bas cible = 12px = pb (`pb-3`). Toujours égaux
-              (12=12), le bouton reste centré — seul le total pt+pb passe
-              de 16 à 12 (4px de moins, DÉLIBÉRÉMENT : c'est tout le point
-              de la demande, réduire la hauteur totale). `scrollPadding`
-              (compact, `py-3`) N'A PAS bougé — seul `pt`/`pb` de CE
-              wrapper ont changé, donc pas besoin de recalculer quoi que ce
-              soit ailleurs. Les 2 valeurs (`scrollPadding` ET ce padding)
-              restent calculées ENSEMBLE — changer l'une sans l'autre
-              décale à nouveau le bouton.
-              `SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM` (`mb-[18px]`, 21/08)
-              AJOUTÉE en plus de ce padding, PAS en remplacement — une
-              MARGE (hors bordure), sans effet sur le centrage ci-dessus
-              qui ne dépend que du PADDING (dans la bordure). Voir
-              sidebarLayout.js pour le détail complet des 2 correctifs. */}
+              compact, py-3) + pt ; espace_bas = pb ; les 2 égaux,
+              pt+pb=16 — pt = 2px (`pt-0.5`), pb = 14px (`pb-3.5`).
+              RECALCUL 1re PASSE (21/08, retour direct : "supprime 2 pixels
+              à chaque trait rouge...") — espace_haut/bas réduits à 12px
+              chacun : pt = 0px (`pt-0`, scrollPadding INCHANGÉ à 12), pb =
+              12px (`pb-3`).
+              ⚠️ RECALCUL 2e PASSE (même jour, retour direct : "il manque
+              encore quelques pixels, à peu près autant que pour la
+              précédente passe") — `pt` du bouton est déjà à 0, MINIMUM
+              atteignable (pas de padding négatif) : impossible de réduire
+              encore l'espace au-dessus SANS toucher `scrollPadding`
+              compact lui-même, épargné jusqu'ici. `SIDEBAR_SCROLL_PADDING_COMPACT`
+              passe donc de `py-3`(12px symétrique) à `pt-[10px] pb-3`
+              (haut réduit à 10px, bas INCHANGÉ à 12px — l'espace après
+              "Découvrir" n'était pas concerné par cette demande, qui ne
+              visait que la visibilité de "Découvrir" en haut de la zone).
+              Nouveau calcul : espace_haut cible = 10 (scrollPadding réduit)
+              + pt(0) = 10px ; espace_bas cible = pb (`pb-2.5`) = 10px.
+              Toujours égaux (10=10), le bouton reste centré. `pt` de CE
+              wrapper reste à `pt-0` (inchangé depuis la 1re passe, déjà au
+              minimum) — seuls `scrollPadding` (compact) et `pb` de ce
+              wrapper ont bougé cette fois. Les 2 valeurs
+              (`SIDEBAR_SCROLL_PADDING_COMPACT` ET ce padding) restent
+              calculées ENSEMBLE — changer l'une sans l'autre décale à
+              nouveau le bouton.
+              `SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM` (`mb-[16px]`, 2 passes
+              le même jour) AJOUTÉE en plus de ce padding, PAS en
+              remplacement — une MARGE (hors bordure), sans effet sur le
+              centrage ci-dessus qui ne dépend que du PADDING (dans la
+              bordure). Voir sidebarLayout.js pour le détail complet des
+              correctifs. */}
           <button
             onClick={toggleNaughtyMode}
             className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer text-rose-500 hover:bg-rose-500/10`}
