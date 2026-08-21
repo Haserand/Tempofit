@@ -107,7 +107,7 @@ function PlaylistDetailViewInner({
   // totalité des titres tomberaient dans la même part.
   // Médaille "la plus/2e plus/3e plus utilisée" (retour direct : "quand je
   // suis dans la playlist d'une session que je fais le plus... faudrait
-  // aussi le symbole") — déjà affichée sur la carte dans "Mes Séances"
+  // aussi le symbole") — déjà affichée sur la carte dans "Mes Playlists"
   // (PlaylistCard.jsx) mais jamais reprise ici. Même logique de classement
   // recalculée localement (mêmes filtre + tri que PlaylistsView.jsx), plutôt
   // qu'un classement centralisé transmis en prop — cohérent avec la
@@ -505,11 +505,12 @@ function PlaylistDetailViewInner({
           partout ailleurs. Pas de vraie pile d'historique dans l'app (voir
           useNavigation.js — `changeView` prend toujours une vue EXPLICITE,
           jamais "la précédente") : cette page peut être atteinte depuis Mes
-          Séances, Découvrir, Stats, le mini-lecteur ou un import CSV (voir
+          Playlists, Découvrir, Stats, le mini-lecteur ou un import CSV (voir
           tous les appels à `changeView('playlist')`) — aucune de ces
-          origines n'est retenue. 'Mes Séances' choisi comme destination par
-          défaut, cohérent avec le fait que c'est la vue "bibliothèque" dont
-          celle-ci est un zoom. Si un jour un vrai "retour à l'origine" est
+          origines n'est retenue. 'Mes Playlists' choisi comme destination
+          par défaut, cohérent avec le fait que c'est la vue "bibliothèque"
+          dont celle-ci est un zoom. Si un jour un vrai "retour à l'origine"
+          est
           nécessaire, il faudra une pile d'historique dédiée — hors périmètre
           ici.
 
