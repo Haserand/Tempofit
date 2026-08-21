@@ -116,7 +116,7 @@ describe('PlaylistHeaderBadges', () => {
     const handleUnsavePlaylist = vi.fn();
     render(<PlaylistHeaderBadges {...baseProps({ isSaved: true, handleUnsavePlaylist })} />);
 
-    fireEvent.click(screen.getByTitle("Retirer cette séance de 'Mes Séances'"));
+    fireEvent.click(screen.getByTitle("Retirer cette séance de 'Mes Playlists'"));
     expect(handleUnsavePlaylist).toHaveBeenCalled();
   });
 
@@ -150,6 +150,6 @@ describe('PlaylistHeaderBadges', () => {
     render(<PlaylistHeaderBadges {...baseProps({ isReadOnly: true, isSaved: true, currentPlaylist: makePlaylist({ isPublic: true }) })} />);
     expect(screen.queryByTitle('Visible sur ton profil public — clique pour la rendre privée')).not.toBeInTheDocument();
     expect(screen.queryByTitle('Rendre cette playlist visible sur ton profil public')).not.toBeInTheDocument();
-    expect(screen.queryByTitle("Retirer cette séance de 'Mes Séances'")).not.toBeInTheDocument();
+    expect(screen.queryByTitle("Retirer cette séance de 'Mes Playlists'")).not.toBeInTheDocument();
   });
 });
