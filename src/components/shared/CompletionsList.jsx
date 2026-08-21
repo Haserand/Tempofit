@@ -3,7 +3,7 @@ import { formatCompletionDate } from '../../utils/format';
 
 /**
  * CompletionsList — liste interactive des dates de complétion d'une playlist :
- * utilisée par PlaylistCard ("Mes Séances", les 3 sections) et PlaylistHeader (liste
+ * utilisée par PlaylistCard ("Mes Playlists", les 3 sections) et PlaylistHeader (liste
  * détaillée sous la date principale). Chaque date : clic pour modifier (ouvre un vrai
  * sélecteur), icône Upload pour rattacher un export Garmin/Strava à CETTE date précise,
  * PUIS (si des données existent déjà pour cette date) une petite croix violette pour les
