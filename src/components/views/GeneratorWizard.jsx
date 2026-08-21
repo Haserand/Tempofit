@@ -81,6 +81,30 @@ export default function GeneratorWizard({
     borderAccentClass, bgMainApp, inputBg, inputBorder,
   } = theme;
 
+  // Style du bouton "reculer d'une étape" — PARTAGÉ par "Précédent" (étapes
+  // 1-3) et "Retour aux réglages" (étape 4, plus bas) : mêmes deux boutons,
+  // même rôle exact (reculer d'une étape), aucune raison qu'ils diffèrent.
+  // Extrait ici en constante locale (20/08, retour direct — capture
+  // annotée, "pk le bouton précédent de la vue 1/2/3 du moteur générateur
+  // est pas le même que pour vue finale ?") après avoir trouvé les 2
+  // versions dérivées l'une de l'autre SANS AUCUN commentaire pour
+  // justifier la différence — dérive silencieuse entre 2 sessions
+  // d'édition, pas un choix de hiérarchie voulu. Local à CE fichier
+  // seulement (pas dans layout/*.js, la centralisation projet réservée
+  // aux styles partagés par PLUSIEURS fichiers, vérifié : ce motif de
+  // bouton n'existe nulle part ailleurs dans l'app) — juste assez pour
+  // rendre cette dérive-là structurellement impossible la prochaine fois,
+  // sans sur-généraliser un style qui n'a pas de 2e utilisateur réel.
+  // Inclut les classes `disabled:` bien que "Précédent" (étapes 1-3)
+  // n'ait jamais reçu de prop `disabled` lui-même — vérifié, PAS un oubli
+  // symétrique : `isGenerating` ne peut devenir vrai qu'à l'étape 4
+  // (clic sur "Générer"), et "Précédent" n'est même plus monté à ce
+  // moment-là (`wizardStep < 4` le démonte). La carte entière devient de
+  // toute façon `pointer-events-none` pendant la génération (voir plus
+  // haut) — ces classes restent simplement inertes pour ce bouton-là,
+  // sans risque à les laisser dans la constante commune.
+  const PREVIOUS_STEP_BUTTON_CLASS = `px-6 py-3 rounded-xl font-bold flex items-center space-x-2 ${textMuted} hover:text-main bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed`;
+
   // `configuredProfilesCount` (comptait les profils Constante/Crescendo/
   // Fractionné déjà configurés) retiré (Refactor UX "Option A", 29/07) :
   // son seul usage était de conditionner l'affichage de l'ancienne bannière
@@ -1147,7 +1171,7 @@ export default function GeneratorWizard({
         {wizardStep < 4 && (
           <div className="mt-auto pt-6 flex justify-between items-center border-t border-gray-100 dark:border-gray-800">
             {wizardStep > 1 ? (
-              <button onClick={() => setWizardStep(wizardStep - 1)} className={`px-6 py-3 rounded-xl font-bold flex items-center space-x-2 ${textMuted} hover:text-main bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`}>
+              <button onClick={() => setWizardStep(wizardStep - 1)} className={PREVIOUS_STEP_BUTTON_CLASS}>
                 <ChevronLeft size={20}/> <span>Précédent</span>
               </button>
             ) : !isNaughtyMode ? (
@@ -1222,13 +1246,11 @@ export default function GeneratorWizard({
         )}
         {wizardStep === 4 && (
           <div className="mt-4 flex justify-start">
-            {/* Aligné sur le style de "Précédent" (étapes 1-3, voir plus haut)
-                — retour direct : les deux boutons font la même chose (reculer
-                d'une étape), ils n'ont aucune raison d'avoir un poids visuel
-                différent. Avant : pas de fond, icône 18px, py-2 — dérive non
-                documentée entre 2 sessions d'édition, pas un choix de
-                hiérarchie voulu (aucun commentaire ne le justifiait). */}
-            <button onClick={goToPreviousWizardStepFromStep4} disabled={isGenerating} className={`px-6 py-3 rounded-xl font-bold flex items-center space-x-2 ${textMuted} hover:text-main bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}>
+            {/* Style partagé avec "Précédent" (étapes 1-3, PREVIOUS_STEP_BUTTON_CLASS
+                défini plus haut) — retour direct : les deux boutons font la
+                même chose (reculer d'une étape), ils n'ont aucune raison
+                d'avoir un poids visuel différent. */}
+            <button onClick={goToPreviousWizardStepFromStep4} disabled={isGenerating} className={PREVIOUS_STEP_BUTTON_CLASS}>
               <ChevronLeft size={20}/> <span>Retour aux réglages</span>
             </button>
           </div>
