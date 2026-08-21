@@ -4,7 +4,7 @@ import { VIEW_HEADER_TOP_PADDING } from '../../layout/viewHeaderLayout';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import {
   SIDEBAR_LINK_PADDING, SIDEBAR_LINK_GAP, SIDEBAR_SECTION_TITLE_MARGIN,
-  SIDEBAR_SEPARATOR_MARGIN, SIDEBAR_SCROLL_PADDING, SIDEBAR_FOOTER_LINK_PADDING,
+  SIDEBAR_SEPARATOR_MARGIN, SIDEBAR_DISCOVER_SEPARATOR_MARGIN, SIDEBAR_SCROLL_PADDING, SIDEBAR_FOOTER_LINK_PADDING,
   SIDEBAR_LINK_PADDING_COMPACT, SIDEBAR_LINK_GAP_COMPACT, SIDEBAR_SECTION_TITLE_MARGIN_COMPACT,
   SIDEBAR_SCROLL_PADDING_COMPACT,
 } from '../../layout/sidebarLayout';
@@ -336,15 +336,18 @@ export default function Sidebar({
           Les valeurs FINALES stabilisées, elles, vivent maintenant dans
           `src/layout/sidebarLayout.js` (constantes `SIDEBAR_LINK_PADDING`,
           `SIDEBAR_SECTION_TITLE_MARGIN`, `SIDEBAR_SEPARATOR_MARGIN`,
-          `SIDEBAR_SCROLL_PADDING`, `SIDEBAR_FOOTER_LINK_PADDING`) — TOUT
-          futur ajustement doit changer LÀ-BAS, pas ici, pour rester la
-          référence unique. Résumé de l'état final (pour lecture rapide sans
-          ouvrir l'autre fichier) : liens de nav en `py-2.5`, titres de
-          section en `mb-4` (strictement identiques, sans `mt-*` sur le
-          bouton suivant), séparateur physique en `my-5` (pas un simple
-          vide), conteneur scrollable en `py-4` (seule source de l'équilibre
-          haut/bas, aucun enfant ne doit plus porter sa propre marge de fin),
-          bouton Réglages du footer en `py-1.5` (délibérément différent : ce
+          `SIDEBAR_DISCOVER_SEPARATOR_MARGIN`, `SIDEBAR_SCROLL_PADDING`,
+          `SIDEBAR_FOOTER_LINK_PADDING`) — TOUT futur ajustement doit
+          changer LÀ-BAS, pas ici, pour rester la référence unique. Résumé
+          de l'état final (pour lecture rapide sans ouvrir l'autre fichier) :
+          liens de nav en `py-2.5`, titres de section en `mb-4` (strictement
+          identiques, sans `mt-*` sur le bouton suivant), séparateur
+          Création/Mon Espace en `my-5` (pas un simple vide), conteneur
+          scrollable en `pt-4`/`pb-1.5` (⚠️ ASYMÉTRIQUE depuis le 21/08 — le
+          bas a été resserré spécifiquement pour "Découvrir", voir sa
+          section plus bas ; seule source de l'équilibre haut/bas, aucun
+          enfant ne doit plus porter sa propre marge de fin), bouton
+          Réglages du footer en `py-1.5` (délibérément différent : ce
           conteneur a une hauteur stricte à respecter, voir plus bas). */}
       <nav className="flex flex-col">
 
@@ -433,11 +436,14 @@ export default function Sidebar({
           </button>
         </div>
 
-        {/* Séparateur — même traitement que celui entre Création et Mon
-            Espace juste au-dessus (voir sa docstring pour le raisonnement
-            complet du choix `border-divider` micro plutôt que
-            `border-divider-strong`). */}
-        <div className={`border-t ${cardBorder} w-full ${SIDEBAR_SEPARATOR_MARGIN}`}></div>
+        {/* Séparateur — même traitement visuel que celui entre Création et
+            Mon Espace juste au-dessus (`border-t ${cardBorder}`, voir sa
+            docstring pour le raisonnement complet du choix `border-divider`
+            micro plutôt que `border-divider-strong`), mais marge DÉDIÉE
+            (`SIDEBAR_DISCOVER_SEPARATOR_MARGIN`, pas `SIDEBAR_SEPARATOR_MARGIN`)
+            — resserrée de 10px en bas (21/08, retour direct), voir
+            sidebarLayout.js pour le détail complet. */}
+        <div className={`border-t ${cardBorder} w-full ${SIDEBAR_DISCOVER_SEPARATOR_MARGIN}`}></div>
 
         {/* --- DÉCOUVERTE (retour direct, 21/08) ---
             "Découvrir" vivait dans CRÉATION depuis la refonte du 25/07 (voir
