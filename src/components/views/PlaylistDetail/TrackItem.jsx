@@ -51,7 +51,7 @@ export default function TrackItem({
   // Mêmes mutations (retirer/dupliquer/remplacer/réordonner) passent TOUTES
   // par `applyPlaylistUpdate` (PlaylistDetailContext.jsx), qui n'écrit dans
   // `savedPlaylists` QUE si la playlist y figure déjà — sur un modèle pas
-  // encore sauvegardé (Découvrir, "Ajouter à Mes Séances" pas encore
+  // encore sauvegardé (Découvrir, "Ajouter à Mes Playlists" pas encore
   // cliqué), ces mutations modifiaient `currentPlaylist` en mémoire sans
   // jamais être persistées nulle part : une illusion d'édition qui
   // disparaissait silencieusement à la navigation suivante (même bug que le
@@ -109,7 +109,7 @@ export default function TrackItem({
           persistée. */}
       <div
         className={`shrink-0 px-1 ${textMuted} ${canEditTracks ? 'cursor-grab active:cursor-grabbing' : 'opacity-20 cursor-not-allowed'}`}
-        title={isLocked ? "Verrouillé — impossible de réordonner une séance déjà réalisée" : !isSaved ? "Ajoute cette séance à \"Mes Séances\" pour pouvoir réordonner ses titres" : "Glisser pour réordonner"}
+        title={isLocked ? "Verrouillé — impossible de réordonner une séance déjà réalisée" : !isSaved ? "Ajoute cette séance à \"Mes Playlists\" pour pouvoir réordonner ses titres" : "Glisser pour réordonner"}
       >
         <GripVertical size={16}/>
       </div>
@@ -200,7 +200,7 @@ export default function TrackItem({
       {!canEditTracks ? (
         <div
           className={"p-2 shrink-0 opacity-20 " + textMuted}
-          title={isLocked ? "Verrouillé — impossible de retirer un titre d'une séance déjà réalisée" : "Ajoute cette séance à \"Mes Séances\" pour pouvoir retirer un titre"}
+          title={isLocked ? "Verrouillé — impossible de retirer un titre d'une séance déjà réalisée" : "Ajoute cette séance à \"Mes Playlists\" pour pouvoir retirer un titre"}
         >
           {isLocked ? <Lock size={16}/> : <X size={16}/>}
         </div>
