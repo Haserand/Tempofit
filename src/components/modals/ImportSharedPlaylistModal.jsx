@@ -32,7 +32,7 @@ export default function ImportSharedPlaylistModal({ theme, isOpen, onClose, prev
           </h3>
           <button onClick={onClose} className={`p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors ${ICON_BUTTON_ROUNDING} hover:bg-surface-hover`}><X size={20}/></button>
         </div>
-        <p className={`text-sm mb-4 ${textMuted}`}>Quelqu'un t'a partagé cette séance TempoFit — tu peux l'ajouter à tes propres Séances avant de la lancer.</p>
+        <p className={`text-sm mb-4 ${textMuted}`}>Quelqu'un t'a partagé cette séance TempoFit — tu peux l'ajouter à tes propres Playlists avant de la lancer.</p>
 
         <div className={`p-4 rounded-2xl border ${inputBorder} ${inputBg} mb-4`}>
           <div className="flex items-center gap-2 mb-3">
