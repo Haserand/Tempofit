@@ -206,6 +206,23 @@ PROPRE espace suit désormais la même logique que visiter celui d'un autre.
   bascule d'onglet — compteurs, changement d'en-tête, contenu réel de
   `RoutinesView.jsx` non mocké, `initialTab`).
 
+### 20/08 (suite) — build Vercel réel cassé par la fusion, 1 garde-fou à ajuster (pas un bug)
+
+`tests/layout/viewHeaderLayout.test.js` (écrit la veille, check-up global)
+a fait exactement son travail : `RoutinesView.jsx` a gardé son nom en
+"*View.jsx" (continuité historique, extraite de App.jsx le 25/07) mais
+n'est PLUS une vraie vue de premier niveau depuis la fusion ci-dessus — le
+garde-fou l'a détecté (`VIEW_CONTENT_WRAPPER`/`VIEW_HEADER_ICON_SIZE`
+absents). Pas un bug de la fusion elle-même : `RoutinesView.jsx` ne DOIT
+plus les utiliser (c'est `PlaylistsView.jsx` qui les possède pour les 2
+onglets désormais) — c'est le garde-fou qui devait être mis à jour pour
+refléter cette nouvelle réalité. **Corrigé** : `RoutinesView.jsx` exclue
+explicitement du filtre `viewFiles()` (commentaire détaillé sur le
+pourquoi), les 2 seuils numériques ajustés au compte réel actuel (10 → 9
+fichiers de vue, 8 → 7 utilisant l'icône standard). Chaque assertion
+rejouée manuellement en Node avant livraison (aucun `vitest` réel
+disponible dans ce bac à sable).
+
 ### Historique détaillé (13-14/08) — archivé dans `HISTORIQUE.md`, bloc 4
 
 Récit chronologique complet déplacé le 14/08 (4e élagage — la session la
