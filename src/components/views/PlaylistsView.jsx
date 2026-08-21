@@ -3,6 +3,7 @@ import { List, Library, Plus, Calendar, CheckCircle, ChevronLeft, ChevronRight, 
 import PlaylistCard from './PlaylistCard';
 import RoutinesView from './RoutinesView';
 import ViewHeader from '../shared/ViewHeader';
+import TabPills from '../shared/TabPills';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 
 /**
@@ -330,25 +331,19 @@ export default function PlaylistsView({
           ⚠️ Libellé "Séances" → "Playlists" le même jour (voir le
           renommage "Mes Séances" → "Mes Playlists" dans Sidebar.jsx pour
           le raisonnement complet) — l'onglet "Routines" lui-même reste
-          "Routines", pas concerné par ce renommage. */}
-      <div className="flex items-center gap-1" role="tablist">
-        {[
-          { value: 'playlist', label: 'Playlists', count: visiblePlaylists.length },
-          { value: 'routine', label: 'Routines', count: routines.length },
-        ].map(tab => (
-          <button
-            key={tab.value}
-            role="tab"
-            aria-selected={activeTab === tab.value}
-            onClick={() => setActiveTab(tab.value)}
-            className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-colors ${
-              activeTab === tab.value ? `${bgAccentClass} text-white` : `${textMuted} hover:text-main`
-            }`}
-          >
-            {tab.label} <span className="opacity-70">({tab.count})</span>
-          </button>
-        ))}
-      </div>
+          "Routines", pas concerné par ce renommage.
+          Standardisé sur TabPills.jsx (21/08, retour direct) — même
+          composant partagé désormais avec ProfileView.jsx/DiscoverView.jsx/
+          SettingsView.jsx/TrophiesView.jsx. */}
+      <TabPills
+        theme={theme}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        tabs={[
+          { value: 'playlist', label: <>Playlists <span className="opacity-70">({visiblePlaylists.length})</span></> },
+          { value: 'routine', label: <>Routines <span className="opacity-70">({routines.length})</span></> },
+        ]}
+      />
 
       {/* Notice "mode invité" RETIRÉE D'ICI (25/07) — vivait en double ici et
           dans StatsView.jsx, avec deux conditions de déclenchement légèrement
