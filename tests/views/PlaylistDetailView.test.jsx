@@ -19,6 +19,17 @@
 // automatique) plus un seul bloc isolable (tableau CSV brut, ~40 lignes,
 // aucune logique complexe à en extraire) — un découpage de plus aurait
 // déplacé la complexité sans la réduire.
+//
+// RATTRAPÉ (21/08, extraction ShareImageContext.jsx) — `summaryImageStatus`/
+// `summaryImageFile`/`summaryImagePreviewUrl`/`includeSummaryImage` +
+// leurs 4 setters ne sont PLUS des props : `useShareImage()` mocké
+// dynamiquement (vi.fn() + mockReturnValue), même pattern que
+// ShareModal.test.jsx/MiniPlayerBar.test.jsx. Les setters restent des
+// `vi.fn()` classiques dans le mock — un test qui vérifie "appelé avec X"
+// se comporte donc EXACTEMENT comme avant (ce composant ne lisait de toute
+// façon jamais la valeur mise à jour dans le MÊME rendu, seulement au
+// suivant, via `rerender` — ce test file utilisait déjà ce pattern avant
+// l'extraction, rien à changer sur ce point précis).
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
@@ -28,6 +39,10 @@ const mockUsePlaylistDetail = vi.fn();
 vi.mock('../../src/contexts/PlaylistDetailContext.jsx', () => ({
   PlaylistDetailProvider: ({ children }) => <>{children}</>,
   usePlaylistDetail: () => mockUsePlaylistDetail(),
+}));
+
+vi.mock('../../src/contexts/ShareImageContext.jsx', () => ({
+  useShareImage: vi.fn(),
 }));
 
 vi.mock('../../src/components/views/PlaylistDetail/PlaylistHeader.jsx', () => ({
@@ -99,10 +114,28 @@ vi.mock('../../src/musicCatalog.js', () => ({
 }));
 
 import PlaylistDetailView from '../../src/components/views/PlaylistDetailView.jsx';
+import { useShareImage } from '../../src/contexts/ShareImageContext.jsx';
+
+function mockShareImage(overrides = {}) {
+  return {
+    summaryImageStatus: 'idle',
+    setSummaryImageStatus: vi.fn(),
+    summaryImageFile: null,
+    setSummaryImageFile: vi.fn(),
+    summaryImagePreviewUrl: null,
+    setSummaryImagePreviewUrl: vi.fn(),
+    includeSummaryImage: true,
+    setIncludeSummaryImage: vi.fn(),
+    ...overrides,
+  };
+}
 
 beforeEach(() => {
   global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
   global.URL.revokeObjectURL = vi.fn();
+  // Valeur par défaut neutre — les tests qui pilotent le bilan visuel
+  // écrasent explicitement avec leur propre mockReturnValue avant de rendre.
+  useShareImage.mockReturnValue(mockShareImage());
 });
 
 afterEach(() => {
@@ -155,14 +188,6 @@ function baseProps(overrides = {}) {
     theme: mockTheme,
     colorMode: 'light',
     handleShare: vi.fn(),
-    summaryImageStatus: 'idle',
-    setSummaryImageStatus: vi.fn(),
-    summaryImageFile: null,
-    setSummaryImageFile: vi.fn(),
-    summaryImagePreviewUrl: null,
-    setSummaryImagePreviewUrl: vi.fn(),
-    includeSummaryImage: true,
-    setIncludeSummaryImage: vi.fn(),
     toggleTrackFavorite: vi.fn(),
     toggleArtistFavorite: vi.fn(),
     setIsBpmSearchMode: vi.fn(),
@@ -205,7 +230,8 @@ describe('PlaylistDetailView', () => {
     const handleShare = vi.fn();
     const setSummaryImageStatus = vi.fn();
     mockUsePlaylistDetail.mockReturnValue(makeContextValue());
-    render(<PlaylistDetailView {...baseProps({ handleShare, setSummaryImageStatus, summaryImageStatus: 'idle' })} />);
+    useShareImage.mockReturnValue(mockShareImage({ setSummaryImageStatus, summaryImageStatus: 'idle' }));
+    render(<PlaylistDetailView {...baseProps({ handleShare })} />);
 
     fireEvent.click(screen.getByText('trigger-share'));
 
@@ -217,7 +243,8 @@ describe('PlaylistDetailView', () => {
   it('ne relance pas la génération d\'image si déjà "loading" ou "ready"', () => {
     const setSummaryImageStatus = vi.fn();
     mockUsePlaylistDetail.mockReturnValue(makeContextValue());
-    render(<PlaylistDetailView {...baseProps({ setSummaryImageStatus, summaryImageStatus: 'ready' })} />);
+    useShareImage.mockReturnValue(mockShareImage({ setSummaryImageStatus, summaryImageStatus: 'ready' }));
+    render(<PlaylistDetailView {...baseProps()} />);
     // L'effet de reset (currentPlaylist.id) se déclenche AUSSI au tout 1er
     // montage (undefined → l'id réel) — on vide les appels d'abord pour
     // n'observer que ceux causés par le clic ci-dessous, pas celui du montage.
@@ -234,23 +261,23 @@ describe('PlaylistDetailView', () => {
     const setIncludeSummaryImage = vi.fn();
     const setSummaryImagePreviewUrl = vi.fn();
     mockUsePlaylistDetail.mockReturnValue(makeContextValue());
+    useShareImage.mockReturnValue(mockShareImage({
+      setSummaryImageStatus, setSummaryImageFile, setIncludeSummaryImage, setSummaryImagePreviewUrl,
+    }));
     const { rerender } = render(
       <PlaylistDetailView
-        {...baseProps({
-          currentPlaylist: makePlaylist({ id: 'pl1' }),
-          setSummaryImageStatus, setSummaryImageFile, setIncludeSummaryImage, setSummaryImagePreviewUrl,
-        })}
+        {...baseProps({ currentPlaylist: makePlaylist({ id: 'pl1' }) })}
       />
     );
     vi.clearAllMocks();
     global.URL.revokeObjectURL = vi.fn();
+    // `vi.clearAllMocks()` efface les APPELS enregistrés (dont ceux du 1er
+    // montage ci-dessus) mais pas l'implémentation — `useShareImage` renvoie
+    // toujours les MÊMES 4 setters, donc pas besoin de reposer le mock ici.
 
     rerender(
       <PlaylistDetailView
-        {...baseProps({
-          currentPlaylist: makePlaylist({ id: 'pl2' }),
-          setSummaryImageStatus, setSummaryImageFile, setIncludeSummaryImage, setSummaryImagePreviewUrl,
-        })}
+        {...baseProps({ currentPlaylist: makePlaylist({ id: 'pl2' }) })}
       />
     );
 
@@ -384,7 +411,8 @@ describe('PlaylistDetailView — génération d\'image, résolution des pochette
     captureUtils.fetchImageAsDataUri.mockResolvedValue(null); // simule un échec réseau/CORS pour TOUTES les pochettes de ce test
     const setSummaryImageStatus = vi.fn();
     mockUsePlaylistDetail.mockReturnValue(makeContextValue());
-    render(<PlaylistDetailView {...baseProps({ setSummaryImageStatus, summaryImageStatus: 'idle' })} />);
+    useShareImage.mockReturnValue(mockShareImage({ setSummaryImageStatus, summaryImageStatus: 'idle' }));
+    render(<PlaylistDetailView {...baseProps()} />);
 
     fireEvent.click(screen.getByText('trigger-share'));
 
@@ -431,9 +459,10 @@ describe('PlaylistDetailView — course "Partager" / changement de playlist en c
     // immédiate par défaut du mock).
     captureUtils.fetchImageAsDataUri.mockImplementationOnce(() => deferred.promise);
     mockUsePlaylistDetail.mockReturnValue(makeContextValue());
+    useShareImage.mockReturnValue(mockShareImage({ setSummaryImageStatus, summaryImageStatus: 'idle' }));
 
     const { rerender } = render(
-      <PlaylistDetailView {...baseProps({ currentPlaylist: makePlaylist({ id: 'pl1' }), setSummaryImageStatus, summaryImageStatus: 'idle' })} />
+      <PlaylistDetailView {...baseProps({ currentPlaylist: makePlaylist({ id: 'pl1' }) })} />
     );
 
     fireEvent.click(screen.getByText('trigger-share'));
@@ -443,8 +472,10 @@ describe('PlaylistDetailView — course "Partager" / changement de playlist en c
     // "Cloner" (ou toute autre bascule en place, ex. ouvrir un titre du
     // profil d'un autre utilisateur) — currentPlaylist passe de pl1 à pl2
     // SANS démonter ce composant, exactement comme un vrai clonage le fait.
+    // `useShareImage` renvoie toujours le MÊME setSummaryImageStatus — pas
+    // besoin de reposer le mock, seul currentPlaylist change ici.
     rerender(
-      <PlaylistDetailView {...baseProps({ currentPlaylist: makePlaylist({ id: 'pl2' }), setSummaryImageStatus, summaryImageStatus: 'idle' })} />
+      <PlaylistDetailView {...baseProps({ currentPlaylist: makePlaylist({ id: 'pl2' }) })} />
     );
     // Le useEffect de reset (déjà couvert par ailleurs dans ce fichier)
     // s'est déclenché pour pl2 — comportement inchangé, pas la peine de le
@@ -480,9 +511,10 @@ describe('PlaylistDetailView — course "Partager" / changement de playlist en c
     const deferred = createDeferred();
     captureUtils.captureElementAsFile.mockImplementationOnce(() => deferred.promise);
     mockUsePlaylistDetail.mockReturnValue(makeContextValue());
+    useShareImage.mockReturnValue(mockShareImage({ setSummaryImageStatus, setSummaryImageFile, summaryImageStatus: 'idle' }));
 
     const { rerender } = render(
-      <PlaylistDetailView {...baseProps({ currentPlaylist: makePlaylist({ id: 'pl1' }), setSummaryImageStatus, setSummaryImageFile, summaryImageStatus: 'idle' })} />
+      <PlaylistDetailView {...baseProps({ currentPlaylist: makePlaylist({ id: 'pl1' }) })} />
     );
 
     fireEvent.click(screen.getByText('trigger-share'));
@@ -490,7 +522,7 @@ describe('PlaylistDetailView — course "Partager" / changement de playlist en c
     setSummaryImageStatus.mockClear();
 
     rerender(
-      <PlaylistDetailView {...baseProps({ currentPlaylist: makePlaylist({ id: 'pl2' }), setSummaryImageStatus, setSummaryImageFile, summaryImageStatus: 'idle' })} />
+      <PlaylistDetailView {...baseProps({ currentPlaylist: makePlaylist({ id: 'pl2' }) })} />
     );
     setSummaryImageStatus.mockClear();
 
