@@ -154,11 +154,11 @@ describe('TrackItem', () => {
     expect(screen.getByTitle("Verrouillé — impossible de retirer un titre d'une séance déjà réalisée")).toBeInTheDocument();
   });
 
-  it('isSaved=false (pas encore dans "Mes Séances") : pas de bouton de suppression, message dédié', () => {
+  it('isSaved=false (pas encore dans "Mes Playlists") : pas de bouton de suppression, message dédié', () => {
     mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: false }));
     render(<TrackItem {...baseProps({ isLocked: false })} />);
     expect(screen.queryByTitle('Retirer de la proposition')).not.toBeInTheDocument();
-    expect(screen.getByTitle(/Ajoute cette séance à "Mes Séances" pour pouvoir retirer/)).toBeInTheDocument();
+    expect(screen.getByTitle(/Ajoute cette séance à "Mes Playlists" pour pouvoir retirer/)).toBeInTheDocument();
   });
 
   it('menu d\'options : canEditTracks=true propose Dupliquer/Remplacer, clic sur Dupliquer appelle handleDuplicateTrack et referme le menu', () => {
