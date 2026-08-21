@@ -74,12 +74,12 @@ describe('ImportSharedPlaylistModal', () => {
     expect(screen.queryByText(/BPM/)).toBeNull();
   });
 
-  it('le clic sur "Ajouter à Mes Séances" appelle onImport', () => {
+  it('le clic sur "Ajouter à Mes Playlists" appelle onImport', () => {
     const onImport = vi.fn();
     render(
       <ImportSharedPlaylistModal theme={mockTheme} isOpen={true} onClose={() => {}} preview={mockPreview} onImport={onImport} />
     );
-    fireEvent.click(screen.getByRole('button', { name: /Ajouter à Mes Séances/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Ajouter à Mes Playlists/ }));
     expect(onImport).toHaveBeenCalledTimes(1);
   });
 
