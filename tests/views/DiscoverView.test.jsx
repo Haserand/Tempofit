@@ -8,9 +8,16 @@
 // une API externe), le mocker aurait juste dupliqué sa structure sans
 // bénéfice, et un test sur données réelles attrape aussi une régression
 // côté catalogue lui-même (ex. une catégorie soudain vide).
+//
+// ⚠️ RECHERCHE DE PROFILS FUSIONNÉE ICI (20/08, voir la docstring de
+// DiscoverView.jsx) — `mockRpc` ajouté au mock supabase (jusque-là seul
+// `supabase.from` était mocké, `supabase.rpc` aurait planté dès le 1er
+// test touchant l'onglet "Profils"). Fake timers (même pattern que
+// SearchUsersModal.test.jsx, dont la logique de recherche a été reprise
+// à l'identique) pour contrôler le debounce de 350ms.
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, screen, fireEvent, cleanup, within, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, within, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 // Compteur de clonages RÉELS (02/08) — DiscoverView.jsx appelle désormais
@@ -21,8 +28,9 @@ import '@testing-library/jest-dom/vitest';
 // Vercel, qui les a pour la vraie app) ferait un VRAI appel réseau pendant
 // les tests.
 const mockFrom = vi.fn();
+const { mockRpc } = vi.hoisted(() => ({ mockRpc: vi.fn() }));
 vi.mock('../../src/supabaseClient.js', () => ({
-  supabase: { from: (...args) => mockFrom(...args) },
+  supabase: { from: (...args) => mockFrom(...args), rpc: mockRpc },
   isSupabaseConfigured: true,
 }));
 
@@ -50,6 +58,10 @@ afterEach(() => {
 // fonctionnalité.
 beforeEach(() => {
   mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
+  // Repli sûr par défaut (même raisonnement que mockFrom ci-dessus) — sans
+  // lui, tout test qui déclencherait la recherche de profils par accident
+  // planterait sur `undefined` plutôt que de simplement ne rien trouver.
+  mockRpc.mockResolvedValue({ data: [], error: null });
 });
 
 const mockTheme = {
@@ -78,6 +90,7 @@ function baseProps(overrides = {}) {
     user: null,
     openModal: vi.fn(),
     onViewOfficialProfile: vi.fn(),
+    onViewProfile: vi.fn(),
     ...overrides,
   };
 }
@@ -233,26 +246,106 @@ describe('DiscoverView — pare-feu Mode Intime', () => {
   });
 });
 
-describe('DiscoverView — pastille "Profils" (Feature Sociale, 01/08)', () => {
-  it('masquée quand aucun utilisateur n\'est connecté (user=null)', () => {
+// RÉÉCRIT (20/08, voir la docstring de DiscoverView.jsx) — l'ancienne
+// pastille "Profils" (masquée pour un invité, ouvrait SearchUsersModal.jsx)
+// est retirée, remplacée par un onglet "Profils" TOUJOURS visible avec un
+// comportement différent selon `user`. Fake timers SCOPÉS à ce seul bloc
+// (pas globaux, voir le commentaire en tête de fichier) : le test
+// "compteurs de clonage réels" plus bas utilise `waitFor` avec de VRAIS
+// timers, les mélanger casserait ce test-là.
+describe('DiscoverView — onglet "Profils" (recherche de profils intégrée, 20/08)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // Même raisonnement que SearchUsersModal.test.jsx : fait avancer le
+  // debounce de 350ms ET laisse le temps à l'appel RPC (async) de se
+  // résoudre.
+  async function runDebounce() {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
+  }
+
+  it('l\'onglet "Profils" reste VISIBLE et cliquable même sans utilisateur connecté (pas un masquage comme avant)', () => {
     render(<DiscoverView {...baseProps({ user: null })} />);
-    expect(screen.queryByRole('button', { name: /Profils/ })).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Profils' })).toBeInTheDocument();
   });
 
-  it('affichée quand un utilisateur est connecté', () => {
-    render(<DiscoverView {...baseProps({ user: { id: 'u1' } })} />);
-    expect(screen.getByRole('button', { name: /Profils/ })).toBeInTheDocument();
+  it('invité : cliquer sur "Profils" affiche le message incitatif, pas de champ de recherche', () => {
+    render(<DiscoverView {...baseProps({ user: null })} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Profils' }));
+
+    expect(screen.getByText('Rejoins la communauté TempoFit')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Pseudo (ex: alex_runner)')).not.toBeInTheDocument();
+    // La grille de séances ne doit plus être affichée non plus.
+    expect(screen.queryByText(knownTemplate.title)).not.toBeInTheDocument();
   });
 
-  it('le clic appelle openModal(\'SEARCH_USERS\'), jamais onPlayTemplate', () => {
+  it('invité : le CTA du message incitatif appelle openModal(\'AUTH\')', () => {
     const openModal = vi.fn();
-    const onPlayTemplate = vi.fn();
-    render(<DiscoverView {...baseProps({ user: { id: 'u1' }, openModal, onPlayTemplate })} />);
+    render(<DiscoverView {...baseProps({ user: null, openModal })} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Profils' }));
 
-    fireEvent.click(screen.getByRole('button', { name: /Profils/ }));
+    fireEvent.click(screen.getByText('Se connecter / S\'inscrire'));
 
-    expect(openModal).toHaveBeenCalledWith('SEARCH_USERS');
-    expect(onPlayTemplate).not.toHaveBeenCalled();
+    expect(openModal).toHaveBeenCalledWith('AUTH');
+  });
+
+  it('connecté : cliquer sur "Profils" affiche le champ de recherche, pas le message incitatif', () => {
+    render(<DiscoverView {...baseProps({ user: { id: 'u1' } })} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Profils' }));
+
+    expect(screen.getByPlaceholderText('Pseudo (ex: alex_runner)')).toBeInTheDocument();
+    expect(screen.queryByText('Rejoins la communauté TempoFit')).not.toBeInTheDocument();
+  });
+
+  it('connecté : taper 2+ caractères déclenche search_public_profiles après le debounce, affiche les résultats', async () => {
+    mockRpc.mockResolvedValue({ data: [{ username: 'alex_runner', avatar_url: null }], error: null });
+    render(<DiscoverView {...baseProps({ user: { id: 'u1' } })} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Profils' }));
+
+    fireEvent.change(screen.getByPlaceholderText('Pseudo (ex: alex_runner)'), { target: { value: 'alex' } });
+    await runDebounce();
+
+    expect(mockRpc).toHaveBeenCalledWith('search_public_profiles', { search_query: 'alex' });
+    expect(screen.getByText('@alex_runner')).toBeInTheDocument();
+  });
+
+  it('connecté : cliquer sur un résultat appelle onViewProfile(username)', async () => {
+    mockRpc.mockResolvedValue({ data: [{ username: 'alex_runner', avatar_url: null }], error: null });
+    const onViewProfile = vi.fn();
+    render(<DiscoverView {...baseProps({ user: { id: 'u1' }, onViewProfile })} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Profils' }));
+    fireEvent.change(screen.getByPlaceholderText('Pseudo (ex: alex_runner)'), { target: { value: 'alex' } });
+    await runDebounce();
+
+    fireEvent.click(screen.getByText('@alex_runner'));
+
+    expect(onViewProfile).toHaveBeenCalledWith('alex_runner');
+  });
+
+  it('connecté : aucun résultat affiche un message dédié plutôt qu\'une liste vide silencieuse', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null });
+    render(<DiscoverView {...baseProps({ user: { id: 'u1' } })} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Profils' }));
+    fireEvent.change(screen.getByPlaceholderText('Pseudo (ex: alex_runner)'), { target: { value: 'zzzintrouvable' } });
+    await runDebounce();
+
+    expect(screen.getByText(/Aucun profil public trouvé pour "zzzintrouvable"/)).toBeInTheDocument();
+  });
+
+  it('revenir sur l\'onglet "Séances" après avoir visité "Profils" restaure la grille normalement', () => {
+    render(<DiscoverView {...baseProps({ user: { id: 'u1' } })} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Profils' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Séances' }));
+
+    expect(screen.getByText(knownTemplate.title)).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Pseudo (ex: alex_runner)')).not.toBeInTheDocument();
   });
 });
 
