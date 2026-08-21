@@ -146,14 +146,18 @@ export const SIDEBAR_SCROLL_PADDING = 'pt-4 pb-1.5 px-4';
 // centrer. Après la 1re passe, ce padding est descendu à `pt-0` — déjà au
 // minimum atteignable (pas de padding négatif) — donc la SEULE façon de
 // resserrer encore l'espace AU-DESSUS de "Quitter" est de toucher CETTE
-// constante. `pt-[10px]` (haut, 12px→10px, -2px) / `pb-3` (bas, 12px,
-// INCHANGÉ — l'espace après "Découvrir" n'était pas concerné par cette
-// 2e demande, qui ne visait QUE la visibilité de "Découvrir" en haut de
-// la zone, pas l'espace après lui). Contribue de nouveau au recentrage du
-// bouton "Quitter le Mode Intime" (voir Sidebar.jsx, son wrapper
-// `pt-0 pb-2.5` recalculé en même temps que CETTE valeur précise —
-// changer l'une sans l'autre décale à nouveau le bouton).
-export const SIDEBAR_SCROLL_PADDING_COMPACT = 'pt-[10px] pb-3 px-4';
+// constante. `pt-[10px]` (haut, 12px→10px, -2px).
+// ⚠️ BAS RÉDUIT À SON TOUR (même jour, 3e passe, retour direct : "il
+// manque encore quelques pixels" — sans traits précis cette fois) — `pb-3`
+// (12px) → `pb-[10px]` (-2px), l'espace après "Découvrir" avant le pied de
+// page. Seul levier restant qui NE rouvre PAS une décision déjà tranchée :
+// contrairement à SIDEBAR_LINK_PADDING_COMPACT/SIDEBAR_LINK_GAP_COMPACT/
+// SIDEBAR_SECTION_TITLE_MARGIN_COMPACT (juste au-dessus), déjà resserrées
+// puis EXPLICITEMENT desserrées le 29/07 ("trop agressif, tasse trop la
+// navigation") — les retoucher referait remonter ce même problème déjà
+// signalé une fois, donc volontairement laissées de côté cette fois-ci
+// sans consultation préalable.
+export const SIDEBAR_SCROLL_PADDING_COMPACT = 'pt-[10px] pb-[10px] px-4';
 
 // Bouton "Réglages" du pied de page — délibérément DIFFÉRENT des liens de
 // nav ci-dessus (`py-1.5`, pas `py-2.5`) : ce conteneur a une hauteur
