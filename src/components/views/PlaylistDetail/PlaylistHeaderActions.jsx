@@ -3,7 +3,7 @@ import { Save, CheckCircle, Share2, Calendar, Upload, Gauge, X } from 'lucide-re
 /**
  * PlaylistHeaderActions.jsx — rangée d'actions de `PlaylistHeader.jsx` :
  * import CSV (si applicable), action principale (Sauvegarder/cloner ou
- * Ajouter à Mes Séances), Planifier, Partager, badge BPM/Zone. Extrait de
+ * Ajouter à Mes Playlists), Planifier, Partager, badge BPM/Zone. Extrait de
  * `PlaylistHeader.jsx` (chantier découpage, 08/08) — hiérarchie explicite
  * conservée à l'identique : action PRINCIPALE d'abord (pleine, rose),
  * action secondaire (Partager) juste après, badge BPM poussé à droite
@@ -59,7 +59,7 @@ export default function PlaylistHeaderActions({
           Sociale — Consultation/Clonage) : `isSaved` vaut TOUJOURS `false`
           quand `isReadOnly` est vrai, mais le garder en premier ici reste
           plus direct que de compter sur une propriété dérivée, et évite
-          la branche "Ajouter à Mes Séances" habituelle qui garderait à
+          la branche "Ajouter à Mes Playlists" habituelle qui garderait à
           tort le même id que l'original (voir handleClonePlaylist,
           usePlaylistLibrary.js). */}
       {/* Libellés RACCOURCIS (retour direct — "'Sauvegarder' sous-entend
@@ -74,7 +74,7 @@ export default function PlaylistHeaderActions({
       {isReadOnly ? (
         <button
           onClick={handleClonePlaylist}
-          title="Sauvegarde une copie personnelle de cette playlist, modifiable, dans 'Mes Séances'."
+          title="Sauvegarde une copie personnelle de cette playlist, modifiable, dans 'Mes Playlists'."
           className="flex items-center gap-2 px-5 py-2 rounded-lg font-medium text-sm shrink-0 bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20 transition-colors"
         >
           <Save size={16} /> <span>Sauvegarder</span>
@@ -82,7 +82,7 @@ export default function PlaylistHeaderActions({
       ) : isSaved ? null : (
         <button
           onClick={handleSavePlaylist}
-          title="Ajoute cette séance à 'Mes Séances', ton journal de séances (passées et à venir)."
+          title="Ajoute cette séance à 'Mes Playlists', ton journal de séances (passées et à venir)."
           className="flex items-center gap-2 px-5 py-2 rounded-lg font-medium text-sm shrink-0 bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20 transition-colors"
         >
           <Save size={16} /> <span>Ajouter</span>
