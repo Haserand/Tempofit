@@ -69,7 +69,13 @@ describe('sidebarLayout — valeurs stabilisées actuelles (état final après 9
     // autant que pour la précédente passe") — seul le HAUT a bougé (12→10,
     // -2px), le bas reste à 12px (`pb-3`), jamais concerné par cette
     // demande (qui ne visait que la visibilité de "Découvrir" en HAUT).
-    expect(SIDEBAR_SCROLL_PADDING_COMPACT).toBe('pt-[10px] pb-3 px-4');
+    // `pb-3` → `pb-[10px]` (21/08, 3e passe Mode Intime, retour direct :
+    // "il manque encore quelques pixels", sans traits précis cette fois) —
+    // seul levier restant qui ne rouvre pas SIDEBAR_LINK_PADDING_COMPACT/
+    // SIDEBAR_LINK_GAP_COMPACT/SIDEBAR_SECTION_TITLE_MARGIN_COMPACT, déjà
+    // resserrées puis explicitement desserrées le 29/07 ("trop agressif,
+    // tasse trop la navigation") — volontairement laissées de côté.
+    expect(SIDEBAR_SCROLL_PADDING_COMPACT).toBe('pt-[10px] pb-[10px] px-4');
     expect(SIDEBAR_FOOTER_LINK_PADDING).toBe('px-3 py-1.5');
   });
 
