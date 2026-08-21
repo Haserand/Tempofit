@@ -324,6 +324,35 @@ Ordre de priorité retenu (voir aussi les passations pour le détail du raisonne
 
 **Vague 2bis — Futur / à l'étude, PAS confondue avec la Vague 2 ci-dessus** : adaptation dynamique en temps réel à la fréquence cardiaque (ex. "monte le tempo si ma FC dépasse 155, ralentis si je sors de Zone 2"), via connexion Web Bluetooth à un capteur/montre pendant l'effort, avec re-séquençage du flux audio en direct. Axe de différenciation réel (Spotify, application de streaming généraliste, n'a structurellement aucune raison de construire une intégration matérielle aussi spécifique) — mais un chantier d'ingénierie d'un tout autre ordre que le point 2 ci-dessus (gestion des déconnexions Bluetooth en pleine course, re-séquençage sans coupure audio, pas juste une comparaison a posteriori). À ne surtout pas sous-estimer en la fondant dans la Vague 2 "légère" — étiquetée à part exprès pour ça.
 
+## Décidé mais pas encore construit — futur champ `profile.bio` éditable
+
+Retour direct (21/08) : l'utilisateur veut, un jour, permettre à CHAQUE
+utilisateur de se poser une courte phrase de description sur son profil
+public (une vraie "bio", comme un réseau social classique) — pas construit
+pour l'instant (aucun champ `bio` dans `get_public_profile_summary`,
+supabase-schema.sql, ni dans le formulaire de `SettingsView.jsx`).
+
+En attendant, la carte d'en-tête de `ProfileView.jsx` affiche déjà cette
+mise en forme précise — mais SEULEMENT pour `@tempofit_officiel` (voir
+"Profil vitrine" plus haut), texte câblé en dur dans
+`officialVitrineProfile.js`. Décision explicite : le compte vitrine sert de
+banc d'essai visuel pour ce futur champ, AVANT que la vraie fonctionnalité
+existe — 2 essais de mise en forme rejetés avant d'arriver à la bonne
+(bandeau séparé façon alerte, puis ligne repliée dans la carte mais encore
+traitée comme une notice système avec icône/texte muted/séparateur) : ce
+qui restait attendu depuis le début était un vrai encart façon bio, texte
+`textHighlight` (blanc en mode sombre — `--color-main: 255 255 255`,
+`src/index.css`) plutôt que `textMuted`, sans icône ni séparateur — pour
+qu'il se lise comme un compte qui se présente, pas comme un avertissement
+de l'appli.
+
+Quand ce chantier démarrera pour de vrai : reprendre EXACTEMENT ce style
+(`<p className="text-sm mt-3 ${textHighlight}">`, sans bordure ni icône)
+pour le vrai champ `profile.bio`, conditionné sur sa présence plutôt que
+sur `isOfficialVitrine` — et retirer alors le texte en dur de
+`officialVitrineProfile.js` au profit d'une vraie valeur (ou continuer de
+lui donner une bio écrite à la main, cohérente avec son rôle de vitrine).
+
 ## Tests
 
 - `tests/` en miroir de `src/` (`views/`, `modals/`, `shared/`, `contexts/`, `hooks/`, `engine/`, `utils/`, `config/`, `data/`).
