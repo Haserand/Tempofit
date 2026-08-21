@@ -13,7 +13,7 @@ import { isTargetValueValid, areSegmentsValid } from '../../utils/targetValidati
  * recul, j'imagine la partie routines comme un onglet spécifique du menu
  * séance, comme sur un profil utilisateur") : "Mes Routines" n'est plus une
  * entrée de menu séparée dans la Sidebar — c'est maintenant un ONGLET de
- * "Mes Séances" (`PlaylistsView.jsx`), exactement le même schéma que
+ * "Mes Playlists" (`PlaylistsView.jsx`), exactement le même schéma que
  * l'onglet Playlists/Routines déjà en place sur `ProfileView.jsx` (visite
  * du profil de QUELQU'UN D'AUTRE) — visiter SON PROPRE espace suit
  * désormais la même logique que visiter celui d'un autre. Ce fichier ne
@@ -236,7 +236,7 @@ export default function RoutinesView({
               {routineTargetInvalid && (
                 <p className="text-xs font-bold text-red-500 mb-2">
                   {routine.isIntervalMode
-                    ? <>Portion(s) invalide(s) (BPM ou {routine.targetMode === 'distance' ? 'distance' : 'durée'} à 0) — recrée cette routine via "Nouvelle séance" pour corriger les portions.</>
+                    ? <>Portion(s) invalide(s) (BPM ou {routine.targetMode === 'distance' ? 'distance' : 'durée'} à 0) — recrée cette routine via "Nouvelle Playlist" pour corriger les portions.</>
                     : <>{routine.targetMode === 'distance' ? 'Distance invalide (0 ou vide)' : 'Durée invalide (0 ou vide)'} — corrige-la via <Edit3 size={11} className="inline align-text-bottom" /> avant de générer.</>}
                 </p>
               )}
