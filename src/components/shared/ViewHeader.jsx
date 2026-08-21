@@ -1,11 +1,11 @@
 /**
  * ViewHeader — en-tête standard de TOUTE vue de premier niveau (celles
- * listées dans la Sidebar : Nouvelle séance, Mes Séances, Découvrir, Mes
+ * listées dans la Sidebar : Nouvelle Playlist, Mes Playlists, Découvrir, Mes
  * Favoris, Statistiques, Trophées, Options & Comptes...).
  *
  * ⚠️ "Mes Routines" RETIRÉE de cette liste (20/08, fusion en onglet — voir
  * PlaylistsView.jsx) : ce n'est plus une vue de premier niveau distincte
- * listée dans la Sidebar, c'est devenue le 2e onglet de "Mes Séances" —
+ * listée dans la Sidebar, c'est devenue le 2e onglet de "Mes Playlists" —
  * mais elle utilise TOUJOURS ce même `<ViewHeader/>` (titre/sous-titre/
  * icône changent selon l'onglet actif, une seule instance de ce composant
  * montée par PlaylistsView.jsx pour les 2 onglets, pas une par onglet).
