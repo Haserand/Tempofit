@@ -356,42 +356,24 @@ function AppContent({
     }
   };
 
-  // Bascule "vue détaillée" de la page Statistiques — voir plus bas. Volontairement
-  // hors du bloc `view === 'stats' && (() => {...})()` : ce bloc ne s'exécute que
-  // quand cette vue est active, donc un `useState` dedans violerait les règles des
-  // Hooks (appelés dans un ordre non garanti d'un rendu à l'autre).
-  const [showAdvancedStats, setShowAdvancedStats] = useState(false);
-  // Panneau "Mon Profil Athlétique" (GeneratorView) — remonté ici (pas un
-  // simple useState local à GeneratorView) pour que le sous-menu "Mon Profil
-  // Athlétique" de la sidebar (entre "Générer" et "Mes Routines", retour
-  // direct : "j'imaginais ça en sous-menu de Générer dans le menu") puisse à
-  // la fois naviguer vers Générer ET déplier directement ce panneau en un
-  // seul clic, plutôt que d'atterrir sur Générer avec le panneau encore
-  // replié.
-  // MIGRÉ VERS le composant racine `App` — même raison que isNaughtyMode
-  // ci-dessus (nécessaire à <GeneratorProvider> avant le montage de ce composant).
-  // 'standard' | 'naughty' — quelles playlists nourrissent la page Statistiques.
-  // Séparé plutôt que mélangé (voir la discussion) : le Mode Intime est déjà
-  // traité avec discrétion ailleurs dans l'app (noms différents, pas de mélange
-  // visuel) — les stats par défaut n'incluent DONC JAMAIS les séances Intime,
-  // uniquement sur bascule explicite. Un seul pipeline de calcul/rendu pour les
-  // deux (voir playlistsForStats plus bas), pas 2 pages dupliquées à maintenir.
-  const [statsMode, setStatsMode] = useState('standard');
-  // Genre/tranche BPM actuellement "ouvert(s)" dans les donuts de la page
-  // Statistiques (clic sur une part = aperçu ciblé dessous) — voir plus bas
-  // pour le détail. RETOUR DIRECT ("faut pouvoir sélectionner plusieurs
-  // zones graphiques à la fois, pareil partout où y a les camemberts") :
-  // `Set` plutôt qu'une valeur unique, même changement que
-  // PlaylistDetailView.jsx (selectedDetailGenre/selectedDetailBpmBucket) —
-  // plusieurs parts du MÊME camembert sélectionnables ensemble.
-  const [selectedStatsGenre, setSelectedStatsGenre] = useState(() => new Set());
-  const [selectedStatsBpmBucket, setSelectedStatsBpmBucket] = useState(() => new Set());
-  // Ligne actuellement dépliée dans les tables de la vue détaillée (genre ou
-  // artiste) — voir plus bas. Contrairement au zoom léger de la vue simple
-  // (plafonné à 3), ici la liste dépliée est COMPLÈTE, cohérent avec le principe
-  // déjà établi pour cette vue ("aucun seuil caché pour gonfler un classement pauvre").
-  const [expandedDetailGenre, setExpandedDetailGenre] = useState(null);
-  const [expandedDetailArtist, setExpandedDetailArtist] = useState(null);
+  // ⚠️ CLUSTER STATSVIEW DÉPLACÉ (20/08, découpage App.jsx — chantier différé
+  // depuis le 10/08, repris une fois la refonte de navigation stabilisée,
+  // voir README) — `showAdvancedStats`/`statsMode`/`selectedStatsGenre`/
+  // `selectedStatsBpmBucket`/`expandedDetailGenre`/`expandedDetailArtist`
+  // vivaient ICI pour une raison devenue OBSOLÈTE : à l'époque,
+  // `StatsView` était rendue en IIFE directement DANS le JSX d'AppContent
+  // (`view === 'stats' && (() => {...})()`), un `useState` à l'intérieur
+  // aurait violé les règles des Hooks (appelés dans un ordre non garanti
+  // d'un rendu à l'autre). Depuis l'extraction de `StatsView.jsx` en VRAI
+  // composant séparé, cette contrainte ne s'applique plus — elle utilise
+  // déjà `useState` localement pour d'autres états (`statsChartMode`,
+  // `receivedCloneCount`...), voir sa docstring. Les 6 déplacés là-bas.
+  // ⚠️ CHANGEMENT DE COMPORTEMENT (assumé, pas caché) : ce state ne
+  // PERSISTE plus en naviguant hors de "Mes Statistiques" puis en y
+  // revenant (ex. un genre déplié dans la vue détaillée se replie).
+  // Aucun commentaire ici n'affirmait que cette persistance était
+  // volontaire — juste un effet de bord de la contrainte technique
+  // ci-dessus, jamais corrigé après coup.
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Dropdown utilisateur (Feature UI, 28/07, "Header — menu déroulant avatar")
@@ -1993,12 +1975,6 @@ function AppContent({
                 getProfileForWorkoutOrDefault={getProfileForWorkoutOrDefault}
                 shareImageFile={shareImageFileWithTrophy} showToast={showToast}
                 isNaughtyMode={isNaughtyMode}
-                statsMode={statsMode} setStatsMode={setStatsMode}
-                selectedStatsGenre={selectedStatsGenre} setSelectedStatsGenre={setSelectedStatsGenre}
-                selectedStatsBpmBucket={selectedStatsBpmBucket} setSelectedStatsBpmBucket={setSelectedStatsBpmBucket}
-                showAdvancedStats={showAdvancedStats} setShowAdvancedStats={setShowAdvancedStats}
-                expandedDetailGenre={expandedDetailGenre} setExpandedDetailGenre={setExpandedDetailGenre}
-                expandedDetailArtist={expandedDetailArtist} setExpandedDetailArtist={setExpandedDetailArtist}
                 user={user} username={username} profilePrivacy={profilePrivacy}
                 onViewOwnProfile={() => handleViewProfile(username)}
                 onManageProfilePrivacy={() => handleOpenSettings('account')}
