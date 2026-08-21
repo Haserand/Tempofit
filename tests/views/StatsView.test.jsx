@@ -14,6 +14,18 @@
 // (export d'image), jamais déclenchés par les tests ci-dessous, mockés
 // uniquement pour éviter tout risque de crash sans rapport avec la
 // fonctionnalité testée (html2canvas, canvas non fiable sous jsdom).
+//
+// ⚠️ RAPATRIEMENT (20/08, découpage App.jsx — voir la docstring de
+// StatsView.jsx) — `statsMode`/`selectedStatsGenre`/`selectedStatsBpmBucket`/
+// `showAdvancedStats`/`expandedDetailGenre`/`expandedDetailArtist` sont
+// passés en PROPS que dans `baseProps({...overrides})` : ce ne sont PLUS
+// de vraies props lues par le composant (`useState` interne désormais).
+// `statsMode` en particulier ne se pilote plus DIRECTEMENT — il suit
+// `isNaughtyMode` (toujours une vraie prop) via un effet interne au
+// montage/à chaque changement. Les 2 tests qui en dépendaient ("re-fetch
+// quand statsMode change", "en Mode Intime") ont été réécrits pour piloter
+// `isNaughtyMode` à la place, plutôt que de tenter (en vain) de forcer
+// `statsMode` directement.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react';
@@ -90,13 +102,6 @@ function baseProps(overrides = {}) {
     shareImageFile: vi.fn(),
     showToast: vi.fn(),
     isNaughtyMode: false,
-    statsMode: 'standard',
-    setStatsMode: vi.fn(),
-    selectedStatsGenre: new Set(), setSelectedStatsGenre: vi.fn(),
-    selectedStatsBpmBucket: new Set(), setSelectedStatsBpmBucket: vi.fn(),
-    showAdvancedStats: false, setShowAdvancedStats: vi.fn(),
-    expandedDetailGenre: null, setExpandedDetailGenre: vi.fn(),
-    expandedDetailArtist: null, setExpandedDetailArtist: vi.fn(),
     user: { id: 'user-abc' },
     ...overrides,
   };
@@ -117,7 +122,7 @@ function makeQueryBuilder(resolvedValue) {
 describe('StatsView — clonages reçus', () => {
   it('interroge playlists ET routines avec user_id/is_public/is_intimate corrects (mode Sport)', async () => {
     mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
-    render(<StatsView {...baseProps({ statsMode: 'standard' })} />);
+    render(<StatsView {...baseProps()} />);
 
     await waitFor(() => expect(mockFrom).toHaveBeenCalledWith('playlists'));
     expect(mockFrom).toHaveBeenCalledWith('routines');
@@ -155,13 +160,18 @@ describe('StatsView — clonages reçus', () => {
     expect(screen.queryByText('Clonages reçus sur tes playlists/routines publiques')).not.toBeInTheDocument();
   });
 
-  it('re-fetch quand statsMode change (Sport → Intime), avec is_intimate ajusté', async () => {
+  // RÉÉCRIT (20/08, voir la note en tête de fichier) — `statsMode` ne se
+  // pilote plus directement par prop : on pilote `isNaughtyMode` (la vraie
+  // prop), qui déclenche l'effet interne de synchronisation de
+  // `statsMode` au montage/à chaque changement — même résultat final
+  // ("Sport → Intime"), par le VRAI mécanisme désormais.
+  it('re-fetch quand isNaughtyMode change (Sport → Intime), avec is_intimate ajusté', async () => {
     mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
-    const { rerender } = render(<StatsView {...baseProps({ statsMode: 'standard' })} />);
+    const { rerender } = render(<StatsView {...baseProps({ isNaughtyMode: false })} />);
     await waitFor(() => expect(mockFrom).toHaveBeenCalled());
     mockFrom.mockClear();
 
-    rerender(<StatsView {...baseProps({ statsMode: 'naughty' })} />);
+    rerender(<StatsView {...baseProps({ isNaughtyMode: true })} />);
     await waitFor(() => expect(mockFrom).toHaveBeenCalledWith('playlists'));
   });
 });
@@ -224,10 +234,14 @@ describe('StatsView — vue publique du profil', () => {
   // Jamais en Mode Intime (03/08, discussion : "le mauvais endroit pour ce
   // rappel, pas le bon message au bon moment") — même si le profil est
   // déjà public.
-  it('en Mode Intime (statsMode="naughty") : le bloc reste absent, même profil public', async () => {
+  // RÉÉCRIT (20/08, voir la note en tête de fichier) — `isNaughtyMode`
+  // piloté directement plutôt que `statsMode` (même raisonnement que le
+  // test "re-fetch" plus haut : l'effet interne synchronise `statsMode`
+  // dessus au montage).
+  it('en Mode Intime (isNaughtyMode=true) : le bloc reste absent, même profil public', async () => {
     mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
     render(<StatsView {...baseProps({
-      statsMode: 'naughty', username: 'alex', profilePrivacy: { isProfilePublic: true },
+      isNaughtyMode: true, username: 'alex', profilePrivacy: { isProfilePublic: true },
     })} />);
 
     await waitFor(() => expect(mockFrom).toHaveBeenCalled());
