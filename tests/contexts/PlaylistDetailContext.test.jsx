@@ -38,8 +38,9 @@
 // `resolveAndPlay`/`resolvingTrackId`), pas la totalité de ce que ces
 // contextes exposent ailleurs dans l'app.
 
+import { useState } from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 vi.mock('../../src/contexts/AthleticContext.jsx', () => ({
@@ -404,7 +405,14 @@ describe('PlaylistDetailContext — course "Remplacer un titre" / changement de 
     fireEvent.click(screen.getByText('trigger-replace'));
     await waitFor(() => expect(setCurrentPlaylist).toHaveBeenCalled());
 
-    const updated = setCurrentPlaylist.mock.calls[0][0];
+    // ⚠️ setCurrentPlaylist reçoit désormais une FONCTION de mise à jour
+    // (`prev => ...`, correctif de course du 20/08 — voir la docstring
+    // d'applyPlaylistUpdate) et non plus l'objet playlist directement. Le
+    // mock ici (`vi.fn()`) n'exécute rien tout seul — on invoque la
+    // fonction nous-mêmes avec `playlistA` comme `prev`, exactement ce que
+    // React ferait avec le VRAI state.
+    const updater = setCurrentPlaylist.mock.calls[0][0];
+    const updated = typeof updater === 'function' ? updater(playlistA) : updater;
     expect(updated.tracks[0].title).toBe('Nouveau titre');
     expect(showToast).toHaveBeenCalledWith('🎵 Titre remplacé et durée ajustée !');
   });
@@ -459,5 +467,132 @@ describe('PlaylistDetailContext — course "Remplacer un titre" / changement de 
 
     expect(setCurrentPlaylist).not.toHaveBeenCalled();
     expect(setSavedPlaylists).not.toHaveBeenCalled();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// RÉGRESSION (20/08) — "écritures concurrentes de MÊME TYPE sur la MÊME
+// playlist", limite connue et NON corrigée depuis le check-up du 10/08
+// (voir README, "Limite connue, non traitée"). Les tests ci-dessus
+// vérifient le changement de PLAYLIST pendant une recherche — celui-ci
+// vérifie le cas resté ouvert : 2 titres DIFFÉRENTS de la MÊME playlist,
+// remplacés coup sur coup sans attendre le premier.
+//
+// Du VRAI state React ici (`useState`, pas des `vi.fn()` inertes comme les
+// tests ci-dessus) — nécessaire pour vérifier le comportement RÉEL de 2
+// mises à jour fonctionnelles enchaînées (`setCurrentPlaylist(prev => ...)`)
+// plutôt qu'une simulation manuelle qui pourrait diverger de ce que React
+// fait vraiment.
+function RaceProbe() {
+  const { handleReplaceTrack, currentPlaylist } = usePlaylistDetail();
+  return (
+    <div>
+      <button onClick={() => handleReplaceTrack(0)}>trigger-replace-0</button>
+      <button onClick={() => handleReplaceTrack(1)}>trigger-replace-1</button>
+      <div data-testid="tracks">{currentPlaylist?.tracks.map(t => t.title).join(',')}</div>
+    </div>
+  );
+}
+
+function RealStateWrapper({ initialPlaylist }) {
+  const [currentPlaylist, setCurrentPlaylist] = useState(initialPlaylist);
+  const [savedPlaylists, setSavedPlaylists] = useState([initialPlaylist]);
+  return (
+    <PlaylistDetailProvider
+      currentPlaylist={currentPlaylist} setCurrentPlaylist={setCurrentPlaylist}
+      savedPlaylists={savedPlaylists} setSavedPlaylists={setSavedPlaylists}
+      favorites={{ tracks: [], artists: [] }} spotifyTrackPool={[]}
+      userStats={{ replacedTracks: 0 }} checkTrophies={vi.fn()}
+      showToast={vi.fn()} requestRemoveSavedPlaylist={vi.fn()}
+      handleSavePlaylist={vi.fn()} handleClonePlaylist={vi.fn()}
+      currentActualData={null} selectedMetric="heartRate" setSelectedMetric={vi.fn()}
+      dataOffset={0} setDataOffset={vi.fn()}
+      selectedAnalysisDate={null} setSelectedAnalysisDate={vi.fn()} availableMetrics={[]}
+    >
+      <RaceProbe />
+    </PlaylistDetailProvider>
+  );
+}
+
+describe('PlaylistDetailContext — course "2 titres différents de la MÊME playlist" (régression 20/08, README)', () => {
+  it('BUG CORRIGÉ : 2 "Remplacer" lancés coup sur coup sur 2 titres différents — aucun des deux n\'est perdu', async () => {
+    const deferredA = createDeferred();
+    const deferredB = createDeferred();
+    mockGetSingleMatchingTrack
+      .mockImplementationOnce(() => deferredA.promise)
+      .mockImplementationOnce(() => deferredB.promise);
+
+    const initialPlaylist = makePlaylist({
+      id: 'plRace',
+      tracks: [
+        makeReplaceableTrack({ id: 't1', title: 'Titre A' }),
+        makeReplaceableTrack({ id: 't2', title: 'Titre B' }),
+      ],
+    });
+
+    render(<RealStateWrapper initialPlaylist={initialPlaylist} />);
+
+    // Clic sur "Remplacer" du titre A (index 0) — recherche réseau lancée,
+    // PAS encore résolue.
+    fireEvent.click(screen.getByText('trigger-replace-0'));
+    // AVANT que ça ne réponde, clic sur "Remplacer" du titre B (index 1) —
+    // exactement le scénario du README ("cliquer 'Remplacer' sur deux
+    // titres différents de la même playlist coup sur coup").
+    fireEvent.click(screen.getByText('trigger-replace-1'));
+
+    // La recherche de A se résout EN PREMIER.
+    await act(async () => {
+      deferredA.resolve({ title: 'Nouveau A', artist: 'Artiste A', genre: 'Rock', bpm: 145, duration: 210, trackId: 'deezer-A', preview: null });
+      await deferredA.promise;
+    });
+    // PUIS celle de B.
+    await act(async () => {
+      deferredB.resolve({ title: 'Nouveau B', artist: 'Artiste B', genre: 'Rock', bpm: 150, duration: 220, trackId: 'deezer-B', preview: null });
+      await deferredB.promise;
+    });
+
+    // AVANT LE CORRECTIF : le remplacement de A aurait été perdu — la mise
+    // à jour de B, bâtie sur `currentPlaylist.tracks` capturé dans SA
+    // PROPRE fermeture (au moment de SON clic, donc AVANT que A n'ait
+    // écrit sa propre mise à jour), écrasait silencieusement le
+    // remplacement de A en réappliquant l'ancien tableau par-dessus.
+    const tracksText = screen.getByTestId('tracks').textContent;
+    expect(tracksText).toContain('Nouveau A');
+    expect(tracksText).toContain('Nouveau B');
+  });
+
+  it('même scénario mais B se résout AVANT A (ordre inverse) — toujours aucune perte', async () => {
+    const deferredA = createDeferred();
+    const deferredB = createDeferred();
+    mockGetSingleMatchingTrack
+      .mockImplementationOnce(() => deferredA.promise)
+      .mockImplementationOnce(() => deferredB.promise);
+
+    const initialPlaylist = makePlaylist({
+      id: 'plRace2',
+      tracks: [
+        makeReplaceableTrack({ id: 't1', title: 'Titre A' }),
+        makeReplaceableTrack({ id: 't2', title: 'Titre B' }),
+      ],
+    });
+
+    render(<RealStateWrapper initialPlaylist={initialPlaylist} />);
+
+    fireEvent.click(screen.getByText('trigger-replace-0'));
+    fireEvent.click(screen.getByText('trigger-replace-1'));
+
+    // Ordre INVERSÉ cette fois — B se résout en premier.
+    await act(async () => {
+      deferredB.resolve({ title: 'Nouveau B', artist: 'Artiste B', genre: 'Rock', bpm: 150, duration: 220, trackId: 'deezer-B', preview: null });
+      await deferredB.promise;
+    });
+    await act(async () => {
+      deferredA.resolve({ title: 'Nouveau A', artist: 'Artiste A', genre: 'Rock', bpm: 145, duration: 210, trackId: 'deezer-A', preview: null });
+      await deferredA.promise;
+    });
+
+    const tracksText = screen.getByTestId('tracks').textContent;
+    expect(tracksText).toContain('Nouveau A');
+    expect(tracksText).toContain('Nouveau B');
   });
 });
