@@ -296,6 +296,18 @@ avant).
   existant plus bas utilise `waitFor` avec de vrais timers pour le
   compteur de clonages, les mélanger l'aurait cassé).
 
+### 20/08 (suite 6) — écritures concurrentes corrigées (chantier différé depuis le 10/08)
+
+"Les modifs de navigation auxquelles je pensais" jugées faites — chantier
+lancé volontairement APRÈS elles, comme annoncé le 10/08. Voir la
+section dédiée plus bas ("Corrigé (20/08)", anciennement "Limite connue,
+non traitée") pour le détail technique complet du correctif
+(`applyPlaylistUpdate`, recherche par ID stable). Chantier de découpage
+d'`App.jsx` — l'autre moitié de ce qui était différé au même titre —
+PAS entrepris dans la foulée : plus gros, plus risqué, volontairement
+laissé pour une session séparée plutôt que d'enchaîner deux chantiers
+structurels d'affilée.
+
 ### Historique détaillé (13-14/08) — archivé dans `HISTORIQUE.md`, bloc 4
 
 Récit chronologique complet déplacé le 14/08 (4e élagage — la session la
@@ -551,15 +563,47 @@ Ordre de priorité retenu (voir aussi les passations pour le détail du raisonne
 - **Approche retenue à la place** : laisser `App.jsx` tel quel pour l'instant, mais écrire la refonte de la navigation ET toute nouvelle fonctionnalité directement dans leur PROPRE hook/context dédié, plutôt que comme des `useState` de plus ajoutés dans `AppContent`. Le découpage se fait ainsi organiquement, au fil de l'eau, sans gros chantier de refactoring risqué à un instant T — et une fois la navigation isolée, ce qui reste dans `App.jsx` sera plus facile à lire pour identifier les bonnes frontières pour la suite.
 - **À reprendre** : une fois la refonte de navigation stabilisée (et si le rythme des nouvelles fonctionnalités ralentit), revisiter le découpage du reste d'`App.jsx` — évaluer alors ce qui reste vraiment à extraire, plutôt que de refaire ce raisonnement depuis zéro.
 
-## Limite connue, non traitée — écritures concurrentes de MÊME TYPE sur la MÊME playlist
+## Corrigé (20/08) — anciennement "Limite connue, non traitée : écritures concurrentes de MÊME TYPE sur la MÊME playlist"
 
-**Constat (check-up 10/08)**, pas un chantier ouvert à trancher. Les 5 correctifs de course du 10/08 (`currentPlaylistIdRef`/`savedPlaylistsRef`/`routinesRef`/`userStatsRef`, voir "État d'avancement" plus haut) protègent contre une ANCIENNE fermeture asynchrone qui écrase un changement survenu APRÈS elle (playlist différente, action différente). Ils ne protègent PAS contre deux actions du MÊME type, sur la MÊME playlist, lancées à quelques secondes d'écart sans attendre la première (ex. cliquer "Remplacer" sur deux titres différents de la même playlist coup sur coup) — dans ce cas, "le dernier qui écrit gagne" : un des deux remplacements peut être perdu. Pas de risque de suppression/perte d'une AUTRE playlist (contrairement aux bugs corrigés), juste un remplacement à refaire.
+**Constat d'origine (check-up 10/08)** : les 5 correctifs de course du 10/08
+(`currentPlaylistIdRef`/`savedPlaylistsRef`/`routinesRef`/`userStatsRef`,
+voir "État d'avancement" plus haut) protègent contre une ANCIENNE fermeture
+asynchrone qui écrase un changement survenu APRÈS elle (playlist
+différente, action différente). Ils ne protégeaient PAS contre deux
+actions du MÊME type, sur la MÊME playlist, lancées à quelques secondes
+d'écart sans attendre la première (ex. cliquer "Remplacer" sur deux titres
+différents de la même playlist coup sur coup) — "le dernier qui écrit
+gagne" pouvait perdre un des deux remplacements.
 
-Pas corrigé pour deux raisons :
-- **Fenêtre de déclenchement étroite** — geste délibérément inhabituel (deux clics rapprochés sur la même playlist), pas un enchaînement d'actions normal comme "Partager puis naviguer ailleurs".
-- **Un simple remplacement mécanique `setXxx(x...)` → `setXxx(prev => ...)` ne suffirait pas** à le régler correctement : `prev =>` protège la référence du TABLEAU (`savedPlaylists`), pas l'objet PLAYLIST à l'intérieur — `newTracks` est construit à partir de `currentPlaylist.tracks` capturé au clic, pas relu depuis `prev`. Une vraie correction demanderait de retrouver la playlist cible À L'INTÉRIEUR du `prev =>` plutôt que de se fier à un snapshot capturé au clic — un chantier à part entière sur COMMENT ces hooks lisent/écrivent leur état, pas une syntaxe à changer partout.
+**Repoussé le 10/08** pour deux raisons, toutes deux devenues obsolètes le
+20/08 :
+- Fenêtre de déclenchement étroite (reste vrai, mais plus un obstacle).
+- Un simple `setXxx(x...)` → `setXxx(prev => ...)` n'aurait pas suffi :
+  `prev =>` protège la référence du TABLEAU (`savedPlaylists`), pas
+  l'objet PLAYLIST à l'intérieur — corriger correctement demandait de
+  retrouver la playlist cible À L'INTÉRIEUR du `prev =>`, pas juste
+  ajouter une flèche partout.
 
-**À reprendre** : plutôt en même temps que la refonte de navigation que si isolément — même question de fond ("comment ces hooks lisent et écrivent leur état").
+**Corrigé le 20/08** (`PlaylistDetailContext.jsx`, `applyPlaylistUpdate`)
+— repoussé jusqu'ici volontairement "en même temps que la refonte de
+navigation" (même question de fond, "comment ces hooks lisent et écrivent
+leur état"), lancé une fois cette dernière stabilisée. `applyPlaylistUpdate`
+accepte maintenant une fonction de TRANSFORMATION
+(`prevTracks => newTracks`) plutôt qu'un tableau déjà construit,
+appliquée à l'intérieur de `setCurrentPlaylist(prev => ...)` — toujours
+sur le tableau le plus FRAIS au moment où React traite réellement la mise
+à jour. Les 2 fonctions async (`handleReplaceTrack`/
+`handleReplaceTrackSameArtist`) retrouvent en plus le titre à remplacer
+par son ID STABLE (pas sa position brute) dans ce tableau frais — ferme
+aussi, en prime, les cas croisés (un remplacement qui résout après un
+retrait/une duplication concurrents sur un index différent). Les 3
+mutations synchrones (`handleRemoveTrack`/`handleDuplicateTrack`/
+`moveTrackTo`) routées par la même API pour rester cohérentes, même si
+elles n'en avaient pas strictement besoin entre elles (JS mono-thread,
+aucune interruption possible entre 2 clics synchrones). 2 tests de
+régression ajoutés avec du VRAI state React (`useState`, pas des mocks
+inertes) — 2 remplacements concurrents sur 2 titres différents, dans les
+2 ordres de résolution possibles, aucun perdu dans les deux cas.
 
 
 
