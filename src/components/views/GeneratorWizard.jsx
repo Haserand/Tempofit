@@ -1195,7 +1195,7 @@ export default function GeneratorWizard({
               // style DIFFÉRENT (icône `Gauge`, pas de soulignement par
               // défaut) de la convention déjà en place ailleurs dans l'app
               // pour ce type de lien ("Synchroniser mes comptes →" dans
-              // FavoritesView.jsx, "Aller à Mes Séances →"/"Voir l'aperçu de
+              // FavoritesView.jsx, "Aller à Mes Playlists →"/"Voir l'aperçu de
               // mon profil public →"/"Gérer ma visibilité →"/"Configurer mon
               // Profil Athlétique →" dans StatsView.jsx) — toutes en
               // `font-bold underline`, AUCUNE icône. Icône retirée,
