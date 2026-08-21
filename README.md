@@ -358,6 +358,44 @@ sur `isOfficialVitrine` — et retirer alors le texte en dur de
 `officialVitrineProfile.js` au profit d'une vraie valeur (ou continuer de
 lui donner une bio écrite à la main, cohérente avec son rôle de vitrine).
 
+## Composant partagé `TabPills.jsx` (21/08) — standardisation des onglets
+
+Retour direct : "pourquoi c'est pas le même modèle pour Routines et pour
+Réglages ?" — trouvé que `SettingsView.jsx` avait dérivé vers un style
+soulignement (`border-b-2`) pendant ~3 semaines (28/07 → 21/08) sans que
+personne ne s'en aperçoive, faute d'un point d'entrée commun entre les
+vues. En creusant pour répondre à "ça vaut le coup de standardiser ?",
+2e dérive trouvée : `TrophiesView.jsx` utilisait un style "contrôle
+segmenté" (fond `bg-surface-hover rounded-xl p-1`, boutons `rounded-lg`+
+`shadow-xs`), visuellement proche mais structurellement différent du style
+plat (`flex gap-1`, pas de fond) déjà majoritaire ailleurs (4 vues contre
+1 — `PlaylistsView.jsx`/`ProfileView.jsx`/`DiscoverView.jsx` +
+`SettingsView.jsx` une fois réaligné).
+
+**Extrait en `src/components/shared/TabPills.jsx`** — composant contrôlé
+(aucun state interne, `activeTab`/`onChange` pilotés par le parent), style
+plat retenu (majoritaire), migré dans les 5 vues :
+`PlaylistsView.jsx`/`ProfileView.jsx`/`DiscoverView.jsx`/
+`SettingsView.jsx`/`TrophiesView.jsx`. `TrophiesView.jsx` perd son fond/
+ombre au profit de la cohérence — vrai changement visuel assumé, pas un
+simple refactor interne. `label` accepte un `ReactNode` (pas seulement une
+chaîne) — couvre déjà tous les cas réels (compteur en opacité réduite,
+icône `Lock`+texte) sans props dédiées `count`/`icon` : chaque appelant
+compose son propre label, le composant se contente de le rendre.
+
+Masquage conditionnel d'onglets (ex. `SettingsView.jsx` : "Profil
+Athlétique" caché en Mode Intime, "Mon Compte" caché sans connexion) géré
+par `.filter(Boolean)` sur le tableau `tabs` AVANT de le passer au
+composant — `TabPills.jsx` ne connaît jamais la logique de masquage
+elle-même, juste la liste finale à afficher.
+
+Aucun test existant cassé (vérifié un par un) — tous ciblaient déjà le
+texte affiché ou `role="tab"`/`aria-selected` plutôt que les classes CSS
+brutes, robustes à ce refactor par construction. 1er fichier de test pour
+`TabPills.jsx` lui-même (`tests/shared/TabPills.test.jsx`, 7 tests) —
+rendu de base, `aria-selected`, clic → `onChange`, composant bien contrôlé
+(aucun state interne), labels `ReactNode`.
+
 ## Tests
 
 - `tests/` en miroir de `src/` (`views/`, `modals/`, `shared/`, `contexts/`, `hooks/`, `engine/`, `utils/`, `config/`, `data/`).
