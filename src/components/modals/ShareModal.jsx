@@ -1,5 +1,6 @@
 import { X, Share2, MessageCircle, ExternalLink, Copy, Loader2, Download } from 'lucide-react';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
+import { useShareImage } from '../../contexts/ShareImageContext';
 
 /**
  * ShareModal — partage d'une playlist/routine (lien copié, réseaux sociaux,
@@ -31,9 +32,13 @@ import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
  * (`summaryImageStatus`) et l'aperçu une fois prêt, sans jamais déclencher ni
  * bloquer sur la génération elle-même — le partage texte/lien reste
  * utilisable immédiatement, que l'image soit prête, en cours, ou en échec.
- * `summaryImage*`/`includeSummaryImage` sont `undefined` pour un partage de
- * trophée (voir TrophiesView.jsx, `handleShare('trophy', ...)`) — toute cette
- * section reste alors masquée (pas de session à résumer en image).
+ * `summaryImage*`/`includeSummaryImage` lus via `useShareImage()` (21/08,
+ * extraction ShareImageContext.jsx — venaient avant en props, prop-drillées
+ * depuis App.jsx) ; TOUJOURS définis maintenant (jamais `undefined`), mais
+ * ça ne change rien pour un partage de trophée (voir TrophiesView.jsx,
+ * `handleShare('trophy', ...)`) : le garde-fou `shareData.type ===
+ * 'playlist'` ci-dessous masque déjà cette section indépendamment de la
+ * valeur de `summaryImageStatus`.
  */
 export default function ShareModal({
   theme,
@@ -41,10 +46,9 @@ export default function ShareModal({
   shareNative, shareToWhatsApp, shareToTwitter, shareToFacebook,
   copyToClipboard, shareViaEmail,
   shareImageFile,
-  summaryImageStatus, summaryImageFile, summaryImagePreviewUrl,
-  includeSummaryImage, setIncludeSummaryImage,
 }) {
   const { cardBg, cardBorder, textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
+  const { summaryImageStatus, summaryImageFile, summaryImagePreviewUrl, includeSummaryImage, setIncludeSummaryImage } = useShareImage();
 
   if (!isShareModalOpen || !shareData) return null;
 
