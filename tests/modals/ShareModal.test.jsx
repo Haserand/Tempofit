@@ -2,18 +2,32 @@
 //
 // Palier 4 (31/07, 3e) — ShareModal, tout juste restauré après l'incident
 // documenté dans ShareModal.jsx (ce fichier était devenu une copie de
-// SearchModal.jsx, cassant tout partage dans l'app). Aucun Context, tout
-// passe par des props. `navigator.share` n'existe pas nativement dans
-// jsdom — stubbé explicitement dans les tests qui en ont besoin, absent
-// par défaut dans les autres (ce qui reflète fidèlement un navigateur
-// desktop sans Web Share API, un vrai cas réel, pas juste une limite de
-// l'environnement de test).
+// SearchModal.jsx, cassant tout partage dans l'app).
+//
+// RATTRAPÉ (21/08, extraction ShareImageContext.jsx) — `summaryImageStatus`/
+// `summaryImageFile`/`summaryImagePreviewUrl`/`includeSummaryImage`/
+// `setIncludeSummaryImage` ne sont PLUS des props : `useShareImage()` mocké
+// dynamiquement (vi.fn() + mockReturnValue), même pattern que
+// MiniPlayerBar.test.jsx pour AudioPlayerContext — nécessaire pour piloter
+// ces valeurs différemment à chaque test. Tout le reste (canaux de partage,
+// ouverture/fermeture) reste des props classiques, inchangé.
+//
+// `navigator.share` n'existe pas nativement dans jsdom — stubbé
+// explicitement dans les tests qui en ont besoin, absent par défaut dans
+// les autres (ce qui reflète fidèlement un navigateur desktop sans Web
+// Share API, un vrai cas réel, pas juste une limite de l'environnement de
+// test).
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 import ShareModal from '../../src/components/modals/ShareModal.jsx';
+import { useShareImage } from '../../src/contexts/ShareImageContext.jsx';
+
+vi.mock('../../src/contexts/ShareImageContext.jsx', () => ({
+  useShareImage: vi.fn(),
+}));
 
 const mockTheme = {
   cardBg: 'mock-card-bg', cardBorder: 'mock-border', textHighlight: 'mock-highlight',
@@ -37,6 +51,12 @@ function baseProps(overrides = {}) {
     copyToClipboard: vi.fn(),
     shareViaEmail: vi.fn(),
     shareImageFile: vi.fn(() => Promise.resolve('shared')),
+    ...overrides,
+  };
+}
+
+function mockShareImage(overrides = {}) {
+  return {
     summaryImageStatus: 'idle',
     summaryImageFile: null,
     summaryImagePreviewUrl: null,
@@ -50,11 +70,14 @@ beforeEach(() => {
   // Par défaut, pas de Web Share API (cas desktop réel le plus courant) —
   // les tests qui en ont besoin la posent explicitement.
   delete navigator.share;
+  // Valeur par défaut neutre — les tests du bloc "bilan visuel de séance"
+  // écrasent explicitement avec leur propre mockReturnValue avant de rendre.
+  useShareImage.mockReturnValue(mockShareImage());
 });
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
+  vi.resetAllMocks();
   // BUG CORRIGÉ (01/08, suite — passage à isolate:false) — avant, seul le
   // `beforeEach` ci-dessus réinitialisait `navigator.share`, ce qui
   // suffisait tant que chaque fichier de test recevait un environnement
@@ -103,25 +126,24 @@ describe('ShareModal — affichage de base', () => {
 
 describe('ShareModal — bilan visuel de séance', () => {
   it('summaryImageStatus="loading" (type playlist) : affiche le message de préparation', () => {
-    render(<ShareModal {...baseProps({ summaryImageStatus: 'loading' })} />);
+    useShareImage.mockReturnValue(mockShareImage({ summaryImageStatus: 'loading' }));
+    render(<ShareModal {...baseProps()} />);
     expect(screen.getByText('Préparation du bilan visuel...')).toBeInTheDocument();
   });
 
   it('type "trophy" : jamais de section image, même en "loading"', () => {
-    render(<ShareModal {...baseProps({ shareData: trophyShareData, summaryImageStatus: 'loading' })} />);
+    useShareImage.mockReturnValue(mockShareImage({ summaryImageStatus: 'loading' }));
+    render(<ShareModal {...baseProps({ shareData: trophyShareData })} />);
     expect(screen.queryByText('Préparation du bilan visuel...')).not.toBeInTheDocument();
   });
 
   it('image prête et incluse : affiche l\'aperçu, la croix retire l\'image (setIncludeSummaryImage(false))', () => {
     const setIncludeSummaryImage = vi.fn();
-    render(
-      <ShareModal
-        {...baseProps({
-          summaryImageStatus: 'ready', summaryImageFile: new File(['x'], 'bilan.png'),
-          summaryImagePreviewUrl: 'blob:preview', setIncludeSummaryImage,
-        })}
-      />
-    );
+    useShareImage.mockReturnValue(mockShareImage({
+      summaryImageStatus: 'ready', summaryImageFile: new File(['x'], 'bilan.png'),
+      summaryImagePreviewUrl: 'blob:preview', setIncludeSummaryImage,
+    }));
+    render(<ShareModal {...baseProps()} />);
     expect(screen.getByAltText('Bilan visuel de la séance')).toHaveAttribute('src', 'blob:preview');
 
     fireEvent.click(screen.getByTitle('Retirer le bilan visuel'));
@@ -129,14 +151,11 @@ describe('ShareModal — bilan visuel de séance', () => {
   });
 
   it('image prête mais includeSummaryImage=false : pas d\'aperçu affiché', () => {
-    render(
-      <ShareModal
-        {...baseProps({
-          summaryImageStatus: 'ready', summaryImageFile: new File(['x'], 'bilan.png'),
-          summaryImagePreviewUrl: 'blob:preview', includeSummaryImage: false,
-        })}
-      />
-    );
+    useShareImage.mockReturnValue(mockShareImage({
+      summaryImageStatus: 'ready', summaryImageFile: new File(['x'], 'bilan.png'),
+      summaryImagePreviewUrl: 'blob:preview', includeSummaryImage: false,
+    }));
+    render(<ShareModal {...baseProps()} />);
     expect(screen.queryByAltText('Bilan visuel de la séance')).not.toBeInTheDocument();
   });
 
@@ -144,11 +163,10 @@ describe('ShareModal — bilan visuel de séance', () => {
     const { rerender } = render(<ShareModal {...baseProps()} />);
     expect(screen.queryByText(/Télécharger le visuel/)).not.toBeInTheDocument();
 
-    rerender(
-      <ShareModal
-        {...baseProps({ summaryImageStatus: 'ready', summaryImageFile: new File(['x'], 'bilan.png'), summaryImagePreviewUrl: 'blob:preview' })}
-      />
-    );
+    useShareImage.mockReturnValue(mockShareImage({
+      summaryImageStatus: 'ready', summaryImageFile: new File(['x'], 'bilan.png'), summaryImagePreviewUrl: 'blob:preview',
+    }));
+    rerender(<ShareModal {...baseProps()} />);
     const downloadLink = screen.getByText(/Télécharger le visuel/).closest('a');
     expect(downloadLink).toHaveAttribute('href', 'blob:preview');
     expect(downloadLink).toHaveAttribute('download', 'tempofit-bilan-de-seance.png');
@@ -180,12 +198,12 @@ describe('ShareModal — canaux de partage', () => {
     const shareNative = vi.fn();
     const onClose = vi.fn();
     const file = new File(['x'], 'bilan.png');
+    useShareImage.mockReturnValue(mockShareImage({
+      summaryImageStatus: 'ready', summaryImageFile: file, summaryImagePreviewUrl: 'blob:preview',
+    }));
     render(
       <ShareModal
-        {...baseProps({
-          shareImageFile, shareNative, onClose,
-          summaryImageStatus: 'ready', summaryImageFile: file, summaryImagePreviewUrl: 'blob:preview',
-        })}
+        {...baseProps({ shareImageFile, shareNative, onClose })}
       />
     );
 
