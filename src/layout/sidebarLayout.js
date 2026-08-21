@@ -122,3 +122,20 @@ export const SIDEBAR_SCROLL_PADDING_COMPACT = 'py-3 px-4';
 // hauteur synchronisée via `creditRowHeight` dans Sidebar.jsx), pas la place
 // disponible à volonté qu'ont les liens de la zone scrollable.
 export const SIDEBAR_FOOTER_LINK_PADDING = 'px-3 py-1.5';
+
+// Marge APRÈS la bordure du bouton "Quitter le Mode Intime" (Mode Intime
+// uniquement — 21/08, retour direct : "je veux entre Création et la barre
+// juste au-dessus le même espace qu'entre Mes Favoris et la barre juste
+// au-dessus"). AVANT ce correctif, le conteneur de ce bouton (`pt-0.5
+// pb-3.5 border-b`, Sidebar.jsx) n'avait AUCUNE marge après sa bordure :
+// "Création" collait directement dessus (0px), contre 20px (`my-5`,
+// SIDEBAR_SEPARATOR_MARGIN) pour "Mon Espace" — d'où l'asymétrie remontée
+// (capture à l'appui). `mb-5` reprend délibérément la MÊME valeur que la
+// moitié basse de SIDEBAR_SEPARATOR_MARGIN — les 2 écarts doivent rester
+// identiques, donc les changer ENSEMBLE si l'un bouge un jour ; pas une
+// raison de les fusionner en une seule constante pour autant, ce sont 2
+// besoins distincts (l'un ferme un séparateur physique entre 2 sections,
+// l'autre ferme un bouton conditionnel Mode Intime qui a par ailleurs SON
+// PROPRE padding `pt-0.5`/`pb-3.5` calculé pour centrer le bouton
+// lui-même — une logique de calcul différente et sans rapport).
+export const SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM = 'mb-5';
