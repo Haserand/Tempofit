@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, X, LogOut, Search as SearchIcon } from 'lucide-react';
+import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, LogOut, Search as SearchIcon } from 'lucide-react';
 import { genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getRankStyle } from './appConfig';
 import { VIEW_HEADER_TOP_PADDING } from './layout/viewHeaderLayout';
@@ -93,6 +93,7 @@ import CustomActivityModal from './components/modals/CustomActivityModal';
 const DiscoverView = lazy(() => import('./components/views/DiscoverView'));
 const ProfileView = lazy(() => import('./components/views/ProfileView'));
 import MiniPlayerBar from './components/shared/MiniPlayerBar';
+import GenerationProgressBanner from './components/shared/GenerationProgressBanner';
 import GuestModeBar from './components/shared/GuestModeBar';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 import SavingRoutineModal from './components/modals/SavingRoutineModal';
@@ -1288,41 +1289,17 @@ function AppContent({
    * contexte précis (ex. le nombre de titres, qui n'existe que pour une playlist
    * déjà générée — une routine n'a pas encore de titres concrets).
    */
-  // Message du bandeau "Génération en cours" — évolue en 3 paliers de temps
-  // (14/08, retour direct + réflexion discutée avant implémentation) : 0-15s
-  // message habituel (inchangé), 15-45s signale que
-  // c'est "un peu plus long que d'habitude" sans être alarmant, 45s+
-  // normalise explicitement que ça peut légitimement prendre jusqu'à 1
-  // minute ou plus. Volontairement AUCUN chiffre de secondes annoncé à
-  // l'avance (voir la discussion complète) — seul le nombre de titres
-  // réunis (`generatingEstimatedTracksFound`, une ESTIMATION du pool de
-  // candidats, pas le décompte final — voir la docstring dans
-  // musicEngine.js) est un signal chiffré, parce que lui seul est fondé sur
-  // une vraie donnée plutôt qu'une supposition de durée.
-  const getGenerationBannerMessage = () => {
-    if (generatingTotal > 1) return `Génération ${generatingDone}/${generatingTotal}...`;
-
-    const tier = elapsedSeconds < 15 ? 0 : elapsedSeconds < 45 ? 1 : 2;
-
-    if (tier === 0) {
-      if (isGeneratingSlowGenre && isGeneratingLongPlaylist) return "Génération en cours (séance longue + genre plus long à cibler)...";
-      if (isGeneratingSlowGenre) return "Génération en cours (genre plus long à cibler)...";
-      if (isGeneratingLongPlaylist) return "Génération en cours (séance longue, plusieurs titres à trouver)...";
-      return "Génération en cours...";
-    }
-
-    // Paliers 1 (15-45s) et 2 (45s+) : privilégie le compte de titres réunis
-    // dès qu'il est disponible (souvent le cas pour une séance longue, la
-    // recherche ayant eu le temps de tourner plusieurs pages) — sinon
-    // retombe sur le message de réassurance générique par palier.
-    if (generatingEstimatedTracksFound > 0) {
-      const plural = generatingEstimatedTracksFound > 1 ? 's' : '';
-      return `Génération en cours — environ ${generatingEstimatedTracksFound} titre${plural} réuni${plural}...`;
-    }
-    return tier === 1
-      ? "Ça prend un peu plus de temps que d'habitude..."
-      : "Toujours en cours — certains genres ou gros lots peuvent prendre jusqu'à une minute ou plus.";
-  };
+  // RATTRAPÉ (21/08, découpage App.jsx, cluster "Génération") —
+  // `getGenerationBannerMessage` (message du bandeau flottant "Génération en
+  // cours", évolution en 3 paliers de temps, 14/08 — voir
+  // GenerationProgressBanner.jsx pour le raisonnement produit complet)
+  // déplacée telle quelle dans ce nouveau composant présentationnel dédié,
+  // avec le JSX du bandeau lui-même — aucun changement de comportement,
+  // seule sa source de données change (props au lieu de closures directes
+  // sur ce scope). Les 6 `useState` sous-jacents restent ICI (nécessaires
+  // en argument direct à usePlaylistGeneration() plus bas — voir la
+  // docstring de GenerationProgressBanner.jsx pour pourquoi ils ne peuvent
+  // pas suivre dans un Contexte, contrairement à "Image de partage").
 
   const renderConfigInfoLine = (source, extra) => {
     const distanceOrDuration = source.targetMode === 'distance'
@@ -1634,27 +1611,15 @@ function AppContent({
             pause volontaire entre chaque playlist, voir executeGeneration). Sans ce
             message, ce délai pouvait donner l'impression que l'app est bloquée.
             Fixé en bas (pas en haut, pour ne pas se superposer au toast). */}
-        {isGenerating && (
-          <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-[80] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl px-6 py-3 rounded-full flex items-center space-x-3 max-w-[90vw]">
-            <Loader2 size={18} className={`animate-spin ${textColorClass} shrink-0`} />
-            <span className={`font-medium text-sm ${textHighlight}`}>
-              {getGenerationBannerMessage()}
-            </span>
-            <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${textMuted} bg-black/5 dark:bg-white/10`}>
-              {Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, '0')}
-            </span>
-            {/* Bouton Annuler — voir cancelGeneration (usePlaylistGeneration.js)
-                pour ce qu'il fait réellement (ne coupe pas la requête réseau en
-                cours, jette juste son résultat) et pourquoi. */}
-            <button
-              onClick={cancelGeneration}
-              title="Annuler la génération"
-              className={`shrink-0 p-1 ${ICON_BUTTON_ROUNDING} ${textMuted} hover:text-red-500 hover:bg-red-500/10 transition-colors`}
-            >
-              <X size={16} />
-            </button>
-          </div>
-        )}
+        <GenerationProgressBanner
+          theme={themeTokens}
+          isGenerating={isGenerating}
+          generatingTotal={generatingTotal} generatingDone={generatingDone}
+          isGeneratingSlowGenre={isGeneratingSlowGenre} isGeneratingLongPlaylist={isGeneratingLongPlaylist}
+          generatingEstimatedTracksFound={generatingEstimatedTracksFound}
+          elapsedSeconds={elapsedSeconds}
+          cancelGeneration={cancelGeneration}
+        />
 
         {/* Bloc thème + connexion — déplacé à l'intérieur de <main> (voir plus
             bas, juste après son ouverture) : retour direct ("je veux juste
