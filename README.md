@@ -358,19 +358,32 @@ sur `isOfficialVitrine` — et retirer alors le texte en dur de
 `officialVitrineProfile.js` au profit d'une vraie valeur (ou continuer de
 lui donner une bio écrite à la main, cohérente avec son rôle de vitrine).
 
-## Sidebar — nouvelle section "Découverte" (21/08)
+## Sidebar — "Découvrir" isolé hors de "Création" (21/08)
 
 Retour direct : "Découvrir" vivait dans CRÉATION depuis la refonte du
 25/07 — mais par défaut, faute d'un meilleur endroit à l'époque, pas par
 un vrai choix. Ce n'est ni créer pour soi (CRÉATION), ni consulter ce qui
 est à soi (MON ESPACE) : c'est parcourir ce que D'AUTRES ont fait (modèles
-du catalogue, profils publics) — une 3e intention distincte. Sidebar passe
-donc de 3 à 4 groupes : CRÉATION / MON ESPACE / **DÉCOUVERTE** (nouveau,
-juste "Découvrir") / RÉGLAGES (pied de page fixe, inchangé). Positionné en
-dernière section de la zone scrollable — visuellement adjacent à Réglages
-sans toucher à son budget de hauteur strict (`creditRowHeight`). 2 tests
-ajoutés (`Sidebar.test.jsx`) — le bouton "Découvrir" n'avait jusqu'ici
-AUCUNE couverture (ni la section, ni son clic), comblé au passage.
+du catalogue, profils publics) — une 3e intention distincte. Sidebar
+passe donc de 3 à 4 groupes CONCEPTUELS : CRÉATION / MON ESPACE /
+**DÉCOUVERTE** (nouveau, juste "Découvrir") / RÉGLAGES (pied de page fixe,
+inchangé). Positionné en dernière section de la zone scrollable —
+visuellement adjacent à Réglages sans toucher à son budget de hauteur
+strict (`creditRowHeight`).
+⚠️ **Titre "Découverte" retiré le même jour** (retour direct suite à
+capture) — contrairement à CRÉATION/MON ESPACE, qui groupent chacun 2
+liens aux noms DISTINCTS, un en-tête au-dessus d'un unique bouton au nom
+quasi-identique ne groupait rien. Rendre le titre lui-même cliquable a été
+envisagé puis écarté : les titres de section sont purement typographiques
+partout ailleurs dans cette Sidebar, en faire une exception ici aurait
+cassé cette convention sans qu'aucun visiteur ne s'y attende. Séparateur
+au-dessus conservé (isole toujours visuellement de "Mon Espace"), seul le
+texte disparaît.
+2 tests ajoutés (`Sidebar.test.jsx`) — le bouton "Découvrir" n'avait
+jusqu'ici AUCUNE couverture (ni sa présence hors de "Création", ni son
+clic), comblé au passage. Un test vérifie explicitement l'ABSENCE du
+texte "Découverte" (non-régression si quelqu'un le réintroduit un jour
+sans repasser par ce raisonnement).
 
 ## Composant partagé `TabPills.jsx` (21/08) — standardisation des onglets
 
