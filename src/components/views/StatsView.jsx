@@ -13,7 +13,7 @@ import { INLINE_NAV_LINK_CLASS } from '../../layout/inlineLinkLayout';
 import { supabase } from '../../supabaseClient';
 
 /**
- * StatsView — vue "Statistiques" ("Wrapped" personnel).
+ * StatsView — vue "Mes Statistiques" ("Wrapped" personnel).
  *
  * Extrait de App.jsx (bloc `view === 'stats'`), de loin le plus gros des
  * blocs de vue (voir passation, section 4). Volontairement une couche de
@@ -761,7 +761,7 @@ export default function StatsView({
         theme={theme}
         isNaughtyMode={isNaughtyMode}
         icon={<Activity className={statsMode === 'naughty' ? 'text-rose-500' : textColorClass} size={VIEW_HEADER_ICON_SIZE} />}
-        title={statsMode === 'naughty' ? 'Statistiques · Intime' : 'Statistiques'}
+        title={statsMode === 'naughty' ? 'Mes Statistiques · Intime' : 'Mes Statistiques'}
         subtitle={statsMode === 'naughty' ? "Ce que tu as écouté en mode Intime, à part du reste." : "Ce que tu as écouté, séance après séance."}
         right={
           // "Partager mon bilan" (Bilan Global, voir GlobalStatsShareCard.jsx) —
