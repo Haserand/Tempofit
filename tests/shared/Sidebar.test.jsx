@@ -191,4 +191,17 @@ describe('Sidebar', () => {
     expect(screen.getByText('Mon Espace')).toHaveTextContent('Mon Espace');
     expect(screen.queryByText(/Invité/)).toBeNull();
   });
+
+  it('section "Découverte" présente, avec "Découvrir" comme seul lien — retour direct 21/08, plus dans "Création"', () => {
+    render(<Sidebar {...baseProps} />);
+    expect(screen.getByText('Découverte')).toBeInTheDocument();
+    expect(screen.getByText('Découvrir')).toBeInTheDocument();
+  });
+
+  it('le clic sur "Découvrir" appelle changeView(\'discover\')', () => {
+    const changeView = vi.fn();
+    render(<Sidebar {...baseProps} changeView={changeView} />);
+    fireEvent.click(screen.getByText('Découvrir'));
+    expect(changeView).toHaveBeenCalledWith('discover');
+  });
 });
