@@ -13,16 +13,16 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
 Rien en cours actuellement — le découpage `App.jsx` (repris le 20/08) est
-fermé. StatsView (20/08) et "Image de partage" (21/08, →
-`ShareImageContext.jsx`) extraits. "Navigation" audité en détail le 21/08
-puis délibérément PAS extrait — 2 raisons distinctes vérifiées, pas juste
-supposées (contrainte d'ordre entre hooks pour `view`/`isMobileMenuOpen` ;
-aucun gain réel pour le reste, déjà de simples props à 1 niveau). Un bug
-réel trouvé et corrigé au passage (`isScrolled`, header flottant desktop
-resté invisible depuis sa création). Voir la section dédiée plus bas pour
-le détail complet. "Génération" reste non déplaçable pour sa propre raison
-(bandeau rendu inline dans le JSX d'`AppContent`), documentée depuis le
-20/08.
+fermé. StatsView (20/08), "Image de partage" (21/08, →
+`ShareImageContext.jsx`) et le rendu du bandeau "Génération" (21/08, →
+`GenerationProgressBanner.jsx`, state resté dans `AppContent`) extraits.
+"Navigation" audité en détail le 21/08 puis délibérément PAS extrait — 2
+raisons distinctes vérifiées, pas juste supposées (contrainte d'ordre entre
+hooks pour `view`/`isMobileMenuOpen`, même famille que celle qui a limité
+l'extraction "Génération" au rendu seul ; aucun gain réel pour le reste,
+déjà de simples props à 1 niveau). Un bug réel trouvé et corrigé au passage
+(`isScrolled`, header flottant desktop resté invisible depuis sa création).
+Voir la section dédiée plus bas pour le détail complet.
 
 ### Historique détaillé (19-20/08) — archivé dans `HISTORIQUE.md`, bloc 5
 
@@ -331,7 +331,7 @@ Ordre de priorité retenu (voir aussi les passations pour le détail du raisonne
 - `PlaylistDetailContext.jsx` (Provider) n'a **pas** de couverture exhaustive — juste un test ciblé sur `isSaved`/`isReadOnly` (`tests/contexts/PlaylistDetailContext.test.jsx`). Le monter en entier exigerait de mocker `GeneratorContext` + `AudioPlayerContext` + le moteur de recalcul de timeline ; jugé disproportionné pour ce qui reste, à part ce point précis, de la logique triviale déjà couverte indirectement ailleurs.
 - Aucune exécution réelle de `vitest` n'est possible dans le bac à sable Claude — voir `CLAUDE-SANDBOX-VERIFICATION.md`.
 
-## Découpage `App.jsx` — chantier CONCLU le 21/08 (2 extractions : StatsView, Image de partage)
+## Découpage `App.jsx` — chantier CONCLU le 21/08 (3 extractions : StatsView, Image de partage, rendu du bandeau Génération)
 
 **Repoussé volontairement le 08/08** (retour direct) — voir plus haut, section "État d'avancement", pour le découpage déjà fait de `PlaylistHeader.jsx` (836 → 254 lignes, même famille de chantier). Raison du report à l'époque : refonte intégrale du menu de navigation + nouvelles fonctionnalités prévues dans les prochains jours — découper avant aurait obligé à deviner des frontières qui allaient de toute façon bouger. Approche retenue en attendant : écrire toute nouvelle fonctionnalité directement dans son PROPRE hook/context dédié plutôt que comme un `useState` de plus dans `AppContent` — le découpage se fait ainsi organiquement, au fil de l'eau (voir tous les `Context.jsx` déjà extraits : `GeneratorContext`/`AthleticContext`/`AudioPlayerContext`/`CustomActivityContext`/`ModalContext`/`PlaylistDetailContext`/`PlaylistEditContext`).
 
@@ -384,25 +384,47 @@ convention que les autres Contexts depuis le correctif AuthContext du 19/08.
 (`vi.fn()` + `mockReturnValue`), même pattern que `MiniPlayerBar.test.jsx`
 pour `AudioPlayerContext`.
 
+### 3e lot fait : rendu du bandeau "Génération en cours" extrait (21/08)
+
+`GenerationProgressBanner.jsx` (nouveau, `src/components/shared/`) — le JSX
+du bandeau flottant + `getGenerationBannerMessage` (message à 3 paliers de
+temps, 14/08) déplacés tels quels depuis `App.jsx`, en composant
+présentationnel recevant tout en props. ⚠️ **PAS un Contexte** — les 6
+`useState` sous-jacents restent dans `AppContent`, pour la même raison que
+`view`/`isMobileMenuOpen` (cluster Navigation, voir plus bas) : leurs
+setters sont des arguments directs de `usePlaylistGeneration(...)`, un hook
+appelé avant le `return` d'`AppContent`. Extraire le JSX seul, sans toucher
+au state, contourne cette contrainte — c'est ce que le README anticipait
+depuis le 20/08 ("sortir le bandeau LUI-MÊME dans un composant... dédié").
+1er fichier de test pour ce bandeau (`GenerationProgressBanner.test.jsx`,
+12 tests) — 0 couverture avant (JSX inline dans `App.jsx`, lui-même sans
+test miroir). Import `X` (icône) retiré d'`App.jsx`, devenu inutilisé après
+le déplacement.
+
 ### Clusters restants dans `AppContent` — VÉRIFIÉS le 20/08, aucun n'est un candidat aussi simple que StatsView
 
 Contrairement à ce que l'inventaire initial laissait penser, les 2 autres
 clusters "petits" ont été vérifiés individuellement — et ni l'un ni
 l'autre n'est un simple oubli comme StatsView l'était :
 
-- **Génération** (`isGenerating`/`generatingTotal`/`generatingDone`/
-  `isGeneratingSlowGenre`/`isGeneratingLongPlaylist`/
-  `generatingEstimatedTracksFound`, 6 `useState`) — **PAS déplaçable
-  tel quel**, et ce n'est pas un oubli : `usePlaylistGeneration.js` le
-  documente déjà explicitement depuis le 25/07 ("le state de progression
-  reste dans App.jsx — lu directement par son propre JSX (bandeau de
-  progression) et transmis à GeneratorView/RoutinesView, donc pas
-  déplaçable ici"). Le bandeau flottant (`fixed bottom-4`, visible peu
-  importe la vue active) est rendu directement dans le JSX propre
-  d'`AppContent`, pas dans un composant enfant — c'est une décision déjà
-  réfléchie, pas de la dette laissée de côté. Le déplacer demanderait de
-  sortir le bandeau LUI-MÊME dans un composant/Contexte dédié — un
-  chantier plus gros, pas entrepris ici.
+- ~~**Génération**~~ **Rendu extrait (21/08)** — `GenerationProgressBanner.jsx`
+  (`isGenerating`/`generatingTotal`/`generatingDone`/`isGeneratingSlowGenre`/
+  `isGeneratingLongPlaylist`/`generatingEstimatedTracksFound`, 6 `useState`).
+  ⚠️ Contrairement à "Image de partage", **le STATE lui-même reste dans
+  AppContent** — pas déplaçable en Contexte, `usePlaylistGeneration.js` le
+  documente déjà depuis le 25/07 : ses 4 setters sont passés en ARGUMENT
+  DIRECT à `usePlaylistGeneration(...)`, un hook appelé plus bas dans le
+  corps d'`AppContent`, avant son `return` — même contrainte d'ordre entre
+  hooks que celle qui bloque `view`/`isMobileMenuOpen` (voir "Navigation"
+  plus bas). Ce qui A pu être extrait, c'est le JSX du bandeau flottant
+  LUI-MÊME (`getGenerationBannerMessage` incluse, message à 3 paliers de
+  temps, 14/08) — un composant présentationnel qui reçoit tout en props
+  simples, sans Contexte, sans toucher à la contrainte d'ordre. `App.jsx`
+  n'a donc PAS moins de `useState` après ce chantier (contrairement à
+  StatsView/Image de partage), mais son JSX est plus court et le message du
+  bandeau a enfin son propre fichier de test (`GenerationProgressBanner.test.jsx`
+  — 0 couverture avant, le JSX vivait inline dans un fichier lui-même sans
+  test miroir).
 - ~~**Image de partage**~~ **Fait (21/08)** — voir "2e lot fait" plus haut,
   extrait en `ShareImageContext.jsx`.
 - **Navigation** (`view`/`viewingProfileUsername`/`isMobileMenuOpen`/
@@ -460,15 +482,19 @@ l'autre n'est un simple oubli comme StatsView l'était :
 **Conclusion de ce chantier (20/08, conclu le 21/08)** : le cluster
 StatsView était vraisemblablement LE candidat "dette oubliée, extraction
 sûre" disponible dans ce fichier. Des 2 autres clusters identifiés au
-départ, "Image de partage" s'est avéré un vrai candidat et a été extrait
-(`ShareImageContext.jsx`) ; "Navigation", une fois vérifié en détail plutôt
-que supposé, s'avère volontairement NON déplaçable pour la moitié de son
-périmètre (contrainte d'ordre entre hooks) et sans bénéfice réel pour
-l'autre moitié (déjà de simples props à 1 niveau) — **ni "Génération" ni
-"Navigation" ne sont de bons candidats à un Contexte dédié**, chacun pour
-sa propre raison précise, pas des oublis. Ce chantier se conclut ici avec 2
-extractions réelles sur 3 clusters envisagés — le 3e a été correctement
-laissé de côté après vérification, pas par manque de temps.
+départ, "Image de partage" s'est avéré un vrai candidat à un Contexte et a
+été extrait (`ShareImageContext.jsx`) ; "Génération" avait la MÊME
+contrainte d'ordre entre hooks que "Navigation" (voir juste en dessous) —
+pas de Contexte possible pour son state, mais son JSX a quand même pu être
+extrait en composant présentationnel (`GenerationProgressBanner.jsx`), sans
+toucher à cette contrainte ; "Navigation", une fois vérifié en détail
+plutôt que supposé, s'avère volontairement NON déplaçable pour la moitié de
+son périmètre (même contrainte d'ordre) et sans bénéfice réel pour l'autre
+moitié (déjà de simples props à 1 niveau) — laissé tel quel, aucune
+extraction possible ou utile. Ce chantier se conclut ici avec 3
+extractions réelles sur 3 clusters envisagés (2 en Contexte, 1 en simple
+composant de rendu) — chaque décision (extraire, extraire partiellement,
+ou laisser tel quel) vérifiée au cas par cas plutôt que supposée.
 
 ## Corrigé (20/08) — anciennement "Limite connue, non traitée : écritures concurrentes de MÊME TYPE sur la MÊME playlist"
 
