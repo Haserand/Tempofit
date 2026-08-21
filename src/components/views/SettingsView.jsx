@@ -576,7 +576,7 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
                   bannière "Aperçu de ton profil" (`isSelf`) et ne montre
                   QUE les playlists/routines réellement publiques, jamais
                   les privées — un vrai aperçu de ce qu'un visiteur externe
-                  verrait, pas la vue "Mes Séances" habituelle. */}
+                  verrait, pas la vue "Mes Playlists" habituelle. */}
               {/* Gaté sur `isProfilePublic` (comme les 2 toggles Stats
                   juste en dessous) — sans ça, ce lien mènerait à "Ce
                   profil est privé ou introuvable" tant que "Rendre mon
