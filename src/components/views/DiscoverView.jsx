@@ -3,6 +3,7 @@ import { Compass, Search, SearchX, Users, Lock, UserX, Loader2 } from 'lucide-re
 import { curatedSessions, naughtyCuratedSessions } from '../../data/curatedSessions';
 import TemplateCard from './TemplateCard';
 import ViewHeader from '../shared/ViewHeader';
+import TabPills from '../shared/TabPills';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 import { supabase, isSupabaseConfigured } from '../../supabaseClient';
 
@@ -170,27 +171,19 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode, use
       {/* Recherche + filtres — voir la docstring pour ce qui est réellement
           cherché (pas de description/tags stockés dans le modèle actuel). */}
       <div className="space-y-4">
-        {/* Sélecteur de mode Séances/Profils (20/08) — MÊME markup que les
-            autres onglets déjà en place dans l'app (PlaylistsView.jsx,
-            ProfileView.jsx) pour rester cohérent visuellement. */}
-        <div className="flex items-center gap-1" role="tablist">
-          {[
+        {/* Sélecteur de mode Séances/Profils (20/08) — standardisé sur
+            TabPills.jsx (21/08, retour direct), même composant partagé
+            désormais avec PlaylistsView.jsx/ProfileView.jsx/
+            SettingsView.jsx/TrophiesView.jsx. */}
+        <TabPills
+          theme={theme}
+          activeTab={searchMode}
+          onChange={setSearchMode}
+          tabs={[
             { value: 'sessions', label: 'Séances' },
             { value: 'profiles', label: 'Profils' },
-          ].map(tab => (
-            <button
-              key={tab.value}
-              role="tab"
-              aria-selected={searchMode === tab.value}
-              onClick={() => setSearchMode(tab.value)}
-              className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-colors ${
-                searchMode === tab.value ? `${bgAccentClass} text-white` : `${textMuted} hover:text-main`
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+          ]}
+        />
 
         {/* Barre de recherche — UNIQUE pour les 2 onglets, seul ce qu'elle
             interroge change. Masquée en mode "Profils" pour un invité (pas
