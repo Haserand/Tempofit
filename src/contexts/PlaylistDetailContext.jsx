@@ -118,16 +118,45 @@ export function PlaylistDetailProvider({
   const currentPlaylistIdRef = useRef(currentPlaylist?.id);
   currentPlaylistIdRef.current = currentPlaylist?.id;
 
-  // Petit utilitaire interne : la quasi-totalité des mutations de titres
-  // suivent le même triptyque (recalculer la timeline, écrire dans
-  // currentPlaylist ET dans sa copie persistée savedPlaylists) — factorisé
-  // ici plutôt que répété tel quel dans 6 fonctions différentes comme
-  // c'était le cas dans App.jsx.
-  const applyPlaylistUpdate = (updatedTracks) => {
-    let updatedPlaylist = recalculateTimeline({ ...currentPlaylist, tracks: updatedTracks });
-    setCurrentPlaylist(updatedPlaylist);
-    setSavedPlaylists(savedPlaylists.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl));
-    return updatedPlaylist;
+  // ⚠️ CORRECTIF DE COURSE (20/08 — "écritures concurrentes de même type sur
+  // la même playlist", limite connue depuis le check-up du 10/08, voir
+  // README) — cette fonction acceptait AVANT un tableau déjà entièrement
+  // construit par l'appelant, à partir de `currentPlaylist.tracks` capturé
+  // dans SA PROPRE fermeture (au clic, ou après un `await` réseau pour
+  // `handleReplaceTrack`/`handleReplaceTrackSameArtist`). Scénario concret
+  // qui perdait un remplacement : clic sur "Remplacer" du titre A (requête
+  // réseau lancée, prend plusieurs secondes) PUIS, avant que ça ne
+  // réponde, clic sur "Remplacer" du titre B de la MÊME playlist — les 2
+  // appels construisent chacun leur `newTracks` à partir du MÊME tableau
+  // de départ (avant toute des 2 mutations). Le 1er à se résoudre écrit
+  // normalement ; le 2e écrase ensuite avec SA version, bâtie sur
+  // l'ancien tableau — le remplacement du 1er disparaît silencieusement,
+  // même si son propre titre à lui (B) est bien remplacé.
+  //
+  // Accepte maintenant une fonction de TRANSFORMATION
+  // (`prevTracks => newTracks`), appliquée à l'INTÉRIEUR de
+  // `setCurrentPlaylist(prev => ...)` — donc toujours sur le tableau le
+  // plus FRAIS possible au moment où React traite réellement la mise à
+  // jour, jamais un instantané périmé. `updatedPlaylist` (variable
+  // partagée, posée par le 1er updater) est ensuite relue par le 2e —
+  // sûr : React invoque les fonctions de mise à jour de plusieurs
+  // `setState` appelés dans le même tick dans l'ORDRE où elles ont été
+  // appelées, au sein du même traitement de lot (comportement documenté,
+  // pas une coïncidence) — garantit aussi que `currentPlaylist` et
+  // l'entrée correspondante dans `savedPlaylists` restent BYTE-IDENTIQUES
+  // après coup (calculées UNE SEULE fois, jamais 2 fois indépendamment à
+  // partir de bases potentiellement différentes).
+  const applyPlaylistUpdate = (transformTracks) => {
+    let updatedPlaylist = null;
+    setCurrentPlaylist(prev => {
+      if (!prev) return prev;
+      updatedPlaylist = recalculateTimeline({ ...prev, tracks: transformTracks(prev.tracks) });
+      return updatedPlaylist;
+    });
+    setSavedPlaylists(prev => {
+      if (!updatedPlaylist) return prev; // currentPlaylist était déjà null, rien à synchroniser
+      return prev.map(pl => pl.id === updatedPlaylist.id ? updatedPlaylist : pl);
+    });
   };
 
   // --- Édition du nom de la playlist ---
@@ -202,43 +231,67 @@ export function PlaylistDetailProvider({
   };
 
   // --- Retirer / dupliquer / remplacer un titre ---
+  // Synchrones (aucun `await` avant `applyPlaylistUpdate`) — pas de risque
+  // de course ENTRE ELLES (JS mono-thread, un clic termine son traitement
+  // avant que le suivant ne commence), mais routées par la même API que
+  // les 2 fonctions async plus bas pour rester cohérentes : lire
+  // `prevTracks` (le plus frais) protège quand même contre une AUTRE
+  // mutation ASYNC encore en vol au moment où celle-ci s'exécute (ex. un
+  // "Remplacer" lancé juste avant, pas encore résolu).
   const handleRemoveTrack = (indexToRemove) => {
     if (!currentPlaylist) return;
-    const newTracks = [...currentPlaylist.tracks];
-    newTracks.splice(indexToRemove, 1);
-    applyPlaylistUpdate(newTracks);
+    applyPlaylistUpdate(prevTracks => {
+      const newTracks = [...prevTracks];
+      newTracks.splice(indexToRemove, 1);
+      return newTracks;
+    });
   };
 
   const handleDuplicateTrack = (index) => {
     if (!currentPlaylist) return;
-    const newTracks = [...currentPlaylist.tracks];
-    const duplicated = { ...newTracks[index], id: `track-dup-${Date.now()}-${Math.random().toString(36).slice(2, 11)}` };
-    newTracks.splice(index + 1, 0, duplicated);
-    applyPlaylistUpdate(newTracks);
+    applyPlaylistUpdate(prevTracks => {
+      const newTracks = [...prevTracks];
+      const duplicated = { ...newTracks[index], id: `track-dup-${Date.now()}-${Math.random().toString(36).slice(2, 11)}` };
+      newTracks.splice(index + 1, 0, duplicated);
+      return newTracks;
+    });
     showToast('🎵 Titre dupliqué !');
   };
 
   /**
-   * ⚠️ COURSE CORRIGÉE (check-up 10/08 — voir la docstring de
-   * `currentPlaylistIdRef` plus haut) : `await getSingleMatchingTrack(...)`
-   * peut prendre plusieurs secondes (recherche Deezer + résolution BPM/
-   * genre). Si l'utilisateur change de playlist entre-temps (ex. "Cloner",
-   * juste à côté du menu "Remplacer" — ce Provider reste monté d'une
-   * playlist à l'autre), reprendre ensuite avec `currentPlaylist`/
-   * `savedPlaylists` FIGÉS au moment du clic (fermeture JS classique)
-   * causait deux dégâts : `setCurrentPlaylist` ramenait l'affichage sur
-   * l'ANCIENNE playlist par-dessus la NOUVELLE que l'utilisateur regarde
-   * désormais, et `setSavedPlaylists(savedPlaylists.map(...))` utilisait
-   * un tableau `savedPlaylists` obsolète — s'il manquait une playlist
-   * créée entre-temps (ex. le clone qui a justement causé le changement),
-   * ce tableau amputé remplaçait le VRAI state courant, et
-   * `useSyncedCollection.js` interprétait cette playlist manquante comme
-   * SUPPRIMÉE, envoyant un vrai `DELETE` vers Supabase — perte de données
-   * réelle, pas juste un affichage incohérent. `playlistIdAtStart` capturé
-   * AVANT l'appel réseau, revérifié contre `currentPlaylistIdRef.current`
-   * (toujours à jour) juste avant d'écrire quoi que ce soit : abandon
-   * silencieux (juste un toast informatif) si ça diverge, plutôt que
-   * d'écrire une donnée obsolète.
+   * ⚠️ CORRECTIF DE COURSE (10/08, revu et complété le 20/08 — voir la
+   * docstring d'`applyPlaylistUpdate` plus haut pour le détail complet du
+   * scénario réel qui perdait un remplacement). `await
+   * getSingleMatchingTrack(...)` peut prendre plusieurs secondes (recherche
+   * Deezer + résolution BPM/genre). Si l'utilisateur change de playlist
+   * entre-temps (ex. "Cloner", juste à côté du menu "Remplacer" — ce
+   * Provider reste monté d'une playlist à l'autre), reprendre ensuite avec
+   * `currentPlaylist`/`savedPlaylists` FIGÉS au moment du clic (fermeture JS
+   * classique) causait deux dégâts : `setCurrentPlaylist` ramenait
+   * l'affichage sur l'ANCIENNE playlist par-dessus la NOUVELLE que
+   * l'utilisateur regarde désormais, et `setSavedPlaylists(savedPlaylists.
+   * map(...))` utilisait un tableau `savedPlaylists` obsolète — s'il
+   * manquait une playlist créée entre-temps (ex. le clone qui a justement
+   * causé le changement), ce tableau amputé remplaçait le VRAI state
+   * courant, et `useSyncedCollection.js` interprétait cette playlist
+   * manquante comme SUPPRIMÉE, envoyant un vrai `DELETE` vers Supabase —
+   * perte de données réelle, pas juste un affichage incohérent.
+   * `playlistIdAtStart` capturé AVANT l'appel réseau, revérifié contre
+   * `currentPlaylistIdRef.current` (toujours à jour) juste avant d'écrire
+   * quoi que ce soit : abandon silencieux (juste un toast informatif) si ça
+   * diverge, plutôt que d'écrire une donnée obsolète.
+   *
+   * ⚠️ 2e VOLET (20/08) — même à l'intérieur de la MÊME playlist, deux
+   * remplacements lancés coup sur coup sur 2 titres DIFFÉRENTS (le cas
+   * documenté dans README, "écritures concurrentes de même type") pouvait
+   * en perdre un : `indexToReplace` cible désormais le titre par SON ID
+   * STABLE (`oldTrack.id`, capturé au clic) recherché DANS LE TABLEAU LE
+   * PLUS FRAIS au moment où `applyPlaylistUpdate` s'exécute (voir sa
+   * docstring) — plus par position brute, qui pouvait pointer vers le
+   * mauvais titre si la structure du tableau avait changé entre-temps
+   * (ex. un retrait concurrent plus tôt dans la liste). Introuvable (titre
+   * retiré par une autre action entre-temps) : no-op silencieux plutôt que
+   * de corrompre un autre titre à sa place.
    */
   const handleReplaceTrack = async (indexToReplace) => {
     if (!currentPlaylist) return;
@@ -259,25 +312,31 @@ export function PlaylistDetailProvider({
       return;
     }
 
-    const newTracks = [...currentPlaylist.tracks];
-    newTracks[indexToReplace] = {
-      ...newTracks[indexToReplace], title: newRawTrack.title, artist: newRawTrack.artist,
-      genre: newRawTrack.genre, bpm: newRawTrack.bpm, duration: newRawTrack.duration,
-      trackId: newRawTrack.trackId, id: `track-replaced-${Date.now()}`,
-      preview: newRawTrack.preview || null,
-      _genreMismatch: newRawTrack._genreMismatch || false,
-      _isFallback: newRawTrack._isFallback || false,
-    };
-    applyPlaylistUpdate(newTracks);
+    applyPlaylistUpdate(prevTracks => {
+      const idx = prevTracks.findIndex(t => t.id === oldTrack.id);
+      if (idx === -1) return prevTracks; // titre retiré par une autre action entre-temps — rien à remplacer
+      const newTracks = [...prevTracks];
+      newTracks[idx] = {
+        ...newTracks[idx], title: newRawTrack.title, artist: newRawTrack.artist,
+        genre: newRawTrack.genre, bpm: newRawTrack.bpm, duration: newRawTrack.duration,
+        trackId: newRawTrack.trackId, id: `track-replaced-${Date.now()}`,
+        preview: newRawTrack.preview || null,
+        _genreMismatch: newRawTrack._genreMismatch || false,
+        _isFallback: newRawTrack._isFallback || false,
+      };
+      return newTracks;
+    });
     showToast('🎵 Titre remplacé et durée ajustée !');
   };
 
   /**
-   * Même correctif de course que `handleReplaceTrack` ci-dessus (check-up
-   * 10/08) — même raisonnement, voir sa docstring. Revérifié APRÈS les 2
-   * appels réseau possibles (`findSameArtistReplacement` PUIS,
+   * Même correctif de course que `handleReplaceTrack` ci-dessus (10/08,
+   * complété le 20/08) — même raisonnement, voir sa docstring. Revérifié
+   * APRÈS les 2 appels réseau possibles (`findSameArtistReplacement` PUIS,
    * potentiellement, `getSingleMatchingTrack` en repli), juste avant
-   * d'écrire quoi que ce soit.
+   * d'écrire quoi que ce soit. Recherche par ID stable (`oldTrack.id`)
+   * dans le tableau le plus frais au moment d'appliquer — même volet 20/08
+   * que `handleReplaceTrack`.
    */
   const handleReplaceTrackSameArtist = async (indexToReplace) => {
     if (!currentPlaylist) return;
@@ -308,16 +367,20 @@ export function PlaylistDetailProvider({
       showToast(`🎵 Remplacé par un autre titre de ${newRawTrack.artist} !`);
     }
 
-    const newTracks = [...currentPlaylist.tracks];
-    newTracks[indexToReplace] = {
-      ...newTracks[indexToReplace], title: newRawTrack.title, artist: newRawTrack.artist,
-      genre: newRawTrack.genre, bpm: newRawTrack.bpm, duration: newRawTrack.duration,
-      trackId: newRawTrack.trackId, id: `track-replaced-${Date.now()}`,
-      preview: newRawTrack.preview || null,
-      _genreMismatch: newRawTrack._genreMismatch || false,
-      _isFallback: newRawTrack._isFallback || false,
-    };
-    applyPlaylistUpdate(newTracks);
+    applyPlaylistUpdate(prevTracks => {
+      const idx = prevTracks.findIndex(t => t.id === oldTrack.id);
+      if (idx === -1) return prevTracks; // titre retiré par une autre action entre-temps — rien à remplacer
+      const newTracks = [...prevTracks];
+      newTracks[idx] = {
+        ...newTracks[idx], title: newRawTrack.title, artist: newRawTrack.artist,
+        genre: newRawTrack.genre, bpm: newRawTrack.bpm, duration: newRawTrack.duration,
+        trackId: newRawTrack.trackId, id: `track-replaced-${Date.now()}`,
+        preview: newRawTrack.preview || null,
+        _genreMismatch: newRawTrack._genreMismatch || false,
+        _isFallback: newRawTrack._isFallback || false,
+      };
+      return newTracks;
+    });
   };
 
   // --- Menu d'options par titre (Dupliquer / Remplacer / Remplacer même artiste) ---
@@ -341,10 +404,12 @@ export function PlaylistDetailProvider({
 
   const moveTrackTo = (newIndex) => {
     if (draggedTrackIndex === null || draggedTrackIndex === newIndex || !currentPlaylist) return;
-    const newTracks = [...currentPlaylist.tracks];
-    const [moved] = newTracks.splice(draggedTrackIndex, 1);
-    newTracks.splice(newIndex, 0, moved);
-    applyPlaylistUpdate(newTracks);
+    applyPlaylistUpdate(prevTracks => {
+      const newTracks = [...prevTracks];
+      const [moved] = newTracks.splice(draggedTrackIndex, 1);
+      newTracks.splice(newIndex, 0, moved);
+      return newTracks;
+    });
     setDraggedTrackIndex(newIndex);
   };
 
