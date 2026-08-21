@@ -77,7 +77,7 @@ const SettingsView = lazy(() => import('./components/views/SettingsView'));
 const FavoritesView = lazy(() => import('./components/views/FavoritesView'));
 const TrophiesView = lazy(() => import('./components/views/TrophiesView'));
 // `RoutinesView` RETIRÉ d'ici (20/08, fusion "Mes Routines" en onglet de
-// "Mes Séances") — plus une vue de premier niveau chargée en lazy depuis
+// "Mes Playlists") — plus une vue de premier niveau chargée en lazy depuis
 // App.jsx : `PlaylistsView.jsx` l'importe désormais directement (import
 // statique, pas lazy) comme sous-composant de son propre corps — voir la
 // docstring de PlaylistsView.jsx. Lazy-loader un sous-composant toujours
@@ -199,7 +199,7 @@ function AppContent({
   // déjà en mémoire est la source de vérité la plus à jour, pas une lecture
   // Supabase qui pourrait dater de quelques secondes) et l'ouvre
   // NORMALEMENT (`isReadOnly` absent = `false`, exactement comme un clic
-  // depuis "Mes Séances") — jamais en lecture seule sur sa propre playlist.
+  // depuis "Mes Playlists") — jamais en lecture seule sur sa propre playlist.
   const handleOpenPublicPlaylist = (row) => {
     // Profil vitrine "@tempofit_officiel" (Feature Sociale "Cold Start",
     // 02/08) — VÉRIFIÉ EN PREMIER : `row._sourceTemplate` n'existe QUE sur
@@ -277,7 +277,7 @@ function AppContent({
   // ⚠️ MIS À JOUR (20/08, fusion "Mes Routines" en onglet) — `changeView
   // ('routines')` remplacé par `handleOpenPlaylists('routine')` : cette
   // route dédiée n'existe plus, "Mes Routines" est maintenant l'onglet
-  // 'routine' de "Mes Séances" (voir PlaylistsView.jsx).
+  // 'routine' de "Mes Playlists" (voir PlaylistsView.jsx).
   const handleOpenPublicRoutine = (row) => {
     if (user && row.user_id === user.id) {
       handleOpenPlaylists('routine');
@@ -412,18 +412,18 @@ function AppContent({
   // un `useState` simple ici plutôt qu'un state plus élaboré).
   const [settingsInitialTab, setSettingsInitialTab] = useState(null);
 
-  // Onglet initial de PlaylistsView / "Mes Séances" (20/08, fusion "Mes
+  // Onglet initial de PlaylistsView / "Mes Playlists" (20/08, fusion "Mes
   // Routines" en onglet — voir la docstring de PlaylistsView.jsx) — MÊME
   // mécanisme exact que `settingsInitialTab` juste au-dessus : `null` =
-  // onglet "Séances" par défaut (bouton Sidebar, comportement historique),
+  // onglet "Playlists" par défaut (bouton Sidebar, comportement historique),
   // posé à `'routine'` juste avant CHAQUE `changeView('playlists')` qui
   // doit atterrir directement sur l'onglet Routines (jamais laissé à une
   // valeur périmée d'une visite précédente — même raisonnement que
   // `settingsInitialTab`).
   const [playlistsInitialTab, setPlaylistsInitialTab] = useState(null);
 
-  // Point d'entrée UNIQUE vers "Mes Séances" — `tab` optionnel (`null` par
-  // défaut = onglet Séances, utilisé par la Sidebar) ; remplace les 2
+  // Point d'entrée UNIQUE vers "Mes Playlists" — `tab` optionnel (`null` par
+  // défaut = onglet Playlists, utilisé par la Sidebar) ; remplace les 2
   // anciens appels directs à `changeView('routines')` (route retirée le
   // 20/08 — "Mes Routines" n'est plus une vue de premier niveau séparée,
   // voir PlaylistsView.jsx). Même schéma que `handleOpenSettings` juste
@@ -614,7 +614,7 @@ function AppContent({
   // courtes ti/ar/bp/du...) devient `modalData` (ModalContext, chantier
   // "centraliser les modales", 25/07) — pas encore une vraie playlist, voir
   // `importSharedPlaylist` plus bas, qui fait la conversion au moment du clic
-  // sur "Ajouter à Mes Séances", pas ici (pas besoin de la construire avant
+  // sur "Ajouter à Mes Playlists", pas ici (pas besoin de la construire avant
   // que l'utilisateur confirme vouloir l'ajouter). `importedPlaylistPreview`/
   // `isImportModalOpen` vivaient ici en state local avant ce chantier.
   useEffect(() => {
@@ -897,7 +897,7 @@ function AppContent({
     const finalPlaylist = recalculateTimeline(rawPlaylist);
     setSavedPlaylists(prev => [finalPlaylist, ...prev]);
     closeModal();
-    showToast("✅ Playlist ajoutée à Mes Séances !");
+    showToast("✅ Playlist ajoutée à Mes Playlists !");
     setCurrentPlaylist(finalPlaylist);
     changeView('playlist');
   };
