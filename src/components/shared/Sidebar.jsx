@@ -23,16 +23,21 @@ import {
  * sous des en-têtes discrets plutôt que par imbrication visuelle : à
  * l'origine 3 groupes — CRÉATION (démarrer quelque chose de nouveau), MON
  * ESPACE (consulter ce qui existe déjà POUR SOI), RÉGLAGES (configuration,
- * séparé par une bordure + `mt-auto` comme avant). Un 4e groupe,
+ * séparé par une bordure + `mt-auto` comme avant). Un 4e groupe CONCEPTUEL,
  * DÉCOUVERTE, est venu s'ajouter le 21/08 (voir plus bas, section
  * "--- DÉCOUVERTE ---") — "Découvrir" vivait dans CRÉATION jusque-là, par
  * défaut plutôt que par un vrai choix : ce n'est ni créer pour soi, ni
  * consulter ce qui est à soi, mais parcourir ce que D'AUTRES ont fait,
- * une intention distincte des 2 premières. Tous les boutons partagent
- * maintenant le même style actif (`bgAccentClass text-white shadow-lg`) —
- * avant, seul "Générer" l'avait, les autres utilisaient un simple
- * `bg-surface-hover` plus discret, une incohérence sans raison
- * fonctionnelle.
+ * une intention distincte des 2 premières. ⚠️ SANS EN-TÊTE VISIBLE
+ * (retiré le même jour, retour direct suite à capture) — un seul lien
+ * ("Découvrir") sous un titre quasi-identique ("Découverte") ne groupait
+ * rien, contrairement à CRÉATION/MON ESPACE qui groupent chacun 2 liens
+ * aux noms distincts ; le séparateur au-dessus suffit à l'isoler
+ * visuellement de "Mon Espace", pas besoin d'un texte en plus. Tous les
+ * boutons partagent maintenant le même style actif (`bgAccentClass
+ * text-white shadow-lg`) — avant, seul "Générer" l'avait, les autres
+ * utilisaient un simple `bg-surface-hover` plus discret, une incohérence
+ * sans raison fonctionnelle.
  *
  * Renommages associés : "Générer" → "Nouvelle séance" (plus explicite sur ce
  * que fait ce bouton) ; "Bibliothèque" → "Mes Séances" (revient au nom déjà
@@ -448,10 +453,21 @@ export default function Sidebar({
             (Réglages) — dernière section de la zone scrollable, donc
             visuellement adjacente à Réglages sans toucher au budget de
             hauteur strict de son conteneur (`creditRowHeight`, voir la
-            docstring du pied de page plus bas). */}
+            docstring du pied de page plus bas).
+            ⚠️ TITRE DE SECTION RETIRÉ (même jour, retour direct suite à
+            capture) — contrairement à CRÉATION/MON ESPACE, qui groupent
+            chacun 2 liens aux noms DISTINCTS (Nouvelle Playlist/Mes
+            Playlists, Mes Favoris/Mes Statistiques), un en-tête "Découverte"
+            au-dessus d'un unique bouton "Découvrir" ne groupait rien —
+            juste le même mot répété deux fois de suite. Rendre le TITRE
+            lui-même cliquable a été envisagé puis écarté : les titres de
+            section sont purement typographiques PARTOUT ailleurs dans
+            cette Sidebar, jamais interactifs — en faire une exception
+            silencieuse ici aurait cassé cette convention sans qu'aucun
+            visiteur ne s'y attende. Séparateur au-dessus conservé (reste
+            visuellement distinct de "Mon Espace"), seul le texte
+            "Découverte" disparaît. */}
         <div className={`flex flex-col ${linkGap}`}>
-          <div className={`px-3 ${sectionTitleMargin} text-[10px] sm:text-xs uppercase tracking-widest font-bold ${textMuted}`}>Découverte</div>
-
           <button onClick={() => changeView('discover')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'discover' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Compass size={18} className={view === 'discover' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Découvrir</span>
