@@ -94,7 +94,7 @@ export default function PlaylistHeader({
 
   // Étiquette "propriétaire actuel" — une fois `isSaved` (peu importe
   // l'origine — template, clonage, génération fraîche), c'est TOI le
-  // propriétaire dans "Mes Séances", donc TON pseudo (`username`,
+  // propriétaire dans "Mes Playlists", donc TON pseudo (`username`,
   // PlaylistDetailContext.jsx). Tant que ce n'est PAS encore sauvegardé :
   // le CRÉATEUR d'origine — "TempoFit Officiel" pour un template du
   // catalogue (`sourceTemplateId`), soit le pseudo du vrai propriétaire
