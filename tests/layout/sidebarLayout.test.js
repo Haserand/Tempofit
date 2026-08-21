@@ -1,11 +1,11 @@
 // Premier fichier de test pour sidebarLayout.js — lacune de couverture
-// identifiée lors du check-up global du 19/08. 10 constantes issues d'un
+// identifiée lors du check-up global du 19/08. 11 constantes issues d'un
 // réglage fin en plusieurs passes (voir la docstring du fichier — 9 à
-// l'origine, +1 le 21/08 pour resserrer spécifiquement l'espace autour de
-// "Découvrir") — ce test fige les valeurs ACTUELLES pour qu'un futur
-// ajustement accidentel (plutôt que délibéré) se voie immédiatement, et
-// vérifie qu'elles restent bien importées par Sidebar.jsx plutôt que
-// recopiées en dur.
+// l'origine, +1 le 21/08 pour "Découvrir", +1 le même jour pour
+// l'asymétrie Création/Mon Espace en Mode Intime) — ce test fige les
+// valeurs ACTUELLES pour qu'un futur ajustement accidentel (plutôt que
+// délibéré) se voie immédiatement, et vérifie qu'elles restent bien
+// importées par Sidebar.jsx plutôt que recopiées en dur.
 
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
@@ -23,6 +23,7 @@ import {
   SIDEBAR_SCROLL_PADDING,
   SIDEBAR_SCROLL_PADDING_COMPACT,
   SIDEBAR_FOOTER_LINK_PADDING,
+  SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM,
 } from '../../src/layout/sidebarLayout.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -74,16 +75,27 @@ describe('sidebarLayout — valeurs stabilisées actuelles (état final après 9
     const mbShared = parseFloat(SIDEBAR_SEPARATOR_MARGIN.match(/my-([\d.]+)/)[1]);
     expect(mbDiscover).toBeLessThan(mbShared);
   });
+
+  it('marge après le bouton "Quitter le Mode Intime" — DOIT rester égale à la moitié basse de SIDEBAR_SEPARATOR_MARGIN (retour direct : "même espace entre Création et sa barre qu\'entre Mes Favoris et sa barre")', () => {
+    expect(SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM).toBe('mb-5');
+    // Comparaison structurelle plutôt qu'une simple égalité de chaînes —
+    // c'est le POINT de cette constante (les 2 écarts doivent matcher),
+    // pas un hasard de valeur : si SIDEBAR_SEPARATOR_MARGIN change un jour
+    // sans que celle-ci suive, ce test doit le signaler.
+    const mbNaughtyExit = parseFloat(SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM.match(/mb-([\d.]+)/)[1]);
+    const mbSeparator = parseFloat(SIDEBAR_SEPARATOR_MARGIN.match(/my-([\d.]+)/)[1]);
+    expect(mbNaughtyExit).toBe(mbSeparator);
+  });
 });
 
 describe('sidebarLayout — importé par Sidebar.jsx (pas recopié en dur)', () => {
-  it('les 10 constantes sont bien importées depuis ce module', () => {
+  it('les 11 constantes sont bien importées depuis ce module', () => {
     expect(SIDEBAR_JSX).toMatch(/from ['"].*sidebarLayout['"]/);
     for (const name of [
       'SIDEBAR_LINK_PADDING', 'SIDEBAR_LINK_GAP', 'SIDEBAR_SECTION_TITLE_MARGIN',
       'SIDEBAR_LINK_PADDING_COMPACT', 'SIDEBAR_LINK_GAP_COMPACT', 'SIDEBAR_SECTION_TITLE_MARGIN_COMPACT',
       'SIDEBAR_SEPARATOR_MARGIN', 'SIDEBAR_DISCOVER_SEPARATOR_MARGIN', 'SIDEBAR_SCROLL_PADDING', 'SIDEBAR_SCROLL_PADDING_COMPACT',
-      'SIDEBAR_FOOTER_LINK_PADDING',
+      'SIDEBAR_FOOTER_LINK_PADDING', 'SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM',
     ]) {
       expect(SIDEBAR_JSX).toContain(name);
     }
