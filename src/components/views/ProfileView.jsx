@@ -667,9 +667,9 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
             {isOfficialVitrine && (
               <p
                 className={`text-sm mt-3 whitespace-pre-line line-clamp-3 ${textHighlight}`}
-                title="Compte vitrine officiel de TempoFit — les séances et statistiques ci-dessous sont des exemples fictifs, pour découvrir l'app avant de créer ton propre profil."
+                title="Les séances et statistiques ci-dessous sont des exemples fictifs, pour découvrir l'app avant de créer ton propre profil."
               >
-                Compte vitrine officiel de TempoFit — les séances et statistiques ci-dessous sont des exemples fictifs, pour découvrir l'app avant de créer ton propre profil.
+                Les séances et statistiques ci-dessous sont des exemples fictifs, pour découvrir l'app avant de créer ton propre profil.
               </p>
             )}
           </div>
