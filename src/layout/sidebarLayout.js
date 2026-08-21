@@ -77,10 +77,33 @@ export const SIDEBAR_SECTION_TITLE_MARGIN_COMPACT = 'mb-2.5';
 // testée puis abandonnée (voir 6e passe, historique complet dans Sidebar.jsx).
 export const SIDEBAR_SEPARATOR_MARGIN = 'my-5';
 
+// Séparateur entre "Mon Espace" et "Découvrir" (21/08, retour direct :
+// "réduire l'espace Découvrir de 10px en haut et 10px en bas") — DISTINCT
+// de SIDEBAR_SEPARATOR_MARGIN ci-dessus : seul CET écart précis devait être
+// resserré, pas celui entre Création/Mon Espace (jamais mentionné, resté
+// inchangé). `mt-5` conservé (même écart qu'avant entre "Mes Statistiques"
+// et la ligne elle-même, 20px) ; `mb-2.5` (10px, contre `mb-5`/20px avant)
+// pour l'écart entre la ligne et "Découvrir" — les -10px demandés en haut
+// de "Découvrir" viennent d'ici. Voir aussi `SIDEBAR_SCROLL_PADDING`
+// ci-dessous pour les -10px en BAS (après "Découvrir", avant le pied de
+// page).
+export const SIDEBAR_DISCOVER_SEPARATOR_MARGIN = 'mt-5 mb-2.5';
+
 // Padding du conteneur scrollable LUI-MÊME (englobe Création + séparateur +
-// Mon Espace) — seule source de l'espacement haut/bas de cette zone depuis
-// la 7e passe ; aucun enfant ne doit plus porter sa propre marge de fin.
-export const SIDEBAR_SCROLL_PADDING = 'py-4 px-4';
+// Mon Espace + Découvrir) — seule source de l'espacement haut/bas de cette
+// zone depuis la 7e passe ; aucun enfant ne doit plus porter sa propre
+// marge de fin.
+// ⚠️ HAUT/BAS SÉPARÉS (21/08, retour direct : "réduire l'espace Découvrir
+// de 10px en haut et 10px en bas") — `pt-4` (haut, au-dessus de Création,
+// inchangé, jamais mentionné) / `pb-1.5` (bas, après Découvrir, 6px contre
+// 16px avant — les -10px demandés en BAS de "Découvrir" viennent d'ici,
+// combinés à `SIDEBAR_DISCOVER_SEPARATOR_MARGIN` ci-dessus pour le HAUT).
+// Variante COMPACT (Mode Intime, juste en dessous) volontairement NON
+// touchée : son budget `py-3` est calculé main dans la main avec le
+// centrage du bouton "Quitter le Mode Intime" plus bas dans Sidebar.jsx
+// (`pt-0.5 pb-3.5`) — la modifier sans retoucher aussi ce calcul décalerait
+// ce bouton, hors périmètre de cette demande.
+export const SIDEBAR_SCROLL_PADDING = 'pt-4 pb-1.5 px-4';
 
 // Variante COMPACTE (Refactor UI "Assouplissement du mode compact", 29/07,
 // 3e itération, retour direct : "supprimer le léger mouvement de scroll
