@@ -20,7 +20,7 @@ export default function PlaylistHeaderCover({
         title="Écouter cette playlist"
         className="relative w-32 h-32 rounded-xl overflow-hidden shadow-2xl shadow-black/70 cursor-pointer transition-transform duration-300 hover:scale-[1.02]"
       >
-        {/* Même logique de pochette que PlaylistCard.jsx (Mes Séances) :
+        {/* Même logique de pochette que PlaylistCard.jsx (Mes Playlists) :
             `coverUrl` si déjà posé (playlists ouvertes depuis Découvrir),
             sinon `buildCoverUrl(currentPlaylist.name)` (déterministe). */}
         <img src={currentPlaylist.coverUrl || buildCoverUrl(currentPlaylist.name)} alt="" className="w-full h-full object-cover" />
