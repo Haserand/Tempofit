@@ -251,8 +251,8 @@ export default function Sidebar({
           pour revenir à la normale") — avant ça, `toggleNaughtyMode` n'était
           câblé qu'à UN SEUL endroit dans toute l'app (une petite icône dans
           un coin de carte, à l'étape 1 du wizard de génération) : en
-          Mode Intime sur n'importe quelle autre page (Statistiques, Mes
-          Séances, Profil Athlétique...), aucun moyen d'en sortir sans
+          Mode Intime sur n'importe quelle autre page (Mes Statistiques, Mes
+          Playlists, Profil Athlétique...), aucun moyen d'en sortir sans
           retourner spécifiquement à cet endroit précis — un vrai trou, pas
           juste une gêne. Placé ici, dans la Sidebar (présente sur toutes
           les pages), donc toujours atteignable quel que soit l'endroit où
@@ -423,7 +423,7 @@ export default function Sidebar({
 
           <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Activity size={18} className={view === 'stats' ? 'text-white' : textColorClass} />
-            <span className="font-bold text-sm">Statistiques</span>
+            <span className="font-bold text-sm">Mes Statistiques</span>
           </button>
         </div>
 
