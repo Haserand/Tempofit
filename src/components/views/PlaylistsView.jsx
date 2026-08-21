@@ -6,13 +6,31 @@ import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 
 /**
- * PlaylistsView — vue "Mes Séances" (nom d'origine restauré le 25/07 : elle
- * s'était appelée "Bibliothèque" un temps, mais c'est resté le seul endroit
- * à le dire — le reste de l'app, lui, n'a jamais arrêté d'appeler cette
+ * PlaylistsView — vue "Mes Playlists".
+ *
+ * ⚠️ RENOMMÉE (20/08, retour direct suite à un retour terrain utilisateur :
+ * "la notion de 'séance' parle aux utilisateurs qui font du sport
+ * régulièrement mais beaucoup moins à ceux qui testent juste par
+ * curiosité, ils se disent pas qu'il y a une playlist même si on fait bien
+ * plus") — "Mes Séances" → "Mes Playlists", "Nouvelle séance" →
+ * "Nouvelle Playlist" (Sidebar.jsx). Décision assumée réversible par
+ * l'utilisateur. Referme donc la boucle : "Mes Playlists" est le nom
+ * D'ORIGINE (avant le renommage du 25/07 ci-dessous vers "Mes Séances"),
+ * auquel on revient sciemment après ce nouveau retour terrain — pas une
+ * hésitation, un aller-retour informé par 2 signaux différents à 3
+ * semaines d'écart. Tout le texte visible de CETTE vue a été réaligné en
+ * conséquence (titre, sous-titre, états vides) ; l'onglet "Mes Routines"
+ * (2e onglet de cette même vue) n'est PAS concerné par ce renommage.
+ *
+ * Récit du nom AVANT ce renommage (25/07, toujours utile pour comprendre
+ * pourquoi certains fichiers non retouchés le 20/08 disent encore
+ * "séance") : vue "Mes Séances" (nom restauré le 25/07 : elle s'était
+ * appelée "Bibliothèque" un temps, mais c'est resté le seul endroit à le
+ * dire — le reste de l'app, lui, n'avait jamais arrêté d'appeler cette
  * fonctionnalité "Mes Séances" partout ailleurs : info-bulles,
  * PlaylistHeader.jsx, StatsView.jsx, description de trophée dans
- * appConfig.js... Rétabli ici pour que le titre de la page matche enfin la
- * Sidebar et le reste de l'app, plutôt que l'inverse).
+ * appConfig.js... Rétabli à l'époque pour que le titre de la page matche
+ * enfin la Sidebar et le reste de l'app, plutôt que l'inverse).
  *
  * ⚠️ FUSION AVEC "Mes Routines" (20/08, retour direct — "prends du recul,
  * j'imagine la partie routines comme un onglet spécifique du menu séance ;
@@ -27,7 +45,7 @@ import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHe
  * pour les 2 onglets, en changeant titre/sous-titre/icône selon l'onglet
  * actif. `initialTab` : MÊME mécanisme exact que `SettingsView.jsx`
  * (`initialTab`/`handleOpenSettings`, App.jsx) — `null` par défaut (onglet
- * "Séances", comportement historique de la Sidebar), posé à `'routine'`
+ * "Playlists", comportement historique de la Sidebar), posé à `'routine'`
  * juste avant `changeView('playlists')` par les 2 points d'entrée qui
  * naviguaient avant vers `changeView('routines')` (App.jsx : cloner une
  * routine publique, consulter sa PROPRE routine publique depuis son
@@ -299,19 +317,23 @@ export default function PlaylistsView({
         icon={activeTab === 'routine'
           ? <ListPlus className={textColorClass} size={VIEW_HEADER_ICON_SIZE} />
           : <Library className={textColorClass} size={VIEW_HEADER_ICON_SIZE} />}
-        title={activeTab === 'routine' ? 'Mes Routines' : 'Mes Séances'}
+        title={activeTab === 'routine' ? 'Mes Routines' : 'Mes Playlists'}
         subtitle={activeTab === 'routine'
           ? 'Génère instantanément des séances à partir de tes configurations.'
-          : 'Retrouve tes séances générées, planifie tes écoutes et consulte ton historique.'}
+          : 'Retrouve tes playlists générées, planifie tes écoutes et consulte ton historique.'}
       />
 
-      {/* Onglets Séances/Routines (20/08, fusion — voir la docstring de ce
-          fichier) — MÊME markup exact que l'onglet Playlists/Routines de
+      {/* Onglets Playlists/Routines (20/08, fusion — voir la docstring de
+          ce fichier) — MÊME markup exact que l'onglet Playlists/Routines de
           ProfileView.jsx (visite du profil de quelqu'un d'autre), pour que
-          visiter SON PROPRE espace se comporte pareil visuellement. */}
+          visiter SON PROPRE espace se comporte pareil visuellement.
+          ⚠️ Libellé "Séances" → "Playlists" le même jour (voir le
+          renommage "Mes Séances" → "Mes Playlists" dans Sidebar.jsx pour
+          le raisonnement complet) — l'onglet "Routines" lui-même reste
+          "Routines", pas concerné par ce renommage. */}
       <div className="flex items-center gap-1" role="tablist">
         {[
-          { value: 'playlist', label: 'Séances', count: visiblePlaylists.length },
+          { value: 'playlist', label: 'Playlists', count: visiblePlaylists.length },
           { value: 'routine', label: 'Routines', count: routines.length },
         ].map(tab => (
           <button
@@ -351,8 +373,8 @@ export default function PlaylistsView({
           {isEmpty ? (
             <div className={`py-16 text-center border-2 border-dashed rounded-2xl ${isNaughtyMode ? 'border-slate-400' : 'border-slate-700'}`}>
               <List size={48} className={`mx-auto mb-4 ${textMuted}`} />
-              <h3 className={`text-lg font-bold mb-2 ${textHighlight}`}>Aucune séance sauvegardée</h3>
-              <p className={`text-sm mb-6 max-w-sm mx-auto ${textMuted}`}>Génère une séance et sauvegarde-la pour la retrouver ici.</p>
+              <h3 className={`text-lg font-bold mb-2 ${textHighlight}`}>Aucune playlist sauvegardée</h3>
+              <p className={`text-sm mb-6 max-w-sm mx-auto ${textMuted}`}>Génère une playlist et sauvegarde-la pour la retrouver ici.</p>
               <button onClick={() => changeView('generator')} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
                 Générer ma première playlist
               </button>
@@ -366,20 +388,21 @@ export default function PlaylistsView({
                   {/* Zone vide "Générer une nouvelle playlist" (retour direct :
                       "le texte gris clair et le + sont illisibles") — même
                       schéma slate normalisé que le reste de cette vue.
-                      Texte aligné sur "séance" (20/08, même raisonnement que
-                      les 2 autres juste au-dessus — voir la docstring de ce
-                      fichier) — dernières occurrences visibles de "playlist"
-                      dans le texte de cette vue, hormis le bouton CTA
-                      lui-même (`changeView('generator')` mène au générateur,
-                      dont le libellé "Générer ma première playlist" est un
-                      chantier séparé, pas touché ici). */}
+                      ⚠️ Texte "séance" → "playlist" (20/08, RE-renommage
+                      global suite à un retour terrain — voir la docstring
+                      "Nouvelle Playlist"/"Mes Playlists" dans Sidebar.jsx) :
+                      ce texte avait brièvement dit "Créer une nouvelle
+                      séance" plus tôt le même jour, revenu à "playlist"
+                      quelques heures plus tard pour matcher le nouveau
+                      titre de page ("Mes Playlists") et le bouton Sidebar
+                      ("Nouvelle Playlist"). */}
                   {/* Ménage "Centraliser les règles de couleur" (29/07) —
                       ternaire `isNaughtyMode` retiré, remplacé par les tokens
                       déjà adaptatifs de useTheme.js (voir RoutinesView.jsx pour
                       le détail identique). */}
                   <button onClick={() => changeView('generator')} className={`rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 py-10 font-bold transition-colors ${cardBorder} ${textMuted} hover:text-main`}>
                     <Plus size={28} />
-                    <span>Créer une nouvelle séance</span>
+                    <span>Créer une nouvelle playlist</span>
                   </button>
                   {toPlan.map(p => renderCard(p, { draggableSection: true }))}
                 </div>
