@@ -379,7 +379,7 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
       // filtre, RLS (voir supabase-schema.sql) laisse passer TOUTES les
       // lignes d'un propriétaire qui consulte SES PROPRES données
       // (`auth.uid() = user_id`, la 1re branche du `using(...)`) — ce qui
-      // est le comportement VOULU pour l'app normale (Mes Séances doit
+      // est le comportement VOULU pour l'app normale (Mes Playlists doit
       // montrer TOUT, public ou privé), mais PAS ici : la vue Profil se
       // veut un APERÇU de ce qu'un visiteur externe verrait, y compris
       // pour son propre propriétaire (voir `isSelf`/bannière plus bas) —
