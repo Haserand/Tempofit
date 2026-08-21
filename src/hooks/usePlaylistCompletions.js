@@ -19,7 +19,7 @@ export function usePlaylistCompletions(savedPlaylists, setSavedPlaylists, showTo
    * "faite/pas faite". Ce choix permet de marquer la MÊME playlist comme faite
    * plusieurs fois (une entrée par vraie utilisation), sans dupliquer toute la
    * playlist à chaque fois — ce qui aurait recréé inutilement les mêmes titres et
-   * pollué "Mes Séances" d'un doublon par séance.
+   * pollué "Mes Playlists" d'un doublon par séance.
    */
   /**
    * Marque une playlist comme faite — soit "maintenant" (bouton "Marquer comme
@@ -171,7 +171,7 @@ export function usePlaylistCompletions(savedPlaylists, setSavedPlaylists, showTo
     setSavedPlaylists(savedPlaylists.map(p => p.id === playlistId ? { ...p, completions: remaining, actualDataByDate: remainingActualData } : p));
 
     if (remaining.length === 0) {
-      showToast("Dernière date retirée : cette playlist n'a plus aucune complétion, elle repasse dans \"Mes Séances\".", 'error');
+      showToast("Dernière date retirée : cette playlist n'a plus aucune complétion, elle repasse dans \"Mes Playlists\".", 'error');
     }
   };
 
