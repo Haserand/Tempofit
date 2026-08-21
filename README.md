@@ -12,14 +12,17 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement — le dernier chantier livré (20/08, découpage
-`App.jsx`, 1er lot fait — voir la section dédiée plus bas) est fermé,
-vérifié syntaxiquement/statiquement, tests à jour. Prochaine session :
-partir des sections plus bas (décisions d'architecture, contraintes,
-limites connues) et du code réel — reprendre éventuellement le découpage
-d'`App.jsx` (clusters Génération/Image de partage/Navigation, tous
-génuinement partagés, nécessitent un vrai Contexte dédié plutôt qu'une
-simple redescente de state).
+Rien en cours actuellement — le découpage `App.jsx` (repris le 20/08) est
+fermé. StatsView (20/08) et "Image de partage" (21/08, →
+`ShareImageContext.jsx`) extraits. "Navigation" audité en détail le 21/08
+puis délibérément PAS extrait — 2 raisons distinctes vérifiées, pas juste
+supposées (contrainte d'ordre entre hooks pour `view`/`isMobileMenuOpen` ;
+aucun gain réel pour le reste, déjà de simples props à 1 niveau). Un bug
+réel trouvé et corrigé au passage (`isScrolled`, header flottant desktop
+resté invisible depuis sa création). Voir la section dédiée plus bas pour
+le détail complet. "Génération" reste non déplaçable pour sa propre raison
+(bandeau rendu inline dans le JSX d'`AppContent`), documentée depuis le
+20/08.
 
 ### Historique détaillé (19-20/08) — archivé dans `HISTORIQUE.md`, bloc 5
 
@@ -328,7 +331,7 @@ Ordre de priorité retenu (voir aussi les passations pour le détail du raisonne
 - `PlaylistDetailContext.jsx` (Provider) n'a **pas** de couverture exhaustive — juste un test ciblé sur `isSaved`/`isReadOnly` (`tests/contexts/PlaylistDetailContext.test.jsx`). Le monter en entier exigerait de mocker `GeneratorContext` + `AudioPlayerContext` + le moteur de recalcul de timeline ; jugé disproportionné pour ce qui reste, à part ce point précis, de la logique triviale déjà couverte indirectement ailleurs.
 - Aucune exécution réelle de `vitest` n'est possible dans le bac à sable Claude — voir `CLAUDE-SANDBOX-VERIFICATION.md`.
 
-## Découpage `App.jsx` — chantier REPRIS le 20/08 (1er lot fait)
+## Découpage `App.jsx` — chantier CONCLU le 21/08 (2 extractions : StatsView, Image de partage)
 
 **Repoussé volontairement le 08/08** (retour direct) — voir plus haut, section "État d'avancement", pour le découpage déjà fait de `PlaylistHeader.jsx` (836 → 254 lignes, même famille de chantier). Raison du report à l'époque : refonte intégrale du menu de navigation + nouvelles fonctionnalités prévues dans les prochains jours — découper avant aurait obligé à deviner des frontières qui allaient de toute façon bouger. Approche retenue en attendant : écrire toute nouvelle fonctionnalité directement dans son PROPRE hook/context dédié plutôt que comme un `useState` de plus dans `AppContent` — le découpage se fait ainsi organiquement, au fil de l'eau (voir tous les `Context.jsx` déjà extraits : `GeneratorContext`/`AthleticContext`/`AudioPlayerContext`/`CustomActivityContext`/`ModalContext`/`PlaylistDetailContext`/`PlaylistEditContext`).
 
@@ -359,6 +362,28 @@ qui déclenche l'effet interne de synchronisation `[isNaughtyMode]` —
 vérifié dans le code avant de faire confiance au test). `baseProps()`
 nettoyée des 6 props mortes.
 
+### 2e lot fait : cluster "Image de partage" (4 `useState` → `ShareImageContext.jsx`, 21/08)
+
+Confirmé génuinement partagé (voir le 20/08 ci-dessus) entre `PlaylistDetailView.jsx`
+(génère l'image en arrière-plan) et `ShareModal.jsx` (l'affiche/laisse la
+retirer) — extrait en un vrai Contexte dédié plutôt qu'une redescente, comme
+prévu. `ShareImageProvider` monté dans `<App/>` au même niveau que
+`<ModalProvider>` (même raisonnement de placement : rien en dehors
+d'`AppContent` n'y accède). `summaryImageStatus`/`summaryImageFile`/
+`summaryImagePreviewUrl`/`includeSummaryImage` + leurs 4 setters ne sont
+plus prop-drillés (2 niveaux vers `PlaylistDetailViewInner`, 1 niveau vers
+`ShareModal`) — les deux composants appellent maintenant `useShareImage()`
+directement. Toute la LOGIQUE (génération, protection contre un changement
+de playlist en cours de route via `currentPlaylistIdRef`, reset au
+changement de playlist) reste entièrement dans `PlaylistDetailView.jsx`,
+inchangée — ce Contexte ne fait qu'exposer le state, comme `ModalContext.jsx`
+le fait pour `activeModal`/`modalData`. `value` mémoïsée (`useMemo`), même
+convention que les autres Contexts depuis le correctif AuthContext du 19/08.
+2 fichiers de test existants adaptés (`ShareModal.test.jsx`/
+`PlaylistDetailView.test.jsx`) — `useShareImage()` mocké dynamiquement
+(`vi.fn()` + `mockReturnValue`), même pattern que `MiniPlayerBar.test.jsx`
+pour `AudioPlayerContext`.
+
 ### Clusters restants dans `AppContent` — VÉRIFIÉS le 20/08, aucun n'est un candidat aussi simple que StatsView
 
 Contrairement à ce que l'inventaire initial laissait penser, les 2 autres
@@ -378,27 +403,72 @@ l'autre n'est un simple oubli comme StatsView l'était :
   réfléchie, pas de la dette laissée de côté. Le déplacer demanderait de
   sortir le bandeau LUI-MÊME dans un composant/Contexte dédié — un
   chantier plus gros, pas entrepris ici.
-- **Image de partage** (`summaryImageStatus`/`summaryImageFile`/
-  `summaryImagePreviewUrl`/`includeSummaryImage`, 4 `useState`) — **PAS
-  déplaçable tel quel** non plus : vérifié, ce cluster est passé à LA FOIS
-  à `<PlaylistDetailView/>` (qui le DÉFINIT — génère/capture l'image) ET à
-  `<ShareModal/>` (qui l'AFFICHE/l'utilise pour le partage), 2 composants
-  distincts, pas un seul. Genuinement partagé, pas un oubli non plus.
+- ~~**Image de partage**~~ **Fait (21/08)** — voir "2e lot fait" plus haut,
+  extrait en `ShareImageContext.jsx`.
 - **Navigation** (`view`/`viewingProfileUsername`/`isMobileMenuOpen`/
   `isUserMenuOpen`/`settingsInitialTab`/`playlistsInitialTab`/`isScrolled`/
-  `isGuestBarDismissed`, 8 `useState`) — également partagé (Sidebar, menu
-  avatar, points d'entrée `handleOpenSettings`/`handleOpenPlaylists`), pas
-  vérifié plus avant ce 20/08.
+  `isGuestBarDismissed`, 8 `useState`) — **AUDITÉ le 21/08** (pas vérifié en
+  détail au 20/08, l'affirmation "également partagé" plus haut était une
+  supposition, pas un audit réel) : contrairement à ce que l'inventaire
+  initial laissait penser, **3 des 8 ne sont PAS partagés du tout** —
+  `isUserMenuOpen` (menu avatar, entièrement local à `AppContent`, jamais lu
+  par Sidebar/aucun enfant), `isScrolled` (idem, n'affecte que le header
+  flottant desktop rendu dans le JSX propre d'`AppContent`) et
+  `isGuestBarDismissed` (seule sa forme DÉRIVÉE, `isGuestBarVisible`, est
+  transmise en prop — le booléen brut reste local). Un Contexte n'aurait
+  donné AUCUN bénéfice sur ces 3-là (rien à qui les partager) — les
+  déplacer aurait ajouté de l'indirection pour rien, même erreur que
+  d'avoir supposé "Génération"/"Image de partage" déplaçables sans vérifier
+  au 20/08.
+  ⚠️ **BUG RÉEL TROUVÉ ET CORRIGÉ EN COURS D'AUDIT (21/08)** — `isScrolled`
+  était lu dans le JSX (header flottant desktop, opacité conditionnelle)
+  mais `setIsScrolled` n'était appelé NULLE PART dans tout le projet : ce
+  header ne pouvait donc jamais apparaître, resté à `false` depuis sa
+  création. Listener de scroll ajouté sur le vrai conteneur qui défile
+  (`#main-scroll-area`, pas `window`), même convention qu'un listener déjà
+  en place ailleurs (`step3ScrollRef`, GeneratorWizard.jsx).
+  Les 5 restants (`view`/`viewingProfileUsername`/`isMobileMenuOpen`/
+  `settingsInitialTab`/`playlistsInitialTab`) sont bien partagés avec 1
+  enfant chacun, mais **AUDIT COMPLET le 21/08 : AUCUN vaut le coup
+  d'extraire en Contexte**, pour deux raisons distinctes et vérifiées (pas
+  supposées) :
+  1. `view`/`isMobileMenuOpen` (+ `changeView`/`hasUnsavedPlaylist`/
+     `openCuratedPlaylist`, sortie de `useNavigation()`) sont **bloqués par
+     une vraie contrainte d'ordre entre hooks** : `openCuratedPlaylist` et
+     `changeView` sont passés en ARGUMENT DIRECT (évaluation immédiate, pas
+     une fermeture différée) à `usePlaylistLibrary(...)` et
+     `usePlaylistGeneration(...)` respectivement, tous deux appelés PLUS
+     BAS dans le corps d'`AppContent`, avant le `return`. `useNavigation()`
+     (et donc `view`/`setView`/`setIsMobileMenuOpen`, ses paramètres) ne
+     peut donc PAS être déplacé dans un Provider monté au niveau du JSX
+     (comme `ShareImageProvider`) sans casser cet ordre — il doit rester
+     appelé directement dans `AppContent`, exactement où il est. Même
+     famille de contrainte que celle déjà documentée dans
+     `useNavigation.js` lui-même pour `resolvePendingNavigation` (cycle
+     hook → valeur → hook).
+  2. `viewingProfileUsername`/`settingsInitialTab`/`playlistsInitialTab`
+     n'ont PAS ce blocage (vérifié : jamais passés en argument à un autre
+     hook) — mais chacun n'est transmis qu'à **UN SEUL enfant, à UN SEUL
+     niveau** (`<ProfileView username=.../>`, `<SettingsView
+     initialTab=.../>`, `<PlaylistsView initialTab=.../>` — direct depuis
+     `AppContent`, aucun intermédiaire). Contrairement à "Image de
+     partage" (2 niveaux de prop-drilling via `PlaylistDetailView` →
+     `PlaylistDetailViewInner`), un Contexte ici n'aurait RIEN à
+     simplifier — juste un fichier de plus pour un passage de prop déjà
+     aussi simple que possible.
 
-**Conclusion de ce chantier (20/08)** : le cluster StatsView était
-vraisemblablement LE candidat "dette oubliée, extraction sûre" disponible
-dans ce fichier — les 3 clusters restants sont tous génuinement PARTAGÉS
-entre plusieurs composants, pas de simples oublis. Les déplacer
-demanderait de créer de VRAIS Contextes dédiés (ex. `ShareImageContext.jsx`,
-`NavigationContext.jsx`) — une décision architecturale plus lourde qu'une
-simple redescente de state, pas entreprise dans la foulée. À la charge de
-l'utilisateur de décider si ce chantier plus large vaut le coup, plutôt que
-de le lancer sans consultation supplémentaire.
+**Conclusion de ce chantier (20/08, conclu le 21/08)** : le cluster
+StatsView était vraisemblablement LE candidat "dette oubliée, extraction
+sûre" disponible dans ce fichier. Des 2 autres clusters identifiés au
+départ, "Image de partage" s'est avéré un vrai candidat et a été extrait
+(`ShareImageContext.jsx`) ; "Navigation", une fois vérifié en détail plutôt
+que supposé, s'avère volontairement NON déplaçable pour la moitié de son
+périmètre (contrainte d'ordre entre hooks) et sans bénéfice réel pour
+l'autre moitié (déjà de simples props à 1 niveau) — **ni "Génération" ni
+"Navigation" ne sont de bons candidats à un Contexte dédié**, chacun pour
+sa propre raison précise, pas des oublis. Ce chantier se conclut ici avec 2
+extractions réelles sur 3 clusters envisagés — le 3e a été correctement
+laissé de côté après vérification, pas par manque de temps.
 
 ## Corrigé (20/08) — anciennement "Limite connue, non traitée : écritures concurrentes de MÊME TYPE sur la MÊME playlist"
 
