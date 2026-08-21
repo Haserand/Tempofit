@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { UserX, Loader2, Clock, Gauge, ListMusic, Heart, Lock, Eye, Zap, Search, SlidersHorizontal, ChevronDown, X, SearchX, Copy } from 'lucide-react';
+import { UserX, Loader2, Clock, Gauge, ListMusic, Heart, Lock, Eye, Info, Zap, Search, SlidersHorizontal, ChevronDown, X, SearchX, Copy } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../supabaseClient';
 import { formatDuration } from '../../utils/format';
 import { buildCoverUrl } from '../../utils/coverArt';
@@ -536,6 +536,18 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
   // cloner/republier une playlist déjà sienne — pas dupliquée ici, ce
   // composant n'a pas besoin de le savoir pour lui-même.
   const isSelf = !!(user && profile?.user_id === user.id);
+  // Retour direct ("prends du recul : ajouter un texte descriptif dans la
+  // vue profil tempofit officiel"), 21/08 — visiter ce profil sans le
+  // savoir déjà (lien externe partagé, recherche "Découvrir") ne donnait
+  // AUCUNE indication qu'il s'agit d'un compte de démonstration : le
+  // sous-titre générique "Profil TempoFit" (identique à un VRAI profil) et
+  // des statistiques qui semblent réelles (`buildOfficialVitrineProfile`,
+  // officialVitrineProfile.js) pouvaient laisser croire à tort à un vrai
+  // historique de 340+ séances. `username` (pas `profile.username`) —
+  // volontairement dispo dès le premier rendu, avant même la résolution de
+  // `profile` (voir le useEffect plus haut), pour ne jamais afficher
+  // "Profil TempoFit" un court instant avant de basculer sur ce bandeau.
+  const isOfficialVitrine = username === OFFICIAL_VITRINE_USERNAME;
 
   return (
     <div className={`${VIEW_CONTENT_WRAPPER} space-y-6`}>
@@ -588,6 +600,17 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
               sans ce rappel, se voir soi-même sur cette page pourrait
               laisser croire à tort qu'il s'agit de la vue normale "Mes
               Séances" plutôt que d'un aperçu délibérément restreint. */}
+          {isOfficialVitrine && (
+            <div className={`flex items-center gap-3 p-4 rounded-2xl border ${cardBorder} ${cardBg}`}>
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${bgAccentClass} text-white`}>
+                <Info size={16} />
+              </div>
+              <p className={`text-sm font-medium ${textHighlight}`}>
+                Compte vitrine TempoFit — les séances et statistiques ci-dessous sont des exemples fictifs, pour découvrir l'app avant de créer ton propre profil.
+              </p>
+            </div>
+          )}
+
           {isSelf && (
             <div className={`flex items-center gap-3 p-4 rounded-2xl border ${cardBorder} ${cardBg}`}>
               <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${bgAccentClass} text-white`}>
