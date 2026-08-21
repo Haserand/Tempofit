@@ -49,7 +49,7 @@ const mockTheme = {
   textColorClass: 'mock-text-color',
   inputBg: 'mock-input-bg',
   inputBorder: 'mock-input-border',
-  borderAccentClass: 'mock-border-accent',
+  bgAccentClass: 'mock-accent-bg',
 };
 
 function baseProps(overrides = {}) {
