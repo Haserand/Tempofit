@@ -655,18 +655,22 @@ describe('ProfileView — profil vitrine officiel (@tempofit_officiel)', () => {
     expect(screen.queryByText(/Aperçu de ton profil/)).toBeNull();
   });
 
-  it('bandeau "Compte vitrine" affiché, même pour un visiteur non connecté (retour direct 21/08)', async () => {
+  it('sous-titre "Compte vitrine TempoFit" (pas "Profil TempoFit") + ligne d\'explication, même pour un visiteur non connecté (retour direct 21/08)', async () => {
     render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} />);
     await screen.findByText(`@${OFFICIAL_VITRINE_USERNAME}`);
-    expect(screen.getByText(/Compte vitrine TempoFit/)).toBeInTheDocument();
+    expect(screen.getByText('Compte vitrine TempoFit')).toBeInTheDocument();
+    expect(screen.queryByText('Profil TempoFit')).toBeNull();
+    expect(screen.getByText(/exemples fictifs/)).toBeInTheDocument();
   });
 
-  it('bandeau "Compte vitrine" JAMAIS affiché pour un vrai profil', async () => {
+  it('sous-titre "Profil TempoFit" (pas "Compte vitrine") et aucune ligne d\'explication pour un vrai profil', async () => {
     mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
     setupTableMocks();
     render(<ProfileView {...baseProps} user={{ id: 'un-autre-visiteur' }} />);
     await screen.findByText('@tempofit_admin');
-    expect(screen.queryByText(/Compte vitrine TempoFit/)).toBeNull();
+    expect(screen.getByText('Profil TempoFit')).toBeInTheDocument();
+    expect(screen.queryByText('Compte vitrine TempoFit')).toBeNull();
+    expect(screen.queryByText(/exemples fictifs/)).toBeNull();
   });
 
   it('statistiques sportives affichées en mode Sport, sans appel réseau POUR LES STATS elles-mêmes (mockRpc jamais appelé)', async () => {
