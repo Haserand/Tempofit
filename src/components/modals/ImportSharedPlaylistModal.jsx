@@ -11,7 +11,7 @@ import { formatDuration } from '../../utils/format';
  *
  * `preview` est le payload DÉCODÉ (voir playlistShareCode.js), pas encore
  * une vraie playlist de l'app — `onImport` (App.jsx) se charge de la
- * transformer en playlist complète et de l'ajouter à "Mes Séances".
+ * transformer en playlist complète et de l'ajouter à "Mes Playlists".
  */
 export default function ImportSharedPlaylistModal({ theme, isOpen, onClose, preview, onImport }) {
   const { cardBg, cardBorder, textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
@@ -53,7 +53,7 @@ export default function ImportSharedPlaylistModal({ theme, isOpen, onClose, prev
           onClick={onImport}
           className={`w-full py-4 text-white font-bold rounded-xl shadow-md hover:brightness-110 transition-all flex items-center justify-center gap-2 ${bgAccentClass}`}
         >
-          <Download size={18}/> Ajouter à Mes Séances
+          <Download size={18}/> Ajouter à Mes Playlists
         </button>
         <button onClick={onClose} className={`w-full py-3 mt-2 rounded-xl text-sm font-bold ${textMuted} hover:text-main transition-colors`}>
           Ignorer
