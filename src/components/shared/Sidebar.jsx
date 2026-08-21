@@ -159,7 +159,7 @@ export default function Sidebar({
   return (
     <aside className={`fixed inset-y-0 left-0 z-50 w-64 h-full bg-surface border-r-2 ${cardBorderStrong} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${bottomBarPadding} md:pb-0`}>
       <div className={`${VIEW_HEADER_TOP_PADDING} px-6 pb-6 mb-2 border-b-2 ${cardBorderStrong} flex items-center justify-between shrink-0`}>
-         {/* Logo cliquable = retour à l'accueil ("Nouvelle séance"). */}
+         {/* Logo cliquable = retour à l'accueil ("Nouvelle Playlist"). */}
          <button
            onClick={() => changeView('generator')}
            title="Retour à l'accueil"
@@ -343,7 +343,7 @@ export default function Sidebar({
 
           <button onClick={() => changeView('generator')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'generator' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Zap size={18} className={view === 'generator' ? 'text-white' : textColorClass} />
-            <span className="font-bold text-sm">Nouvelle séance</span>
+            <span className="font-bold text-sm">Nouvelle Playlist</span>
           </button>
 
           {/* Rapprochée de "Nouvelle séance" (retour direct, 20/08 :
@@ -359,12 +359,26 @@ export default function Sidebar({
               objet, il n'y a plus qu'un seul bouton "Mes Séances" ici,
               plus de bouton "Mes Routines" à placer où que ce soit dans la
               Sidebar. Raisonnement d'origine gardé ci-dessus : il explique
-              toujours pourquoi "Mes Séances" est montée ici plutôt que
-              dans "Mon Espace", même si sa 2e moitié (où va "Mes
-              Routines") ne s'applique plus telle quelle. */}
+              toujours pourquoi ce bouton est monté ici plutôt que dans
+              "Mon Espace", même si sa 2e moitié (où va "Mes Routines") ne
+              s'applique plus telle quelle.
+              ⚠️ RENOMMÉ (même jour, retour direct utilisateur suite à un
+              retour terrain : "la notion de 'séance' parle aux utilisateurs
+              qui font du sport régulièrement mais beaucoup moins à ceux qui
+              testent juste par curiosité, ils se disent pas qu'il y a une
+              playlist même si on fait bien plus") — "Nouvelle séance" →
+              "Nouvelle Playlist", "Mes Séances" → "Mes Playlists". Décision
+              assumée comme réversible par l'utilisateur ("au pire je fais
+              un mauvais choix et reviendrai en arrière") — le raisonnement
+              "séance > playlist" documenté plus haut dans ce fichier
+              reste VALIDE sur le fond (plan d'entraînement structuré, pas
+              une simple liste de titres), mais perdait un signal important
+              pour les visiteurs curieux/premiers contacts. Le nom de ce
+              bouton a changé, pas sa position ni la logique de section qui
+              l'y a amené. */}
           <button onClick={() => changeView('playlists')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'playlists' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <List size={18} className={view === 'playlists' ? 'text-white' : textColorClass} />
-            <span className="font-bold text-sm">Mes Séances</span>
+            <span className="font-bold text-sm">Mes Playlists</span>
           </button>
 
           <button onClick={() => changeView('discover')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'discover' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
@@ -395,7 +409,7 @@ export default function Sidebar({
               direct : "j'imagine la partie routines comme un onglet
               spécifique du menu séance, comme sur un profil utilisateur").
               Ce n'est plus une entrée de Sidebar séparée : c'est maintenant
-              le 2e onglet de "Mes Séances" (bouton juste au-dessus, dans
+              le 2e onglet de "Mes Playlists" (bouton juste au-dessus, dans
               "Création") — voir PlaylistsView.jsx pour le détail complet.
               L'échange de position du 20/08 ("Mes Séances" ↔ "Mes
               Routines" entre les 2 sections, voir commit précédent) est
