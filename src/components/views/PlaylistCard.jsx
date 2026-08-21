@@ -5,14 +5,16 @@ import CompletionsList from '../shared/CompletionsList';
 
 /**
  * PlaylistCard — carte d'une playlist, utilisée par PlaylistsView ("Mes
- * Séances") pour ses 3 sections (à planifier / planifiées / terminées).
+ * Playlists") pour ses 3 sections (à planifier / planifiées / terminées).
  *
  * Historiquement partagée aussi avec HistoryView ("Historique", séances
  * terminées uniquement) via une prop `showActions` qui basculait entre 2
- * rendus. HistoryView a été retirée (fusionnée dans "Mes Séances" depuis que
- * la planification/dates y a été intégrée) — `showActions` était donc devenue
- * toujours `true` (plus qu'un seul appelant), retirée ici pour ne pas garder
- * une branche de code morte inatteignable.
+ * rendus. HistoryView a été retirée (fusionnée dans "Mes Playlists" depuis
+ * que la planification/dates y a été intégrée — nom "Mes Séances" à
+ * l'époque, renommé "Mes Playlists" le 20/08, voir Sidebar.jsx) —
+ * `showActions` était donc devenue toujours `true` (plus qu'un seul
+ * appelant), retirée ici pour ne pas garder une branche de code morte
+ * inatteignable.
  *
  * RETOUR DIRECT ("une playlist générée est un objet musical, pas un modèle
  * d'entraînement — elle doit avoir une pochette d'album, pas l'emoji de
@@ -136,7 +138,7 @@ export default function PlaylistCard({
           </div>
           {/* Pseudo en chapeau RETIRÉ (07/08, retour direct après essai en
               conditions réelles, capture à l'appui : "pas la peine de
-              mettre le nom d'utilisateur" sur Mes Séances) — contrairement
+              mettre le nom d'utilisateur" sur Mes Playlists) — contrairement
               à PlaylistHeader.jsx/TemplateCard.jsx (où le pseudo identifie
               un propriétaire potentiellement DIFFÉRENT de soi), ici c'est
               TOUJOURS le même pseudo, sur CHAQUE carte de CETTE vue —
@@ -308,7 +310,7 @@ export default function PlaylistCard({
               {/* Compteur de clonages (retour direct — "par cohérence on
                   devrait aussi le voir dans Mes Séances") — cette carte
                   n'est utilisée QUE pour des playlists déjà sauvegardées
-                  (voir la docstring en tête de ce fichier, "Mes Séances"),
+                  (voir la docstring en tête de ce fichier, "Mes Playlists"),
                   donc pas de condition `isSaved`/`cloneCount !== undefined`
                   à vérifier ici comme pour PlaylistHeaderBadges.jsx :
                   toujours affiché, `|| 0` en repli honnête — même
