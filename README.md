@@ -20,9 +20,14 @@ fermé. StatsView (20/08), "Image de partage" (21/08, →
 raisons distinctes vérifiées, pas juste supposées (contrainte d'ordre entre
 hooks pour `view`/`isMobileMenuOpen`, même famille que celle qui a limité
 l'extraction "Génération" au rendu seul ; aucun gain réel pour le reste,
-déjà de simples props à 1 niveau). Un bug réel trouvé et corrigé au passage
-(`isScrolled`, header flottant desktop resté invisible depuis sa création).
-Voir la section dédiée plus bas pour le détail complet.
+déjà de simples props à 1 niveau). `isScrolled` — trouvé "cassé" en cours
+d'audit (setter jamais appelé), corrigé PUIS retiré le jour même : une fois
+visible pour de vrai (retour direct avec capture), s'est avéré être un
+header flottant desktop dont la justification ne tenait plus (rôle déjà
+assuré par le logo Sidebar, toujours visible sur desktop) ET au contenu
+incorrect hors du Générateur (`displaySubtitleGen` non contextuel — voir
+plus bas pour le détail complet). Retiré entièrement plutôt que juste
+"réparé".
 
 ### Historique détaillé (19-20/08) — archivé dans `HISTORIQUE.md`, bloc 5
 
@@ -471,13 +476,28 @@ l'autre n'est un simple oubli comme StatsView l'était :
   déplacer aurait ajouté de l'indirection pour rien, même erreur que
   d'avoir supposé "Génération"/"Image de partage" déplaçables sans vérifier
   au 20/08.
-  ⚠️ **BUG RÉEL TROUVÉ ET CORRIGÉ EN COURS D'AUDIT (21/08)** — `isScrolled`
-  était lu dans le JSX (header flottant desktop, opacité conditionnelle)
-  mais `setIsScrolled` n'était appelé NULLE PART dans tout le projet : ce
-  header ne pouvait donc jamais apparaître, resté à `false` depuis sa
-  création. Listener de scroll ajouté sur le vrai conteneur qui défile
-  (`#main-scroll-area`, pas `window`), même convention qu'un listener déjà
-  en place ailleurs (`step3ScrollRef`, GeneratorWizard.jsx).
+  ⚠️ **`isScrolled` — trouvé "cassé" en cours d'audit (21/08), PUIS RETIRÉ
+  le jour même, pas juste réparé** : `setIsScrolled` n'était appelé NULLE
+  PART dans tout le projet, ce header flottant desktop (opacité
+  conditionnelle au scroll) ne pouvait donc jamais apparaître, resté à
+  `false` depuis sa création. 1er réflexe (même jour) : combler le trou,
+  listener de scroll ajouté sur `#main-scroll-area`. Une fois VRAIMENT
+  visible pour la première fois (retour direct, capture d'écran), 2
+  problèmes de fond sont apparus qu'aucun audit de code seul n'aurait
+  révélés : (1) son seul commentaire d'origine dit lui-même qu'il
+  "dupliquait le comportement du logo Sidebar" — logo qui, sur desktop,
+  est déjà TOUJOURS visible (sidebar fixe, ne scrolle jamais) ; sa
+  justification "rappel de marque au scroll" n'a donc jamais eu de sens
+  dans CE layout précis ; (2) son sous-titre (`displaySubtitleGen`,
+  `useGeneratorForm.js`) est câblé en dur sur le tagline du GÉNÉRATEUR,
+  jamais contextuel à la vue réellement affichée — scroller dans
+  Réglages/Stats/une playlist aurait affiché un texte sans rapport. Retiré
+  intégralement (JSX + `isScrolled`/`mainScrollRef`/le listener +
+  `displaySubtitleGen` de la déstructuration d'`AppContent`, resté utilisé
+  par `GeneratorView.jsx` lui-même, inchangé). Le vrai enseignement : un
+  `useState` "cassé" trouvé en audit n'est pas automatiquement un bug à
+  réparer — vérifier D'ABORD si la fonctionnalité qu'il pilote a encore sa
+  place, avant d'investir dans sa remise en marche.
   Les 5 restants (`view`/`viewingProfileUsername`/`isMobileMenuOpen`/
   `settingsInitialTab`/`playlistsInitialTab`) sont bien partagés avec 1
   enfant chacun, mais **AUDIT COMPLET le 21/08 : AUCUN vaut le coup
