@@ -1019,6 +1019,40 @@ utilisés (des dizaines d'occurrences dans tout le projet) écartés de la
 même façon : style volontaire et cohérent du projet, pas une dette
 oubliée.
 
+**3e passe du même check-up ("continuer" une 2e fois)** — cette fois
+`eslint-plugin-react-hooks` (`rules-of-hooks` + `exhaustive-deps`), jamais
+utilisé jusqu'ici dans ce projet. **`rules-of-hooks` : 0 erreur** (aucun
+hook appelé conditionnellement ou hors composant/hook). `exhaustive-deps` :
+13 avertissements, tous vérifiés au cas par cas (pas de confiance aveugle,
+même leçon que pour `no-unused-vars`) :
+
+- La quasi-totalité sont des omissions VOLONTAIRES déjà correctement
+  gérées : `App.jsx` (bloc `editingRoutine`, déjà annoté d'un
+  `eslint-disable-next-line` explicite), `TrophiesView.jsx`
+  (`markTrophiesSeen`, appel volontaire "une fois à l'ouverture", déjà
+  documenté en prose), `useAudioPreview.js` (9 fonctions volontairement
+  hors dépendances, déjà documenté en détail : elles ne ferment que sur des
+  refs stables + les mêmes deps déjà listées), `App.jsx` (effet
+  `fillDemoPreviews`, déjà annoté "une seule fois au montage").
+- **2 vrais trous de DOCUMENTATION comblés dans `useSessionAnalysis.js`**
+  (pas des bugs, vérifié en détail avant de conclure) : l'effet de
+  pré-sélection de date et l'effet d'auto-bascule de métrique manquaient
+  tous les deux d'une explication sur pourquoi leurs dépendances sont
+  volontairement incomplètes, contrairement à la convention du reste du
+  projet. Vérifié que ce sont bien des choix sûrs : le 1er est déjà couvert
+  par `handleCSVUpload` (`useCsvImport.js`), qui met à jour
+  `selectedAnalysisDate` directement après un import réussi ; le 2e est
+  structurellement sûr car `availableMetrics` est recalculé à chaque rendu
+  depuis `currentActualData` (déjà en dépendance) et le sélecteur de
+  métrique dans l'UI n'apparaît que si les deux métriques sont disponibles.
+  Commentaires + `eslint-disable-next-line` ajoutés aux deux, aucun
+  changement de comportement.
+
+Vérifications complémentaires sans trouvaille : aucun
+`dangerouslySetInnerHTML` (pas de risque XSS de ce type), aucun secret/clé
+API codé en dur trouvé par balayage de motifs, aucun `.map()` JSX sans prop
+`key` détecté.
+
 ## Corrigé (20/08) — anciennement "Limite connue, non traitée : écritures concurrentes de MÊME TYPE sur la MÊME playlist"
 
 **Constat d'origine (check-up 10/08)** : les 5 correctifs de course du 10/08
