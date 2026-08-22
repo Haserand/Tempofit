@@ -358,6 +358,52 @@ sur `isOfficialVitrine` — et retirer alors le texte en dur de
 `officialVitrineProfile.js` au profit d'une vraie valeur (ou continuer de
 lui donner une bio écrite à la main, cohérente avec son rôle de vitrine).
 
+## Wizard générateur — coin de carte qui touchait la ligne du pied de page (21/08)
+
+Retour direct avec capture zoomée : "barre quasi invisible mais présente
+en dessous des 2 boutons du bas du générateur, et dans d'autres fenêtres" —
+diagnostic impossible à trancher avec certitude en lisant le code seul,
+alors **serveur de dev lancé en sandbox (`npm install` + `vite` + Playwright
+fonctionnent ici, contrairement à ce qu'affirmait CLAUDE-SANDBOX-
+VERIFICATION.md — à mettre à jour)** pour inspecter le rendu réel et les
+styles calculés.
+
+**Cause confirmée par mesure réelle** : le retrait de `min-h-[450px]`
+(03/08, chantier "suppression du scroll résiduel") avait bien réglé le
+débordement visé, mais un effet de bord jamais repéré depuis — sans
+hauteur minimale forcée sur la carte du wizard, `mt-auto` (pied de page
+Précédent/Suivant) ne crée plus AUCUN espace excédentaire à distribuer
+quand une étape a peu de contenu (ex. "Structure de l'effort", 3 boutons
+seulement, ou "Qu'est-ce qu'on fait aujourd'hui ?", 4 boutons). Mesuré au
+pixel près via `getBoundingClientRect()` : le bas de la carte "Crescendo"
+tombait à `684.5px`, le haut du `border-t` du pied de page À EXACTEMENT
+`684.5px` — zéro pixel d'écart. Ces boutons ayant un coin arrondi
+(`rounded-2xl`, 16px), sans la moindre marge pour finir sa courbe avant de
+percuter la ligne droite juste en dessous, le rendu du navigateur produit
+un artefact visuel (un "crochet" à l'intersection courbe/droite) —
+quasi invisible à l'œil nu, mais bien réel et visible en zoomant, exactement
+ce que montrait la capture.
+
+**Correctif** : `<div className="flex-1">` (englobe les 4 étapes du
+wizard) devient `<div className="flex-1 pb-3">` — 12px de plancher
+minimal avant le pied de page, quelle que soit la longueur du contenu de
+l'étape affichée. Revérifié en conditions réelles après coup (pas juste en
+théorie) : nouvel écart mesuré à 12px pile sur l'étape 1 ET l'étape 2,
+capture d'écran de contrôle prise pour confirmer visuellement la
+disparition de l'artefact.
+
+Note en passant, hors périmètre de ce correctif : la ligne elle-même
+(`border-t border-gray-100 dark:border-gray-800`) est codée en dur plutôt
+que via le token sémantique `cardBorder` — le même code en dur apparaît
+aussi dans `EditRoutineModal.jsx`/`EditPlaylistModal.jsx`/
+`PlaylistCard.jsx`/`RoutinesView.jsx`/`FavoritesView.jsx` (9 occurrences au
+total). En dark mode les 2 valeurs sont numériquement identiques
+(`gray-800` = `--color-divider` dark), donc pas de bug visuel actuel côté
+couleur — mais en mode clair elles divergent (`gray-100` vs le
+`--color-divider`/gray-200 sémantique), une incohérence latente pas
+traitée ici (question posée portait sur l'artefact du coin de carte, pas
+sur l'harmonisation des couleurs de bordure).
+
 ## Sidebar — "Découvrir" isolé hors de "Création" (21/08)
 
 Retour direct : "Découvrir" vivait dans CRÉATION depuis la refonte du
