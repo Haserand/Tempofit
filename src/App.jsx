@@ -549,7 +549,12 @@ function AppContent({
   // MOTEUR SPOTIFY (voir hooks/useSpotifyImport.js) — appelé ICI, après
   // useFavorites, parce qu'il a besoin de `setFavorites` (la synchro fusionne
   // les titres likés/artistes suivis dans les favoris existants).
-  const { spotifyToken, setSpotifyToken, spotifyTrackPool, setSpotifyTrackPool, loginSpotify, syncSpotifyFavorites, REDIRECT_URI } = useSpotifyImport(setFavorites, showToast);
+  // `setSpotifyTrackPool`/`syncSpotifyFavorites` retirés de la
+  // destructuration (check-up 22/08) : jamais utilisés ici — `useSpotifyImport`
+  // continue de les générer/exécuter en interne (la synchro elle-même
+  // fonctionne toujours, seule cette copie locale du setter/de la fonction
+  // était inutile).
+  const { spotifyToken, setSpotifyToken, spotifyTrackPool, loginSpotify, REDIRECT_URI } = useSpotifyImport(setFavorites, showToast);
 
   // RETOUR DIRECT ("supprime tout ce qui ne sert plus à rien niveau Deezer")
   // — le moteur Deezer Connect (login/synchro favoris, symétrique à
@@ -662,14 +667,27 @@ function AppContent({
   // composant racine `App` (instance UNIQUE, partagée avec GeneratorContext
   // ET avec StatsView/PlaylistDetailView/Sidebar plus bas) — reçue en prop et
   // simplement déstructurée à l'identique, aucun autre changement.
+  // ⚠️ Bloc réduit de 15 à 3 variables (check-up 22/08, suite du nettoyage
+  // sur useGeneratorContext() ci-dessus — même méthode, ESLint puis
+  // vérification occurrence par occurrence à la main) : `setAthleticProfile`,
+  // `computeZonesFromBaseBpm`, `getDefaultBaseBpm`, `buildDefaultPreviewProfile`,
+  // `getZoneSpacingForActivity`, `setBaseBpmForActivity`, `setZoneForActivity`,
+  // `resetActivityProfile`, `addCustomActivity`, `removeCustomActivity`,
+  // `setBaseBpmForCustom`, `setZoneForCustom`, `setCadenceIntentForActivity`,
+  // `setCadenceIntentForCustom`, `isCadenceIntentEligible`,
+  // `resetAthleticProfile` n'étaient utilisées nulle part ailleurs dans ce
+  // fichier — probablement une conséquence du même passage "MIGRÉ" que le
+  // commentaire ci-dessus documente (réception via prop `athleticProfileApi`
+  // plutôt que via `useAthleticProfile()` appelé ici) : cette API complète a
+  // migré vers d'autres consommateurs (SettingsView, CustomActivityModal...)
+  // qui l'obtiennent chacun via leur propre contexte, sans que cette copie-ci
+  // ait été réduite en conséquence. `athleticProfile`, `getProfileForWorkout`
+  // et `getProfileForWorkoutOrDefault` restent réellement utilisées ici (props
+  // de `<GeneratorView/>`/`<EditRoutineModal/>`).
   const {
-    athleticProfile, setAthleticProfile,
-    computeZonesFromBaseBpm, getDefaultBaseBpm, buildDefaultPreviewProfile, getZoneSpacingForActivity,
-    setBaseBpmForActivity, setZoneForActivity, resetActivityProfile,
-    addCustomActivity, removeCustomActivity, setBaseBpmForCustom, setZoneForCustom, getProfileForWorkout,
+    athleticProfile,
+    getProfileForWorkout,
     getProfileForWorkoutOrDefault,
-    setCadenceIntentForActivity, setCadenceIntentForCustom, isCadenceIntentEligible,
-    resetAthleticProfile,
   } = athleticProfileApi;
 
   const {
@@ -685,7 +703,10 @@ function AppContent({
     addRoutine, updateRoutine,
   } = useRoutines(isNaughtyMode, showToast);
 
-  const { userStats, setUserStats, checkTrophies, unseenTrophyCount, markTrophiesSeen } = useUserStats(showToast, user);
+  // `setUserStats` retiré de la destructuration (check-up 22/08) : jamais
+  // utilisé dans ce fichier — `useUserStats()` continue de le générer en
+  // interne, ce retrait ne change rien à son fonctionnement.
+  const { userStats, checkTrophies, unseenTrophyCount, markTrophiesSeen } = useUserStats(showToast, user);
 
   // `userStatsRef` (check-up 10/08 — 5e occurrence de la même famille de
   // course cette session, voir `shareImageFileWithTrophy` plus bas pour le
@@ -985,20 +1006,29 @@ function AppContent({
   const search = useTrackSearch();
   const {
     searchQuery, setSearchQuery,
-    isWorldSearching, setIsWorldSearching,
+    isWorldSearching,
     worldSearchResults, setWorldSearchResults,
     resultsContextLabel, setResultsContextLabel,
     noUsableResultsHint, setNoUsableResultsHint,
     isBpmSearchMode, setIsBpmSearchMode,
-    searchResultsOffset, setSearchResultsOffset,
-    searchHasMoreResults, setSearchHasMoreResults,
-    isLoadingMoreResults, setIsLoadingMoreResults,
-    searchActiveArtistName, setSearchActiveArtistName,
+    searchHasMoreResults,
+    isLoadingMoreResults,
+    searchActiveArtistName,
     editingBpmId, setEditingBpmId,
-    searchLoadingMessage, setSearchLoadingMessage,
-    worldSearchOtherResults, setWorldSearchOtherResults,
-    bpmSearchParams, setBpmSearchParams,
+    searchLoadingMessage,
+    worldSearchOtherResults,
+    bpmSearchParams,
   } = search;
+  // ⚠️ 9 setters retirés de cette destructuration (check-up 22/08) :
+  // `setIsWorldSearching`, `setSearchResultsOffset` (et son getter
+  // `searchResultsOffset`, également mort), `setSearchHasMoreResults`,
+  // `setIsLoadingMoreResults`, `setSearchActiveArtistName`,
+  // `setSearchLoadingMessage`, `setWorldSearchOtherResults`,
+  // `setBpmSearchParams` — jamais utilisés comme identifiants nus ici. Sans
+  // impact sur `useDeezerSearch(search, ...)` plus bas : c'est l'objet
+  // `search` COMPLET qui lui est passé (voir commentaire ci-dessus), pas
+  // ces noms courts déstructurés localement pour la lisibilité du reste de
+  // ce fichier.
   // Chrono affiché pendant le chargement — repart de 0 à chaque nouvelle
   // recherche, incrémente chaque seconde tant que isWorldSearching est vrai.
   const searchElapsedSeconds = useElapsedTimer(isWorldSearching);
@@ -1216,7 +1246,10 @@ function AppContent({
   // extraites dans useNavigation.js (25/07, chantier "réduire le God
   // Component") — même schéma que useRoutineActions.js pour setWizardStep
   // (useGeneratorContext() appelé à l'intérieur du hook).
-  const { hasUnsavedPlaylist, changeView, openCuratedPlaylist } = useNavigation(
+  // ⚠️ `hasUnsavedPlaylist` retiré de la destructuration (check-up 22/08) :
+  // jamais lu ici (son effet `beforeunload` vit bien DANS useNavigation.js,
+  // comme déjà documenté juste en dessous — rien à faire de plus ici).
+  const { changeView, openCuratedPlaylist } = useNavigation(
     view, setView, setIsMobileMenuOpen,
     currentPlaylist, setCurrentPlaylist, savedPlaylists,
     isNaughtyMode,
@@ -1365,8 +1398,11 @@ function AppContent({
   // restauration du template pristine), déjà défini plus haut dans ce fichier.
   // La modale de confirmation (openModal('PENDING_UNSAVE', ...)) est gérée par
   // usePlaylistLibrary.js lui-même via ModalContext, pas transmise en paramètre.
+  // ⚠️ `playlistHasHistory` retiré de la destructuration (check-up 22/08) :
+  // jamais appelée ici — `usePlaylistLibrary.js` l'utilise déjà en interne
+  // pour sa propre logique (voir sa source), pas besoin d'une 2e copie ici.
   const {
-    handleSavePlaylist, handleClonePlaylist, removeSavedPlaylist, playlistHasHistory, requestRemoveSavedPlaylist, setPlaylistPlannedDate,
+    handleSavePlaylist, handleClonePlaylist, removeSavedPlaylist, requestRemoveSavedPlaylist, setPlaylistPlannedDate,
   } = usePlaylistLibrary(
     currentPlaylist, setCurrentPlaylist, savedPlaylists, setSavedPlaylists, showToast,
     openCuratedPlaylist, userStats, checkTrophies, profilePrivacy?.defaultPlaylistPublic,
@@ -1482,9 +1518,14 @@ function AppContent({
   // les mêmes noms qu'avant pour ne rien casser dans le reste du fichier, qui
   // n'est pas encore entièrement découpé en composants de vue.
   const themeTokens = useTheme(isNaughtyMode);
+  // ⚠️ `borderAccentClass`/`inputBg`/`inputBorder` retirés de cette
+  // destructuration (check-up 22/08) : jamais utilisés comme identifiants
+  // nus ici. Sans impact sur les vues enfants qui en ont besoin : c'est
+  // l'objet `themeTokens` COMPLET qui leur est transmis (`theme={themeTokens}`),
+  // pas ces noms courts déstructurés localement.
   const {
-    themeColor, bgMainApp, textMain, textColorClass, bgAccentClass, borderAccentClass,
-    cardBg, cardBorder, cardBorderStrong, inputBg, inputBorder, textMuted, textHighlight,
+    themeColor, bgMainApp, textMain, textColorClass, bgAccentClass,
+    cardBg, cardBorder, cardBorderStrong, textMuted, textHighlight,
   } = themeTokens;
 
   // Fermeture SESSION-ONLY de la guest bar (03/08) : REMONTÉE ici depuis
