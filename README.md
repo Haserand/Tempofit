@@ -464,6 +464,18 @@ contrairement au haut) — `pb-3`(12px) → `pb-[10px]` (-2px), l'espace
 après "Découvrir" avant le pied de page. N'affecte PAS le centrage du
 bouton "Quitter" (qui ne dépend que du HAUT de cette constante + son
 propre padding, tous deux inchangés cette passe).
+
+**6e passe, même jour** (retour direct, nouvelle capture avec 5 traits
+marqués comme la toute 1re fois : "en gros manque une quinzaine de
+pixels") — retour aux 5 MÊMES écarts que les 2 premières passes, -3px
+chacun cette fois (5×3=15px, cumul des 3 passes : -25px) :
+`SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM` (`mb-[16px]`→`mb-[13px]`),
+`SIDEBAR_SEPARATOR_MARGIN_COMPACT`/`SIDEBAR_DISCOVER_SEPARATOR_MARGIN_COMPACT`
+(`mt-[16px]`→`mt-[13px]` chacune), et le couple bouton "Quitter"/haut de
+`SIDEBAR_SCROLL_PADDING_COMPACT` (`pt-[10px]`→`pt-[7px]`,
+`pb-2.5`→`pb-[7px]`, toujours égaux donc bouton recentré). Le BAS de
+`SIDEBAR_SCROLL_PADDING_COMPACT` (après "Découvrir", touché à la passe
+précédente) n'était pas marqué cette fois — resté à `pb-[10px]`.
 ⚠️ Retour utilisateur explicite : "je vais y aller par étape" — d'autres
 ajustements Mode Intime à prévoir dans une session future, celui-ci n'est
 qu'un 1er correctif ciblé, pas une passe de stabilisation complète comme
