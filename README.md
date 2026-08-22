@@ -1324,6 +1324,26 @@ bien ces constantes est retiré (devenu sans objet), les 2 tests de
 synchronisation MiniPlayerBar/GuestModeBar restent inchangés — le risque
 qu'ils protègent existe toujours, indépendamment de Sidebar.jsx.
 
+## GuestModeBar — "Se connecter" pas parfaitement centré (22/08)
+
+Retour direct, capture d'écran à l'appui : "pourquoi les 2 ne sont pas
+parfaitement centrés ?" (bouton "Se connecter" et croix de fermeture,
+`GuestModeBar.jsx`).
+
+Cause : `justify-center` centre le GROUPE entier (bouton "Se connecter" +
+croix), pas le texte "Se connecter" lui-même — la croix, plus étroite que
+le bouton, ne compensait pas sa largeur, donc le centre géométrique du
+groupe tombait légèrement à droite du texte perçu comme le contenu
+principal, qui semblait dérivé vers la gauche. Corrigé en ajoutant un
+espaceur invisible (même boîte que la croix — `p-1.5` + icône 16px,
+copié à l'identique plutôt que deviné en pixels) avant le bouton "Se
+connecter" : les 2 côtés du groupe sont maintenant symétriques, "Se
+connecter" tombe pile au centre réel de la barre. Espaceur marqué
+`aria-hidden` (purement visuel, rien à annoncer aux lecteurs d'écran).
+
+Test de régression ajouté (`GuestModeBar.test.jsx`) : vérifie la présence
+de l'espaceur et son exclusion de l'arborescence d'accessibilité.
+
 ## Autres fichiers de référence à ce niveau
 
 - `CLAUDE-SANDBOX-VERIFICATION.md` — outils de vérification de code pour une session Claude sans accès réseau.
