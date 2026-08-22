@@ -1397,6 +1397,39 @@ bien ces constantes est retiré (devenu sans objet), les 2 tests de
 synchronisation MiniPlayerBar/GuestModeBar restent inchangés — le risque
 qu'ils protègent existe toujours, indépendamment de Sidebar.jsx.
 
+**Suite (22/08, même jour) — malentendu sur la direction du correctif,
+clarifié par retour direct** : la 1re version de ce correctif retirait la
+contrainte de hauteur SANS réduire les barres du bas en retour — ce qui a
+effectivement résolu le vol d'espace de nav, mais laissait les bordures
+désalignées (capture d'écran à l'appui : "je capte pas pourquoi tu as mis
+de nouveaux désalignement visuel"). Clarification reçue : "je te demandais
+de réduire la barre du bas initialement" — direction inverse de celle
+prise. Corrigé en 2 temps, le même jour :
+- **`MiniPlayerBar.jsx`** : `h-[90px]` → `h-[70px]`, calculé pour
+  correspondre à la hauteur NATURELLE (non forcée) du pied de page de
+  Sidebar.jsx — calcul détaillé dans le commentaire du composant (bordure
+  2px + padding vertical 16px + ligne Réglages/Trophées 32px + gap 4px +
+  ligne de crédit 16px ≈ 70px). Contenu de la zone centrale du lecteur
+  (boutons 36px + barre de progression ~16px + espace 4px ≈ 56px) tient
+  largement dans ces 70px.
+- **`GuestModeBar.jsx`** : `h-[72px]` → `h-[70px]` — décalage résiduel de
+  quelques px encore visible après le 1er correctif de `MiniPlayerBar.jsx`
+  seul (cette barre-ci ciblait encore l'ANCIENNE valeur commune des 2
+  barres, 72px, d'avant le retrait de `creditRowHeight`). Disposition
+  interne inchangée, seule la hauteur globale du conteneur change.
+- **`bottomBarLayout.js`** : `MINI_PLAYER_BAR_HEIGHT_PX`/
+  `GUEST_MODE_BAR_HEIGHT_PX` valent maintenant tous les deux `70`
+  (`GUEST_MODE_BAR_HEIGHT_PX` était resté à 72 après le 1er correctif,
+  d'où le résidu). Les 2 classes Tailwind écrites en dur restent à
+  resynchroniser manuellement avec ces constantes si l'une rebouge un
+  jour (voir `bottomBarLayout.test.js`, qui vérifie ce lien pour de vrai).
+
+Aucun navigateur disponible en sandbox pour mesurer réellement ces
+hauteurs (Playwright bloqué ce jour-là, voir CLAUDE-SANDBOX-
+VERIFICATION.md §5quinquies) — calcul fait à partir de l'échelle Tailwind
+par défaut plutôt que d'une vraie capture. À confirmer visuellement à la
+première occasion d'ouvrir l'app pour de vrai.
+
 ## GuestModeBar — "Se connecter" pas parfaitement centré (22/08)
 
 Retour direct, capture d'écran à l'appui : "pourquoi les 2 ne sont pas
