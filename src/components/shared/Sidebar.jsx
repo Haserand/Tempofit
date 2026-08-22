@@ -1,5 +1,4 @@
 import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, Compass, Sun, Moon } from 'lucide-react';
-import { MINI_PLAYER_BAR_HEIGHT_PX, GUEST_MODE_BAR_HEIGHT_PX } from '../../layout/bottomBarLayout';
 import { VIEW_HEADER_TOP_PADDING } from '../../layout/viewHeaderLayout';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import {
@@ -156,27 +155,31 @@ export default function Sidebar({
         ? 'pb-10'
         : '';
 
-  // Hauteur RÉELLE (en px) des barres du bas actuellement visibles — miroir
-  // de bottomBarPadding ci-dessus, mais en pixels exacts plutôt qu'en classe
-  // Tailwind arrondie : sert à synchroniser la hauteur de la case crédit
-  // juste plus bas, pas à réserver un espace vide.
-  // MINI_PLAYER_BAR_HEIGHT_PX/GUEST_MODE_BAR_HEIGHT_PX importées depuis
-  // bottomBarLayout.js (27/07) — seule source de vérité pour ces 2 nombres,
-  // partagée avec les classes Tailwind `h-[90px]`/`h-[72px]` de
-  // MiniPlayerBar.jsx/GuestModeBar.jsx (qui, elles, DOIVENT rester écrites
-  // en dur — voir bottomBarLayout.js pour la contrainte Tailwind derrière ce
-  // choix). `null` = aucune barre visible, la case crédit garde sa hauteur
-  // naturelle (basée sur son padding).
-  // (Les autres réglages d'espacement de ce fichier — paddings des liens,
-  // marges des titres, séparateur — sont centralisés dans sidebarLayout.js,
-  // voir ce fichier pour le pourquoi de chaque valeur actuelle.)
-  const creditRowHeight = playerBarVisible && guestBarVisible
-    ? MINI_PLAYER_BAR_HEIGHT_PX + GUEST_MODE_BAR_HEIGHT_PX
-    : playerBarVisible
-      ? MINI_PLAYER_BAR_HEIGHT_PX
-      : guestBarVisible
-        ? GUEST_MODE_BAR_HEIGHT_PX
-        : null;
+  // ⚠️ `creditRowHeight` RETIRÉ (22/08, retour direct — "quand j'écoute de
+  // la musique la taille de la partie Réglages ne devrait pas être
+  // agrandie, l'accessibilité de la navigation du menu doit être
+  // privilégiée") — ce mécanisme forçait la hauteur du pied de page
+  // (Réglages + crédit) à correspondre EXACTEMENT à celle de
+  // MiniPlayerBar/GuestModeBar (90/72px), uniquement pour aligner sa
+  // bordure du haut avec celle de ces barres sur toute la largeur de
+  // l'écran (bug cosmétique "effet escalier", corrigé le 28/07 — voir
+  // HISTORIQUE.md pour le détail d'origine si besoin). Problème non
+  // anticipé à l'époque : ce pied de page vit dans le même conteneur
+  // `flex flex-col h-full` que la zone de nav scrollable juste au-dessus
+  // (`flex-1 overflow-y-auto`) — le FORCER à grandir jusqu'à 90px (voire
+  // 90+72=162px si les 2 barres sont visibles), même quand son contenu
+  // naturel tient dans BEAUCOUP moins, réduit d'autant la hauteur
+  // RÉELLEMENT disponible pour la nav au-dessus. La zone de nav défile déjà
+  // indépendamment (`overflow-y-auto`), donc rien ne devenait strictement
+  // inaccessible (toujours atteignable en scrollant), mais la nav perdait
+  // de la place visible pour une raison purement décorative — priorité
+  // inversée par rapport à ce que l'utilisateur attend. Choix fait :
+  // le pied de page garde maintenant SA hauteur naturelle, TOUJOURS
+  // (que les barres du bas soient visibles ou non) — la bordure de son
+  // haut peut donc légèrement se désaligner de celle de MiniPlayerBar/
+  // GuestModeBar (le bug "effet escalier" redevient possible), un
+  // compromis cosmétique mineur accepté sciemment plutôt que de continuer
+  // à rogner l'espace de navigation.
 
   return (
     <aside className={`fixed inset-y-0 left-0 z-50 w-64 h-full bg-surface border-r-2 ${cardBorderStrong} flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} ${bottomBarPadding} md:pb-0`}>
@@ -489,9 +492,7 @@ export default function Sidebar({
             CRÉATION par défaut faute d'un meilleur endroit à l'époque.
             Position choisie : juste au-dessus du pied de page fixe
             (Réglages) — dernière section de la zone scrollable, donc
-            visuellement adjacente à Réglages sans toucher au budget de
-            hauteur strict de son conteneur (`creditRowHeight`, voir la
-            docstring du pied de page plus bas).
+            visuellement adjacente à Réglages.
             ⚠️ TITRE DE SECTION RETIRÉ (même jour, retour direct suite à
             capture) — contrairement à CRÉATION/MON ESPACE, qui groupent
             chacun 2 liens aux noms DISTINCTS (Nouvelle Playlist/Mes
@@ -517,24 +518,29 @@ export default function Sidebar({
 
       {/* Pied de page FIGÉ (shrink-0) — Réglages + crédit, toujours visibles
           sans avoir à faire défiler la zone centrale au-dessus.
-          Fix UI (28/07, retour direct : "effet escalier" — la bordure du
-          haut de ce pied de page ne s'alignait plus avec celle de
-          GuestModeBar.jsx sur la partie droite de l'écran) : la CAUSE était
-          que Réglages vivait dans son PROPRE conteneur (hauteur naturelle,
-          non synchronisée), EMPILÉ AU-DESSUS du conteneur crédit (lui,
-          hauteur fixe = `creditRowHeight`, synchronisée avec
-          MiniPlayerBar/GuestModeBar) — la hauteur TOTALE du pied de page
-          dépassait donc `creditRowHeight`, décalant sa bordure supérieure
-          vers le haut par rapport à celle de la barre du bas. Réglages et
-          le crédit fusionnent maintenant dans UN SEUL conteneur, dont la
-          hauteur (quand une barre du bas est visible) est EXACTEMENT
-          `creditRowHeight` — la bordure de ce conteneur unique s'aligne
-          donc de nouveau, sur toute la largeur de l'écran, avec celle de
-          MiniPlayerBar/GuestModeBar. */}
+          Réglages et le crédit vivent dans UN SEUL conteneur (historique :
+          fusionnés le 28/07 pour corriger un "effet escalier", bordure
+          désalignée avec MiniPlayerBar/GuestModeBar).
+          ⚠️ HAUTEUR FORCÉE RETIRÉE (22/08, retour direct — "quand j'écoute
+          de la musique la taille de la partie Réglages ne devrait pas être
+          agrandie, l'accessibilité de la navigation du menu doit être
+          privilégiée") — ce conteneur imposait avant une hauteur EXACTE
+          (`style={{height: creditRowHeight+'px'}}`, 90/72/162px selon les
+          barres du bas visibles) pour que sa bordure du haut s'aligne avec
+          celle de MiniPlayerBar/GuestModeBar sur toute la largeur de
+          l'écran — mais ce conteneur vit dans le même `flex flex-col
+          h-full` que la zone de nav scrollable juste au-dessus : le FORCER
+          à grandir jusqu'à 162px, même quand son contenu naturel tient
+          dans ~66px, réduisait d'autant la hauteur réellement disponible
+          pour la nav, pour un bénéfice purement cosmétique. Garde
+          maintenant SA hauteur naturelle, toujours — la bordure du haut
+          peut donc légèrement se désaligner de celle des barres du bas
+          (l'"effet escalier" d'origine redevient possible), compromis
+          accepté sciemment plutôt que de continuer à rogner l'espace de
+          nav. */}
       <div className="shrink-0">
         <div
           className={`flex flex-col items-center justify-center gap-1 py-2 px-4 border-t-2 ${cardBorderStrong}`}
-          style={creditRowHeight ? { height: `${creditRowHeight}px` } : undefined}
         >
           {/* Style volontairement DISCRET (28/07, retour direct : "Réglages
               ne doit pas attirer l'œil plus que Statistiques") — pas de
@@ -542,25 +548,15 @@ export default function Sidebar({
               (`view === 'settings' ? bgAccentClass...`), même quand cette
               vue est active : Réglages reste un accès utilitaire parmi
               d'autres, pas un point d'attention comme "Nouvelle séance".
-              `py-1.5` (plutôt que `py-2.5` comme les autres liens) : ce
-              conteneur a maintenant une hauteur STRICTE (72px minimum,
-              `GUEST_MODE_BAR_HEIGHT_PX`, 64→72 le 29/07) à partager avec la
-              signature juste en dessous — un padding aussi généreux que les
-              liens de la zone scrollable (qui, eux, ont de la place à
-              volonté) ferait déborder l'ensemble hors de cette hauteur
-              fixe.
-              `py-2` sur le conteneur PARENT (Refactor UI "aération
-              footer/GuestBar", 29/07, retour direct : "la ligne de crédit
-              frôle la bordure inférieure", PUIS "les crédits sont coupés"
-              — BUG RÉEL, corrigé dans la foulée) — le premier essai
-              (`py-3`, 24px) faisait DÉBORDER le contenu (bouton Réglages +
-              gap + texte de signature, ≈50px) hors des 72px fixes de ce
-              conteneur (`style={{height: creditRowHeight+'px'}}` plus bas) :
-              50 + 24 = 74px > 72px, d'où le texte visuellement rogné en
-              bas. `py-2` (16px) laisse 6px de marge (50+16=66 ≤ 72) — le
-              texte respire un peu plus qu'avant SANS déborder. Disposition
-              (`flex flex-col items-center justify-center gap-1`) toujours
-              INCHANGÉE — seule cette valeur de padding a bougé. */}
+              `py-1.5` (plutôt que `py-2.5` comme les autres liens) — hérité
+              d'une époque (28/07-22/08) où ce conteneur avait une hauteur
+              STRICTE à partager avec la signature juste en dessous
+              (`creditRowHeight`, RETIRÉ le 22/08 — voir le commentaire du
+              conteneur parent). Cette contrainte n'existe plus (la hauteur
+              est désormais naturelle), mais la valeur reste : compacte et
+              cohérente avec le style volontairement discret de ce lien,
+              aucune raison de l'agrandir maintenant que la place ne
+              manque plus. */}
           {/* `onOpenSettings` (03/08, PAS `changeView('settings')` direct) —
               voir sa docstring, App.jsx : réinitialise l'onglet de départ de
               SettingsView avant d'y naviguer, pour ne jamais hériter d'un
@@ -596,12 +592,13 @@ export default function Sidebar({
                 identique à avant (discret/gris tant qu'aucun trophée n'est
                 débloqué, doré + badge du nombre sinon, `user &&` inchangé)
                 — seule la position change. `shrink-0` + icône seule (pas de
-                libellé, contrairement à Réglages) : compact exprès pour
-                tenir sur CETTE ligne sans agrandir la hauteur du pied de
-                page (budget strict, `creditRowHeight`, voir la docstring du
-                conteneur juste au-dessus) — `py-1.5` partagé avec Réglages
-                pour que les 2 boutons s'alignent exactement à la même
-                hauteur. `ICON_BUTTON_ROUNDING` (PAS `rounded-xl` comme
+                libellé, contrairement à Réglages) : reste compact pour
+                tenir sur CETTE ligne — plus une contrainte stricte de
+                hauteur depuis le retrait de `creditRowHeight` (22/08, voir
+                le commentaire du conteneur parent), mais toujours le bon
+                choix visuel pour un 2e bouton discret sur la même ligne —
+                `py-1.5` partagé avec Réglages pour que les 2 boutons
+                s'alignent exactement à la même hauteur. `ICON_BUTTON_ROUNDING` (PAS `rounded-xl` comme
                 Réglages juste à côté) — icône seule sans libellé, voir
                 iconButtonLayout.js pour la règle complète.
                 `mr-2` (03/08, retour direct, capture d'écran à l'appui :
