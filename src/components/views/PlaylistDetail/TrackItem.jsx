@@ -39,7 +39,7 @@ export default function TrackItem({
   resolveAndTogglePreview, getNextTrackForAutoAdvance,
   isDimmed, isHighlighted,
 }) {
-  const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
+  const { cardBg, cardBorder, textHighlight, textMuted, bgAccentClass } = theme;
   const {
     currentPlaylist, isNaughtyMode, getProfileForWorkout, isSaved,
     draggedTrackIndex, handleTrackDragStart, handleTrackDragEnter, handleTrackDragEnd,
