@@ -2101,3 +2101,199 @@ d'`App.jsx` — l'autre moitié de ce qui était différé au même titre —
 PAS entrepris dans la foulée : plus gros, plus risqué, volontairement
 laissé pour une session séparée plutôt que d'enchaîner deux chantiers
 structurels d'affilée.
+
+# TempoFit — Historique détaillé, bloc 6 (21-22/08, découpage App.jsx, TabPills, Sidebar/Mode Intime, découverte Playwright/vitest, corrections visuelles)
+
+⚠️ Copie exacte de la section "État d'avancement" du README au moment de
+l'élagage du 22/08 (session exceptionnellement longue et dense — reprise
+du découpage `App.jsx`, standardisation des onglets, plusieurs passes sur
+la Sidebar, et surtout la découverte que le bac à sable Claude a en
+réalité accès à `npm install`/un vrai serveur `vite`/Playwright/`vitest
+run`, jamais vérifié depuis la création de ce projet). Aucun contenu
+réécrit ni résumé au-delà de cette copie d'ouverture.
+
+### 21/08 — check-up initial, sans chantier précis en tête
+
+Check-up demandé en début de session ("vois-tu des choses à corriger ou
+optimiser ?"). Un bug réel trouvé et corrigé : `ImportSharedPlaylistModal.jsx`
+avait survécu au renommage "séance"→"playlist" du 20/08 sur UNE phrase
+("tu peux l'ajouter à tes propres Séances" — nom propre de destination,
+resté en l'état alors que le bouton juste en dessous disait déjà "Ajouter
+à Mes Playlists"). Corrigé, grep multi-sous-chaînes pour confirmer
+l'absence d'autre copie. 2 vrais trous de couverture de test comblés
+(`TrophiesView.jsx`/`MiniPlayerBar.jsx`, 0 test avant malgré une logique
+non triviale — masquage des trophées secrets, mute-par-clic avec mémoire
+du niveau précédent).
+
+### 21/08 — Découpage `App.jsx` repris, 3 extractions
+
+Chantier repris après le 1er lot (StatsView, 20/08) :
+- **`ShareImageContext.jsx`** (nouveau) — cluster "Image de partage" (4
+  `useState`, prop-drillés sur 2 niveaux vers `PlaylistDetailViewInner`)
+  extrait en Contexte dédié, `value` mémoïsée. `PlaylistDetailView.jsx`/
+  `ShareModal.jsx` migrés dessus.
+- **`GenerationProgressBanner.jsx`** (nouveau) — cluster "Génération" :
+  contrairement à "Image de partage", le STATE (6 `useState`) ne peut PAS
+  suivre en Contexte (ses setters sont des arguments directs de
+  `usePlaylistGeneration()`, un hook appelé avant le `return` d'AppContent
+  — contrainte d'ordre entre hooks). Seul le RENDU (JSX du bandeau + le
+  calcul du message à 3 paliers) extrait en composant présentationnel,
+  recevant tout en props. 1er fichier de test pour ce bandeau (0 couverture
+  avant, JSX inline dans un fichier lui-même sans test miroir).
+- **"Navigation" audité, PAS extrait** — 8 `useState`. Audit révèle que
+  l'affirmation "tous partagés" du 20/08 était une supposition, pas un
+  audit réel : 3 sont en fait purement locaux (`isUserMenuOpen`,
+  `isScrolled`, `isGuestBarDismissed`) — Contexte inutile pour eux. Des 5
+  restants, `view`/`isMobileMenuOpen` sont bloqués par la MÊME contrainte
+  d'ordre entre hooks que "Génération" (`changeView`/`openCuratedPlaylist`
+  passés en argument direct à `usePlaylistLibrary`/`usePlaylistGeneration`).
+  Les 3 derniers (`viewingProfileUsername`/`settingsInitialTab`/
+  `playlistsInitialTab`) n'ont pas ce blocage mais n'apportent aucun gain
+  réel (déjà de simples props à 1 niveau, pas de prop-drilling profond à
+  éliminer). Conclusion : ni "Génération" ni "Navigation" ne sont de bons
+  candidats à un Contexte — chacun pour sa propre raison précise, vérifiée,
+  pas des oublis.
+- **Bug réel trouvé PUIS le composant entièrement retiré** — `isScrolled`
+  était déclaré et lu (header flottant desktop) mais son setter n'était
+  appelé NULLE PART : ce header n'avait jamais pu apparaître depuis sa
+  création. 1er réflexe : réparer (listener de scroll ajouté). Une fois le
+  header VRAIMENT visible pour la première fois (retour direct avec
+  capture), 2 problèmes de fond sont apparus qu'aucune lecture de code
+  seule n'aurait révélés : (1) son seul commentaire d'origine dit lui-même
+  qu'il "dupliquait le comportement du logo Sidebar" — logo qui, sur
+  desktop, est déjà TOUJOURS visible ; (2) son sous-titre
+  (`displaySubtitleGen`) est câblé en dur sur le tagline du GÉNÉRATEUR,
+  jamais contextuel à la vue réellement affichée. Retiré intégralement
+  (JSX + `isScrolled`/`mainScrollRef`/le listener + `displaySubtitleGen` de
+  la déstructuration d'AppContent). Leçon retenue : un `useState` "cassé"
+  trouvé en audit n'est pas automatiquement un bug à réparer — vérifier
+  D'ABORD si la fonctionnalité qu'il pilote a encore sa place.
+
+### 21/08 — Bio du profil vitrine, 3 essais avant la bonne version
+
+Retour direct : ajouter un texte expliquant que `@tempofit_officiel` est
+un compte de démonstration. 3 essais successifs, chacun rejeté pour une
+raison précise avant d'arriver à la bonne version :
+1. Bandeau séparé façon alerte (même style que "Aperçu de ton profil") —
+   rejeté : "pas du tout, je pensais un encart façon bio".
+2. Ligne repliée DANS la carte d'en-tête mais encore traitée comme une
+   notice système (icône, texte `textMuted`, séparateur `border-t`) —
+   rejeté : toujours pas le ton "bio" voulu.
+3. **Version retenue** : texte en `textHighlight` (blanc en mode sombre,
+   vérifié dans `index.css`), sans icône ni séparateur, sous-titre changé
+   en "Compte vitrine TempoFit". Comportement ensuite aligné sur le
+   pattern déjà en place pour la description de playlist
+   (`whitespace-pre-line line-clamp-3` + `title=` tooltip), PAS la couleur
+   (`textHighlight` gardé, pas le `text-slate-300` codé en dur de
+   l'original — verdict explicite de l'utilisateur avant de coder : "aligne
+   les 2, ça me semble plus pertinent, toi aussi ?"). Texte lui-même
+   raccourci une dernière fois (retrait de la répétition "Compte vitrine
+   officiel de TempoFit —", déjà dite par le sous-titre juste au-dessus).
+   **Décision actée pour plus tard** : cette carte sert de banc d'essai
+   volontaire pour une future vraie bio éditable par tous les
+   utilisateurs — documenté en tant que tel dans une nouvelle section
+   README dédiée ("Décidé mais pas encore construit").
+
+### 21/08 — `TabPills.jsx` : standardisation des onglets (5 vues)
+
+Retour direct : "pourquoi c'est pas le même modèle pour Routines et pour
+Réglages ?" — `SettingsView.jsx` avait dérivé vers un style soulignement
+pendant ~3 semaines sans que personne ne s'en aperçoive. En creusant pour
+répondre à "ça vaut le coup de standardiser ?" (réponse : oui), 2e dérive
+trouvée : `TrophiesView.jsx` avait SON PROPRE style ("contrôle segmenté",
+fond+ombre), différent du style plat déjà majoritaire ailleurs (4 vues
+contre 1). Composant `TabPills.jsx` extrait (contrôlé, aucun state
+interne, `label` accepte un `ReactNode` pour couvrir compteurs/icônes sans
+props dédiées) et les 5 vues migrées dessus
+(`PlaylistsView`/`ProfileView`/`DiscoverView`/`SettingsView`/
+`TrophiesView`) — `TrophiesView.jsx` perd son fond/ombre au profit de la
+cohérence, changement visuel assumé. 1er fichier de test pour ce
+composant.
+
+### 21/08 — Sidebar : "Découvrir" isolé, puis Mode Intime resserré en 3 passes
+
+- **"Découvrir" déplacé hors de "Création"** — ce n'est ni créer pour soi
+  ni consulter ce qui est à soi, une 3e intention distincte. D'abord avec
+  un titre de section "Découverte" — retiré le jour même (retour direct :
+  un en-tête pour un seul lien au nom quasi-identique ne groupait rien,
+  contrairement à "Création"/"Mon Espace" qui groupent chacun 2 liens
+  distincts). Titre cliquable envisagé puis écarté (aurait cassé la
+  convention "titres jamais interactifs" du reste de la Sidebar).
+- **Espacement Mode Intime resserré en 3 passes successives**, toutes sur
+  les 5 mêmes écarts marqués par capture annotée : -2px, encore -2px, puis
+  -3px (total -25px cumulé). Chaque passe a dû trouver un nouveau levier
+  une fois le précédent épuisé (padding du bouton "Quitter le Mode
+  Intime" → `scrollPadding` compact jamais touché avant → séparateurs
+  compacts créés pour la 1re fois). Un levier explicitement REFUSÉ malgré
+  la tentation : `SIDEBAR_LINK_PADDING_COMPACT`/`SIDEBAR_LINK_GAP_COMPACT`,
+  déjà testés plus serrés le 29/07 et explicitement rejetés à l'époque
+  ("trop agressif, tasse trop la navigation") — signalé à l'utilisateur
+  plutôt que retouché sans consultation.
+
+### 21/08 — Découverte majeure : `npm install`/`vite`/Playwright/`vitest run` fonctionnent réellement en sandbox
+
+En cherchant à diagnostiquer une "barre quasi invisible" trop subtile pour
+être tranchée à la lecture du code seul (artefact de rendu : un coin de
+carte arrondi touchant à 0px près une ligne de séparation du wizard
+générateur), tentative de `npm install` — **succès**, alors que
+`CLAUDE-SANDBOX-VERIFICATION.md` affirmait depuis l'origine du projet que
+le bac à sable n'avait aucun accès réseau. Corrigé aussitôt (titre +
+intro du fichier, nouvelle section §5ter). Un vrai serveur `vite` + un
+navigateur Playwright permettent désormais de mesurer des positions RÉELLES
+(`getBoundingClientRect`) plutôt que de deviner depuis les classes
+Tailwind. Immédiatement après, `npx vitest run` testé sur la suite
+ENTIÈRE : **113 fichiers, 1506 tests, tous passent** — "les tests
+passent" n'a donc plus besoin de rester une simple lecture attentive
+quand le temps le permet. Limite qui reste réelle : ce navigateur n'a
+toujours aucun accès réseau EXTERNE (pas de vrai Supabase/Deezer), donc
+seulement utilisable pour des écrans qui fonctionnent en state local.
+
+Correctif du bug d'origine (coin de carte touchant la ligne du pied de
+page, `GeneratorWizard.jsx`) : 1er réflexe (ajouter un `pb-3`, 12px de
+plancher) fonctionnait mais coûtait de la hauteur — retour direct
+immédiat avec 2 nouvelles captures : "pourtant j'ai du scroll, j'aurais
+plus supprimé ta ligne qui sert à rien". Meilleure solution retenue :
+retirer la ligne (`border-t border-gray-100 dark:border-gray-800`)
+elle-même plutôt que lui laisser de la place — déjà quasi invisible,
+donc rien perdu visuellement, et plus rien à toucher pour l'artefact.
+Gain NET de hauteur par rapport à l'état d'avant tout ce chantier (0px
+ajouté, contre +12px avec le 1er correctif). Revérifié en conditions
+réelles sur le pire cas (mode Crescendo, viewports 800px et 700px) : 0px
+de dépassement de page.
+
+### 22/08 — En-tête de playlist : badge "Lecture seule" puis Corbeille mal alignés avec le badge BPM — 1re vérification erronée corrigée
+
+Retour direct avec capture annotée : le badge "Lecture seule" (`Lock`)
+utilisait un décalage FIXE (`right-4`, 16px) qui ignorait le vrai padding
+de la carte (`p-6 md:p-8`) — corrigé en `right-6 md:right-8`, vérifié à
+0px d'écart en conditions réelles (serveur de dev + Playwright).
+
+Retour direct suivant, MÊME constat sur le bouton Corbeille (cas
+`isSaved`, Globe+Trash2 au lieu de Lock) — **1er diagnostic erroné** :
+mesuré la boîte cliquable du bouton (`button.getBoundingClientRect()`),
+trouvé 0px d'écart, conclu à tort que le correctif précédent suffisait
+déjà. Contesté à raison par l'utilisateur ("menteur") avec le fichier
+exact + une nouvelle capture. Reprise rigoureuse : mesuré le SVG de
+l'icône LUI-MÊME, pas son bouton englobant → 8px d'écart réel. Cause :
+Trash2/Globe sont des icônes seules (14px) centrées dans un bouton de
+30px (`p-2`, padding invisible pour la zone de survol) — contrairement au
+badge BPM ou au badge Lock, qui ont une bordure/un fond VISIBLE remplissant
+toute leur boîte. Corrigé (`-mr-2` sur le bouton Corbeille, annule
+exactement son padding droit), revérifié sur le bon repère cette fois
+(SVG, pas bouton) : 0px pile. Leçon ajoutée à `CLAUDE-SANDBOX-
+VERIFICATION.md` (§5quater) : pour un alignement visuel, toujours mesurer
+le glyphe/contenu visible réel, jamais seulement la boîte du conteneur
+cliquable.
+
+### 22/08 — Petits retouches finales
+
+- `MiniPlayerBar.jsx` : préfixe "Playlist :" retiré devant le nom de la
+  playlist (retour direct — redondant, le nom suit déjà et le tooltip/la
+  ligne "Titre X/Y" en dessous donnent déjà le contexte).
+- Suggestion de mettre les stats sportives du profil dans l'espace vide
+  de l'en-tête (à côté de l'avatar) discutée et écartée : cette section
+  n'est pas spécifique à la vitrine (vraie fonctionnalité pour tous les
+  profils), et un 2e bloc symétrique existe ("Statistiques Mode Intime")
+  qui ne pourrait pas suivre dans le même espace réduit — incohérence
+  potentielle si un profil affiche les deux. Laissé tel quel après
+  discussion, décision explicitement actée comme "pas du pinaillage".
