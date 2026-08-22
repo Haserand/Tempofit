@@ -19,10 +19,16 @@
  * `copyTextToClipboard(text)` centralise la version ROBUSTE (celle de
  * `useShare.js`, éprouvée), pour que tout futur bouton "copier" du projet
  * en hérite par défaut plutôt que de repartir de la version la plus
- * fragile par accident. `useShare.js` n'a volontairement PAS été
- * retouché dans la foulée (couplé à `shareData`/`closeModal`/`showToast`,
- * un vrai refactor, pas juste un remplacement d'appel) — signalé à
- * l'utilisateur, pas fait sans validation.
+ * fragile par accident.
+ *
+ * ⚠️ Commentaire corrigé (check-up 22/08) — affirmait encore ici que
+ * `useShare.js` n'avait volontairement PAS été retouché ("couplé à
+ * `shareData`/`closeModal`/`showToast`, un vrai refactor"). Devenu faux :
+ * `useShare.js` a bien été migré sur `copyTextToClipboard`, le jour même
+ * (08/08, voir sa propre docstring pour le détail) — seule la mécanique
+ * presse-papier a été extraite, le reste (construction du texte, fermeture
+ * de modale, message de toast) est resté spécifique à ce hook, comme prévu.
+ * `copyRedirectUri` (SettingsView.jsx) a été harmonisé le même jour.
  *
  * @param {string} text - Le texte à copier.
  * @returns {Promise<boolean>} - `true` si la copie a réellement réussi.
