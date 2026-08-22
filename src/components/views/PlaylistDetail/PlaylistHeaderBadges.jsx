@@ -47,12 +47,22 @@ export default function PlaylistHeaderBadges({
         </span>
       )}
 
-      <div className="absolute top-4 right-4 flex items-center gap-1 z-10">
-        {/* Pas de fond/bordure gris ici, contrairement au badge "Lecture
-            seule"/aux boutons juste après (retour direct : "je veux pas
-            de la zone grise qui entoure le compteur de clonages") — texte
-            + icône seuls, `p-2` gardé pour l'alignement vertical avec ses
-            voisins (même hauteur de ligne), pas pour un fond visible.
+      <div className="absolute top-4 right-6 md:right-8 flex items-center gap-1 z-10">
+        {/* `right-6 md:right-8` (retour direct 22/08 : "la ligne droite de
+            fin du cadenas doit être sur la même verticale que la fin du
+            badge BPM") — reprend EXACTEMENT le padding horizontal réel de
+            la carte englobante (`p-6 md:p-8`, PlaylistHeader.jsx), au lieu
+            d'un décalage fixe (`right-4`, 16px) qui l'ignorait purement et
+            simplement. Le badge BPM (`PlaylistHeaderActions.jsx`, `ml-auto`
+            dans son propre flux) s'arrête lui déjà pile à ce padding réel
+            — un `right-4` fixe ici, INDÉPENDANT du breakpoint, décalait ce
+            badge-ci de 8px (mobile, 24−16) à 16px (desktop, 32−16) plus
+            près du bord que le badge BPM, jamais remarqué avant cette
+            capture. `top-4` INCHANGÉ (jamais mentionné, aligner
+            verticalement avec un badge d'une tout autre rangée n'aurait
+            aucun sens) — seul l'axe horizontal, celui réellement comparé
+            dans la capture, est concerné.
+
             ⚠️ CONDITION ÉLARGIE (10/08, retour direct — "j'ai changé
             d'avis, il faut le compteur pour les séances même en mode
             invité, pas grave si ce sera toujours à 0") : avant, gaté
