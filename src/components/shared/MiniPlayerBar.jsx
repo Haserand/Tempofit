@@ -142,10 +142,25 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
     // l'autre au-dessus. Cette barre-ci reste toujours la DERNIÈRE du flex
     // (donc collée au vrai bas d'écran, comportement inchangé) — seul le
     // conteneur qui l'enveloppe a changé, pas elle.
-    // h-[90px] : DOIT rester une classe Tailwind écrite en toutes lettres
+    // ⚠️ h-[90px] → h-[70px] (22/08, retour direct — "je veux diminuer la
+    // hauteur de l'audio player pour que la taille soit identique à celle
+    // de la zone Réglages") — 70px calculé pour correspondre à la hauteur
+    // NATURELLE du pied de page de Sidebar.jsx (Réglages+Trophées, ligne de
+    // crédit), depuis que sa hauteur n'est plus forcée à s'aligner sur
+    // CETTE barre (`creditRowHeight`, retiré le même jour — voir
+    // Sidebar.jsx). Calcul (aucun navigateur disponible en sandbox pour
+    // mesurer réellement, échelle Tailwind par défaut utilisée à la
+    // place) : bordure du haut (2px) + padding vertical du conteneur
+    // (`py-2`, 8+8=16px) + ligne Réglages/Trophées (`py-1.5` + line-height
+    // `text-sm`, 12+20=32px) + espace entre les 2 lignes (`gap-1`, 4px) +
+    // ligne de crédit (line-height `text-xs`, 16px) = 70px. Contenu de
+    // CETTE barre (zone centrale, la plus haute : boutons 36px + barre de
+    // progression ~16px + espace 4px = 56px) tient largement dans ces
+    // 70px, aucun risque de coupure.
+    // h-[70px] : DOIT rester une classe Tailwind écrite en toutes lettres
     // (voir bottomBarLayout.js pour pourquoi) — si cette hauteur change,
     // reporter la même valeur dans MINI_PLAYER_BAR_HEIGHT_PX (bottomBarLayout.js).
-    <div className={`h-[90px] border-t-2 ${cardBorderStrong} shadow-2xl ${cardBg} flex items-center`}>
+    <div className={`h-[70px] border-t-2 ${cardBorderStrong} shadow-2xl ${cardBg} flex items-center`}>
       <div className="max-w-5xl mx-auto px-4 flex items-center gap-3 w-full">
 
         {/* ── Zone gauche : infos titre (essentiel, jamais masqué) ── */}
