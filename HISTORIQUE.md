@@ -2247,6 +2247,14 @@ passent" n'a donc plus besoin de rester une simple lecture attentive
 quand le temps le permet. Limite qui reste réelle : ce navigateur n'a
 toujours aucun accès réseau EXTERNE (pas de vrai Supabase/Deezer), donc
 seulement utilisable pour des écrans qui fonctionnent en state local.
+⚠️ Affirmation ci-dessus SUPPOSÉE au moment où elle a été écrite le
+21/08, PAS testée — corrigé le lendemain (22/08, retour direct de
+l'utilisateur : "tu en es sûr ?") : `curl`/le navigateur Playwright
+essayant de charger `api.deezer.com`/`supabase.co` renvoient tous les
+deux `403 Host not in allowlist`, message identique dans les 2 cas —
+confirmé pour de vrai cette fois, pas juste déduit de la configuration
+réseau documentée. Voir `CLAUDE-SANDBOX-VERIFICATION.md`, §5ter, pour le
+détail complet du test.
 
 Correctif du bug d'origine (coin de carte touchant la ligne du pied de
 page, `GeneratorWizard.jsx`) : 1er réflexe (ajouter un `pb-3`, 12px de
