@@ -1109,6 +1109,34 @@ inverse l'ordre de rendu de son fond — sont mineurs et n'entrent en
 conflit avec aucun style personnalisé trouvé dans ce projet, mais restent
 à confirmer à l'œil).
 
+**Suite (22/08, après confirmation que le déploiement réel fonctionne)**
+— 2 vérifications supplémentaires liées directement à cette migration :
+
+- **`accessibilityLayer` (nouveau défaut `true` en v3, `false` en v2)** :
+  ajoute des contrôles clavier internes à recharts sur CHAQUE graphique.
+  Sans risque identifié pour 7 des 8 graphiques du projet (affichage pur,
+  aucune interaction personnalisée). MAIS `PlaylistCharts.jsx` a un
+  `<LineChart>` avec un glisser-déposer maison pour éditer les pistes
+  (`handleChartMouseDown/Move/Up`, `isDraggingChartSegment`) — jamais
+  testable interactivement cette session (pas de navigateur). Par
+  prudence, `accessibilityLayer={false}` ajouté explicitement à CE
+  graphique précis pour garantir un comportement identique à avant la
+  migration ; les 7 autres gardent le nouveau défaut (améliore
+  l'accessibilité clavier sans risque connu pour eux).
+- **Fausse piste explorée et écartée, pour référence future** : un script
+  a signalé ~70 fonctions `async` contenant un `await` sans `try/catch`
+  visible dans leur propre corps. 3 vérifications individuelles dans 3
+  fichiers différents (`App.jsx`, `AuthContext.jsx`, `musicEngine.js`) ont
+  toutes révélé la même explication : la fonction AWAITÉE gère déjà
+  entièrement ses propres erreurs en interne et ne rejette jamais
+  (`shareImageFile`/`detectBpmFromPreview` retournent un statut ou `null`
+  au lieu de lever une exception ; le client Supabase renvoie `{ data,
+  error }` au lieu de rejeter). Motif défensif cohérent et déjà établi
+  dans ce projet, pas une dette oubliée — les 67 cas restants non
+  vérifiés individuellement suivent vraisemblablement le même motif, mais
+  ne pas les avoir tous vérifiés un par un reste une limite honnête de
+  cette passe.
+
 ## Corrigé (20/08) — anciennement "Limite connue, non traitée : écritures concurrentes de MÊME TYPE sur la MÊME playlist"
 
 **Constat d'origine (check-up 10/08)** : les 5 correctifs de course du 10/08
