@@ -537,14 +537,24 @@ niveau réseau. Chromium s'installe quand même correctement SANS
 `--with-deps` (les dépendances système semblent déjà présentes dans cette
 image) — donc utiliser la commande sans cette option, pas avec.
 
-**Limite qui reste réelle** : ceci reste un navigateur headless SANS accès
-réseau externe pour l'app elle-même (pas de vrai Supabase/Deezer) — donc
-seulement utilisable pour des écrans/flux qui ne dépendent PAS d'un appel
-réseau externe immédiat (le wizard générateur, étapes 1-3, fonctionne
-entièrement en state local). Pour un écran qui appelle Supabase/Deezer dès
-le montage, cette technique ne suffira pas telle quelle — mocker ces
-appels côté serveur de dev sortirait du périmètre d'une simple vérification
-ponctuelle.
+**Limite qui reste réelle, VÉRIFIÉE (pas supposée)** — retour direct 22/08,
+"tu en es sûr ?" : bon réflexe de l'utilisateur, ma 1re version de cette
+note affirmait cette limite sans l'avoir vraiment testée. Testé pour de
+vrai : `curl https://api.deezer.com/...` (bash_tool) ET
+`page.goto('https://api.deezer.com/...')` (navigateur piloté par
+Playwright) renvoient tous les deux `403 Host not in allowlist` —
+message IDENTIQUE dans les 2 cas, confirmant que le navigateur Playwright
+passe par le MÊME filtre réseau par liste blanche que le reste du bac à
+sable. `supabase.co` lui-même bloqué pareil. Aucun fichier `.env` présent
+dans ce projet non plus (seulement `.env.example`) — même sans ce
+blocage, l'app tournerait de toute façon sans vraies clés Supabase ici.
+Conséquence : ce navigateur headless N'A PAS d'accès réseau externe pour
+l'app elle-même — donc seulement utilisable pour des écrans/flux qui ne
+dépendent PAS d'un appel réseau externe immédiat (le wizard générateur,
+étapes 1-3, fonctionne entièrement en state local). Pour un écran qui
+appelle Supabase/Deezer dès le montage, cette technique ne suffira pas
+telle quelle — mocker ces appels côté serveur de dev sortirait du
+périmètre d'une simple vérification ponctuelle.
 
 **Conséquence pratique pour la suite** : avant de deviner un bug de rendu
 CSS depuis le code seul (surtout après plusieurs allers-retours de
