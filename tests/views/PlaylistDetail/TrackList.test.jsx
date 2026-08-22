@@ -155,10 +155,11 @@ describe('TrackList', () => {
     expect(screen.queryByText('Ajouter un titre')).not.toBeInTheDocument();
   });
 
-  it('isSaved=false : affiche le message dédié, pas de bouton d\'ajout', () => {
+  it('isSaved=false : affiche le message dédié (raccourci, 22/08 — le détail passe en infobulle), pas de bouton d\'ajout', () => {
     mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: false }));
     render(<TrackList {...baseProps({ isLocked: false })} />);
-    expect(screen.getByText(/pour pouvoir ajouter, dupliquer, remplacer ou retirer des titres/)).toBeInTheDocument();
+    expect(screen.getByText('Ajoute cette séance à "Mes Playlists"')).toBeInTheDocument();
+    expect(screen.getByTitle('Pour pouvoir ajouter, dupliquer, remplacer ou retirer des titres')).toBeInTheDocument();
     expect(screen.queryByText('Ajouter un titre')).not.toBeInTheDocument();
   });
 
