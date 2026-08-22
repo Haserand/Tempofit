@@ -147,10 +147,11 @@ describe('TrackList', () => {
     expect(screen.queryByText(/Seuil BPM/)).not.toBeInTheDocument();
   });
 
-  it('isLocked=true : affiche le message verrouillé, pas de bouton d\'ajout', () => {
+  it('isLocked=true : affiche le message verrouillé (raccourci, 22/08 — le détail passe en infobulle), pas de bouton d\'ajout', () => {
     mockUsePlaylistDetail.mockReturnValue(makeContextValue());
     render(<TrackList {...baseProps({ isLocked: true })} />);
-    expect(screen.getByText(/Séance déjà réalisée/)).toBeInTheDocument();
+    expect(screen.getByText('Séance déjà réalisée')).toBeInTheDocument();
+    expect(screen.getByTitle('Plus aucun titre ne peut être ajouté, dupliqué, remplacé ou retiré')).toBeInTheDocument();
     expect(screen.queryByText('Ajouter un titre')).not.toBeInTheDocument();
   });
 
