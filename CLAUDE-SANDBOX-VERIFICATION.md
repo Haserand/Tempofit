@@ -1,11 +1,19 @@
-# Vérification de code en bac à sable Claude (sans réseau, sans `npm install`)
+# Vérification de code en bac à sable Claude
 
 Ce fichier documente les outils de vérification utilisés par les sessions
-Claude successives sur ce projet, quand le bac à sable n'a **aucun accès
-réseau** (donc `npm install`/`vitest run` réels sont impossibles) et que
-l'utilisateur travaille exclusivement via l'interface web de GitHub (pas de
-terminal local pour lui non plus — voir les documents de passation pour le
-contexte complet de ce workflow).
+Claude successives sur ce projet. ⚠️ **CORRIGÉ le 21/08** — ce fichier
+affirmait depuis l'origine qu'aucun accès réseau n'existait dans le bac à
+sable (`npm install`/`vitest run` "impossibles"). **Faux, vérifié
+empiriquement le 21/08** : `npm install` fonctionne, un serveur `vite`
+réel peut tourner, et Playwright peut naviguer dessus et inspecter le DOM
+réel (voir §5ter pour le détail complet et ses limites). Cette hypothèse
+erronée a probablement conduit des sessions précédentes à deviner des
+bugs de rendu depuis le code seul plutôt que de vérifier — à ne plus
+refaire. L'utilisateur, lui, travaille toujours exclusivement via
+l'interface web de GitHub (pas de terminal local pour lui — voir les
+documents de passation pour le contexte complet de ce workflow) ; c'est
+UNIQUEMENT le bac à sable Claude qui a plus de capacités que documenté
+jusqu'ici.
 
 ## 0. Instructions de session (à lire en tout premier)
 
@@ -461,11 +469,19 @@ Règle : si une reproduction locale de l'échec ne colle pas au symptôme réel 
 
 ## 5. Ce que ces outils NE remplacent PAS
 
-Aucun de ces scripts n'exécute réellement `vitest` — une affirmation
-"les tests passent" reste donc toujours une vérification par LECTURE
+Historiquement, aucun de ces scripts n'exécutait réellement `vitest` — une
+affirmation "les tests passent" restait donc une vérification par LECTURE
 attentive (syntaxe + logique + imports), jamais une exécution confirmée.
-Le premier vrai passage de la suite de tests reste celui du build Vercel
-réel, après que l'utilisateur a poussé les fichiers via l'interface GitHub.
+**Ce n'est plus vrai depuis le 21/08 — voir §5ter : `vitest run` fonctionne
+réellement dans ce bac à sable.** `esbuild`/`tsc --checkJs` restent
+utiles en complément rapide pour un tout petit changement isolé (plus
+rapides qu'une exécution complète), mais pour un chantier plus large,
+lancer `npx vitest run` avant de livrer est désormais possible et
+préférable à une simple lecture. Le premier vrai passage indépendant
+reste malgré tout celui du build Vercel réel, après que l'utilisateur a
+poussé les fichiers via l'interface GitHub — deux environnements
+différents, une vérification locale réussie n'élimine pas cette dernière
+étape.
 
 ## 5bis. Angle mort concret trouvé le 19/08 : matcher `jest-dom` manquant, invisible à `esbuild`/`tsc`
 
@@ -490,3 +506,64 @@ grep -E "toHaveTextContent|toBeInTheDocument|toBeVisible|toBeDisabled|toHaveClas
   && ! grep -q "jest-dom" <fichier> \
   && echo "⚠️ import manquant"
 ```
+
+## 5ter. Découverte majeure le 21/08 : `npm install`/`vite`/Playwright fonctionnent réellement en sandbox
+
+Jusqu'ici, ce fichier affirmait (titre + intro d'origine) qu'aucun accès
+réseau n'existait, rendant `npm install`/un serveur de dev réel/`vitest run`
+impossibles — **faux**, jamais revérifié depuis la création de ce fichier.
+Trouvé en cherchant à diagnostiquer un artefact de rendu CSS trop subtil
+pour être tranché depuis la lecture du code seul (coin de carte arrondi
+touchant une ligne de séparation à 0px près, wizard générateur — voir
+README pour le détail du bug lui-même).
+
+**Ce qui fonctionne, vérifié empiriquement** :
+```bash
+npm install --prefer-offline --no-audit --no-fund   # fonctionne (registre npm accessible)
+npx playwright install chromium                      # fonctionne SANS --with-deps
+npm run dev -- --port 5173 --host 127.0.0.1 &        # serveur vite réel démarre
+```
+Puis un script Node + Playwright peut naviguer dessus, cliquer, remplir des
+formulaires, et surtout **lire les styles RÉELLEMENT calculés par le
+navigateur** (`getComputedStyle`, `getBoundingClientRect()`) — la seule
+façon fiable de trancher un doute sur un rendu visuel (superposition,
+z-index, débordement de quelques px, artefact de `border-radius`) sans
+deviner depuis les classes Tailwind seules.
+
+**Ce qui NE fonctionne PAS** : `npx playwright install chromium
+--with-deps` (installation des dépendances système Ubuntu du navigateur)
+échoue — un des dépôts APT requis (`deb.nodesource.com`) est bloqué au
+niveau réseau. Chromium s'installe quand même correctement SANS
+`--with-deps` (les dépendances système semblent déjà présentes dans cette
+image) — donc utiliser la commande sans cette option, pas avec.
+
+**Limite qui reste réelle** : ceci reste un navigateur headless SANS accès
+réseau externe pour l'app elle-même (pas de vrai Supabase/Deezer) — donc
+seulement utilisable pour des écrans/flux qui ne dépendent PAS d'un appel
+réseau externe immédiat (le wizard générateur, étapes 1-3, fonctionne
+entièrement en state local). Pour un écran qui appelle Supabase/Deezer dès
+le montage, cette technique ne suffira pas telle quelle — mocker ces
+appels côté serveur de dev sortirait du périmètre d'une simple vérification
+ponctuelle.
+
+**Conséquence pratique pour la suite** : avant de deviner un bug de rendu
+CSS depuis le code seul (surtout après plusieurs allers-retours de
+capture d'écran sans certitude), envisager cette technique — mesurer
+plutôt que deviner. Toujours nettoyer après usage (`pkill -f vite`,
+supprimer les scripts/captures temporaires du `/tmp`) : ces fichiers ne
+font pas partie du dépôt et ne doivent jamais être livrés à l'utilisateur.
+
+⚠️ **`vitest run` RÉEL fonctionne AUSSI** — vérifié le même jour,
+immédiatement après la découverte ci-dessus : `npx vitest run` exécute la
+suite ENTIÈRE, pas juste un fichier isolé. Résultat à cette date : **113
+fichiers de test, 1506 tests, TOUS passent**, en ~140s. Ça change la
+donne la plus fondamentale de tout ce document : "les tests passent"
+n'a plus besoin de rester une simple lecture attentive quand du temps est
+disponible pour le vérifier — une exécution réelle est possible avant de
+livrer, pas seulement au moment du build Vercel. À utiliser en priorité
+sur un chantier qui touche des fichiers sensibles ou beaucoup de fichiers
+à la fois (comme ce fut le cas plus tôt dans cette session) — reste
+cependant plus lent qu'une lecture attentive pour un tout petit
+changement isolé, donc ne remplace pas systématiquement `esbuild`/
+`tsc --checkJs` pour les cas simples, s'ajoute en confirmation finale
+avant de livrer un chantier conséquent.
