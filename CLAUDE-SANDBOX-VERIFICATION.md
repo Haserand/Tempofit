@@ -567,3 +567,32 @@ cependant plus lent qu'une lecture attentive pour un tout petit
 changement isolé, donc ne remplace pas systématiquement `esbuild`/
 `tsc --checkJs` pour les cas simples, s'ajoute en confirmation finale
 avant de livrer un chantier conséquent.
+
+## 5quater. Mesurer un alignement visuel avec Playwright — mesurer la BOÎTE d'un bouton-icône ne suffit PAS, il faut mesurer le GLYPHE
+
+Erreur réelle commise le 22/08 (voir README, section "En-tête de playlist
+— badge Lecture seule mal aligné", suite) — CONTESTÉE à raison par
+l'utilisateur ("menteur"), qui avait vu juste : un 1er diagnostic Playwright
+avait conclu à tort qu'un correctif d'alignement s'appliquait déjà à un 2e
+bouton (Corbeille) simplement parce que
+`trashButton.getBoundingClientRect()` tombait à 0px du badge de référence.
+**Faux** : un bouton-icône SEUL (pas de bordure/fond visible par défaut,
+juste `p-2` autour d'un SVG pour agrandir la zone de survol) a une boîte
+cliquable PLUS GRANDE que son contenu visuellement perçu — la boîte peut
+être parfaitement alignée pendant que l'icône, elle, reste visuellement en
+retrait du padding (ici 8px, `p-2`).
+
+**Règle à appliquer désormais pour tout alignement visuel vérifié via
+Playwright** : ne JAMAIS s'arrêter à la boîte de l'élément le plus
+extérieur si son contenu visuel (icône SVG, texte) peut être plus petit
+que cette boîte. Mesurer le SVG/texte lui-même :
+```js
+const svg = button.querySelector('svg');
+svg.getBoundingClientRect(); // PAS button.getBoundingClientRect() seul
+```
+Un élément avec une bordure/un fond VISIBLE remplissant toute sa boîte
+(ex. un badge avec `border`+`bg-*` opaque) n'a PAS ce problème — sa boîte
+EST son contenu visuel, la mesurer directement suffit. Le doute se lève en
+inspectant le `className` : présence de `border`/`bg-*` opaque → boîte =
+contenu, mesure directe fiable ; icône/texte seul dans du `padding` sans
+fond → mesurer le contenu interne, jamais le conteneur seul.
