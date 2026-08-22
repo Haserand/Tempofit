@@ -1,4 +1,5 @@
 import { Lock, Globe, Trash2, Copy } from 'lucide-react';
+import TopCompletionDate from '../../shared/TopCompletionDate';
 
 /**
  * PlaylistHeaderBadges.jsx — les éléments qui flottent en overlay absolu
@@ -31,10 +32,31 @@ import { Lock, Globe, Trash2, Copy } from 'lucide-react';
  * (Lock d'un côté, Globe/Trash2 de l'autre, mutuellement exclusifs) ;
  * fusionnés en UN SEUL flex ici pour que le compteur puisse se positionner
  * proprement "à gauche de ce qui s'affiche", peu importe lequel des 2.
+ *
+ * ⚠️ BADGE "SÉANCE DÉJÀ RÉALISÉE" DÉPLACÉ ICI (22/08, retour direct —
+ * "mettre la date de la séance à gauche du compteur de clones pour
+ * gagner une ligne et resserrer la carte") — vivait auparavant dans
+ * `PlaylistHeaderMeta.jsx`, sur sa PROPRE ligne juste au-dessus de la
+ * ligne d'infos (créateur/durée/genres...), là où seul le "type de
+ * séance/durée/nb de titres/genres" reste désormais. Toujours gaté sur
+ * `isLocked && completions.length > 0` (inchangé), placé en PREMIER dans
+ * ce flex (à gauche du compteur de clonages, comme demandé). La liste des
+ * AUTRES dates de complétion (`<CompletionsList/>`, quand il y en a plus
+ * d'une) reste, elle, dans `PlaylistHeaderMeta.jsx` — une liste complète
+ * avec import CSV par date n'a pas sa place dans cette rangée compacte de
+ * badges, seule la date la plus récente (`<TopCompletionDate/>`) fait ce
+ * trajet. Cas à surveiller, pas rencontré dans les captures fournies
+ * jusqu'ici : `isReadOnly` (badge "Lecture seule", Lock générique) ET
+ * `isLocked` (Lock rose "déjà réalisée") peuvent en théorie être vrais
+ * simultanément (playlist publique d'un autre utilisateur déjà complétée
+ * par SON propriétaire) — 2 icônes Lock différentes se suivraient alors
+ * dans la même rangée ; pas traité spécifiquement, aucun retour là-dessus
+ * pour l'instant.
  */
 export default function PlaylistHeaderBadges({
   currentPlaylist, currentPlaylistRank, currentPlaylistRankStyle,
   isSaved, isReadOnly, handleTogglePlaylistPublic, handleUnsavePlaylist,
+  isLocked, theme, editingCompletion, setEditingCompletion, editCompletionDate,
 }) {
   return (
     <>
@@ -82,6 +104,20 @@ export default function PlaylistHeaderBadges({
             condition — ces cas ont de toute façon presque toujours
             `cloneCount` déjà posé (App.jsx/TemplateCard.jsx à
             l'ouverture), rien à changer là. */}
+        {isLocked && currentPlaylist.completions.length > 0 && (
+          <span className="flex items-center gap-1 p-2" title="Séance déjà réalisée">
+            <Lock size={12} className="text-rose-400 shrink-0" />
+            <span className="text-slate-400 text-xs font-bold">
+              <TopCompletionDate
+                playlist={currentPlaylist} theme={theme}
+                editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
+                editCompletionDate={editCompletionDate}
+                isReadOnly={isReadOnly}
+              />
+            </span>
+          </span>
+        )}
+
         {(isSaved || currentPlaylist.cloneCount !== undefined) && (
           <span
             className="text-slate-300 text-xs font-bold p-2 flex items-center gap-1"
