@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, LogOut, Search as SearchIcon } from 'lucide-react';
 import { genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getRankStyle } from './appConfig';
@@ -70,9 +70,14 @@ import { useSessionAnalysis } from './hooks/useSessionAnalysis';
 // rendu) suffit à découper chaque vue dans son propre chunk JS, chargé à la
 // demande au premier changement de vue — Vite/Rolldown s'en charge tout
 // seul, aucune configuration supplémentaire. Les imports non listés ici
-// (DualRangeSlider, CustomActivityModal, MiniPlayerBar, GuestModeBar...)
-// restent statiques : ce sont des petits composants de chrome partagé,
-// potentiellement visibles dès le premier écran, pas des vues entières.
+// (CustomActivityModal, MiniPlayerBar, GuestModeBar...) restent statiques :
+// ce sont des petits composants de chrome partagé, potentiellement visibles
+// dès le premier écran, pas des vues entières.
+// ⚠️ `DualRangeSlider` retiré de cette liste et de ses imports (check-up
+// 22/08) — importé plus bas mais jamais rendu dans App.jsx, code mort
+// trouvé via ESLint (`no-unused-vars`, vraie analyse de portée, pas juste
+// une lecture visuelle). Le fichier `DualRangeSlider.jsx` lui-même n'est
+// pas orphelin, toujours utilisé ailleurs dans le projet.
 const SettingsView = lazy(() => import('./components/views/SettingsView'));
 const FavoritesView = lazy(() => import('./components/views/FavoritesView'));
 const TrophiesView = lazy(() => import('./components/views/TrophiesView'));
@@ -85,7 +90,6 @@ const TrophiesView = lazy(() => import('./components/views/TrophiesView'));
 // côté client) n'aurait fait qu'ajouter un flash de chargement inutile au
 // changement d'onglet.
 const PlaylistsView = lazy(() => import('./components/views/PlaylistsView'));
-import DualRangeSlider from './components/shared/DualRangeSlider';
 const StatsView = lazy(() => import('./components/views/StatsView'));
 const GeneratorView = lazy(() => import('./components/views/GeneratorView'));
 const PlaylistDetailView = lazy(() => import('./components/views/PlaylistDetailView'));
@@ -694,52 +698,35 @@ function AppContent({
   // qui suit vivait ici via `useState('Course à pied')` + `useCustomActivity`
   // + `useGeneratorForm` directement. Ces 3 hooks sont maintenant appelés une
   // seule fois à l'intérieur de <GeneratorProvider> (voir
-  // contexts/GeneratorContext.jsx) — AppContent les lit ici via
-  // useGeneratorContext() pour ses propres besoins (handleSaveRoutine, le
-  // toggle Mode Standard/Intime plus bas...), exactement comme GeneratorView
-  // le fait de son côté. Mêmes noms de variables qu'avant : rien d'autre
-  // dans ce fichier n'a besoin de changer.
+  // contexts/GeneratorContext.jsx).
+  //
+  // ⚠️ Bloc réduit de ~55 à 5 variables (check-up 22/08) — le commentaire
+  // précédent affirmait qu'AppContent lisait tout ceci "pour ses propres
+  // besoins (handleSaveRoutine, le toggle Mode Standard/Intime...)", mais
+  // c'était déjà faux : `handleSaveRoutine` vit dans `useRoutineActions.js`,
+  // qui appelle sa PROPRE copie de `useGeneratorContext()`, jamais celle-ci
+  // (même famille d'erreur que celle déjà documentée et corrigée ici même
+  // pour `customActivity` le 08/08 — l'audit n'avait pas été étendu au
+  // reste du bloc à ce moment-là). Vérifié via ESLint (`no-unused-vars`,
+  // vraie analyse de portée) PUIS chaque occurrence relue à la main une
+  // par une : la quasi-totalité des ~50 variables retirées n'apparaissait
+  // plus ailleurs dans ce fichier que comme clé d'objet littéral ou accès
+  // de propriété sur un AUTRE objet du même nom (`editingRoutine.paceMin`,
+  // `preview.workoutType`...) — jamais la variable elle-même. Un premier
+  // passage au simple grep s'y était d'ailleurs trompé, en comptant ces
+  // collisions de noms comme de vrais usages ; seule une vérification
+  // occurrence par occurrence a permis de les écarter correctement.
+  // Chacune des 5 variables restantes a un usage réel confirmé plus bas :
+  // `setWizardStep` (reset du wizard sur navigation en attente),
+  // `showExtraGenres`/`setShowExtraGenres` et `CRESCENDO_MIN_MAIN_PCT`
+  // (props de <EditRoutineModal/>), `availableGenres` (prop de
+  // <FavoritesView/>). Build + suite de tests complète (1507 tests)
+  // vérifiés après coup, rien de cassé.
   const {
-    workoutType, setWorkoutType,
-    // `customActivity`/`handleOpenCustomActivityModal` retirées d'ici
-    // (08/08, 2e passe) — en vérifiant pourquoi elles devraient migrer vers
-    // `useCustomActivityContext()` suite au découpage de
-    // `CustomActivityContext.jsx`, découvert qu'elles n'étaient en réalité
-    // PLUS utilisées nulle part ailleurs dans ce fichier (commentaire
-    // précédent, "customActivity reste nécessaire ci-dessous
-    // (handleSaveRoutine)", déjà obsolète — `handleSaveRoutine` vit dans
-    // `useRoutineActions.js`, qui lit sa PROPRE copie de `customActivity`
-    // via son propre appel de contexte, jamais celle-ci). Code mort
-    // retiré plutôt que redirigé pour rien.
-    wizardStep, setWizardStep,
-    selectedGenres, setSelectedGenres,
-    genreWeights, setGenreWeights,
-    lockedGenreWeights, setLockedGenreWeights,
+    setWizardStep,
     showExtraGenres, setShowExtraGenres,
-    bpmTolerance, setBpmTolerance,
-    crossfade, setCrossfade,
-    bpm, setBpm, setBpmManual,
-    structureMode, setStructureMode, isIntervalMode, isCrescendoMode,
-    crescendoWarmupPct, setCrescendoWarmupPct, crescendoCooldownPct, setCrescendoCooldownPct,
     CRESCENDO_MIN_MAIN_PCT,
-    crescendoWarmupBpm, setCrescendoWarmupBpm, crescendoCooldownBpm, setCrescendoCooldownBpm,
-    bpmSourceIsProfile,
-    // `applyProfileBpmIfUntouched` idem : plus utilisée qu'à l'intérieur de
-    // CustomActivityModal.jsx désormais, retirée d'ici pour la même raison.
-    allowLongTracks, setAllowLongTracks,
-    targetMode, setTargetMode,
-    hours, setHours,
-    minutes, setMinutes,
-    distanceVal, setDistanceVal,
-    distanceUnit, setDistanceUnit,
-    paceMin, setPaceMin,
-    paceSec, setPaceSec,
-    segments, setSegments,
-    expandedSegmentGenreId, setExpandedSegmentGenreId,
     availableGenres,
-    equalSplitWeights, setGenreWeight, toggleGenre,
-    toggleSegmentGenre, resetSegmentGenre, checkGenreWeightDeviation,
-    getActiveWorkoutName,
   } = useGeneratorContext();
 
   // ModalContext (chantier "centraliser les modales", 25/07) — source de vérité
