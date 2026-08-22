@@ -103,8 +103,11 @@ export default function TrackList({
             <Lock size={14}/> Séance déjà réalisée
           </div>
         ) : !isSaved ? (
-          <div className={"p-3 bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center gap-2 text-xs font-bold text-center " + textMuted}>
-            Ajoute cette séance à "Mes Playlists" pour pouvoir ajouter, dupliquer, remplacer ou retirer des titres
+          <div
+            className={"p-3 bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center gap-2 text-xs font-bold text-center " + textMuted}
+            title="Pour pouvoir ajouter, dupliquer, remplacer ou retirer des titres"
+          >
+            Ajoute cette séance à "Mes Playlists"
           </div>
         ) : (
           <div className="p-2 bg-gray-50 dark:bg-gray-900/50">
