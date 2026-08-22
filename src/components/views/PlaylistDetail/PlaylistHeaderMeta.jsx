@@ -1,16 +1,25 @@
-import { Lock, Activity, Clock, Music, User } from 'lucide-react';
+import { Activity, Clock, Music, User } from 'lucide-react';
 import { getGenresForDisplay, genreDisplayLabel } from '../../../musicCatalog';
 import { formatDuration } from '../../../utils/format';
-import TopCompletionDate from '../../shared/TopCompletionDate';
 import CompletionsList from '../../shared/CompletionsList';
 
 /**
- * PlaylistHeaderMeta.jsx — badge "séance déjà réalisée" + dernière date
- * (+ liste des autres dates), suivi de la ligne d'infos brutes de la
- * playlist (créateur, type d'activité, durée, nb de titres, genres).
- * Extrait de `PlaylistHeader.jsx` (chantier découpage, 08/08) — 2 blocs
- * regroupés ici car tous deux purement informatifs (pas d'action
- * principale), à la différence de `PlaylistHeaderActions.jsx`.
+ * PlaylistHeaderMeta.jsx — pseudo, ligne d'infos brutes de la playlist
+ * (créateur, type d'activité, durée, nb de titres, genres), et la liste
+ * des dates de complétion AUTRES que la plus récente (`<CompletionsList/>`,
+ * quand il y en a plus d'une). Extrait de `PlaylistHeader.jsx` (chantier
+ * découpage, 08/08).
+ *
+ * ⚠️ BADGE "SÉANCE DÉJÀ RÉALISÉE" + DATE LA PLUS RÉCENTE DÉPLACÉS (22/08,
+ * retour direct — "mettre la date de la séance à gauche du compteur de
+ * clones pour gagner une ligne et resserrer la carte") — vivaient ici,
+ * juste au-dessus de la ligne d'infos ci-dessous, sur leur propre ligne.
+ * Rejoignent désormais `PlaylistHeaderBadges.jsx` (rangée d'icônes en
+ * haut à droite, à gauche du compteur de clonages) — voir sa docstring
+ * pour le détail complet. Seule la liste des dates SUPPLÉMENTAIRES
+ * (au-delà de `completions[0]`) reste ici : une liste complète avec
+ * import CSV par date n'a pas sa place dans cette rangée compacte de
+ * badges.
  *
  * ⚠️ PSEUDO DÉPLACÉ ICI (10/08, retour direct avec capture d'écran —
  * "supprimer la ligne pseudo/compteur au-dessus du titre pour épurer le
@@ -62,40 +71,20 @@ export default function PlaylistHeaderMeta({
 }) {
   return (
     <>
-      {/* Badge "séance déjà réalisée" — seul élément qui peut légitimement
-          précéder le titre (info sur la séance elle-même, pas une action).
-          Bloc entier conditionné à `isLocked`, pas juste son contenu :
-          sans ça, un conteneur vide laisse un espace mort au-dessus du
-          titre. */}
-      {isLocked && currentPlaylist.completions.length > 0 && (
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-1.5 justify-center md:justify-start">
-            <span className="text-xs font-bold flex items-center text-rose-400" title="Séance déjà réalisée">
-              <Lock size={12}/>
-            </span>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              <TopCompletionDate
-                playlist={currentPlaylist} theme={theme}
-                editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
-                editCompletionDate={editCompletionDate}
-                isReadOnly={isReadOnly}
-              />
-            </p>
-          </div>
-          {/* N'affiche cette liste que s'il reste au moins UNE date au-delà
-              de `completions[0]` (déjà montrée juste au-dessus). */}
-          {currentPlaylist.completions.length > 1 && (
-            <div className="pt-0.5">
-              <CompletionsList
-                playlist={currentPlaylist} theme={theme}
-                hideUploadForDate={mostRecentCompletionIso} skipDates={[currentPlaylist.completions[0]]}
-                editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
-                editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
-                triggerCSVUpload={triggerCSVUpload} removeImportedData={removeImportedData}
-                isReadOnly={isReadOnly}
-              />
-            </div>
-          )}
+      {/* Liste des AUTRES dates de complétion (au-delà de la plus récente,
+          déplacée le 22/08 dans PlaylistHeaderBadges.jsx, à gauche du
+          compteur de clonages — voir sa docstring). N'affiche cette liste
+          que s'il en reste au moins UNE en plus de `completions[0]`. */}
+      {isLocked && currentPlaylist.completions.length > 1 && (
+        <div className="pt-0.5">
+          <CompletionsList
+            playlist={currentPlaylist} theme={theme}
+            hideUploadForDate={mostRecentCompletionIso} skipDates={[currentPlaylist.completions[0]]}
+            editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
+            editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
+            triggerCSVUpload={triggerCSVUpload} removeImportedData={removeImportedData}
+            isReadOnly={isReadOnly}
+          />
         </div>
       )}
 
