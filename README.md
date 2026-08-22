@@ -1282,6 +1282,48 @@ aurait aussi matché l'ancienne version plus longue, donc n'aurait pas
 détecté de régression si le raccourci avait sauté) + la présence de
 l'infobulle avec le détail complet.
 
+## Sidebar — hauteur du pied de page (Réglages + crédit) forcée pour un alignement cosmétique, au détriment de la nav (22/08)
+
+Retour direct, capture d'écran à l'appui : "quand j'écoute de la musique
+la taille de la partie Réglages ne devrait pas être agrandie,
+l'accessibilité de la navigation du menu doit être privilégiée".
+
+En creusant (`Sidebar.jsx`) : un mécanisme (`creditRowHeight`) forçait la
+hauteur du pied de page (bouton Réglages + trophées + signature "Un
+projet créé par...") à correspondre EXACTEMENT à celle de MiniPlayerBar/
+GuestModeBar (90/72/162px selon les barres visibles) — but purement
+cosmétique, corriger un "effet escalier" (bordure du pied de page
+désalignée avec celle des barres du bas, bug du 28/07). Problème non
+anticipé à l'époque : ce pied de page vit dans le même conteneur
+`flex flex-col h-full` que la zone de nav scrollable juste au-dessus — le
+FORCER à grandir jusqu'à 162px (les 2 barres visibles), même quand son
+contenu naturel tient dans ~66px, réduisait d'autant la hauteur
+réellement disponible pour la nav. La nav défile déjà indépendamment
+(`overflow-y-auto`), donc rien ne devenait strictement inaccessible
+(toujours atteignable en scrollant), mais elle perdait de la place
+visible pour une raison purement décorative.
+
+**Retiré** : le pied de page garde maintenant SA hauteur naturelle,
+toujours (barres du bas visibles ou non). Compromis accepté sciemment :
+sa bordure du haut peut désormais légèrement se désaligner de celle de
+MiniPlayerBar/GuestModeBar (l'"effet escalier" d'origine redevient
+possible) — mineur et cosmétique, contre un vrai gain d'espace de
+navigation.
+
+Nettoyage associé : `creditRowHeight` et son `style={{height: ...}}`
+retirés, import de `MINI_PLAYER_BAR_HEIGHT_PX`/`GUEST_MODE_BAR_HEIGHT_PX`
+retiré de `Sidebar.jsx` (plus utilisées dans ce fichier), tous les
+commentaires qui présentaient encore ce mécanisme comme actif mis à jour
+(4 endroits). `bottomBarLayout.js` lui-même conservé tel quel — les 2
+classes Tailwind qu'il documente (`h-[90px]`/`h-[72px]`,
+MiniPlayerBar.jsx/GuestModeBar.jsx) existent toujours et doivent
+toujours rester synchronisées entre elles, seul leur 3e consommateur
+(Sidebar.jsx) a disparu. Test correspondant ajusté
+(`bottomBarLayout.test.js`) : le test vérifiant que Sidebar.jsx importe
+bien ces constantes est retiré (devenu sans objet), les 2 tests de
+synchronisation MiniPlayerBar/GuestModeBar restent inchangés — le risque
+qu'ils protègent existe toujours, indépendamment de Sidebar.jsx.
+
 ## Autres fichiers de référence à ce niveau
 
 - `CLAUDE-SANDBOX-VERIFICATION.md` — outils de vérification de code pour une session Claude sans accès réseau.
