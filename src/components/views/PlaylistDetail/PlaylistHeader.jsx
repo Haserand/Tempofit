@@ -18,12 +18,13 @@ import PlaylistHeaderActions from './PlaylistHeaderActions';
  * "dumb" (uniquement du rendu, aucun état/calcul propre) dans ce même
  * dossier — voir chacun pour le détail du bloc qu'il rend :
  * `PlaylistHeaderBadges.jsx` (médaille de rang, compteur de clonages —
- * déplacé ici le 10/08, voir sa docstring —, "Lecture seule", boutons
- * publique/privée+retirer en overlay), `PlaylistHeaderCover.jsx`
+ * déplacé ici le 10/08 —, badge "séance déjà réalisée"+date la plus
+ * récente — déplacé ici le 22/08, voir sa docstring —, "Lecture seule",
+ * boutons publique/privée+retirer en overlay), `PlaylistHeaderCover.jsx`
  * (pochette), `PlaylistHeaderTitleBlock.jsx` (titre/description édition
  * fusionnée), `PlaylistHeaderMeta.jsx` (pseudo — déplacé ici le 10/08,
- * voir sa docstring —, badge "séance déjà réalisée"+dates, ligne
- * d'infos), et `PlaylistHeaderActions.jsx` (import CSV, action
+ * voir sa docstring —, ligne d'infos, liste des AUTRES dates de
+ * complétion), et `PlaylistHeaderActions.jsx` (import CSV, action
  * principale, planifier, partager, badge BPM). CE fichier reste le seul à calculer les valeurs
  * PARTAGÉES entre plusieurs de ces blocs (`ownerLabel`/`avgBpm`/
  * `currentPlaylistRank`/etc.) et à posséder `usePlaylistDetail()` — les
@@ -183,6 +184,11 @@ export default function PlaylistHeader({
         isReadOnly={isReadOnly}
         handleTogglePlaylistPublic={handleTogglePlaylistPublic}
         handleUnsavePlaylist={handleUnsavePlaylist}
+        isLocked={isLocked}
+        theme={theme}
+        editingCompletion={editingCompletion}
+        setEditingCompletion={setEditingCompletion}
+        editCompletionDate={editCompletionDate}
       />
 
       <PlaylistHeaderCover
