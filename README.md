@@ -32,6 +32,15 @@ générateur, certaines corrigées une 2e fois après une 1re vérification
 erronée de ma part (voir README, sections dédiées, et CLAUDE-SANDBOX-
 VERIFICATION.md §5quater pour la leçon retenue).
 
+**22/08 (check-up général) — dette de code morte retirée d'`App.jsx`**,
+voir section dédiée plus bas : le bloc de destructuration de
+`useGeneratorContext()` dans `AppContent` est passé de ~55 variables à 5
+réellement utilisées (`setWizardStep`, `showExtraGenres`/
+`setShowExtraGenres`, `CRESCENDO_MIN_MAIN_PCT`, `availableGenres`) + 2
+imports morts retirés (`React` par défaut, `DualRangeSlider`). Vérifié
+via ESLint (analyse de portée réelle) puis chaque occurrence relue à la
+main, build + suite de tests complète (1507 tests) confirmés après coup.
+
 ### Historique détaillé (21-22/08) — archivé dans `HISTORIQUE.md`, bloc 6
 
 Récit chronologique complet déplacé le 22/08 (6e élagage — session
@@ -900,6 +909,49 @@ extraction possible ou utile. Ce chantier se conclut ici avec 3
 extractions réelles sur 3 clusters envisagés (2 en Contexte, 1 en simple
 composant de rendu) — chaque décision (extraire, extraire partiellement,
 ou laisser tel quel) vérifiée au cas par cas plutôt que supposée.
+
+## Nettoyage (22/08, check-up général) — destructuration morte de `useGeneratorContext()` dans `AppContent`
+
+Repéré en check-up général, sans chantier précis en tête. Le bloc qui lit
+`useGeneratorContext()` au sommet d'`AppContent` (juste avant `ModalContext`
+plus haut) contenait ~55 variables destructurées ; **~50 d'entre elles
+n'étaient en réalité utilisées NULLE PART ailleurs dans `App.jsx`** —
+lisibles uniquement dans leur propre ligne de déclaration. Le commentaire
+qui justifiait ce bloc ("AppContent les lit ici pour ses propres besoins,
+handleSaveRoutine...") était lui-même déjà faux : `handleSaveRoutine` vit
+dans `useRoutineActions.js`, qui appelle sa PROPRE copie du contexte —
+exactement la même famille d'erreur que celle déjà trouvée et corrigée sur
+`customActivity` dans ce même bloc le 08/08, mais l'audit n'avait pas été
+étendu au reste à l'époque.
+
+**Piège méthodologique rencontré en vérifiant** : un premier passage au
+simple `grep` sur ces noms de variables a donné un résultat FAUX-VIVANT
+pour la plupart d'entre elles (`bpm`, `workoutType`, `distanceVal`,
+`paceMin`...) — parce que ce fichier contient de nombreux objets littéraux
+(configs de routine/playlist) avec des clés portant EXACTEMENT les mêmes
+noms (`workoutType: 'Course à pied'`, `editingRoutine.paceMin`,
+`preview.workoutType`...). `grep` ne distingue pas une clé d'objet ou un
+accès de propriété d'un usage réel de la variable locale. Seul un outil à
+vraie analyse de portée (ESLint, règle `no-unused-vars`) donne un résultat
+fiable ici — confirmé ensuite occurrence par occurrence à la main avant de
+toucher au fichier, étant donné sa sensibilité.
+
+**Gardé (5 variables, usage réel vérifié)** : `setWizardStep` (reset du
+wizard sur résolution d'une navigation en attente), `showExtraGenres`/
+`setShowExtraGenres` et `CRESCENDO_MIN_MAIN_PCT` (props de
+`<EditRoutineModal/>`), `availableGenres` (prop de `<FavoritesView/>`).
+
+**2 imports morts retirés au passage**, trouvés par le même balayage
+ESLint : l'import par défaut `React` (JSX transform automatique de
+`@vitejs/plugin-react`, confirmé dans `vite.config.js` — plus nécessaire
+depuis longtemps) et `DualRangeSlider` (importé mais jamais rendu dans ce
+fichier ; le composant lui-même n'est pas orphelin, toujours utilisé
+ailleurs dans le projet).
+
+Build réel + suite de tests complète (1507 tests) revérifiés après coup,
+rien de cassé — changement purement de lecture (aucune valeur, aucun
+comportement modifié), donc risque de régression minimal malgré la taille
+du diff.
 
 ## Corrigé (20/08) — anciennement "Limite connue, non traitée : écritures concurrentes de MÊME TYPE sur la MÊME playlist"
 
