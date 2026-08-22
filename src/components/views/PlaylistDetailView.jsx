@@ -63,9 +63,16 @@ function PlaylistDetailViewInner({
   // maintenant directement via le Contexte dédié (voir ShareImageContext.jsx
   // pour le détail complet — génération/logique de course inchangées, reste
   // entièrement ici).
+  // ⚠️ Getters `summaryImageFile`/`summaryImagePreviewUrl`/`includeSummaryImage`
+  // retirés de cette destructuration (check-up 22/08) : ce composant est le
+  // PRODUCTEUR de ces valeurs (génère l'image de bilan, voir les appels
+  // setSummaryImage*/setIncludeSummaryImage plus bas), jamais leur lecteur —
+  // `ShareModal.jsx` les lit via sa PROPRE copie de `useShareImage()` pour
+  // l'affichage/le partage. Setters conservés, seuls les getters étaient
+  // morts ici.
   const {
-    summaryImageStatus, setSummaryImageStatus, summaryImageFile, setSummaryImageFile,
-    summaryImagePreviewUrl, setSummaryImagePreviewUrl, includeSummaryImage, setIncludeSummaryImage,
+    summaryImageStatus, setSummaryImageStatus, setSummaryImageFile,
+    setSummaryImagePreviewUrl, setIncludeSummaryImage,
   } = useShareImage();
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass } = theme;
   // Replié par défaut : ce tableau ne sert qu'à vérifier ponctuellement une
@@ -257,10 +264,14 @@ function PlaylistDetailViewInner({
   // aucune raison d'attendre que cette génération se termine.
   //
   // `summaryImageStatus`/`summaryImageFile`/`summaryImagePreviewUrl`/
-  // `includeSummaryImage` sont reçus EN PROPS (pas des useState locaux) —
-  // ShareModal.jsx, qui doit les LIRE pour afficher l'aperçu, est rendu une
-  // seule fois globalement dans App.jsx, PAS à l'intérieur de cette vue :
-  // cet état doit donc vivre à un niveau que les deux peuvent atteindre. La
+  // `includeSummaryImage` vivent dans `ShareImageContext.jsx` (lu ici via
+  // `useShareImage()`, voir plus haut — ⚠️ ce commentaire disait encore
+  // "reçus EN PROPS (pas des useState locaux)", vrai avant le 21/08, plus
+  // depuis ; corrigé au check-up 22/08, mais le RAISONNEMENT reste valable
+  // tel quel) — ShareModal.jsx, qui doit les LIRE pour afficher l'aperçu,
+  // est rendu une seule fois globalement dans App.jsx, PAS à l'intérieur de
+  // cette vue : cet état doit donc vivre à un niveau que les deux peuvent
+  // atteindre (d'où le Contexte, pas un simple useState local ici). La
   // génération elle-même (qui a besoin de `summaryCardRef`, une réf DOM sur
   // la carte hors-écran rendue plus bas dans CE composant) reste en revanche
   // ici, où vit cette réf.
