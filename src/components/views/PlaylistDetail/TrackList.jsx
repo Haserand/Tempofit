@@ -96,8 +96,11 @@ export default function TrackList({
             TrackItem.jsx, pas besoin d'un booléen combiné ici puisque les 2
             cas ont chacun leur propre message). */}
         {isLocked ? (
-          <div className={"p-3 bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center gap-2 text-xs font-bold " + textMuted}>
-            <Lock size={14}/> Séance déjà réalisée — plus aucun titre ne peut être ajouté, dupliqué, remplacé ou retiré
+          <div
+            className={"p-3 bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center gap-2 text-xs font-bold " + textMuted}
+            title="Plus aucun titre ne peut être ajouté, dupliqué, remplacé ou retiré"
+          >
+            <Lock size={14}/> Séance déjà réalisée
           </div>
         ) : !isSaved ? (
           <div className={"p-3 bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center gap-2 text-xs font-bold text-center " + textMuted}>
