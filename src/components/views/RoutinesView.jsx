@@ -36,7 +36,7 @@ export default function RoutinesView({
   setEditingRoutine, executeGeneration, isGenerating, changeView, showToast,
 }) {
   const { openModal } = useModalContext();
-  const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass, inputBg, inputBorder } = theme;
+  const { cardBg, cardBorder, textHighlight, textMuted, bgAccentClass, inputBg, inputBorder } = theme;
 
   // Bascule publique/privée INDIVIDUELLE (Vague 2, Chantier 1 — UI publique
   // des routines, 02/08) — MÊME principe exact que `handleTogglePlaylistPublic`
