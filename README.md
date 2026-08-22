@@ -1181,7 +1181,51 @@ inertes) — 2 remplacements concurrents sur 2 titres différents, dans les
 
 
 
-## Bouton "Planifier" — libellé visible incohérent avec son propre tooltip une fois la séance déjà réalisée (22/08)
+## En-tête de playlist — date de complétion déplacée à gauche du compteur de clonages (22/08)
+
+Retour direct, capture d'écran à l'appui : "mettre la date de la séance à
+gauche du compteur de clones pour gagner une ligne et resserrer la
+carte". Le badge "🔒 22 août 2026" (cadenas rose + date de la complétion
+la plus récente, éditable) vivait sur sa PROPRE ligne dans
+`PlaylistHeaderMeta.jsx`, juste au-dessus de la ligne d'infos
+(créateur/durée/genres...) — déplacé dans `PlaylistHeaderBadges.jsx`
+(rangée d'icônes en overlay absolu, coin haut-droit), immédiatement à
+gauche du compteur de clonages, comme demandé.
+
+Seule la date la PLUS RÉCENTE (`<TopCompletionDate/>`) fait ce trajet —
+la liste des AUTRES dates de complétion (`<CompletionsList/>`, visible
+seulement s'il y en a plus d'une) reste dans `PlaylistHeaderMeta.jsx` :
+une liste complète avec bouton d'import CSV par date n'a pas sa place
+dans cette rangée compacte de badges. `PlaylistHeaderMeta.jsx` gagne donc
+bien une ligne complète dans le cas courant (1 seule complétion,
+`CompletionsList` alors totalement absent).
+
+Props ajoutées à `PlaylistHeaderBadges.jsx` (déjà toutes disponibles dans
+le composant parent `PlaylistHeader.jsx`, aucun calcul supplémentaire
+nécessaire) : `isLocked`, `theme`, `editingCompletion`,
+`setEditingCompletion`, `editCompletionDate`. Couleurs reprises à
+l'identique de l'ancien emplacement (icône cadenas `text-rose-400`, date
+`text-slate-400`) plutôt que la palette du compteur de clonages voisin —
+garde ce badge visuellement reconnaissable comme signal "déjà fait",
+distinct des icônes d'action qui l'entourent.
+
+**Cas limite identifié, non traité, aucun retour dessus pour l'instant**
+(documenté dans le docstring de `PlaylistHeaderBadges.jsx` pour la
+prochaine fois) : le badge "Lecture seule" (icône Lock générique,
+`isReadOnly`) et ce nouveau badge (icône Lock rose, `isLocked`) sont
+CONCEPTUELLEMENT indépendants l'un de l'autre (l'un dépend de
+`!isSaved`, l'autre de `completions.length > 0`) — ils pourraient
+en théorie apparaître tous les deux en même temps (playlist publique
+d'un autre utilisateur, déjà complétée par SON propriétaire), ce qui
+ferait se suivre 2 icônes Lock différentes dans la même rangée. Cas
+jamais rencontré dans les retours reçus jusqu'ici, donc pas traité
+spécifiquement — à revisiter si ça arrive en pratique.
+
+Tests ajustés : `PlaylistHeaderMeta.test.jsx` (le mock/les tests de
+`TopCompletionDate` retirés, ce composant ne le rend plus) et
+`PlaylistHeaderBadges.test.jsx` (nouveaux tests : badge affiché seulement
+si `isLocked` ET au moins 1 complétion, absent sinon, positionné avant le
+compteur de clonages dans le DOM).
 
 Signalé par retour direct, capture d'écran à l'appui : une playlist déjà
 verrouillée (séance réalisée, badge "🔒 22 août 2026" affiché) montrait
