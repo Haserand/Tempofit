@@ -156,6 +156,21 @@ export default function GuestModeBar({ theme, isVisible, openModal, onDismiss = 
       ) : (
         <>
           <div className="w-full flex items-center justify-center gap-3">
+            {/* Espaceur invisible, même boîte que le bouton croix à droite
+                (`p-1.5` + icône 16px, copié à l'identique plutôt que
+                deviné en px) — retour direct 22/08, capture d'écran :
+                "pourquoi les 2 ne sont pas parfaitement centrés ?".
+                `justify-center` centre le GROUPE entier (espaceur + bouton
+                + croix), pas le texte "Se connecter" lui-même — sans cet
+                espaceur, la croix (plus étroite) à droite ne compensait
+                pas la largeur du bouton "Se connecter" à gauche, donc le
+                centre du groupe tombait légèrement À DROITE du texte
+                perçu comme le contenu principal, qui semblait dérivé vers
+                la gauche. `aria-hidden` : élément purement visuel, rien à
+                annoncer aux lecteurs d'écran. */}
+            <span className="shrink-0 p-1.5" aria-hidden="true">
+              <X size={16} className="invisible" />
+            </span>
             <button
               onClick={() => openModal('AUTH')}
               className={`shrink-0 text-sm font-bold ${textColorClass} hover:opacity-80 flex items-center gap-2 transition-colors`}
