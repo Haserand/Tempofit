@@ -296,12 +296,16 @@ Leçon du chantier "cible à 0" (`targetValidation.js`, 04/08) : valider un form
 ### Login Wall des profils publics
 - Double verrou : droits d'exécution SQL retirés à `anon` sur `get_public_profile_summary`/`search_public_profiles` (`revoke ... from anon`) **et** vérification explicite `auth.uid() is null` en tout premier dans chaque fonction — voir `supabase-schema.sql`.
 
-## Convention UI — infobulles (`title=`) sur les icônes seules
+## Convention UI — règles génériques accumulées au fil des retours directs
 
-Actée le 14/08, après 2 allers-retours sur le même motif (retour direct
-avec capture d'écran : "pourquoi seul le nombre de titres a une infobulle
-au survol, pas le reste ?" — étendu ensuite à toute l'app sur demande).
-Deux règles simples, à appliquer par réflexe dans tout nouveau code UI :
+Actée le 14/08 (infobulles sur icônes seules, après 2 allers-retours sur
+le même motif — retour direct avec capture d'écran : "pourquoi seul le
+nombre de titres a une infobulle au survol, pas le reste ?"), élargie le
+22/08 après une nouvelle série d'ajustements ponctuels dont plusieurs se
+sont révélés être le MÊME motif structurel répété (voir points 7-8 et les
+2 nouvelles sous-sections plus bas). Règles à appliquer par réflexe dans
+tout nouveau code UI, pas seulement à retrouver après coup sur retour
+direct :
 
 1. **Toute icône seule (sans mot qui l'explique déjà à côté) porte un
    `title=`.** Un chiffre nu à côté d'une icône (`<List/> 5`, `<Gauge/> 150
@@ -359,6 +363,30 @@ Deux règles simples, à appliquer par réflexe dans tout nouveau code UI :
    Réflexe à avoir pour tout NOUVEAU `truncate`/`line-clamp-*` écrit à
    partir de maintenant : poser le `title=` correspondant du premier coup,
    plutôt que de laisser un nouveau trou se former.
+7. **Généralisé (22/08) : ne se limite plus au texte tronqué ou aux icônes
+   seules — une PHRASE COMPLÈTE affichée en clair peut, elle aussi, passer
+   partiellement en infobulle** si elle fait déborder son conteneur sur 2
+   lignes alors qu'une version courte suffit comme accroche (ex.
+   `TrackList.jsx` : "Séance déjà réalisée — plus aucun titre ne peut être
+   ajouté, dupliqué, remplacé ou retiré" → "Séance déjà réalisée" affiché,
+   le reste en `title=`). Découpage à faire : garder visible la partie
+   ACTIONNABLE ou la plus courte à comprendre d'un coup d'œil, déplacer en
+   infobulle le POURQUOI/le détail. Retour direct qui a motivé cette
+   généralisation : capture d'écran d'une bannière sur 2 lignes, "garder
+   que [texte court] et le reste en infobulle ?".
+8. **Le texte VISIBLE d'un élément doit porter la même logique
+   conditionnelle que son propre `title=` — jamais moins.** Repéré le
+   22/08 (`PlaylistHeaderActions.jsx`, bouton "Planifier") : le `title=`
+   distinguait déjà correctement `isLocked ? "Refaire cette séance" :
+   "Planifier cette séance"`, mais le `<span>` visible ne regardait QUE
+   si une date était choisie, ignorant complètement `isLocked` — un
+   tooltip plus riche que le libellé affiché est le signal qu'une
+   distinction déjà pensée quelque part n'a pas été répercutée partout.
+   Audit fait ce jour-là sur les 34 `title={...ternaire...}` du projet à
+   la recherche du même écart : aucun autre cas trouvé — mais réflexe à
+   garder pour tout NOUVEAU `title=` conditionnel écrit désormais, vérifier
+   que le texte/état visible suit la MÊME condition, pas une condition plus
+   pauvre.
 
 ### Pseudo/nom d'auteur cliquable vers un profil — `underline` PERMANENT
 
@@ -380,6 +408,50 @@ documenté pour ne pas dériver à l'avenir :
   change au survol — voir `SearchUsersModal.jsx`) suit un paradigme UI
   différent (ligne entière = affordance cliquable) ; le soulignement du
   texte seul n'y a pas sa place.
+
+### Centrage flexbox d'une rangée ASYMÉTRIQUE (bouton principal + petit bouton icône seule)
+
+Actée le 22/08, retour direct avec capture d'écran sur `GuestModeBar.jsx`
+("pourquoi les 2 ne sont pas parfaitement centrés ?") — **piège CSS
+structurel à connaître, pas spécifique à ce composant précis** :
+`justify-center` centre le GROUPE entier de la rangée, pas le contenu
+qu'on perçoit intuitivement comme "principal". Si ce groupe associe un
+élément large (ex. bouton texte+icône, "Se connecter") et un élément
+nettement plus étroit (ex. bouton icône seule, croix de fermeture), le
+centre géométrique du groupe tombe mécaniquement DÉCALÉ vers le côté
+large — l'œil perçoit alors le texte principal comme "pas centré", alors
+que la rangée l'est bel et bien, au sens strict.
+- **Correctif type** : ajouter un espaceur INVISIBLE (`invisible`, pas
+  `hidden` — doit garder sa place dans la mise en page) de la même boîte
+  exacte que le petit élément (mêmes classes de padding/taille, copiées
+  plutôt que devinées en pixels), du côté opposé. Équilibre les 2 côtés
+  sans dépendre d'une valeur magique à resynchroniser si l'élément change
+  un jour. `aria-hidden="true"` sur cet espaceur — purement visuel, rien à
+  annoncer aux lecteurs d'écran.
+- **Pas un problème SI les 2 éléments flanquants sont déjà de taille
+  identique** (ex. pagination `‹ Page X/Y ›` dans `PlaylistsView.jsx` —
+  2 boutons flèche strictement identiques de chaque côté du texte) :
+  `justify-center` centre alors correctement le texte par construction,
+  aucun espaceur nécessaire. Vérifié le 22/08 sur les 16 rangées du
+  projet combinant `justify-center` + 2 boutons ou plus dans le même
+  conteneur : `GuestModeBar.jsx` était le seul cas réellement asymétrique
+  trouvé — mais réflexe à avoir pour toute NOUVELLE rangée de ce type.
+
+### Élément décoratif vs espace fonctionnel — la fonction prime
+
+Retour direct du 22/08 sur `Sidebar.jsx` ("l'accessibilité de la
+navigation du menu doit être privilégiée") — principe général derrière le
+retrait de `creditRowHeight` (voir la section dédiée plus bas pour le
+détail complet) : un ajustement purement COSMÉTIQUE (ex. aligner deux
+bordures au pixel près entre 2 zones indépendantes de l'écran) ne doit
+JAMAIS forcer un élément à grandir au détriment de l'espace réellement
+disponible pour un contenu FONCTIONNEL (navigation, action, information
+consultée activement) qui partage le même conteneur. En cas de conflit
+entre les deux, la fonction gagne — quitte à accepter un léger défaut
+visuel (ici, un désalignement de bordure) comme compromis assumé plutôt
+que corrigé.
+
+
 
 ## Décisions actées, pas encore implémentées — chantier Pulses/Leaderboard
 
@@ -1259,7 +1331,8 @@ plus aucun titre ne peut être ajouté, dupliqué, remplacé ou retiré",
 réalisée" seul, le reste de l'explication déplacé dans le `title` (info-
 bulle native au survol) du conteneur, cohérent avec la convention déjà en
 place ailleurs sur l'app pour ce genre de détail secondaire (voir
-"Convention UI — infobulles" plus haut dans ce README). Comportement
+"Convention UI" plus haut dans ce README, point 7 — généralisé aux
+phrases complètes le jour même). Comportement
 inchangé (toujours affiché uniquement si `isLocked`), aucun titre ne peut
 toujours pas être ajouté/dupliqué/remplacé/retiré — seul le texte AFFICHÉ
 change.
@@ -1343,6 +1416,45 @@ connecter" tombe pile au centre réel de la barre. Espaceur marqué
 
 Test de régression ajouté (`GuestModeBar.test.jsx`) : vérifie la présence
 de l'espaceur et son exclusion de l'arborescence d'accessibilité.
+
+## MiniPlayerBar — hauteur réduite de 90 à 70px pour correspondre à la zone Réglages (22/08)
+
+Retour direct, capture d'écran à l'appui : "je veux diminuer la hauteur
+de l'audio player pour que la taille soit identique à celle de la zone
+Réglages" — suite directe du retrait de `creditRowHeight` plus haut
+(même session), qui a rendu la hauteur du pied de page de la Sidebar
+enfin naturelle plutôt que forcée à 90px.
+
+**⚠️ Calcul mathématique, pas une mesure réelle** — Playwright reste
+bloqué en sandbox cette session (`cdn.playwright.dev` toujours hors liste
+d'autorisation, voir CLAUDE-SANDBOX-VERIFICATION.md §5quinquies, retenté
+avant ce chantier, toujours en échec). Hauteur calculée à la main via
+l'échelle Tailwind par défaut : bordure du haut (`border-t-2`, 2px) +
+padding vertical du conteneur (`py-2`, 8+8=16px) + ligne Réglages/
+Trophées (`py-1.5` + line-height `text-sm` par défaut, 12+20=32px) +
+espace entre les 2 lignes (`gap-1`, 4px) + ligne de crédit (line-height
+`text-xs` par défaut, 16px) = **70px**. Recoupé avec une estimation déjà
+documentée dans ce fichier avant le retrait de `creditRowHeight` ("contenu
+≈50px" + `py-2`=16px ≈ 66px, du même ordre de grandeur). Contenu de
+MiniPlayerBar lui-même (zone centrale, la plus haute : boutons de lecture
+36px + barre de progression ~16px + espace 4px = 56px) vérifié pour tenir
+largement dans ces 70px sans risque de coupure.
+
+**Recommandé** : confirmer visuellement au premier lancement réel de
+l'app (capture d'écran ou navigateur) que l'alignement tombe bien comme
+attendu — un écart de quelques pixels par rapport à ce calcul resterait
+possible (métriques de police exactes, arrondis de rendu) sans avoir pu
+être vérifié en conditions réelles cette fois.
+
+Modifié en 2 endroits synchronisés (`MINI_PLAYER_BAR_HEIGHT_PX` dans
+`bottomBarLayout.js` + `h-[70px]` dans `MiniPlayerBar.jsx`) — le test
+dédié (`bottomBarLayout.test.js`) confirme automatiquement que les deux
+valeurs concordent toujours. `GUEST_MODE_BAR_HEIGHT_PX`/GuestModeBar.jsx
+non touchés (pas mentionnés dans le retour direct, différent composant).
+Petite incohérence préexistante corrigée au passage dans le docstring de
+`bottomBarLayout.js` : une ligne mentionnait encore `h-[64px]` pour
+GuestModeBar alors que sa vraie valeur est 72px depuis le 29/07 — jamais
+mise à jour à l'époque, corrigée en passant par ce même fichier.
 
 ## Autres fichiers de référence à ce niveau
 
