@@ -85,13 +85,14 @@ export const SIDEBAR_SEPARATOR_MARGIN = 'my-5';
 // mode normal pour ce séparateur précis. `mb-5` (20px) INCHANGÉ tout du
 // long (l'écart entre la ligne et "Mon Espace" n'a jamais été marqué).
 // HAUT (`mt`) — seul écart marqué, l'écart entre "Mes Playlists" et la
-// ligne elle-même : 2 passes successives (même jour) — `mt-5`(20px) →
-// `mt-[18px]` (1re passe) → `mt-[16px]` (2e passe, retour direct : "il
-// manque encore quelques pixels, à peu près autant que pour la précédente
-// passe" — encore -2px). Valeur arbitraire `[16px]`, pas une valeur
-// d'échelle Tailwind standard — écrite en toutes lettres ici, donc scannée
-// par le JIT sans piège (voir la docstring en tête de fichier).
-export const SIDEBAR_SEPARATOR_MARGIN_COMPACT = 'mt-[16px] mb-5';
+// ligne elle-même : 3 passes successives (même jour) — `mt-5`(20px) →
+// `mt-[18px]` (1re) → `mt-[16px]` (2e) → `mt-[13px]` (3e, retour direct :
+// "en gros manque une quinzaine de pixels" — -3px cette fois, pour un
+// total de -15px répartis sur les 5 écarts marqués de la capture). Valeur
+// arbitraire, pas une valeur d'échelle Tailwind standard — écrite en
+// toutes lettres ici, donc scannée par le JIT sans piège (voir la
+// docstring en tête de fichier).
+export const SIDEBAR_SEPARATOR_MARGIN_COMPACT = 'mt-[13px] mb-5';
 
 // Séparateur entre "Mon Espace" et "Découvrir" (21/08, retour direct :
 // "réduire l'espace Découvrir de 10px en haut et 10px en bas") — DISTINCT
@@ -107,14 +108,13 @@ export const SIDEBAR_DISCOVER_SEPARATOR_MARGIN = 'mt-5 mb-2.5';
 
 // Variante Mode Intime (21/08, retour direct : "supprime 2 pixels à chaque
 // trait rouge pour voir Découvrir sans scroll") — même principe que
-// SIDEBAR_SEPARATOR_MARGIN_COMPACT juste au-dessus, 2 passes successives
+// SIDEBAR_SEPARATOR_MARGIN_COMPACT juste au-dessus, 3 passes successives
 // (même jour) sur le HAUT (`mt`) — seul écart marqué, entre "Mes
-// Statistiques" et la ligne : `mt-5`(20px) → `mt-[18px]` (1re passe) →
-// `mt-[16px]` (2e passe, retour direct : "il manque encore quelques
-// pixels, à peu près autant que pour la précédente passe"). `mb-2.5`
-// (10px) INCHANGÉ tout du long, déjà resserré par le correctif
-// "Découvrir" initial, jamais remarqué depuis.
-export const SIDEBAR_DISCOVER_SEPARATOR_MARGIN_COMPACT = 'mt-[16px] mb-2.5';
+// Statistiques" et la ligne : `mt-5`(20px) → `mt-[18px]` (1re) →
+// `mt-[16px]` (2e) → `mt-[13px]` (3e, retour direct : "en gros manque une
+// quinzaine de pixels"). `mb-2.5` (10px) INCHANGÉ tout du long, déjà
+// resserré par le correctif "Découvrir" initial, jamais remarqué depuis.
+export const SIDEBAR_DISCOVER_SEPARATOR_MARGIN_COMPACT = 'mt-[13px] mb-2.5';
 
 // Padding du conteneur scrollable LUI-MÊME (englobe Création + séparateur +
 // Mon Espace + Découvrir) — seule source de l'espacement haut/bas de cette
@@ -148,16 +148,22 @@ export const SIDEBAR_SCROLL_PADDING = 'pt-4 pb-1.5 px-4';
 // resserrer encore l'espace AU-DESSUS de "Quitter" est de toucher CETTE
 // constante. `pt-[10px]` (haut, 12px→10px, -2px).
 // ⚠️ BAS RÉDUIT À SON TOUR (même jour, 3e passe, retour direct : "il
-// manque encore quelques pixels" — sans traits précis cette fois) — `pb-3`
-// (12px) → `pb-[10px]` (-2px), l'espace après "Découvrir" avant le pied de
-// page. Seul levier restant qui NE rouvre PAS une décision déjà tranchée :
+// manque encore quelques pixels" — sans traits précis) — `pb-3`(12px) →
+// `pb-[10px]` (-2px), l'espace après "Découvrir" avant le pied de page.
+// Seul levier restant qui NE rouvre PAS une décision déjà tranchée :
 // contrairement à SIDEBAR_LINK_PADDING_COMPACT/SIDEBAR_LINK_GAP_COMPACT/
 // SIDEBAR_SECTION_TITLE_MARGIN_COMPACT (juste au-dessus), déjà resserrées
 // puis EXPLICITEMENT desserrées le 29/07 ("trop agressif, tasse trop la
 // navigation") — les retoucher referait remonter ce même problème déjà
-// signalé une fois, donc volontairement laissées de côté cette fois-ci
-// sans consultation préalable.
-export const SIDEBAR_SCROLL_PADDING_COMPACT = 'pt-[10px] pb-[10px] px-4';
+// signalé une fois, donc volontairement laissées de côté sans
+// consultation préalable.
+// ⚠️ HAUT RÉDUIT UNE 3e FOIS (même jour, 4e passe, retour direct : "en
+// gros manque une quinzaine de pixels") — `pt-[10px]` → `pt-[7px]` (-3px,
+// cette fois avec un trait rouge précis dessus, contrairement à la passe
+// juste au-dessus). Le BAS (`pb-[10px]`) n'était PAS marqué cette fois
+// (pas de trait entre "Découvrir" et "Réglages" sur cette capture) —
+// laissé inchangé.
+export const SIDEBAR_SCROLL_PADDING_COMPACT = 'pt-[7px] pb-[10px] px-4';
 
 // Bouton "Réglages" du pied de page — délibérément DIFFÉRENT des liens de
 // nav ci-dessus (`py-1.5`, pas `py-2.5`) : ce conteneur a une hauteur
@@ -175,13 +181,14 @@ export const SIDEBAR_FOOTER_LINK_PADDING = 'px-3 py-1.5';
 // SIDEBAR_SEPARATOR_MARGIN) pour "Mon Espace" — d'où l'asymétrie remontée
 // (capture à l'appui). `mb-5` reprenait délibérément la MÊME valeur que la
 // moitié basse de SIDEBAR_SEPARATOR_MARGIN.
-// ⚠️ 2 PASSES DE RESSERREMENT (même jour, retours directs successifs :
-// "supprime 2 pixels à chaque trait rouge...", puis "il manque encore
-// quelques pixels, à peu près autant que pour la précédente passe") —
-// `mb-5`(20px) → `mb-[18px]` (1re passe) → `mb-[16px]` (2e passe). Reste
+// ⚠️ 3 PASSES DE RESSERREMENT (même jour, retours directs successifs :
+// "supprime 2 pixels à chaque trait rouge...", "il manque encore quelques
+// pixels, à peu près autant que pour la précédente passe", puis "en gros
+// manque une quinzaine de pixels") — `mb-5`(20px) → `mb-[18px]` (1re) →
+// `mb-[16px]` (2e) → `mb-[13px]` (3e, -3px). Reste
 // UNIQUEMENT en Mode Intime (pas besoin d'une variante _COMPACT séparée,
 // cette constante entière n'existe déjà que pour ce mode). Désynchronisée
 // DÉLIBÉRÉMENT de SIDEBAR_SEPARATOR_MARGIN (restée à 20px, jamais
 // mentionnée dans ces 2 demandes) — l'égalité d'origine n'était vraie
 // qu'au moment du tout 1er correctif, pas un invariant à vie.
-export const SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM = 'mb-[16px]';
+export const SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM = 'mb-[13px]';
