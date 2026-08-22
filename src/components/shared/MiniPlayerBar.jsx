@@ -206,7 +206,7 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
                 title="Aller à cette playlist"
                 className={`text-xs font-bold truncate max-w-[200px] hover:underline transition-colors ${textMuted} hover:text-main`}
               >
-                Playlist : <span className={textColorClass}>{currentPlaylist.name}</span>
+                <span className={textColorClass}>{currentPlaylist.name}</span>
               </button>
               <span className={`text-[11px] font-mono ${textMuted}`}>
                 Titre {trackIndex + 1}/{currentPlaylist.tracks.length}
