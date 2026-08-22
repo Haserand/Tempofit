@@ -1181,6 +1181,29 @@ inertes) — 2 remplacements concurrents sur 2 titres différents, dans les
 
 
 
+## Bouton "Planifier" — libellé visible incohérent avec son propre tooltip une fois la séance déjà réalisée (22/08)
+
+Signalé par retour direct, capture d'écran à l'appui : une playlist déjà
+verrouillée (séance réalisée, badge "🔒 22 août 2026" affiché) montrait
+quand même un bouton "Planifier" tant qu'aucune date n'avait été
+explicitement choisie via le sélecteur — trompeur, "planifier" n'a plus
+vraiment de sens une fois la séance déjà faite.
+
+En creusant (`PlaylistHeaderActions.jsx`) : la distinction existait déjà,
+mais SEULEMENT dans le `title` (tooltip invisible au survol) —
+`isLocked ? "Refaire cette séance" : "Planifier cette séance"` — jamais
+répercutée dans le `<span>` visible du bouton lui-même, qui ne regardait
+que `currentPlaylist.plannedDate` (affiche la date si elle existe, sinon
+toujours "Planifier", sans jamais consulter `isLocked`). Corrigé pour que
+le libellé VISIBLE suive la même logique que le tooltip : "Refaire" si
+`isLocked` et pas de date planifiée, sinon comportement inchangé (date
+choisie affichée en priorité, "Planifier" par défaut si la séance n'a
+jamais été faite). 2 tests de régression ajoutés
+(`PlaylistHeaderActions.test.jsx`) : `isLocked=true` sans date → "Refaire"
+affiché, pas "Planifier" ; `isLocked=true` AVEC une date déjà planifiée →
+la date garde la priorité sur "Refaire" (comportement déjà correct,
+vérifié qu'il n'a pas été cassé par ce changement).
+
 ## Autres fichiers de référence à ce niveau
 
 - `CLAUDE-SANDBOX-VERIFICATION.md` — outils de vérification de code pour une session Claude sans accès réseau.
