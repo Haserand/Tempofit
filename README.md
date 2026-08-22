@@ -358,6 +358,29 @@ sur `isOfficialVitrine` — et retirer alors le texte en dur de
 `officialVitrineProfile.js` au profit d'une vraie valeur (ou continuer de
 lui donner une bio écrite à la main, cohérente avec son rôle de vitrine).
 
+## En-tête de playlist — badge "Lecture seule" mal aligné avec le badge BPM (22/08)
+
+Retour direct avec capture annotée : "la ligne droite de fin du cadenas
+doit être sur la même verticale que la fin du badge BPM, là y a un
+décalage". Trouvé dans `PlaylistHeaderBadges.jsx` : le badge "Lecture
+seule" (icône `Lock`) est positionné en `absolute top-4 right-4` — un
+décalage FIXE de 16px depuis le bord de la carte, qui ignorait purement et
+simplement le vrai padding de cette carte (`p-6 md:p-8`, soit 24px/32px,
+`PlaylistHeader.jsx`). Le badge BPM (`PlaylistHeaderActions.jsx`), lui,
+s'arrête déjà pile à ce padding réel via son flux normal (`ml-auto`) —
+d'où un écart de 8px (mobile) à 16px (desktop) entre les deux, jamais
+remarqué avant cette capture.
+
+**Correctif** : `right-4` → `right-6 md:right-8`, reprenant exactement le
+padding réel de la carte. `top-4` inchangé (jamais mentionné, aligner
+verticalement avec un badge d'une tout autre rangée n'aurait aucun sens —
+seul l'axe horizontal était en cause). Vérifié en conditions réelles
+(serveur de dev + Playwright, voir §5ter de CLAUDE-SANDBOX-
+VERIFICATION.md) sur la playlist EXACTE de la capture ("Midnight Runner
+160", 169 BPM) : écart mesuré à 0px pile après correctif (`getBoundingClientRect`),
+confirmé aussi visuellement par capture de contrôle. Les 13 tests de
+`PlaylistHeaderBadges.test.jsx` passent toujours (`vitest run` réel).
+
 ## Wizard générateur — coin de carte qui touchait la ligne du pied de page (21/08)
 
 Retour direct avec capture zoomée : "barre quasi invisible mais présente
