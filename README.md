@@ -953,6 +953,72 @@ rien de cassé — changement purement de lecture (aucune valeur, aucun
 comportement modifié), donc risque de régression minimal malgré la taille
 du diff.
 
+**Suite du même check-up, sur demande explicite ("continuer")** — le même
+balayage ESLint étendu à tout `src/` (pas seulement `App.jsx`) a révélé 2
+autres blocs de destructuration morte dans `App.jsx`, du même type que
+celui ci-dessus, plus plusieurs cas isolés dans d'autres fichiers :
+
+- **`App.jsx`, bloc `athleticProfileApi`** : réduit de 15 à 3 variables
+  (`athleticProfile`, `getProfileForWorkout`, `getProfileForWorkoutOrDefault`).
+- **`App.jsx`, bloc `search`** (recherche musicale) : 9 setters retirés
+  (`setIsWorldSearching`, `setSearchResultsOffset`/`searchResultsOffset`,
+  `setSearchHasMoreResults`, `setIsLoadingMoreResults`,
+  `setSearchActiveArtistName`, `setSearchLoadingMessage`,
+  `setWorldSearchOtherResults`, `setBpmSearchParams`) — sans impact sur
+  `useDeezerSearch(search, ...)`, qui reçoit l'objet `search` COMPLET, pas
+  ces noms courts déstructurés localement.
+- **`App.jsx`, variables isolées** : `setUserStats` (le hook continue de le
+  générer en interne), `setSpotifyTrackPool`/`syncSpotifyFavorites`
+  (vérifié : `useSpotifyImport.js` synchronise déjà tout seul via un
+  `useEffect` interne, rien n'était cassé), `hasUnsavedPlaylist` (son effet
+  `beforeunload` vit dans `useNavigation.js`), `playlistHasHistory` (utilisée
+  en interne par `usePlaylistLibrary.js`, jamais ici), `borderAccentClass`/
+  `inputBg`/`inputBorder` (l'objet `themeTokens` complet reste transmis aux
+  vues enfants via `theme={themeTokens}`, sans impact).
+- **`AthleticProfilePanel.jsx`** : import mort `getZoneForValue` et
+  variable morte `getDefaultBaseBpm` retirés (utilisée seulement à
+  l'intérieur de `buildDefaultPreviewProfile`, jamais directement ici).
+- **`TrackItem.jsx`** et **`RoutinesView.jsx`** : `textColorClass` mort
+  retiré dans les deux — coïncidence de nom, pas un pattern systémique
+  (la variable est bien vivante ailleurs, notamment dans `App.jsx`).
+- **`PlaylistDetailView.jsx`** : 3 getters retirés
+  (`summaryImageFile`/`summaryImagePreviewUrl`/`includeSummaryImage`,
+  issus du tout récent `ShareImageContext.jsx` du 21/08) — ce composant est
+  le PRODUCTEUR de ces valeurs (génère l'image de bilan via les setters,
+  conservés), `ShareModal.jsx` en est le CONSOMMATEUR (lit sa propre copie
+  du contexte pour l'affichage). Un commentaire adjacent, resté sur
+  l'ancienne architecture ("reçus EN PROPS depuis App.jsx", vrai avant le
+  21/08), corrigé au passage.
+- **`StatsView.jsx`** : 6 champs retirés de la déstructuration de
+  `statsAggregation` (`bpmBucketArtistCounts`, `bpmBucketTrackCounts`,
+  `bpmBucketGenreCounts`, `nowForZones`, `classifyIntoZone`,
+  `trackGenreLabel`) — bien calculés et utilisés à l'intérieur de
+  l'agrégation elle-même, jamais consommés après coup dans le reste du
+  composant. Le calcul interne n'a pas changé.
+- **`PlaylistDetailContext.jsx`** : import mort `supabase` retiré (jamais
+  appelé dans ce fichier — contrairement à `App.jsx`/`SettingsView.jsx`/
+  etc., qui l'utilisent réellement).
+
+**Piège méthodologique confirmé une 2e fois pendant cette suite** :
+plusieurs faux-vivants supplémentaires détectés par un premier passage au
+`grep` (avant de se souvenir qu'ESLint est la source fiable ici) —
+`checkGenreWeightDeviation` semblait "utilisée" à cause d'un simple
+COMMENTAIRE mentionnant son nom, et `crescendoWarmupPct`/`paceMin`/
+`distanceUnit` etc. semblaient "utilisées" à cause d'accès de propriété sur
+un AUTRE objet (`editingRoutine.paceMin`) ou de clés d'objet littéral
+(`distanceUnit: 'km'`). Confirme la leçon déjà tirée plus haut : sur ce
+fichier dense en configs/objets literals, seule une vraie analyse de
+portée (ESLint) est fiable, jamais un simple texte-matching.
+
+Quelques `no-useless-assignment` supplémentaires repérés par le même
+balayage (`PlaylistCharts.jsx`, `musicEngine.js`, `searchEngine.js`,
+`clipboard.js`) vérifiés et écartés : dans chaque cas, une valeur par
+défaut réécrite dans CHAQUE branche d'un if/else (couverture exhaustive),
+motif défensif volontaire, pas un bug. `catch (e)`/`catch (err)` non
+utilisés (des dizaines d'occurrences dans tout le projet) écartés de la
+même façon : style volontaire et cohérent du projet, pas une dette
+oubliée.
+
 ## Corrigé (20/08) — anciennement "Limite connue, non traitée : écritures concurrentes de MÊME TYPE sur la MÊME playlist"
 
 **Constat d'origine (check-up 10/08)** : les 5 correctifs de course du 10/08
