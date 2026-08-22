@@ -75,7 +75,10 @@ describe('sidebarLayout — valeurs stabilisées actuelles (état final après 9
     // SIDEBAR_LINK_GAP_COMPACT/SIDEBAR_SECTION_TITLE_MARGIN_COMPACT, déjà
     // resserrées puis explicitement desserrées le 29/07 ("trop agressif,
     // tasse trop la navigation") — volontairement laissées de côté.
-    expect(SIDEBAR_SCROLL_PADDING_COMPACT).toBe('pt-[10px] pb-[10px] px-4');
+    // `pt-[10px]` → `pt-[7px]` (21/08, 4e passe, retour direct : "en gros
+    // manque une quinzaine de pixels", -3px avec trait précis cette fois)
+    // — le bas (`pb-[10px]`) n'était pas marqué cette fois, resté inchangé.
+    expect(SIDEBAR_SCROLL_PADDING_COMPACT).toBe('pt-[7px] pb-[10px] px-4');
     expect(SIDEBAR_FOOTER_LINK_PADDING).toBe('px-3 py-1.5');
   });
 
@@ -90,19 +93,19 @@ describe('sidebarLayout — valeurs stabilisées actuelles (état final après 9
     expect(mbDiscover).toBeLessThan(mbShared);
   });
 
-  it('marge après le bouton "Quitter le Mode Intime" — 16px après 2 passes de resserrement (retours directs : "supprime 2 pixels à chaque trait rouge...", puis "il manque encore quelques pixels, à peu près autant que pour la précédente passe")', () => {
-    // Anciennes valeurs (mb-5/20px, puis mb-[18px]) volontairement PAS
-    // testées ici : chaque retour direct désynchronise un peu plus cette
-    // constante de SIDEBAR_SEPARATOR_MARGIN (restée à 20px tout du long,
-    // jamais mentionnée dans aucune des 2 demandes) — l'égalité testée
+  it('marge après le bouton "Quitter le Mode Intime" — 13px après 3 passes de resserrement (retours directs successifs le 21/08)', () => {
+    // Anciennes valeurs (mb-5/20px, mb-[18px], mb-[16px]) volontairement
+    // PAS testées ici : chaque retour direct désynchronise un peu plus
+    // cette constante de SIDEBAR_SEPARATOR_MARGIN (restée à 20px tout du
+    // long, jamais mentionnée dans aucune des demandes) — l'égalité testée
     // avant le 1er correctif n'était vraie qu'à ce moment précis, pas un
     // invariant à préserver.
-    expect(SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM).toBe('mb-[16px]');
+    expect(SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM).toBe('mb-[13px]');
   });
 
-  it('variantes Mode Intime des 2 séparateurs — 2 passes de resserrement le 21/08, DISTINCTES des variantes normales, jusqu\'ici partagées sans distinction', () => {
-    expect(SIDEBAR_SEPARATOR_MARGIN_COMPACT).toBe('mt-[16px] mb-5');
-    expect(SIDEBAR_DISCOVER_SEPARATOR_MARGIN_COMPACT).toBe('mt-[16px] mb-2.5');
+  it('variantes Mode Intime des 2 séparateurs — 3 passes de resserrement le 21/08, DISTINCTES des variantes normales, jusqu\'ici partagées sans distinction', () => {
+    expect(SIDEBAR_SEPARATOR_MARGIN_COMPACT).toBe('mt-[13px] mb-5');
+    expect(SIDEBAR_DISCOVER_SEPARATOR_MARGIN_COMPACT).toBe('mt-[13px] mb-2.5');
     // Seul le HAUT (mt) est resserré par rapport aux variantes normales —
     // le bas (mb) reste identique dans les 2 cas, jamais marqué en rouge.
     // Comparaison structurelle : le "mt" compact doit être STRICTEMENT
