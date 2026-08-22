@@ -129,8 +129,30 @@ export default function PlaylistHeaderBadges({
           <button
             onClick={handleUnsavePlaylist}
             title="Retirer cette séance de 'Mes Playlists'"
-            className="p-2 rounded-full flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-white/10 transition-colors"
+            className="p-2 -mr-2 rounded-full flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-white/10 transition-colors"
           >
+            {/* `-mr-2` (retour direct 22/08, 2e passage — "menteur", à
+                raison : mon 1er correctif n'avait vérifié QUE la boîte
+                cliquable du bouton, jamais l'icône elle-même) — `p-2`
+                (8px) centre l'icône DANS une zone cliquable plus grande
+                que son propre glyphe visible (14px sur 30px de bouton),
+                pour un cercle de survol confortable. Le badge BPM, lui,
+                a une bordure/un fond qui REMPLIT tout son espace jusqu'à
+                son bord — les 2 boîtes DOM étaient bien alignées (vérifié
+                à 0px près, 3 largeurs de viewport), mais le GLYPHE visible
+                de la corbeille, lui, s'arrêtait 8px avant ce bord, un
+                écart purement optique qu'une mesure de boîte ne peut pas
+                détecter. `-mr-2` annule exactement ce padding À DROITE
+                (8px, l'équivalent du `p-2`) SEULEMENT sur ce bouton — le
+                dernier de la rangée à chaque fois qu'il est rendu (Copy →
+                Globe → Trash2, toujours dans cet ordre) — pour que le
+                glyphe touche le vrai bord, sans réduire la zone de survol
+                (le cercle `hover:bg-white/10` déborde légèrement du bord
+                du conteneur, c'est voulu et invisible tant qu'on ne
+                survole pas). Globe (juste au-dessus) n'a PAS ce problème :
+                il n'est jamais le dernier élément de la rangée, son propre
+                padding droit sert justement d'espacement naturel avant
+                Trash2. */}
             <Trash2 size={14} />
           </button>
         )}
