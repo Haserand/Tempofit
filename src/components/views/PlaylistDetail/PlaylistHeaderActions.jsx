@@ -110,7 +110,21 @@ export default function PlaylistHeaderActions({
           }
         >
           <Calendar size={16} />
-          <span>{currentPlaylist.plannedDate ? new Date(currentPlaylist.plannedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : 'Planifier'}</span>
+          <span>
+            {currentPlaylist.plannedDate
+              ? new Date(currentPlaylist.plannedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+              // ⚠️ Corrigé (retour direct utilisateur, capture d'écran à
+              // l'appui, 22/08) : ce `<span>` ignorait `isLocked` alors que
+              // le `title` juste au-dessus le gère déjà correctement
+              // ("Refaire cette séance" une fois la séance réalisée) — le
+              // libellé VISIBLE du bouton restait bloqué sur "Planifier"
+              // tant qu'aucune date n'avait été choisie explicitement, même
+              // pour une séance déjà verrouillée/réalisée. Le survol
+              // révélait la bonne info via le tooltip, mais personne ne
+              // survole un bouton pour deviner ce qu'il fait — même
+              // distinction que le tooltip, rendue visible directement.
+              : (isLocked ? 'Refaire' : 'Planifier')}
+          </span>
           <input
             ref={plannedDateInputRef}
             type="date"
