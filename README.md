@@ -12,22 +12,93 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement — le découpage `App.jsx` (repris le 20/08) est
-fermé. StatsView (20/08), "Image de partage" (21/08, →
-`ShareImageContext.jsx`) et le rendu du bandeau "Génération" (21/08, →
-`GenerationProgressBanner.jsx`, state resté dans `AppContent`) extraits.
-"Navigation" audité en détail le 21/08 puis délibérément PAS extrait — 2
-raisons distinctes vérifiées, pas juste supposées (contrainte d'ordre entre
-hooks pour `view`/`isMobileMenuOpen`, même famille que celle qui a limité
-l'extraction "Génération" au rendu seul ; aucun gain réel pour le reste,
-déjà de simples props à 1 niveau). `isScrolled` — trouvé "cassé" en cours
-d'audit (setter jamais appelé), corrigé PUIS retiré le jour même : une fois
-visible pour de vrai (retour direct avec capture), s'est avéré être un
-header flottant desktop dont la justification ne tenait plus (rôle déjà
-assuré par le logo Sidebar, toujours visible sur desktop) ET au contenu
-incorrect hors du Générateur (`displaySubtitleGen` non contextuel — voir
-plus bas pour le détail complet). Retiré entièrement plutôt que juste
-"réparé".
+Rien en cours actuellement — session très longue (21-22/08), tous les
+chantiers fermés et vérifiés. Découpage `App.jsx` clos (StatsView,
+`ShareImageContext.jsx`, `GenerationProgressBanner.jsx` extraits ;
+"Navigation" audité puis délibérément pas extrait ; bug `isScrolled`
+trouvé puis le header qu'il pilotait entièrement retiré, pas juste
+réparé — voir plus bas). Depuis : bio du profil vitrine affinée en
+plusieurs passes (style "notice" rejeté au profit d'un vrai style "bio",
+texte raccourci) ; composant partagé `TabPills.jsx` créé et les 5 vues à
+onglets de l'app alignées dessus ; Sidebar réorganisée ("Découvrir" isolé
+de "Création") puis son espacement en Mode Intime resserré en 3 passes
+successives ; **découverte majeure que `npm install`/un vrai serveur
+`vite`/Playwright/`vitest run` fonctionnent réellement dans ce bac à
+sable** (voir CLAUDE-SANDBOX-VERIFICATION.md, §5ter/§5quater — change la
+donne pour toute vérification future, y compris une leçon apprise à la
+dure sur comment mesurer un alignement visuel correctement) ; plusieurs
+corrections visuelles fines sur l'en-tête de playlist et le wizard
+générateur, certaines corrigées une 2e fois après une 1re vérification
+erronée de ma part (voir README, sections dédiées, et CLAUDE-SANDBOX-
+VERIFICATION.md §5quater pour la leçon retenue).
+
+### Historique détaillé (21-22/08) — archivé dans `HISTORIQUE.md`, bloc 6
+
+Récit chronologique complet déplacé le 22/08 (6e élagage — session
+exceptionnellement longue et dense : reprise du découpage `App.jsx`,
+bio du profil vitrine affinée en 3 essais, standardisation des onglets
+via `TabPills.jsx`, Sidebar réorganisée puis son Mode Intime resserré en
+3 passes, découverte majeure que le bac à sable a accès à `npm install`/
+`vite`/Playwright/`vitest run`, et plusieurs corrections visuelles fines
+sur l'en-tête de playlist et le wizard générateur). Index :
+
+- **21/08 — check-up sans chantier précis en tête** : 1 bug réel corrigé
+  (`ImportSharedPlaylistModal.jsx`, oubli du renommage "séance"→"playlist"
+  du 20/08 sur une seule phrase) + 2 trous de couverture de test comblés
+  (`TrophiesView.jsx`, `MiniPlayerBar.jsx`, 0 test avant malgré une
+  logique non triviale).
+- **21/08 — découpage `App.jsx` clos**, 3 extractions : `ShareImageContext.jsx`
+  (Contexte complet), `GenerationProgressBanner.jsx` (rendu seul extrait,
+  le state reste dans `AppContent` — contrainte d'ordre entre hooks), et
+  un audit complet du cluster "Navigation" débouchant sur la décision de
+  NE RIEN extraire (raisons vérifiées, pas supposées — voir la section
+  dédiée plus bas, pas archivée). Bug réel trouvé en cours d'audit
+  (`isScrolled`, header mort depuis sa création) puis le header entier
+  RETIRÉ plutôt que réparé, une fois sa justification invalidée par une
+  vraie capture d'écran.
+- **21/08 — bio du profil vitrine** (`@tempofit_officiel`) — 3 essais
+  avant la bonne version (bandeau d'alerte → notice repliée → vrai style
+  "bio", texte blanc sans bordure), comportement aligné sur le pattern
+  déjà existant pour les descriptions de playlist (troncature 3 lignes +
+  tooltip), pas la couleur. Décision actée pour plus tard : banc d'essai
+  volontaire pour une future bio éditable par tous les utilisateurs (voir
+  section dédiée plus bas, pas archivée).
+- **21/08 — `TabPills.jsx` créé**, 5 vues à onglets alignées dessus, suite
+  à la découverte que 2 vues avaient dérivé indépendamment de la
+  convention majoritaire (`SettingsView.jsx` vers un style soulignement,
+  `TrophiesView.jsx` vers un style "contrôle segmenté") sans que personne
+  ne s'en aperçoive avant une comparaison directe.
+- **21/08 — Sidebar : "Découvrir" isolé de "Création"** (3e intention
+  distincte), puis son espacement en Mode Intime resserré en 3 passes
+  successives sur les mêmes 5 écarts marqués par capture annotée (-25px
+  cumulé) — un levier tentant explicitement écarté (padding des liens
+  compacts, déjà rejeté trop serré le 29/07).
+- **21/08 — DÉCOUVERTE MAJEURE** : le bac à sable Claude a en réalité
+  accès à `npm install`/un vrai serveur `vite`/Playwright — jamais vérifié
+  depuis l'origine du projet, qui affirmait le contraire. `vitest run`
+  RÉEL fonctionne aussi (113 fichiers, 1506 tests, tous passent). Voir
+  `CLAUDE-SANDBOX-VERIFICATION.md`, §5ter/§5quater — à lire avant toute
+  prochaine session touchant du rendu visuel ou une livraison conséquente.
+- **21/08 — bug de rendu du wizard générateur** (coin de carte arrondi
+  touchant la ligne du pied de page à 0px près) diagnostiqué et corrigé
+  grâce à cette découverte — 1er correctif (ajouter de la place) reçu un
+  retour direct immédiat ("ça fait quand même scroller, autant retirer la
+  ligne inutile") : 2e version, plus simple et height-neutre, retenue.
+- **22/08 — en-tête de playlist, badge "Lecture seule" puis Corbeille mal
+  alignés avec le badge BPM** — 1er corrigé sans souci (décalage fixe →
+  padding réel de la carte). 2e (Corbeille) a révélé une VRAIE erreur de
+  vérification de ma part : 1re mesure (boîte du bouton) faussement
+  rassurante, contestée à raison par l'utilisateur avec le fichier exact
+  déployé — 2e mesure (SVG lui-même) a trouvé la vraie cause (padding
+  invisible du bouton-icône). Leçon ajoutée à `CLAUDE-SANDBOX-
+  VERIFICATION.md` (§5quater) : toujours mesurer le glyphe visible, jamais
+  seulement la boîte cliquable, pour un alignement visuel.
+- **22/08 — retouches finales** : `MiniPlayerBar.jsx` (préfixe "Playlist :"
+  retiré, redondant) ; suggestion de l'utilisateur (stats sportives dans
+  l'espace vide de l'en-tête de profil) discutée puis écartée après
+  vérification qu'un 2e bloc de stats symétrique existe et ne pourrait pas
+  y tenir aussi.
+
 
 ### Historique détaillé (19-20/08) — archivé dans `HISTORIQUE.md`, bloc 5
 
