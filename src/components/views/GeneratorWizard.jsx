@@ -439,27 +439,22 @@ export default function GeneratorWizard({
               <span className={`text-sm font-bold uppercase tracking-wider ${textMuted}`}>Étape {displayWizardStep} / {totalWizardSteps}</span>
             </div>
 
-            <div className="flex-1 pb-3">
-              {/* `pb-3` (retour direct 21/08, capture zoomée montrant un
-                  artefact de rendu visible) — le retrait de `min-h-[450px]`
-                  (03/08, voir plus haut) a bien réglé le débordement/scroll
-                  visé, mais a eu un effet de bord jamais repéré depuis :
-                  sans hauteur minimale forcée sur la carte, `mt-auto`
-                  (pied de page Précédent/Suivant, plus bas) ne crée PLUS
-                  aucun espace excédentaire à distribuer quand une étape a
-                  PEU de contenu (ex. "Structure de l'effort", juste 3
-                  boutons) — le bas de la carte se retrouve alors à
-                  exactement 0px du `border-t` du pied de page. Or ces
-                  boutons ont un coin arrondi (`rounded-2xl`, 16px) : sans
-                  la moindre marge pour finir sa courbe avant de percuter
-                  la ligne droite juste en dessous, le rendu du navigateur
-                  produit un artefact visuel (un "crochet" à l'intersection
-                  courbe/droite) — quasi invisible sur un écran normal, mais
-                  bien réel et visible en zoomant. Ce `pb-3` (12px) donne à
-                  ce coin la place de se refermer proprement avant la
-                  ligne, quelle que soit la longueur du contenu de l'étape —
-                  vérifié en conditions réelles (Playwright + capture),
-                  pas juste en théorie. */}
+            <div className="flex-1">
+              {/* Retour direct (21/08, suite) : "j'ai quand même du scroll,
+                  moi j'aurais plus supprimé ta ligne qui sert à rien" —
+                  1er essai (`pb-3`, 12px) fonctionnait pour l'artefact
+                  visuel MAIS coûtait de la hauteur, contribuant au scroll
+                  encore présent en conditions réelles (viewport de
+                  navigateur réel avec barre d'outils/favoris, jamais
+                  identique à un viewport Playwright nu). Solution plus
+                  simple ET meilleure : retirer directement la ligne
+                  elle-même (voir plus bas, pied de page Précédent/Suivant)
+                  plutôt que de lui laisser de la place — elle était déjà
+                  quasi invisible (constat d'origine de cette conversation),
+                  donc son retrait ne perd quasiment rien visuellement, et
+                  sans ligne à éviter, plus besoin du `pb-3` du tout : gain
+                  net de hauteur par rapport à AVANT ce chantier (0 au lieu
+                  de +12px), pas juste neutre. */}
 
               {/* ETAPE 1 : L'ACTIVITE (choix du type d'entraînement + accès caché au mode Intime via l'icône flamme) */}
               {wizardStep === 1 && (
@@ -1187,9 +1182,23 @@ export default function GeneratorWizard({
 
         {/* Navigation Précédent/Suivant du wizard (étapes 1 à 3). `pt-6`
             (PAS `pt-8`) — 03/08, voir la docstring de `<main>` (App.jsx)
-            pour le raisonnement complet de ce chantier en 4 parties. */}
+            pour le raisonnement complet de ce chantier en 4 parties.
+            `border-t border-gray-100 dark:border-gray-800` RETIRÉE (21/08,
+            retour direct : "j'aurais plus supprimé ta ligne qui sert à
+            rien") — déjà quasi invisible (constat d'origine de cette
+            conversation, capture zoomée), et surtout source d'un artefact
+            de rendu réel : le bas des cartes juste au-dessus (coin arrondi
+            `rounded-2xl`) pouvait toucher cette ligne à 0px près sur une
+            étape à peu de contenu (voir plus haut, `<div className=
+            "flex-1">`), créant un "crochet" visuel à l'intersection
+            courbe/droite. 1er correctif (ajouter de la place, `pb-3`)
+            fonctionnait mais coûtait de la hauteur, contribuant au scroll
+            encore observé en conditions réelles — repoussé au profit de
+            RETIRER la ligne elle-même : plus rien à toucher, donc plus
+            d'artefact possible, ET aucune hauteur ajoutée (`pt-6` seul
+            suffit à séparer visuellement le contenu du pied de page). */}
         {wizardStep < 4 && (
-          <div className="mt-auto pt-6 flex justify-between items-center border-t border-gray-100 dark:border-gray-800">
+          <div className="mt-auto pt-6 flex justify-between items-center">
             {wizardStep > 1 ? (
               <button onClick={() => setWizardStep(wizardStep - 1)} className={PREVIOUS_STEP_BUTTON_CLASS}>
                 <ChevronLeft size={20}/> <span>Précédent</span>
