@@ -40,8 +40,18 @@ describe('bottomBarLayout — synchronisation avec les classes Tailwind écrites
     expect(content).toContain(`h-[${GUEST_MODE_BAR_HEIGHT_PX}px]`);
   });
 
-  it('Sidebar.jsx importe bien les 2 constantes depuis ce module (pas une copie recodée en dur)', () => {
-    const content = readSrc('components/shared/Sidebar.jsx');
-    expect(content).toMatch(/MINI_PLAYER_BAR_HEIGHT_PX.*GUEST_MODE_BAR_HEIGHT_PX.*from ['"].*bottomBarLayout['"]/);
-  });
+  // ⚠️ Test "Sidebar.jsx importe bien les 2 constantes..." RETIRÉ (22/08,
+  // retour direct — "l'accessibilité de la navigation du menu doit être
+  // privilégiée") : Sidebar.jsx forçait avant la hauteur de son pied de
+  // page (Réglages + crédit) à correspondre à ces constantes
+  // (`creditRowHeight`), pour un alignement de bordure purement cosmétique
+  // avec MiniPlayerBar/GuestModeBar — au prix de rogner l'espace
+  // disponible pour la nav scrollable juste au-dessus (même conteneur
+  // `flex flex-col h-full`). Ce mécanisme est retiré, Sidebar.jsx n'importe
+  // donc plus ces constantes du tout — cette assertion n'a plus de risque
+  // à garder, ni de sens à vérifier. Les 2 tests ci-dessus (synchronisation
+  // MiniPlayerBar/GuestModeBar avec leurs propres classes Tailwind
+  // `h-[...px]`) restent, eux, pleinement valides : le risque de
+  // désynchronisation qu'ils protègent existe toujours, indépendamment de
+  // Sidebar.jsx.
 });
