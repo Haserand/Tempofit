@@ -4,7 +4,6 @@ import { normalizeGenreForDisplay, genreDisplayLabel } from '../musicCatalog';
 import { getSingleMatchingTrack, findSameArtistReplacement, recalculateTimeline } from '../engine/musicEngine';
 import { useAthleticContext } from './AthleticContext';
 import { useAudioPlayer } from './AudioPlayerContext';
-import { supabase } from '../supabaseClient';
 
 /**
  * PlaylistDetailContext.jsx — chantier "God Component", phase 1/2 pour
