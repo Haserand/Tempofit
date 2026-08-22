@@ -502,14 +502,22 @@ export default function StatsView({
   // `tsc --checkJs` (TS2304, "Cannot find name") au premier endroit où il
   // serait utilisé plus loin dans le fichier — filet de sécurité
   // mécanique vérifié avant livraison, pas une simple relecture visuelle.
+  // ⚠️ 6 champs retirés de cette destructuration (check-up 22/08) :
+  // `bpmBucketArtistCounts`, `bpmBucketTrackCounts`, `bpmBucketGenreCounts`,
+  // `nowForZones`, `classifyIntoZone`, `trackGenreLabel` sont bien calculés
+  // (et utilisés en interne) dans l'agrégation ci-dessus, mais jamais lus
+  // après coup dans le reste de ce composant — seulement extraits ici sans
+  // raison. Le calcul lui-même n'a pas changé, ces valeurs continuent
+  // d'exister dans l'objet retourné par `statsAggregation`, simplement plus
+  // extraites en bindings locaux inutilisés.
   const {
     playlistsForStats, playlistsWithRealData, genreSeconds, genreSessions, totalSessions, totalSeconds,
     bpmSum, bpmCount, bpmTargetCounts, sessionsByMonth, artistCounts, trackCounts,
     activitySeconds, activitySessions, artistActivityCounts, artistBpmSum, artistBpmCount, trackBpmSum,
     trackBpmCount, trackActivityCounts, artistTrackCounts, allSessions, weekdayCounts, uniqueDays,
-    bpmBuckets, bpmBucketLabel, genreArtistCounts, genreTrackCounts, genreBpmBuckets, bpmBucketArtistCounts,
-    bpmBucketTrackCounts, bpmBucketGenreCounts, genreActivityCounts, zoneSeconds, zoneSecondsThisMonth, zoneSecondsByActivity,
-    zoneSecondsByMonth, syncTracksByActivity, nowForZones, classifyIntoZone, trackGenreLabel, allTrackOccurrences,
+    bpmBuckets, bpmBucketLabel, genreArtistCounts, genreTrackCounts, genreBpmBuckets,
+    genreActivityCounts, zoneSeconds, zoneSecondsThisMonth, zoneSecondsByActivity,
+    zoneSecondsByMonth, syncTracksByActivity, allTrackOccurrences,
   } = statsAggregation;
 
 
