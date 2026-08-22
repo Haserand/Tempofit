@@ -23,12 +23,6 @@ vi.mock('../../../src/musicCatalog.js', () => ({
   genreDisplayLabel: vi.fn((genre) => genre),
 }));
 
-vi.mock('../../../src/components/shared/TopCompletionDate.jsx', () => ({
-  // Rendu inline (span, pas div) : PlaylistHeaderMeta.jsx insère ce
-  // composant À L'INTÉRIEUR d'un <p> — un <div> y serait du HTML invalide.
-  default: () => <span data-testid="top-completion-date-mock">TopCompletionDate (mock)</span>,
-}));
-
 vi.mock('../../../src/components/shared/CompletionsList.jsx', () => ({
   default: () => <div data-testid="completions-list-mock">CompletionsList (mock)</div>,
 }));
@@ -176,22 +170,30 @@ describe('PlaylistHeaderMeta — ligne d\'infos', () => {
   });
 });
 
-describe('PlaylistHeaderMeta — badge "séance déjà réalisée"', () => {
-  it('isLocked + au moins 1 complétion : affiche TopCompletionDate, et CompletionsList seulement si >1 complétion', () => {
-    const { rerender } = render(<PlaylistHeaderMeta {...baseProps({
+describe('PlaylistHeaderMeta — liste des autres dates de complétion', () => {
+  // ⚠️ Ajusté (22/08, retour direct — "mettre la date de la séance à
+  // gauche du compteur de clones") : TopCompletionDate/le badge "séance
+  // déjà réalisée" ont déménagé dans PlaylistHeaderBadges.jsx (testés
+  // là-bas désormais) — ce composant-ci ne rend plus QUE CompletionsList,
+  // pour les dates au-delà de la plus récente.
+  it('isLocked + 1 seule complétion : CompletionsList absent (rien à lister au-delà de la plus récente)', () => {
+    render(<PlaylistHeaderMeta {...baseProps({
       isLocked: true, currentPlaylist: makePlaylist({ completions: ['2026-01-01'] }),
     })} />);
-    expect(screen.getByTestId('top-completion-date-mock')).toBeInTheDocument();
     expect(screen.queryByTestId('completions-list-mock')).not.toBeInTheDocument();
+  });
 
-    rerender(<PlaylistHeaderMeta {...baseProps({
+  it('isLocked + plus d\'une complétion : CompletionsList affiché', () => {
+    render(<PlaylistHeaderMeta {...baseProps({
       isLocked: true, currentPlaylist: makePlaylist({ completions: ['2026-01-01', '2026-01-08'] }),
     })} />);
     expect(screen.getByTestId('completions-list-mock')).toBeInTheDocument();
   });
 
-  it('sans isLocked ou sans complétion : aucun badge affiché', () => {
-    render(<PlaylistHeaderMeta {...baseProps({ isLocked: false, currentPlaylist: makePlaylist({ completions: ['2026-01-01'] }) })} />);
-    expect(screen.queryByTestId('top-completion-date-mock')).not.toBeInTheDocument();
+  it('sans isLocked, même avec plusieurs complétions : CompletionsList absent', () => {
+    render(<PlaylistHeaderMeta {...baseProps({
+      isLocked: false, currentPlaylist: makePlaylist({ completions: ['2026-01-01', '2026-01-08'] }),
+    })} />);
+    expect(screen.queryByTestId('completions-list-mock')).not.toBeInTheDocument();
   });
 });
