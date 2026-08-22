@@ -17,7 +17,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "lucide-react": "^1.27.0",
-    "recharts": "^2.15.0",
+    "recharts": "^3.10.1",
     "web-audio-beat-detector": "^8.2.35",
     "html2canvas-pro": "^2.3.2",
     "@supabase/supabase-js": "^2.45.0"
