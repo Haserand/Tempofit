@@ -456,11 +456,19 @@ export default function PlaylistCharts({
               />
               <YAxis domain={chartYDomain} stroke={colorMode === 'dark' ? '#9ca3af' : '#6b7280'} tick={{fontSize: 12}} width={40} />
 
+              <Legend wrapperStyle={{fontSize: '12px', paddingTop: '15px'}}/>
+
+              {/* Tooltip placé APRÈS Legend dans le JSX (check-up 22/08, prépa
+                  migration recharts v3) : en v3, l'ordre de rendu SVG suit
+                  l'ordre du JSX (plus de hack interne comme en v2) — le
+                  Tooltip doit passer AU-DESSUS visuellement s'il chevauche la
+                  légende, donc être déclaré après elle. Sans effet en v2
+                  (ordre déjà correct visuellement grâce au hack interne),
+                  changement sûr à faire avant la migration elle-même. */}
               <RechartsTooltip
                 content={(props) => <CustomChartTooltip {...props} isNaughtyMode={isNaughtyMode} currentUnit={currentPlaylist.distanceUnit} metric={selectedMetric} cadenceUnit={playlistCadenceUnit} />}
                 isAnimationActive={false}
               />
-              <Legend wrapperStyle={{fontSize: '12px', paddingTop: '15px'}}/>
 
               <Line
                 dataKey="bpmTarget"
