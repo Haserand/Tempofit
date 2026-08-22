@@ -166,13 +166,14 @@ describe('Sidebar', () => {
     expect(toggleNaughtyMode).toHaveBeenCalledTimes(1);
   });
 
-  it('le conteneur du bouton "Quitter le Mode Intime" porte mb-[16px] et pb-2.5 après 2 passes de resserrement (retours directs successifs le 21/08)', () => {
+  it('le conteneur du bouton "Quitter le Mode Intime" porte mb-[13px] et pb-[7px] après 3 passes de resserrement (retours directs successifs le 21/08)', () => {
     render(<Sidebar {...baseProps} isNaughtyMode={true} />);
     const wrapper = screen.getByRole('button', { name: 'Quitter le Mode Intime' }).closest('div');
-    expect(wrapper).toHaveClass('mb-[16px]');
-    expect(wrapper).toHaveClass('pb-2.5');
+    expect(wrapper).toHaveClass('mb-[13px]');
+    expect(wrapper).toHaveClass('pb-[7px]');
     expect(wrapper).not.toHaveClass('mb-5');
     expect(wrapper).not.toHaveClass('mb-[18px]');
+    expect(wrapper).not.toHaveClass('mb-[16px]');
   });
 
   it('GARDE-FOU compaction Mode Intime — le titre "Création" utilise la marge COMPACTE en Mode Intime, NORMALE sinon', () => {
