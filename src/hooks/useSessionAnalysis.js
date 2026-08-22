@@ -35,10 +35,24 @@ export function useSessionAnalysis(currentPlaylist) {
   // Réinitialise le décalage temporel du graphique (dataOffset) à chaque
   // changement de playlist affichée, et pré-sélectionne la séance réelle la
   // plus récente (s'il y en a) pour l'affichage "Cible vs Réalité".
+  //
+  // ⚠️ `currentPlaylist.actualDataByDate` volontairement ABSENT du tableau
+  // de dépendances (repéré par ESLint `react-hooks/exhaustive-deps`,
+  // check-up 22/08, vérifié avant d'ajouter ce commentaire) : cet effet ne
+  // doit re-sélectionner "la plus récente" QUE lors d'un changement de
+  // PLAYLIST (navigation), pas à chaque nouvelle date importée sur la
+  // playlist déjà affichée — ce 2e cas est déjà géré directement par
+  // `handleCSVUpload` (useCsvImport.js), qui appelle lui-même
+  // `setSelectedAnalysisDate(targetDate)` juste après un import réussi,
+  // sans passer par cet effet. L'ajouter ici ferait certes la même chose
+  // pour ce cas précis, mais écraserait aussi un choix manuel de l'utilisateur
+  // (sélecteur de date dans PlaylistCharts.jsx) dès qu'un import termine
+  // pour une AUTRE date que celle actuellement affichée.
   useEffect(() => {
     setDataOffset(0);
     const datesWithData = currentPlaylist?.actualDataByDate ? Object.keys(currentPlaylist.actualDataByDate).sort() : [];
     setSelectedAnalysisDate(datesWithData.length > 0 ? datesWithData[datesWithData.length - 1] : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPlaylist?.id]);
 
   // Données réelles (Garmin/Strava) de la séance actuellement sélectionnée
@@ -61,10 +75,24 @@ export function useSessionAnalysis(currentPlaylist) {
   // (ex. on vient de changer de date, ou ce CSV ne contenait que l'une des
   // deux), on bascule automatiquement sur celle qui est disponible plutôt que
   // d'afficher un graphique vide.
+  //
+  // ⚠️ `availableMetrics.cadence`/`availableMetrics.heartRate`/
+  // `selectedMetric` volontairement absents du tableau de dépendances
+  // (repéré par ESLint `react-hooks/exhaustive-deps`, check-up 22/08,
+  // vérifié avant d'ajouter ce commentaire) : `availableMetrics` est
+  // recalculé À CHAQUE rendu directement à partir de `currentActualData`
+  // (voir juste au-dessus), donc déjà à jour dès que `currentActualData`
+  // change — l'ajouter en dépendance n'aurait aucun effet différent, ce
+  // n'est jamais lui qui change indépendamment. Pour `selectedMetric` : le
+  // sélecteur cadence/FC dans PlaylistCharts.jsx n'apparaît QUE si les DEUX
+  // métriques sont disponibles pour la séance affichée — impossible donc de
+  // sélectionner manuellement une métrique indisponible en dehors des cas
+  // déjà couverts par `currentActualData`/`selectedAnalysisDate`.
   useEffect(() => {
     if (!currentActualData) return;
     if (selectedMetric === 'cadence' && !availableMetrics.cadence && availableMetrics.heartRate) setSelectedMetric('heartRate');
     else if (selectedMetric === 'heartRate' && !availableMetrics.heartRate && availableMetrics.cadence) setSelectedMetric('cadence');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentActualData, selectedAnalysisDate]);
 
   return {
