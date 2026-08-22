@@ -439,7 +439,27 @@ export default function GeneratorWizard({
               <span className={`text-sm font-bold uppercase tracking-wider ${textMuted}`}>Étape {displayWizardStep} / {totalWizardSteps}</span>
             </div>
 
-            <div className="flex-1">
+            <div className="flex-1 pb-3">
+              {/* `pb-3` (retour direct 21/08, capture zoomée montrant un
+                  artefact de rendu visible) — le retrait de `min-h-[450px]`
+                  (03/08, voir plus haut) a bien réglé le débordement/scroll
+                  visé, mais a eu un effet de bord jamais repéré depuis :
+                  sans hauteur minimale forcée sur la carte, `mt-auto`
+                  (pied de page Précédent/Suivant, plus bas) ne crée PLUS
+                  aucun espace excédentaire à distribuer quand une étape a
+                  PEU de contenu (ex. "Structure de l'effort", juste 3
+                  boutons) — le bas de la carte se retrouve alors à
+                  exactement 0px du `border-t` du pied de page. Or ces
+                  boutons ont un coin arrondi (`rounded-2xl`, 16px) : sans
+                  la moindre marge pour finir sa courbe avant de percuter
+                  la ligne droite juste en dessous, le rendu du navigateur
+                  produit un artefact visuel (un "crochet" à l'intersection
+                  courbe/droite) — quasi invisible sur un écran normal, mais
+                  bien réel et visible en zoomant. Ce `pb-3` (12px) donne à
+                  ce coin la place de se refermer proprement avant la
+                  ligne, quelle que soit la longueur du contenu de l'étape —
+                  vérifié en conditions réelles (Playwright + capture),
+                  pas juste en théorie. */}
 
               {/* ETAPE 1 : L'ACTIVITE (choix du type d'entraînement + accès caché au mode Intime via l'icône flamme) */}
               {wizardStep === 1 && (
