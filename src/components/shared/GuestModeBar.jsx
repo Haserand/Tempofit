@@ -94,12 +94,12 @@ import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
  * (`flex-col items-center justify-center gap-1 py-2`), pour reproduire
  * EXACTEMENT la structure du pied de page de Sidebar.jsx (Réglages/
  * Trophées sur une ligne, crédit "Un projet créé par..." juste en dessous,
- * même conteneur `h-[72px]`/`flex-col items-center justify-center gap-1
- * py-2`) — SANS RIEN modifier dans Sidebar.jsx elle-même, seulement
- * répliquer ici la même recette de mise en page (hauteur fixe identique,
- * même padding vertical, même gap) pour que les deux pieds de page,
- * visuellement côte à côte sur desktop, aient leurs 2 lignes à la même
- * hauteur.
+ * même conteneur `h-[70px]`/`flex-col items-center justify-center gap-1
+ * py-2` — 72→70px le 22/08, voir plus bas) — SANS RIEN modifier dans
+ * Sidebar.jsx elle-même, seulement répliquer ici la même recette de mise
+ * en page (hauteur identique, même padding vertical, même gap) pour que
+ * les deux pieds de page, visuellement côte à côte sur desktop, aient
+ * leurs 2 lignes à la même hauteur.
  * Ligne 1 (boutons) : `text-sm font-bold`, comme "Réglages" en face.
  * Ligne 2 (texte explicatif) : passé de `text-sm` à `text-xs`, comme le
  * crédit "Un projet créé par..." en face — nécessaire pour que les 2
@@ -112,10 +112,11 @@ import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
  * cet appareil) reste intact, seule la précision "ce rappel reviendra..."
  * disparaît — l'utilisateur venait de toute façon de LIRE ce rappel en
  * cliquant sur la croix, la répétition n'était pas strictement nécessaire.
- * Hauteur du conteneur INCHANGÉE (`h-[72px]`, toujours la même classe en
- * toutes lettres — voir bottomBarLayout.js pour pourquoi) : seule sa
- * disposition INTERNE change, jamais sa taille globale ni celle de
- * Sidebar.jsx.
+ * ⚠️ Hauteur du conteneur 72→70px (22/08, voir le commentaire du rendu
+ * plus bas pour le détail complet) — reste une classe Tailwind écrite en
+ * toutes lettres (voir bottomBarLayout.js pour pourquoi), seule sa
+ * disposition INTERNE avait changé jusqu'ici (mono-ligne → 2 lignes),
+ * c'est la première fois que sa hauteur GLOBALE bouge depuis le 29/07.
  */
 export default function GuestModeBar({ theme, isVisible, openModal, onDismiss = () => {} }) {
   const { cardBg, cardBorderStrong, textMuted, textColorClass } = theme;
@@ -126,13 +127,18 @@ export default function GuestModeBar({ theme, isVisible, openModal, onDismiss = 
   if (!isVisible) return null;
 
   return (
-    // h-[72px] INCHANGÉE (voir bottomBarLayout.js) — seule la disposition
-    // INTERNE passe de mono-ligne à 2 lignes empilées
-    // (`flex-col items-center justify-center gap-1 py-2`), copiée telle
-    // quelle depuis le pied de page de Sidebar.jsx (voir la docstring
-    // "Alignement 2 lignes" plus haut) pour que les 2 lignes de CETTE barre
-    // tombent exactement sur celles de la Sidebar juste à sa gauche.
-    <div className={`h-[72px] border-t-2 ${cardBorderStrong} ${cardBg} flex flex-col items-center justify-center gap-1 py-2 px-6`}>
+    // ⚠️ h-[72px] → h-[70px] (22/08, MÊME JOUR, retour direct suivant —
+    // "je te demandais de réduire la barre du bas initialement") :
+    // MiniPlayerBar.jsx avait déjà été réduite à 70px pour matcher la
+    // hauteur naturelle du pied de page Sidebar.jsx (celle-ci n'est plus
+    // forcée par `creditRowHeight`, retiré le même jour), mais CETTE barre
+    // était restée à l'ancienne valeur (72px, l'ancien target QUAND
+    // Sidebar.jsx forçait ENCORE sa hauteur sur les 2 barres) — d'où les
+    // quelques px de désalignement encore visibles entre les 2 pieds de
+    // page (retour direct avec capture d'écran). Disposition INTERNE
+    // inchangée (`flex-col items-center justify-center gap-1 py-2`, copiée
+    // depuis Sidebar.jsx) — seule la hauteur globale du conteneur change.
+    <div className={`h-[70px] border-t-2 ${cardBorderStrong} ${cardBg} flex flex-col items-center justify-center gap-1 py-2 px-6`}>
       {confirmingDismiss ? (
         <>
           <div className="w-full flex items-center justify-center gap-3">
