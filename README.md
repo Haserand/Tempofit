@@ -384,25 +384,42 @@ un artefact visuel (un "crochet" à l'intersection courbe/droite) —
 quasi invisible à l'œil nu, mais bien réel et visible en zoomant, exactement
 ce que montrait la capture.
 
-**Correctif** : `<div className="flex-1">` (englobe les 4 étapes du
-wizard) devient `<div className="flex-1 pb-3">` — 12px de plancher
-minimal avant le pied de page, quelle que soit la longueur du contenu de
-l'étape affichée. Revérifié en conditions réelles après coup (pas juste en
-théorie) : nouvel écart mesuré à 12px pile sur l'étape 1 ET l'étape 2,
-capture d'écran de contrôle prise pour confirmer visuellement la
-disparition de l'artefact.
+**1er correctif tenté (abandonné)** : `<div className="flex-1">` (englobe
+les 4 étapes du wizard) était devenu `<div className="flex-1 pb-3">` — 12px
+de plancher minimal avant le pied de page. Fonctionnait pour l'artefact,
+revérifié à l'époque (nouvel écart mesuré à 12px pile), MAIS retour
+utilisateur juste après avec 2 nouvelles captures : "pourtant j'ai du
+scroll... j'aurais plus supprimé ta ligne qui sert à rien" — ces 12px
+ajoutés contribuaient bien au scroll résiduel observé en conditions
+réelles (viewport de navigateur réel, jamais identique à un viewport
+Playwright nu).
 
-Note en passant, hors périmètre de ce correctif : la ligne elle-même
-(`border-t border-gray-100 dark:border-gray-800`) est codée en dur plutôt
-que via le token sémantique `cardBorder` — le même code en dur apparaît
-aussi dans `EditRoutineModal.jsx`/`EditPlaylistModal.jsx`/
-`PlaylistCard.jsx`/`RoutinesView.jsx`/`FavoritesView.jsx` (9 occurrences au
-total). En dark mode les 2 valeurs sont numériquement identiques
+**Correctif final retenu** : retirer la ligne `border-t border-gray-100
+dark:border-gray-800` elle-même plutôt que de lui laisser de la place —
+elle était déjà établie comme quasi invisible dès le constat d'origine de
+cette conversation, donc son retrait ne perd presque rien visuellement, et
+sans ligne à éviter, plus besoin du `pb-3` du tout. `pt-6` seul suffit à
+séparer visuellement le contenu du pied de page — résultat : **gain net
+de hauteur par rapport à l'état d'avant tout ce chantier** (0px ajouté,
+au lieu de +12px avec le 1er correctif), tout en éliminant l'artefact à
+la racine plutôt qu'en le contournant. Revérifié en conditions réelles
+après ce changement : capture de contrôle prise (Étape 1 ET Étape 2 en
+Crescendo, le pire cas de hauteur), 0px de dépassement de page à 800px ET
+700px de hauteur de viewport, layout visuellement identique à l'original
+minus la ligne et son artefact.
+
+Note en passant, hors périmètre de ce correctif : le MÊME code en dur
+(`border-gray-100 dark:border-gray-800`, au lieu du token sémantique
+`cardBorder`) apparaît aussi dans `EditRoutineModal.jsx`/
+`EditPlaylistModal.jsx`/`PlaylistCard.jsx`/`RoutinesView.jsx`/
+`FavoritesView.jsx` (8 occurrences restantes) — pas touchées, cette
+question portait sur l'artefact du coin de carte à CET endroit précis,
+pas sur l'harmonisation des couleurs de bordure partout où ce code
+apparaît. En dark mode les 2 valeurs sont numériquement identiques
 (`gray-800` = `--color-divider` dark), donc pas de bug visuel actuel côté
-couleur — mais en mode clair elles divergent (`gray-100` vs le
-`--color-divider`/gray-200 sémantique), une incohérence latente pas
-traitée ici (question posée portait sur l'artefact du coin de carte, pas
-sur l'harmonisation des couleurs de bordure).
+couleur ailleurs — mais en mode clair elles divergent (`gray-100` vs le
+`--color-divider`/gray-200 sémantique), une incohérence latente qui reste
+à traiter séparément si besoin.
 
 ## Sidebar — "Découvrir" isolé hors de "Création" (21/08)
 
