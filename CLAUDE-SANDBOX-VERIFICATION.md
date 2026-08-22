@@ -543,6 +543,34 @@ note affirmait cette limite sans l'avoir vraiment testée. Testé pour de
 vrai : `curl https://api.deezer.com/...` (bash_tool) ET
 `page.goto('https://api.deezer.com/...')` (navigateur piloté par
 Playwright) renvoient tous les deux `403 Host not in allowlist` —
+
+## 5quinquies. ⚠️ RÉGRESSION CONSTATÉE (22/08, migration recharts) : `npx playwright install chromium` échoue maintenant, contrairement à §5ter
+
+Tenté avant de vérifier visuellement le rendu des graphiques recharts
+après la migration 2→3 (voir README). Commande IDENTIQUE à celle
+documentée comme fonctionnelle en §5ter (`npx playwright install
+chromium`, sans `--with-deps`), MÊME session de travail globale, MÊME
+jour calendaire — mais échec cette fois :
+```
+Error: Download failed: server returned code 403 body 'Host not in
+allowlist: cdn.playwright.dev. Add this host to your network egress
+settings to allow access.'
+```
+Différent du blocage déjà documenté en §5ter (qui bloquait uniquement
+`--with-deps`/`deb.nodesource.com`, PAS le téléchargement du binaire
+Chromium lui-même, qui réussissait) : cette fois c'est le téléchargement
+de base qui échoue, sur un domaine différent (`cdn.playwright.dev`,
+jamais mentionné avant). Conclusion : **la liste des domaines réseau
+autorisés en sandbox n'est pas stable dans le temps** (ou varie selon la
+session/l'environnement précis) — ne JAMAIS supposer qu'une capacité
+réseau documentée ici reste vraie sans la re-tester, même documentée
+"vérifiée" une fois. Repli utilisé à la place pour cette vérification :
+build réel + suite de tests complète + inspection statique du bundle
+recharts servi par le serveur `vite` réel (curl sur le module pré-bundlé,
+vérifié qu'il contient bien tous les exports attendus sans erreur de
+résolution) — voir README pour le détail. Contrôle visuel PIXEL RÉEL non
+obtenu cette fois, à signaler honnêtement plutôt qu'à laisser croire le
+contraire.
 message IDENTIQUE dans les 2 cas, confirmant que le navigateur Playwright
 passe par le MÊME filtre réseau par liste blanche que le reste du bac à
 sable. `supabase.co` lui-même bloqué pareil. Aucun fichier `.env` présent
