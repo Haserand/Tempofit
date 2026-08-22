@@ -1264,11 +1264,17 @@ inchangé (toujours affiché uniquement si `isLocked`), aucun titre ne peut
 toujours pas être ajouté/dupliqué/remplacé/retiré — seul le texte AFFICHÉ
 change.
 
-Bannière sœur pas retouchée (`!isSaved`, juste en dessous dans le même
-fichier — "Ajoute cette séance à 'Mes Playlists' pour pouvoir ajouter,
-dupliquer, remplacer ou retirer des titres") : même famille visuelle,
-mais pas mentionnée dans le retour direct — à traiter pareil si demandé,
-pas fait par anticipation.
+Bannière sœur pas retouchée dans un premier temps (`!isSaved`, juste en
+dessous dans le même fichier — "Ajoute cette séance à 'Mes Playlists'
+pour pouvoir ajouter, dupliquer, remplacer ou retirer des titres") : même
+famille visuelle, pas mentionnée dans le retour direct initial — confirmé
+ensuite ("oui") pour le même traitement. Découpage similaire : partie
+actionnable ("Ajoute cette séance à 'Mes Playlists'") gardée visible,
+explication du pourquoi ("pour pouvoir ajouter, dupliquer, remplacer ou
+retirer des titres") déplacée en infobulle. Comportement inchangé, seul
+le texte affiché change — même vérification par texte exact (pas un
+regex partiel) ajoutée au test correspondant, pour la même raison que
+l'autre bannière (détecter une régression si le raccourci disparaissait).
 
 Test ajusté (`TrackList.test.jsx`) : vérifie maintenant le texte EXACT
 "Séance déjà réalisée" (plus un simple `/Séance déjà réalisée/` qui
