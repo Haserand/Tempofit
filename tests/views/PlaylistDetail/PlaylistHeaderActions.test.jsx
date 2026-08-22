@@ -150,6 +150,29 @@ describe('PlaylistHeaderActions — Planifier', () => {
     expect(screen.getByText('Planifier')).toBeInTheDocument();
   });
 
+  // ⚠️ Régression corrigée (retour direct utilisateur, capture d'écran à
+  // l'appui, 22/08) : le libellé VISIBLE du bouton ignorait isLocked, alors
+  // que le title (non testé ici, juste l'attribut invisible au survol) le
+  // gérait déjà correctement. Une séance déjà réalisée sans date planifiée
+  // affichait quand même "Planifier", trompeur une fois la séance faite.
+  it('isLocked=true et pas de date planifiée : "Refaire" au lieu de "Planifier"', () => {
+    render(<Wrapper {...baseProps({
+      isSaved: true, isLocked: true,
+      currentPlaylist: makePlaylist({ plannedDate: null, completions: ['2026-01-01'] }),
+    })} />);
+    expect(screen.getByText('Refaire')).toBeInTheDocument();
+    expect(screen.queryByText('Planifier')).not.toBeInTheDocument();
+  });
+
+  it('isLocked=true MAIS une date planifiée existe : la date prime sur "Refaire"', () => {
+    render(<Wrapper {...baseProps({
+      isSaved: true, isLocked: true,
+      currentPlaylist: makePlaylist({ plannedDate: '2026-03-01', completions: ['2026-01-01'] }),
+    })} />);
+    expect(screen.queryByText('Refaire')).not.toBeInTheDocument();
+    expect(screen.queryByText('Planifier')).not.toBeInTheDocument();
+  });
+
   it('masqué si isReadOnly=true, même si isSaved=true', () => {
     render(<Wrapper {...baseProps({ isSaved: true, isReadOnly: true })} />);
     expect(screen.queryByText('Planifier')).not.toBeInTheDocument();
