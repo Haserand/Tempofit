@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Trash2, Plus, Info, ChevronUp, ChevronDown, RotateCcw } from 'lucide-react';
-import { ATHLETIC_ZONES, getZoneForValue } from '../../appConfig';
+import { ATHLETIC_ZONES } from '../../appConfig';
 import { syncClampedInput } from '../../utils/numberInput';
 import { useAthleticContext } from '../../contexts/AthleticContext';
 
@@ -47,7 +47,7 @@ export default function AthleticProfilePanel({ theme, showToast, changeView }) {
     isNaughtyMode,
     athleticProfile, setBaseBpmForActivity, setZoneForActivity, resetActivityProfile,
     addCustomActivity, removeCustomActivity, setBaseBpmForCustom, setZoneForCustom,
-    getDefaultBaseBpm, buildDefaultPreviewProfile,
+    buildDefaultPreviewProfile,
     setCadenceIntentForActivity, setCadenceIntentForCustom, isCadenceIntentEligible,
   } = useAthleticContext();
   const {
