@@ -120,6 +120,13 @@ describe('PlaylistHeaderBadges', () => {
     expect(handleUnsavePlaylist).toHaveBeenCalled();
   });
 
+  it('bouton "Retirer" porte -mr-2 (retour direct 22/08 : le glyphe de l\'icône, pas juste la boîte du bouton, doit toucher le même bord droit que le badge BPM — le padding p-2 du bouton, sans ça, décale visuellement l\'icône de 8px vers l\'intérieur)', () => {
+    render(<PlaylistHeaderBadges {...baseProps({ isSaved: true })} />);
+    const trashBtn = screen.getByTitle("Retirer cette séance de 'Mes Playlists'");
+    expect(trashBtn).toHaveClass('p-2');
+    expect(trashBtn).toHaveClass('-mr-2');
+  });
+
   describe('toggle publique/privée', () => {
     it('absent quand isSaved=false', () => {
       render(<PlaylistHeaderBadges {...baseProps({ isSaved: false })} />);
