@@ -381,6 +381,44 @@ VERIFICATION.md) sur la playlist EXACTE de la capture ("Midnight Runner
 confirmé aussi visuellement par capture de contrôle. Les 13 tests de
 `PlaylistHeaderBadges.test.jsx` passent toujours (`vitest run` réel).
 
+### Suite — même écart signalé sur le bouton Corbeille (22/08, même jour) : ma 1re vérification était fausse
+
+Retour direct suivant, avec le MÊME constat sur le bouton Corbeille
+(Globe/Trash2, cas `isSaved && !isReadOnly` — playlist déjà sauvegardée).
+**Mon 1er diagnostic était erroné** : j'avais mesuré l'alignement de la
+BOÎTE CLIQUABLE du bouton (`getBoundingClientRect()` sur le `<button>`
+lui-même) et trouvé 0px d'écart avec le badge BPM — concluant à tort que
+le correctif du cadenas s'appliquait déjà. Sur contestation justifiée de
+l'utilisateur ("menteur"), reprise plus rigoureuse : mesuré le SVG de
+l'icône LUI-MÊME (pas son bouton englobant) → **8px d'écart réel**. Cause :
+`Trash2`/`Globe` sont des icônes SEULES (14px) centrées dans un bouton de
+30px (`p-2`, 8px de remplissage invisible de chaque côté, pour une zone de
+survol confortable) — contrairement au badge BPM ou au badge "Lecture
+seule" (`Lock`), qui ont tous deux une bordure/un fond VISIBLE remplissant
+toute leur boîte jusqu'au bord. La boîte DOM du bouton Corbeille était
+donc bien alignée avec le badge BPM, mais son GLYPHE VISIBLE, lui,
+s'arrêtait 8px avant — un écart purement optique qu'une mesure de boîte
+seule ne peut jamais détecter.
+
+**Correctif** : `-mr-2` ajouté au bouton Corbeille (`p-2 -mr-2`), annulant
+exactement son propre padding droit — le glyphe touche désormais le vrai
+bord, sans réduire le cercle de survol (qui déborde légèrement du bord,
+invisible tant qu'on ne survole pas). Vérifié à nouveau, cette fois sur le
+bon repère (`trashSvg.getBoundingClientRect()`, pas le bouton) : 0px pile.
+Badge "Lecture seule" (`Lock`) revérifié pour comparaison — confirmé SAIN
+sans y toucher (sa propre boîte, bordure comprise, est déjà à 0px du badge
+BPM ; seul son glyphe interne est en retrait, ce qui ne compte pas ici
+puisque c'est la bordure qui porte le poids visuel, pas l'icône seule).
+1 test de non-régression ajouté (`PlaylistHeaderBadges.test.jsx`, classe
+`-mr-2` présente) — 14 tests passent (`vitest run` réel).
+
+**Leçon retenue** (ajoutée à CLAUDE-SANDBOX-VERIFICATION.md, §5ter) : pour
+un alignement visuel, mesurer le GLYPHE/CONTENU VISIBLE réel
+(`element.querySelector('svg').getBoundingClientRect()`), jamais
+seulement la boîte du conteneur cliquable — un bouton-icône avec padding
+invisible peut être parfaitement aligné en boîte tout en étant décalé à
+l'œil nu.
+
 ## Wizard générateur — coin de carte qui touchait la ligne du pied de page (21/08)
 
 Retour direct avec capture zoomée : "barre quasi invisible mais présente
