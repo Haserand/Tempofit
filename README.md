@@ -1053,6 +1053,62 @@ Vérifications complémentaires sans trouvaille : aucun
 API codé en dur trouvé par balayage de motifs, aucun `.map()` JSX sans prop
 `key` détecté.
 
+## Migration recharts 2.15 → 3.10.1 (22/08, sur demande explicite après recommandation du check-up)
+
+Recommandée à l'issue du check-up général : la branche 2.x n'a plus reçu
+de release depuis plus d'un an et le mainteneur a déprécié tout ce qui
+précède la v3. Avant de migrer, guide de migration officiel lu en entier
+puis chaque point de rupture vérifié CONTRE l'usage réel du projet (pas
+supposé) :
+
+- Exigences minimales v3 (React 16.8+, Node 18+) : largement dépassées
+  (React 19, Node ≥20.19 dans `engines`).
+- Aucune trace dans tout le projet de `activeIndex`, `CategoricalChartState`,
+  `<Customized/>`, `blendStroke`, `alwaysShow`, `isFront`, `ref.current.current`
+  (ResponsiveContainer), ni d'axes multiples avec `yAxisId`/`xAxisId`
+  personnalisés (les 2 `<YAxis>` du projet sont dans 2 graphiques SÉPARÉS,
+  un seul axe Y chacun) — aucune des API supprimées/modifiées par la v3
+  n'est utilisée ici.
+- **1 vrai point d'attention trouvé et corrigé PRÉVENTIVEMENT** (sûr aussi
+  en v2, donc appliqué avant même de changer la version) :
+  `PlaylistCharts.jsx` déclarait `<RechartsTooltip/>` AVANT `<Legend/>`
+  dans le JSX. Le guide v3 précise que l'ordre de rendu SVG suit désormais
+  strictement l'ordre du JSX (v2 "trichait" en interne sur cet ordre) — la
+  Legend, déclarée après, serait passée AU-DESSUS du Tooltip en cas de
+  chevauchement visuel. Inversé (`Legend` puis `Tooltip`), conforme à la
+  recommandation officielle. `StatsView.jsx` n'importe même pas `Legend`,
+  aucun risque de ce type là-bas.
+
+**Exécuté** : `package.json`/`package-lock.json` mis à jour vers
+`recharts@3.10.1`, `npm install` propre (plus aucun warning de
+dépréciation). Build réel + suite de tests complète (1507 tests)
+revérifiés après coup : tout passe, aucune régression détectée par les
+tests.
+
+**Vérification visuelle réelle NON obtenue cette fois — à signaler
+honnêtement** : tentative d'utiliser Playwright (capacité découverte le
+21/08, voir CLAUDE-SANDBOX-VERIFICATION.md §5ter) pour comparer
+visuellement le rendu des graphiques avant/après. Échec : le
+téléchargement du binaire Chromium lui-même échoue maintenant
+(`cdn.playwright.dev` hors liste d'autorisation réseau), alors que §5ter
+documentait cette même commande comme fonctionnelle le jour même — **la
+liste des domaines réseau autorisés en sandbox n'est visiblement pas
+stable dans le temps**, détail important ajouté à
+CLAUDE-SANDBOX-VERIFICATION.md (§5quinquies) pour que la prochaine session
+re-teste plutôt que de supposer. Repli utilisé à la place : le serveur
+`vite` réel démarre et sert tous les fichiers concernés sans erreur, et le
+module `recharts` pré-bundlé par Vite (curl direct sur le chunk
+`.vite/deps/recharts.js`, 5 Mo) contient bien tous les exports attendus
+(`PieChart`, `LineChart`, `Legend`, `CartesianGrid`...) sans la moindre
+erreur de résolution de module. Bonne indication indirecte, mais **pas un
+substitut à une vraie inspection visuelle** — recommandé de garder un œil
+sur le rendu des 5 `<Pie>` et des graphiques en ligne/barres à la première
+occasion d'ouvrir l'app réellement (les 2 changements visuels connus de la
+v3 — plus de bordure au clic sur les sections de pie, `CartesianGrid`
+inverse l'ordre de rendu de son fond — sont mineurs et n'entrent en
+conflit avec aucun style personnalisé trouvé dans ce projet, mais restent
+à confirmer à l'œil).
+
 ## Corrigé (20/08) — anciennement "Limite connue, non traitée : écritures concurrentes de MÊME TYPE sur la MÊME playlist"
 
 **Constat d'origine (check-up 10/08)** : les 5 correctifs de course du 10/08
