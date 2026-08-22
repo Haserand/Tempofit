@@ -16,6 +16,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
+vi.mock('../../../src/components/shared/TopCompletionDate.jsx', () => ({
+  default: () => <span data-testid="top-completion-date-mock">TopCompletionDate (mock)</span>,
+}));
+
 import PlaylistHeaderBadges from '../../../src/components/views/PlaylistDetail/PlaylistHeaderBadges.jsx';
 
 afterEach(() => {
@@ -36,9 +40,53 @@ function baseProps(overrides = {}) {
     isReadOnly: false,
     handleTogglePlaylistPublic: vi.fn(),
     handleUnsavePlaylist: vi.fn(),
+    isLocked: false,
+    theme: {},
+    editingCompletion: null,
+    setEditingCompletion: vi.fn(),
+    editCompletionDate: vi.fn(),
     ...overrides,
   };
 }
+
+// ⚠️ NOUVEAU (22/08, retour direct — "mettre la date de la séance à
+// gauche du compteur de clones pour gagner une ligne et resserrer la
+// carte") — badge "séance déjà réalisée" + TopCompletionDate déménagés
+// ici depuis PlaylistHeaderMeta.jsx (voir la docstring du composant pour
+// le détail complet, y compris le cas non traité isReadOnly+isLocked
+// simultanés).
+describe('PlaylistHeaderBadges — badge "séance déjà réalisée" (à gauche du compteur de clonages)', () => {
+  it('isLocked=true + au moins 1 complétion : affiche le badge (icône + TopCompletionDate)', () => {
+    render(<PlaylistHeaderBadges {...baseProps({
+      isLocked: true, currentPlaylist: makePlaylist({ completions: ['2026-01-01'] }),
+    })} />);
+    expect(screen.getByTitle('Séance déjà réalisée')).toBeInTheDocument();
+    expect(screen.getByTestId('top-completion-date-mock')).toBeInTheDocument();
+  });
+
+  it('isLocked=false : badge absent, même avec des complétions existantes', () => {
+    render(<PlaylistHeaderBadges {...baseProps({
+      isLocked: false, currentPlaylist: makePlaylist({ completions: ['2026-01-01'] }),
+    })} />);
+    expect(screen.queryByTitle('Séance déjà réalisée')).not.toBeInTheDocument();
+  });
+
+  it('isLocked=true mais completions vide : badge absent (garde-fou de cohérence)', () => {
+    render(<PlaylistHeaderBadges {...baseProps({
+      isLocked: true, currentPlaylist: makePlaylist({ completions: [] }),
+    })} />);
+    expect(screen.queryByTitle('Séance déjà réalisée')).not.toBeInTheDocument();
+  });
+
+  it('affiché À GAUCHE du compteur de clonages dans le DOM (ordre de la rangée)', () => {
+    const { container } = render(<PlaylistHeaderBadges {...baseProps({
+      isLocked: true, currentPlaylist: makePlaylist({ completions: ['2026-01-01'], cloneCount: 5 }),
+    })} />);
+    const row = container.querySelector('.absolute.top-4');
+    const html = row.innerHTML;
+    expect(html.indexOf('top-completion-date-mock')).toBeLessThan(html.indexOf('Nombre de fois où cette playlist a été clonée'));
+  });
+});
 
 describe('PlaylistHeaderBadges — compteur de clonages (icône + nombre, à gauche du reste de la rangée)', () => {
   it('cloneCount défini : affiche le compteur, même à 0, à gauche du badge "Lecture seule" (isSaved=false)', () => {
