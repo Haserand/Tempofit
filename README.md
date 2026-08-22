@@ -1227,6 +1227,8 @@ Tests ajustés : `PlaylistHeaderMeta.test.jsx` (le mock/les tests de
 si `isLocked` ET au moins 1 complétion, absent sinon, positionné avant le
 compteur de clonages dans le DOM).
 
+## Bouton "Planifier" — libellé visible incohérent avec son propre tooltip une fois la séance déjà réalisée (22/08)
+
 Signalé par retour direct, capture d'écran à l'appui : une playlist déjà
 verrouillée (séance réalisée, badge "🔒 22 août 2026" affiché) montrait
 quand même un bouton "Planifier" tant qu'aucune date n'avait été
@@ -1247,6 +1249,32 @@ jamais été faite). 2 tests de régression ajoutés
 affiché, pas "Planifier" ; `isLocked=true` AVEC une date déjà planifiée →
 la date garde la priorité sur "Refaire" (comportement déjà correct,
 vérifié qu'il n'a pas été cassé par ce changement).
+
+## Bannière "Séance déjà réalisée" raccourcie, détail déplacé en infobulle (22/08)
+
+Retour direct, capture d'écran à l'appui : la bannière affichée sous la
+liste des titres d'une playlist verrouillée ("🔒 Séance déjà réalisée —
+plus aucun titre ne peut être ajouté, dupliqué, remplacé ou retiré",
+`TrackList.jsx`) prenait 2 lignes sur mobile — raccourcie à "Séance déjà
+réalisée" seul, le reste de l'explication déplacé dans le `title` (info-
+bulle native au survol) du conteneur, cohérent avec la convention déjà en
+place ailleurs sur l'app pour ce genre de détail secondaire (voir
+"Convention UI — infobulles" plus haut dans ce README). Comportement
+inchangé (toujours affiché uniquement si `isLocked`), aucun titre ne peut
+toujours pas être ajouté/dupliqué/remplacé/retiré — seul le texte AFFICHÉ
+change.
+
+Bannière sœur pas retouchée (`!isSaved`, juste en dessous dans le même
+fichier — "Ajoute cette séance à 'Mes Playlists' pour pouvoir ajouter,
+dupliquer, remplacer ou retirer des titres") : même famille visuelle,
+mais pas mentionnée dans le retour direct — à traiter pareil si demandé,
+pas fait par anticipation.
+
+Test ajusté (`TrackList.test.jsx`) : vérifie maintenant le texte EXACT
+"Séance déjà réalisée" (plus un simple `/Séance déjà réalisée/` qui
+aurait aussi matché l'ancienne version plus longue, donc n'aurait pas
+détecté de régression si le raccourci avait sauté) + la présence de
+l'infobulle avec le détail complet.
 
 ## Autres fichiers de référence à ce niveau
 
