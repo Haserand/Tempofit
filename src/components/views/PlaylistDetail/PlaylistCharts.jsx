@@ -400,6 +400,19 @@ export default function PlaylistCharts({
               onMouseDown={canEditTracks ? handleChartMouseDown : undefined} onMouseMove={canEditTracks ? handleChartMouseMove : undefined}
               onMouseUp={canEditTracks ? handleChartMouseUp : undefined} onMouseLeave={canEditTracks ? handleChartMouseUp : undefined}
               style={{ cursor: isDraggingChartSegment ? 'grabbing' : 'pointer' }}
+              // ⚠️ `accessibilityLayer={false}` explicite (migration recharts v3,
+              // check-up 22/08) — passé à `true` par défaut en v3 (était `false`
+              // en v2), ajoute des contrôles clavier internes à recharts sur le
+              // graphique. CE graphique a une interaction de glisser-déposer
+              // maison sensible (handleChartMouseDown/Move/Up ci-dessus, jamais
+              // testée interactivement en sandbox faute de navigateur
+              // disponible) — désactivé par prudence pour garantir un
+              // comportement IDENTIQUE à avant la migration, plutôt que de
+              // risquer une interférence non vérifiée entre les 2 mécanismes.
+              // Les autres graphiques de l'app (purement d'affichage, sans
+              // interaction sur mesure) gardent le nouveau défaut : améliore
+              // l'accessibilité clavier sans aucun risque identifié pour eux.
+              accessibilityLayer={false}
             >
               <CartesianGrid strokeDasharray="3 3" stroke={colorMode === 'dark' ? '#374151' : '#e5e7eb'} vertical={false} />
 
