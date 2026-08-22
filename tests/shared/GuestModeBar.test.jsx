@@ -65,6 +65,24 @@ describe('GuestModeBar', () => {
     ).toHaveClass('mock-muted');
     expect(screen.getByRole('button', { name: /Se connecter/ })).toHaveClass('mock-accent');
   });
+
+  // ⚠️ Espaceur invisible ajouté (22/08, retour direct, capture d'écran :
+  // "pourquoi les 2 ne sont pas parfaitement centrés ?") — sans lui,
+  // `justify-center` centre le groupe entier (bouton "Se connecter" +
+  // croix), pas le texte "Se connecter" lui-même : la croix, plus étroite,
+  // ne compensait pas la largeur du bouton, donc "Se connecter" dérivait
+  // visuellement vers la gauche du centre réel de la barre. Vérifie que
+  // cet espaceur existe, qu'il ne casse pas le rendu du reste (bouton
+  // "Se connecter"/croix toujours présents et cliquables — déjà couvert
+  // par les autres tests de ce fichier, non dupliqué ici) et qu'il est
+  // bien exclu de l'arborescence d'accessibilité (aria-hidden — purement
+  // visuel, rien à annoncer aux lecteurs d'écran).
+  it('espaceur invisible présent (équilibre visuel avec la croix), exclu de l\'accessibilité', () => {
+    const { container } = render(<GuestModeBar theme={mockTheme} isVisible={true} openModal={() => {}} />);
+    const spacer = container.querySelector('span[aria-hidden="true"]');
+    expect(spacer).toBeInTheDocument();
+    expect(spacer.querySelector('svg')).toHaveClass('invisible');
+  });
 });
 
 // Fermeture SESSION-ONLY (03/08, retour direct : "option pour supprimer/
