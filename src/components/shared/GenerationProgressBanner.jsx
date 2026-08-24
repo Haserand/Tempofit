@@ -39,15 +39,28 @@ export default function GenerationProgressBanner({
   if (!isGenerating) return null;
 
   const getGenerationBannerMessage = () => {
-    if (generatingTotal > 1) return `Génération ${generatingDone}/${generatingTotal}...`;
+    // ⚠️ "..." retirés de TOUS les messages ci-dessous (22/08, retour
+    // direct : "les 3 petits points à la fin laisse idée que le message
+    // est coupé, qu'on voit pas tout") — ces points de suspension
+    // n'indiquaient PAS une troncature (aucun `truncate`/`line-clamp` sur
+    // le `<span>` qui affiche ce texte, aucun `title=` non plus — le
+    // message entier était déjà toujours visible), seulement une
+    // convention visuelle pour suggérer "en cours". Ambiguë : rien ne
+    // distinguait ce "..." décoratif d'un vrai signe de troncature,
+    // rassurant à tort qu'un survol révélerait la suite. Retiré plutôt
+    // qu'ajouter une infobulle qui aurait juste répété le même texte sans
+    // rien apporter de plus — le spinner animé (`Loader2`) et le
+    // chronomètre juste à côté suffisent déjà à signaler "en cours" sans
+    // ambiguïté.
+    if (generatingTotal > 1) return `Génération ${generatingDone}/${generatingTotal}`;
 
     const tier = elapsedSeconds < 15 ? 0 : elapsedSeconds < 45 ? 1 : 2;
 
     if (tier === 0) {
-      if (isGeneratingSlowGenre && isGeneratingLongPlaylist) return "Génération en cours (séance longue + genre plus long à cibler)...";
-      if (isGeneratingSlowGenre) return "Génération en cours (genre plus long à cibler)...";
-      if (isGeneratingLongPlaylist) return "Génération en cours (séance longue, plusieurs titres à trouver)...";
-      return "Génération en cours...";
+      if (isGeneratingSlowGenre && isGeneratingLongPlaylist) return "Génération en cours (séance longue + genre plus long à cibler)";
+      if (isGeneratingSlowGenre) return "Génération en cours (genre plus long à cibler)";
+      if (isGeneratingLongPlaylist) return "Génération en cours (séance longue, plusieurs titres à trouver)";
+      return "Génération en cours";
     }
 
     // Paliers 1 (15-45s) et 2 (45s+) : privilégie le compte de titres réunis
@@ -56,10 +69,10 @@ export default function GenerationProgressBanner({
     // retombe sur le message de réassurance générique par palier.
     if (generatingEstimatedTracksFound > 0) {
       const plural = generatingEstimatedTracksFound > 1 ? 's' : '';
-      return `Génération en cours — environ ${generatingEstimatedTracksFound} titre${plural} réuni${plural}...`;
+      return `Génération en cours — environ ${generatingEstimatedTracksFound} titre${plural} réuni${plural}`;
     }
     return tier === 1
-      ? "Ça prend un peu plus de temps que d'habitude..."
+      ? "Ça prend un peu plus de temps que d'habitude"
       : "Toujours en cours — certains genres ou gros lots peuvent prendre jusqu'à une minute ou plus.";
   };
 
