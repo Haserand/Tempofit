@@ -702,6 +702,39 @@ Test ajusté (`GenerationProgressBanner.test.jsx`) : les 8 assertions sur
 le texte exact des messages mises à jour en conséquence — logique des 3
 paliers de temps entièrement inchangée, seul le texte final change.
 
+## GuestModeBar / MiniPlayerBar — centrées sur 2 repères différents, désalignées sur grand écran (22/08)
+
+Retour direct, capture annotée : "je n'ai pas l'impression que le
+lecteur audio soit centré sur la guest barre" — avec une suggestion en
+piste ("agrandir la largeur de la partie contrôles"), mais "prends du
+recul" explicite dans la même phrase.
+
+**Cause réelle, différente de la piste suggérée** : `MiniPlayerBar.jsx`
+centre ses 3 zones (info titre / contrôles / contexte playlist) à
+l'intérieur d'un conteneur `max-w-5xl mx-auto` — les contrôles de
+lecture, zone centrale `shrink-0` entre 2 zones `flex-1` symétriques,
+sont donc centrés sur le milieu de cette boîte de 1024px maximum,
+elle-même centrée dans la largeur disponible. `GuestModeBar.jsx`, elle,
+centrait son contenu ("Se connecter") directement sur la largeur TOTALE
+de la barre (`justify-center` sans contrainte de largeur). Sur un écran
+plus large que 1024px (fréquent en desktop), ces deux repères de
+centrage ne coïncident PAS — d'où le désalignement visible sur la
+capture. Élargir la zone des contrôles (la piste suggérée) n'aurait pas
+résolu ce désalignement, seulement déplacé le problème sans le régler à
+la racine.
+
+**Corrigé** : `GuestModeBar.jsx` reprend désormais EXACTEMENT la même
+contrainte (`max-w-5xl mx-auto`), enveloppant son contenu existant sans
+changer sa disposition interne (toujours `flex-col items-center
+justify-center gap-1 py-2`). Les 2 barres centrent maintenant sur le
+même repère, quelle que soit la largeur d'écran.
+
+Test ajouté (`GuestModeBar.test.jsx`) : vérifie la présence du
+conteneur `max-w-5xl mx-auto` et que le bouton "Se connecter" en est
+bien un descendant — un désalignement de ce type reste invisible en
+dessous de 1024px de large, donc facile à manquer sans test dédié à
+l'existence du conteneur lui-même (pas juste au texte affiché).
+
 ## Autres fichiers de référence à ce niveau
 
 - `CLAUDE-SANDBOX-VERIFICATION.md` — outils de vérification de code pour une session Claude sans accès réseau.
