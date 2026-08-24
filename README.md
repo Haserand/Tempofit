@@ -1086,6 +1086,20 @@ tests (`SelectablePill.test.jsx`) : classes sélectionné/non-sélectionné,
 clic, `title`, `extraSelectedClassName` appliqué uniquement quand
 `selected=true`.
 
+## GuestModeBar — texte muted pas centré dans l'état par défaut (22/08)
+
+Retour direct, capture à l'appui : "le texte n'est plus centré ?" — le
+texte "Données sauvegardées uniquement sur cet appareil." (état par
+défaut) n'avait pas `text-center`, contrairement au texte équivalent de
+l'état de confirmation ("Tes données resteront sauvegardées uniquement
+sur cet appareil.", `text-center` déjà présent) — une incohérence entre
+les 2 états du même composant, jamais remarquée jusqu'à cette capture.
+
+Corrigé en ajoutant `text-center` à la branche par défaut, pour
+cohérence stricte avec l'autre branche. Test ajouté
+(`GuestModeBar.test.jsx`) qui vérifie `text-center` sur les DEUX états,
+pour que cette incohérence ne puisse plus repasser inaperçue.
+
 ## Autres fichiers de référence à ce niveau
 
 - `CLAUDE-SANDBOX-VERIFICATION.md` — outils de vérification de code pour une session Claude sans accès réseau.
