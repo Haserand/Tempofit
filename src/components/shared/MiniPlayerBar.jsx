@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Play, Pause, X, Music2, SkipBack, SkipForward, Volume2, Volume1, VolumeX } from 'lucide-react';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 import AudioProgressBar from './AudioProgressBar';
+import BottomBarShell from './BottomBarShell';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 
 /**
@@ -25,8 +26,17 @@ import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
  * Centre : précédent/lecture/suivant + barre de progression de l'extrait
  *          (AudioProgressBar, isolée — voir sa docstring pour la
  *          performance). Toujours visible aussi.
- * Droite : contexte playlist (nom cliquable + position "Titre X/Y") —
- *          masqué sur mobile (`hidden md:flex`, non essentiel, cf. plan).
+ * Droite : contexte playlist (nom cliquable + position "Titre X/Y") +
+ *          bouton volume + bouton fermer — masqué sur mobile (`hidden
+ *          md:flex`, non essentiel, cf. plan). ⚠️ Ces 3 éléments vivent
+ *          IMBRIQUÉS dans le même conteneur `flex-1` depuis le 22/08 (pas
+ *          3 frères séparés comme avant cette date) — nuance structurelle
+ *          qui a son importance : volume+fermer, laissés en dehors de ce
+ *          conteneur, faisaient dériver de 46px le centre visuel des
+ *          contrôles (zone Centre ci-dessus) par rapport au vrai centre
+ *          de la barre, un bug trouvé et corrigé ce jour-là (voir README,
+ *          section dédiée, et CLAUDE-SANDBOX-VERIFICATION.md §5quinquies
+ *          pour la méthode de vérification).
  *
  * ── Volume : clic = mute, survol = curseur en popup ─────────────────────
  * Toujours PAS un vrai lecteur principal (ces extraits de 30s servent à
@@ -96,7 +106,7 @@ import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
  * re-poser avant de changer de vue.
  */
 export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
-  const { cardBg, cardBorder, cardBorderStrong, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
+  const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
   const {
     currentTrack, isPlaying,
     pauseCurrentPreview, resumeCurrentPreview, stopCurrentPreview,
@@ -157,11 +167,16 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
     // CETTE barre (zone centrale, la plus haute : boutons 36px + barre de
     // progression ~16px + espace 4px = 56px) tient largement dans ces
     // 70px, aucun risque de coupure.
-    // h-[70px] : DOIT rester une classe Tailwind écrite en toutes lettres
-    // (voir bottomBarLayout.js pour pourquoi) — si cette hauteur change,
-    // reporter la même valeur dans MINI_PLAYER_BAR_HEIGHT_PX (bottomBarLayout.js).
-    <div className={`h-[70px] border-t-2 ${cardBorderStrong} shadow-2xl ${cardBg} flex items-center`}>
-      <div className="max-w-5xl mx-auto px-4 flex items-center gap-3 w-full">
+    // ⚠️ h-[70px]/max-w-5xl mx-auto EXTRAITS dans BottomBarShell.jsx
+    // (22/08, suite du même chantier — voir sa docstring pour le
+    // raisonnement complet) : jusqu'ici recopiés en dur ici ET dans
+    // GuestModeBar.jsx séparément, avec de petites divergences de détail
+    // qui ont produit 2 bugs de désalignement distincts la même session
+    // (voir README). `shadow` seul point de personnalisation utilisé ici
+    // (l'ombre portée de CETTE barre n'a jamais existé sur GuestModeBar) —
+    // `px-4 flex items-center gap-3` transmis en `innerClassName`,
+    // disposition en RANGÉE (contrairement à GuestModeBar, en colonne).
+    <BottomBarShell theme={theme} shadow innerClassName="px-4 flex items-center gap-3">
 
         {/* ── Zone gauche : infos titre (essentiel, jamais masqué) ── */}
         <div className="min-w-0 flex-1 flex items-center gap-2">
@@ -299,7 +314,6 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
             <X size={18}/>
           </button>
         </div>
-      </div>
-    </div>
+    </BottomBarShell>
   );
 }
