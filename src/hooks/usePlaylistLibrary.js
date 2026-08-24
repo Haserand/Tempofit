@@ -227,25 +227,23 @@ export function usePlaylistLibrary(
       // direct avec 4 captures : "quand je l'ajoute il n'y a plus le
       // compteur de clones ?"). Cette suppression du 10/08 généralisait à
       // tort le même raisonnement aux 2 chemins de sauvegarde de ce
-      // fichier, alors qu'ils sont sémantiquement DIFFÉRENTS sur ce point
-      // précis : `handleSavePlaylist` (template Découvrir, MÊME `id`
-      // conservé) ne porte quasiment jamais de `cloneCount` réel au
-      // départ — le compteur d'un template vit dans une table séparée
-      // (`template_clone_counts`, par `sourceTemplateId`), pas dans un
-      // champ `cloneCount` par playlist — retirer ce champ y était donc
-      // un no-op silencieux, jamais remarqué. ICI, à l'inverse
-      // (`handleClonePlaylist`, NOUVEL `id` généré), `currentPlaylist`
-      // PEUT réellement porter un `cloneCount` non-`undefined` — celui de
-      // la playlist ÉTRANGÈRE qu'on vient de cloner (`row.clone_count`
-      // depuis Supabase, voir App.jsx). Le garder sur la copie affichait
-      // donc le compteur du PARENT comme si c'était déjà celui de la
-      // copie fraîchement créée, qui n'a par définition encore jamais été
-      // clonée par personne. `undefined` (pas `0`) : cohérent avec le
-      // garde-fou déjà en place ailleurs (`PlaylistHeaderBadges.jsx`,
-      // badge gaté sur `cloneCount !== undefined`) — une copie qui n'a
-      // jamais été clonée n'affiche AUCUN badge, plutôt qu'un badge à 0
-      // qui laisserait croire que le compteur a un sens avant la 1re
-      // vraie occurrence.
+      // fichier — `handleSavePlaylist` (template Découvrir, MÊME `id`
+      // conservé) EST corrigée elle aussi désormais (même jour, retour
+      // direct SUIVANT celui-ci : "pourquoi je suis à 1 ?" — l'hypothèse
+      // de départ, "cloneCount n'y est quasiment jamais réellement
+      // défini", était fausse, voir son commentaire dédié plus haut).
+      // `currentPlaylist.cloneCount` PEUT réellement porter un
+      // non-`undefined` sur CE chemin-ci aussi (`handleClonePlaylist`,
+      // NOUVEL `id` généré) — celui de la playlist ÉTRANGÈRE qu'on vient
+      // de cloner (`row.clone_count` depuis Supabase, voir App.jsx). Le
+      // garder sur la copie affichait donc le compteur du PARENT comme si
+      // c'était déjà celui de la copie fraîchement créée, qui n'a par
+      // définition encore jamais été clonée par personne. `undefined`
+      // (pas `0`) : cohérent avec le garde-fou déjà en place ailleurs
+      // (`PlaylistHeaderBadges.jsx`, badge gaté sur `cloneCount !==
+      // undefined`) — une copie qui n'a jamais été clonée n'affiche AUCUN
+      // badge, plutôt qu'un badge à 0 qui laisserait croire que le
+      // compteur a un sens avant la 1re vraie occurrence.
       cloneCount: undefined,
       // Ne conserver le lien que s'il pointe vers un VRAI utilisateur
       // (`parentUserId` défini) — sinon (playlist issue d'un template de
