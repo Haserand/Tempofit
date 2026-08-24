@@ -1,7 +1,7 @@
-import { X, Activity, Clock, Zap, Music, Copy } from 'lucide-react';
-import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
+import { Activity, Clock, Zap, Music, Copy } from 'lucide-react';
 import { genreDisplayLabel } from '../../musicCatalog';
 import ModalShell from '../shared/ModalShell';
+import ModalCloseButton from '../shared/ModalCloseButton';
 
 /**
  * PublicRoutinePreviewModal — Vague 2, Chantier 1 (UI publique des routines,
@@ -41,7 +41,7 @@ export default function PublicRoutinePreviewModal({ theme, isOpen, onClose, rout
             <Copy className={textColorClass} />
             <span>Routine publique</span>
           </h3>
-          <button onClick={onClose} className={`p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors ${ICON_BUTTON_ROUNDING} hover:bg-surface-hover`}><X size={20} /></button>
+          <ModalCloseButton onClick={onClose} />
         </div>
         {/* Message raccourci (07/08, retour direct : "tienne en 2 lignes
             max" — capture à l'appui montrant 3 lignes) — même idée que
