@@ -582,6 +582,53 @@ Récit complet de la session qui a produit tout ça (check-up en 3 passes,
 migration recharts, corrections UI ciblées) : voir `HISTORIQUE.md`,
 bloc 7.
 
+## Génération simple d'une playlist — sauvegarde désormais automatique dans "Mes Playlists" (22/08)
+
+Question directe, "prends du recul" : "est-ce que par défaut les
+playlists que je génère ne devraient pas être enregistrées dans 'mes
+playlists' sans avoir besoin de l'ajouter manuellement ?".
+
+**1re réponse (avant vérification) : plutôt non** — l'argument avancé
+était que le générateur sert à l'exploration (régénérer plusieurs fois
+avant de trouver la bonne version), et qu'auto-sauvegarder polluerait
+"Mes Playlists" de brouillons jetables.
+
+**Argument renversé par un retour direct suivant, qui a motivé une
+vraie vérification** : "je me dis que si je génère UNE playlist, elle
+est ajoutée à mes playlists, surtout si dans tous les cas je dois
+l'ajouter pour pouvoir la modifier". Vérifié dans le code
+(`TrackList.jsx`/`TrackItem.jsx`) : **confirmé, aucune mutation d'un
+titre (remplacer/dupliquer/retirer) n'est possible tant que la playlist
+n'est pas sauvegardée** — le commentaire du code le dit explicitement
+("la mutation ne serait de toute façon pas persistée"). Il n'y avait
+donc PAS de vraie exploration possible sur une playlist déjà générée,
+seulement la regénérer entièrement depuis le wizard — l'argument initial
+ne tenait pas à l'examen.
+
+**Corrigé** (`usePlaylistGeneration.js`, branche `count === 1`) : appelle
+désormais `setSavedPlaylists` en plus de `setCurrentPlaylist`, exactement
+comme le fait déjà la branche `count > 1` (génération en lot depuis une
+routine) depuis toujours — une incohérence pré-existante dans le code
+que cette question a fait remonter, jamais questionnée jusqu'ici. Le
+bouton "Ajouter" (`PlaylistHeaderActions.jsx`) disparaît naturellement
+pour ce cas (`isSaved` devient vrai dès la génération, aucun changement
+nécessaire dans ce fichier) — il reste nécessaire et inchangé pour les
+autres cas où une playlist affichée n'est pas encore sauvegardée (ex. un
+template ouvert directement depuis Découvrir).
+
+Garde-fou existant (`hasUnsavedPlaylist`, `useNavigation.js` — modale de
+confirmation + avertissement natif du navigateur à la fermeture d'onglet)
+**pas retiré, son périmètre est simplement réduit** : une génération
+simple n'est plus jamais dans cet état, mais un template ouvert depuis
+Découvrir l'est toujours. Commentaire mis à jour pour refléter ce
+périmètre plus étroit.
+
+2 tests ajoutés (`usePlaylistGeneration.test.js`) : `setSavedPlaylists`
+bien appelé pour `count=1` avec la playlist générée + les playlists
+existantes préservées ; même protection contre un changement concurrent
+(`savedPlaylistsRef.current`, pas le tableau figé au début) déjà
+vérifiée pour le lot, maintenant aussi pour la génération simple.
+
 ## Autres fichiers de référence à ce niveau
 
 - `CLAUDE-SANDBOX-VERIFICATION.md` — outils de vérification de code pour une session Claude sans accès réseau.
