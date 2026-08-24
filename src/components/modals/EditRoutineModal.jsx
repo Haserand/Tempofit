@@ -5,6 +5,7 @@ import { syncClampedInput } from '../../utils/numberInput';
 import { isTargetValueValid, snapDistanceOnBlur, areSegmentsValid } from '../../utils/targetValidation';
 import ModalShell from '../shared/ModalShell';
 import ModalCloseButton from '../shared/ModalCloseButton';
+import SelectablePill from '../shared/SelectablePill';
 import DualRangeSlider from '../shared/DualRangeSlider';
 
 /**
@@ -28,7 +29,7 @@ export default function EditRoutineModal({
   getProfileForWorkout, CRESCENDO_MIN_MAIN_PCT,
   applyRoutineEditOnce, applyRoutineEditPermanently,
 }) {
-  const { cardBorder, textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass, borderAccentClass } = theme;
+  const { cardBorder, textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
 
   if (!isEditRoutineModalOpen || !editingRoutine) return null;
 
@@ -162,13 +163,13 @@ export default function EditRoutineModal({
                 const isSelected = editingRoutine.selectedGenres.includes(genre);
                 const warning = getGenreLocalDepthWarning(genre);
                 return (
-                  <button key={genre} onClick={() => {
+                  <SelectablePill key={genre} selected={isSelected} theme={theme} title={warning || undefined} onClick={() => {
                     const current = editingRoutine.selectedGenres;
                     if (isSelected) { if (current.length > 1) setEditingRoutine({...editingRoutine, selectedGenres: current.filter(g => g !== genre)}); }
                     else setEditingRoutine({...editingRoutine, selectedGenres: [...current, genre]});
-                  }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}>
+                  }}>
                     {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
-                  </button>
+                  </SelectablePill>
                 );
               })}
               {!isNaughtyMode && (
@@ -183,13 +184,13 @@ export default function EditRoutineModal({
                   const isSelected = editingRoutine.selectedGenres.includes(genre);
                   const warning = getGenreLocalDepthWarning(genre);
                   return (
-                    <button key={genre} onClick={() => {
+                    <SelectablePill key={genre} selected={isSelected} theme={theme} title={warning || undefined} onClick={() => {
                       const current = editingRoutine.selectedGenres;
                       if (isSelected) { if (current.length > 1) setEditingRoutine({...editingRoutine, selectedGenres: current.filter(g => g !== genre)}); }
                       else setEditingRoutine({...editingRoutine, selectedGenres: [...current, genre]});
-                    }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}>
+                    }}>
                       {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
-                    </button>
+                    </SelectablePill>
                   );
                 })}
               </div>
