@@ -1,7 +1,7 @@
-import { X, BookmarkPlus } from 'lucide-react';
-import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
+import { BookmarkPlus } from 'lucide-react';
 import { AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from '../../appConfig';
 import ModalShell from '../shared/ModalShell';
+import ModalCloseButton from '../shared/ModalCloseButton';
 
 /**
  * SavingRoutineModal — création d'une nouvelle routine à partir des réglages
@@ -26,7 +26,7 @@ export default function SavingRoutineModal({
           <h3 className={"text-2xl font-bold flex items-center space-x-2 " + textHighlight}>
             <BookmarkPlus className={isNaughtyMode ? "text-rose-500" : "text-yellow-500"}/> <span>Nouvelle Routine</span>
           </h3>
-          <button onClick={onClose} className={`p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors ${ICON_BUTTON_ROUNDING} hover:bg-surface-hover`}><X size={20}/></button>
+          <ModalCloseButton onClick={onClose} />
         </div>
         <div className="space-y-4 mb-6">
           <input
