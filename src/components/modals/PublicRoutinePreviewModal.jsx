@@ -1,6 +1,7 @@
 import { X, Activity, Clock, Zap, Music, Copy } from 'lucide-react';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import { genreDisplayLabel } from '../../musicCatalog';
+import ModalShell from '../shared/ModalShell';
 
 /**
  * PublicRoutinePreviewModal — Vague 2, Chantier 1 (UI publique des routines,
@@ -23,7 +24,7 @@ import { genreDisplayLabel } from '../../musicCatalog';
  * que `handleOpenPublicPlaylist`).
  */
 export default function PublicRoutinePreviewModal({ theme, isOpen, onClose, routine, onClone }) {
-  const { cardBg, cardBorder, textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
+  const { textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
 
   if (!isOpen || !routine) return null;
 
@@ -34,8 +35,7 @@ export default function PublicRoutinePreviewModal({ theme, isOpen, onClose, rout
   const genres = content.selectedGenres && content.selectedGenres.length > 0 ? content.selectedGenres : [];
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" onClick={onClose}>
-      <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
+    <ModalShell onClose={onClose} theme={theme}>
         <div className="flex justify-between items-center mb-2">
           <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
             <Copy className={textColorClass} />
@@ -88,7 +88,6 @@ export default function PublicRoutinePreviewModal({ theme, isOpen, onClose, rout
         <button onClick={onClose} className={`w-full py-3 mt-2 rounded-xl text-sm font-bold ${textMuted} hover:text-main transition-colors`}>
           Fermer
         </button>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
