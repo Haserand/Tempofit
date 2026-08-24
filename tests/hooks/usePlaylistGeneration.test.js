@@ -204,6 +204,60 @@ describe('usePlaylistGeneration — course "Générer" / changement concurrent e
   }, 10000);
 });
 
+// ⚠️ NOUVEAU (22/08, retour direct — "si je génère UNE playlist, elle
+// devrait être ajoutée à mes playlists, surtout si dans tous les cas je
+// dois l'ajouter pour pouvoir la modifier") : avant ce jour, `count === 1`
+// n'appelait QUE `setCurrentPlaylist`, jamais `setSavedPlaylists` — un clic
+// explicite sur "Ajouter" (PlaylistHeaderActions.jsx) était requis pour
+// que la playlist rejoigne "Mes Playlists". Aligné désormais sur le même
+// comportement que `count > 1` (déjà auto-sauvegardé depuis toujours, voir
+// le test juste au-dessus).
+describe('usePlaylistGeneration — sauvegarde automatique dans Mes Playlists pour une génération simple (NOUVEAU, 22/08)', () => {
+  it('count=1 : setSavedPlaylists est appelé avec la playlist générée en tête, en plus de setCurrentPlaylist', async () => {
+    const setSavedPlaylists = vi.fn();
+    const setCurrentPlaylist = vi.fn();
+    mockCreatePlaylistData.mockResolvedValue(makeFakePlaylist({ name: 'Ma séance générée' }));
+
+    const { result } = renderGenerationHook(
+      baseProps({ setSavedPlaylists, setCurrentPlaylist, savedPlaylists: [{ id: 'existing-1' }] })
+    );
+
+    await act(async () => { await result.current.executeGeneration(validConfig, 1); });
+
+    expect(setCurrentPlaylist).toHaveBeenCalledWith(expect.objectContaining({ name: 'Ma séance générée' }));
+    expect(setSavedPlaylists).toHaveBeenCalledTimes(1);
+    const applied = setSavedPlaylists.mock.calls[0][0];
+    expect(applied[0]).toEqual(expect.objectContaining({ name: 'Ma séance générée' }));
+    // Les playlists déjà existantes doivent être préservées, pas écrasées.
+    expect(applied.some(p => p.id === 'existing-1')).toBe(true);
+  });
+
+  it('count=1, changement concurrent en cours de route : utilise savedPlaylistsRef.current (le plus FRAIS), même protection que le lot', async () => {
+    const setSavedPlaylists = vi.fn();
+    const deferred = createDeferred();
+    mockCreatePlaylistData.mockImplementationOnce(() => deferred.promise);
+
+    const { result, rerender } = renderGenerationHook(
+      baseProps({ setSavedPlaylists, savedPlaylists: [{ id: 'existing-1' }] })
+    );
+
+    let generationPromise;
+    act(() => {
+      generationPromise = result.current.executeGeneration(validConfig, 1);
+    });
+
+    // Une AUTRE playlist est sauvegardée ailleurs PENDANT que cette
+    // génération simple attend encore son appel réseau.
+    rerender(baseProps({ setSavedPlaylists, savedPlaylists: [{ id: 'existing-1' }, { id: 'concurrent-add' }] }));
+
+    deferred.resolve(makeFakePlaylist());
+    await act(async () => { await generationPromise; });
+
+    const applied = setSavedPlaylists.mock.calls[0][0];
+    expect(applied.some(p => p.id === 'concurrent-add')).toBe(true);
+  });
+});
+
 // NOUVEAU (14/08, retour direct — "l'utilisateur a cru que ça avait planté"
 // sur une séance de plus d'1h) — même principe que `isGeneratingSlowGenre`
 // (déjà dans ce hook, pas testé directement ici non plus, hors périmètre de
