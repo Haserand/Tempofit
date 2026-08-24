@@ -2,6 +2,7 @@ import { X } from 'lucide-react';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import { useAthleticContext } from '../../contexts/AthleticContext';
 import { useCustomActivityContext } from '../../contexts/CustomActivityContext';
+import ModalShell from '../shared/ModalShell';
 
 /**
  * CustomActivityModal — saisie du nom d'une activité personnalisée ("Autre"
@@ -42,7 +43,7 @@ export default function CustomActivityModal({ theme, userStats, checkTrophies })
   } = useCustomActivityContext();
   const { isNaughtyMode, getProfileForWorkout } = useAthleticContext();
 
-  const { cardBg, cardBorder, textHighlight, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
+  const { textHighlight, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
 
   if (!isCustomActivityModalOpen) return null;
 
@@ -62,8 +63,7 @@ export default function CustomActivityModal({ theme, userStats, checkTrophies })
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" onClick={() => setIsCustomActivityModalOpen(false)}>
-      <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl transform transition-all border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
+    <ModalShell onClose={() => setIsCustomActivityModalOpen(false)} theme={theme} cardClassName="p-8 transform transition-all">
         <div className="flex justify-between items-center mb-6">
           <h3 className={"text-2xl font-bold " + textHighlight}>Activité personnalisée</h3>
           <button onClick={() => setIsCustomActivityModalOpen(false)} className={`p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors ${ICON_BUTTON_ROUNDING} hover:bg-surface-hover`}><X size={20}/></button>
@@ -78,7 +78,6 @@ export default function CustomActivityModal({ theme, userStats, checkTrophies })
           <button onClick={() => setIsCustomActivityModalOpen(false)} className={`px-6 py-3 font-medium hover:text-main ${textMuted}`}>Annuler</button>
           <button onClick={confirm} className={"px-6 py-3 text-white font-bold rounded-xl shadow-md " + bgAccentClass}>Valider</button>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
