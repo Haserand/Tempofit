@@ -1,7 +1,7 @@
-import { X, Target, Search, RefreshCw, Loader2, ChevronDown, Play, Pause, Edit3, Check, Plus } from 'lucide-react';
-import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
+import { Target, Search, RefreshCw, Loader2, ChevronDown, Play, Pause, Edit3, Check, Plus } from 'lucide-react';
 import { genreDisplayLabel, getGenresForDisplay } from '../../musicCatalog';
 import ModalShell from '../shared/ModalShell';
+import ModalCloseButton from '../shared/ModalCloseButton';
 
 /**
  * SearchModal — recherche manuelle d'un titre (par nom/artiste, ou par BPM
@@ -154,7 +154,7 @@ export default function SearchModal({
             {isBpmSearchMode ? <Target className={textColorClass}/> : <Search className={textColorClass}/>}
             <span>{isBpmSearchMode ? "Titres à ce BPM" : "Rechercher un titre"}</span>
           </h3>
-          <button onClick={closeSearchModal} className={`p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors ${ICON_BUTTON_ROUNDING} hover:bg-surface-hover`}><X size={20}/></button>
+          <ModalCloseButton onClick={closeSearchModal} />
         </div>
         {/* Disclaimer honnête : l'utilisateur n'a pas besoin de savoir qu'on passe par
             une API, mais mérite de savoir que les résultats viennent d'un service tiers
