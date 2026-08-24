@@ -676,6 +676,32 @@ clonée réinitialise `cloneCount` quelle que soit la valeur du parent ;
 un `cloneCount` déjà `undefined` sur le parent reste `undefined` sur la
 copie (cas déjà couvert, comportement inchangé).
 
+## Bandeau "Génération en cours" — points de suspension trompeurs retirés (22/08)
+
+Retour direct : "les 3 petits points à la fin laisse idée que le message
+est coupé, qu'on voit pas tout et que via une infobulle on peut tout
+lire non ?" — vérifié dans `GenerationProgressBanner.jsx` : les "..." de
+tous les messages de ce bandeau (ex. "Génération en cours — environ 30
+titres réunis...") n'indiquaient PAS une troncature réelle (pas de
+`truncate`/`line-clamp` sur le `<span>` qui les affiche, pas de `title=`
+non plus — le message entier était déjà toujours visible en totalité),
+seulement une convention d'écriture pour suggérer "en cours". Ambigu à
+l'œil : rien ne distingue ce "..." purement décoratif d'un vrai signe de
+troncature.
+
+**Retiré plutôt qu'ajouter une infobulle** — une infobulle aurait juste
+répété le même texte déjà entièrement visible, sans rien apporter. Le
+spinner animé (`Loader2`) et le chronomètre affichés juste à côté du
+message suffisent déjà à signaler "en cours" sans ambiguïté. Les 8
+messages de `getGenerationBannerMessage` perdent tous leur "..." final,
+pour rester cohérents entre eux (un seul message sur les 8, "Toujours en
+cours — certains genres...", n'en avait déjà pas — la preuve que
+l'absence de "..." ne posait aucun problème de lisibilité).
+
+Test ajusté (`GenerationProgressBanner.test.jsx`) : les 8 assertions sur
+le texte exact des messages mises à jour en conséquence — logique des 3
+paliers de temps entièrement inchangée, seul le texte final change.
+
 ## Autres fichiers de référence à ce niveau
 
 - `CLAUDE-SANDBOX-VERIFICATION.md` — outils de vérification de code pour une session Claude sans accès réseau.
