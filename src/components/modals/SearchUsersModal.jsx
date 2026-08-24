@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import { X, Search, Loader2, UserX } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../supabaseClient';
+import ModalShell from '../shared/ModalShell';
 
 /**
  * SearchUsersModal — recherche d'un profil TempoFit par pseudo (Feature
@@ -34,7 +35,7 @@ import { supabase, isSupabaseConfigured } from '../../supabaseClient';
  * lettre tapée.
  */
 export default function SearchUsersModal({ theme, isOpen, onClose, user, onViewProfile }) {
-  const { cardBg, cardBorder, textHighlight, textMuted, inputBg, inputBorder } = theme;
+  const { textHighlight, textMuted, inputBg, inputBorder } = theme;
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -72,8 +73,7 @@ export default function SearchUsersModal({ theme, isOpen, onClose, user, onViewP
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" onClick={onClose}>
-      <div className={"p-6 rounded-3xl w-full max-w-md shadow-2xl border flex flex-col max-h-[70vh] " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
+    <ModalShell onClose={onClose} theme={theme} cardClassName="p-6 flex flex-col max-h-[70vh]">
         <div className="flex justify-between items-center mb-4">
           <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
             <Search size={20}/> <span>Trouver un profil</span>
@@ -126,7 +126,6 @@ export default function SearchUsersModal({ theme, isOpen, onClose, user, onViewP
             </div>
           </>
         )}
-      </div>
-    </div>
+    </ModalShell>
   );
 }
