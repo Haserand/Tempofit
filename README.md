@@ -1489,6 +1489,53 @@ Petite incohérence préexistante corrigée au passage dans le docstring de
 GuestModeBar alors que sa vraie valeur est 72px depuis le 29/07 — jamais
 mise à jour à l'époque, corrigée en passant par ce même fichier.
 
+## StatsView — bouton "Partager mon bilan" déplacé de l'en-tête vers la carte "Compare tes séances au réel" (22/08)
+
+Retour direct, capture d'écran annotée : "le bilan de partage des
+statistiques semble flotter seul dans son espace" — le bouton "Partager
+mon bilan" vivait nu dans l'en-tête (`ViewHeader`, prop `right=`), sans
+aucun conteneur visuel autour de lui, contrairement au reste de la page
+entièrement composée de cartes.
+
+**Mélange sémantique signalé avant d'agir, confirmé malgré tout** :
+"Partager mon bilan" partage les 4 statistiques GLOBALES (séances/écoute
+estimée/BPM moyen/styles), une fonction sans rapport avec "Compare tes
+séances au réel" (import CSV Garmin/Strava pour comparer une playlist
+précise au réel). Le déplacement demandé mélange donc 2 fonctions
+distinctes dans la même carte — accepté explicitement par l'utilisateur,
+priorité donnée à la cohésion visuelle plutôt qu'à la pureté du
+regroupement fonctionnel.
+
+Déplacé dans la carte "Compare tes séances au réel", à droite du
+contenu existant (`justify-between` sur le conteneur), dans SES 2 états
+(dupliqué à l'identique dans les deux, la disponibilité du bilan global
+n'ayant aucun rapport avec l'état d'import CSV) :
+- **État "pas encore de données réelles"** (celui de la capture) :
+  bouton positionné dans l'espace vide à droite du bloc icône+texte,
+  exactement là où l'utilisateur pointait.
+- **État "données déjà importées"** : bouton à droite du titre "Données
+  réelles importées", même ligne.
+
+Comportement du bouton lui-même INCHANGÉ (`exportGlobalStatsImage`,
+`totalSessions > 0`, disabled pendant l'export) — seul son EMPLACEMENT
+change. `right={null}` explicite sur `ViewHeader` (au lieu de retirer la
+prop silencieusement) : un commentaire y documente le déplacement, pour
+qu'une prochaine lecture ne se demande pas si c'est un oubli.
+
+⚠️ Risque non vérifié, signalé dans un commentaire du code : le
+paragraphe d'accroche de la carte vide ("Depuis une séance terminée,
+importe un CSV...") avait été calé sur 1 ligne par une mesure Playwright
+réelle le 05/08 — la colonne de texte disponible est maintenant plus
+étroite (le bouton partage l'espace horizontal). Repassage à la ligne
+possible sur certaines largeurs d'écran, pas vérifiable cette session
+(Playwright bloqué, voir CLAUDE-SANDBOX-VERIFICATION.md §5quinquies) — à
+confirmer visuellement.
+
+4 tests ajoutés (`StatsView.test.jsx`) : bouton présent dans chacun des 2
+états de la carte (et absent de l'autre), absent si `totalSessions === 0`
+(comportement hérité inchangé), le clic déclenche bien
+`shareImageFile`.
+
 ## Autres fichiers de référence à ce niveau
 
 - `CLAUDE-SANDBOX-VERIFICATION.md` — outils de vérification de code pour une session Claude sans accès réseau.
