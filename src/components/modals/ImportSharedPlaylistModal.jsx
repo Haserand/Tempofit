@@ -1,6 +1,7 @@
 import { X, Music2, Clock, Activity, Download } from 'lucide-react';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import { formatDuration } from '../../utils/format';
+import ModalShell from '../shared/ModalShell';
 
 /**
  * ImportSharedPlaylistModal — s'ouvre automatiquement quand l'app détecte un
@@ -14,7 +15,7 @@ import { formatDuration } from '../../utils/format';
  * transformer en playlist complète et de l'ajouter à "Mes Playlists".
  */
 export default function ImportSharedPlaylistModal({ theme, isOpen, onClose, preview, onImport }) {
-  const { cardBg, cardBorder, textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
+  const { textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
 
   if (!isOpen || !preview) return null;
 
@@ -23,8 +24,7 @@ export default function ImportSharedPlaylistModal({ theme, isOpen, onClose, prev
   const avgBpm = bpmValues.length > 0 ? Math.round(bpmValues.reduce((s, b) => s + b, 0) / bpmValues.length) : null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" onClick={onClose}>
-      <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
+    <ModalShell onClose={onClose} theme={theme}>
         <div className="flex justify-between items-center mb-2">
           <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
             <Download className={textColorClass}/>
@@ -58,7 +58,6 @@ export default function ImportSharedPlaylistModal({ theme, isOpen, onClose, prev
         <button onClick={onClose} className={`w-full py-3 mt-2 rounded-xl text-sm font-bold ${textMuted} hover:text-main transition-colors`}>
           Ignorer
         </button>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
