@@ -67,7 +67,28 @@ export function usePlaylistLibrary(
     // `undefined` (Supabase pas configuré, ou avant le 1er chargement du
     // profil) doit se comporter comme `false`, jamais planter ce
     // spread.
-    const saved = { ...currentPlaylist, status: 'pending', isPublic: !!defaultPlaylistPublic };
+    // ⚠️ `cloneCount` RÉINITIALISÉ (22/08, retour direct SUIVANT le
+    // correctif équivalent sur `handleClonePlaylist` plus bas — capture
+    // d'écran à l'appui : "normalement avec ton correctif le compteur
+    // devrait être à 0, pk je suis à 1 ?") : le correctif précédent avait
+    // supposé, À TORT, que `cloneCount` n'était "quasiment jamais
+    // réellement défini" sur CE chemin (template ouvert directement
+    // depuis Découvrir, `isReadOnly` absent, bouton "Ajouter") — vérifié
+    // insuffisamment. En réalité, `TemplateCard.jsx` transmet bien le vrai
+    // compteur du template (`onPlayTemplate(template, { cloneCount })`,
+    // sourcé depuis `realCloneCounts`/`template_clone_counts`,
+    // DiscoverView.jsx) à `currentPlaylist.cloneCount` dès l'ouverture —
+    // le même bug que celui déjà corrigé sur `handleClonePlaylist`
+    // (compteur du PARENT propagé tel quel sur une copie qui n'a, par
+    // définition, encore jamais été clonée elle-même) existait donc aussi
+    // ici, juste manqué la 1re fois. Le compteur RÉEL du template
+    // lui-même reste correctement suivi ailleurs, à part
+    // (`template_clone_counts`, incrémenté juste plus bas par ce même
+    // appel — sans rapport avec ce `cloneCount` local) — rien n'est perdu
+    // en le réinitialisant ici, seule cette copie personnelle cesse
+    // d'afficher à tort le total du template comme si c'était déjà le
+    // sien.
+    const saved = { ...currentPlaylist, status: 'pending', isPublic: !!defaultPlaylistPublic, cloneCount: undefined };
     setSavedPlaylists([saved, ...savedPlaylists]);
     // `currentPlaylist` et l'entrée poussée dans `savedPlaylists` étaient 2
     // objets distincts (même id, mais 2 références différentes) tant que
