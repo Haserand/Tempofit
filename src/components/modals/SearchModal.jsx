@@ -1,6 +1,7 @@
 import { X, Target, Search, RefreshCw, Loader2, ChevronDown, Play, Pause, Edit3, Check, Plus } from 'lucide-react';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import { genreDisplayLabel, getGenresForDisplay } from '../../musicCatalog';
+import ModalShell from '../shared/ModalShell';
 
 /**
  * SearchModal — recherche manuelle d'un titre (par nom/artiste, ou par BPM
@@ -147,8 +148,7 @@ export default function SearchModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" onClick={closeSearchModal}>
-      <div className={"p-6 md:p-8 rounded-3xl w-full max-w-lg shadow-2xl flex flex-col max-h-[80vh] border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
+    <ModalShell onClose={closeSearchModal} theme={theme} maxWidth="max-w-lg" cardClassName="p-6 md:p-8 flex flex-col max-h-[80vh]">
         <div className="flex justify-between items-center mb-1">
           <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
             {isBpmSearchMode ? <Target className={textColorClass}/> : <Search className={textColorClass}/>}
@@ -269,7 +269,6 @@ export default function SearchModal({
             )
           )}
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
