@@ -13,9 +13,22 @@ import { renderHook } from '@testing-library/react';
 import { usePlaylistLibrary } from '../../src/hooks/usePlaylistLibrary.js';
 
 const mockRpc = vi.fn();
+const mockFrom = vi.fn();
 vi.mock('../../src/supabaseClient.js', () => ({
-  supabase: { rpc: (...args) => mockRpc(...args) },
+  supabase: { rpc: (...args) => mockRpc(...args), from: (...args) => mockFrom(...args) },
 }));
+
+// Chaîne `.select().eq().maybeSingle()` — imite le vrai query builder
+// Supabase, même convention que StatsView.test.jsx/ProfileView.test.jsx
+// pour ce genre de mock (voir `makeQueryBuilder` dans ces fichiers).
+function makeSingleRowQueryBuilder(resolvedValue) {
+  const builder = {
+    select: vi.fn(() => builder),
+    eq: vi.fn(() => builder),
+    maybeSingle: vi.fn(() => Promise.resolve(resolvedValue)),
+  };
+  return builder;
+}
 
 vi.mock('../../src/contexts/ModalContext.jsx', () => ({
   useModalContext: () => ({ openModal: vi.fn() }),
@@ -454,17 +467,26 @@ describe('usePlaylistLibrary — handleSavePlaylist', () => {
 // (App.jsx/TemplateCard.jsx) — pas une couverture exhaustive de
 // removeSavedPlaylist par ailleurs (garde-fou historique/PENDING_UNSAVE déjà
 // couvert indirectement via requestRemoveSavedPlaylist ailleurs).
+//
+// ⚠️ RÉÉCRITS (22/08, retour direct SUIVANT le correctif de
+// handleSavePlaylist — captures à l'appui : "je supprime et reviens dans
+// Découvrir, je ne vois plus le compteur") : l'ancienne version de ces 2
+// tests vérifiait que `cloneCount` était reporté SYNCHRONE depuis
+// `currentPlaylist.cloneCount` — plus vrai depuis que `handleSavePlaylist`
+// pose explicitement `cloneCount: undefined` sur la copie sauvegardée (voir
+// sa docstring) : cette source n'existe plus, `removeSavedPlaylist` fait
+// désormais un VRAI fetch Supabase (`template_clone_counts`) après avoir
+// restauré le template. Voir usePlaylistLibrary.js pour le détail complet.
 describe('usePlaylistLibrary — removeSavedPlaylist (restauration du template pristine)', () => {
-  it('restaure le template avec isReadOnly/isPublic/cloneCount (régression 10/08 — badge de clonages disparaissait)', () => {
+  it('restaure IMMÉDIATEMENT le template avec isReadOnly/isPublic, cloneCount undefined en attendant le vrai fetch', () => {
     const openCuratedPlaylist = vi.fn();
+    mockFrom.mockImplementation(() => makeSingleRowQueryBuilder({ data: { clone_count: 7 }, error: null }));
     // Même template que les captures d'écran du retour direct ("Midnight
-    // Runner 160") — un VRAI id de data/curatedSessions.js, pas un fixture
-    // inventé, pour que `catalog.find(...)` matche réellement.
+    // Runner 160"), un VRAI id de data/curatedSessions.js.
     const savedCopy = {
       id: 'pl-curated-tpl-midnight-runner-160-1723200000000',
       sourceTemplateId: 'tpl-midnight-runner-160',
       name: 'Midnight Runner 160',
-      cloneCount: 7, // hérité de l'ouverture initiale depuis Découvrir
       isNaughty: false,
     };
     const result = renderLibrary(savedCopy, { savedPlaylists: [savedCopy], openCuratedPlaylist });
@@ -474,11 +496,82 @@ describe('usePlaylistLibrary — removeSavedPlaylist (restauration du template p
     expect(openCuratedPlaylist).toHaveBeenCalledTimes(1);
     const [calledTemplate, calledExtraFields] = openCuratedPlaylist.mock.calls[0];
     expect(calledTemplate.id).toBe('tpl-midnight-runner-160');
-    expect(calledExtraFields).toEqual({ isReadOnly: true, isPublic: true, cloneCount: 7 });
+    // Restauration IMMÉDIATE toujours undefined — la vraie valeur arrive
+    // après coup, de façon asynchrone (test suivant).
+    expect(calledExtraFields).toEqual({ isReadOnly: true, isPublic: true, cloneCount: undefined });
   });
 
-  it('cloneCount undefined sur la copie retirée (jamais posé) se propage tel quel — pas de faux 0 inventé', () => {
+  it('met à jour cloneCount de façon asynchrone une fois le vrai fetch résolu, en ciblant bien template_clone_counts', async () => {
+    const setCurrentPlaylist = vi.fn();
+    mockFrom.mockImplementation(() => makeSingleRowQueryBuilder({ data: { clone_count: 7 }, error: null }));
+    const savedCopy = {
+      id: 'pl-curated-tpl-midnight-runner-160-1723200000000',
+      sourceTemplateId: 'tpl-midnight-runner-160',
+      name: 'Midnight Runner 160',
+      isNaughty: false,
+    };
+    const result = renderLibrary(savedCopy, { savedPlaylists: [savedCopy], setCurrentPlaylist });
+
+    await result.current.removeSavedPlaylist(savedCopy.id);
+    // Laisse la micro-tâche de la promesse `.maybeSingle()` se résoudre.
+    await new Promise(r => setTimeout(r, 0));
+
+    expect(mockFrom).toHaveBeenCalledWith('template_clone_counts');
+    // 1er appel : setCurrentPlaylist(nouvelle preview) par openCuratedPlaylist
+    // lui-même (mocké ici, donc pas observé) — celui qu'on vérifie est
+    // l'appel FONCTIONNEL posé après coup par ce correctif.
+    const functionalCall = setCurrentPlaylist.mock.calls.find(([arg]) => typeof arg === 'function');
+    expect(functionalCall).toBeDefined();
+    const updated = functionalCall[0]({ sourceTemplateId: 'tpl-midnight-runner-160', cloneCount: undefined });
+    expect(updated.cloneCount).toBe(7);
+  });
+
+  it('protégé contre une navigation entre-temps : ne touche pas currentPlaylist si l\'utilisateur a changé de playlist pendant le fetch', async () => {
+    const setCurrentPlaylist = vi.fn();
+    mockFrom.mockImplementation(() => makeSingleRowQueryBuilder({ data: { clone_count: 7 }, error: null }));
+    const savedCopy = {
+      id: 'pl-curated-tpl-midnight-runner-160-1723200000000',
+      sourceTemplateId: 'tpl-midnight-runner-160',
+      name: 'Midnight Runner 160',
+      isNaughty: false,
+    };
+    const result = renderLibrary(savedCopy, { savedPlaylists: [savedCopy], setCurrentPlaylist });
+
+    await result.current.removeSavedPlaylist(savedCopy.id);
+    await new Promise(r => setTimeout(r, 0));
+
+    const functionalCall = setCurrentPlaylist.mock.calls.find(([arg]) => typeof arg === 'function');
+    // Une AUTRE playlist a été ouverte entre-temps (sourceTemplateId
+    // différent) — le fetch, résolu après coup, ne doit RIEN écraser.
+    const unrelatedPlaylist = { sourceTemplateId: 'tpl-autre-template', name: 'Autre playlist' };
+    const result2 = functionalCall[0](unrelatedPlaylist);
+    expect(result2).toBe(unrelatedPlaylist);
+  });
+
+  it('échec réseau du fetch : échec silencieux (journalisé), la restauration locale reste pleinement effective', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const openCuratedPlaylist = vi.fn();
+    const setCurrentPlaylist = vi.fn();
+    mockFrom.mockImplementation(() => makeSingleRowQueryBuilder({ data: null, error: { message: 'boom' } }));
+    const savedCopy = {
+      id: 'pl-curated-tpl-midnight-runner-160-1723200000000',
+      sourceTemplateId: 'tpl-midnight-runner-160',
+      name: 'Midnight Runner 160',
+      isNaughty: false,
+    };
+    const result = renderLibrary(savedCopy, { savedPlaylists: [savedCopy], openCuratedPlaylist, setCurrentPlaylist });
+
+    expect(() => result.current.removeSavedPlaylist(savedCopy.id)).not.toThrow();
+    await new Promise(r => setTimeout(r, 0));
+
+    expect(openCuratedPlaylist).toHaveBeenCalledTimes(1); // la restauration locale a bien eu lieu, indépendamment du fetch
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it('cloneCount undefined sur la copie retirée (jamais posé) : comportement inchangé — toujours undefined à la restauration immédiate', () => {
+    const openCuratedPlaylist = vi.fn();
+    mockFrom.mockImplementation(() => makeSingleRowQueryBuilder({ data: { clone_count: 0 }, error: null }));
     const savedCopy = {
       id: 'pl-curated-tpl-midnight-runner-160-1723200000000',
       sourceTemplateId: 'tpl-midnight-runner-160',
@@ -487,6 +580,8 @@ describe('usePlaylistLibrary — removeSavedPlaylist (restauration du template p
       // Pas de cloneCount — cas d'une playlist sauvegardée AVANT ce
       // correctif (pas de migration rétroactive, voir CLAUDE-SANDBOX-
       // VERIFICATION.md, "tant qu'il n'y a pas d'utilisateurs réels").
+      // Sans incidence désormais : la restauration immédiate est TOUJOURS
+      // undefined, que la copie retirée en ait porté un ou non.
     };
     const result = renderLibrary(savedCopy, { savedPlaylists: [savedCopy], openCuratedPlaylist });
 
@@ -498,11 +593,12 @@ describe('usePlaylistLibrary — removeSavedPlaylist (restauration du template p
 
   it('playlist SANS sourceTemplateId (générée/importée) : pas de restauration de template, openCuratedPlaylist jamais appelée', () => {
     const openCuratedPlaylist = vi.fn();
-    const generatedPlaylist = { id: 'pl-generated-123', name: 'Ma séance générée' };
-    const result = renderLibrary(generatedPlaylist, { savedPlaylists: [generatedPlaylist], openCuratedPlaylist });
+    const freshGeneration = { id: 'pl-fresh-123', name: 'Ma séance générée' };
+    const result = renderLibrary(freshGeneration, { savedPlaylists: [freshGeneration], openCuratedPlaylist });
 
-    result.current.removeSavedPlaylist(generatedPlaylist.id);
+    result.current.removeSavedPlaylist(freshGeneration.id);
 
     expect(openCuratedPlaylist).not.toHaveBeenCalled();
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 });
