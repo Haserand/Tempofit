@@ -657,24 +657,40 @@ du 10/08 ne changeait donc rien d'observable sur le 1er chemin (déjà
 le compteur du parent sur une copie flambant neuve — jamais remarqué
 jusqu'à cette capture.
 
-**Corrigé** : `cloneCount: undefined` explicitement posé sur l'objet
-`cloned` dans `handleClonePlaylist` (`usePlaylistLibrary.js`) —
-`handleSavePlaylist` n'est pas concerné, pas retouché. `undefined`
-plutôt que `0` : cohérent avec le garde-fou déjà en place
-(`PlaylistHeaderBadges.jsx`, badge gaté sur `cloneCount !== undefined`)
-— aucun badge sur une copie jamais clonée, plutôt qu'un badge à 0 qui
-laisserait croire que le compteur a un sens avant la 1re vraie
-occurrence. `removeSavedPlaylist` (restauration de la prévisualisation
-du template original après retrait) vérifié à part et laissé inchangé —
-scénario différent (revenir à l'aperçu du template, pas créer une
-nouvelle copie), où afficher le vrai compteur du template reste
-légitime.
+**Corrigé (1re passe)** : `cloneCount: undefined` explicitement posé sur
+l'objet `cloned` dans `handleClonePlaylist` (`usePlaylistLibrary.js`).
+`removeSavedPlaylist` (restauration de la prévisualisation du template
+original après retrait) vérifié à part et laissé inchangé — scénario
+différent (revenir à l'aperçu du template, pas créer une nouvelle
+copie), où afficher le vrai compteur du template reste légitime.
 
 2 tests mis à jour dans `usePlaylistLibrary.test.js` (remplacent les 2
 tests du 10/08 qui vérifiaient le comportement inverse) : la copie
 clonée réinitialise `cloneCount` quelle que soit la valeur du parent ;
 un `cloneCount` déjà `undefined` sur le parent reste `undefined` sur la
 copie (cas déjà couvert, comportement inchangé).
+
+**⚠️ Suite, même jour — l'affirmation "`handleSavePlaylist` n'est pas
+concerné" ci-dessus était FAUSSE, pas assez vérifiée avant d'écrire
+cette section** : nouveau retour direct, capture à l'appui — même bug,
+sur le chemin "Ajouter" (template ouvert directement depuis Découvrir,
+`isReadOnly` absent) cette fois, pas "Sauvegarder". La supposition qui
+avait exempté ce chemin ("`cloneCount` n'est quasiment jamais réellement
+défini au départ ici") était erronée : `TemplateCard.jsx` transmet bien
+le vrai compteur du template à l'ouverture
+(`onPlayTemplate(template, { cloneCount })`, sourcé depuis
+`realCloneCounts`/`template_clone_counts`, `DiscoverView.jsx`) —
+`currentPlaylist.cloneCount` PEUT donc réellement porter une valeur
+non-`undefined` sur ce chemin aussi, et `handleSavePlaylist` la
+propageait telle quelle sur la copie personnelle sauvegardée, exactement
+le même bug que celui déjà corrigé sur `handleClonePlaylist`. Corrigé de
+la même façon (`cloneCount: undefined` posé sur l'objet `saved`) — le
+compteur RÉEL du template lui-même reste correctement suivi à part
+(`template_clone_counts`, incrémenté par ce même appel, sans rapport
+avec ce champ local), rien n'est perdu en le réinitialisant ici. 1 test
+ajouté (`usePlaylistLibrary.test.js`) : un template Découvrir avec un
+vrai `cloneCount` transmis voit ce champ réinitialisé sur la copie
+sauvegardée.
 
 ## Bandeau "Génération en cours" — points de suspension trompeurs retirés (22/08)
 
