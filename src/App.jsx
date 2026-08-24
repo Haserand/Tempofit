@@ -2062,18 +2062,29 @@ function AppContent({
                 spacer ne compensait pas — exactement le "scroll résiduel"/
                 bouton coupé documenté (sans jamais avoir été relié à cette
                 cause précise) dans GeneratorWizard.jsx. `h-[72px]` (valeur
-                littérale, PAS interpolée depuis GUEST_MODE_BAR_HEIGHT_PX —
-                contrainte Tailwind JIT documentée dans bottomBarLayout.js)
-                remplace `h-10` pour matcher exactement la vraie hauteur de
-                GuestModeBar.jsx, sans marge de sécurité superflue : cette
-                barre est un bloc `flex items-center` à hauteur fixe et
-                connue, pas un contenu de hauteur imprévisible (contrairement
-                au mini-lecteur juste au-dessus, qui garde volontairement une
-                marge). Les deux spacers s'additionnent naturellement dans le
-                flux normal du document quand les deux barres sont visibles
-                en même temps — pas besoin d'une condition combinée qui
-                recalcule une hauteur totale à la main. */}
-            {isGuestBarVisible && <div className="h-[72px] shrink-0 w-full"></div>}
+                littérale, PAS interpolée — contrainte Tailwind JIT
+                documentée dans bottomBarLayout.js) remplace `h-10` pour
+                matcher exactement la vraie hauteur de GuestModeBar.jsx, sans
+                marge de sécurité superflue : cette barre est un bloc `flex
+                items-center` à hauteur fixe et connue, pas un contenu de
+                hauteur imprévisible (contrairement au mini-lecteur juste
+                au-dessus, qui garde volontairement une marge). Les deux
+                spacers s'additionnent naturellement dans le flux normal du
+                document quand les deux barres sont visibles en même temps —
+                pas besoin d'une condition combinée qui recalcule une hauteur
+                totale à la main.
+                ⚠️ RÉGRESSION TROUVÉE ET CORRIGÉE (22/08, MÊME JOUR, en
+                extrayant BottomBarShell.jsx) — `h-[72px]` ci-dessous n'avait
+                JAMAIS été mis à jour quand GuestModeBar.jsx est passée de
+                72 à 70px plus tôt cette même session (retour direct "je te
+                demandais de réduire la barre du bas initialement", voir
+                GuestModeBar.jsx) : cet espaceur restait 2px trop haut,
+                laissant un espace vide inutile en bas du flux scrollable
+                (mineur, mais un vrai oubli). `BOTTOM_BAR_HEIGHT_PX`
+                (bottomBarLayout.js) remplace `GUEST_MODE_BAR_HEIGHT_PX`,
+                constante retirée le même jour — les 2 barres partagent
+                maintenant une seule hauteur, une seule constante. */}
+            {isGuestBarVisible && <div className="h-[70px] shrink-0 w-full"></div>}
           </main>
         </div>
 
