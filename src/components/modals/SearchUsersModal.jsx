@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
-import { X, Search, Loader2, UserX } from 'lucide-react';
+import { Search, Loader2, UserX } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../supabaseClient';
 import ModalShell from '../shared/ModalShell';
+import ModalCloseButton from '../shared/ModalCloseButton';
 
 /**
  * SearchUsersModal — recherche d'un profil TempoFit par pseudo (Feature
@@ -78,7 +78,7 @@ export default function SearchUsersModal({ theme, isOpen, onClose, user, onViewP
           <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
             <Search size={20}/> <span>Trouver un profil</span>
           </h3>
-          <button onClick={onClose} className={`p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors ${ICON_BUTTON_ROUNDING} hover:bg-surface-hover`}><X size={20}/></button>
+          <ModalCloseButton onClick={onClose} />
         </div>
 
         {!user ? (
