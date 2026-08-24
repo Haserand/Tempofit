@@ -330,6 +330,25 @@ describe('usePlaylistLibrary — handleSavePlaylist', () => {
     expect(setSavedPlaylists.mock.calls[0][0][0]).toMatchObject({ id: 'pl-fresh-123', status: 'pending' });
   });
 
+  // ⚠️ NOUVEAU (22/08, retour direct SUIVANT le correctif équivalent sur
+  // handleClonePlaylist — capture d'écran : "normalement avec ton
+  // correctif le compteur devrait être à 0, pk je suis à 1 ?") : un
+  // template ouvert depuis Découvrir transmet bien un `cloneCount` RÉEL
+  // (`TemplateCard.jsx` → `onPlayTemplate(template, { cloneCount })`) —
+  // l'hypothèse du 1er correctif ("quasiment jamais réellement défini sur
+  // ce chemin") était fausse, ce cas avait été manqué. Voir
+  // usePlaylistLibrary.js pour le détail complet.
+  it('template Découvrir avec un vrai cloneCount transmis : réinitialisé sur la copie sauvegardée', () => {
+    const setSavedPlaylists = vi.fn();
+    const templateWithRealCount = { id: 'pl-curated-tpl-cardio-333', sourceTemplateId: 'tpl-cardio', name: 'Cardio Express', cloneCount: 1 };
+    const result = renderLibrary(templateWithRealCount, { setSavedPlaylists });
+
+    result.current.handleSavePlaylist();
+
+    const saved = setSavedPlaylists.mock.calls[0][0][0];
+    expect(saved.cloneCount).toBeUndefined();
+  });
+
   // NOUVEAU (05/08, retour direct — voir sa docstring dans
   // usePlaylistLibrary.js pour le raisonnement complet) : un template
   // ouvert DIRECTEMENT depuis Découvrir obtient un id FRAIS
