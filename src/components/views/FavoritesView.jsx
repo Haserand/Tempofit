@@ -4,6 +4,7 @@ import { useModalContext } from '../../contexts/ModalContext';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 import { INLINE_NAV_LINK_CLASS } from '../../layout/inlineLinkLayout';
+import SelectablePill from '../shared/SelectablePill';
 
 /**
  * FavoritesView — vue "Mes Favoris" (titres/artistes favoris + exploration BPM/genre).
@@ -42,7 +43,7 @@ export default function FavoritesView({
   const { openModal } = useModalContext();
   const {
     cardBg, cardBorder, textHighlight, textMuted, textColorClass,
-    bgAccentClass, borderAccentClass, inputBg, inputBorder,
+    bgAccentClass, inputBg, inputBorder,
   } = theme;
 
   // Comparaison par `trackId` (pas par référence d'objet) pour retrouver ce
@@ -207,12 +208,12 @@ export default function FavoritesView({
                   const isSelected = favSelectedGenres.includes(genre);
                   const warning = getGenreLocalDepthWarning(genre);
                   return (
-                    <button key={genre} onClick={() => {
+                    <SelectablePill key={genre} selected={isSelected} theme={theme} title={warning || undefined} onClick={() => {
                       if (isSelected) setFavSelectedGenres(favSelectedGenres.filter(g => g !== genre));
                       else setFavSelectedGenres([...favSelectedGenres, genre]);
-                    }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}>
+                    }}>
                       {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
-                    </button>
+                    </SelectablePill>
                   );
                 })}
                 {!isNaughtyMode && (
@@ -231,12 +232,12 @@ export default function FavoritesView({
                     const isSelected = favSelectedGenres.includes(genre);
                     const warning = getGenreLocalDepthWarning(genre);
                     return (
-                      <button key={genre} onClick={() => {
+                      <SelectablePill key={genre} selected={isSelected} theme={theme} title={warning || undefined} onClick={() => {
                         if (isSelected) setFavSelectedGenres(favSelectedGenres.filter(g => g !== genre));
                         else setFavSelectedGenres([...favSelectedGenres, genre]);
-                      }} title={warning || undefined} className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ? `${bgAccentClass} ${borderAccentClass} text-white` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}>
+                      }}>
                         {genreDisplayLabel(genre)}{warning && <span className="ml-1">⚠️</span>}
-                      </button>
+                      </SelectablePill>
                     );
                   })}
                 </div>
