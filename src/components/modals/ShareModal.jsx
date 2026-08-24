@@ -2,6 +2,7 @@ import { X, Share2, MessageCircle, ExternalLink, Copy, Loader2, Download } from 
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import { useShareImage } from '../../contexts/ShareImageContext';
 import ModalShell from '../shared/ModalShell';
+import ModalCloseButton from '../shared/ModalCloseButton';
 
 /**
  * ShareModal — partage d'une playlist/routine (lien copié, réseaux sociaux,
@@ -77,7 +78,7 @@ export default function ShareModal({
             <Share2 className={textColorClass}/>
             <span>Partager</span>
           </h3>
-          <button onClick={() => onClose()} className={`p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors ${ICON_BUTTON_ROUNDING} hover:bg-surface-hover`}><X size={20}/></button>
+          <ModalCloseButton onClick={() => onClose()} />
         </div>
         <div className={`p-4 rounded-xl mb-4 text-sm ${inputBg} border ${inputBorder} ${textHighlight}`}>
           {shareData.text}
