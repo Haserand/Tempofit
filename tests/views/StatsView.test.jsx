@@ -119,6 +119,48 @@ function makeQueryBuilder(resolvedValue) {
   return builder;
 }
 
+// ⚠️ NOUVEAU (22/08, retour direct, capture d'écran — "le bilan de
+// partage des statistiques semble flotter seul dans son espace") : bouton
+// "Partager mon bilan" déplacé de l'en-tête (ViewHeader, `right=`) vers la
+// carte "Compare tes séances au réel"/"Données réelles importées" — voir
+// StatsView.jsx pour le détail complet du raisonnement (mélange
+// sémantique assumé, priorité à la cohésion visuelle demandée).
+describe('StatsView — "Partager mon bilan" (déplacé le 22/08 dans la carte "Compare tes séances au réel")', () => {
+  it('totalSessions > 0, aucune donnée réelle importée : bouton présent dans la carte "Compare tes séances au réel"', () => {
+    mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
+    render(<StatsView {...baseProps()} />);
+    expect(screen.getByTitle('Générer une image de ton bilan global à partager')).toBeInTheDocument();
+    expect(screen.getByText('Compare tes séances au réel')).toBeInTheDocument();
+  });
+
+  it('totalSessions > 0, données réelles déjà importées : bouton présent dans la carte "Données réelles importées"', () => {
+    mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
+    const playlistsWithData = [
+      { ...baseSavedPlaylists[0], actualDataByDate: { '2026-01-01': [{ cadenceReelle: 170 }] } },
+    ];
+    render(<StatsView {...baseProps({ savedPlaylists: playlistsWithData })} />);
+    expect(screen.getByTitle('Générer une image de ton bilan global à partager')).toBeInTheDocument();
+    expect(screen.getByText('Données réelles importées')).toBeInTheDocument();
+    expect(screen.queryByText('Compare tes séances au réel')).not.toBeInTheDocument();
+  });
+
+  it('totalSessions === 0 (aucune playlist) : bouton absent (comportement hérité, inchangé)', () => {
+    mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
+    render(<StatsView {...baseProps({ savedPlaylists: [] })} />);
+    expect(screen.queryByTitle('Générer une image de ton bilan global à partager')).not.toBeInTheDocument();
+  });
+
+  it('le clic appelle bien exportGlobalStatsImage (via shareImageFile, prop transmise)', async () => {
+    mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
+    const shareImageFile = vi.fn().mockResolvedValue('shared');
+    render(<StatsView {...baseProps({ shareImageFile })} />);
+
+    fireEvent.click(screen.getByTitle('Générer une image de ton bilan global à partager'));
+
+    await waitFor(() => expect(shareImageFile).toHaveBeenCalled());
+  });
+});
+
 describe('StatsView — clonages reçus', () => {
   it('interroge playlists ET routines avec user_id/is_public/is_intimate corrects (mode Sport)', async () => {
     mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
