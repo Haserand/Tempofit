@@ -1,6 +1,7 @@
 import { X, Share2, MessageCircle, ExternalLink, Copy, Loader2, Download } from 'lucide-react';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import { useShareImage } from '../../contexts/ShareImageContext';
+import ModalShell from '../shared/ModalShell';
 
 /**
  * ShareModal — partage d'une playlist/routine (lien copié, réseaux sociaux,
@@ -70,8 +71,7 @@ export default function ShareModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" onClick={() => onClose()}>
-      <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
+    <ModalShell onClose={() => onClose()} theme={theme}>
         <div className="flex justify-between items-center mb-6">
           <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
             <Share2 className={textColorClass}/>
@@ -160,7 +160,6 @@ export default function ShareModal({
         <button onClick={shareViaEmail} className={`w-full py-3 mt-2 rounded-xl text-sm font-bold ${textMuted} hover:text-main transition-colors flex items-center justify-center gap-2`}>
           <MessageCircle size={16}/> Envoyer par e-mail
         </button>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
