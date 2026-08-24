@@ -6,6 +6,11 @@
 // README) — c'est donc la toute première fois que la logique des 3 paliers
 // de temps du message (14/08) est vérifiée par un test, pas une régression
 // de couverture au passage.
+//
+// ⚠️ Points de suspension retirés de TOUS les messages testés ci-dessous
+// (22/08, retour direct — "les 3 petits points à la fin laisse idée que le
+// message est coupé" — voir GenerationProgressBanner.jsx pour le détail).
+// Comportement/logique des paliers inchangés, seul le texte final change.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
@@ -46,42 +51,42 @@ describe('GenerationProgressBanner', () => {
 
   it('message par défaut (palier 0, ni genre lent ni séance longue)', () => {
     render(<GenerationProgressBanner {...baseProps()} />);
-    expect(screen.getByText('Génération en cours...')).toBeInTheDocument();
+    expect(screen.getByText('Génération en cours')).toBeInTheDocument();
   });
 
   it('signale un genre plus long à cibler (palier 0)', () => {
     render(<GenerationProgressBanner {...baseProps({ isGeneratingSlowGenre: true })} />);
-    expect(screen.getByText('Génération en cours (genre plus long à cibler)...')).toBeInTheDocument();
+    expect(screen.getByText('Génération en cours (genre plus long à cibler)')).toBeInTheDocument();
   });
 
   it('signale une séance longue (palier 0)', () => {
     render(<GenerationProgressBanner {...baseProps({ isGeneratingLongPlaylist: true })} />);
-    expect(screen.getByText('Génération en cours (séance longue, plusieurs titres à trouver)...')).toBeInTheDocument();
+    expect(screen.getByText('Génération en cours (séance longue, plusieurs titres à trouver)')).toBeInTheDocument();
   });
 
   it('signale les deux à la fois (palier 0)', () => {
     render(<GenerationProgressBanner {...baseProps({ isGeneratingSlowGenre: true, isGeneratingLongPlaylist: true })} />);
-    expect(screen.getByText('Génération en cours (séance longue + genre plus long à cibler)...')).toBeInTheDocument();
+    expect(screen.getByText('Génération en cours (séance longue + genre plus long à cibler)')).toBeInTheDocument();
   });
 
   it('generatingTotal > 1 prime sur tout le reste, quel que soit le palier de temps', () => {
     render(<GenerationProgressBanner {...baseProps({ generatingTotal: 3, generatingDone: 1, elapsedSeconds: 50, isGeneratingSlowGenre: true })} />);
-    expect(screen.getByText('Génération 1/3...')).toBeInTheDocument();
+    expect(screen.getByText('Génération 1/3')).toBeInTheDocument();
   });
 
   it('palier 1 (15-45s), aucun titre réuni : message de réassurance générique', () => {
     render(<GenerationProgressBanner {...baseProps({ elapsedSeconds: 20 })} />);
-    expect(screen.getByText("Ça prend un peu plus de temps que d'habitude...")).toBeInTheDocument();
+    expect(screen.getByText("Ça prend un peu plus de temps que d'habitude")).toBeInTheDocument();
   });
 
   it('palier 1, avec des titres déjà réunis : privilégie le compte (singulier)', () => {
     render(<GenerationProgressBanner {...baseProps({ elapsedSeconds: 20, generatingEstimatedTracksFound: 1 })} />);
-    expect(screen.getByText('Génération en cours — environ 1 titre réuni...')).toBeInTheDocument();
+    expect(screen.getByText('Génération en cours — environ 1 titre réuni')).toBeInTheDocument();
   });
 
   it('palier 1, plusieurs titres réunis : accord au pluriel', () => {
     render(<GenerationProgressBanner {...baseProps({ elapsedSeconds: 20, generatingEstimatedTracksFound: 5 })} />);
-    expect(screen.getByText('Génération en cours — environ 5 titres réunis...')).toBeInTheDocument();
+    expect(screen.getByText('Génération en cours — environ 5 titres réunis')).toBeInTheDocument();
   });
 
   it('palier 2 (45s+), aucun titre réuni : message renforcé', () => {
