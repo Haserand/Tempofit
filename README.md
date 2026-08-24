@@ -995,6 +995,49 @@ le DOM produit reste strictement identique, seule sa provenance
 NON-fermeture au clic intérieur (`stopPropagation`), thème, les 2 props
 de personnalisation avec leurs valeurs par défaut, `children`.
 
+## Refactor — `ModalCloseButton.jsx`, la croix de fermeture partagée par 10 des 12 modales (22/08)
+
+Suite directe des refactors `BottomBarShell.jsx`/`ModalShell.jsx` (voir
+sections dédiées plus haut) — même question, une 3e fois : "tu vois
+encore des composants à extraire ?".
+
+**Constat** : lors de l'extraction de `ModalShell.jsx`, l'en-tête
+(icône+titre+croix) avait été délibérément laissé HORS du périmètre —
+trop de variance entre modales pour être une vraie "recette" unique
+(2 modales sur 12 n'ont pas de croix du tout dans leur en-tête). Mais en
+cherchant plus précisément, LE BOUTON CROIX LUI-MÊME (pas tout
+l'en-tête) s'est révélé être un littéral STRICTEMENT identique dans 10
+des 12 fichiers — `p-2 -mr-2 text-gray-400 hover:text-red-500
+transition-colors ${ICON_BUTTON_ROUNDING} hover:bg-surface-hover` avec
+`<X size={20}/>`, char pour char.
+
+**Fait** : `ModalCloseButton.jsx` (nouveau) — un seul prop (`onClick`),
+tout le reste (icône, taille, couleurs, arrondi) imposé. Migré dans les
+10 fichiers concernés (`AuthModal.jsx`, `CustomActivityModal.jsx`,
+`EditPlaylistModal.jsx`, `EditRoutineModal.jsx`,
+`ImportSharedPlaylistModal.jsx`, `PublicRoutinePreviewModal.jsx`,
+`SavingRoutineModal.jsx`, `SearchModal.jsx`, `SearchUsersModal.jsx`,
+`ShareModal.jsx`) — `PendingNavigationModal.jsx`/`PendingUnsaveModal.jsx`
+non concernés, cohérent avec le choix déjà fait pour `ModalShell.jsx`
+(en-tête alerte différent, pas de croix).
+
+Imports `X`/`ICON_BUTTON_ROUNDING` retirés là où ils devenaient morts (9
+des 10 fichiers) — restent dans `ShareModal.jsx`, seul cas où ces 2
+imports sont encore réellement utilisés ailleurs dans le même fichier
+(icônes de réseaux sociaux, autres boutons arrondis).
+
+**Encore une fois, aucun test existant retouché** : les 162 tests des 12
+fichiers de modales passent tous sans modification. 3 nouveaux tests
+(`ModalCloseButton.test.jsx`) : rendu, clic → `onClick`, classes
+attendues.
+
+**Autres pistes cherchées puis écartées, pour référence future** (moins
+nettes que ce candidat, pas de vraie "recette" identique à extraire) :
+bouton "Annuler" (seulement 3 fichiers, pas strictement identiques),
+bouton de confirmation principal accent-coloré (variance de padding
+réelle selon les cas), blocs d'état vide (structure trop variable d'un
+contexte à l'autre pour être une seule recette).
+
 ## Autres fichiers de référence à ce niveau
 
 - `CLAUDE-SANDBOX-VERIFICATION.md` — outils de vérification de code pour une session Claude sans accès réseau.
