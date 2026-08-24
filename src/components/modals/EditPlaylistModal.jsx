@@ -1,8 +1,8 @@
-import { Edit3, X } from 'lucide-react';
-import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
+import { Edit3 } from 'lucide-react';
 import { MAX_DESCRIPTION_LENGTH } from '../../appConfig';
 import { usePlaylistEdit } from '../../contexts/PlaylistEditContext';
 import ModalShell from '../shared/ModalShell';
+import ModalCloseButton from '../shared/ModalCloseButton';
 
 /**
  * EditPlaylistModal — édition du titre + de la description d'une playlist,
@@ -69,7 +69,7 @@ export default function EditPlaylistModal({ theme }) {
             <Edit3 className={textColorClass}/>
             <span>Modifier la playlist</span>
           </h3>
-          <button onClick={closeEditPlaylistModal} className={`p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors ${ICON_BUTTON_ROUNDING} hover:bg-surface-hover`}><X size={20}/></button>
+          <ModalCloseButton onClick={closeEditPlaylistModal} />
         </div>
 
         <div className="space-y-5">
