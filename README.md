@@ -482,7 +482,49 @@ entre les deux, la fonction gagne — quitte à accepter un léger défaut
 visuel (ici, un désalignement de bordure) comme compromis assumé plutôt
 que corrigé.
 
+### Vérifier un alignement CSS par le raisonnement seul est risqué — mesurer dès que possible
 
+Actée le 22/08, après le chantier `MiniPlayerBar.jsx`/`GuestModeBar.jsx`
+(voir la section dédiée plus bas pour le détail complet) : un
+raisonnement THÉORIQUE sur une question de centrage flexbox s'est révélé
+FAUX deux fois de suite le même jour, avant qu'une vraie mesure (un
+navigateur réel piloté par Playwright, trouvé utilisable via un binaire
+déjà en cache dans le bac à sable malgré l'échec habituel du
+téléchargement — voir CLAUDE-SANDBOX-VERIFICATION.md §5quinquies) ne
+tranche pour de bon. Deux leçons distinctes retenues :
+1. **Ne pas re-raisonner une 3e fois dans le vide après 2 échecs** —
+   chercher activement un moyen de mesurer (ex. chercher un navigateur
+   déjà en cache avec `find` avant de conclure à l'impossibilité) plutôt
+   que de refaire le même calcul mental en espérant un résultat
+   différent.
+2. **Ne jamais reproduire un composant "à la main" pour le tester —
+   toujours importer le vrai fichier.** Une 1re mesure basée sur une
+   reproduction manuelle des 3 zones "principales" de `MiniPlayerBar.jsx`
+   donnait 0px d'écart, faussement rassurant : elle avait tout simplement
+   OMIS 2 éléments bien réels du fichier (bouton volume, bouton fermer)
+   en les recopiant de mémoire. Une 2e mesure avec le VRAI composant
+   importé directement a révélé l'écart réel (46px). Une reproduction
+   manuelle ne teste que ce dont on se souvient d'un fichier, jamais ce
+   qui y existe vraiment.
+
+### Une "recette" de mise en page recopiée dans plusieurs fichiers dérive — extraire un composant partagé dès le 2e cas
+
+Constat du 22/08 : `MiniPlayerBar.jsx` et `GuestModeBar.jsx` ont accumulé
+3 bugs de désalignement DISTINCTS la même session (hauteur forcée sur la
+Sidebar, centrage `GuestModeBar` vs `MiniPlayerBar`, centrage interne à
+`MiniPlayerBar` lui-même) — pas 3 problèmes indépendants avec 3 causes
+différentes, mais 3 symptômes de LA MÊME fragilité : les deux fichiers
+recopiaient indépendamment la même "recette" de conteneur
+(`h-[70px]` + `max-w-5xl mx-auto` + padding), avec de petites divergences
+de détail à chaque copie (`px-4` vs `px-6`, `justify-center` présent ou
+non sur le conteneur externe). Une convention maintenue par la mémoire
+humaine ("se souvenir de recopier le même motif partout") dérive
+inévitablement avec le temps, contrairement à une convention imposée par
+la STRUCTURE du code. Extrait en composant partagé
+(`BottomBarShell.jsx`, voir la section dédiée plus bas) dès ce 2e cas —
+pas besoin d'attendre un 3e ou 4e fichier pour que la duplication devienne
+un vrai risque : 2 fichiers qui doivent visuellement s'aligner et
+partagent déjà une recette identique suffisent.
 
 ## Décisions actées, pas encore implémentées — chantier Pulses/Leaderboard
 
@@ -840,6 +882,67 @@ scripts Playwright) créés pour cette vérification puis intégralement
 supprimés avant livraison — aucun ne fait partie du projet. Un export
 temporaire ajouté à `AudioPlayerContext.jsx` (nécessaire pour importer
 son Contexte depuis le harnais de test) reverté dans la foulée.
+
+## Refactor — `BottomBarShell.jsx`, conteneur partagé pour MiniPlayerBar/GuestModeBar (22/08)
+
+Question directe en fin de session : "as-tu des principes à généraliser
+concernant l'harmonisation du design ?" puis "enregistre les conventions
+et fais le refactor si tu penses ça utile" — voir la Convention UI plus
+haut ("Une recette de mise en page recopiée... dérive") pour le principe
+général. Ce refactor en est l'application concrète.
+
+**Constat** : `MiniPlayerBar.jsx` et `GuestModeBar.jsx` ont accumulé 3
+bugs de désalignement DISTINCTS la même session (hauteur forcée sur la
+Sidebar, centrage `GuestModeBar` vs `MiniPlayerBar`, centrage interne à
+`MiniPlayerBar` lui-même) — chacun causé par la MÊME fragilité sous-
+jacente : les deux fichiers recopiaient indépendamment la même "recette"
+de conteneur (`h-[70px]` + `max-w-5xl mx-auto` + padding), avec de
+petites divergences de détail à chaque copie.
+
+**Fait** : `BottomBarShell.jsx` (nouveau) — porte désormais l'UNIQUE
+classe `h-[70px]` et l'UNIQUE `max-w-5xl mx-auto` du projet pour ces 2
+barres. 3 points de personnalisation exposés (les seuls qui différaient
+réellement entre les 2 barres) : `shadow` (ombre portée, MiniPlayerBar
+seulement), `justify` (centrage du conteneur externe, GuestModeBar
+seulement — les 2 zones `flex-1` de MiniPlayerBar s'en chargent déjà
+sans lui), `innerClassName` (disposition interne : rangée pour
+MiniPlayerBar, colonne pour GuestModeBar). `MiniPlayerBar.jsx`/
+`GuestModeBar.jsx` migrés dessus — disposition VISUELLE strictement
+inchangée, seule la structure des conteneurs change. `cardBg`/
+`cardBorderStrong` retirés des déstructurations `theme` de ces 2
+fichiers là où ils devenaient morts (lus maintenant par
+`BottomBarShell.jsx` lui-même) — `cardBg` reste dans `MiniPlayerBar.jsx`,
+encore utilisé par le popup de volume.
+
+**`bottomBarLayout.js` simplifié** : 2 constantes
+(`MINI_PLAYER_BAR_HEIGHT_PX`/`GUEST_MODE_BAR_HEIGHT_PX`) → 1 seule
+(`BOTTOM_BAR_HEIGHT_PX`) — il n'y a plus 2 classes séparées à
+synchroniser manuellement, seulement une, dans `BottomBarShell.jsx`.
+
+**Une vraie régression trouvée EN FAISANT ce refactor, distincte des 3
+bugs déjà connus** : un espaceur dans `App.jsx` (`h-[72px]`, compense la
+hauteur de `GuestModeBar` pour éviter qu'elle ne recouvre du contenu
+scrollable) n'avait JAMAIS été mis à jour quand `GuestModeBar.jsx` est
+passée de 72 à 70px plus tôt cette même session — laissé 2px trop haut,
+un espace vide inutile en bas du flux (mineur, mais un vrai oubli que ce
+refactor a fait remonter en cherchant toutes les mentions de ces
+constantes dans le projet). Corrigé au passage.
+
+Commentaires obsolètes corrigés dans la foulée (références par nom aux 2
+anciennes constantes, devenues introuvables après le renommage) :
+`sidebarLayout.js` (2 endroits, dont un qui référençait aussi
+`creditRowHeight`, déjà retiré plus tôt cette session — doublement
+périmé).
+
+4 tests ajoutés (`BottomBarShell.test.jsx`, nouveau fichier) : hauteur/
+largeur max/thème/children/les 3 props de personnalisation. Tests
+existants (`MiniPlayerBar.test.jsx`/`GuestModeBar.test.jsx`) tous
+repassés sans modification — le DOM produit reste identique, seule sa
+provenance (composant partagé vs JSX inline) change.
+`bottomBarLayout.test.js` réécrit pour la constante unique, avec un
+nouveau test qui vérifie l'ABSENCE de classe `h-[...px]` indépendante
+dans les 2 fichiers consommateurs (aurait détecté la régression du 22/08
+si ce refactor avait existé avant elle).
 
 ## Autres fichiers de référence à ce niveau
 
