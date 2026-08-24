@@ -692,6 +692,49 @@ ajouté (`usePlaylistLibrary.test.js`) : un template Découvrir avec un
 vrai `cloneCount` transmis voit ce champ réinitialisé sur la copie
 sauvegardée.
 
+**⚠️ Suite, encore le même jour — le correctif de `handleSavePlaylist`
+ci-dessus casse à son tour `removeSavedPlaylist`, effet de bord non
+anticipé** : retour direct avec 3 captures montrant le cheminement
+complet (Découvrir → Ajouter, compteur à 0, correct → Supprimer de Mes
+Playlists → badge disparu complètement). Cause : `removeSavedPlaylist`
+(restauration de la prévisualisation du template après retrait)
+réutilisait `currentPlaylist.cloneCount` en le supposant fiable
+("aucune mutation de playlist dans ce projet ne supprime `cloneCount`
+du spread") — hypothèse cassée PAR le correctif juste au-dessus, qui
+pose désormais explicitement `cloneCount: undefined` à la sauvegarde.
+Une régression du même symptôme (badge absent), mais pour une cause
+différente de celle déjà corrigée le 10/08 — pas un retour en arrière.
+
+**Corrigé** : `removeSavedPlaylist` fait maintenant un vrai fetch
+Supabase (`template_clone_counts`, même table/requête que
+`DiscoverView.jsx`/`ProfileView.jsx`) pour récupérer la valeur RÉELLE
+plutôt que de compter sur une donnée locale qui n'existe plus. Template
+restauré IMMÉDIATEMENT sans `cloneCount` (badge absent un court
+instant, pas d'attente bloquante), complété dès que le fetch résout —
+protégé contre une navigation entre-temps (vérifie que
+`currentPlaylist.sourceTemplateId` correspond toujours au template
+restauré avant d'écraser quoi que ce soit). 4 tests réécrits/ajoutés
+(`usePlaylistLibrary.test.js`) : restauration immédiate toujours
+`undefined`, mise à jour asynchrone une fois le fetch résolu, protection
+contre la navigation concurrente, échec réseau du fetch géré
+silencieusement (même philosophie fire-and-forget que le reste du
+fichier).
+
+**Audit demandé explicitement après ce 2e raté** ("ça vaut pas le coup
+que tu audites en profondeur") — tous les fichiers touchant `cloneCount`/
+`clone_count` (8 fichiers) et toutes les fonctions de clonage/duplication
+du projet passés en revue un par un : `handleClonePublicRoutine`
+(l'équivalent routines, déjà sûr — construit depuis `{...row.content}`,
+qui ne contient jamais ce champ), `createPlaylistData` (moteur de
+génération, ne pose jamais ce champ), les composants d'affichage
+(`PlaylistCard.jsx`/`ProfileView.jsx`/`StatsView.jsx` — lisent la valeur
+stockée ou une donnée live sans rapport avec le bug). Aucun autre
+problème trouvé à ce moment-là — mais l'audit n'avait alors pas
+anticipé l'effet de bord sur `removeSavedPlaylist` documenté ci-dessus,
+trouvé seulement par un retour direct SUIVANT, pas par cet audit — les
+2 fonctions modifiées le même jour n'avaient pas été revérifiées
+l'une contre l'autre après coup.
+
 ## Bandeau "Génération en cours" — points de suspension trompeurs retirés (22/08)
 
 Retour direct : "les 3 petits points à la fin laisse idée que le message
