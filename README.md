@@ -1038,6 +1038,54 @@ bouton de confirmation principal accent-coloré (variance de padding
 réelle selon les cas), blocs d'état vide (structure trop variable d'un
 contexte à l'autre pour être une seule recette).
 
+## Refactor — `SelectablePill.jsx`, la pastille sélectionnable partagée par 3 fichiers (22/08)
+
+Suite directe des 3 refactors précédents — une 4e fois la même question,
+avec cette fois une clarification demandée avant d'agir ("je n'ai pas
+compris si tu pensais utile de le faire ou pas") : avis donné clairement
+(oui, utile, mais enjeu cosmétique plutôt que structurel — une dérive ici
+ne casserait rien de fonctionnel, contrairement aux 3 refactors
+précédents).
+
+**Constat, plus nuancé que les 3 précédents** : le style d'une "pastille"
+(`px-4 py-2 rounded-full text-sm font-bold border-2` + la logique de
+couleur sélectionné/non-sélectionné) est un littéral identique à 6
+endroits dans 3 fichiers — `EditRoutineModal.jsx` (pastilles de genre,
+×2 blocs), `FavoritesView.jsx` (pastilles de genre, ×2 blocs),
+`AthleticProfilePanel.jsx` (onglets d'activité, ×2 blocs). MAIS le
+COMPORTEMENT autour diffère réellement, déjà documenté avant ce
+refactor : `EditRoutineModal.jsx` empêche de désélectionner le dernier
+genre coché (garde-fou "au moins 1"), `FavoritesView.jsx` n'a
+délibérément PAS ce garde-fou (déjà expliqué dans un commentaire du
+code), `AthleticProfilePanel.jsx` fait de la sélection UNIQUE (onglets),
+pas du multi-sélection, avec en plus une coche "configuré" et un bouton
+de réinitialisation superposé.
+
+**Portée volontairement limitée au bouton visuel seul** — jamais à la
+logique de sélection/garde-fou autour, qui reste spécifique à chaque
+fichier et n'a PAS été touchée : `SelectablePill.jsx` (nouveau) reçoit
+`selected`/`onClick`/`title`/`theme`/`children`, plus
+`extraSelectedClassName` (point d'extension pour le `pr-7` conditionnel
+d'`AthleticProfilePanel.jsx`, sur l'onglet sélectionné ET configuré).
+Chaque fichier garde sa propre boucle `.map()`, son propre calcul
+`isSelected`, et surtout sa propre logique de bascule (avec ou sans
+garde-fou, single ou multi-select) — unifier CETTE partie aurait
+justement changé un comportement déjà volontairement différent d'un
+fichier à l'autre.
+
+`borderAccentClass` retiré des déstructurations `theme` dans les 3
+fichiers, devenu mort partout (lu maintenant par `SelectablePill.jsx`
+lui-même) — `bgAccentClass` reste dans les 3, toujours utilisé ailleurs
+dans chacun.
+
+**Encore une fois, aucun test existant retouché** : les 51 tests des 3
+fichiers concernés passent tous sans modification — la logique
+différenciée (garde-fou présent/absent, single/multi-select) reste
+intacte, seule sa présentation visuelle change de provenance. 6 nouveaux
+tests (`SelectablePill.test.jsx`) : classes sélectionné/non-sélectionné,
+clic, `title`, `extraSelectedClassName` appliqué uniquement quand
+`selected=true`.
+
 ## Autres fichiers de référence à ce niveau
 
 - `CLAUDE-SANDBOX-VERIFICATION.md` — outils de vérification de code pour une session Claude sans accès réseau.
