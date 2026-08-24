@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import { X, User, Mail, Lock, Loader2, Eye, EyeOff, ArrowLeft, CheckCircle, AtSign } from 'lucide-react';
 import { USERNAME_REGEX, isReservedUsername, RESERVED_USERNAME_ERROR } from '../../utils/username';
+import ModalShell from '../shared/ModalShell';
 
 /**
  * AuthModal — connexion/inscription par e-mail + mot de passe (voir la
@@ -42,7 +43,7 @@ import { USERNAME_REGEX, isReservedUsername, RESERVED_USERNAME_ERROR } from '../
  * le seul chemin possible vers ces fonctions).
  */
 export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, signIn, resetPassword, checkUsernameAvailable, showToast }) {
-  const { cardBg, cardBorder, textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
+  const { textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
 
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'forgot'
   const [email, setEmail] = useState('');
@@ -184,8 +185,7 @@ export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, sig
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" onClick={close}>
-      <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
+    <ModalShell onClose={close} theme={theme}>
         <div className="flex justify-between items-center mb-6">
           <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
             <User className={textColorClass}/>
@@ -362,7 +362,6 @@ export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, sig
             </button>
           </>
         )}
-      </div>
-    </div>
+    </ModalShell>
   );
 }
