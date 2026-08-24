@@ -199,4 +199,35 @@ describe('MiniPlayerBar', () => {
     fireEvent.mouseLeave(zone);
     expect(container.querySelector('input[type="range"]')).not.toBeInTheDocument();
   });
+
+  // ⚠️ NOUVEAU (22/08, MÊME JOUR, encore un retour direct — "ça ne paraît
+  // toujours pas centré", capture d'écran à l'appui APRÈS un 1er correctif
+  // déjà fait — voir Sidebar.jsx/GuestModeBar.jsx pour ce 1er correctif) :
+  // mesuré en conditions réelles cette fois (Playwright avec un vrai
+  // Chromium déjà en cache dans ce bac à sable, voir CLAUDE-SANDBOX-
+  // VERIFICATION.md) — le bouton volume et le bouton fermer étaient des
+  // FRÈRES de la zone "contexte playlist" plutôt que ses enfants,
+  // décalant de 46px le vrai centre visuel des contrôles (les 2 zones
+  // `flex-1` d'origine s'équilibraient entre elles, mais pas par rapport
+  // au VRAI centre de la barre une fois volume+fermer comptés). Ce test
+  // vérifie la STRUCTURE du correctif (regroupés dans un seul conteneur
+  // flex-1), pas juste que ces éléments existent quelque part — une
+  // assertion `getByTitle(...)` seule serait restée verte même avec
+  // l'ancienne structure cassée.
+  it('contexte playlist + volume + fermer sont regroupés dans UN SEUL conteneur flex-1 (régression centrage 22/08)', () => {
+    const playlist = { id: 'pl-1', name: 'Ma Playlist', tracks: [baseTrack, { id: 'track-2', trackId: 'track-2', title: 'Autre titre' }] };
+    useAudioPlayer.mockReturnValue(mockAudioPlayer({ currentTrack: baseTrack }));
+    const { container } = render(<MiniPlayerBar {...baseProps({ currentPlaylist: playlist })} />);
+
+    const rightZone = container.querySelector('.md\\:flex.items-center.justify-end.gap-2.min-w-0.flex-1');
+    expect(rightZone).toBeInTheDocument();
+
+    const playlistNameButton = screen.getByTitle('Aller à cette playlist');
+    const volumeButton = screen.getByTitle('Couper le son');
+    const closeButton = screen.getByTitle('Fermer le lecteur');
+
+    expect(rightZone.contains(playlistNameButton)).toBe(true);
+    expect(rightZone.contains(volumeButton)).toBe(true);
+    expect(rightZone.contains(closeButton)).toBe(true);
+  });
 });
