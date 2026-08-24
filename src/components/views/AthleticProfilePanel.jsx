@@ -3,6 +3,7 @@ import { Trash2, Plus, Info, ChevronUp, ChevronDown, RotateCcw } from 'lucide-re
 import { ATHLETIC_ZONES } from '../../appConfig';
 import { syncClampedInput } from '../../utils/numberInput';
 import { useAthleticContext } from '../../contexts/AthleticContext';
+import SelectablePill from '../shared/SelectablePill';
 
 /**
  * AthleticProfilePanel — page "Mon Profil Athlétique" (BPM cibles par zone
@@ -52,7 +53,7 @@ export default function AthleticProfilePanel({ theme, showToast, changeView }) {
   } = useAthleticContext();
   const {
     cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass,
-    borderAccentClass, inputBg, inputBorder,
+    inputBg, inputBorder,
   } = theme;
 
   const [showExpertZones, setShowExpertZones] = useState(false);
@@ -205,13 +206,13 @@ export default function AthleticProfilePanel({ theme, showToast, changeView }) {
                 const isConfigured = athleticProfile.activities[key]?.isConfigured;
                 return (
                   <div key={key} className="relative group">
-                    <button
+                    <SelectablePill
+                      selected={isSelected} theme={theme}
+                      extraSelectedClassName={isConfigured ? 'pr-7' : ''}
                       onClick={() => setSelectedProfileActivity(key)}
-                      className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${isSelected ?
-                        `${bgAccentClass} ${borderAccentClass} text-white ${isConfigured ? 'pr-7' : ''}` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}
                     >
                       {key}{isConfigured && ' ✓'}
-                    </button>
+                    </SelectablePill>
                     {isSelected && isConfigured && (
                       <button
                         onClick={(e) => { e.stopPropagation(); resetActivityProfile(key); }}
@@ -226,13 +227,13 @@ export default function AthleticProfilePanel({ theme, showToast, changeView }) {
               })}
               {athleticProfile.custom.map(c => (
                 <div key={c.id} className="relative group">
-                  <button
+                  <SelectablePill
+                    selected={selectedProfileActivity === c.id} theme={theme}
+                    extraSelectedClassName={c.isConfigured ? 'pr-7' : ''}
                     onClick={() => setSelectedProfileActivity(c.id)}
-                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all border-2 ${selectedProfileActivity === c.id ?
-                      `${bgAccentClass} ${borderAccentClass} text-white ${c.isConfigured ? 'pr-7' : ''}` : `bg-surface-hover ${cardBorder} ${textMuted} hover:text-main`}`}
                   >
                     {c.name}{c.isConfigured && ' ✓'}
-                  </button>
+                  </SelectablePill>
                   {selectedProfileActivity === c.id && c.isConfigured && (
                     <button
                       onClick={(e) => { e.stopPropagation(); removeCustomActivity(c.id); setSelectedProfileActivity('Course à pied'); }}
