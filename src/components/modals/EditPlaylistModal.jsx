@@ -2,6 +2,7 @@ import { Edit3, X } from 'lucide-react';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import { MAX_DESCRIPTION_LENGTH } from '../../appConfig';
 import { usePlaylistEdit } from '../../contexts/PlaylistEditContext';
+import ModalShell from '../shared/ModalShell';
 
 /**
  * EditPlaylistModal — édition du titre + de la description d'une playlist,
@@ -50,7 +51,7 @@ import { usePlaylistEdit } from '../../contexts/PlaylistEditContext';
  * DESCRIPTION reste sans aucune contrainte de longueur minimale.
  */
 export default function EditPlaylistModal({ theme }) {
-  const { cardBg, cardBorder, textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
+  const { cardBorder, textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
   const {
     isEditPlaylistModalOpen, closeEditPlaylistModal,
     editedPlaylistName, setEditedPlaylistName,
@@ -62,8 +63,7 @@ export default function EditPlaylistModal({ theme }) {
   if (!isEditPlaylistModalOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" onClick={closeEditPlaylistModal}>
-      <div className={"p-6 md:p-8 rounded-3xl w-full max-w-lg shadow-2xl flex flex-col border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
+    <ModalShell onClose={closeEditPlaylistModal} theme={theme} maxWidth="max-w-lg" cardClassName="p-6 md:p-8 flex flex-col">
         <div className="flex justify-between items-center mb-6">
           <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
             <Edit3 className={textColorClass}/>
@@ -133,7 +133,6 @@ export default function EditPlaylistModal({ theme }) {
             Enregistrer
           </button>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
