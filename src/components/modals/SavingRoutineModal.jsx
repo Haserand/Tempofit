@@ -1,6 +1,7 @@
 import { X, BookmarkPlus } from 'lucide-react';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import { AVAILABLE_ICONS, AUTO_GEN_OPTIONS } from '../../appConfig';
+import ModalShell from '../shared/ModalShell';
 
 /**
  * SavingRoutineModal — création d'une nouvelle routine à partir des réglages
@@ -15,13 +16,12 @@ export default function SavingRoutineModal({
   newRoutineFreq, setNewRoutineFreq,
   handleSaveRoutine,
 }) {
-  const { cardBg, cardBorder, textHighlight, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
+  const { textHighlight, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
 
   if (!isSavingRoutineModalOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" onClick={onClose}>
-      <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
+    <ModalShell onClose={onClose} theme={theme}>
         <div className="flex justify-between items-center mb-6">
           <h3 className={"text-2xl font-bold flex items-center space-x-2 " + textHighlight}>
             <BookmarkPlus className={isNaughtyMode ? "text-rose-500" : "text-yellow-500"}/> <span>Nouvelle Routine</span>
@@ -53,7 +53,6 @@ export default function SavingRoutineModal({
           </div>
         </div>
         <button onClick={handleSaveRoutine} className={"w-full py-4 text-white font-bold rounded-xl shadow-md hover:brightness-110 transition-all " + bgAccentClass}>Enregistrer la routine</button>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
