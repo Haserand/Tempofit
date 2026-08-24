@@ -1,8 +1,7 @@
-import { X } from 'lucide-react';
-import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import { useAthleticContext } from '../../contexts/AthleticContext';
 import { useCustomActivityContext } from '../../contexts/CustomActivityContext';
 import ModalShell from '../shared/ModalShell';
+import ModalCloseButton from '../shared/ModalCloseButton';
 
 /**
  * CustomActivityModal — saisie du nom d'une activité personnalisée ("Autre"
@@ -66,7 +65,7 @@ export default function CustomActivityModal({ theme, userStats, checkTrophies })
     <ModalShell onClose={() => setIsCustomActivityModalOpen(false)} theme={theme} cardClassName="p-8 transform transition-all">
         <div className="flex justify-between items-center mb-6">
           <h3 className={"text-2xl font-bold " + textHighlight}>Activité personnalisée</h3>
-          <button onClick={() => setIsCustomActivityModalOpen(false)} className={`p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors ${ICON_BUTTON_ROUNDING} hover:bg-surface-hover`}><X size={20}/></button>
+          <ModalCloseButton onClick={() => setIsCustomActivityModalOpen(false)} />
         </div>
         <input
           type="text" value={tempCustomActivity} onChange={e => setTempCustomActivity(e.target.value)}
