@@ -212,63 +212,93 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
           />
         </div>
 
-        {/* ── Zone droite : contexte playlist — non essentiel, masqué sur mobile ── */}
-        <div className="hidden md:flex flex-col items-end min-w-0 flex-1 text-right">
-          {belongsToCurrentPlaylist && (
-            <>
-              <button
-                onClick={() => changeView('playlist')}
-                title="Aller à cette playlist"
-                className={`text-xs font-bold truncate max-w-[200px] hover:underline transition-colors ${textMuted} hover:text-main`}
-              >
-                <span className={textColorClass}>{currentPlaylist.name}</span>
-              </button>
-              <span className={`text-[11px] font-mono ${textMuted}`}>
-                Titre {trackIndex + 1}/{currentPlaylist.tracks.length}
-              </span>
-            </>
-          )}
-        </div>
+        {/* ⚠️ Zone droite RESTRUCTURÉE (22/08, retour direct — "ça ne
+            paraît toujours pas centré" — capture d'écran à l'appui,
+            APRÈS le correctif GuestModeBar/MiniPlayerBar déjà fait le
+            même jour). Mesuré en conditions réelles cette fois
+            (Playwright, un vrai Chromium déjà en cache dans ce bac à
+            sable trouvé pour l'occasion — voir CLAUDE-SANDBOX-
+            VERIFICATION.md) : la 1re vérification "à la main" (une
+            reproduction simplifiée des 3 zones principales) avait donné
+            0px d'écart, RASSURANTE À TORT — elle omettait 2 éléments bien
+            réels de ce fichier, le bouton volume ET le bouton fermer,
+            tous deux frères de cette zone plutôt que ses enfants,
+            invisibles dans une reproduction qui ne les incluait pas.
+            Une fois testé avec les VRAIS composants du projet (import
+            direct, pas une recopie manuelle) : 46px d'écart confirmé,
+            cause trouvée — volume+fermer (68px + 2 gaps, ~92px) suivaient
+            cette zone SANS être comptés dans l'équilibrage `flex-1` avec
+            la zone gauche, décalant tout le bloc droit (et donc le "vrai
+            centre" entre gauche/droite) de leur propre largeur. Les 2
+            zones `flex-1` d'origine (info titre à gauche, contexte
+            playlist ici) s'équilibraient bien L'UNE PAR RAPPORT À
+            L'AUTRE — mais pas par rapport au VRAI centre de la barre,
+            qui doit aussi tenir compte de tout ce qui suit à droite.
+            Corrigé en regroupant contexte playlist + volume + fermer dans
+            UN SEUL conteneur `flex-1` (au lieu de 3 frères séparés) :
+            l'équilibrage flex-1 gauche/droite tient maintenant compte de
+            leur largeur combinée, le centre des contrôles tombe pile au
+            centre réel de la barre. Disposition VISUELLE inchangée (même
+            ordre, mêmes espacements) — seule la structure des conteneurs
+            change. */}
+        <div className="hidden md:flex items-center justify-end gap-2 min-w-0 flex-1">
+          <div className="flex flex-col items-end min-w-0 text-right">
+            {belongsToCurrentPlaylist && (
+              <>
+                <button
+                  onClick={() => changeView('playlist')}
+                  title="Aller à cette playlist"
+                  className={`text-xs font-bold truncate max-w-[200px] hover:underline transition-colors ${textMuted} hover:text-main`}
+                >
+                  <span className={textColorClass}>{currentPlaylist.name}</span>
+                </button>
+                <span className={`text-[11px] font-mono ${textMuted}`}>
+                  Titre {trackIndex + 1}/{currentPlaylist.tracks.length}
+                </span>
+              </>
+            )}
+          </div>
 
-        <div
-          className="relative"
-          onMouseEnter={() => setIsVolumePopupOpen(true)}
-          onMouseLeave={() => setIsVolumePopupOpen(false)}
-        >
-          <button
-            onClick={handleToggleMute}
-            title={volume === 0 ? 'Réactiver le son' : 'Couper le son'}
-            className={`p-2 ${ICON_BUTTON_ROUNDING} shrink-0 transition-colors ${textMuted} hover:text-main hover:bg-surface-hover`}
+          <div
+            className="relative shrink-0"
+            onMouseEnter={() => setIsVolumePopupOpen(true)}
+            onMouseLeave={() => setIsVolumePopupOpen(false)}
           >
-            <VolumeIcon size={18}/>
-          </button>
+            <button
+              onClick={handleToggleMute}
+              title={volume === 0 ? 'Réactiver le son' : 'Couper le son'}
+              className={`p-2 ${ICON_BUTTON_ROUNDING} shrink-0 transition-colors ${textMuted} hover:text-main hover:bg-surface-hover`}
+            >
+              <VolumeIcon size={18}/>
+            </button>
 
-          {isVolumePopupOpen && (
-            // `pb-2` (padding, pas margin) : voir docstring en tête de
-            // fichier — garde la zone survolée continue entre le bouton et
-            // le popup, pour ne pas se fermer en traversant l'espace entre
-            // les deux.
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 z-10">
-              <div className={`${cardBg} border ${cardBorder} rounded-xl shadow-xl px-3 py-2.5`}>
-                <input
-                  type="range" min="0" max="100" value={Math.round(volume * 100)}
-                  onChange={(e) => applyVolume(Number(e.target.value) / 100)}
-                  className="w-24 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer outline-hidden
-                    [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-none [&::-webkit-slider-thumb]:border-0 [&::-webkit-slider-thumb]:cursor-pointer
-                    [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:shadow-none [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
-                />
+            {isVolumePopupOpen && (
+              // `pb-2` (padding, pas margin) : voir docstring en tête de
+              // fichier — garde la zone survolée continue entre le bouton et
+              // le popup, pour ne pas se fermer en traversant l'espace entre
+              // les deux.
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 z-10">
+                <div className={`${cardBg} border ${cardBorder} rounded-xl shadow-xl px-3 py-2.5`}>
+                  <input
+                    type="range" min="0" max="100" value={Math.round(volume * 100)}
+                    onChange={(e) => applyVolume(Number(e.target.value) / 100)}
+                    className="w-24 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer outline-hidden
+                      [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-none [&::-webkit-slider-thumb]:border-0 [&::-webkit-slider-thumb]:cursor-pointer
+                      [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:shadow-none [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
+                  />
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        <button
-          onClick={stopCurrentPreview}
-          title="Fermer le lecteur"
-          className={`p-2 ${ICON_BUTTON_ROUNDING} shrink-0 transition-colors ${textMuted} hover:text-red-500 hover:bg-surface-hover`}
-        >
-          <X size={18}/>
-        </button>
+          <button
+            onClick={stopCurrentPreview}
+            title="Fermer le lecteur"
+            className={`p-2 ${ICON_BUTTON_ROUNDING} shrink-0 transition-colors ${textMuted} hover:text-red-500 hover:bg-surface-hover`}
+          >
+            <X size={18}/>
+          </button>
+        </div>
       </div>
     </div>
   );
