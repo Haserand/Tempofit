@@ -4,6 +4,7 @@ import { NAUGHTY_GENRES, STANDARD_GENRES, EXTRA_GENRES, getGenreLocalDepthWarnin
 import { getZoneForValue } from '../../appConfig';
 import { syncClampedInput } from '../../utils/numberInput';
 import { isTargetValueValid, snapDistanceOnBlur, areSegmentsValid } from '../../utils/targetValidation';
+import ModalShell from '../shared/ModalShell';
 import DualRangeSlider from '../shared/DualRangeSlider';
 
 /**
@@ -27,7 +28,7 @@ export default function EditRoutineModal({
   getProfileForWorkout, CRESCENDO_MIN_MAIN_PCT,
   applyRoutineEditOnce, applyRoutineEditPermanently,
 }) {
-  const { cardBg, cardBorder, textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass, borderAccentClass } = theme;
+  const { cardBorder, textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass, borderAccentClass } = theme;
 
   if (!isEditRoutineModalOpen || !editingRoutine) return null;
 
@@ -67,8 +68,7 @@ export default function EditRoutineModal({
       });
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" onClick={close}>
-      <div className={"p-6 md:p-8 rounded-3xl w-full max-w-lg shadow-2xl flex flex-col max-h-[85vh] border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
+    <ModalShell onClose={close} theme={theme} maxWidth="max-w-lg" cardClassName="p-6 md:p-8 flex flex-col max-h-[85vh]">
         <div className="flex justify-between items-center mb-6">
           <h3 className={"text-xl font-bold flex items-center space-x-2 " + textHighlight}>
             <Edit3 className={textColorClass}/>
@@ -303,7 +303,6 @@ export default function EditRoutineModal({
             Toujours pour cette routine
           </button>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
