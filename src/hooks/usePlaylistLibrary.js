@@ -199,28 +199,33 @@ export function usePlaylistLibrary(
       // choix voulu.
       user_id: undefined,
       ownerUsername: undefined,
-      // ⚠️ `cloneCount` NE FAIT PLUS PARTIE DE CE RESET (10/08, retour
-      // direct avec 4 captures d'écran — "quand je l'ajoute à Mes Séances
-      // il n'y a plus le compteur de clones ?" — citation verbatim de
-      // l'époque : la destination s'appelait "Mes Séances" le 10/08, pas
-      // "Mes Playlists" [nom actuel depuis le 20/08, voir Sidebar.jsx])
-      // : le 07/08, ce champ avait
-      // été réinitialisé avec `user_id`/`ownerUsername` ci-dessus, en le
-      // qualifiant à tort de champ de la MÊME famille — CE N'EST PAS le
-      // cas. `user_id`/`ownerUsername` sont des identifiants de
-      // PROPRIÉTÉ : les garder ferait traiter à tort la copie comme
-      // encore possédée par quelqu'un d'autre (vrai risque de logique).
-      // `cloneCount`, lui, est un simple CHIFFRE D'AFFICHAGE (déjà établi
-      // 2 fois aujourd'hui, `removeSavedPlaylist` plus bas et
-      // `PlaylistHeaderBadges.jsx`) — le réinitialiser ne protège rien,
-      // ça fait juste disparaître le badge (gaté sur `cloneCount !==
-      // undefined`) sur la copie qu'on vient de créer, alors que l'AUTRE
-      // chemin de sauvegarde (`handleSavePlaylist`, juste au-dessus) l'a
-      // toujours préservé sans qu'aucun souci ne remonte. Potentiellement
-      // légèrement périmé (le vrai total a pu changer depuis l'ouverture)
-      // — acceptable pour un chiffre de vanité, largement mieux que
-      // l'absence totale, même raisonnement déjà retenu pour
-      // `removeSavedPlaylist` plus bas dans ce fichier.
+      // ⚠️ `cloneCount` RÉINITIALISÉ ICI (22/08, retour direct : "la
+      // playlist que j'ai créée ne devrait pas avoir ce 1 tant qu'elle n'a
+      // pas été clonée à son tour") — le 07/08, ce champ avait déjà été
+      // réinitialisé dans ce même bloc, PUIS retiré le 10/08 (retour
+      // direct avec 4 captures : "quand je l'ajoute il n'y a plus le
+      // compteur de clones ?"). Cette suppression du 10/08 généralisait à
+      // tort le même raisonnement aux 2 chemins de sauvegarde de ce
+      // fichier, alors qu'ils sont sémantiquement DIFFÉRENTS sur ce point
+      // précis : `handleSavePlaylist` (template Découvrir, MÊME `id`
+      // conservé) ne porte quasiment jamais de `cloneCount` réel au
+      // départ — le compteur d'un template vit dans une table séparée
+      // (`template_clone_counts`, par `sourceTemplateId`), pas dans un
+      // champ `cloneCount` par playlist — retirer ce champ y était donc
+      // un no-op silencieux, jamais remarqué. ICI, à l'inverse
+      // (`handleClonePlaylist`, NOUVEL `id` généré), `currentPlaylist`
+      // PEUT réellement porter un `cloneCount` non-`undefined` — celui de
+      // la playlist ÉTRANGÈRE qu'on vient de cloner (`row.clone_count`
+      // depuis Supabase, voir App.jsx). Le garder sur la copie affichait
+      // donc le compteur du PARENT comme si c'était déjà celui de la
+      // copie fraîchement créée, qui n'a par définition encore jamais été
+      // clonée par personne. `undefined` (pas `0`) : cohérent avec le
+      // garde-fou déjà en place ailleurs (`PlaylistHeaderBadges.jsx`,
+      // badge gaté sur `cloneCount !== undefined`) — une copie qui n'a
+      // jamais été clonée n'affiche AUCUN badge, plutôt qu'un badge à 0
+      // qui laisserait croire que le compteur a un sens avant la 1re
+      // vraie occurrence.
+      cloneCount: undefined,
       // Ne conserver le lien que s'il pointe vers un VRAI utilisateur
       // (`parentUserId` défini) — sinon (playlist issue d'un template de
       // la vitrine, `sourceTemplateId` déjà propagé par le spread
