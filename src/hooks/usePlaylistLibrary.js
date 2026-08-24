@@ -344,24 +344,44 @@ export function usePlaylistLibrary(
     // `isReadOnly`/`isPublic` — le badge de compteur de clonages
     // (`PlaylistHeaderTitleBlock.jsx`, gaté sur `cloneCount !== undefined`)
     // disparaissait purement et simplement.
-    // `cloneCount: currentPlaylist.cloneCount` (PAS une nouvelle requête
-    // Supabase à `template_clone_counts`, contrairement à App.jsx) — la
-    // copie qu'on retire avait ELLE-MÊME hérité de la vraie valeur au
-    // moment de sa sauvegarde (`handleSavePlaylist` spreads
-    // `{...currentPlaylist}`, voir sa docstring) et ne l'a plus jamais
-    // perdue depuis (aucune mutation de playlist dans ce projet ne
-    // supprime `cloneCount` du spread) : la reporter ici suffit, sans
-    // avoir besoin de refaire un aller-retour réseau juste pour un
-    // affichage qui redevient de toute façon un aperçu figé. Potentiellement
-    // légèrement périmée (quelqu'un d'autre a pu cloner ce template
-    // entre-temps) — acceptable pour un chiffre de vanité, largement
-    // mieux que l'absence totale actuelle.
+    //
+    // ⚠️ 2e CORRECTIF (22/08, retour direct avec captures — "je supprime
+    // et reviens dans Découvrir, je ne vois plus le compteur, pas bien")
+    // — `cloneCount: currentPlaylist.cloneCount` (l'approche initiale
+    // ci-dessus, "pas besoin d'un aller-retour réseau, la copie a hérité
+    // la vraie valeur à sa sauvegarde et ne l'a jamais perdue depuis")
+    // reposait sur une hypothèse cassée le même jour, PAR le correctif
+    // d'un AUTRE bug : `handleSavePlaylist` pose désormais explicitement
+    // `cloneCount: undefined` sur la copie sauvegardée (voir sa docstring
+    // — la copie ne doit PAS hériter le compteur du template comme si
+    // c'était déjà le sien). Conséquence directe, non anticipée au
+    // moment de CE correctif-ci : `currentPlaylist.cloneCount` vaut
+    // maintenant TOUJOURS `undefined` pour une playlist venue d'un
+    // template Découvrir — le reporter ici ne fait plus que propager ce
+    // `undefined`, le badge redisparaît, MAIS pour une raison différente
+    // de celle déjà corrigée une 1re fois (nouvelle régression du même
+    // symptôme, pas un retour en arrière du correctif précédent). Un vrai
+    // aller-retour réseau devient donc nécessaire ici — pas d'autre
+    // source fiable pour la valeur RÉELLE une fois la copie locale
+    // vidée de la sienne. Restaure D'ABORD le template SANS `cloneCount`
+    // (badge absent un court instant, pas d'attente bloquante sur un
+    // simple retrait), puis le complète dès que la vraie valeur arrive
+    // (`template_clone_counts`, même table/requête que
+    // DiscoverView.jsx/ProfileView.jsx) — protégé contre une navigation
+    // entre-temps (`prev?.sourceTemplateId === originalTemplate.id`,
+    // sourceTemplateId STABLE, pas l'id de CETTE ouverture précise du
+    // template, qui change à chaque fois).
     if (currentPlaylist?.id === playlistId && currentPlaylist.sourceTemplateId) {
       const catalog = currentPlaylist.isNaughty ? naughtyCuratedSessions : curatedSessions;
       const originalTemplate = catalog.find(t => t.id === currentPlaylist.sourceTemplateId);
       if (originalTemplate) {
-        openCuratedPlaylist(originalTemplate, { isReadOnly: true, isPublic: true, cloneCount: currentPlaylist.cloneCount });
+        openCuratedPlaylist(originalTemplate, { isReadOnly: true, isPublic: true, cloneCount: undefined });
         showToast("Playlist retirée de Mes Playlists — le modèle original a été restauré.");
+        supabase.from('template_clone_counts').select('clone_count').eq('template_id', originalTemplate.id).maybeSingle()
+          .then(({ data, error }) => {
+            if (error) { console.error('[usePlaylistLibrary] récupération du compteur de clonages (restauration template) a échoué :', error); return; }
+            setCurrentPlaylist(prev => (prev?.sourceTemplateId === originalTemplate.id ? { ...prev, cloneCount: data?.clone_count || 0 } : prev));
+          });
         return;
       }
     }
