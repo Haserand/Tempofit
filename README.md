@@ -944,6 +944,57 @@ nouveau test qui vérifie l'ABSENCE de classe `h-[...px]` indépendante
 dans les 2 fichiers consommateurs (aurait détecté la régression du 22/08
 si ce refactor avait existé avant elle).
 
+## Refactor — `ModalShell.jsx`, conteneur partagé pour les 12 modales du projet (22/08)
+
+Suite directe du refactor `BottomBarShell.jsx` (voir section dédiée
+plus haut) — même question, réappliquée : "est-ce que tu vois d'autres
+composants partagés à extraire ?", puis "continuer" pour la migration
+complète.
+
+**Constat, encore plus net que pour les barres du bas** : les 12
+fichiers de modales du projet (`AuthModal.jsx`, `CustomActivityModal.jsx`,
+`EditPlaylistModal.jsx`, `EditRoutineModal.jsx`,
+`ImportSharedPlaylistModal.jsx`, `PendingNavigationModal.jsx`,
+`PendingUnsaveModal.jsx`, `PublicRoutinePreviewModal.jsx`,
+`SavingRoutineModal.jsx`, `SearchModal.jsx`, `SearchUsersModal.jsx`,
+`ShareModal.jsx`) recopiaient TOUS, indépendamment, le MÊME littéral
+exact pour leur fond
+(`"fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60
+backdrop-blur-xs"`) — 12 copies parfaitement identiques, trouvées par
+`grep` sur ce littéral précis après la question directe.
+
+**Fait** : `ModalShell.jsx` (nouveau) — porte désormais l'UNIQUE fond +
+carte (arrondi, ombre, bordure) du projet pour ces 12 modales. 3 props de
+personnalisation (`onClose`, `maxWidth` par défaut `max-w-md`,
+`cardClassName` par défaut `p-8`) couvrent les seules vraies différences
+entre elles (largeur max `md`/`lg`, padding, `flex flex-col
+max-h-[Nvh]` pour les modales scrollables).
+
+**Scope délibérément limité à la coquille structurelle (fond + carte),
+PAS l'en-tête** (icône + titre + croix) : 2 modales sur les 12
+(`PendingNavigationModal.jsx`/`PendingUnsaveModal.jsx`) utilisent un
+en-tête complètement différent (icône d'alerte, fermeture via les
+boutons du pied de page, pas de croix dans l'en-tête) — imposer un
+en-tête commun aurait cassé ces 2 modales ou ajouté une branche
+conditionnelle moins claire qu'un simple `children`. Tout le contenu
+(en-tête, corps, pied de page) reste entièrement libre par appelant,
+comme avant — seul le fond et la carte qui l'enveloppent changent de
+provenance.
+
+`cardBg`/`cardBorder` retirés des déstructurations `theme` là où ils
+devenaient morts (lus maintenant par `ModalShell.jsx` lui-même) — restent
+dans les fichiers qui les réutilisent réellement ailleurs dans leur
+propre rendu (`EditPlaylistModal.jsx`, `EditRoutineModal.jsx`,
+`SearchModal.jsx`, `ShareModal.jsx`).
+
+**Aucun test existant retouché** : les 168 tests des 12 fichiers de
+modales (déjà écrits avant ce refactor) passent tous sans modification —
+le DOM produit reste strictement identique, seule sa provenance
+(composant partagé vs JSX recopié) change. 9 nouveaux tests
+(`ModalShell.test.jsx`) : fond/z-index/flou, fermeture au clic extérieur,
+NON-fermeture au clic intérieur (`stopPropagation`), thème, les 2 props
+de personnalisation avec leurs valeurs par défaut, `children`.
+
 ## Autres fichiers de référence à ce niveau
 
 - `CLAUDE-SANDBOX-VERIFICATION.md` — outils de vérification de code pour une session Claude sans accès réseau.
