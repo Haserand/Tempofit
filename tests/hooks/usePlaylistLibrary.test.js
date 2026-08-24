@@ -115,13 +115,19 @@ describe('usePlaylistLibrary — compteur de clonages (handleClonePlaylist)', ()
     // le pseudo de quelqu'un d'autre dans son propre `content`,
     // synchronisé tel quel vers Supabase.
     //
-    // ⚠️ `cloneCount` RETIRÉ DE CE TEST (10/08, retour direct avec 4
-    // captures d'écran — "quand je l'ajoute à Mes Séances il n'y a plus le
-    // compteur de clones ?") : contrairement à `user_id`/`ownerUsername`
-    // (identifiants de PROPRIÉTÉ, un vrai risque de logique à les garder),
-    // `cloneCount` est un simple chiffre d'affichage — le réinitialiser ne
-    // protégeait rien, ça faisait juste disparaître le badge sur la copie
-    // fraîchement créée. Voir le test dédié juste en dessous.
+    // ⚠️ `cloneCount` — RETOURNEMENT le 22/08 (voir les 2 tests juste en
+    // dessous) : retiré du reset le 07/08, PUIS ce retrait généralisé à
+    // tort le 10/08 (retour direct avec 4 captures — "quand je l'ajoute à
+    // Mes Séances il n'y a plus le compteur de clones ?"), PUIS ce
+    // généralisation elle-même corrigée le 22/08 (nouveau retour direct :
+    // "la playlist que j'ai créée ne devrait pas avoir ce 1 tant qu'elle
+    // n'a pas été clonée à son tour") — le raisonnement du 10/08
+    // s'appliquait en réalité à `handleSavePlaylist` (même `id`, template
+    // Découvrir, où `cloneCount` n'est quasiment jamais réellement
+    // défini), pas à CE chemin-ci (`handleClonePlaylist`, nouvel `id`,
+    // où `cloneCount` PEUT réellement porter la vraie valeur du parent
+    // étranger qu'on vient de cloner). Voir usePlaylistLibrary.js pour le
+    // détail complet.
     it('la copie clonée ne garde JAMAIS le user_id/ownerUsername du propriétaire d\'origine (BUG CORRIGÉ 07/08)', () => {
       const setSavedPlaylists = vi.fn();
       const foreignPlaylist = {
@@ -142,14 +148,16 @@ describe('usePlaylistLibrary — compteur de clonages (handleClonePlaylist)', ()
       expect(cloned.parentUserId).toBe('user-A');
     });
 
-    // NOUVEAU (10/08, régression — même retour direct que ci-dessus) —
-    // `cloneCount`, LUI, doit survivre au clonage, contrairement à
-    // `user_id`/`ownerUsername` juste au-dessus : c'est un simple chiffre
-    // d'affichage (voir PlaylistHeaderBadges.jsx, gaté sur
-    // `cloneCount !== undefined`), pas un identifiant de propriété — le
-    // réinitialiser faisait juste disparaître le badge sur la copie
-    // fraîchement créée, sans protéger quoi que ce soit.
-    it('la copie clonée GARDE cloneCount (badge de clonages) — régression 10/08, contrairement à user_id/ownerUsername ci-dessus', () => {
+    // ⚠️ RETOURNÉ (22/08, retour direct : "la playlist que j'ai créée ne
+    // devrait pas avoir ce 1 tant qu'elle n'a pas été clonée à son
+    // tour") — remplace le test "la copie clonée GARDE cloneCount" du
+    // 10/08, qui vérifiait le comportement inverse. Une copie
+    // FRAÎCHEMENT clonée n'a, par définition, encore jamais été clonée
+    // par personne — porter le compteur du PARENT laissait croire le
+    // contraire. `undefined` (pas `0`) : cohérent avec le garde-fou déjà
+    // en place ailleurs (`PlaylistHeaderBadges.jsx`, badge gaté sur
+    // `cloneCount !== undefined`) — aucun badge plutôt qu'un badge à 0.
+    it('la copie clonée RÉINITIALISE cloneCount, quelle que soit la valeur du parent — régression 22/08', () => {
       const setSavedPlaylists = vi.fn();
       const foreignPlaylist = {
         id: 'pl-A-original', user_id: 'user-A', name: 'Playlist de A',
@@ -160,10 +168,10 @@ describe('usePlaylistLibrary — compteur de clonages (handleClonePlaylist)', ()
       result.current.handleClonePlaylist();
 
       const cloned = setSavedPlaylists.mock.calls[0][0][0];
-      expect(cloned.cloneCount).toBe(42);
+      expect(cloned.cloneCount).toBeUndefined();
     });
 
-    it('la copie clonée : cloneCount jamais défini (undefined) sur l\'original se propage tel quel — pas de faux 0 inventé', () => {
+    it('la copie clonée : cloneCount jamais défini (undefined) sur l\'original reste undefined sur la copie — cas déjà couvert, comportement inchangé par le correctif du 22/08', () => {
       const setSavedPlaylists = vi.fn();
       const foreignPlaylist = {
         id: 'pl-A-original', user_id: 'user-A', name: 'Playlist de A',
