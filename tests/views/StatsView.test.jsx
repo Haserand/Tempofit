@@ -120,20 +120,30 @@ function makeQueryBuilder(resolvedValue) {
 }
 
 // ⚠️ NOUVEAU (22/08, retour direct, capture d'écran — "le bilan de
-// partage des statistiques semble flotter seul dans son espace") : bouton
-// "Partager mon bilan" déplacé de l'en-tête (ViewHeader, `right=`) vers la
-// carte "Compare tes séances au réel"/"Données réelles importées" — voir
-// StatsView.jsx pour le détail complet du raisonnement (mélange
-// sémantique assumé, priorité à la cohésion visuelle demandée).
-describe('StatsView — "Partager mon bilan" (déplacé le 22/08 dans la carte "Compare tes séances au réel")', () => {
-  it('totalSessions > 0, aucune donnée réelle importée : bouton présent dans la carte "Compare tes séances au réel"', () => {
+// partage des statistiques semble flotter seul dans son espace") :
+// bouton "Partager mon bilan" retiré de l'en-tête (ViewHeader, `right=`).
+// 1er déplacement (même jour) dans la carte "Compare tes séances au
+// réel" — ABANDONNÉ presque aussitôt (2e retour direct, même jour, avec
+// recul : "est-ce que ce serait pas plus pertinent de l'avoir en dessous
+// des premiers chiffres") : vit maintenant juste sous la grille des 4
+// gros chiffres (séances/écoute estimée/BPM moyen/styles), qu'il partage
+// réellement — voir StatsView.jsx pour le détail complet des 2 étapes.
+describe('StatsView — "Partager mon bilan" (sous la grille des 4 chiffres, 2e emplacement du 22/08)', () => {
+  it('totalSessions > 0 : bouton présent, EN DEHORS de la carte "Compare tes séances au réel"', () => {
     mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
     render(<StatsView {...baseProps()} />);
-    expect(screen.getByTitle('Générer une image de ton bilan global à partager')).toBeInTheDocument();
-    expect(screen.getByText('Compare tes séances au réel')).toBeInTheDocument();
+    const button = screen.getByTitle('Générer une image de ton bilan global à partager');
+    expect(button).toBeInTheDocument();
+    // Assertion qui aurait ÉCHOUÉ au 1er emplacement (abandonné) : vérifie
+    // que le bouton n'est PLUS un descendant de la carte "Compare tes
+    // séances au réel", pas seulement que les deux existent quelque part
+    // sur la page (une 1re version de ce test, trop permissive, serait
+    // restée verte même après ce 2e déplacement).
+    const card = screen.getByText('Compare tes séances au réel').closest('div');
+    expect(card.contains(button)).toBe(false);
   });
 
-  it('totalSessions > 0, données réelles déjà importées : bouton présent dans la carte "Données réelles importées"', () => {
+  it('totalSessions > 0, données réelles déjà importées : bouton toujours présent, carte "Données réelles importées" affichée à la place', () => {
     mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
     const playlistsWithData = [
       { ...baseSavedPlaylists[0], actualDataByDate: { '2026-01-01': [{ cadenceReelle: 170 }] } },
