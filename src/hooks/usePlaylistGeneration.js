@@ -347,13 +347,35 @@ export function usePlaylistGeneration(
     }
 
     if (count === 1) {
+      // ⚠️ Sauvegarde automatique dans Mes Playlists (22/08, retour direct
+      // — "si je génère UNE playlist, elle devrait être ajoutée à mes
+      // playlists, surtout si dans tous les cas je dois l'ajouter pour
+      // pouvoir la modifier") : avant ce jour, seule `setCurrentPlaylist`
+      // était appelée ici — la playlist restait un simple state React,
+      // PAS dans `savedPlaylists`, tant qu'un clic explicite sur
+      // "Ajouter" (PlaylistHeaderActions.jsx) n'avait pas eu lieu.
+      // Argument initial pour ce garde-fou (préserver une "exploration"
+      // sans polluer la bibliothèque en régénérant plusieurs fois) : ne
+      // tenait pas à l'examen — `TrackList.jsx`/`TrackItem.jsx` bloquent
+      // déjà TOUTE mutation (remplacer/dupliquer/retirer un titre) tant
+      // que `!isSaved`, la mutation ne serait de toute façon pas
+      // persistée. Il n'y avait donc PAS de vraie exploration possible
+      // sur une playlist déjà générée — seulement la regénérer depuis
+      // zéro (ce qui écrase `currentPlaylist` sans rien devoir "annuler"
+      // explicitement, avec ou sans cette sauvegarde automatique).
+      // Aligné maintenant sur EXACTEMENT le même comportement que la
+      // branche `count > 1` juste en dessous (génération en lot depuis
+      // une routine) — cette dernière sauvegardait déjà automatiquement
+      // depuis sa création, sans qu'on se soit demandé si la génération
+      // simple devrait suivre la même règle.
+      setSavedPlaylists([generatedPlaylists[0], ...savedPlaylistsRef.current]);
       setCurrentPlaylist(generatedPlaylists[0]);
       changeView('playlist');
       // Transparence : les morceaux ont une durée fixe (on ne peut pas couper une
       // chanson en deux), donc la distance/durée réellement atteinte peut différer
       // légèrement de la cible demandée — mieux vaut le dire que laisser croire à
       // une précision parfaite.
-      showToast("🎧 Playlist générée ! Distance/durée réelle : peut légèrement différer de la cible.");
+      showToast("🎧 Playlist générée et ajoutée à Mes Playlists ! Distance/durée réelle : peut légèrement différer de la cible.");
       // Deuxième avertissement, distinct : si une part importante des titres vient
       // du repli de secours (voir fallbackTrackCount), c'est le signe qu'il n'y
       // avait pas assez de vrais candidats pour ce BPM/style — l'utilisateur doit
