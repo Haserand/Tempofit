@@ -629,6 +629,53 @@ existantes préservées ; même protection contre un changement concurrent
 (`savedPlaylistsRef.current`, pas le tableau figé au début) déjà
 vérifiée pour le lot, maintenant aussi pour la génération simple.
 
+## Clonage d'une playlist étrangère — la copie héritait à tort du compteur de clonages du parent (22/08)
+
+Retour direct, capture d'écran à l'appui : "logiquement la playlist que
+j'ai créée, elle, ne devrait pas avoir ce 1 tant qu'elle n'a pas été
+clonée à son tour, non ?" — une playlist étrangère fraîchement clonée
+depuis Découvrir affichait le badge de clonages du PARENT ("⧉ 1") sur la
+copie elle-même, qui n'a par définition encore jamais été clonée par
+personne.
+
+**Ce correctif en annule un autre, lui-même déjà un revirement** —
+généalogie complète, pour ne pas revenir en arrière une 3e fois sans
+comprendre pourquoi : `cloneCount` réinitialisé une 1re fois le 07/08,
+ce retrait généralisé à tort à un 2e chemin de sauvegarde le 10/08
+(retour direct, 4 captures — "il n'y a plus le compteur de clones ?"),
+cette généralisation elle-même corrigée aujourd'hui. La cause de
+l'erreur du 10/08 : `usePlaylistLibrary.js` a 2 chemins de sauvegarde
+distincts, traités à tort comme équivalents sur ce point précis —
+`handleSavePlaylist` (template ouvert depuis Découvrir, garde le MÊME
+`id`) où `cloneCount` n'est quasiment jamais réellement défini au départ
+(le compteur d'un template vit dans une table séparée,
+`template_clone_counts`), et `handleClonePlaylist` (playlist étrangère
+RÉELLE, NOUVEL `id` généré) où `cloneCount` PEUT réellement porter la
+vraie valeur du parent (`row.clone_count` depuis Supabase). Le retrait
+du 10/08 ne changeait donc rien d'observable sur le 1er chemin (déjà
+`undefined` avant et après), mais laissait le 2e chemin propager à tort
+le compteur du parent sur une copie flambant neuve — jamais remarqué
+jusqu'à cette capture.
+
+**Corrigé** : `cloneCount: undefined` explicitement posé sur l'objet
+`cloned` dans `handleClonePlaylist` (`usePlaylistLibrary.js`) —
+`handleSavePlaylist` n'est pas concerné, pas retouché. `undefined`
+plutôt que `0` : cohérent avec le garde-fou déjà en place
+(`PlaylistHeaderBadges.jsx`, badge gaté sur `cloneCount !== undefined`)
+— aucun badge sur une copie jamais clonée, plutôt qu'un badge à 0 qui
+laisserait croire que le compteur a un sens avant la 1re vraie
+occurrence. `removeSavedPlaylist` (restauration de la prévisualisation
+du template original après retrait) vérifié à part et laissé inchangé —
+scénario différent (revenir à l'aperçu du template, pas créer une
+nouvelle copie), où afficher le vrai compteur du template reste
+légitime.
+
+2 tests mis à jour dans `usePlaylistLibrary.test.js` (remplacent les 2
+tests du 10/08 qui vérifiaient le comportement inverse) : la copie
+clonée réinitialise `cloneCount` quelle que soit la valeur du parent ;
+un `cloneCount` déjà `undefined` sur le parent reste `undefined` sur la
+copie (cas déjà couvert, comportement inchangé).
+
 ## Autres fichiers de référence à ce niveau
 
 - `CLAUDE-SANDBOX-VERIFICATION.md` — outils de vérification de code pour une session Claude sans accès réseau.
