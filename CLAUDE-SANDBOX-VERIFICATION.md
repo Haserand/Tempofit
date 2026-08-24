@@ -543,34 +543,6 @@ note affirmait cette limite sans l'avoir vraiment testée. Testé pour de
 vrai : `curl https://api.deezer.com/...` (bash_tool) ET
 `page.goto('https://api.deezer.com/...')` (navigateur piloté par
 Playwright) renvoient tous les deux `403 Host not in allowlist` —
-
-## 5quinquies. ⚠️ RÉGRESSION CONSTATÉE (22/08, migration recharts) : `npx playwright install chromium` échoue maintenant, contrairement à §5ter
-
-Tenté avant de vérifier visuellement le rendu des graphiques recharts
-après la migration 2→3 (voir README). Commande IDENTIQUE à celle
-documentée comme fonctionnelle en §5ter (`npx playwright install
-chromium`, sans `--with-deps`), MÊME session de travail globale, MÊME
-jour calendaire — mais échec cette fois :
-```
-Error: Download failed: server returned code 403 body 'Host not in
-allowlist: cdn.playwright.dev. Add this host to your network egress
-settings to allow access.'
-```
-Différent du blocage déjà documenté en §5ter (qui bloquait uniquement
-`--with-deps`/`deb.nodesource.com`, PAS le téléchargement du binaire
-Chromium lui-même, qui réussissait) : cette fois c'est le téléchargement
-de base qui échoue, sur un domaine différent (`cdn.playwright.dev`,
-jamais mentionné avant). Conclusion : **la liste des domaines réseau
-autorisés en sandbox n'est pas stable dans le temps** (ou varie selon la
-session/l'environnement précis) — ne JAMAIS supposer qu'une capacité
-réseau documentée ici reste vraie sans la re-tester, même documentée
-"vérifiée" une fois. Repli utilisé à la place pour cette vérification :
-build réel + suite de tests complète + inspection statique du bundle
-recharts servi par le serveur `vite` réel (curl sur le module pré-bundlé,
-vérifié qu'il contient bien tous les exports attendus sans erreur de
-résolution) — voir README pour le détail. Contrôle visuel PIXEL RÉEL non
-obtenu cette fois, à signaler honnêtement plutôt qu'à laisser croire le
-contraire.
 message IDENTIQUE dans les 2 cas, confirmant que le navigateur Playwright
 passe par le MÊME filtre réseau par liste blanche que le reste du bac à
 sable. `supabase.co` lui-même bloqué pareil. Aucun fichier `.env` présent
@@ -584,12 +556,84 @@ appelle Supabase/Deezer dès le montage, cette technique ne suffira pas
 telle quelle — mocker ces appels côté serveur de dev sortirait du
 périmètre d'une simple vérification ponctuelle.
 
+## 5quinquies. ⚠️ RÉGRESSION CONSTATÉE (22/08, migration recharts) : `npx playwright install chromium` échoue, contrairement à §5ter — PUIS CONTOURNÉE (22/08, même jour, chantier suivant) : un vrai Chromium était déjà en cache, pas besoin de télécharger
+
+⚠️ Section RÉORGANISÉE au passage (22/08) — cette section coupait
+auparavant en 2 un paragraphe continu de §5ter ci-dessus (insérée en
+plein milieu par erreur) ; déplacée ici, à sa place logique, contenu
+inchangé.
+
+Tentée avant de vérifier visuellement le rendu des graphiques recharts
+après la migration 2→3 (voir README). Commande IDENTIQUE à celle
+documentée comme fonctionnelle en §5ter (`npx playwright install
+chromium`, sans `--with-deps`), MÊME session de travail globale, MÊME
+jour calendaire — mais échec cette fois :
+```
+Error: Download failed: server returned code 403 body 'Host not in
+allowlist: cdn.playwright.dev. Add this host to your network egress
+settings to allow access.'
+```
+Différent du blocage déjà documenté en §5ter (qui bloquait uniquement
+`--with-deps`/`deb.nodesource.com`, PAS le téléchargement du binaire
+Chromium lui-même, qui réussissait) : cette fois c'est le téléchargement
+de base qui échoue, sur un domaine différent (`cdn.playwright.dev`,
+jamais mentionné avant). Conclusion (toujours valable) : **la liste des
+domaines réseau autorisés en sandbox n'est pas stable dans le temps**
+(ou varie selon la session/l'environnement précis) — ne JAMAIS supposer
+qu'une capacité réseau documentée ici reste vraie sans la re-tester,
+même documentée "vérifiée" une fois. Repli utilisé à ce moment-là :
+build réel + suite de tests complète + inspection statique du bundle
+recharts servi par le serveur `vite` réel — voir README pour le détail.
+Contrôle visuel PIXEL RÉEL non obtenu à cette occasion, signalé
+honnêtement plutôt que de laisser croire le contraire.
+
+⚠️ **CONTOURNEMENT TROUVÉ (22/08, même jour, chantier UI suivant — retour
+direct sur un problème de centrage, "ça ne parait toujours pas centré")**
+— retenté malgré l'échec précédent (jamais supposer qu'un blocage reste
+vrai sans re-tester, même documenté récemment) : `npx playwright install
+chromium` échoue TOUJOURS de la même façon (`cdn.playwright.dev` hors
+liste blanche). MAIS un vrai binaire Chromium existe déjà, pré-installé
+sur ce système, PAS besoin de le télécharger :
+```
+/opt/pw-browsers/chromium-1194/chrome-linux/chrome
+/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell
+/home/claude/.cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome
+```
+Trouvé par `find / -iname "*chromium*" -o -iname "*chrome*"` — réflexe à
+avoir DÈS QU'`npx playwright install` échoue, avant de conclure "aucune
+vérification visuelle possible cette session". Utilisable directement en
+pointant `executablePath` au lancement, sans passer par `npx playwright
+install` du tout :
+```js
+import { chromium } from 'playwright'; // npm install --no-save playwright suffit, PAS besoin d'installer de navigateur
+const browser = await chromium.launch({
+  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  args: ['--no-sandbox'], // requis dans ce bac à sable (pas de user namespaces)
+});
+```
+Fonctionne pour de vrai — vérifié en mesurant un vrai problème de
+centrage flexbox (`MiniPlayerBar.jsx`) avec `getBoundingClientRect()` sur
+des composants RÉELLEMENT montés (import direct depuis `src/`, pas une
+recopie manuelle des classes — voir README pour pourquoi cette nuance a
+eu son importance ce jour-là) via le vrai serveur `vite` + ce Chromium.
+Capture d'écran réelle prise aussi (`page.screenshot()`), confirmant
+visuellement la mesure. **Ce chemin (`/opt/pw-browsers/...`) reste à
+revérifier à chaque session** (rien ne garantit qu'il persiste d'une
+session à l'autre, c'est un cache d'image système, pas un acquis du
+projet) — mais le réflexe "chercher un binaire déjà présent avant de
+conclure à l'absence de navigateur" en vaut la peine à chaque fois.
+
 **Conséquence pratique pour la suite** : avant de deviner un bug de rendu
 CSS depuis le code seul (surtout après plusieurs allers-retours de
 capture d'écran sans certitude), envisager cette technique — mesurer
 plutôt que deviner. Toujours nettoyer après usage (`pkill -f vite`,
-supprimer les scripts/captures temporaires du `/tmp`) : ces fichiers ne
-font pas partie du dépôt et ne doivent jamais être livrés à l'utilisateur.
+supprimer les scripts/captures temporaires du `/tmp`, ET tout fichier de
+test ajouté dans le projet lui-même comme des points d'entrée HTML/JSX
+temporaires — jamais les laisser traîner jusqu'à la livraison), et
+reverter tout export/changement fait UNIQUEMENT pour faciliter la mesure
+(ex. un `export` ajouté temporairement sur un module pour l'importer
+depuis un harnais de test, sans quoi il resterait un changement invisible
+mais bien réel dans le code livré).
 
 ⚠️ **`vitest run` RÉEL fonctionne AUSSI** — vérifié le même jour,
 immédiatement après la découverte ci-dessus : `npx vitest run` exécute la
