@@ -14,10 +14,10 @@
  * documentée à un seul endroit plutôt que de la redécouvrir en lisant des
  * commentaires épars.
  *
- * ⚠️ CONTRAIREMENT à MINI_PLAYER_BAR_HEIGHT_PX/GUEST_MODE_BAR_HEIGHT_PX
- * (bottomBarLayout.js), qui ne pouvaient rester que des NOMBRES bruts (une
- * classe Tailwind du type `h-[${x}px]` construite par interpolation n'aurait
- * jamais été générée, voir ce fichier) — ici, les valeurs sont directement
+ * ⚠️ CONTRAIREMENT à `BOTTOM_BAR_HEIGHT_PX` (bottomBarLayout.js, un seul
+ * nombre depuis le 22/08, voir ce fichier), qui ne pouvait rester qu'un
+ * NOMBRE brut (une classe Tailwind du type `h-[${x}px]` construite par
+ * interpolation n'aurait jamais été générée, voir ce fichier) — ici, les valeurs sont directement
  * des CLASSES TAILWIND COMPLÈTES (`py-2.5`, `mb-4`...), pas des fragments à
  * assembler. C'est la distinction qui compte pour le piège JIT documenté
  * partout dans ce projet : Tailwind scanne le texte SOURCE littéralement
@@ -166,10 +166,13 @@ export const SIDEBAR_SCROLL_PADDING = 'pt-4 pb-1.5 px-4';
 export const SIDEBAR_SCROLL_PADDING_COMPACT = 'pt-[7px] pb-[10px] px-4';
 
 // Bouton "Réglages" du pied de page — délibérément DIFFÉRENT des liens de
-// nav ci-dessus (`py-1.5`, pas `py-2.5`) : ce conteneur a une hauteur
-// STRICTE à respecter (voir `GUEST_MODE_BAR_HEIGHT_PX`, bottomBarLayout.js,
-// hauteur synchronisée via `creditRowHeight` dans Sidebar.jsx), pas la place
-// disponible à volonté qu'ont les liens de la zone scrollable.
+// nav ci-dessus (`py-1.5`, pas `py-2.5`) : hérité d'une époque (28/07-22/08)
+// où ce conteneur avait une hauteur STRICTE à partager avec la signature
+// juste en dessous (`creditRowHeight`, RETIRÉ le 22/08 — voir Sidebar.jsx).
+// Cette contrainte n'existe plus (la hauteur du pied de page est désormais
+// naturelle), mais la valeur reste : compacte et cohérente avec le style
+// volontairement discret de ce lien, aucune raison de l'agrandir maintenant
+// que la place ne manque plus.
 export const SIDEBAR_FOOTER_LINK_PADDING = 'px-3 py-1.5';
 
 // Marge APRÈS la bordure du bouton "Quitter le Mode Intime" (Mode Intime
