@@ -794,6 +794,53 @@ bien un descendant — un désalignement de ce type reste invisible en
 dessous de 1024px de large, donc facile à manquer sans test dédié à
 l'existence du conteneur lui-même (pas juste au texte affiché).
 
+**⚠️ Suite, même jour — ce correctif était insuffisant, la vraie cause
+était ailleurs** : nouveau retour direct, capture à l'appui — "ça ne
+paraît toujours pas centré". Un raisonnement purement théorique
+("`max-w-5xl` identique des deux côtés ⇒ mêmes centres") s'est révélé
+insuffisant deux fois de suite ce jour-là (déjà le cas pour le
+`cloneCount`, voir plus haut) — cette fois vérifié pour de vrai plutôt
+que re-raisonné une 3e fois dans le vide : **un vrai Chromium était déjà
+en cache dans ce bac à sable** (`/opt/pw-browsers/chromium-1194/`,
+trouvé par `find / -iname "*chromium*"` après le nouvel échec habituel
+de `npx playwright install`), utilisable directement via `executablePath`
+sans passer par un téléchargement bloqué — voir CLAUDE-SANDBOX-
+VERIFICATION.md §5quinquies pour la commande exacte et la méthode.
+
+**1re mesure trompeuse** : une reproduction MANUELLE des 3 zones
+principales de `MiniPlayerBar.jsx` (recopiées à la main dans un
+composant de test isolé) donnait 0px d'écart — rassurant à tort. **2e
+mesure, avec les VRAIS composants du projet importés directement** (pas
+une recopie) : 46px d'écart confirmé. Cause de cet écart entre les 2
+mesures : la reproduction manuelle avait omis 2 éléments bien réels du
+fichier — le bouton volume et le bouton fermer, tous deux frères
+indépendants de la zone "contexte playlist" plutôt que ses enfants. Les
+2 zones `flex-1` d'origine (info titre / contexte playlist)
+s'équilibraient bien l'une par rapport à l'autre, mais SANS tenir
+compte de ces 92px supplémentaires (volume + fermer + espacements) qui
+suivaient à droite — décalant tout le bloc droit, et donc le centre
+réel des contrôles, de 46px vers la gauche.
+
+**Corrigé** (`MiniPlayerBar.jsx`) : contexte playlist + bouton volume +
+bouton fermer regroupés dans UN SEUL conteneur `flex-1` (au lieu de 3
+frères séparés) — l'équilibrage avec la zone gauche tient désormais
+compte de leur largeur combinée. Disposition VISUELLE inchangée (même
+ordre, mêmes espacements), seule la structure des conteneurs change.
+Revérifié par mesure réelle après correctif : 0px d'écart, à 1920px ET
+à 1440px de large, confirmé aussi par capture d'écran visuelle.
+
+Test ajouté (`MiniPlayerBar.test.jsx`) : vérifie que contexte playlist,
+bouton volume et bouton fermer sont bien tous les 3 descendants du même
+conteneur `flex-1` — une assertion `getByTitle(...)` seule serait restée
+verte même avec l'ancienne structure cassée (les éléments existent
+toujours, juste mal regroupés).
+
+Fichiers de test temporaires (page HTML/composant React de diagnostic,
+scripts Playwright) créés pour cette vérification puis intégralement
+supprimés avant livraison — aucun ne fait partie du projet. Un export
+temporaire ajouté à `AudioPlayerContext.jsx` (nécessaire pour importer
+son Contexte depuis le harnais de test) reverté dans la foulée.
+
 ## Autres fichiers de référence à ce niveau
 
 - `CLAUDE-SANDBOX-VERIFICATION.md` — outils de vérification de code pour une session Claude sans accès réseau.
