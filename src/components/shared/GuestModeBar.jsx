@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { UserPlus, X } from 'lucide-react';
+import BottomBarShell from './BottomBarShell';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 
 /**
@@ -112,14 +113,17 @@ import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
  * cet appareil) reste intact, seule la précision "ce rappel reviendra..."
  * disparaît — l'utilisateur venait de toute façon de LIRE ce rappel en
  * cliquant sur la croix, la répétition n'était pas strictement nécessaire.
- * ⚠️ Hauteur du conteneur 72→70px (22/08, voir le commentaire du rendu
- * plus bas pour le détail complet) — reste une classe Tailwind écrite en
- * toutes lettres (voir bottomBarLayout.js pour pourquoi), seule sa
- * disposition INTERNE avait changé jusqu'ici (mono-ligne → 2 lignes),
+ * ⚠️ Hauteur du conteneur 72→70px (22/08) — reste une classe Tailwind
+ * écrite en toutes lettres (voir bottomBarLayout.js pour pourquoi), seule
+ * sa disposition INTERNE avait changé jusqu'ici (mono-ligne → 2 lignes),
  * c'est la première fois que sa hauteur GLOBALE bouge depuis le 29/07.
+ * ⚠️ Détail du calcul 72→70px déplacé dans MiniPlayerBar.jsx/
+ * bottomBarLayout.js (22/08, même jour, suite du même chantier — le
+ * conteneur `h-[70px]` lui-même a migré vers `BottomBarShell.jsx`, voir
+ * le commentaire du rendu juste plus bas pour ce dernier changement).
  */
 export default function GuestModeBar({ theme, isVisible, openModal, onDismiss = () => {} }) {
-  const { cardBg, cardBorderStrong, textMuted, textColorClass } = theme;
+  const { textMuted, textColorClass } = theme;
   // `confirmingDismiss` : voir la docstring "Fermeture SESSION-ONLY" plus
   // haut — seul état encore local à ce composant depuis le 04/08.
   const [confirmingDismiss, setConfirmingDismiss] = useState(false);
@@ -127,36 +131,20 @@ export default function GuestModeBar({ theme, isVisible, openModal, onDismiss = 
   if (!isVisible) return null;
 
   return (
-    // ⚠️ h-[72px] → h-[70px] (22/08, MÊME JOUR, retour direct suivant —
-    // "je te demandais de réduire la barre du bas initialement") :
-    // MiniPlayerBar.jsx avait déjà été réduite à 70px pour matcher la
-    // hauteur naturelle du pied de page Sidebar.jsx (celle-ci n'est plus
-    // forcée par `creditRowHeight`, retiré le même jour), mais CETTE barre
-    // était restée à l'ancienne valeur (72px, l'ancien target QUAND
-    // Sidebar.jsx forçait ENCORE sa hauteur sur les 2 barres) — d'où les
-    // quelques px de désalignement encore visibles entre les 2 pieds de
-    // page (retour direct avec capture d'écran). Disposition INTERNE
-    // inchangée (`flex-col items-center justify-center gap-1 py-2`, copiée
-    // depuis Sidebar.jsx) — seule la hauteur globale du conteneur change.
-    <div className={`h-[70px] border-t-2 ${cardBorderStrong} ${cardBg} flex items-center justify-center px-6`}>
-      {/* ⚠️ Conteneur `max-w-5xl mx-auto` AJOUTÉ (22/08, MÊME JOUR, encore
-          un retour direct — "je n'ai pas l'impression que le lecteur
-          audio soit centré sur la guest barre") : cette barre centrait
-          jusqu'ici son contenu sur sa PROPRE largeur totale
-          (`justify-center` directement sur le conteneur plein largeur),
-          tandis que MiniPlayerBar.jsx (juste au-dessus) centre le SIEN à
-          l'intérieur d'un `max-w-5xl mx-auto` — sur un écran plus large
-          que 5xl (1024px), ces deux repères de centrage ne coïncident
-          PAS : les boutons de lecture de MiniPlayerBar.jsx tombent au
-          centre d'une boîte de 1024px elle-même centrée dans une zone
-          bien plus large, tandis que "Se connecter" tombait, lui, au
-          centre de la zone COMPLÈTE — deux centres visuellement
-          différents sur grand écran. Reprendre EXACTEMENT la même
-          contrainte ici aligne les deux barres sur le même repère,
-          plutôt que d'élargir la zone des contrôles audio (option
-          envisagée puis écartée : n'aurait pas résolu le désalignement
-          avec cette barre-ci, seulement déplacé le problème). */}
-      <div className="max-w-5xl mx-auto w-full flex flex-col items-center justify-center gap-1 py-2">
+    // ⚠️ h-[70px]/max-w-5xl mx-auto EXTRAITS dans BottomBarShell.jsx
+    // (22/08, suite du même chantier qui a produit cette barre à 70px —
+    // voir sa docstring pour le raisonnement complet) : jusqu'ici recopiés
+    // en dur ici ET dans MiniPlayerBar.jsx séparément, avec de petites
+    // divergences de détail (72px au lieu de 70px pendant un temps,
+    // `justify-center` posé ici mais pas là-bas) qui ont produit 2 bugs de
+    // désalignement distincts la même session (voir README, sections
+    // dédiées). `justify` seul point de personnalisation utilisé ici (le
+    // conteneur externe de MiniPlayerBar.jsx n'a jamais eu besoin de
+    // `justify-center`, ses 2 zones `flex-1` s'en chargent déjà) —
+    // `flex-col items-center justify-center gap-1 py-2` transmis en
+    // `innerClassName`, disposition en COLONNE (contrairement à
+    // MiniPlayerBar, en rangée).
+    <BottomBarShell theme={theme} justify innerClassName="flex-col items-center justify-center gap-1 py-2">
       {confirmingDismiss ? (
         <>
           <div className="w-full flex items-center justify-center gap-3">
@@ -216,7 +204,6 @@ export default function GuestModeBar({ theme, isVisible, openModal, onDismiss = 
           </span>
         </>
       )}
-      </div>
-    </div>
+    </BottomBarShell>
   );
 }
