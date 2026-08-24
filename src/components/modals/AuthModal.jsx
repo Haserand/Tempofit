@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
-import { X, User, Mail, Lock, Loader2, Eye, EyeOff, ArrowLeft, CheckCircle, AtSign } from 'lucide-react';
+import { User, Mail, Lock, Loader2, Eye, EyeOff, ArrowLeft, CheckCircle, AtSign } from 'lucide-react';
 import { USERNAME_REGEX, isReservedUsername, RESERVED_USERNAME_ERROR } from '../../utils/username';
 import ModalShell from '../shared/ModalShell';
+import ModalCloseButton from '../shared/ModalCloseButton';
 
 /**
  * AuthModal — connexion/inscription par e-mail + mot de passe (voir la
@@ -191,7 +191,7 @@ export default function AuthModal({ theme, isAuthModalOpen, onClose, signUp, sig
             <User className={textColorClass}/>
             <span>{mode === 'forgot' ? 'Réinitialiser le mot de passe' : mode === 'signup' ? 'Créer un compte' : 'Se connecter'}</span>
           </h3>
-          <button onClick={close} className={`p-2 -mr-2 text-gray-400 hover:text-red-500 transition-colors ${ICON_BUTTON_ROUNDING} hover:bg-surface-hover`}><X size={20}/></button>
+          <ModalCloseButton onClick={close} />
         </div>
 
         {/* Mode 'forgot' — vue dédiée, e-mail seul (pré-rempli si déjà saisi
