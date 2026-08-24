@@ -798,33 +798,21 @@ export default function StatsView({
         title={statsMode === 'naughty' ? 'Mes Statistiques · Intime' : 'Mes Statistiques'}
         subtitle={statsMode === 'naughty' ? "Ce que tu as écouté en mode Intime, à part du reste." : "Ce que tu as écouté, séance après séance."}
         right={
-          // "Partager mon bilan" (Bilan Global, voir GlobalStatsShareCard.jsx) —
-          // bouton BIEN VISIBLE (retour direct), reste ici.
-          //
-          // Bascule "Stats Mode Intime" RETIRÉE D'ICI (25/07, retour direct :
-          // "je ne veux pas qu'on puisse accéder au mode intime depuis le
-          // menu statistique") — précision utile pour la suite : ce bouton
-          // ne faisait en réalité JAMAIS basculer le Mode Intime global de
-          // l'app (`toggleNaughtyMode` n'était même pas appelé ici) — c'était
-          // un simple FILTRE local (`statsMode`) pour consulter les stats des
-          // séances faites en Mode Intime sans y être soi-même. Le risque
-          // réel n'était donc pas "activer le mode", mais "révéler/exposer"
-          // l'existence de données Mode Intime à qui regarderait l'écran —
-          // retiré pour cette raison. `statsMode` continue de suivre
-          // `isNaughtyMode` automatiquement (voir le useEffect plus haut) :
-          // si le Mode Intime global est actif, les stats de CETTE session-
-          // là s'affichent normalement, sans bascule manuelle nécessaire.
-          totalSessions > 0 && (
-            <button
-              onClick={exportGlobalStatsImage}
-              disabled={isExportingGlobalStats}
-              title="Générer une image de ton bilan global à partager"
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors ${bgAccentClass} text-white hover:brightness-110 disabled:opacity-60 disabled:cursor-wait`}
-            >
-              {isExportingGlobalStats ? <Loader2 size={16} className="animate-spin" /> : <Share2 size={16} />}
-              <span>{isExportingGlobalStats ? 'Génération...' : 'Partager mon bilan'}</span>
-            </button>
-          )
+          // ⚠️ "Partager mon bilan" RETIRÉ D'ICI (22/08, retour direct,
+          // capture d'écran annotée — "le bilan de partage des
+          // statistiques semble flotter seul dans son espace") : ce
+          // bouton vivait ici nu, sans aucun conteneur visuel autour de
+          // lui (contrairement au reste de la page, entièrement composée
+          // de cartes) — d'où l'effet "flotte tout seul". Déplacé dans la
+          // carte "Compare tes séances au réel" plus bas (ses 2 états,
+          // avec/sans données déjà importées — voir cette carte pour le
+          // détail), qui a de la place inutilisée sur sa droite. Choix du
+          // nouvel emplacement fait sur confirmation explicite malgré le
+          // mélange sémantique (partage du bilan GLOBAL vs comparaison
+          // réel/prévu d'UNE playlist, 2 fonctions sans rapport) — priorité
+          // donnée à la cohésion visuelle demandée plutôt qu'à la pureté
+          // fonctionnelle du regroupement.
+          null
         }
       />
 
@@ -960,7 +948,30 @@ export default function StatsView({
               (playlistsForStats, donc le mode Standard/Intime consulté). */}
           {playlistsWithRealData.length > 0 ? (
             <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder}`}>
-              <h3 className={`font-bold mb-1 flex items-center gap-2 ${textHighlight}`}><Upload size={18} className={textColorClass}/> Données réelles importées</h3>
+              <div className="flex items-start justify-between gap-3 mb-1">
+                <h3 className={`font-bold flex items-center gap-2 ${textHighlight}`}><Upload size={18} className={textColorClass}/> Données réelles importées</h3>
+                {/* "Partager mon bilan" — voir le commentaire complet dans
+                    ViewHeader (plus haut dans ce fichier) pour le
+                    raisonnement du déplacement. Dupliqué à l'identique
+                    dans les 2 états de cette carte (ici ET dans la branche
+                    "pas encore de données" juste en dessous) : le bouton
+                    doit rester accessible peu importe l'état d'import CSV,
+                    qui n'a aucun rapport avec la disponibilité du bilan
+                    global à partager. `shrink-0` : le titre à gauche peut
+                    grandir sur plusieurs lignes selon le nom de la
+                    playlist, le bouton ne doit jamais se compresser. */}
+                {totalSessions > 0 && (
+                  <button
+                    onClick={exportGlobalStatsImage}
+                    disabled={isExportingGlobalStats}
+                    title="Générer une image de ton bilan global à partager"
+                    className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors ${bgAccentClass} text-white hover:brightness-110 disabled:opacity-60 disabled:cursor-wait`}
+                  >
+                    {isExportingGlobalStats ? <Loader2 size={16} className="animate-spin" /> : <Share2 size={16} />}
+                    <span>{isExportingGlobalStats ? 'Génération...' : 'Partager mon bilan'}</span>
+                  </button>
+                )}
+              </div>
               <p className={`text-xs mb-4 ${textMuted}`}>{playlistsWithRealData.reduce((s, p) => s + p.dates.length, 0)} séance{playlistsWithRealData.reduce((s, p) => s + p.dates.length, 0) > 1 ? 's' : ''} avec cadence/FC réelle (Garmin/Strava) sur {playlistsWithRealData.length} playlist{playlistsWithRealData.length > 1 ? 's' : ''} — clique pour comparer au réel.</p>
               <div className="space-y-2">
                 {playlistsWithRealData.map(({ playlist, dates }) => (
@@ -979,32 +990,58 @@ export default function StatsView({
               </div>
             </div>
           ) : (
-            <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder} flex items-start gap-4`}>
-              <div className={`shrink-0 p-2.5 rounded-xl ${bgAccentClass} text-white`}><Upload size={20}/></div>
-              <div>
-                <h3 className={`font-bold mb-1 ${textHighlight}`}>Compare tes séances au réel</h3>
-                <p className={`text-sm ${textMuted}`}>
-                  {/* Resserré à 1 ligne (05/08, retour direct — "synthétise
-                      en une seule ligne", capture annotée). Longueur
-                      vérifiée par un rendu réel (Playwright, police
-                      volontairement plus large que celle de prod) — cette
-                      carte est PLEINE LARGEUR (`VIEW_CONTENT_WRAPPER`,
-                      `max-w-4xl`, pas dans un grid à colonnes contrairement
-                      à la carte "zone d'effort" juste avant), donc une
-                      colonne de texte nettement plus large que là-bas :
-                      74 caractères, confirmé sur 1 ligne dès ~650px de
-                      colonne. Emphase sur "terminée" conservée (c'est LA
-                      condition d'accès à cette fonctionnalité). Détail du
-                      type de donnée (cadence/FC) et le chemin exact
-                      ("Mes Playlists") retirés du texte : déjà couverts par
-                      le titre de la carte et le bouton "Aller à Mes
-                      Playlists →" juste en dessous. */}
-                  Depuis une séance <span className={`font-semibold ${textHighlight}`}>terminée</span>, importe un CSV Garmin/Strava pour te comparer.
-                </p>
-                <button onClick={() => changeView('playlists')} className={`mt-3 text-sm ${INLINE_NAV_LINK_CLASS} ${textColorClass}`}>
-                  Aller à Mes Playlists →
-                </button>
+            <div className={`${cardBg} rounded-2xl p-4 md:p-6 border ${cardBorder} flex items-start justify-between gap-4`}>
+              <div className="flex items-start gap-4 min-w-0">
+                <div className={`shrink-0 p-2.5 rounded-xl ${bgAccentClass} text-white`}><Upload size={20}/></div>
+                <div className="min-w-0">
+                  <h3 className={`font-bold mb-1 ${textHighlight}`}>Compare tes séances au réel</h3>
+                  <p className={`text-sm ${textMuted}`}>
+                    {/* Resserré à 1 ligne (05/08, retour direct — "synthétise
+                        en une seule ligne", capture annotée). Longueur
+                        vérifiée par un rendu réel (Playwright, police
+                        volontairement plus large que celle de prod) — cette
+                        carte est PLEINE LARGEUR (`VIEW_CONTENT_WRAPPER`,
+                        `max-w-4xl`, pas dans un grid à colonnes contrairement
+                        à la carte "zone d'effort" juste avant), donc une
+                        colonne de texte nettement plus large que là-bas :
+                        74 caractères, confirmé sur 1 ligne dès ~650px de
+                        colonne.
+                        ⚠️ Contrainte ajoutée (22/08) : la carte porte
+                        maintenant AUSSI le bouton "Partager mon bilan" sur
+                        sa droite (`justify-between` sur le conteneur
+                        parent) — la colonne de texte disponible pour ce
+                        paragraphe est donc plus étroite qu'au moment de ce
+                        calcul initial. Repassage à la ligne possible sur
+                        certaines largeurs d'écran intermédiaires, pas
+                        vérifié faute de navigateur disponible en sandbox —
+                        à confirmer visuellement. Emphase sur "terminée"
+                        conservée (c'est LA condition d'accès à cette
+                        fonctionnalité). Détail du type de donnée (cadence/
+                        FC) et le chemin exact ("Mes Playlists") retirés du
+                        texte : déjà couverts par le titre de la carte et le
+                        bouton "Aller à Mes Playlists →" juste en dessous. */}
+                    Depuis une séance <span className={`font-semibold ${textHighlight}`}>terminée</span>, importe un CSV Garmin/Strava pour te comparer.
+                  </p>
+                  <button onClick={() => changeView('playlists')} className={`mt-3 text-sm ${INLINE_NAV_LINK_CLASS} ${textColorClass}`}>
+                    Aller à Mes Playlists →
+                  </button>
+                </div>
               </div>
+              {/* "Partager mon bilan" — voir le commentaire complet dans
+                  ViewHeader (plus haut) pour le raisonnement du
+                  déplacement. Dupliqué à l'identique dans l'autre état de
+                  cette carte juste au-dessus. */}
+              {totalSessions > 0 && (
+                <button
+                  onClick={exportGlobalStatsImage}
+                  disabled={isExportingGlobalStats}
+                  title="Générer une image de ton bilan global à partager"
+                  className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors ${bgAccentClass} text-white hover:brightness-110 disabled:opacity-60 disabled:cursor-wait`}
+                >
+                  {isExportingGlobalStats ? <Loader2 size={16} className="animate-spin" /> : <Share2 size={16} />}
+                  <span>{isExportingGlobalStats ? 'Génération...' : 'Partager mon bilan'}</span>
+                </button>
+              )}
             </div>
           )}
 
