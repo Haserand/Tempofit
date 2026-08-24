@@ -83,6 +83,25 @@ describe('GuestModeBar', () => {
     expect(spacer).toBeInTheDocument();
     expect(spacer.querySelector('svg')).toHaveClass('invisible');
   });
+
+  // ⚠️ NOUVEAU (22/08, MÊME JOUR, encore un retour direct — "je n'ai pas
+  // l'impression que le lecteur audio soit centré sur la guest barre") :
+  // vérifie que le contenu centre désormais sur le MÊME repère
+  // (`max-w-5xl mx-auto`) que MiniPlayerBar.jsx, pas sur la pleine largeur
+  // de la barre — sans ce conteneur partagé, les deux barres centrent sur
+  // 2 largeurs différentes dès que l'écran dépasse 1024px (5xl), un
+  // désalignement invisible en dessous de ce seuil donc facile à
+  // manquer sans test dédié.
+  it('le contenu centre sur max-w-5xl mx-auto, même repère que MiniPlayerBar.jsx', () => {
+    const { container } = render(<GuestModeBar theme={mockTheme} isVisible={true} openModal={() => {}} />);
+    const centeringWrapper = container.querySelector('.max-w-5xl.mx-auto');
+    expect(centeringWrapper).toBeInTheDocument();
+    // Le bouton "Se connecter" doit être un DESCENDANT de ce conteneur,
+    // pas un frère à côté — sinon la contrainte de largeur ne s'applique
+    // à rien de visible.
+    const connectButton = screen.getByRole('button', { name: /Se connecter/ });
+    expect(centeringWrapper.contains(connectButton)).toBe(true);
+  });
 });
 
 // Fermeture SESSION-ONLY (03/08, retour direct : "option pour supprimer/
