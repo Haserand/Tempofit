@@ -1489,7 +1489,7 @@ Petite incohérence préexistante corrigée au passage dans le docstring de
 GuestModeBar alors que sa vraie valeur est 72px depuis le 29/07 — jamais
 mise à jour à l'époque, corrigée en passant par ce même fichier.
 
-## StatsView — bouton "Partager mon bilan" déplacé de l'en-tête vers la carte "Compare tes séances au réel" (22/08)
+## StatsView — bouton "Partager mon bilan" : de l'en-tête à sous la grille de chiffres, en 2 étapes le même jour (22/08)
 
 Retour direct, capture d'écran annotée : "le bilan de partage des
 statistiques semble flotter seul dans son espace" — le bouton "Partager
@@ -1497,44 +1497,47 @@ mon bilan" vivait nu dans l'en-tête (`ViewHeader`, prop `right=`), sans
 aucun conteneur visuel autour de lui, contrairement au reste de la page
 entièrement composée de cartes.
 
-**Mélange sémantique signalé avant d'agir, confirmé malgré tout** :
-"Partager mon bilan" partage les 4 statistiques GLOBALES (séances/écoute
-estimée/BPM moyen/styles), une fonction sans rapport avec "Compare tes
-séances au réel" (import CSV Garmin/Strava pour comparer une playlist
-précise au réel). Le déplacement demandé mélange donc 2 fonctions
-distinctes dans la même carte — accepté explicitement par l'utilisateur,
-priorité donnée à la cohésion visuelle plutôt qu'à la pureté du
-regroupement fonctionnel.
+**Étape 1 — dans la carte "Compare tes séances au réel" (abandonnée
+presque aussitôt, voir étape 2)** : mélange sémantique signalé avant
+d'agir ("Partager mon bilan" partage les 4 statistiques GLOBALES contre
+"Compare tes séances au réel", import CSV pour comparer UNE playlist au
+réel — 2 fonctions sans rapport), mais confirmé malgré tout par
+l'utilisateur. Déplacé à droite du contenu existant, dans les 2 états de
+la carte.
 
-Déplacé dans la carte "Compare tes séances au réel", à droite du
-contenu existant (`justify-between` sur le conteneur), dans SES 2 états
-(dupliqué à l'identique dans les deux, la disponibilité du bilan global
-n'ayant aucun rapport avec l'état d'import CSV) :
-- **État "pas encore de données réelles"** (celui de la capture) :
-  bouton positionné dans l'espace vide à droite du bloc icône+texte,
-  exactement là où l'utilisateur pointait.
-- **État "données déjà importées"** : bouton à droite du titre "Données
-  réelles importées", même ligne.
+**Étape 2 — sous la grille des 4 chiffres (emplacement final), suite à un
+2e retour direct le jour même** : "est-ce que ce serait pas plus pertinent
+de l'avoir en dessous des premiers chiffres au final et pas dans l'encart
+que je te demandais" — avec le recul, meilleur choix : ce bouton partage
+EXACTEMENT les 4 chiffres de la grille "Gros chiffres" (séances/écoute
+estimée/BPM moyen/styles différents), pas la fonctionnalité CSV. Le
+mélange sémantique signalé à l'étape 1 disparaît entièrement avec ce
+regroupement — le bon découpage dès le départ, trouvé après un aller-retour.
 
-Comportement du bouton lui-même INCHANGÉ (`exportGlobalStatsImage`,
-`totalSessions > 0`, disabled pendant l'export) — seul son EMPLACEMENT
-change. `right={null}` explicite sur `ViewHeader` (au lieu de retirer la
-prop silencieusement) : un commentaire y documente le déplacement, pour
-qu'une prochaine lecture ne se demande pas si c'est un oubli.
+**État final** : bouton dans une rangée dédiée (`flex justify-end`) juste
+après le `</div>` qui ferme la grille des 4 chiffres, avant le bloc
+"Clonages reçus". Retiré des 2 états de la carte "Compare tes séances au
+réel", qui retrouve sa structure d'origine EXACTE (avant l'étape 1) — y
+compris son paragraphe d'accroche, qui avait perdu de la largeur
+disponible à l'étape 1 (bouton partageant l'espace horizontal) ; ce
+problème n'existe plus, le paragraphe retrouve toute sa largeur d'origine
+déjà calée sur 1 ligne par une mesure Playwright réelle le 05/08.
+Comportement du bouton lui-même INCHANGÉ tout du long
+(`exportGlobalStatsImage`, `totalSessions > 0`, disabled pendant
+l'export) — seul son EMPLACEMENT a bougé, 2 fois le même jour.
+`right={null}` explicite sur `ViewHeader` (au lieu de retirer la prop
+silencieusement) : un commentaire y documente les 2 étapes, pour qu'une
+prochaine lecture comprenne le cheminement plutôt que de se demander
+pourquoi la prop est vide.
 
-⚠️ Risque non vérifié, signalé dans un commentaire du code : le
-paragraphe d'accroche de la carte vide ("Depuis une séance terminée,
-importe un CSV...") avait été calé sur 1 ligne par une mesure Playwright
-réelle le 05/08 — la colonne de texte disponible est maintenant plus
-étroite (le bouton partage l'espace horizontal). Repassage à la ligne
-possible sur certaines largeurs d'écran, pas vérifiable cette session
-(Playwright bloqué, voir CLAUDE-SANDBOX-VERIFICATION.md §5quinquies) — à
-confirmer visuellement.
-
-4 tests ajoutés (`StatsView.test.jsx`) : bouton présent dans chacun des 2
-états de la carte (et absent de l'autre), absent si `totalSessions === 0`
-(comportement hérité inchangé), le clic déclenche bien
-`shareImageFile`.
+Tests (`StatsView.test.jsx`) réécrits pour l'étape 2, pas juste
+retouchés : l'assertion "bouton présent dans la carte X" de l'étape 1
+serait restée VERTE par erreur après ce 2e déplacement (le bouton ET le
+titre de carte existent tous les deux sur la page, juste plus imbriqués
+l'un dans l'autre) — remplacée par une assertion qui vérifie explicitement
+que le bouton n'est PLUS un descendant de la carte "Compare tes séances au
+réel", pour que ce test aurait réellement échoué sur l'état abandonné de
+l'étape 1 s'il avait existé à ce moment-là.
 
 ## Autres fichiers de référence à ce niveau
 
