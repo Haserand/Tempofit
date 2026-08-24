@@ -1,4 +1,5 @@
 import { AlertCircle } from 'lucide-react';
+import ModalShell from '../shared/ModalShell';
 
 /**
  * PendingNavigationModal — confirmation avant de quitter une playlist tout
@@ -43,13 +44,12 @@ import { AlertCircle } from 'lucide-react';
 export default function PendingNavigationModal({
   theme, pendingNavigation, onClose, resolvePendingNavigation,
 }) {
-  const { cardBg, cardBorder, textHighlight, textMuted, bgAccentClass } = theme;
+  const { textHighlight, textMuted, bgAccentClass } = theme;
 
   if (!pendingNavigation) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs" onClick={onClose}>
-      <div className={"p-8 rounded-3xl w-full max-w-md shadow-2xl border " + cardBg + " " + cardBorder} onClick={e => e.stopPropagation()}>
+    <ModalShell onClose={onClose} theme={theme}>
         <div className="flex items-start gap-3 mb-4">
           <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 shrink-0">
             <AlertCircle size={22} />
@@ -88,7 +88,6 @@ export default function PendingNavigationModal({
             Annuler
           </button>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
