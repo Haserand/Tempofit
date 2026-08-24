@@ -59,13 +59,24 @@ export function useNavigation(
   const { setWizardStep } = useGeneratorContext();
   const { openModal } = useModalContext();
 
-  // Playlist tout juste générée mais jamais sauvegardée : la quitter (navigation
-  // interne OU fermeture d'onglet/F5) la perdrait définitivement (pas de brouillon
-  // persistant, voir createPlaylistData). Ignore les playlists vides (génération
-  // ratée, rien de réel à perdre). Calculée une fois ici et réutilisée par
-  // `changeView` (modale interne) et par le listener `beforeunload` ci-dessous
-  // (avertissement natif du navigateur), pour ne jamais avoir 2 définitions de
-  // "playlist non sauvegardée" qui divergent.
+  // Playlist affichée mais jamais sauvegardée dans "Mes Playlists" : la
+  // quitter (navigation interne OU fermeture d'onglet/F5) la perdrait
+  // définitivement (pas de brouillon persistant, voir createPlaylistData).
+  // Ignore les playlists vides (génération ratée, rien de réel à perdre).
+  // Calculée une fois ici et réutilisée par `changeView` (modale interne)
+  // et par le listener `beforeunload` ci-dessous (avertissement natif du
+  // navigateur), pour ne jamais avoir 2 définitions de "playlist non
+  // sauvegardée" qui divergent.
+  // ⚠️ Périmètre RÉDUIT depuis le 22/08 (retour direct — "si je génère
+  // UNE playlist, elle devrait être ajoutée à mes playlists") :
+  // `usePlaylistGeneration.js` sauvegarde désormais automatiquement toute
+  // génération simple (`count === 1`) dans `savedPlaylists`, elle n'a donc
+  // plus JAMAIS cet état juste après génération. Ce garde-fou protège
+  // maintenant un périmètre plus étroit mais toujours bien réel : un
+  // template ouvert directement depuis Découvrir (`openCuratedPlaylist`,
+  // `onPlayTemplate`, SANS passer par la vitrine `@tempofit_officiel`) —
+  // obtient un id frais à chaque ouverture, jamais automatiquement dans
+  // `savedPlaylists`, un clic "Ajouter" reste nécessaire pour le garder.
   const hasUnsavedPlaylist = view === 'playlist' && currentPlaylist
     && !savedPlaylists.find(p => p.id === currentPlaylist.id)
     && currentPlaylist.tracks && currentPlaylist.tracks.length > 0;
