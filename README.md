@@ -526,6 +526,38 @@ pas besoin d'attendre un 3e ou 4e fichier pour que la duplication devienne
 un vrai risque : 2 fichiers qui doivent visuellement s'aligner et
 partagent déjà une recette identique suffisent.
 
+### Une classe Tailwind "dépendante" (`flex-col`/`items-*`/`justify-*`) ne fait RIEN sans sa classe "prérequise" (`flex`/`grid`) — invisible à la simple lecture
+
+Actée le 22/08, après le VRAI bug derrière le "3e symptôme" ci-dessus
+(centrage interne à `MiniPlayerBar.jsx`/`GuestModeBar.jsx`, voir la
+section dédiée plus bas pour le récit complet) : 2 tentatives de
+correctif basées sur un raisonnement théorique se sont révélées fausses
+avant qu'une vraie mesure (Playwright) ne révèle la cause réelle —
+`BottomBarShell.jsx` acceptait un `innerClassName` transmis par chaque
+appelant, mais son propre template de base ne posait JAMAIS `flex` —
+sans lui, `flex-col`/`items-center` transmis par un appelant n'ont
+LITTÉRALEMENT AUCUN EFFET. Rien de "faux" en apparence dans le JSX
+final : les classes sont bien là, juste incomplètes d'une façon qu'une
+relecture de code ne révèle pas — seul un rendu réel (ou une
+vérification automatisée du couplage entre classes) le révèle.
+
+**Généralisable** : toute classe qui ne prend effet que sur un conteneur
+`flex`/`grid` (`flex-col`, `flex-row`, `items-*`, `justify-*`,
+`content-*`...) doit TOUJOURS être accompagnée de `flex`/`grid`/
+`inline-flex`/`inline-grid` sur le MÊME élément — que ce soit dans une
+chaîne de classes statique (là, une relecture attentive suffit à le
+voir) OU, plus insidieux, quand une chaîne de classes est transmise à un
+composant partagé via une prop de personnalisation (`innerClassName`,
+`cardClassName`...) : dans ce cas, la classe prérequise peut manquer
+soit côté appelant, soit côté composant receveur — le bug se cache dans
+l'INTERACTION entre 2 fichiers, jamais visible en lisant l'un des deux
+séparément. Garde-fou automatique ajouté
+(`tests/flexDependentClassTrap.test.js`, même famille que
+`tailwindConcatTrap.test.js`) : scanne toute prop `cardClassName=`
+(celle qui reste réellement à risque, voir sa docstring pour pourquoi
+`innerClassName` en est exclu) et vérifie qu'une classe dépendante n'y
+apparaît jamais sans son prérequis.
+
 ## Décisions actées, pas encore implémentées — chantier Pulses/Leaderboard
 
 Suite à l'arrivée de "Running Mode" chez Spotify (juillet 2026) : **pas de pivot**. Le positionnement reste Sport + Mode Intime, on renforce l'existant plutôt que de reconstruire une couche sociale généraliste (feed 24h, avatars, follow) — décision explicitement actée, pas un oubli. Si ça change un jour, ce paragraphe doit changer avec.
@@ -1142,6 +1174,41 @@ aussi par capture d'écran visuelle. 1 test ajouté
 sous-chaîne "flex" mais n'a aucun effet seule) — une régression future
 de ce type serait détectée même si un appelant continuait, par
 prudence, à fournir son propre `flex` en double.
+
+## Nouveau garde-fou — `flexDependentClassTrap.test.js` (22/08)
+
+Question directe suite au bug `BottomBarShell.jsx` (voir la Convention
+UI plus haut et la section dédiée à ce bug pour le récit complet) :
+"vois-tu des pratiques à généraliser ou d'autres checks à faire ?".
+
+**Vérifié d'abord, avant d'écrire quoi que ce soit** : `ModalShell.jsx`
+partage la même conception à risque que `BottomBarShell.jsx` avant
+correction (`cardClassName`, entièrement libre, aucune garantie de
+`flex`/`grid` à la source) — mais n'a PAS le même bug aujourd'hui, les 4
+appelants qui utilisent `flex-col` ("EditPlaylistModal.jsx",
+"EditRoutineModal.jsx", "SearchModal.jsx", "SearchUsersModal.jsx")
+incluent tous, chacun, `flex` dans la même chaîne. Une vérification
+manuelle qui pourrait très bien ne plus être vraie au prochain appelant.
+
+**Fait** : `tests/flexDependentClassTrap.test.js` (nouveau, même famille
+que `tailwindConcatTrap.test.js`) — scanne tout `cardClassName="..."`
+littéral du projet, vérifie qu'une classe qui ne fait effet que sur un
+conteneur flex/grid (`flex-col`, `items-*`, `justify-*`...) n'apparaît
+jamais sans `flex`/`grid` dans la même chaîne. `innerClassName`
+(`BottomBarShell.jsx`) délibérément EXCLU du scan : ce prop-là est
+désormais protégé à la source (`flex` posé dans le template de base du
+composant lui-même, inconditionnellement) — l'inclure aurait produit un
+faux positif permanent sur `GuestModeBar.jsx`/`MiniPlayerBar.jsx`.
+
+**Vérifié que ce garde-fou détecte vraiment une régression**, pas
+seulement qu'il passe aujourd'hui : régression simulée temporairement
+(`cardClassName` d'un fichier modifié pour retirer `flex` tout en
+gardant `flex-col`), test relancé — échoue bien avec un message clair,
+fichier restauré immédiatement après. `testFileIdentityTrap.test.js`
+mis à jour (`flexDependentClassTrap.test.js` ajouté à
+`NO_SINGLE_SUBJECT`, même famille que les autres garde-fous globaux du
+projet — ce fichier scanne tout le projet, n'importe pas un "sujet"
+unique correspondant à son propre nom).
 
 ## Autres fichiers de référence à ce niveau
 
