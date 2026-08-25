@@ -1,169 +1,198 @@
-### Synchronisation Supabase
-- `usePersistentState.js` : hook générique `[state, setState]`, synchronise vers la table `user_data` (blob JSON par clé). Utilisé pour tout ce qui n'est pas playlists/routines (thème, favoris, profil athlétique...).
-- `useSyncedCollection.js` : même signature `[state, setState]`, mais synchronise un TABLEAU d'objets vers une vraie table relationnelle (une ligne par élément), en calculant le diff en interne. Utilisé uniquement pour `savedPlaylists`/`routines`.
-- ✅ **CORRIGÉ (07/08)** : à la déconnexion, `signOut()` (AuthContext.jsx) vide désormais tout le cache localStorage TempoFit de l'appareil (`clearLocalCache()`, `src/utils/localCache.js`) — voir "État d'avancement" plus haut pour le détail complet. Avant ce correctif, un compte suivant sur un appareil partagé pouvait voir (et modifier) les données de la personne précédente, potentiellement indéfiniment s'il restait en mode invité — pas juste "un court instant" comme le disait cette note.
+## 1. Validation de syntaxe RÉELLE — `esbuild` (recommandé)
 
-### Pseudos réservés
-- `src/utils/username.js` (`isReservedUsername`, garde-fou UX) **et** la contrainte SQL `profiles_username_not_reserved` (`supabase-schema.sql`) existent tous les deux et doivent rester identiques — c'est la contrainte SQL qui constitue la vraie garantie de sécurité.
-- Exception unique : `tempofit_admin`, comparaison stricte sensible à la casse (contrairement au reste du motif, insensible à la casse).
+Un vrai parseur JS/JSX est **déjà présent** dans le bac à sable Claude, caché
+dans les dépendances globales de `tsx` (installé pour d'autres besoins,
+sans lien avec ce projet) :
 
-### Profil vitrine `@tempofit_officiel`
-- Jamais stocké en base, entièrement reconstruit côté client (`src/data/officialVitrineProfile.js`) — accessible même sans compte, court-circuite le Login Wall des profils volontairement. Le pseudo est structurellement bloqué à l'inscription par le système de pseudos réservés ci-dessus.
+```bash
+ESBUILD=/home/claude/.npm-global/lib/node_modules/tsx/node_modules/esbuild/bin/esbuild
 
-### Login Wall des profils publics
-- Double verrou : droits d'exécution SQL retirés à `anon` sur `get_public_profile_summary`/`search_public_profiles` (`revoke ... from anon`) **et** vérification explicite `auth.uid() is null` en tout premier dans chaque fonction — voir `supabase-schema.sql`.
+# Un seul fichier :
+$ESBUILD chemin/vers/fichier.jsx --jsx=automatic --outfile=/dev/null
 
-## Convention UI — règles génériques accumulées au fil des retours directs
+# Tout le projet (src/ + tests/), ne remonte que les VRAIES erreurs :
+for f in $(find src tests -name "*.js" -o -name "*.jsx" | grep -v node_modules); do
+  out=$($ESBUILD "$f" --jsx=automatic --log-level=silent --outfile=/dev/null 2>&1)
+  if [ -n "$out" ]; then echo "=== $f ==="; echo "$out"; fi
+done
+```
 
-Actée le 14/08 (infobulles sur icônes seules, après 2 allers-retours sur
-le même motif — retour direct avec capture d'écran : "pourquoi seul le
-nombre de titres a une infobulle au survol, pas le reste ?"), élargie le
-22/08 après une nouvelle série d'ajustements ponctuels dont plusieurs se
-sont révélés être le MÊME motif structurel répété (voir points 7-8 et les
-2 nouvelles sous-sections plus bas). Règles à appliquer par réflexe dans
-tout nouveau code UI, pas seulement à retrouver après coup sur retour
-direct :
+⚠️ Piège rencontré (02/08) : ajouter `--loader=jsx` en plus de l'extension
+`.jsx` fait renvoyer un code de sortie 1 à esbuild même sur un fichier
+parfaitement valide (avertissement "loader without extension only applies
+when reading from stdin"), MAIS ne produit **aucune sortie** sur stdout/
+stderr quand `--log-level=silent` est présent — se fier au **contenu**
+capturé (`$out`), jamais au seul code de sortie, avec cette combinaison de
+flags. Plus simple : ne PAS passer `--loader=jsx` du tout, l'extension
+`.jsx` suffit à elle seule à faire deviner le bon loader à esbuild.
 
-1. **Toute icône seule (sans mot qui l'explique déjà à côté) porte un
-   `title=`.** Un chiffre nu à côté d'une icône (`<List/> 5`, `<Gauge/> 150
-   BPM`) est ambigu sans légende — contrairement à une icône suivie d'un
-   mot déjà explicite (`<Activity/> Course à pied`), qui n'a
-   techniquement pas BESOIN d'infobulle mais en gagne une quand même si
-   ses voisines directes (même ligne/groupe visuel) en ont — voir la règle
-   2.
-2. **Cohérence au sein d'un même groupe visuel > cas par cas.** Le vrai
-   signal d'un oubli n'est presque jamais "cette icône est ambiguë dans
-   l'absolu", mais "SA VOISINE a une infobulle et pas elle" (ex. le pseudo
-   d'une carte a un `title=` mais pas les 4 icônes de métadonnées juste en
-   dessous, dans le MÊME composant). Réflexe à avoir en touchant une carte/
-   ligne d'infos : vérifier CHAQUE élément du même groupe, pas seulement
-   celui qu'on modifie.
-3. **Cas à plus forte valeur : un libellé ABRÉGÉ affiché alors qu'un
-   libellé COMPLET existe déjà dans les données** (ex. `zone.shortLabel`
-   "Seuil" affiché, `zone.label` "Seuil / Tempo" disponible sur le même
-   objet, `appConfig.js`/`ATHLETIC_ZONES`) — l'infobulle n'y est alors plus
-   seulement cosmétique, elle restitue une info réellement absente à
-   l'écran. Prioritaire sur le reste si on doit choisir où mettre l'effort.
-4. **Exception assumée, pas un oubli** : les boutons de fermeture (icône
-   `X`) des modales n'ont volontairement PAS de `title="Fermer"` — motif
-   uniforme sur les 11 modales du projet (vérifié le 14/08), une croix de
-   fermeture est un standard UI suffisamment universel. Ne pas "corriger"
-   cette exception par réflexe de cohérence si elle est repérée à nouveau —
-   elle est déjà cohérente, juste sans infobulle nulle part.
-5. Fonction PARTAGÉE entre plusieurs vues (ex. `renderConfigInfoLine` dans
-   `App.jsx`, utilisée par `PlaylistsView`/`RoutinesView`) : corriger UNE
-   FOIS à la source suffit, pas la peine de dupliquer le correctif dans
-   chaque appelant — mais bien vérifier qu'aucun autre appelant n'a SA
-   PROPRE copie légèrement différente de la même logique (`PlaylistCard.jsx`
-   avait le sien, à côté, pas dans `App.jsx`).
-6. **Motif DISTINCT, à ne pas confondre avec les 5 règles ci-dessus (icônes)
-   — texte TRONQUÉ (`truncate`/`line-clamp-*`) sans `title=`.** Trouvé le
-   14/08 (retour direct sur `TemplateCard.jsx` : "il manque pas les
-   infobulles sur les metadata de Découvrir ?") — ici, pas d'icône du tout,
-   juste du texte coupé à l'ellipsis sans aucun moyen de voir le reste au
-   survol. **Rattrapage complet fait le 14/08, même session** (sur
-   confirmation explicite, "on le fait maintenant") : les 71 éléments
-   `truncate`/`line-clamp-*` recensés dans `src/components/` ont chacun été
-   vérifiés — la plupart corrigés (`title=` avec le texte complet, souvent
-   reconstruit via template literal quand le texte affiché combine
-   plusieurs champs), quelques-uns déjà bons sans qu'un premier passage au
-   grep simple l'ait vu (title posé sur une ligne différente du
-   `className`, ou une `<div>` englobante dont l'enfant direct porte déjà
-   le `title=`), 2 exceptions assumées :
-   - Le tooltip d'un graphique Recharts (`PlaylistCharts.jsx`,
-     `data.trackName`) — poser un `title=` HTML natif à l'intérieur d'un
-     contenu qui s'affiche DÉJÀ au survol du graphique n'apporte rien (il
-     faudrait déjà survoler pour le voir).
-   - Un bouton dont le `title=` décrit délibérément l'ACTION plutôt que de
-     répéter le texte tronqué (`MiniPlayerBar.jsx`, "Aller à cette
-     playlist") — plus utile qu'une simple répétition ici, laissé tel quel.
-   Réflexe à avoir pour tout NOUVEAU `truncate`/`line-clamp-*` écrit à
-   partir de maintenant : poser le `title=` correspondant du premier coup,
-   plutôt que de laisser un nouveau trou se former.
-7. **Généralisé (22/08) : ne se limite plus au texte tronqué ou aux icônes
-   seules — une PHRASE COMPLÈTE affichée en clair peut, elle aussi, passer
-   partiellement en infobulle** si elle fait déborder son conteneur sur 2
-   lignes alors qu'une version courte suffit comme accroche (ex.
-   `TrackList.jsx` : "Séance déjà réalisée — plus aucun titre ne peut être
-   ajouté, dupliqué, remplacé ou retiré" → "Séance déjà réalisée" affiché,
-   le reste en `title=`). Découpage à faire : garder visible la partie
-   ACTIONNABLE ou la plus courte à comprendre d'un coup d'œil, déplacer en
-   infobulle le POURQUOI/le détail. Retour direct qui a motivé cette
-   généralisation : capture d'écran d'une bannière sur 2 lignes, "garder
-   que [texte court] et le reste en infobulle ?".
-8. **Le texte VISIBLE d'un élément doit porter la même logique
-   conditionnelle que son propre `title=` — jamais moins.** Repéré le
-   22/08 (`PlaylistHeaderActions.jsx`, bouton "Planifier") : le `title=`
-   distinguait déjà correctement `isLocked ? "Refaire cette séance" :
-   "Planifier cette séance"`, mais le `<span>` visible ne regardait QUE
-   si une date était choisie, ignorant complètement `isLocked` — un
-   tooltip plus riche que le libellé affiché est le signal qu'une
-   distinction déjà pensée quelque part n'a pas été répercutée partout.
-   Audit fait ce jour-là sur les 34 `title={...ternaire...}` du projet à
-   la recherche du même écart : aucun autre cas trouvé — mais réflexe à
-   garder pour tout NOUVEAU `title=` conditionnel écrit désormais, vérifier
-   que le texte/état visible suit la MÊME condition, pas une condition plus
-   pauvre.
+Bien plus fiable que compter les accolades/parenthèses à la main (voir §2) :
+0 faux positif sur ce projet, contrairement au script maison qui en produit
+une ~27aine (essentiellement à cause des apostrophes françaises dans le
+texte JSX, qui perturbent une détection naïve des chaînes de caractères).
 
-### Pseudo/nom d'auteur cliquable vers un profil — `underline` PERMANENT
+⚠️ **Angle mort trouvé le 02/08** (chantier "Recherche & filtres sur les
+profils publics", passé en build Vercel réel avant d'être détecté) :
+`esbuild` valide la SYNTAXE, pas les RÉFÉRENCES — `inputBorder`/`inputBg`
+utilisés dans `ProfileView.jsx` sans jamais être destructurés de `theme`
+(variable syntaxiquement valide, juste jamais déclarée dans le scope) sont
+passés par `esbuild` sans un seul avertissement, plantant uniquement à
+l'exécution réelle (`ReferenceError: inputBorder is not defined`, 21 tests
+en échec). Voir §1bis juste en dessous pour l'outil qui AURAIT attrapé ça.
 
-Vérifié le 14/08 (question directe, "faudrait pas centraliser ça aussi ?")
-— **déjà cohérent partout où ce motif existe**, rien à corriger, mais
-documenté pour ne pas dériver à l'avenir :
-- Un pseudo/nom d'auteur qui ouvre le PROFIL de quelqu'un (`onViewProfile`,
-  `onViewOfficialProfile`, ou "aller à Mes Séances" pour son propre pseudo)
-  est toujours souligné en PERMANENCE (`underline`, jamais seulement
-  `hover:underline`) — voir `PlaylistHeaderMeta.jsx`/`TemplateCard.jsx`,
-  toujours accompagné d'un `title=` explicite ("Voir le profil de X").
-- Ne PAS confondre avec un lien vers un autre type de contenu (ex. le nom
-  d'une PLAYLIST dans `MiniPlayerBar.jsx`) — celui-là peut légitimement se
-  contenter d'un `hover:underline` (souligné seulement au survol), le
-  distinguo permanent/hover marque justement "ceci mène à un PROFIL
-  d'utilisateur" par rapport au reste de l'app.
-- Exception légitime, pas à "corriger" par réflexe : une LISTE de
-  résultats où toute la ligne est cliquable (avatar + pseudo, fond qui
-  change au survol — voir `SearchUsersModal.jsx`) suit un paradigme UI
-  différent (ligne entière = affordance cliquable) ; le soulignement du
-  texte seul n'y a pas sa place.
+## 1bis. Détection de variables non déclarées — `tsc --checkJs` (complète esbuild, ne le remplace pas)
 
-### Centrage flexbox d'une rangée ASYMÉTRIQUE (bouton principal + petit bouton icône seule)
+`typescript` est installé globalement dans le bac à sable (`tsc`, pour
+d'autres besoins, sans lien avec ce projet — même situation qu'esbuild via
+`tsx`). `--checkJs` sur un fichier `.jsx`/`.js` fait remonter les
+identifiants utilisés sans être déclarés dans leur scope (`TS2304`/
+`TS2552`) — exactement la classe de bug qu'esbuild ne voit PAS (voir
+l'angle mort ci-dessus). Aucun vrai `node_modules` installé dans ce bac à
+sable : `tsc` échoue à résoudre les packages externes (`react`,
+`lucide-react`...), ce qui génère du bruit (`TS2307`) à ignorer — mais suit
+correctement les imports RELATIFS locaux (`../../contexts/...`), donc reste
+fiable pour ce diagnostic précis. Toujours filtrer sur `TS2304`/`TS2552`
+uniquement, jamais lire la sortie brute :
 
-Actée le 22/08, retour direct avec capture d'écran sur `GuestModeBar.jsx`
-("pourquoi les 2 ne sont pas parfaitement centrés ?") — **piège CSS
-structurel à connaître, pas spécifique à ce composant précis** :
-`justify-center` centre le GROUPE entier de la rangée, pas le contenu
-qu'on perçoit intuitivement comme "principal". Si ce groupe associe un
-élément large (ex. bouton texte+icône, "Se connecter") et un élément
-nettement plus étroit (ex. bouton icône seule, croix de fermeture), le
-centre géométrique du groupe tombe mécaniquement DÉCALÉ vers le côté
-large — l'œil perçoit alors le texte principal comme "pas centré", alors
-que la rangée l'est bel et bien, au sens strict.
-- **Correctif type** : ajouter un espaceur INVISIBLE (`invisible`, pas
-  `hidden` — doit garder sa place dans la mise en page) de la même boîte
-  exacte que le petit élément (mêmes classes de padding/taille, copiées
-  plutôt que devinées en pixels), du côté opposé. Équilibre les 2 côtés
-  sans dépendre d'une valeur magique à resynchroniser si l'élément change
-  un jour. `aria-hidden="true"` sur cet espaceur — purement visuel, rien à
-  annoncer aux lecteurs d'écran.
-- **Pas un problème SI les 2 éléments flanquants sont déjà de taille
-  identique** (ex. pagination `‹ Page X/Y ›` dans `PlaylistsView.jsx` —
-  2 boutons flèche strictement identiques de chaque côté du texte) :
-  `justify-center` centre alors correctement le texte par construction,
-  aucun espaceur nécessaire. Vérifié le 22/08 sur les 16 rangées du
-  projet combinant `justify-center` + 2 boutons ou plus dans le même
-  conteneur : `GuestModeBar.jsx` était le seul cas réellement asymétrique
-  trouvé — mais réflexe à avoir pour toute NOUVELLE rangée de ce type.
+```bash
+TSC=/home/claude/.npm-global/lib/node_modules/typescript/bin/tsc
 
-### Élément décoratif vs espace fonctionnel — la fonction prime
+# Un seul fichier :
+$TSC --allowJs --checkJs --noEmit --jsx react-jsx --target es2020 \
+  --moduleResolution bundler --skipLibCheck chemin/vers/fichier.jsx \
+  2>&1 | grep -E "TS2304|TS2552"
 
-Retour direct du 22/08 sur `Sidebar.jsx` ("l'accessibilité de la
-navigation du menu doit être privilégiée") — principe général derrière le
-retrait de `creditRowHeight` (voir la section dédiée plus bas pour le
-détail complet) : un ajustement purement COSMÉTIQUE (ex. aligner deux
-bordures au pixel près entre 2 zones indépendantes de l'écran) ne doit
-JAMAIS forcer un élément à grandir au détriment de l'espace réellement
-disponible pour un contenu FONCTIONNEL (navigation, action, information
-consultée activement) qui partage le même conteneur. En cas de conflit
-entre les deux, la fonction gagne — quitte à accepter un léger défaut
-visuel (ici, un désalignement de bordure) comme compromis assumé plutôt
-que corrigé.
+# Tout le projet, ne remonte que les VRAIES variables non déclarées :
+for f in $(find src -name "*.jsx" -o -name "*.js" | grep -v node_modules); do
+  out=$($TSC --allowJs --checkJs --noEmit --jsx react-jsx --target es2020 \
+    --moduleResolution bundler --skipLibCheck "$f" 2>&1 | grep -E "TS2304|TS2552")
+  if [ -n "$out" ]; then echo "=== $f ==="; echo "$out"; fi
+done
+```
+
+À lancer systématiquement en plus d'esbuild dès qu'un fichier `.jsx`/`.js`
+est créé ou modifié — les deux outils sont COMPLÉMENTAIRES (syntaxe vs
+références), ni l'un ni l'autre ne remplace l'exécution réelle du build
+Vercel (voir §5).
+
+⚠️ Faux positif connu, sans rapport avec ce diagnostic : quelques fichiers
+de test (`useShare.test.js`, `PlaylistDetailView.test.jsx`,
+`SettingsView.test.jsx`) utilisent `global` (l'objet global Node, légitime
+sous Vitest) — `tsc` le signale en `TS2304` faute de `@types/node`
+installé (même cause que le bruit `TS2307` sur `react`/`lucide-react` :
+aucun vrai `node_modules` dans ce bac à sable). Un `TS2304` sur `global`
+précisément est donc à ignorer ; sur n'importe quel autre identifiant, à
+prendre au sérieux.
+
+## 2. Résolution mécanique des imports relatifs
+
+```python
+import re, os
+
+def resolve(base_dir, imp):
+    candidate = os.path.normpath(os.path.join(base_dir, imp))
+    for ext in ['', '.js', '.jsx', '.json', '/index.js', '/index.jsx']:
+        if os.path.isfile(candidate + ext):
+            return True
+    return False
+
+pattern = re.compile(r"""(?:from\s+|vi\.mock\(\s*|import\(\s*)['"](\.[^'"]+)['"]""")
+# Parcourir src/ + tests/, chercher chaque import relatif, vérifier qu'il
+# résout vers un vrai fichier sur disque.
+```
+
+## 3. Équilibre syntaxique grossier (dépassé par §1, gardé pour mémoire)
+
+Utile UNIQUEMENT si `esbuild` (ou un autre vrai parseur) n'était pas
+disponible — génère des faux positifs connus à cause des apostrophes
+françaises en JSX, des regex, et des commentaires contenant des caractères
+isolés. Ne plus utiliser comme méthode principale depuis que le point 1
+ci-dessus a été découvert (02/08) — gardé seulement en dernier recours.
+
+## 4. Piège Tailwind (classe dynamique jamais scannée)
+
+```bash
+grep -nE "(hover|focus|dark|active|disabled):['\"\`]\s*\+" <fichiers>
+grep -nE "(hover|focus|dark|active|disabled):\$\{" <fichiers>
+```
+
+## 4bis. Vérification de `supabase-schema.sql` — aucun Postgres réel disponible
+
+Trouvé le 02/08 (chantier fondations SQL de la persona intime — le premier
+à toucher ce fichier depuis que ce protocole existe) : **aucun outil de ce
+bac à sable ne peut exécuter ou valider réellement du SQL** — pas de
+Postgres installé, pas d'accès réseau vers Supabase, `sqlparse` (Python)
+indisponible sans réseau pour l'installer. La vérification reste donc
+purement MÉCANIQUE et MANUELLE :
+
+- Delimiteurs `$$` en nombre pair sur tout le fichier (`grep -c '\$\$'
+  supabase-schema.sql`) — chaque fonction en ouvre puis ferme exactement
+  une paire ; un total impair signale à coup sûr une fonction mal fermée.
+- Parenthèses/crochets équilibrés sur le bloc ajouté (compter manuellement
+  ou via un petit script Python `text.count('(') == text.count(')')`) —
+  nécessaire mais pas suffisant (un déséquilibre prouve une erreur, un
+  équilibre ne prouve rien d'autre que "au moins pas CETTE catégorie
+  d'erreur").
+- Toute constante numérique utilisée pour indexer un tableau SQL (ex. `%
+  20` pour piocher dans un `array[...]` de 20 éléments) doit être
+  recomptée EXPLICITEMENT contre la vraie longueur du tableau — un
+  décalage silencieux ne produit pas une erreur SQL, juste un `NULL`
+  discret en sortie.
+- Préférer systématiquement une fonction Postgres NATIVE et bien connue
+  (`hashtext()`, `gen_random_uuid()`, `md5()`) à un idiome plus exotique
+  (ex. cast `('x' || ...)::bit(32)::int` pour convertir un hex en entier —
+  syntaxe réellement valide mais invérifiable ici avec certitude) —
+  choisir la fonction dont la signature est connue sans le moindre doute,
+  plutôt que la plus élégante.
+- Respecter la convention DÉJÀ établie dans ce fichier (voir son en-tête) :
+  `create table if not exists` / `create or replace function` sont
+  idempotents nativement, mais `create policy` ne l'est PAS — toujours le
+  faire précéder d'un `drop policy if exists` avec le nom EXACT, sous
+  peine de casser la ré-exécutabilité complète du fichier (`ERROR: 42710`
+  dès la 2e exécution).
+- Toujours ajouter, en commentaire juste avant toute nouvelle fonction, une
+  requête `select` prête à copier-coller dans l'éditeur SQL Supabase —
+  c'est la SEULE vérification qui compte réellement, et elle ne peut être
+  faite que par l'utilisateur, jamais par Claude dans ce bac à sable.
+- Le premier build Vercel après un changement de `supabase-schema.sql` ne
+  suffit PAS à valider le SQL lui-même (Vercel ne l'exécute jamais — ce
+  fichier est copié-collé à la main par l'utilisateur dans Supabase,
+  totalement hors du pipeline de build) : un chantier SQL qui touche ce
+  fichier reste NON vérifié tant que l'utilisateur n'a pas confirmé
+  explicitement avoir exécuté le script et testé les requêtes suggérées.
+- ⚠️ **`auth.uid()` vaut TOUJOURS `null` dans l'éditeur SQL Supabase** —
+  aucune fonction qui en dépend (`if auth.uid() is null then return; end
+  if;`, garde quasi systématique sur toute RPC touchant à un compte
+  utilisateur) ne peut être vérifiée de cette façon, même en copiant-collant
+  la requête suggérée exactement. Confirmé À RÉPÉTITION sur ce projet
+  (`get_or_create_intimate_persona()`, puis `increment_playlist_clone_count`/
+  `clone_ledger`) — un appel direct dans l'éditeur s'exécute SANS ERREUR
+  (rien à corriger côté SQL), mais ne fait STRICTEMENT rien, silencieusement,
+  dès sa 1re ligne. **Prévenir l'utilisateur de cette limite AVANT de lui
+  faire lancer une longue séquence de requêtes de test** sur ce genre de
+  fonction — pas seulement en aparté après plusieurs tours d'aller-retour
+  (voir la session du 02/08, chantier "compteur de clonages" : 6 échanges
+  d'images/requêtes avant d'arriver à cette conclusion, alors que la
+  réserve était déjà connue et documentée pour `get_or_create_intimate_persona()`
+  quelques chantiers plus tôt — aurait dû être répétée d'emblée). La SEULE
+  vérification valable pour ce type de fonction est un vrai geste dans
+  l'app déployée, avec une vraie session authentifiée.
+
+## 4quater. Supprimer un fichier côté sandbox ≠ le supprimer côté repo de l'utilisateur
+
+Trouvé le 02/08 (chantier "compteur de clonage honnête", `fakeCloneCountForId`
+retirée de `curatedSessions.js`) : `bash_tool` peut supprimer un fichier dans
+CE bac à sable (`rm ...`), mais l'utilisateur, lui, ne voit et n'applique QUE
+ce qui est explicitement livré via `present_files` — un fichier supprimé
+côté sandbox reste tel quel sur son repo GitHub tant que Claude ne le lui dit
+PAS explicitement. `tests/data/curatedSessions.test.js` (testant uniquement
+cette fonction retirée) a ainsi continué à planter le build Vercel pendant
+plusieurs tours, invisible dans les sweeps esbuild/tsc de ce bac à sable
+puisqu'il n'y existait déjà plus.
+
+**Règle** : dès qu'un fichier est supprimé (ou qu'une fonction/un export est
+retiré et qu'un fichier de test ne teste plus QUE cette chose), lister
+EXPLICITEMENT dans la réponse à l'utilisateur les fichiers à supprimer
+côté GitHub — un chemin par ligne, aussi visible que le tableau des fichiers
+à pousser. Ne jamais supposer qu'un `rm` local suffit à répercuter la
+suppression chez l'utilisateur.
