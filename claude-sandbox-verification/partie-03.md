@@ -1,111 +1,40 @@
-### Historique détaillé (13-14/08) — voir l'index `HISTORIQUE.md` → bloc 4
+### Habitude de travail : second avis avec Gemini sur les décisions stratégiques/produit
+L'utilisateur consulte régulièrement Gemini en parallèle de Claude, typiquement pour challenger une décision stratégique ou produit importante (positionnement, priorisation, architecture de confidentialité...) — pas pour l'implémentation de code. Concrètement, ça prend la forme d'un aller-retour : Claude propose une analyse, l'utilisateur la soumet à Gemini (souvent via un document préparé par Claude à cet effet), puis colle la réponse de Gemini dans la conversation pour que Claude réagisse.
 
-Récit chronologique complet déplacé le 14/08 (4e élagage — la session la
-plus longue et la plus dense à ce jour, largement au-delà de celle du
-10/08). Index :
+À savoir pour une session qui tomberait sur ce pattern :
+- **C'est un usage établi et bienvenu, pas une remise en cause à prendre avec méfiance.** Traiter le retour de Gemini comme un avis extérieur de bonne foi à examiner honnêtement — accepter ce qui est juste (y compris quand ça dépasse ce que Claude avait vu, voir l'exemple ci-dessous), pousser back sur ce qui semble faux ou imprécis, plutôt que d'acquiescer par défaut ou de défendre sa position par réflexe.
+- **Exemple concret (02/08, décision Mode Intime/Pulses/leaderboard, voir "Décisions actées" dans `README.md`)** : Gemini a identifié deux angles morts que Claude avait ratés (l'intégration hardware/FC comme barrière défensive face à Spotify, et un vecteur de désanonymisation par corrélation temporelle/réseau) — les deux ont été intégrés tels quels dans les décisions actées du README. Le croisement a aussi évité une confusion inverse : une idée de Gemini (adaptation FC en temps réel) était juste sur le principe mais sous-estimait largement la complexité d'ingénierie réelle par rapport à ce qui existe déjà dans le code (`useSessionAnalysis.js`, analyse post-séance) — Claude a nuancé et isolé cette idée dans une "Vague 2bis" séparée plutôt que de la laisser gonfler le chantier léger prévu en Vague 2.
+- Quand une décision actée dans `README.md` a été affinée via ce croisement, le noter dans le README (comme déjà fait pour Pulses/leaderboard) — la traçabilité du "pourquoi" vaut aussi pour l'origine d'une décision, pas seulement son contenu.
 
-- **13/08 — check-up général + couverture de tests des 11 hooks sans test
-  dédié** (`usePersistentState.js`, `usePlaylistCompletions.js`,
-  `useSessionAnalysis.js`, `useFavorites.js`, `useSpotifyImport.js`,
-  `useDeezerSearch.js`, `useTrackSearch.js`, `useRoutines.js`,
-  `useTheme.js`, `useToast.js`, `useElapsedTimer.js`) — 3 vrais bugs
-  trouvés EN ÉCRIVANT ces tests, tous corrigés : `useToast.js` (un 2e
-  toast rapproché effaçait le 1er avant sa propre durée), et 2 bugs de
-  synchro Supabase dans `usePersistentState.js` — "push prématuré au
-  montage" (`readyForPushRef`, le push partait avant que le pull ait eu la
-  main) et `isApplyingRemoteRef` jamais réinitialisé quand la valeur
-  distante est identique à la locale (`Object.is`, no-op React). **3
-  allers-retours de build Vercel réel** pour stabiliser ces tests (piège
-  "même valeur = no-op React" qui rendait un test invalide, fuite d'un
-  `mockReturnValueOnce` non consommé entre 2 tests via `clearAllMocks()`
-  — corrigé en passant à `resetAllMocks()`).
-- **14/08 — convention infobulles (icônes seules) actée et systématisée**
-  — parti d'un retour direct sur les cartes de séances/routines,
-  généralisé à toute l'app par script. Trouvé et corrigé : ligne de
-  métadonnées de `App.jsx`/`PlaylistHeaderMeta.jsx`, et un motif à plus
-  forte valeur — libellé ABRÉGÉ de zone cardio affiché sans le libellé
-  COMPLET déjà présent sur la donnée (`appConfig.js`), corrigé à 6
-  endroits. 2 conventions actées dans ce README (infobulles sur icônes
-  seules ; soulignement PERMANENT d'un pseudo cliquable vers un profil —
-  vérifié déjà cohérent partout, rien à corriger sur ce 2e point).
-- **14/08 — compteur de titres trouvés EN DIRECT pendant la génération**
-  (`musicEngine.js`) — chantier en plusieurs étapes discutées avant
-  d'implémenter (système à paliers de temps validé, temps indicatif
-  chiffré explicitement écarté, extension au chemin catalogue
-  d'artistes). **5 relectures successives demandées** ("tu vois d'autres
-  trucs en creusant ?"), chacune trouvant un vrai problème de moins en
-  moins grave : régression visible (compteur qui redescend) → stagnation
-  (compteur figé à une transition) → surestimation (doublons non
-  filtrés) → silence total (chemin de repli réseau hors radar). **Nouvelle
-  habitude actée dans `CLAUDE-SANDBOX-VERIFICATION.md`** : après tout
-  chantier touchant du code déjà identifié comme sensible, faire au moins
-  une relecture complète et attentive dédiée AVANT de considérer la
-  livraison terminée — sans attendre qu'on la redemande.
-- **14/08 — compteur de clonages élargi à Découvrir** — le bouton
-  "Ajouter" (Découvrir, le chemin le plus emprunté) n'incrémentait jamais
-  `template_clone_counts`, contrairement au bouton "Sauvegarder" de la
-  vitrine — distinction délibérée à l'origine (02/08), reconsidérée sur
-  confirmation explicite : les deux chemins créditent désormais le même
-  compteur.
-- **14/08 — série de retouches Découvrir/`TemplateCard.jsx`** — badge
-  "TempoFit" rendu cliquable vers le profil (remplace le texte auteur
-  redondant avec le badge) ; **bug réel raté au 1er passage** : le clic
-  était bien câblé mais jamais atteignable dans un vrai navigateur
-  (empilement CSS — un overlay transparent passait au-dessus du badge
-  dans l'ordre DOM, corrigé avec `z-10`) ; compteur de clonages déplacé
-  en overlay sur la pochette (coin inférieur droit, symétrie diagonale
-  avec le badge).
-- **14/08 — bouton final du wizard ("Générer")** — texte raccourci
-  ("Générer ma Playlist" → "Générer", redondant à ce stade), couleur de
-  marque restaurée (`bgAccentClass`, était `bg-gray-900 dark:bg-white`
-  codé en dur sans lien avec le reste du fichier).
-- **14/08 — rattrapage complet des infobulles sur texte TRONQUÉ** (motif
-  DISTINCT des icônes — texte coupé à l'ellipsis, `truncate`/
-  `line-clamp-*`, sans `title=`) — 71 éléments recensés et passés en
-  revue dans 19 fichiers, 2 exceptions assumées (tooltip de graphique déjà
-  affiché au survol ; un bouton dont le `title=` décrit l'action plutôt
-  que de répéter le texte). Nouvelle règle actée dans ce README.
+### Habitude de travail : proposer spontanément une meilleure option quand j'en vois une, en demandant validation avant de l'appliquer
+Trouvé le 08/08 (retour direct, après le correctif "texte du lien de profil sélectionnable à la souris" : "je regrette que tu aies pas décelé avant cette meilleure option, je veux que tu le fasses systématiquement en proposant mieux si tu as en me demandant validation"). Contexte concret : la demande initiale ("rendre le texte sélectionnable") a été traitée littéralement et correctement (vraie cause identifiée, `body { user-select: none }`, correctif propre) — mais un vrai bouton "Copier le lien" (réutilisant `useShare.js`, un mécanisme de copie déjà robuste et éprouvé ailleurs dans le projet) aurait mieux répondu au VRAI besoin ("simplifier le partage") dès le premier passage, sans qu'il faille une 2e demande explicite pour y arriver.
+Règle : quand une demande a une solution évidente qui la satisfait littéralement, MAIS qu'une meilleure option existe pour le même besoin sous-jacent (plus robuste, plus simple à utiliser, réutilise un mécanisme déjà éprouvé ailleurs dans le projet plutôt que d'ajouter une solution parallèle) :
+- La repérer AVANT d'implémenter la version littérale, pas après coup — ça suppose de se demander explicitement "quel est le VRAI besoin derrière cette formulation précise ?", pas seulement "comment satisfaire cette phrase telle qu'écrite ?".
+- La proposer clairement, en une ou deux phrases, avec le compromis franc (pourquoi c'est mieux, ce que ça coûte en plus si notable) — même registre de franchise que l'habitude "cadrer chaque demande avant d'itérer" plus haut.
+- **Demander validation avant de l'appliquer** — contrairement à l'habitude "où d'autre dans l'app" plus haut (qui n'est PAS une demande de permission), celle-ci EN EST une : proposer, puis attendre le feu vert plutôt que de partir sur la version améliorée sans consentement, parce que changer la portée d'une demande sans accord préalable peut surprendre ou ne pas correspondre à ce que l'utilisateur voulait vraiment (ex. un chantier plus gros que prévu, une préférence pour la simplicité de la version littérale).
+- Si la version littérale a déjà été livrée avant que la meilleure option soit repérée (comme le cas fondateur ci-dessus), le dire honnêtement plutôt que de laisser croire que c'était la meilleure réponse possible dès le départ — la franchise sur ce qui aurait pu être vu plus tôt fait partie de la même habitude.
 
-Pour le détail complet d'un point précis (qui a demandé quoi, pourquoi
-telle option plutôt qu'une autre, incidents de build et diagnostic) :
-ouvrir l'index `HISTORIQUE.md`, suivre le pointeur vers le bloc 4, chercher la date ou le mot-clé — le
-contenu y est identique à ce qui vivait ici avant l'élagage, rien n'a été
-résumé.
+### Habitude de travail : après une correction/un ajustement, se demander SEUL si ça mérite de devenir une règle générale — proposer, sans attendre qu'on me le demande
+Trouvé le 08/08 (retour direct, immédiatement après avoir dû établir l'habitude "proposer une meilleure option" ci-dessus À LA DEMANDE EXPLICITE de l'utilisateur : "faudrait pas que j'en profite pour te demander de vérifier et de me demander la faisabilité de généraliser ce type de règles ? là j'ai été proactif, j'aimerais moins l'être"). Un cran au-dessus de l'habitude "à chaque bug trouvé, se demander où d'autre dans l'app" (04/08) : celle-là généralise un BUG/COMPORTEMENT dans le CODE ; celle-ci généralise une DÉCISION/un PATTERN dans la façon dont JE TRAVAILLE sur ce projet — la même logique de "ne pas attendre qu'on me le demande", appliquée un niveau plus haut, sur la méta-question "est-ce que ce que je viens de faire devrait devenir une règle écrite ?" plutôt que sur le bug lui-même.
+Règle : après avoir résolu une demande d'une façon qui révèle un principe potentiellement récurrent (pas un ajustement isolé, pas une préférence propre à ce jour précis) — se demander explicitement "est-ce que ceci se reproduira, et vaut-il la peine d'être documenté comme habitude plutôt que refait au cas par cas la prochaine fois ?" :
+- Si oui, **proposer** de le documenter (dans ce fichier, section "Habitude de travail", même format que les entrées existantes — contexte concret + règle actionnable) — sans attendre que l'utilisateur le demande.
+- Mais toujours **demander validation avant d'écrire** — même raisonnement que "proposer une meilleure option" juste au-dessus : ça reste une décision qui affecte la façon dont je travaille sur SON projet, elle mérite son accord avant de devenir permanente, pas juste ma propre initiative.
+- Ne pas sur-déclencher : un ajustement ponctuel, cosmétique, ou clairement lié à une préférence UNIQUE de ce jour précis (pas un principe généralisable) ne mérite PAS de devenir une règle — même calibrage de franchise que "cadrer chaque demande avant d'itérer" (ne pas systématiquement dire "bonne idée" là-bas, ne pas systématiquement proposer "documentons ça" ici).
 
-## Contraintes de travail
+### Habitude de travail : après un découpage de fichier `src/`, ajouter un fichier de test dédié par sous-composant ET revoir le test du fichier parent pour ne pas dupliquer
+Trouvé le 08/08 (retour direct, après le découpage de `PlaylistHeader.jsx` en 5 sous-composants : question posée "je fais aussi des tests dédiés pour ces 5 fichiers ?", tranchée par l'utilisateur — "revoir aussi le test existant pour pas dupliquer"). Décision prise UNE FOIS, à appliquer désormais par défaut sur tout futur découpage de ce type, sans reposer la question.
+Règle : après avoir découpé un fichier `src/xxx/Yyy.jsx` en plusieurs sous-composants (même pattern que `TrackList.jsx`/`TrackItem.jsx`, déjà en place dans ce projet) :
+1. Un fichier de test dédié par sous-composant, qui le rend DIRECTEMENT avec des props écrites à la main (pas besoin de repasser par le contexte ni par le composant parent) — c'est là que vit le détail (rendu conditionnel, interactions, clics).
+2. Le fichier de test du composant PARENT est allégé en conséquence — les sous-composants y sont mockés par des stubs légers (même pattern que `TrackList.test.jsx` mocke `TrackItem.jsx`), et ce fichier ne teste plus QUE ce que le parent fait encore lui-même : le calcul des valeurs partagées/dérivées, et leur transmission (plomberie) au bon sous-composant.
+3. Vérifier qu'aucun scénario de l'ancien fichier (avant découpage) n'est perdu en route — chacun migre soit vers le fichier du sous-composant concerné, soit reste dans le test du parent sous une forme adaptée (vérification de calcul plutôt que de rendu).
+Pas besoin de redemander à chaque nouveau découpage si des tests dédiés sont voulus — la réponse est oui, par défaut, sur ce projet.
 
-- **Aucun terminal côté utilisateur** — tout passe par l'interface web de GitHub (créer/éditer des fichiers à la main) ; vérification via un vrai déploiement Vercel (logs collés dans la conversation avec Claude).
-- **Déploiement automatique Vercel désactivé** (`vercel.json`,
-  `"deploymentEnabled": false` — confirmé volontaire, 19/08) : un push
-  GitHub ne déclenche PAS de build Vercel tout seul, contrairement au
-  comportement par défaut — choix délibéré pour ne pas épuiser le quota
-  gratuit Vercel. Le déploiement doit être déclenché manuellement
-  (dashboard Vercel) avant de pouvoir coller les logs dans la conversation.
-- **Bac à sable Claude sans accès réseau** — `npm install`/`vitest run` réels impossibles. Voir `CLAUDE-SANDBOX-VERIFICATION.md` pour les outils de vérification disponibles quand même (validation de syntaxe réelle via `esbuild`, résolution d'imports).
-- Le build Vercel (`npm run build`) lance `vitest run` avant `vite build` (voir `package.json`, script `build`) — un test qui échoue bloque le déploiement.
+### Habitude de travail : tant qu'il n'y a pas d'utilisateurs réels, chantiers risqués/complets acceptés PAR DÉFAUT — pas besoin de demander confirmation avant de proposer l'option la plus poussée
+Trouvé le 08/08 (retour direct, après avoir proposé 3 options pour le chantier `GeneratorContext.jsx` — "laisser tomber" / "correctif ciblé et petit" / "le chantier complet" — et présenté la 3e comme la plus risquée : "tant que j'ai pas d'utilisateur je suis ok pour chantier les plus risqués et complets").
+Règle : tant que ce projet n'a pas d'utilisateurs réels en production (voir README.md pour le statut actuel — si ça change, METTRE À JOUR cette règle en conséquence, elle n'est valable que dans ce contexte précis), ne pas hésiter à proposer/entreprendre l'option la plus complète et la plus risquée d'un chantier, plutôt que de systématiquement offrir un choix "petit correctif sûr vs chantier complet risqué" en laissant deviner. Ça ne dispense PAS de :
+- signaler clairement l'ampleur réelle et les risques d'un chantier avant de s'y lancer (la franchise sur le risque reste de mise, seule la nécessité de DEMANDER la permission avant de s'engager sur la version risquée disparaît) ;
+- vérifier le travail aussi rigoureusement qu'un chantier "petit" (esbuild/tsc --checkJs/recoupements manuels — aucun relâchement de rigueur, seulement moins d'hésitation sur le PÉRIMÈTRE à couvrir).
 
-## Stack
-
-- React 19, Vite 8, Tailwind v4 (design tokens custom, voir `src/index.css`)
-- Supabase : auth (email/mot de passe), Postgres + RLS, Edge Function (`supabase/functions/delete-account`)
-- Déploiement Vercel, 2 fonctions serverless (`api/deezer.js`, `api/getsongbpm.js`) — proxys pour contourner l'absence de CORS de ces API tierces, gardent leurs clés côté serveur
-- Tests : Vitest + Testing Library, `tests/` en miroir de `src/` (voir la section Tests plus bas)
-
-## Décisions d'architecture non évidentes en lisant juste le code
-
-### Identité des playlists/routines
-- `playlists.id`/`routines.id` sont du **texte**, générés côté client (`pl-...`, `routine-1`) — **jamais un UUID**.
-- Clé primaire **composite** `(id, user_id)`, pas `id` seul — voir `supabase-schema.sql`, table `playlists`. Nécessaire parce que la playlist de démonstration par défaut (`'playlist-example-1'`) est **identique pour chaque nouveau compte** tant que personne n'a encore sauvegardé sa propre séance.
-- ⚠️ Piège déjà rencontré à cause de ça : comparer une playlist par `id` seul (sans tenir compte de `user_id`/`isReadOnly`) peut faire correspondre à tort la playlist d'un visiteur avec celle de quelqu'un d'autre. Voir `src/contexts/PlaylistDetailContext.jsx`, calcul de `isSaved` (corrigé le 02/08, testé dans `tests/contexts/PlaylistDetailContext.test.jsx`) — **toujours filtrer par les deux ensemble** dans du nouveau code qui touche à cette zone.
-- ⚠️ Piège trouvé pendant "UI publique des routines" (02/08) : `playlists.content` et `routines.content` ont la MÊME table/colonne (`jsonb`), mais PAS la même forme malgré la doc de `supabase-schema.sql` qui les présente comme structurellement identiques — une routine n'a jamais été générée, donc pas de `content.totalDuration`, pas de `content.coverUrl`, et le BPM vit à la racine (`content.bpm`) plutôt que sous `content.config.bpm`. Tout code qui affiche les deux types côte à côte (voir `PublicItemCard`, `ProfileView.jsx`) doit lire ces champs conditionnellement — jamais supposer qu'un helper écrit pour une playlist fonctionne tel quel sur une routine. Même piège retrouvé une 2e fois le même jour (`useProfileSearchFilter.js`, chantier "Recherche & filtres sur les profils publics") pour l'extraction du genre (`getGenresForDisplay` sur `content.tracks` pour une playlist vs `content.selectedGenres` direct pour une routine) et de la durée (`content.totalDuration` vs `content.hours`/`minutes` uniquement si `targetMode === 'time'`) — **pattern maintenant établi** : tout nouveau code qui lit `content` d'un item potentiellement playlist OU routine doit brancher sur un `kind`/`row.kind` explicite, jamais une formule unique.
-- ⚠️ Catalogue de genres CANONIQUE (`musicCatalog.js`, `STANDARD_GENRES`/`NAUGHTY_GENRES`/`EXTRA_GENRES`) — trouvé en écrivant les routines fictives de la vitrine (02/08) : la clé interne réelle est `Electro` **sans accent**, `genreDisplayLabel` ne la retraduit pas (elle ne remappe que `'Autre'`→`'Divers'` et `'Musique asiatique'`→`'J-pop & C-pop'`) — l'accent affiché ailleurs dans l'UI ("Électro") n'existe QUE dans du texte libre, jamais comme valeur stockée. `Hip-Hop` et `Lo-fi` n'existent PAS dans le catalogue — pas de fourre-tout "genre urbain/ambiance" disponible, le plus proche est `Rap`/`R&B Sensuel` (variante Intime de `R&B`, dans `NAUGHTY_GENRES`). Toute nouvelle donnée (fictive ou non) qui référence un genre doit être vérifiée contre ces 3 constantes, jamais un nom "qui sonne juste".
-- `content.description` (chantier "description texte libre", 02/08) : ajouté SANS migration SQL, simple nouvelle clé dans le `jsonb` déjà existant — précédent déjà établi par `plannedDate`/`coverUrl`. Un nouveau champ sur `playlists`/`routines` ne justifie une vraie colonne (`alter table`) que s'il doit être filtrable/indexable côté RLS (comme `is_public`/`is_intimate`) ; un simple texte d'affichage n'a aucune raison de sortir de `content`.
-  ⚠️ **RETIRÉ pour les routines le 08/08** (retour direct : "finalement pas emballé par la fonctionnalité description sur les routines... on conserve juste pour les playlists" — voir "État d'avancement" en tête de ce README) — `content.description` reste une fonctionnalité ACTIVE uniquement côté `playlists` désormais. Aucune migration de données faite : une routine créée avant ce retrait peut encore porter une valeur dans `content.description`, simplement plus jamais lue ni affichée par le code (`RoutinesView.jsx`, `PublicRoutinePreviewModal.jsx`, `PublicItemCard`/`ProfileView.jsx`, `useProfileSearchFilter.js` l'ignorent tous désormais côté routine).
-
-### Valider une donnée persistée : à la SOURCE ne suffit pas, il faut aussi valider à la CONSOMMATION
-Leçon du chantier "cible à 0" (`targetValidation.js`, 04/08) : valider un formulaire d'ENTRÉE (le wizard, `EditRoutineModal.jsx`) empêche de CRÉER une donnée invalide, mais ne protège pas contre une donnée invalide déjà en base (créée avant le correctif, ou par tout autre moyen) qui serait relue ailleurs SANS repasser par ce formulaire — ici, le bouton "Générer" d'une routine déjà sauvegardée (`RoutinesView.jsx`), qui consomme `routine.distanceVal`/`.segments` directement. Tout nouveau champ avec une contrainte de validité mérite qu'on se pose la question aux DEUX endroits : où est-il écrit, et partout où il est relu sans repasser par l'écriture.
-
-### Deux systèmes de confidentialité, volontairement séparés
-- **Niveau profil** (table `profiles`) : `is_profile_public`, `show_sport_stats`, `show_intimate_stats`, `default_playlist_public` — interrupteurs globaux.
-- **Niveau item** : `playlists.is_public` par playlist individuelle.
-- Une playlist publique n'est visible que si **les deux** sont vrais. Les stats agrégées (temps total/BPM moyen), elles, ne dépendent QUE de `show_sport_stats`/`show_intimate_stats` — pas de `playlists.is_public` : une playlist privée compte quand même dans les stats globales si le propriétaire a activé "Afficher mes statistiques". **Voulu, pas un bug.**
+### Habitude de travail : tant qu'il n'y a pas d'utilisateurs réels, l'incohérence rétroactive ancien/nouveau contenu n'est PAS un problème à faire trancher — le signaler UNE FOIS suffit
+Trouvé le 08/08 (retour direct, chantier "émoji baké en texte dans le titre" — j'avais signalé que les playlists déjà existantes n'auraient jamais l'émoji rétroactivement, présenté comme un vrai choix produit à trancher ; réponse : "je n'ai pas encore de vrais utilisateurs donc je m'en fous, enregistre-toi cette notion, je te la rappellerai à chaque fois"). Distincte de l'habitude juste au-dessus (qui porte sur le NIVEAU DE RISQUE d'un chantier) — celle-ci porte spécifiquement sur les écarts de FORME entre données créées avant/après un changement de schéma "logique" (ex. un champ calculé à l'affichage qui devient un champ stocké, un nouveau format de nom, une nouvelle validation qui n'existait pas avant).
+Règle : tant que ce projet n'a pas d'utilisateurs réels en production (même condition de validité que l'habitude ci-dessus — si ça change, METTRE À JOUR celle-ci aussi), une incohérence entre les données créées AVANT et APRÈS un changement (anciennes lignes qui ne respectent pas un nouveau format/une nouvelle validation, un champ dérivé qui devient stocké sans rétro-remplissage) n'a PAS besoin d'être présentée comme un choix produit à trancher avant d'implémenter — un contexte factuel suffit ("les anciennes données ne seront pas migrées"), pas une question qui attend une réponse. Continuer d'implémenter directement après l'avoir mentionné, sauf demande explicite contraire.
