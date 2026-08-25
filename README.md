@@ -10,6 +10,32 @@ Ce fichier n'est **pas** un document de passation — les passations (narratives
 
 Objectif explicite : rester **court et pointer vers le code** plutôt que de le paraphraser en détail — moins de texte dupliqué entre ce fichier et les commentaires du code source, moins de risque que les deux divergent avec le temps (voir `CLAUDE-SANDBOX-VERIFICATION.md` pour un exemple concret de commentaire devenu faux, trouvé et corrigé le 02/08).
 
+**Convention de taille de fichier (22/08)** : tout fichier de documentation
+créé sur ce projet (README, historique, passation...) doit rester lisible
+EN ENTIER par Claude en un seul appel de son outil de lecture — celui-ci
+tronque silencieusement (sans erreur, juste en montrant début+fin) tout
+fichier dépassant ~16 000 caractères lu sans plage de lignes précisée.
+Cible interne : ~12 000 caractères par fichier, marge de sécurité
+incluse. `HISTORIQUE.md` a dû être restructuré en plusieurs fichiers
+(`historique/bloc-NNx.md`) pour cette raison précise le 22/08 — voir ce
+fichier pour le détail complet et la convention à suivre pour tout futur
+bloc.
+
+⚠️ **Constat fait le même jour, PAS encore corrigé** : `README.md`
+lui-même (~57 000 caractères à ce moment) et `CLAUDE-SANDBOX-
+VERIFICATION.md` (~66 000 caractères) dépassent LARGEMENT ce même seuil
+— jamais remarqué avant car ces 2 fichiers sont presque toujours lus par
+section ciblée (recherche de mot-clé, plage de lignes), jamais d'un
+coup. Volontairement PAS restructurés dans la foulée : ce sont des
+fichiers lus à CHAQUE tour de conversation (contrairement à
+`HISTORIQUE.md`, consulté rarement) — les découper en fin d'une session
+déjà très longue comportait un risque de casser le flux de travail en
+cours sans bénéfice immédiat. À traiter en tout début d'une future
+session, à tête reposée, avec la même méthode que celle qui a fonctionné
+sur `HISTORIQUE.md` (découpage par unité logique — ici plutôt les
+sections `##`/`###` existantes que des paragraphes — puis vérification
+bit à bit que rien n'est perdu).
+
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
 Rien en cours actuellement — session exceptionnellement longue (22/08,
@@ -23,10 +49,10 @@ cause, trouvée dans `BottomBarShell.jsx` lui-même), puis 4 extractions
 de composants partagés (`BottomBarShell.jsx`/`ModalShell.jsx`/
 `ModalCloseButton.jsx`/`SelectablePill.jsx`) et un garde-fou automatique
 (`flexDependentClassTrap.test.js`). Voir "À vérifier visuellement" plus
-bas pour les risques encore non mesurés, et `HISTORIQUE.md` blocs 7 et 8
+bas pour les risques encore non mesurés, et l'index `HISTORIQUE.md` → blocs 7-8
 pour le récit complet.
 
-### Historique détaillé (22/08, suite du bloc 7) — archivé dans `HISTORIQUE.md`, bloc 8
+### Historique détaillé (22/08, suite du bloc 7) — voir l'index `HISTORIQUE.md` → bloc 8
 
 Récit chronologique complet déplacé le 22/08 (8e élagage, même jour et
 même session que le 7e — cette fois dominée par des enchaînements
@@ -68,7 +94,7 @@ même session que le 7e — cette fois dominée par des enchaînements
   détecte une classe Tailwind flex-dépendante sans son prérequis,
   testé activement (régression simulée puis détectée) avant livraison.
 
-### Historique détaillé (22/08 suite) — archivé dans `HISTORIQUE.md`, bloc 7
+### Historique détaillé (22/08 suite) — voir l'index `HISTORIQUE.md` → bloc 7
 
 Récit chronologique complet déplacé le 22/08 (7e élagage, même jour que
 la session elle-même — check-up général en 3 passes, migration recharts,
@@ -115,7 +141,7 @@ direct avec capture d'écran). Index :
   la grille de chiffres qu'il partage réellement) — tests réécrits pour
   détecter réellement ce 2e déplacement, pas juste retouchés.
 
-### Historique détaillé (21-22/08) — archivé dans `HISTORIQUE.md`, bloc 6
+### Historique détaillé (21-22/08) — voir l'index `HISTORIQUE.md` → bloc 6
 
 Récit chronologique complet déplacé le 22/08 (6e élagage — session
 exceptionnellement longue et dense : reprise du découpage `App.jsx`,
@@ -183,7 +209,7 @@ sur l'en-tête de playlist et le wizard générateur). Index :
   y tenir aussi.
 
 
-### Historique détaillé (19-20/08) — archivé dans `HISTORIQUE.md`, bloc 5
+### Historique détaillé (19-20/08) — voir l'index `HISTORIQUE.md` → bloc 5
 
 Récit chronologique complet déplacé le 20/08 (5e élagage — session
 particulièrement dense : check-up global, plusieurs vagues de correctifs
@@ -243,7 +269,7 @@ d'écritures concurrentes différé depuis le 10/08). Index :
   clusters restants.
 
 
-### Historique détaillé (13-14/08) — archivé dans `HISTORIQUE.md`, bloc 4
+### Historique détaillé (13-14/08) — voir l'index `HISTORIQUE.md` → bloc 4
 
 Récit chronologique complet déplacé le 14/08 (4e élagage — la session la
 plus longue et la plus dense à ce jour, largement au-delà de celle du
@@ -313,7 +339,7 @@ plus longue et la plus dense à ce jour, largement au-delà de celle du
 
 Pour le détail complet d'un point précis (qui a demandé quoi, pourquoi
 telle option plutôt qu'une autre, incidents de build et diagnostic) :
-ouvrir `HISTORIQUE.md`, bloc 4, chercher la date ou le mot-clé — le
+ouvrir l'index `HISTORIQUE.md`, suivre le pointeur vers le bloc 4, chercher la date ou le mot-clé — le
 contenu y est identique à ce qui vivait ici avant l'élagage, rien n'a été
 résumé.
 
@@ -705,7 +731,7 @@ rencontré dans les retours reçus jusqu'ici.
 Récit complet de la session qui a produit tout ça (check-up en 3 passes,
 migration recharts, corrections UI ciblées, cloneCount x4, centrage
 GuestModeBar/MiniPlayerBar x3, 4 refactors de composants partagés,
-garde-fou automatique) : voir `HISTORIQUE.md`, blocs 7 et 8.
+garde-fou automatique) : voir l'index `HISTORIQUE.md` → blocs 7-8.
 
 ## Autres fichiers de référence à ce niveau
 
