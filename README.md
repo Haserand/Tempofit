@@ -1100,6 +1100,49 @@ cohérence stricte avec l'autre branche. Test ajouté
 (`GuestModeBar.test.jsx`) qui vérifie `text-center` sur les DEUX états,
 pour que cette incohérence ne puisse plus repasser inaperçue.
 
+**⚠️ Suite — ce correctif était FAUX, pas juste insuffisant** : nouveau
+retour direct, capture à l'appui — "tu dois te planter", après
+confirmation que `text-center` n'avait rien changé visuellement. Plutôt
+que de re-raisonner une 3e fois dans le vide sur ce même composant (déjà
+faux 2 fois ce jour-là sur ce sujet précis, voir plus haut), mesuré pour
+de vrai avec Playwright (binaire déjà en cache, voir CLAUDE-SANDBOX-
+VERIFICATION.md §5quinquies) — confirmé : la boîte du texte muted
+collait au bord GAUCHE du conteneur (`left` identique au conteneur
+`max-w-5xl`), jamais centrée comme élément flex, à 370px du centre réel.
+`text-center` ne pouvait rien changer : le problème n'était pas
+l'alignement du TEXTE dans sa boîte, mais la POSITION de la boîte
+elle-même.
+
+**Cause réelle, dans `BottomBarShell.jsx` lui-même, pas dans
+`GuestModeBar.jsx`** : le conteneur interne (`max-w-5xl mx-auto w-full
+${innerClassName}`) n'avait jamais de classe `flex` DE BASE — seulement
+ce que chaque appelant transmettait via `innerClassName`.
+`GuestModeBar.jsx` transmettait `flex-col items-center justify-center`,
+mais SANS `display: flex` pour commencer, ces classes n'ont AUCUN effet
+— le conteneur restait un simple bloc, son enfant `<span>` se plaçant en
+flux normal (flush à gauche) plutôt que centré. Le bouton "Se connecter"
+juste au-dessus semblait, LUI, correctement centré — mais uniquement
+parce qu'il vit dans SA PROPRE rangée avec son propre `flex items-center
+justify-center` autonome, sans jamais dépendre de ce `display:flex`-ci.
+`MiniPlayerBar.jsx` n'a jamais eu ce bug car son `innerClassName`
+incluait déjà SON PROPRE `flex` explicitement — cachant le problème
+jusqu'à ce qu'un 2e appelant (`GuestModeBar.jsx`) compte sur le
+composant partagé pour le fournir, comme prévu à la conception.
+
+**Corrigé à la racine** : `flex` ajouté dans le template DE BASE de
+`BottomBarShell.jsx` (pas seulement corrigé côté appelant) — plus aucun
+futur appelant ne pourra oublier cette classe. `flex` retiré en double
+de `MiniPlayerBar.jsx` (devenu redondant, désormais garanti par le
+composant partagé). Revérifié par mesure réelle : les 3 éléments
+(bouton play, "Se connecter", texte muted) tombent tous à x=1088.0,
+écart résiduel de 0.008px (arrondi de rendu, négligeable) — confirmé
+aussi par capture d'écran visuelle. 1 test ajouté
+(`BottomBarShell.test.jsx`) qui vérifie la présence EXACTE de la classe
+`flex` sur le conteneur interne (pas juste `flex-col`, qui contient la
+sous-chaîne "flex" mais n'a aucun effet seule) — une régression future
+de ce type serait détectée même si un appelant continuait, par
+prudence, à fournir son propre `flex` en double.
+
 ## Autres fichiers de référence à ce niveau
 
 - `CLAUDE-SANDBOX-VERIFICATION.md` — outils de vérification de code pour une session Claude sans accès réseau.
