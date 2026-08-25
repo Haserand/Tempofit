@@ -1229,7 +1229,7 @@ export default function StatsView({
                     const pct = 50 + (t.gap / maxAbsGap) * 45;
                     return (
                       <div
-                        key={i}
+                        key={`${t.title}-${t.bpm}-${t.gap}`}
                         title={`${t.title} — ${t.bpm} BPM (${t.gap > 0 ? '+' : ''}${t.gap})`}
                         className={`absolute w-2.5 h-2.5 rounded-full -translate-x-1/2 shadow-sm ${textColorClass.includes('rose') ? 'bg-rose-400' : 'bg-red-400'}`}
                         style={{ left: `${pct}%`, top: `${8 + (i % 3) * 14}px` }}
@@ -1301,7 +1301,7 @@ export default function StatsView({
                     <div className={`font-semibold ${textHighlight} pt-1`}>Titres écoutés</div>
                     <div className="max-h-48 overflow-y-auto no-scrollbar space-y-1 -mx-1.5">
                       {topNTracksFromMap(statsZoomTrackCounts, Infinity).map((t, i) => (
-                        <div key={i} className={`flex items-center justify-between gap-2 px-1.5 py-1 rounded-lg ${i % 2 === 0 ? '' : 'bg-black/5 dark:bg-white/5'}`}>
+                        <div key={`${t.title}__${t.artist}`} className={`flex items-center justify-between gap-2 px-1.5 py-1 rounded-lg ${i % 2 === 0 ? '' : 'bg-black/5 dark:bg-white/5'}`}>
                           <div className="min-w-0">
                             <div className={`font-semibold truncate ${textHighlight}`} title={t.title}>{t.title}</div>
                             <div className={`text-xs truncate ${textMuted}`} title={`${t.artist}${avgBpmForTrack(t) ? ` · ~${avgBpmForTrack(t)} BPM` : ''}`}>{t.artist}{avgBpmForTrack(t) ? ` · ~${avgBpmForTrack(t)} BPM` : ''}</div>
@@ -1354,7 +1354,7 @@ export default function StatsView({
                       <ResponsiveContainer width="100%" height={180}>
                         <PieChart>
                           <Pie data={zoneBreakdown} dataKey="seconds" nameKey="shortLabel" innerRadius={45} outerRadius={80} paddingAngle={2}>
-                            {zoneBreakdown.map((z, i) => <Cell key={i} fill={z.color} />)}
+                            {zoneBreakdown.map((z) => <Cell key={z.key} fill={z.color} />)}
                           </Pie>
                           <RechartsTooltip formatter={(value, name) => {
                             const pct = zoneTotalSeconds > 0 ? Math.round((value / zoneTotalSeconds) * 100) : 0;
@@ -1363,10 +1363,10 @@ export default function StatsView({
                         </PieChart>
                       </ResponsiveContainer>
                       <div className="w-full space-y-2">
-                        {zoneBreakdown.map((z, i) => {
+                        {zoneBreakdown.map((z) => {
                           const pct = zoneTotalSeconds > 0 ? Math.round((z.seconds / zoneTotalSeconds) * 100) : 0;
                           return (
-                            <div key={i} className="w-full flex items-center justify-between text-sm px-1.5 py-1">
+                            <div key={z.key} className="w-full flex items-center justify-between text-sm px-1.5 py-1">
                               <div className="flex items-center gap-2 min-w-0">
                                 <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: z.color }}></span>
                                 <span className={`truncate font-semibold ${textHighlight}`} title={z.label}>{z.shortLabel}</span>
@@ -1390,13 +1390,13 @@ export default function StatsView({
                                 <span className={textMuted}>{formatDuration(a.total)}</span>
                               </div>
                               <div className="h-2 rounded-full overflow-hidden flex">
-                                {a.zones.map((z, i) => (
-                                  <div key={i} style={{ width: `${z.pct}%`, backgroundColor: z.color }}></div>
+                                {a.zones.map((z) => (
+                                  <div key={z.key} style={{ width: `${z.pct}%`, backgroundColor: z.color }}></div>
                                 ))}
                               </div>
                               <div className="flex flex-wrap gap-x-3 mt-1 text-xs">
-                                {a.zones.map((z, i) => (
-                                  <span key={i} className={textMuted} title={z.label}><span className={`font-semibold ${textHighlight}`}>{z.pct}%</span> {z.shortLabel}</span>
+                                {a.zones.map((z) => (
+                                  <span key={z.key} className={textMuted} title={z.label}><span className={`font-semibold ${textHighlight}`}>{z.pct}%</span> {z.shortLabel}</span>
                                 ))}
                               </div>
                             </div>
@@ -1485,7 +1485,7 @@ export default function StatsView({
                       <div className={`font-semibold ${textHighlight} pt-1`}>Titres écoutés</div>
                       <div className="max-h-48 overflow-y-auto no-scrollbar space-y-1 -mx-1.5">
                         {topNTracksFromMap(statsZoomTrackCounts, Infinity).map((t, i) => (
-                          <div key={i} className={`flex items-center justify-between gap-2 px-1.5 py-1 rounded-lg ${i % 2 === 0 ? '' : 'bg-black/5 dark:bg-white/5'}`}>
+                          <div key={`${t.title}__${t.artist}`} className={`flex items-center justify-between gap-2 px-1.5 py-1 rounded-lg ${i % 2 === 0 ? '' : 'bg-black/5 dark:bg-white/5'}`}>
                             <div className="min-w-0">
                               <div className={`font-semibold truncate ${textHighlight}`} title={t.title}>{t.title}</div>
                               <div className={`text-xs truncate ${textMuted}`} title={`${t.artist}${avgBpmForTrack(t) ? ` · ~${avgBpmForTrack(t)} BPM` : ''}`}>{t.artist}{avgBpmForTrack(t) ? ` · ~${avgBpmForTrack(t)} BPM` : ''}</div>
