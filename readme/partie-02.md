@@ -1,126 +1,230 @@
-### Historique détaillé (21-22/08) — voir l'index `HISTORIQUE.md` → bloc 6
+## Convention UI — règles génériques accumulées au fil des retours directs
 
-Récit chronologique complet déplacé le 22/08 (6e élagage — session
-exceptionnellement longue et dense : reprise du découpage `App.jsx`,
-bio du profil vitrine affinée en 3 essais, standardisation des onglets
-via `TabPills.jsx`, Sidebar réorganisée puis son Mode Intime resserré en
-3 passes, découverte majeure que le bac à sable a accès à `npm install`/
-`vite`/Playwright/`vitest run`, et plusieurs corrections visuelles fines
-sur l'en-tête de playlist et le wizard générateur). Index :
+Actée le 14/08 (infobulles sur icônes seules, après 2 allers-retours sur
+le même motif — retour direct avec capture d'écran : "pourquoi seul le
+nombre de titres a une infobulle au survol, pas le reste ?"), élargie le
+22/08 après une nouvelle série d'ajustements ponctuels dont plusieurs se
+sont révélés être le MÊME motif structurel répété (voir points 7-8 et les
+2 nouvelles sous-sections plus bas). Règles à appliquer par réflexe dans
+tout nouveau code UI, pas seulement à retrouver après coup sur retour
+direct :
 
-- **21/08 — check-up sans chantier précis en tête** : 1 bug réel corrigé
-  (`ImportSharedPlaylistModal.jsx`, oubli du renommage "séance"→"playlist"
-  du 20/08 sur une seule phrase) + 2 trous de couverture de test comblés
-  (`TrophiesView.jsx`, `MiniPlayerBar.jsx`, 0 test avant malgré une
-  logique non triviale).
-- **21/08 — découpage `App.jsx` clos**, 3 extractions : `ShareImageContext.jsx`
-  (Contexte complet), `GenerationProgressBanner.jsx` (rendu seul extrait,
-  le state reste dans `AppContent` — contrainte d'ordre entre hooks), et
-  un audit complet du cluster "Navigation" débouchant sur la décision de
-  NE RIEN extraire (raisons vérifiées, pas supposées — voir la section
-  dédiée plus bas, pas archivée). Bug réel trouvé en cours d'audit
-  (`isScrolled`, header mort depuis sa création) puis le header entier
-  RETIRÉ plutôt que réparé, une fois sa justification invalidée par une
-  vraie capture d'écran.
-- **21/08 — bio du profil vitrine** (`@tempofit_officiel`) — 3 essais
-  avant la bonne version (bandeau d'alerte → notice repliée → vrai style
-  "bio", texte blanc sans bordure), comportement aligné sur le pattern
-  déjà existant pour les descriptions de playlist (troncature 3 lignes +
-  tooltip), pas la couleur. Décision actée pour plus tard : banc d'essai
-  volontaire pour une future bio éditable par tous les utilisateurs (voir
-  section dédiée plus bas, pas archivée).
-- **21/08 — `TabPills.jsx` créé**, 5 vues à onglets alignées dessus, suite
-  à la découverte que 2 vues avaient dérivé indépendamment de la
-  convention majoritaire (`SettingsView.jsx` vers un style soulignement,
-  `TrophiesView.jsx` vers un style "contrôle segmenté") sans que personne
-  ne s'en aperçoive avant une comparaison directe.
-- **21/08 — Sidebar : "Découvrir" isolé de "Création"** (3e intention
-  distincte), puis son espacement en Mode Intime resserré en 3 passes
-  successives sur les mêmes 5 écarts marqués par capture annotée (-25px
-  cumulé) — un levier tentant explicitement écarté (padding des liens
-  compacts, déjà rejeté trop serré le 29/07).
-- **21/08 — DÉCOUVERTE MAJEURE** : le bac à sable Claude a en réalité
-  accès à `npm install`/un vrai serveur `vite`/Playwright — jamais vérifié
-  depuis l'origine du projet, qui affirmait le contraire. `vitest run`
-  RÉEL fonctionne aussi (113 fichiers, 1506 tests, tous passent). Voir
-  `CLAUDE-SANDBOX-VERIFICATION.md`, §5ter/§5quater — à lire avant toute
-  prochaine session touchant du rendu visuel ou une livraison conséquente.
-- **21/08 — bug de rendu du wizard générateur** (coin de carte arrondi
-  touchant la ligne du pied de page à 0px près) diagnostiqué et corrigé
-  grâce à cette découverte — 1er correctif (ajouter de la place) reçu un
-  retour direct immédiat ("ça fait quand même scroller, autant retirer la
-  ligne inutile") : 2e version, plus simple et height-neutre, retenue.
-- **22/08 — en-tête de playlist, badge "Lecture seule" puis Corbeille mal
-  alignés avec le badge BPM** — 1er corrigé sans souci (décalage fixe →
-  padding réel de la carte). 2e (Corbeille) a révélé une VRAIE erreur de
-  vérification de ma part : 1re mesure (boîte du bouton) faussement
-  rassurante, contestée à raison par l'utilisateur avec le fichier exact
-  déployé — 2e mesure (SVG lui-même) a trouvé la vraie cause (padding
-  invisible du bouton-icône). Leçon ajoutée à `CLAUDE-SANDBOX-
-  VERIFICATION.md` (§5quater) : toujours mesurer le glyphe visible, jamais
-  seulement la boîte cliquable, pour un alignement visuel.
-- **22/08 — retouches finales** : `MiniPlayerBar.jsx` (préfixe "Playlist :"
-  retiré, redondant) ; suggestion de l'utilisateur (stats sportives dans
-  l'espace vide de l'en-tête de profil) discutée puis écartée après
-  vérification qu'un 2e bloc de stats symétrique existe et ne pourrait pas
-  y tenir aussi.
+1. **Toute icône seule (sans mot qui l'explique déjà à côté) porte un
+   `title=`.** Un chiffre nu à côté d'une icône (`<List/> 5`, `<Gauge/> 150
+   BPM`) est ambigu sans légende — contrairement à une icône suivie d'un
+   mot déjà explicite (`<Activity/> Course à pied`), qui n'a
+   techniquement pas BESOIN d'infobulle mais en gagne une quand même si
+   ses voisines directes (même ligne/groupe visuel) en ont — voir la règle
+   2.
+2. **Cohérence au sein d'un même groupe visuel > cas par cas.** Le vrai
+   signal d'un oubli n'est presque jamais "cette icône est ambiguë dans
+   l'absolu", mais "SA VOISINE a une infobulle et pas elle" (ex. le pseudo
+   d'une carte a un `title=` mais pas les 4 icônes de métadonnées juste en
+   dessous, dans le MÊME composant). Réflexe à avoir en touchant une carte/
+   ligne d'infos : vérifier CHAQUE élément du même groupe, pas seulement
+   celui qu'on modifie.
+3. **Cas à plus forte valeur : un libellé ABRÉGÉ affiché alors qu'un
+   libellé COMPLET existe déjà dans les données** (ex. `zone.shortLabel`
+   "Seuil" affiché, `zone.label` "Seuil / Tempo" disponible sur le même
+   objet, `appConfig.js`/`ATHLETIC_ZONES`) — l'infobulle n'y est alors plus
+   seulement cosmétique, elle restitue une info réellement absente à
+   l'écran. Prioritaire sur le reste si on doit choisir où mettre l'effort.
+4. **Exception assumée, pas un oubli** : les boutons de fermeture (icône
+   `X`) des modales n'ont volontairement PAS de `title="Fermer"` — motif
+   uniforme sur les 11 modales du projet (vérifié le 14/08), une croix de
+   fermeture est un standard UI suffisamment universel. Ne pas "corriger"
+   cette exception par réflexe de cohérence si elle est repérée à nouveau —
+   elle est déjà cohérente, juste sans infobulle nulle part.
+5. Fonction PARTAGÉE entre plusieurs vues (ex. `renderConfigInfoLine` dans
+   `App.jsx`, utilisée par `PlaylistsView`/`RoutinesView`) : corriger UNE
+   FOIS à la source suffit, pas la peine de dupliquer le correctif dans
+   chaque appelant — mais bien vérifier qu'aucun autre appelant n'a SA
+   PROPRE copie légèrement différente de la même logique (`PlaylistCard.jsx`
+   avait le sien, à côté, pas dans `App.jsx`).
+6. **Motif DISTINCT, à ne pas confondre avec les 5 règles ci-dessus (icônes)
+   — texte TRONQUÉ (`truncate`/`line-clamp-*`) sans `title=`.** Trouvé le
+   14/08 (retour direct sur `TemplateCard.jsx` : "il manque pas les
+   infobulles sur les metadata de Découvrir ?") — ici, pas d'icône du tout,
+   juste du texte coupé à l'ellipsis sans aucun moyen de voir le reste au
+   survol. **Rattrapage complet fait le 14/08, même session** (sur
+   confirmation explicite, "on le fait maintenant") : les 71 éléments
+   `truncate`/`line-clamp-*` recensés dans `src/components/` ont chacun été
+   vérifiés — la plupart corrigés (`title=` avec le texte complet, souvent
+   reconstruit via template literal quand le texte affiché combine
+   plusieurs champs), quelques-uns déjà bons sans qu'un premier passage au
+   grep simple l'ait vu (title posé sur une ligne différente du
+   `className`, ou une `<div>` englobante dont l'enfant direct porte déjà
+   le `title=`), 2 exceptions assumées :
+   - Le tooltip d'un graphique Recharts (`PlaylistCharts.jsx`,
+     `data.trackName`) — poser un `title=` HTML natif à l'intérieur d'un
+     contenu qui s'affiche DÉJÀ au survol du graphique n'apporte rien (il
+     faudrait déjà survoler pour le voir).
+   - Un bouton dont le `title=` décrit délibérément l'ACTION plutôt que de
+     répéter le texte tronqué (`MiniPlayerBar.jsx`, "Aller à cette
+     playlist") — plus utile qu'une simple répétition ici, laissé tel quel.
+   Réflexe à avoir pour tout NOUVEAU `truncate`/`line-clamp-*` écrit à
+   partir de maintenant : poser le `title=` correspondant du premier coup,
+   plutôt que de laisser un nouveau trou se former.
+7. **Généralisé (22/08) : ne se limite plus au texte tronqué ou aux icônes
+   seules — une PHRASE COMPLÈTE affichée en clair peut, elle aussi, passer
+   partiellement en infobulle** si elle fait déborder son conteneur sur 2
+   lignes alors qu'une version courte suffit comme accroche (ex.
+   `TrackList.jsx` : "Séance déjà réalisée — plus aucun titre ne peut être
+   ajouté, dupliqué, remplacé ou retiré" → "Séance déjà réalisée" affiché,
+   le reste en `title=`). Découpage à faire : garder visible la partie
+   ACTIONNABLE ou la plus courte à comprendre d'un coup d'œil, déplacer en
+   infobulle le POURQUOI/le détail. Retour direct qui a motivé cette
+   généralisation : capture d'écran d'une bannière sur 2 lignes, "garder
+   que [texte court] et le reste en infobulle ?".
+8. **Le texte VISIBLE d'un élément doit porter la même logique
+   conditionnelle que son propre `title=` — jamais moins.** Repéré le
+   22/08 (`PlaylistHeaderActions.jsx`, bouton "Planifier") : le `title=`
+   distinguait déjà correctement `isLocked ? "Refaire cette séance" :
+   "Planifier cette séance"`, mais le `<span>` visible ne regardait QUE
+   si une date était choisie, ignorant complètement `isLocked` — un
+   tooltip plus riche que le libellé affiché est le signal qu'une
+   distinction déjà pensée quelque part n'a pas été répercutée partout.
+   Audit fait ce jour-là sur les 34 `title={...ternaire...}` du projet à
+   la recherche du même écart : aucun autre cas trouvé — mais réflexe à
+   garder pour tout NOUVEAU `title=` conditionnel écrit désormais, vérifier
+   que le texte/état visible suit la MÊME condition, pas une condition plus
+   pauvre.
 
+### Pseudo/nom d'auteur cliquable vers un profil — `underline` PERMANENT
 
-### Historique détaillé (19-20/08) — voir l'index `HISTORIQUE.md` → bloc 5
+Vérifié le 14/08 (question directe, "faudrait pas centraliser ça aussi ?")
+— **déjà cohérent partout où ce motif existe**, rien à corriger, mais
+documenté pour ne pas dériver à l'avenir :
+- Un pseudo/nom d'auteur qui ouvre le PROFIL de quelqu'un (`onViewProfile`,
+  `onViewOfficialProfile`, ou "aller à Mes Séances" pour son propre pseudo)
+  est toujours souligné en PERMANENCE (`underline`, jamais seulement
+  `hover:underline`) — voir `PlaylistHeaderMeta.jsx`/`TemplateCard.jsx`,
+  toujours accompagné d'un `title=` explicite ("Voir le profil de X").
+- Ne PAS confondre avec un lien vers un autre type de contenu (ex. le nom
+  d'une PLAYLIST dans `MiniPlayerBar.jsx`) — celui-là peut légitimement se
+  contenter d'un `hover:underline` (souligné seulement au survol), le
+  distinguo permanent/hover marque justement "ceci mène à un PROFIL
+  d'utilisateur" par rapport au reste de l'app.
+- Exception légitime, pas à "corriger" par réflexe : une LISTE de
+  résultats où toute la ligne est cliquable (avatar + pseudo, fond qui
+  change au survol — voir `SearchUsersModal.jsx`) suit un paradigme UI
+  différent (ligne entière = affordance cliquable) ; le soulignement du
+  texte seul n'y a pas sa place.
 
-Récit chronologique complet déplacé le 20/08 (5e élagage — session
-particulièrement dense : check-up global, plusieurs vagues de correctifs
-de bugs récurrents, renommage terminologique complet, fusion Routines/
-Playlists en onglet, réorganisation Sidebar/Découvrir, correctif
-d'écritures concurrentes différé depuis le 10/08). Index :
+### Centrage flexbox d'une rangée ASYMÉTRIQUE (bouton principal + petit bouton icône seule)
 
-- **19/08 — check-up global** (demandé sans chantier précis en tête) : 2
-  bugs réels trouvés (`ModalContext.jsx` fermait la mauvaise modale après
-  un `await` ; `AuthContext.jsx` seul des 8 Contexts sans `value`
-  mémoïsée) + couverture de tests comblée (`spotifyEngine.js`,
-  `src/layout/*.js`, `GeneratorContext`/`AudioPlayerContext`). Généralisé
-  ensuite au même motif ailleurs : `useCsvImport.js`/`useAudioPreview.js`
-  avaient la MÊME classe de bug ("clear inconditionnel après un `await`").
-- **19-20/08 — 4 allers-retours de build Vercel réel**, tous corrigés :
-  1er correctif `closeModal(name)` cassait tout `onClick={closeModal}`
-  direct (React y passe l'événement) — corrigé en 2 fonctions séparées
-  (`closeModal()`/`closeModalIfActive(name)`) plutôt qu'un paramètre
-  optionnel ambigu ; ref de timing non synchrone dans
-  `useAudioPreview.js` ; bug `vi.stubGlobal` (renvoie `vi`, pas le mock) ;
-  import `jest-dom` manquant (ce projet n'a pas de `setupFiles` global —
-  nouvelle habitude actée dans `CLAUDE-SANDBOX-VERIFICATION.md`, §5bis).
-- **20/08 — "Mes Routines" fusionnée en onglet de "Mes Playlists"**
-  (retour direct, comparé à la vue profil public déjà en onglets) —
-  `RoutinesView.jsx` réduite à son seul corps, `PlaylistsView.jsx` devient
-  le shell avec sélecteur d'onglet et en-tête dynamique. Cassait
-  `viewHeaderLayout.test.js` (garde-fou du 19/08 qui a fait son travail),
-  ajusté en conséquence.
-- **20/08 — renommage complet "séance" → "playlist"** (retour terrain :
-  "la notion de séance parle au cœur de cible mais pas aux curieux, ils
-  ne savent pas qu'il y a une playlist") — "Nouvelle Playlist"/"Mes
-  Playlists" sur ~30 fichiers, en distinguant strictement le nom propre de
-  destination (renommé) de l'usage générique du mot "séance" (conservé).
-  2 citations verbatim de retours utilisateurs historiques préservées
-  intactes malgré un remplacement automatique trop large. "Mes
-  Statistiques" ajoutée ensuite par cohérence (pas "Mes Réglages",
-  convention universelle "Réglages" seul).
-- **20/08 — recherche de profils fusionnée dans "Découvrir"** — pastille
-  séparée retirée, remplacée par un vrai onglet Séances/Profils sur la
-  même barre de recherche. Décision de sécurité assumée : la recherche
-  reste verrouillée aux comptes connectés côté serveur (même verrou que la
-  consultation de profil), message incitatif pour les invités plutôt
-  qu'un simple masquage.
-- **20/08 — écritures concurrentes corrigées** (chantier différé depuis le
-  10/08, repris une fois la navigation stabilisée) — `applyPlaylistUpdate`
-  accepte une fonction de transformation appliquée sur le state le plus
-  frais ; recherche par ID stable plutôt que par index pour les 2
-  remplacements async. Voir la section "Corrigé (20/08)" plus bas pour le
-  détail technique complet (pas archivée, reste à jour).
-- **20/08 — bouton "Précédent" du wizard incohérent entre les étapes**
-  (retour direct, capture annotée) — dérive de style non documentée entre
-  2 boutons faisant la même chose, alignés + extraits en constante locale
-  partagée pour rendre la dérive future impossible.
-- **20/08 — découpage `App.jsx` repris** — voir la section dédiée
-  "Découpage App.jsx" plus bas (pas archivée, reste à jour) pour le détail
-  complet du 1er lot fait (cluster StatsView) et l'inventaire vérifié des
-  clusters restants.
+Actée le 22/08, retour direct avec capture d'écran sur `GuestModeBar.jsx`
+("pourquoi les 2 ne sont pas parfaitement centrés ?") — **piège CSS
+structurel à connaître, pas spécifique à ce composant précis** :
+`justify-center` centre le GROUPE entier de la rangée, pas le contenu
+qu'on perçoit intuitivement comme "principal". Si ce groupe associe un
+élément large (ex. bouton texte+icône, "Se connecter") et un élément
+nettement plus étroit (ex. bouton icône seule, croix de fermeture), le
+centre géométrique du groupe tombe mécaniquement DÉCALÉ vers le côté
+large — l'œil perçoit alors le texte principal comme "pas centré", alors
+que la rangée l'est bel et bien, au sens strict.
+- **Correctif type** : ajouter un espaceur INVISIBLE (`invisible`, pas
+  `hidden` — doit garder sa place dans la mise en page) de la même boîte
+  exacte que le petit élément (mêmes classes de padding/taille, copiées
+  plutôt que devinées en pixels), du côté opposé. Équilibre les 2 côtés
+  sans dépendre d'une valeur magique à resynchroniser si l'élément change
+  un jour. `aria-hidden="true"` sur cet espaceur — purement visuel, rien à
+  annoncer aux lecteurs d'écran.
+- **Pas un problème SI les 2 éléments flanquants sont déjà de taille
+  identique** (ex. pagination `‹ Page X/Y ›` dans `PlaylistsView.jsx` —
+  2 boutons flèche strictement identiques de chaque côté du texte) :
+  `justify-center` centre alors correctement le texte par construction,
+  aucun espaceur nécessaire. Vérifié le 22/08 sur les 16 rangées du
+  projet combinant `justify-center` + 2 boutons ou plus dans le même
+  conteneur : `GuestModeBar.jsx` était le seul cas réellement asymétrique
+  trouvé — mais réflexe à avoir pour toute NOUVELLE rangée de ce type.
+
+### Élément décoratif vs espace fonctionnel — la fonction prime
+
+Retour direct du 22/08 sur `Sidebar.jsx` ("l'accessibilité de la
+navigation du menu doit être privilégiée") — principe général derrière le
+retrait de `creditRowHeight` (voir la section dédiée plus bas pour le
+détail complet) : un ajustement purement COSMÉTIQUE (ex. aligner deux
+bordures au pixel près entre 2 zones indépendantes de l'écran) ne doit
+JAMAIS forcer un élément à grandir au détriment de l'espace réellement
+disponible pour un contenu FONCTIONNEL (navigation, action, information
+consultée activement) qui partage le même conteneur. En cas de conflit
+entre les deux, la fonction gagne — quitte à accepter un léger défaut
+visuel (ici, un désalignement de bordure) comme compromis assumé plutôt
+que corrigé.
+
+### Vérifier un alignement CSS par le raisonnement seul est risqué — mesurer dès que possible
+
+Actée le 22/08, après le chantier `MiniPlayerBar.jsx`/`GuestModeBar.jsx`
+(voir la section dédiée plus bas pour le détail complet) : un
+raisonnement THÉORIQUE sur une question de centrage flexbox s'est révélé
+FAUX deux fois de suite le même jour, avant qu'une vraie mesure (un
+navigateur réel piloté par Playwright, trouvé utilisable via un binaire
+déjà en cache dans le bac à sable malgré l'échec habituel du
+téléchargement — voir CLAUDE-SANDBOX-VERIFICATION.md §5quinquies) ne
+tranche pour de bon. Deux leçons distinctes retenues :
+1. **Ne pas re-raisonner une 3e fois dans le vide après 2 échecs** —
+   chercher activement un moyen de mesurer (ex. chercher un navigateur
+   déjà en cache avec `find` avant de conclure à l'impossibilité) plutôt
+   que de refaire le même calcul mental en espérant un résultat
+   différent.
+2. **Ne jamais reproduire un composant "à la main" pour le tester —
+   toujours importer le vrai fichier.** Une 1re mesure basée sur une
+   reproduction manuelle des 3 zones "principales" de `MiniPlayerBar.jsx`
+   donnait 0px d'écart, faussement rassurant : elle avait tout simplement
+   OMIS 2 éléments bien réels du fichier (bouton volume, bouton fermer)
+   en les recopiant de mémoire. Une 2e mesure avec le VRAI composant
+   importé directement a révélé l'écart réel (46px). Une reproduction
+   manuelle ne teste que ce dont on se souvient d'un fichier, jamais ce
+   qui y existe vraiment.
+
+### Une "recette" de mise en page recopiée dans plusieurs fichiers dérive — extraire un composant partagé dès le 2e cas
+
+Constat du 22/08 : `MiniPlayerBar.jsx` et `GuestModeBar.jsx` ont accumulé
+3 bugs de désalignement DISTINCTS la même session (hauteur forcée sur la
+Sidebar, centrage `GuestModeBar` vs `MiniPlayerBar`, centrage interne à
+`MiniPlayerBar` lui-même) — pas 3 problèmes indépendants avec 3 causes
+différentes, mais 3 symptômes de LA MÊME fragilité : les deux fichiers
+recopiaient indépendamment la même "recette" de conteneur
+(`h-[70px]` + `max-w-5xl mx-auto` + padding), avec de petites divergences
+de détail à chaque copie (`px-4` vs `px-6`, `justify-center` présent ou
+non sur le conteneur externe). Une convention maintenue par la mémoire
+humaine ("se souvenir de recopier le même motif partout") dérive
+inévitablement avec le temps, contrairement à une convention imposée par
+la STRUCTURE du code. Extrait en composant partagé
+(`BottomBarShell.jsx`, voir la section dédiée plus bas) dès ce 2e cas —
+pas besoin d'attendre un 3e ou 4e fichier pour que la duplication devienne
+un vrai risque : 2 fichiers qui doivent visuellement s'aligner et
+partagent déjà une recette identique suffisent.
+
+### Une classe Tailwind "dépendante" (`flex-col`/`items-*`/`justify-*`) ne fait RIEN sans sa classe "prérequise" (`flex`/`grid`) — invisible à la simple lecture
+
+Actée le 22/08, après le VRAI bug derrière le "3e symptôme" ci-dessus
+(centrage interne à `MiniPlayerBar.jsx`/`GuestModeBar.jsx`, voir la
+section dédiée plus bas pour le récit complet) : 2 tentatives de
+correctif basées sur un raisonnement théorique se sont révélées fausses
+avant qu'une vraie mesure (Playwright) ne révèle la cause réelle —
+`BottomBarShell.jsx` acceptait un `innerClassName` transmis par chaque
+appelant, mais son propre template de base ne posait JAMAIS `flex` —
+sans lui, `flex-col`/`items-center` transmis par un appelant n'ont
+LITTÉRALEMENT AUCUN EFFET. Rien de "faux" en apparence dans le JSX
+final : les classes sont bien là, juste incomplètes d'une façon qu'une
+relecture de code ne révèle pas — seul un rendu réel (ou une
+vérification automatisée du couplage entre classes) le révèle.
+
+**Généralisable** : toute classe qui ne prend effet que sur un conteneur
+`flex`/`grid` (`flex-col`, `flex-row`, `items-*`, `justify-*`,
+`content-*`...) doit TOUJOURS être accompagnée de `flex`/`grid`/
+`inline-flex`/`inline-grid` sur le MÊME élément — que ce soit dans une
+chaîne de classes statique (là, une relecture attentive suffit à le
+voir) OU, plus insidieux, quand une chaîne de classes est transmise à un
+composant partagé via une prop de personnalisation (`innerClassName`,
+`cardClassName`...) : dans ce cas, la classe prérequise peut manquer
+soit côté appelant, soit côté composant receveur — le bug se cache dans
+l'INTERACTION entre 2 fichiers, jamais visible en lisant l'un des deux
+séparément. Garde-fou automatique ajouté
+(`tests/flexDependentClassTrap.test.js`, même famille que
+`tailwindConcatTrap.test.js`) : scanne toute prop `cardClassName=`
+(celle qui reste réellement à risque, voir sa docstring pour pourquoi
+`innerClassName` en est exclu) et vérifie qu'une classe dépendante n'y
+apparaît jamais sans son prérequis.
