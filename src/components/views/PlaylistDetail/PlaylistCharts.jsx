@@ -437,7 +437,7 @@ export default function PlaylistCharts({
                   ne pas les confondre visuellement. */}
               {hasDetailFilter && trackSegments.map((seg, i) => trackMatchesDetailFilter(seg.track) && (
                 <ReferenceArea
-                  key={`filter-${i}`}
+                  key={`filter-${seg.track.trackId}`}
                   x1={chartAxisType === 'distance' ? seg.startDist * distanceDisplayFactor : seg.startTime}
                   x2={chartAxisType === 'distance' ? seg.endDist * distanceDisplayFactor : seg.endTime}
                   fill="#f59e0b"
@@ -447,9 +447,9 @@ export default function PlaylistCharts({
               ))}
 
               {/* Repère vertical fin à chaque début de morceau. */}
-              {trackSegments.map((seg, i) => (
+              {trackSegments.map((seg) => (
                 <ReferenceLine
-                  key={i}
+                  key={seg.track.trackId}
                   x={chartAxisType === 'distance' ? seg.startDist * distanceDisplayFactor : seg.startTime}
                   stroke="#3b82f6"
                   strokeOpacity={0.5}
@@ -526,7 +526,7 @@ export default function PlaylistCharts({
                   onClick={(entry) => selectDetailGenre(entry.name)}
                   style={{ cursor: 'pointer' }}
                 >
-                  {genreDistributionData.map((entry, i) => <Cell key={i} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} opacity={selectedDetailGenre.size > 0 && !selectedDetailGenre.has(entry.name) ? 0.35 : 1} />)}
+                  {genreDistributionData.map((entry, i) => <Cell key={entry.name} fill={DISTRIBUTION_COLORS[i % DISTRIBUTION_COLORS.length]} opacity={selectedDetailGenre.size > 0 && !selectedDetailGenre.has(entry.name) ? 0.35 : 1} />)}
                 </Pie>
                 <RechartsTooltip formatter={(value, name) => {
                   const total = genreDistributionData.reduce((s, e) => s + e.value, 0);
@@ -548,7 +548,7 @@ export default function PlaylistCharts({
                 const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
                 return (
                   <button
-                    key={i}
+                    key={entry.name}
                     onClick={() => selectDetailGenre(entry.name)}
                     className={`flex items-center gap-1.5 text-xs font-bold rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedDetailGenre.has(entry.name) ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
                   >
@@ -566,8 +566,8 @@ export default function PlaylistCharts({
           {hasDetailFilter && (
             <div className={`mt-4 pt-4 border-t ${cardBorder} space-y-1`}>
               <div className={`text-xs font-bold uppercase tracking-wide mb-2 ${textMuted}`}>Titres · {activeDetailFilterLabel}</div>
-              {currentPlaylist.tracks.filter(trackMatchesDetailFilter).map((t, i) => (
-                <div key={i} className="flex items-center justify-between gap-2 text-sm py-1">
+              {currentPlaylist.tracks.filter(trackMatchesDetailFilter).map((t) => (
+                <div key={t.trackId} className="flex items-center justify-between gap-2 text-sm py-1">
                   <div className="min-w-0">
                     <div className={`font-semibold truncate ${textHighlight}`} title={t.title}>{t.title}</div>
                     <div className={`text-xs truncate ${textMuted}`} title={t.artist}>{t.artist}</div>
@@ -621,7 +621,7 @@ export default function PlaylistCharts({
                         const pct = 50 + (t.gap / maxAbsGap) * 45; // 45% de marge de chaque côté, jamais collé au bord
                         return (
                           <div
-                            key={i}
+                            key={`${t.title}-${t.bpm}-${t.gap}`}
                             title={`${t.title} — ${t.bpm} BPM (${t.gap > 0 ? '+' : ''}${t.gap})`}
                             className={`absolute w-2.5 h-2.5 rounded-full -translate-x-1/2 shadow-sm ${isNaughtyMode ? 'bg-rose-400' : 'bg-red-400'}`}
                             style={{ left: `${pct}%`, top: `${8 + (i % 3) * 14}px` }}
@@ -652,7 +652,7 @@ export default function PlaylistCharts({
                   onClick={(entry) => selectDetailBpmBucket(entry.name)}
                   style={{ cursor: 'pointer' }}
                 >
-                  {bpmDistributionData.map((entry, i) => <Cell key={i} fill={entry.color} opacity={selectedDetailBpmBucket.size > 0 && !selectedDetailBpmBucket.has(entry.name) ? 0.35 : 1} />)}
+                  {bpmDistributionData.map((entry) => <Cell key={entry.name} fill={entry.color} opacity={selectedDetailBpmBucket.size > 0 && !selectedDetailBpmBucket.has(entry.name) ? 0.35 : 1} />)}
                 </Pie>
                 <RechartsTooltip formatter={(value, name) => {
                   const total = bpmDistributionData.reduce((s, e) => s + e.value, 0);
@@ -670,7 +670,7 @@ export default function PlaylistCharts({
                 const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
                 return (
                   <button
-                    key={i}
+                    key={entry.name}
                     onClick={() => selectDetailBpmBucket(entry.name)}
                     className={`flex items-center gap-1.5 text-xs font-bold rounded-lg px-1.5 py-1 -mx-1.5 transition-colors ${selectedDetailBpmBucket.has(entry.name) ? 'bg-black/5 dark:bg-white/10' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
                   >
@@ -685,8 +685,8 @@ export default function PlaylistCharts({
           {hasDetailFilter && (
             <div className={`mt-4 pt-4 border-t ${cardBorder} space-y-1`}>
               <div className={`text-xs font-bold uppercase tracking-wide mb-2 ${textMuted}`}>Titres · {activeDetailFilterLabel}</div>
-              {currentPlaylist.tracks.filter(trackMatchesDetailFilter).map((t, i) => (
-                <div key={i} className="flex items-center justify-between gap-2 text-sm py-1">
+              {currentPlaylist.tracks.filter(trackMatchesDetailFilter).map((t) => (
+                <div key={t.trackId} className="flex items-center justify-between gap-2 text-sm py-1">
                   <div className="min-w-0">
                     <div className={`font-semibold truncate ${textHighlight}`} title={t.title}>{t.title}</div>
                     <div className={`text-xs truncate ${textMuted}`} title={t.artist}>{t.artist}</div>
