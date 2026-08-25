@@ -136,8 +136,8 @@ export default function FavoritesView({
           <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
             <h4 className={`text-sm font-bold uppercase tracking-wider mb-4 flex items-center ${textMuted} ${isNaughtyMode ? 'dark:text-white' : ''}`}><User size={16} className="mr-2"/> Top Artistes</h4>
             <div className="flex flex-wrap gap-2.5 items-center">
-              {favorites.artists.map((artist, idx) => (
-                <span key={idx} className={`px-4 py-2 bg-surface-hover border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold ${textHighlight} shadow-xs flex items-center gap-2`}>
+              {favorites.artists.map((artist) => (
+                <span key={artist} className={`px-4 py-2 bg-surface-hover border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold ${textHighlight} shadow-xs flex items-center gap-2`}>
                   {artist}
                   <button onClick={() => setFavorites(prev => ({ ...prev, artists: prev.artists.filter(a => a !== artist) }))} className="text-gray-400 hover:text-red-500 transition-colors">
                     <X size={13}/>
