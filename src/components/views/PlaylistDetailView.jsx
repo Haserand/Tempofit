@@ -628,7 +628,7 @@ function PlaylistDetailViewInner({
                 </thead>
                 <tbody>
                   {currentActualData.map((point, i) => (
-                    <tr key={i} className={`border-b last:border-0 ${cardBorder}`}>
+                    <tr key={point.timeSec} className={`border-b last:border-0 ${cardBorder}`}>
                       <td className={`py-1.5 pr-3 ${textMuted}`}>{point.circuit ?? i + 1}</td>
                       <td className={`py-1.5 pr-3 font-mono ${textHighlight}`}>{formatDuration(point.timeSec)}</td>
                       <td className={`py-1.5 pr-3 font-mono ${textHighlight}`}>{point.cadenceReelle !== undefined ? point.cadenceReelle : '—'}</td>
