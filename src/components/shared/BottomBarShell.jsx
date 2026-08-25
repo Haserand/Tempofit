@@ -38,7 +38,33 @@ export default function BottomBarShell({ theme, shadow = false, justify = false,
   const { cardBg, cardBorderStrong } = theme;
   return (
     <div className={`h-[70px] border-t-2 ${cardBorderStrong} ${shadow ? 'shadow-2xl ' : ''}${cardBg} flex items-center${justify ? ' justify-center' : ''}`}>
-      <div className={`max-w-5xl mx-auto w-full ${innerClassName}`}>
+      {/* ⚠️ BUG RÉEL CORRIGÉ (22/08, MÊME JOUR, encore un retour direct
+          avec capture — "le texte n'est plus centré, tu dois te
+          planter") : `flex` MANQUAIT ici, dans le template DE BASE de ce
+          composant. `GuestModeBar.jsx` transmettait `flex-col
+          items-center justify-center` via `innerClassName`, mais SANS un
+          `display: flex` de base sur ce conteneur, `flex-col`/
+          `items-center` n'ont AUCUN effet — ce `<div>` restait un simple
+          bloc. Confirmé par une vraie mesure Playwright (pas un
+          raisonnement théorique cette fois, faux 2 fois de suite déjà ce
+          jour-là sur ce même composant) : la boîte du texte muted
+          collait au bord GAUCHE du conteneur, sur toute sa hauteur en
+          flux normal, jamais centrée comme élément flex — alors que le
+          bouton "Se connecter" juste au-dessus semblait, LUI, centré,
+          mais uniquement parce qu'il a son PROPRE `flex items-center
+          justify-center` autonome (`w-full flex ...`, un conteneur flex
+          complet et indépendant, qui n'a jamais eu besoin de CE
+          `display:flex`-ci pour fonctionner). `MiniPlayerBar.jsx` n'a
+          jamais eu ce bug : son `innerClassName` inclut déjà SON PROPRE
+          `flex` explicitement (`"px-4 flex items-center gap-3"`) — c'est
+          cette différence qui a caché le problème jusqu'ici. `flex`
+          ajouté ICI, dans le template DE BASE (pas seulement corrigé côté
+          appelant) : plus aucun futur appelant ne pourra oublier cette
+          classe, exactement l'esprit de ce composant partagé — imposer
+          la structure plutôt que compter sur la mémoire de qui l'utilise.
+          `flex` retiré en double de `MiniPlayerBar.jsx` dans la foulée
+          (devenu redondant, désormais garanti ici). */}
+      <div className={`max-w-5xl mx-auto w-full flex ${innerClassName}`}>
         {children}
       </div>
     </div>
