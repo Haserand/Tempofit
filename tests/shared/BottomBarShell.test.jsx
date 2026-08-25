@@ -25,6 +25,37 @@ describe('BottomBarShell', () => {
     expect(inner.className).toContain('mx-auto');
   });
 
+  // ⚠️ NOUVEAU (22/08, MÊME JOUR, encore un retour direct avec capture —
+  // "le texte n'est plus centré, tu dois te planter") : `flex` manquait
+  // dans le template DE BASE de ce composant — sans lui, `flex-col`/
+  // `items-center` transmis via `innerClassName` (cas GuestModeBar.jsx)
+  // n'avaient AUCUN effet, le conteneur restant un simple bloc. Confirmé
+  // par une vraie mesure Playwright (le texte muted collait au bord
+  // gauche au lieu d'être centré). `MiniPlayerBar.jsx` n'avait jamais ce
+  // bug car son PROPRE `innerClassName` incluait déjà `flex` — masquant
+  // le problème jusqu'à ce qu'un appelant (GuestModeBar.jsx) compte sur
+  // le composant partagé pour le fournir, comme prévu. Ce test vérifie
+  // la présence de `flex` sur le conteneur interne LUI-MÊME (pas
+  // seulement `flex-col`/`items-center`, qui pourraient être présents
+  // sans effet si `flex` manque) — une régression future de ce type
+  // serait détectée même si elle ne touche qu'un appelant qui, comme
+  // MiniPlayerBar.jsx avant ce correctif, fournirait encore son propre
+  // `flex` en double dans son `innerClassName`.
+  it('le conteneur interne a bien `flex` de base, pas seulement flex-col/items-center transmis par innerClassName', () => {
+    const { container } = render(
+      <BottomBarShell theme={mockTheme} innerClassName="flex-col items-center justify-center gap-1 py-2">contenu</BottomBarShell>
+    );
+    const inner = container.firstChild.firstChild;
+    // Classe EXACTE `flex` (pas juste "flex-col", qui CONTIENT la
+    // sous-chaîne "flex" mais n'active `display:flex` qu'associée à un
+    // `flex` de base — un `.toContain('flex')` naïf serait resté vert
+    // même si seul `flex-col` était présent, sans jamais détecter cette
+    // régression précise).
+    const classes = inner.className.split(' ');
+    expect(classes).toContain('flex');
+    expect(classes).toContain('flex-col');
+  });
+
   it('applique le thème fourni (cardBg/cardBorderStrong) sur le conteneur externe', () => {
     const { container } = render(<BottomBarShell theme={mockTheme}>contenu</BottomBarShell>);
     expect(container.firstChild.className).toContain('mock-card-bg');
