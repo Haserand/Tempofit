@@ -53,91 +53,84 @@ de composants partagés (`BottomBarShell.jsx`/`ModalShell.jsx`/
 bas pour les risques encore non mesurés, et l'index `HISTORIQUE.md` → blocs 7-8
 pour le récit complet.
 
-### Historique détaillé (22/08, suite du bloc 7) — voir l'index `HISTORIQUE.md` → bloc 8
+### ⚠️ Règle permanente (25/08) — cette section ne contient QUE le chantier en cours, jamais l'historique clos
 
-Récit chronologique complet déplacé le 22/08 (8e élagage, même jour et
-même session que le 7e — cette fois dominée par des enchaînements
-"correctif → nouveau retour direct → le correctif était insuffisant/faux
-→ vraie mesure → correctif définitif"). Index :
+**Ne JAMAIS laisser une version condensée d'un chantier CLOS s'accumuler
+ici.** Cette section a longtemps contenu, en plus de l'état courant, une
+sous-section "### Historique détaillé (bloc N)" par ancien bloc de
+session — un pur DOUBLON de ce qui vit déjà en entier dans
+`historique/bloc-NNx.md`, jamais purgé au fil du temps. Constaté le
+25/08 : ce doublon représentait 32% du poids total du README (18 215
+caractères sur 57 426) — cause directe du dépassement du seuil de
+lecture d'un coup (~16 000 caractères) qui a forcé le découpage de ce
+fichier en plusieurs parties (voir tout en tête de `README.md`).
 
-- **Génération simple → sauvegarde automatique** — "prends du recul" a
-  renversé un 1er avis ("ça pollue Mes Playlists") une fois vérifié que
-  la modification d'une playlist non sauvegardée est de toute façon
-  bloquée par le code.
-- **`cloneCount`, 4 correctifs en cascade le même jour** —
-  `handleClonePlaylist` puis `handleSavePlaylist` (même bug, hypothèse
-  de départ fausse) puis `removeSavedPlaylist` (cassé par le correctif
-  précédent, effet de bord non anticipé entre 2 fonctions modifiées le
-  même jour) puis un audit explicite qui n'a PAS trouvé ce 3e problème
-  (trouvé seulement par un retour direct suivant).
-- **Bandeau "Génération en cours"** — "..." trompeurs retirés des 8
-  messages, remplacés par rien (le spinner suffit déjà).
-- **Centrage GuestModeBar/MiniPlayerBar, 3 tentatives** — 1re (repères
-  `max-w-5xl` différents) insuffisante ; 2e, la bonne mesure : un
-  Chromium trouvé DÉJÀ EN CACHE dans le bac à sable a révélé un vrai
-  bug de 46px (bouton volume/fermer non comptés dans l'équilibrage
-  `flex-1`) ; 3e, un nouveau retour direct après déploiement réussi a
-  révélé que `BottomBarShell.jsx` lui-même n'avait jamais de `flex` de
-  base — corrigé à la racine du composant partagé, pas juste côté
-  appelant.
-- **Incident de livraison** (pas un bug de code) : un déploiement cassé
-  par un fichier nouveau non ajouté au dépôt, puis un tableau de chemins
-  de fichiers manquant dans une réponse — les deux ont coûté du temps
-  réel à l'utilisateur, réglés par une règle non négociable désormais
-  (nouveau/modifié + chemin exact, à CHAQUE livraison).
-- **4 extractions de composants partagés** — `BottomBarShell.jsx` (le
-  déclencheur), `ModalShell.jsx` (12 fichiers, littéral identique),
-  `ModalCloseButton.jsx` (10 fichiers), `SelectablePill.jsx` (seul cas
-  où une clarification a été demandée avant d'agir, comportement de
-  sélection différent entre les 3 fichiers concernés). Plusieurs autres
-  pistes cherchées et écartées, documentées pour ne pas les refaire.
-- **Garde-fou automatique** (`flexDependentClassTrap.test.js`) —
-  détecte une classe Tailwind flex-dépendante sans son prérequis,
-  testé activement (régression simulée puis détectée) avant livraison.
+**Procédure à appliquer désormais, systématiquement, à la fin de
+CHAQUE chantier/session** :
+1. Le récit chronologique complet part (comme d'habitude) dans
+   `historique/bloc-NNx.md`.
+2. Cette section "État d'avancement" ne garde QUE 1 paragraphe : l'état
+   courant (quoi est fait, quoi reste ouvert) + un pointeur "voir
+   l'index `HISTORIQUE.md` → bloc N pour le récit complet".
+3. Le paragraphe d'état courant de la session précédente est ALORS
+   supprimé d'ici (pas archivé ailleurs — il fait double emploi avec le
+   bloc historique qui vient d'être créé). Une seule version courante
+   existe à un instant donné dans cette section, jamais un empilement
+   de anciennes.
+4. Si une décision d'architecture ou une convention UI doit survivre
+   au-delà de la session (pas juste "ce qui a été fait" mais "ce qui
+   est vrai en permanence"), elle va dans les sections dédiées plus bas
+   (`Décisions d'architecture`, `Convention UI`...), PAS ici.
 
-### Historique détaillé (22/08 suite) — voir l'index `HISTORIQUE.md` → bloc 7
+## Contraintes de travail
 
-Récit chronologique complet déplacé le 22/08 (7e élagage, même jour que
-la session elle-même — check-up général en 3 passes, migration recharts,
-puis une longue série de corrections UI ciblées, chacune sur un retour
-direct avec capture d'écran). Index :
+- **Aucun terminal côté utilisateur** — tout passe par l'interface web de GitHub (créer/éditer des fichiers à la main) ; vérification via un vrai déploiement Vercel (logs collés dans la conversation avec Claude).
+- **Déploiement automatique Vercel désactivé** (`vercel.json`,
+  `"deploymentEnabled": false` — confirmé volontaire, 19/08) : un push
+  GitHub ne déclenche PAS de build Vercel tout seul, contrairement au
+  comportement par défaut — choix délibéré pour ne pas épuiser le quota
+  gratuit Vercel. Le déploiement doit être déclenché manuellement
+  (dashboard Vercel) avant de pouvoir coller les logs dans la conversation.
+- **Bac à sable Claude sans accès réseau** — `npm install`/`vitest run` réels impossibles. Voir `CLAUDE-SANDBOX-VERIFICATION.md` pour les outils de vérification disponibles quand même (validation de syntaxe réelle via `esbuild`, résolution d'imports).
+- Le build Vercel (`npm run build`) lance `vitest run` avant `vite build` (voir `package.json`, script `build`) — un test qui échoue bloque le déploiement.
 
-- **Check-up général en 3 passes** ("continuer" x2) — dette de code
-  morte massive retirée d'`App.jsx` et de plusieurs autres fichiers
-  (destructurations de ~55 variables réduites à 5-10 réellement
-  utilisées, imports morts), piège méthodologique du `grep` trompé par
-  des collisions de noms avec des clés d'objets littéraux (seul ESLint,
-  vraie analyse de portée, est fiable sur ce fichier) ; 3e passe avec
-  `eslint-plugin-react-hooks` (jamais utilisé avant), 0 erreur
-  `rules-of-hooks`, 2 vrais trous de documentation comblés dans
-  `useSessionAnalysis.js`.
-- **Migration recharts 2.15 → 3.10.1**, recommandée par Claude puis
-  confirmée par retour direct — guide de migration lu en entier, 1 point
-  de rupture corrigé préventivement (ordre Tooltip/Legend), vérification
-  visuelle réelle échouée (Playwright bloqué ce jour-là, alors que
-  fonctionnel la veille — liste des domaines réseau autorisés pas stable
-  dans le temps, voir CLAUDE-SANDBOX-VERIFICATION.md §5quinquies).
-- **Bouton "Planifier"/"Refaire"** — le texte visible d'un bouton
-  ignorait une distinction déjà présente dans son propre tooltip ; audit
-  des 34 tooltips conditionnels du projet, aucun autre cas trouvé.
-- **Date de complétion déplacée** à gauche du compteur de clonages dans
-  l'en-tête de playlist, pour gagner une ligne.
-- **2 bannières raccourcies** ("Séance déjà réalisée", "Ajoute cette
-  séance à Mes Playlists") — détail déplacé en infobulle, généralisation
-  actée dans la Convention UI du README.
-- **4 règles de design généralisées** dans la Convention UI, à la
-  question directe "des règles à généraliser suite à nos ajustements ?" —
-  chacune vérifiée par un audit réel du reste du projet avant d'être
-  actée (34 tooltips, 16 rangées `justify-center`).
-- **Sidebar — hauteur du pied de page forcée retirée** (retour direct :
-  "l'accessibilité de la navigation doit être privilégiée"), PUIS un
-  malentendu sur la direction du correctif clarifié ("je te demandais de
-  réduire la barre du bas initialement") — `MiniPlayerBar.jsx`/
-  `GuestModeBar.jsx` réduites de 90/72px à 70px en conséquence.
-- **GuestModeBar — centrage asymétrique corrigé** (espaceur invisible,
-  piège `justify-center` qui centre le groupe pas le contenu perçu comme
-  principal).
-- **StatsView — bouton "Partager mon bilan" déplacé 2 fois le même jour**
-  (carte CSV abandonnée presque aussitôt au profit d'un emplacement sous
-  la grille de chiffres qu'il partage réellement) — tests réécrits pour
-  détecter réellement ce 2e déplacement, pas juste retouchés.
+## Stack
+
+- React 19, Vite 8, Tailwind v4 (design tokens custom, voir `src/index.css`)
+- Supabase : auth (email/mot de passe), Postgres + RLS, Edge Function (`supabase/functions/delete-account`)
+- Déploiement Vercel, 2 fonctions serverless (`api/deezer.js`, `api/getsongbpm.js`) — proxys pour contourner l'absence de CORS de ces API tierces, gardent leurs clés côté serveur
+- Tests : Vitest + Testing Library, `tests/` en miroir de `src/` (voir la section Tests plus bas)
+
+## Décisions d'architecture non évidentes en lisant juste le code
+
+### Identité des playlists/routines
+- `playlists.id`/`routines.id` sont du **texte**, générés côté client (`pl-...`, `routine-1`) — **jamais un UUID**.
+- Clé primaire **composite** `(id, user_id)`, pas `id` seul — voir `supabase-schema.sql`, table `playlists`. Nécessaire parce que la playlist de démonstration par défaut (`'playlist-example-1'`) est **identique pour chaque nouveau compte** tant que personne n'a encore sauvegardé sa propre séance.
+- ⚠️ Piège déjà rencontré à cause de ça : comparer une playlist par `id` seul (sans tenir compte de `user_id`/`isReadOnly`) peut faire correspondre à tort la playlist d'un visiteur avec celle de quelqu'un d'autre. Voir `src/contexts/PlaylistDetailContext.jsx`, calcul de `isSaved` (corrigé le 02/08, testé dans `tests/contexts/PlaylistDetailContext.test.jsx`) — **toujours filtrer par les deux ensemble** dans du nouveau code qui touche à cette zone.
+- ⚠️ Piège trouvé pendant "UI publique des routines" (02/08) : `playlists.content` et `routines.content` ont la MÊME table/colonne (`jsonb`), mais PAS la même forme malgré la doc de `supabase-schema.sql` qui les présente comme structurellement identiques — une routine n'a jamais été générée, donc pas de `content.totalDuration`, pas de `content.coverUrl`, et le BPM vit à la racine (`content.bpm`) plutôt que sous `content.config.bpm`. Tout code qui affiche les deux types côte à côte (voir `PublicItemCard`, `ProfileView.jsx`) doit lire ces champs conditionnellement — jamais supposer qu'un helper écrit pour une playlist fonctionne tel quel sur une routine. Même piège retrouvé une 2e fois le même jour (`useProfileSearchFilter.js`, chantier "Recherche & filtres sur les profils publics") pour l'extraction du genre (`getGenresForDisplay` sur `content.tracks` pour une playlist vs `content.selectedGenres` direct pour une routine) et de la durée (`content.totalDuration` vs `content.hours`/`minutes` uniquement si `targetMode === 'time'`) — **pattern maintenant établi** : tout nouveau code qui lit `content` d'un item potentiellement playlist OU routine doit brancher sur un `kind`/`row.kind` explicite, jamais une formule unique.
+- ⚠️ Catalogue de genres CANONIQUE (`musicCatalog.js`, `STANDARD_GENRES`/`NAUGHTY_GENRES`/`EXTRA_GENRES`) — trouvé en écrivant les routines fictives de la vitrine (02/08) : la clé interne réelle est `Electro` **sans accent**, `genreDisplayLabel` ne la retraduit pas (elle ne remappe que `'Autre'`→`'Divers'` et `'Musique asiatique'`→`'J-pop & C-pop'`) — l'accent affiché ailleurs dans l'UI ("Électro") n'existe QUE dans du texte libre, jamais comme valeur stockée. `Hip-Hop` et `Lo-fi` n'existent PAS dans le catalogue — pas de fourre-tout "genre urbain/ambiance" disponible, le plus proche est `Rap`/`R&B Sensuel` (variante Intime de `R&B`, dans `NAUGHTY_GENRES`). Toute nouvelle donnée (fictive ou non) qui référence un genre doit être vérifiée contre ces 3 constantes, jamais un nom "qui sonne juste".
+- `content.description` (chantier "description texte libre", 02/08) : ajouté SANS migration SQL, simple nouvelle clé dans le `jsonb` déjà existant — précédent déjà établi par `plannedDate`/`coverUrl`. Un nouveau champ sur `playlists`/`routines` ne justifie une vraie colonne (`alter table`) que s'il doit être filtrable/indexable côté RLS (comme `is_public`/`is_intimate`) ; un simple texte d'affichage n'a aucune raison de sortir de `content`.
+  ⚠️ **RETIRÉ pour les routines le 08/08** (retour direct : "finalement pas emballé par la fonctionnalité description sur les routines... on conserve juste pour les playlists" — voir "État d'avancement" en tête de ce README) — `content.description` reste une fonctionnalité ACTIVE uniquement côté `playlists` désormais. Aucune migration de données faite : une routine créée avant ce retrait peut encore porter une valeur dans `content.description`, simplement plus jamais lue ni affichée par le code (`RoutinesView.jsx`, `PublicRoutinePreviewModal.jsx`, `PublicItemCard`/`ProfileView.jsx`, `useProfileSearchFilter.js` l'ignorent tous désormais côté routine).
+
+### Valider une donnée persistée : à la SOURCE ne suffit pas, il faut aussi valider à la CONSOMMATION
+Leçon du chantier "cible à 0" (`targetValidation.js`, 04/08) : valider un formulaire d'ENTRÉE (le wizard, `EditRoutineModal.jsx`) empêche de CRÉER une donnée invalide, mais ne protège pas contre une donnée invalide déjà en base (créée avant le correctif, ou par tout autre moyen) qui serait relue ailleurs SANS repasser par ce formulaire — ici, le bouton "Générer" d'une routine déjà sauvegardée (`RoutinesView.jsx`), qui consomme `routine.distanceVal`/`.segments` directement. Tout nouveau champ avec une contrainte de validité mérite qu'on se pose la question aux DEUX endroits : où est-il écrit, et partout où il est relu sans repasser par l'écriture.
+
+### Deux systèmes de confidentialité, volontairement séparés
+- **Niveau profil** (table `profiles`) : `is_profile_public`, `show_sport_stats`, `show_intimate_stats`, `default_playlist_public` — interrupteurs globaux.
+- **Niveau item** : `playlists.is_public` par playlist individuelle.
+- Une playlist publique n'est visible que si **les deux** sont vrais. Les stats agrégées (temps total/BPM moyen), elles, ne dépendent QUE de `show_sport_stats`/`show_intimate_stats` — pas de `playlists.is_public` : une playlist privée compte quand même dans les stats globales si le propriétaire a activé "Afficher mes statistiques". **Voulu, pas un bug.**
+
+### Synchronisation Supabase
+- `usePersistentState.js` : hook générique `[state, setState]`, synchronise vers la table `user_data` (blob JSON par clé). Utilisé pour tout ce qui n'est pas playlists/routines (thème, favoris, profil athlétique...).
+- `useSyncedCollection.js` : même signature `[state, setState]`, mais synchronise un TABLEAU d'objets vers une vraie table relationnelle (une ligne par élément), en calculant le diff en interne. Utilisé uniquement pour `savedPlaylists`/`routines`.
+- ✅ **CORRIGÉ (07/08)** : à la déconnexion, `signOut()` (AuthContext.jsx) vide désormais tout le cache localStorage TempoFit de l'appareil (`clearLocalCache()`, `src/utils/localCache.js`) — voir "État d'avancement" plus haut pour le détail complet. Avant ce correctif, un compte suivant sur un appareil partagé pouvait voir (et modifier) les données de la personne précédente, potentiellement indéfiniment s'il restait en mode invité — pas juste "un court instant" comme le disait cette note.
+
+### Pseudos réservés
+- `src/utils/username.js` (`isReservedUsername`, garde-fou UX) **et** la contrainte SQL `profiles_username_not_reserved` (`supabase-schema.sql`) existent tous les deux et doivent rester identiques — c'est la contrainte SQL qui constitue la vraie garantie de sécurité.
+- Exception unique : `tempofit_admin`, comparaison stricte sensible à la casse (contrairement au reste du motif, insensible à la casse).
+
+### Profil vitrine `@tempofit_officiel`
+- Jamais stocké en base, entièrement reconstruit côté client (`src/data/officialVitrineProfile.js`) — accessible même sans compte, court-circuite le Login Wall des profils volontairement. Le pseudo est structurellement bloqué à l'inscription par le système de pseudos réservés ci-dessus.
+
+### Login Wall des profils publics
+- Double verrou : droits d'exécution SQL retirés à `anon` sur `get_public_profile_summary`/`search_public_profiles` (`revoke ... from anon`) **et** vérification explicite `auth.uid() is null` en tout premier dans chaque fonction — voir `supabase-schema.sql`.
