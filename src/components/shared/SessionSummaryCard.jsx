@@ -264,13 +264,13 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sess
           <div className="mb-6">
             <p className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: '#9ca3af' }}>{matchedAnyZone ? "Zones d'intensité" : "Répartition par BPM"}</p>
             <div className="w-full h-3 rounded-full overflow-hidden flex">
-              {bars.map((b, i) => (
-                <div key={i} style={{ width: `${b.pct}%`, backgroundColor: b.color }} title={b.title} />
+              {bars.map((b) => (
+                <div key={b.title} style={{ width: `${b.pct}%`, backgroundColor: b.color }} title={b.title} />
               ))}
             </div>
             <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
-              {bars.map((b, i) => (
-                <div key={i} className="flex items-center gap-1" title={b.title}>
+              {bars.map((b) => (
+                <div key={b.title} className="flex items-center gap-1" title={b.title}>
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: b.color }} />
                   <span className="text-[10px] font-semibold" style={{ color: '#9ca3af' }}>{b.label} · {b.pct}%</span>
                 </div>
@@ -299,8 +299,8 @@ export default function SessionSummaryCard({ playlist, topTrackCovers = {}, sess
         {topTracks.length > 0 && (
           <div className="space-y-2">
             <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: '#9ca3af' }}>Premiers titres</p>
-            {topTracks.map((t, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-xl p-2.5 border" style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.10)' }}>
+            {topTracks.map((t) => (
+              <div key={t.trackId} className="flex items-center gap-3 rounded-xl p-2.5 border" style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.10)' }}>
                 {topTrackCovers[t.trackId] ? (
                   <img src={topTrackCovers[t.trackId]} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
                 ) : (
