@@ -176,7 +176,7 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
     // (l'ombre portée de CETTE barre n'a jamais existé sur GuestModeBar) —
     // `px-4 flex items-center gap-3` transmis en `innerClassName`,
     // disposition en RANGÉE (contrairement à GuestModeBar, en colonne).
-    <BottomBarShell theme={theme} shadow innerClassName="px-4 flex items-center gap-3">
+    <BottomBarShell theme={theme} shadow innerClassName="px-4 items-center gap-3">
 
         {/* ── Zone gauche : infos titre (essentiel, jamais masqué) ── */}
         <div className="min-w-0 flex-1 flex items-center gap-2">
