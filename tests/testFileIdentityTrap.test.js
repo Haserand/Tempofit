@@ -43,6 +43,7 @@ const NO_SINGLE_SUBJECT = new Set([
   'testFileIdentityTrap.test.js', // ce fichier lui-même
   'testLocationTrap.test.js', // garde-fou global (05/08), même famille
   'criticalExportsTrap.test.js', // garde-fou global (05/08), même famille
+  'flexDependentClassTrap.test.js', // garde-fou global (22/08), même famille
 ]);
 
 function walk(dir) {
