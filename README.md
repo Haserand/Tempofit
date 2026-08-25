@@ -12,18 +12,61 @@ Objectif explicite : rester **court et pointer vers le code** plutôt que de le 
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement — session très longue (22/08, suite directe de
-celle du 21-22/08 qui avait déjà motivé un élagage, bloc 6), tous les
-chantiers fermés et vérifiés : check-up général en 3 passes (dette de
-code morte retirée, `eslint-plugin-react-hooks` utilisé pour la 1re fois
-sur ce projet), migration recharts 2→3, puis une série de corrections UI
-ciblées sur retours directs successifs (bouton Planifier/Refaire, date de
-complétion déplacée, bannières raccourcies, hauteur du pied de page
-Sidebar retirée puis les 2 barres du bas réduites en conséquence,
-centrage GuestModeBar, bouton "Partager mon bilan" repositionné). Voir
-"À vérifier visuellement" plus bas pour les quelques risques non mesurés
-faute de navigateur cette session (Playwright bloqué), et
-`HISTORIQUE.md` bloc 7 pour le récit complet.
+Rien en cours actuellement — session exceptionnellement longue (22/08,
+suite directe de celle du 21-22/08, bloc 6, elle-même suivie d'un 1er
+élagage le même jour, bloc 7), tous les chantiers fermés et vérifiés.
+Après le check-up/migration recharts/corrections UI du bloc 7 : une
+série de corrections en cascade sur `cloneCount` (4 correctifs le même
+jour, chacun révélant le suivant) et sur le centrage
+`GuestModeBar.jsx`/`MiniPlayerBar.jsx` (3 tentatives avant la vraie
+cause, trouvée dans `BottomBarShell.jsx` lui-même), puis 4 extractions
+de composants partagés (`BottomBarShell.jsx`/`ModalShell.jsx`/
+`ModalCloseButton.jsx`/`SelectablePill.jsx`) et un garde-fou automatique
+(`flexDependentClassTrap.test.js`). Voir "À vérifier visuellement" plus
+bas pour les risques encore non mesurés, et `HISTORIQUE.md` blocs 7 et 8
+pour le récit complet.
+
+### Historique détaillé (22/08, suite du bloc 7) — archivé dans `HISTORIQUE.md`, bloc 8
+
+Récit chronologique complet déplacé le 22/08 (8e élagage, même jour et
+même session que le 7e — cette fois dominée par des enchaînements
+"correctif → nouveau retour direct → le correctif était insuffisant/faux
+→ vraie mesure → correctif définitif"). Index :
+
+- **Génération simple → sauvegarde automatique** — "prends du recul" a
+  renversé un 1er avis ("ça pollue Mes Playlists") une fois vérifié que
+  la modification d'une playlist non sauvegardée est de toute façon
+  bloquée par le code.
+- **`cloneCount`, 4 correctifs en cascade le même jour** —
+  `handleClonePlaylist` puis `handleSavePlaylist` (même bug, hypothèse
+  de départ fausse) puis `removeSavedPlaylist` (cassé par le correctif
+  précédent, effet de bord non anticipé entre 2 fonctions modifiées le
+  même jour) puis un audit explicite qui n'a PAS trouvé ce 3e problème
+  (trouvé seulement par un retour direct suivant).
+- **Bandeau "Génération en cours"** — "..." trompeurs retirés des 8
+  messages, remplacés par rien (le spinner suffit déjà).
+- **Centrage GuestModeBar/MiniPlayerBar, 3 tentatives** — 1re (repères
+  `max-w-5xl` différents) insuffisante ; 2e, la bonne mesure : un
+  Chromium trouvé DÉJÀ EN CACHE dans le bac à sable a révélé un vrai
+  bug de 46px (bouton volume/fermer non comptés dans l'équilibrage
+  `flex-1`) ; 3e, un nouveau retour direct après déploiement réussi a
+  révélé que `BottomBarShell.jsx` lui-même n'avait jamais de `flex` de
+  base — corrigé à la racine du composant partagé, pas juste côté
+  appelant.
+- **Incident de livraison** (pas un bug de code) : un déploiement cassé
+  par un fichier nouveau non ajouté au dépôt, puis un tableau de chemins
+  de fichiers manquant dans une réponse — les deux ont coûté du temps
+  réel à l'utilisateur, réglés par une règle non négociable désormais
+  (nouveau/modifié + chemin exact, à CHAQUE livraison).
+- **4 extractions de composants partagés** — `BottomBarShell.jsx` (le
+  déclencheur), `ModalShell.jsx` (12 fichiers, littéral identique),
+  `ModalCloseButton.jsx` (10 fichiers), `SelectablePill.jsx` (seul cas
+  où une clarification a été demandée avant d'agir, comportement de
+  sélection différent entre les 3 fichiers concernés). Plusieurs autres
+  pistes cherchées et écartées, documentées pour ne pas les refaire.
+- **Garde-fou automatique** (`flexDependentClassTrap.test.js`) —
+  détecte une classe Tailwind flex-dépendante sans son prérequis,
+  testé activement (régression simulée puis détectée) avant livraison.
 
 ### Historique détaillé (22/08 suite) — archivé dans `HISTORIQUE.md`, bloc 7
 
@@ -622,28 +665,35 @@ lui donner une bio écrite à la main, cohérente avec son rôle de vitrine).
 - `PlaylistDetailContext.jsx` (Provider) n'a **pas** de couverture exhaustive — juste un test ciblé sur `isSaved`/`isReadOnly` (`tests/contexts/PlaylistDetailContext.test.jsx`). Le monter en entier exigerait de mocker `GeneratorContext` + `AudioPlayerContext` + le moteur de recalcul de timeline ; jugé disproportionné pour ce qui reste, à part ce point précis, de la logique triviale déjà couverte indirectement ailleurs.
 - ⚠️ **Corrigé (22/08)** — cette ligne affirmait encore "aucune exécution réelle de `vitest` n'est possible dans le bac à sable" : faux depuis la découverte du 21/08 (`npm install`/un vrai serveur `vite`/Playwright/`vitest run` fonctionnent réellement, voir CLAUDE-SANDBOX-VERIFICATION.md §5ter) — `npx vitest run` tourne pour de vrai sur la suite complète à chaque session depuis, résultat cité à chaque chantier de ce README.
 
-## À vérifier visuellement à la première occasion — risques non mesurés faute de navigateur (22/08)
+## À vérifier visuellement à la première occasion — risques non mesurés
 
-Playwright reste bloqué en sandbox depuis le 22/08
-(`cdn.playwright.dev` hors liste d'autorisation réseau, voir
-CLAUDE-SANDBOX-VERIFICATION.md §5quinquies) — plusieurs changements de
-cette même session reposent donc sur un calcul à la main plutôt qu'une
-vraie mesure, à confirmer dès qu'un navigateur redevient disponible :
+⚠️ Mise à jour (22/08, plus tard la même session) — Playwright a fini
+par être débloqué : le téléchargement via `npx playwright install`
+reste bloqué (`cdn.playwright.dev` hors liste d'autorisation), MAIS un
+binaire Chromium était déjà en cache sur le système
+(`/opt/pw-browsers/chromium-1194/`, trouvé par `find / -iname
+"*chromium*"`), utilisable directement via `executablePath` — voir
+CLAUDE-SANDBOX-VERIFICATION.md §5quinquies pour la commande exacte. Ce
+chemin n'est PAS garanti persister d'une session à l'autre (cache
+d'image système, pas un acquis du projet) — à re-tester, jamais
+supposer acquis.
 
-- **`MiniPlayerBar.jsx`/`GuestModeBar.jsx` à `h-[70px]`** — calculé pour
-  correspondre à la hauteur naturelle du pied de page de `Sidebar.jsx`
-  (bordure + padding + ligne Réglages/Trophées + ligne de crédit), jamais
-  mesuré en conditions réelles. Un écart de quelques pixels reste
-  possible (métriques de police exactes, arrondis de rendu).
-- **Migration recharts 2→3** — build/tests réels au vert, mais le rendu
-  visuel des 5 `<Pie>` et des graphiques en ligne/barres n'a jamais été
-  inspecté à l'œil (2 changements visuels mineurs connus côté recharts :
-  plus de bordure au clic sur les sections de pie, `CartesianGrid`
-  inverse l'ordre de rendu de son fond).
+- **`MiniPlayerBar.jsx`/`GuestModeBar.jsx` à `h-[70px]`** — ✅ CONFIRMÉ
+  par mesure réelle (Playwright) : bouton play, "Se connecter" et texte
+  muted tombent tous au même x, écart de 0.008px (arrondi de rendu,
+  négligeable). Plus un risque.
+- **Migration recharts 2→3** — toujours PAS vérifié visuellement (le
+  Chromium retrouvé a servi aux bugs de centrage, pas encore réutilisé
+  pour un contrôle visuel des graphiques). Build/tests réels au vert,
+  mais le rendu visuel des 5 `<Pie>` et des graphiques en ligne/barres
+  reste à inspecter à l'œil (2 changements visuels mineurs connus côté
+  recharts : plus de bordure au clic sur les sections de pie,
+  `CartesianGrid` inverse l'ordre de rendu de son fond).
 - **`PlaylistCharts.jsx`, glisser-déposer sur le graphique** —
   `accessibilityLayer={false}` ajouté par prudence sur ce graphique
-  précis (nouveau défaut `true` en v3 côté recharts, jamais testé contre
-  cette interaction maison faute d'interaction possible en sandbox).
+  précis, jamais testé contre cette interaction maison en conditions
+  réelles (nécessiterait de simuler un vrai glisser-déposer souris, pas
+  fait lors des mesures de centrage).
 
 **Cas limite connu, non traité** (`PlaylistHeaderBadges.jsx`) : le badge
 "Lecture seule" (`isReadOnly`) et le badge "séance déjà réalisée"
@@ -653,562 +703,9 @@ propriétaire) — 2 icônes Lock à la suite dans la même rangée. Jamais
 rencontré dans les retours reçus jusqu'ici.
 
 Récit complet de la session qui a produit tout ça (check-up en 3 passes,
-migration recharts, corrections UI ciblées) : voir `HISTORIQUE.md`,
-bloc 7.
-
-## Génération simple d'une playlist — sauvegarde désormais automatique dans "Mes Playlists" (22/08)
-
-Question directe, "prends du recul" : "est-ce que par défaut les
-playlists que je génère ne devraient pas être enregistrées dans 'mes
-playlists' sans avoir besoin de l'ajouter manuellement ?".
-
-**1re réponse (avant vérification) : plutôt non** — l'argument avancé
-était que le générateur sert à l'exploration (régénérer plusieurs fois
-avant de trouver la bonne version), et qu'auto-sauvegarder polluerait
-"Mes Playlists" de brouillons jetables.
-
-**Argument renversé par un retour direct suivant, qui a motivé une
-vraie vérification** : "je me dis que si je génère UNE playlist, elle
-est ajoutée à mes playlists, surtout si dans tous les cas je dois
-l'ajouter pour pouvoir la modifier". Vérifié dans le code
-(`TrackList.jsx`/`TrackItem.jsx`) : **confirmé, aucune mutation d'un
-titre (remplacer/dupliquer/retirer) n'est possible tant que la playlist
-n'est pas sauvegardée** — le commentaire du code le dit explicitement
-("la mutation ne serait de toute façon pas persistée"). Il n'y avait
-donc PAS de vraie exploration possible sur une playlist déjà générée,
-seulement la regénérer entièrement depuis le wizard — l'argument initial
-ne tenait pas à l'examen.
-
-**Corrigé** (`usePlaylistGeneration.js`, branche `count === 1`) : appelle
-désormais `setSavedPlaylists` en plus de `setCurrentPlaylist`, exactement
-comme le fait déjà la branche `count > 1` (génération en lot depuis une
-routine) depuis toujours — une incohérence pré-existante dans le code
-que cette question a fait remonter, jamais questionnée jusqu'ici. Le
-bouton "Ajouter" (`PlaylistHeaderActions.jsx`) disparaît naturellement
-pour ce cas (`isSaved` devient vrai dès la génération, aucun changement
-nécessaire dans ce fichier) — il reste nécessaire et inchangé pour les
-autres cas où une playlist affichée n'est pas encore sauvegardée (ex. un
-template ouvert directement depuis Découvrir).
-
-Garde-fou existant (`hasUnsavedPlaylist`, `useNavigation.js` — modale de
-confirmation + avertissement natif du navigateur à la fermeture d'onglet)
-**pas retiré, son périmètre est simplement réduit** : une génération
-simple n'est plus jamais dans cet état, mais un template ouvert depuis
-Découvrir l'est toujours. Commentaire mis à jour pour refléter ce
-périmètre plus étroit.
-
-2 tests ajoutés (`usePlaylistGeneration.test.js`) : `setSavedPlaylists`
-bien appelé pour `count=1` avec la playlist générée + les playlists
-existantes préservées ; même protection contre un changement concurrent
-(`savedPlaylistsRef.current`, pas le tableau figé au début) déjà
-vérifiée pour le lot, maintenant aussi pour la génération simple.
-
-## Clonage d'une playlist étrangère — la copie héritait à tort du compteur de clonages du parent (22/08)
-
-Retour direct, capture d'écran à l'appui : "logiquement la playlist que
-j'ai créée, elle, ne devrait pas avoir ce 1 tant qu'elle n'a pas été
-clonée à son tour, non ?" — une playlist étrangère fraîchement clonée
-depuis Découvrir affichait le badge de clonages du PARENT ("⧉ 1") sur la
-copie elle-même, qui n'a par définition encore jamais été clonée par
-personne.
-
-**Ce correctif en annule un autre, lui-même déjà un revirement** —
-généalogie complète, pour ne pas revenir en arrière une 3e fois sans
-comprendre pourquoi : `cloneCount` réinitialisé une 1re fois le 07/08,
-ce retrait généralisé à tort à un 2e chemin de sauvegarde le 10/08
-(retour direct, 4 captures — "il n'y a plus le compteur de clones ?"),
-cette généralisation elle-même corrigée aujourd'hui. La cause de
-l'erreur du 10/08 : `usePlaylistLibrary.js` a 2 chemins de sauvegarde
-distincts, traités à tort comme équivalents sur ce point précis —
-`handleSavePlaylist` (template ouvert depuis Découvrir, garde le MÊME
-`id`) où `cloneCount` n'est quasiment jamais réellement défini au départ
-(le compteur d'un template vit dans une table séparée,
-`template_clone_counts`), et `handleClonePlaylist` (playlist étrangère
-RÉELLE, NOUVEL `id` généré) où `cloneCount` PEUT réellement porter la
-vraie valeur du parent (`row.clone_count` depuis Supabase). Le retrait
-du 10/08 ne changeait donc rien d'observable sur le 1er chemin (déjà
-`undefined` avant et après), mais laissait le 2e chemin propager à tort
-le compteur du parent sur une copie flambant neuve — jamais remarqué
-jusqu'à cette capture.
-
-**Corrigé (1re passe)** : `cloneCount: undefined` explicitement posé sur
-l'objet `cloned` dans `handleClonePlaylist` (`usePlaylistLibrary.js`).
-`removeSavedPlaylist` (restauration de la prévisualisation du template
-original après retrait) vérifié à part et laissé inchangé — scénario
-différent (revenir à l'aperçu du template, pas créer une nouvelle
-copie), où afficher le vrai compteur du template reste légitime.
-
-2 tests mis à jour dans `usePlaylistLibrary.test.js` (remplacent les 2
-tests du 10/08 qui vérifiaient le comportement inverse) : la copie
-clonée réinitialise `cloneCount` quelle que soit la valeur du parent ;
-un `cloneCount` déjà `undefined` sur le parent reste `undefined` sur la
-copie (cas déjà couvert, comportement inchangé).
-
-**⚠️ Suite, même jour — l'affirmation "`handleSavePlaylist` n'est pas
-concerné" ci-dessus était FAUSSE, pas assez vérifiée avant d'écrire
-cette section** : nouveau retour direct, capture à l'appui — même bug,
-sur le chemin "Ajouter" (template ouvert directement depuis Découvrir,
-`isReadOnly` absent) cette fois, pas "Sauvegarder". La supposition qui
-avait exempté ce chemin ("`cloneCount` n'est quasiment jamais réellement
-défini au départ ici") était erronée : `TemplateCard.jsx` transmet bien
-le vrai compteur du template à l'ouverture
-(`onPlayTemplate(template, { cloneCount })`, sourcé depuis
-`realCloneCounts`/`template_clone_counts`, `DiscoverView.jsx`) —
-`currentPlaylist.cloneCount` PEUT donc réellement porter une valeur
-non-`undefined` sur ce chemin aussi, et `handleSavePlaylist` la
-propageait telle quelle sur la copie personnelle sauvegardée, exactement
-le même bug que celui déjà corrigé sur `handleClonePlaylist`. Corrigé de
-la même façon (`cloneCount: undefined` posé sur l'objet `saved`) — le
-compteur RÉEL du template lui-même reste correctement suivi à part
-(`template_clone_counts`, incrémenté par ce même appel, sans rapport
-avec ce champ local), rien n'est perdu en le réinitialisant ici. 1 test
-ajouté (`usePlaylistLibrary.test.js`) : un template Découvrir avec un
-vrai `cloneCount` transmis voit ce champ réinitialisé sur la copie
-sauvegardée.
-
-**⚠️ Suite, encore le même jour — le correctif de `handleSavePlaylist`
-ci-dessus casse à son tour `removeSavedPlaylist`, effet de bord non
-anticipé** : retour direct avec 3 captures montrant le cheminement
-complet (Découvrir → Ajouter, compteur à 0, correct → Supprimer de Mes
-Playlists → badge disparu complètement). Cause : `removeSavedPlaylist`
-(restauration de la prévisualisation du template après retrait)
-réutilisait `currentPlaylist.cloneCount` en le supposant fiable
-("aucune mutation de playlist dans ce projet ne supprime `cloneCount`
-du spread") — hypothèse cassée PAR le correctif juste au-dessus, qui
-pose désormais explicitement `cloneCount: undefined` à la sauvegarde.
-Une régression du même symptôme (badge absent), mais pour une cause
-différente de celle déjà corrigée le 10/08 — pas un retour en arrière.
-
-**Corrigé** : `removeSavedPlaylist` fait maintenant un vrai fetch
-Supabase (`template_clone_counts`, même table/requête que
-`DiscoverView.jsx`/`ProfileView.jsx`) pour récupérer la valeur RÉELLE
-plutôt que de compter sur une donnée locale qui n'existe plus. Template
-restauré IMMÉDIATEMENT sans `cloneCount` (badge absent un court
-instant, pas d'attente bloquante), complété dès que le fetch résout —
-protégé contre une navigation entre-temps (vérifie que
-`currentPlaylist.sourceTemplateId` correspond toujours au template
-restauré avant d'écraser quoi que ce soit). 4 tests réécrits/ajoutés
-(`usePlaylistLibrary.test.js`) : restauration immédiate toujours
-`undefined`, mise à jour asynchrone une fois le fetch résolu, protection
-contre la navigation concurrente, échec réseau du fetch géré
-silencieusement (même philosophie fire-and-forget que le reste du
-fichier).
-
-**Audit demandé explicitement après ce 2e raté** ("ça vaut pas le coup
-que tu audites en profondeur") — tous les fichiers touchant `cloneCount`/
-`clone_count` (8 fichiers) et toutes les fonctions de clonage/duplication
-du projet passés en revue un par un : `handleClonePublicRoutine`
-(l'équivalent routines, déjà sûr — construit depuis `{...row.content}`,
-qui ne contient jamais ce champ), `createPlaylistData` (moteur de
-génération, ne pose jamais ce champ), les composants d'affichage
-(`PlaylistCard.jsx`/`ProfileView.jsx`/`StatsView.jsx` — lisent la valeur
-stockée ou une donnée live sans rapport avec le bug). Aucun autre
-problème trouvé à ce moment-là — mais l'audit n'avait alors pas
-anticipé l'effet de bord sur `removeSavedPlaylist` documenté ci-dessus,
-trouvé seulement par un retour direct SUIVANT, pas par cet audit — les
-2 fonctions modifiées le même jour n'avaient pas été revérifiées
-l'une contre l'autre après coup.
-
-## Bandeau "Génération en cours" — points de suspension trompeurs retirés (22/08)
-
-Retour direct : "les 3 petits points à la fin laisse idée que le message
-est coupé, qu'on voit pas tout et que via une infobulle on peut tout
-lire non ?" — vérifié dans `GenerationProgressBanner.jsx` : les "..." de
-tous les messages de ce bandeau (ex. "Génération en cours — environ 30
-titres réunis...") n'indiquaient PAS une troncature réelle (pas de
-`truncate`/`line-clamp` sur le `<span>` qui les affiche, pas de `title=`
-non plus — le message entier était déjà toujours visible en totalité),
-seulement une convention d'écriture pour suggérer "en cours". Ambigu à
-l'œil : rien ne distingue ce "..." purement décoratif d'un vrai signe de
-troncature.
-
-**Retiré plutôt qu'ajouter une infobulle** — une infobulle aurait juste
-répété le même texte déjà entièrement visible, sans rien apporter. Le
-spinner animé (`Loader2`) et le chronomètre affichés juste à côté du
-message suffisent déjà à signaler "en cours" sans ambiguïté. Les 8
-messages de `getGenerationBannerMessage` perdent tous leur "..." final,
-pour rester cohérents entre eux (un seul message sur les 8, "Toujours en
-cours — certains genres...", n'en avait déjà pas — la preuve que
-l'absence de "..." ne posait aucun problème de lisibilité).
-
-Test ajusté (`GenerationProgressBanner.test.jsx`) : les 8 assertions sur
-le texte exact des messages mises à jour en conséquence — logique des 3
-paliers de temps entièrement inchangée, seul le texte final change.
-
-## GuestModeBar / MiniPlayerBar — centrées sur 2 repères différents, désalignées sur grand écran (22/08)
-
-Retour direct, capture annotée : "je n'ai pas l'impression que le
-lecteur audio soit centré sur la guest barre" — avec une suggestion en
-piste ("agrandir la largeur de la partie contrôles"), mais "prends du
-recul" explicite dans la même phrase.
-
-**Cause réelle, différente de la piste suggérée** : `MiniPlayerBar.jsx`
-centre ses 3 zones (info titre / contrôles / contexte playlist) à
-l'intérieur d'un conteneur `max-w-5xl mx-auto` — les contrôles de
-lecture, zone centrale `shrink-0` entre 2 zones `flex-1` symétriques,
-sont donc centrés sur le milieu de cette boîte de 1024px maximum,
-elle-même centrée dans la largeur disponible. `GuestModeBar.jsx`, elle,
-centrait son contenu ("Se connecter") directement sur la largeur TOTALE
-de la barre (`justify-center` sans contrainte de largeur). Sur un écran
-plus large que 1024px (fréquent en desktop), ces deux repères de
-centrage ne coïncident PAS — d'où le désalignement visible sur la
-capture. Élargir la zone des contrôles (la piste suggérée) n'aurait pas
-résolu ce désalignement, seulement déplacé le problème sans le régler à
-la racine.
-
-**Corrigé** : `GuestModeBar.jsx` reprend désormais EXACTEMENT la même
-contrainte (`max-w-5xl mx-auto`), enveloppant son contenu existant sans
-changer sa disposition interne (toujours `flex-col items-center
-justify-center gap-1 py-2`). Les 2 barres centrent maintenant sur le
-même repère, quelle que soit la largeur d'écran.
-
-Test ajouté (`GuestModeBar.test.jsx`) : vérifie la présence du
-conteneur `max-w-5xl mx-auto` et que le bouton "Se connecter" en est
-bien un descendant — un désalignement de ce type reste invisible en
-dessous de 1024px de large, donc facile à manquer sans test dédié à
-l'existence du conteneur lui-même (pas juste au texte affiché).
-
-**⚠️ Suite, même jour — ce correctif était insuffisant, la vraie cause
-était ailleurs** : nouveau retour direct, capture à l'appui — "ça ne
-paraît toujours pas centré". Un raisonnement purement théorique
-("`max-w-5xl` identique des deux côtés ⇒ mêmes centres") s'est révélé
-insuffisant deux fois de suite ce jour-là (déjà le cas pour le
-`cloneCount`, voir plus haut) — cette fois vérifié pour de vrai plutôt
-que re-raisonné une 3e fois dans le vide : **un vrai Chromium était déjà
-en cache dans ce bac à sable** (`/opt/pw-browsers/chromium-1194/`,
-trouvé par `find / -iname "*chromium*"` après le nouvel échec habituel
-de `npx playwright install`), utilisable directement via `executablePath`
-sans passer par un téléchargement bloqué — voir CLAUDE-SANDBOX-
-VERIFICATION.md §5quinquies pour la commande exacte et la méthode.
-
-**1re mesure trompeuse** : une reproduction MANUELLE des 3 zones
-principales de `MiniPlayerBar.jsx` (recopiées à la main dans un
-composant de test isolé) donnait 0px d'écart — rassurant à tort. **2e
-mesure, avec les VRAIS composants du projet importés directement** (pas
-une recopie) : 46px d'écart confirmé. Cause de cet écart entre les 2
-mesures : la reproduction manuelle avait omis 2 éléments bien réels du
-fichier — le bouton volume et le bouton fermer, tous deux frères
-indépendants de la zone "contexte playlist" plutôt que ses enfants. Les
-2 zones `flex-1` d'origine (info titre / contexte playlist)
-s'équilibraient bien l'une par rapport à l'autre, mais SANS tenir
-compte de ces 92px supplémentaires (volume + fermer + espacements) qui
-suivaient à droite — décalant tout le bloc droit, et donc le centre
-réel des contrôles, de 46px vers la gauche.
-
-**Corrigé** (`MiniPlayerBar.jsx`) : contexte playlist + bouton volume +
-bouton fermer regroupés dans UN SEUL conteneur `flex-1` (au lieu de 3
-frères séparés) — l'équilibrage avec la zone gauche tient désormais
-compte de leur largeur combinée. Disposition VISUELLE inchangée (même
-ordre, mêmes espacements), seule la structure des conteneurs change.
-Revérifié par mesure réelle après correctif : 0px d'écart, à 1920px ET
-à 1440px de large, confirmé aussi par capture d'écran visuelle.
-
-Test ajouté (`MiniPlayerBar.test.jsx`) : vérifie que contexte playlist,
-bouton volume et bouton fermer sont bien tous les 3 descendants du même
-conteneur `flex-1` — une assertion `getByTitle(...)` seule serait restée
-verte même avec l'ancienne structure cassée (les éléments existent
-toujours, juste mal regroupés).
-
-Fichiers de test temporaires (page HTML/composant React de diagnostic,
-scripts Playwright) créés pour cette vérification puis intégralement
-supprimés avant livraison — aucun ne fait partie du projet. Un export
-temporaire ajouté à `AudioPlayerContext.jsx` (nécessaire pour importer
-son Contexte depuis le harnais de test) reverté dans la foulée.
-
-## Refactor — `BottomBarShell.jsx`, conteneur partagé pour MiniPlayerBar/GuestModeBar (22/08)
-
-Question directe en fin de session : "as-tu des principes à généraliser
-concernant l'harmonisation du design ?" puis "enregistre les conventions
-et fais le refactor si tu penses ça utile" — voir la Convention UI plus
-haut ("Une recette de mise en page recopiée... dérive") pour le principe
-général. Ce refactor en est l'application concrète.
-
-**Constat** : `MiniPlayerBar.jsx` et `GuestModeBar.jsx` ont accumulé 3
-bugs de désalignement DISTINCTS la même session (hauteur forcée sur la
-Sidebar, centrage `GuestModeBar` vs `MiniPlayerBar`, centrage interne à
-`MiniPlayerBar` lui-même) — chacun causé par la MÊME fragilité sous-
-jacente : les deux fichiers recopiaient indépendamment la même "recette"
-de conteneur (`h-[70px]` + `max-w-5xl mx-auto` + padding), avec de
-petites divergences de détail à chaque copie.
-
-**Fait** : `BottomBarShell.jsx` (nouveau) — porte désormais l'UNIQUE
-classe `h-[70px]` et l'UNIQUE `max-w-5xl mx-auto` du projet pour ces 2
-barres. 3 points de personnalisation exposés (les seuls qui différaient
-réellement entre les 2 barres) : `shadow` (ombre portée, MiniPlayerBar
-seulement), `justify` (centrage du conteneur externe, GuestModeBar
-seulement — les 2 zones `flex-1` de MiniPlayerBar s'en chargent déjà
-sans lui), `innerClassName` (disposition interne : rangée pour
-MiniPlayerBar, colonne pour GuestModeBar). `MiniPlayerBar.jsx`/
-`GuestModeBar.jsx` migrés dessus — disposition VISUELLE strictement
-inchangée, seule la structure des conteneurs change. `cardBg`/
-`cardBorderStrong` retirés des déstructurations `theme` de ces 2
-fichiers là où ils devenaient morts (lus maintenant par
-`BottomBarShell.jsx` lui-même) — `cardBg` reste dans `MiniPlayerBar.jsx`,
-encore utilisé par le popup de volume.
-
-**`bottomBarLayout.js` simplifié** : 2 constantes
-(`MINI_PLAYER_BAR_HEIGHT_PX`/`GUEST_MODE_BAR_HEIGHT_PX`) → 1 seule
-(`BOTTOM_BAR_HEIGHT_PX`) — il n'y a plus 2 classes séparées à
-synchroniser manuellement, seulement une, dans `BottomBarShell.jsx`.
-
-**Une vraie régression trouvée EN FAISANT ce refactor, distincte des 3
-bugs déjà connus** : un espaceur dans `App.jsx` (`h-[72px]`, compense la
-hauteur de `GuestModeBar` pour éviter qu'elle ne recouvre du contenu
-scrollable) n'avait JAMAIS été mis à jour quand `GuestModeBar.jsx` est
-passée de 72 à 70px plus tôt cette même session — laissé 2px trop haut,
-un espace vide inutile en bas du flux (mineur, mais un vrai oubli que ce
-refactor a fait remonter en cherchant toutes les mentions de ces
-constantes dans le projet). Corrigé au passage.
-
-Commentaires obsolètes corrigés dans la foulée (références par nom aux 2
-anciennes constantes, devenues introuvables après le renommage) :
-`sidebarLayout.js` (2 endroits, dont un qui référençait aussi
-`creditRowHeight`, déjà retiré plus tôt cette session — doublement
-périmé).
-
-4 tests ajoutés (`BottomBarShell.test.jsx`, nouveau fichier) : hauteur/
-largeur max/thème/children/les 3 props de personnalisation. Tests
-existants (`MiniPlayerBar.test.jsx`/`GuestModeBar.test.jsx`) tous
-repassés sans modification — le DOM produit reste identique, seule sa
-provenance (composant partagé vs JSX inline) change.
-`bottomBarLayout.test.js` réécrit pour la constante unique, avec un
-nouveau test qui vérifie l'ABSENCE de classe `h-[...px]` indépendante
-dans les 2 fichiers consommateurs (aurait détecté la régression du 22/08
-si ce refactor avait existé avant elle).
-
-## Refactor — `ModalShell.jsx`, conteneur partagé pour les 12 modales du projet (22/08)
-
-Suite directe du refactor `BottomBarShell.jsx` (voir section dédiée
-plus haut) — même question, réappliquée : "est-ce que tu vois d'autres
-composants partagés à extraire ?", puis "continuer" pour la migration
-complète.
-
-**Constat, encore plus net que pour les barres du bas** : les 12
-fichiers de modales du projet (`AuthModal.jsx`, `CustomActivityModal.jsx`,
-`EditPlaylistModal.jsx`, `EditRoutineModal.jsx`,
-`ImportSharedPlaylistModal.jsx`, `PendingNavigationModal.jsx`,
-`PendingUnsaveModal.jsx`, `PublicRoutinePreviewModal.jsx`,
-`SavingRoutineModal.jsx`, `SearchModal.jsx`, `SearchUsersModal.jsx`,
-`ShareModal.jsx`) recopiaient TOUS, indépendamment, le MÊME littéral
-exact pour leur fond
-(`"fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60
-backdrop-blur-xs"`) — 12 copies parfaitement identiques, trouvées par
-`grep` sur ce littéral précis après la question directe.
-
-**Fait** : `ModalShell.jsx` (nouveau) — porte désormais l'UNIQUE fond +
-carte (arrondi, ombre, bordure) du projet pour ces 12 modales. 3 props de
-personnalisation (`onClose`, `maxWidth` par défaut `max-w-md`,
-`cardClassName` par défaut `p-8`) couvrent les seules vraies différences
-entre elles (largeur max `md`/`lg`, padding, `flex flex-col
-max-h-[Nvh]` pour les modales scrollables).
-
-**Scope délibérément limité à la coquille structurelle (fond + carte),
-PAS l'en-tête** (icône + titre + croix) : 2 modales sur les 12
-(`PendingNavigationModal.jsx`/`PendingUnsaveModal.jsx`) utilisent un
-en-tête complètement différent (icône d'alerte, fermeture via les
-boutons du pied de page, pas de croix dans l'en-tête) — imposer un
-en-tête commun aurait cassé ces 2 modales ou ajouté une branche
-conditionnelle moins claire qu'un simple `children`. Tout le contenu
-(en-tête, corps, pied de page) reste entièrement libre par appelant,
-comme avant — seul le fond et la carte qui l'enveloppent changent de
-provenance.
-
-`cardBg`/`cardBorder` retirés des déstructurations `theme` là où ils
-devenaient morts (lus maintenant par `ModalShell.jsx` lui-même) — restent
-dans les fichiers qui les réutilisent réellement ailleurs dans leur
-propre rendu (`EditPlaylistModal.jsx`, `EditRoutineModal.jsx`,
-`SearchModal.jsx`, `ShareModal.jsx`).
-
-**Aucun test existant retouché** : les 168 tests des 12 fichiers de
-modales (déjà écrits avant ce refactor) passent tous sans modification —
-le DOM produit reste strictement identique, seule sa provenance
-(composant partagé vs JSX recopié) change. 9 nouveaux tests
-(`ModalShell.test.jsx`) : fond/z-index/flou, fermeture au clic extérieur,
-NON-fermeture au clic intérieur (`stopPropagation`), thème, les 2 props
-de personnalisation avec leurs valeurs par défaut, `children`.
-
-## Refactor — `ModalCloseButton.jsx`, la croix de fermeture partagée par 10 des 12 modales (22/08)
-
-Suite directe des refactors `BottomBarShell.jsx`/`ModalShell.jsx` (voir
-sections dédiées plus haut) — même question, une 3e fois : "tu vois
-encore des composants à extraire ?".
-
-**Constat** : lors de l'extraction de `ModalShell.jsx`, l'en-tête
-(icône+titre+croix) avait été délibérément laissé HORS du périmètre —
-trop de variance entre modales pour être une vraie "recette" unique
-(2 modales sur 12 n'ont pas de croix du tout dans leur en-tête). Mais en
-cherchant plus précisément, LE BOUTON CROIX LUI-MÊME (pas tout
-l'en-tête) s'est révélé être un littéral STRICTEMENT identique dans 10
-des 12 fichiers — `p-2 -mr-2 text-gray-400 hover:text-red-500
-transition-colors ${ICON_BUTTON_ROUNDING} hover:bg-surface-hover` avec
-`<X size={20}/>`, char pour char.
-
-**Fait** : `ModalCloseButton.jsx` (nouveau) — un seul prop (`onClick`),
-tout le reste (icône, taille, couleurs, arrondi) imposé. Migré dans les
-10 fichiers concernés (`AuthModal.jsx`, `CustomActivityModal.jsx`,
-`EditPlaylistModal.jsx`, `EditRoutineModal.jsx`,
-`ImportSharedPlaylistModal.jsx`, `PublicRoutinePreviewModal.jsx`,
-`SavingRoutineModal.jsx`, `SearchModal.jsx`, `SearchUsersModal.jsx`,
-`ShareModal.jsx`) — `PendingNavigationModal.jsx`/`PendingUnsaveModal.jsx`
-non concernés, cohérent avec le choix déjà fait pour `ModalShell.jsx`
-(en-tête alerte différent, pas de croix).
-
-Imports `X`/`ICON_BUTTON_ROUNDING` retirés là où ils devenaient morts (9
-des 10 fichiers) — restent dans `ShareModal.jsx`, seul cas où ces 2
-imports sont encore réellement utilisés ailleurs dans le même fichier
-(icônes de réseaux sociaux, autres boutons arrondis).
-
-**Encore une fois, aucun test existant retouché** : les 162 tests des 12
-fichiers de modales passent tous sans modification. 3 nouveaux tests
-(`ModalCloseButton.test.jsx`) : rendu, clic → `onClick`, classes
-attendues.
-
-**Autres pistes cherchées puis écartées, pour référence future** (moins
-nettes que ce candidat, pas de vraie "recette" identique à extraire) :
-bouton "Annuler" (seulement 3 fichiers, pas strictement identiques),
-bouton de confirmation principal accent-coloré (variance de padding
-réelle selon les cas), blocs d'état vide (structure trop variable d'un
-contexte à l'autre pour être une seule recette).
-
-## Refactor — `SelectablePill.jsx`, la pastille sélectionnable partagée par 3 fichiers (22/08)
-
-Suite directe des 3 refactors précédents — une 4e fois la même question,
-avec cette fois une clarification demandée avant d'agir ("je n'ai pas
-compris si tu pensais utile de le faire ou pas") : avis donné clairement
-(oui, utile, mais enjeu cosmétique plutôt que structurel — une dérive ici
-ne casserait rien de fonctionnel, contrairement aux 3 refactors
-précédents).
-
-**Constat, plus nuancé que les 3 précédents** : le style d'une "pastille"
-(`px-4 py-2 rounded-full text-sm font-bold border-2` + la logique de
-couleur sélectionné/non-sélectionné) est un littéral identique à 6
-endroits dans 3 fichiers — `EditRoutineModal.jsx` (pastilles de genre,
-×2 blocs), `FavoritesView.jsx` (pastilles de genre, ×2 blocs),
-`AthleticProfilePanel.jsx` (onglets d'activité, ×2 blocs). MAIS le
-COMPORTEMENT autour diffère réellement, déjà documenté avant ce
-refactor : `EditRoutineModal.jsx` empêche de désélectionner le dernier
-genre coché (garde-fou "au moins 1"), `FavoritesView.jsx` n'a
-délibérément PAS ce garde-fou (déjà expliqué dans un commentaire du
-code), `AthleticProfilePanel.jsx` fait de la sélection UNIQUE (onglets),
-pas du multi-sélection, avec en plus une coche "configuré" et un bouton
-de réinitialisation superposé.
-
-**Portée volontairement limitée au bouton visuel seul** — jamais à la
-logique de sélection/garde-fou autour, qui reste spécifique à chaque
-fichier et n'a PAS été touchée : `SelectablePill.jsx` (nouveau) reçoit
-`selected`/`onClick`/`title`/`theme`/`children`, plus
-`extraSelectedClassName` (point d'extension pour le `pr-7` conditionnel
-d'`AthleticProfilePanel.jsx`, sur l'onglet sélectionné ET configuré).
-Chaque fichier garde sa propre boucle `.map()`, son propre calcul
-`isSelected`, et surtout sa propre logique de bascule (avec ou sans
-garde-fou, single ou multi-select) — unifier CETTE partie aurait
-justement changé un comportement déjà volontairement différent d'un
-fichier à l'autre.
-
-`borderAccentClass` retiré des déstructurations `theme` dans les 3
-fichiers, devenu mort partout (lu maintenant par `SelectablePill.jsx`
-lui-même) — `bgAccentClass` reste dans les 3, toujours utilisé ailleurs
-dans chacun.
-
-**Encore une fois, aucun test existant retouché** : les 51 tests des 3
-fichiers concernés passent tous sans modification — la logique
-différenciée (garde-fou présent/absent, single/multi-select) reste
-intacte, seule sa présentation visuelle change de provenance. 6 nouveaux
-tests (`SelectablePill.test.jsx`) : classes sélectionné/non-sélectionné,
-clic, `title`, `extraSelectedClassName` appliqué uniquement quand
-`selected=true`.
-
-## GuestModeBar — texte muted pas centré dans l'état par défaut (22/08)
-
-Retour direct, capture à l'appui : "le texte n'est plus centré ?" — le
-texte "Données sauvegardées uniquement sur cet appareil." (état par
-défaut) n'avait pas `text-center`, contrairement au texte équivalent de
-l'état de confirmation ("Tes données resteront sauvegardées uniquement
-sur cet appareil.", `text-center` déjà présent) — une incohérence entre
-les 2 états du même composant, jamais remarquée jusqu'à cette capture.
-
-Corrigé en ajoutant `text-center` à la branche par défaut, pour
-cohérence stricte avec l'autre branche. Test ajouté
-(`GuestModeBar.test.jsx`) qui vérifie `text-center` sur les DEUX états,
-pour que cette incohérence ne puisse plus repasser inaperçue.
-
-**⚠️ Suite — ce correctif était FAUX, pas juste insuffisant** : nouveau
-retour direct, capture à l'appui — "tu dois te planter", après
-confirmation que `text-center` n'avait rien changé visuellement. Plutôt
-que de re-raisonner une 3e fois dans le vide sur ce même composant (déjà
-faux 2 fois ce jour-là sur ce sujet précis, voir plus haut), mesuré pour
-de vrai avec Playwright (binaire déjà en cache, voir CLAUDE-SANDBOX-
-VERIFICATION.md §5quinquies) — confirmé : la boîte du texte muted
-collait au bord GAUCHE du conteneur (`left` identique au conteneur
-`max-w-5xl`), jamais centrée comme élément flex, à 370px du centre réel.
-`text-center` ne pouvait rien changer : le problème n'était pas
-l'alignement du TEXTE dans sa boîte, mais la POSITION de la boîte
-elle-même.
-
-**Cause réelle, dans `BottomBarShell.jsx` lui-même, pas dans
-`GuestModeBar.jsx`** : le conteneur interne (`max-w-5xl mx-auto w-full
-${innerClassName}`) n'avait jamais de classe `flex` DE BASE — seulement
-ce que chaque appelant transmettait via `innerClassName`.
-`GuestModeBar.jsx` transmettait `flex-col items-center justify-center`,
-mais SANS `display: flex` pour commencer, ces classes n'ont AUCUN effet
-— le conteneur restait un simple bloc, son enfant `<span>` se plaçant en
-flux normal (flush à gauche) plutôt que centré. Le bouton "Se connecter"
-juste au-dessus semblait, LUI, correctement centré — mais uniquement
-parce qu'il vit dans SA PROPRE rangée avec son propre `flex items-center
-justify-center` autonome, sans jamais dépendre de ce `display:flex`-ci.
-`MiniPlayerBar.jsx` n'a jamais eu ce bug car son `innerClassName`
-incluait déjà SON PROPRE `flex` explicitement — cachant le problème
-jusqu'à ce qu'un 2e appelant (`GuestModeBar.jsx`) compte sur le
-composant partagé pour le fournir, comme prévu à la conception.
-
-**Corrigé à la racine** : `flex` ajouté dans le template DE BASE de
-`BottomBarShell.jsx` (pas seulement corrigé côté appelant) — plus aucun
-futur appelant ne pourra oublier cette classe. `flex` retiré en double
-de `MiniPlayerBar.jsx` (devenu redondant, désormais garanti par le
-composant partagé). Revérifié par mesure réelle : les 3 éléments
-(bouton play, "Se connecter", texte muted) tombent tous à x=1088.0,
-écart résiduel de 0.008px (arrondi de rendu, négligeable) — confirmé
-aussi par capture d'écran visuelle. 1 test ajouté
-(`BottomBarShell.test.jsx`) qui vérifie la présence EXACTE de la classe
-`flex` sur le conteneur interne (pas juste `flex-col`, qui contient la
-sous-chaîne "flex" mais n'a aucun effet seule) — une régression future
-de ce type serait détectée même si un appelant continuait, par
-prudence, à fournir son propre `flex` en double.
-
-## Nouveau garde-fou — `flexDependentClassTrap.test.js` (22/08)
-
-Question directe suite au bug `BottomBarShell.jsx` (voir la Convention
-UI plus haut et la section dédiée à ce bug pour le récit complet) :
-"vois-tu des pratiques à généraliser ou d'autres checks à faire ?".
-
-**Vérifié d'abord, avant d'écrire quoi que ce soit** : `ModalShell.jsx`
-partage la même conception à risque que `BottomBarShell.jsx` avant
-correction (`cardClassName`, entièrement libre, aucune garantie de
-`flex`/`grid` à la source) — mais n'a PAS le même bug aujourd'hui, les 4
-appelants qui utilisent `flex-col` ("EditPlaylistModal.jsx",
-"EditRoutineModal.jsx", "SearchModal.jsx", "SearchUsersModal.jsx")
-incluent tous, chacun, `flex` dans la même chaîne. Une vérification
-manuelle qui pourrait très bien ne plus être vraie au prochain appelant.
-
-**Fait** : `tests/flexDependentClassTrap.test.js` (nouveau, même famille
-que `tailwindConcatTrap.test.js`) — scanne tout `cardClassName="..."`
-littéral du projet, vérifie qu'une classe qui ne fait effet que sur un
-conteneur flex/grid (`flex-col`, `items-*`, `justify-*`...) n'apparaît
-jamais sans `flex`/`grid` dans la même chaîne. `innerClassName`
-(`BottomBarShell.jsx`) délibérément EXCLU du scan : ce prop-là est
-désormais protégé à la source (`flex` posé dans le template de base du
-composant lui-même, inconditionnellement) — l'inclure aurait produit un
-faux positif permanent sur `GuestModeBar.jsx`/`MiniPlayerBar.jsx`.
-
-**Vérifié que ce garde-fou détecte vraiment une régression**, pas
-seulement qu'il passe aujourd'hui : régression simulée temporairement
-(`cardClassName` d'un fichier modifié pour retirer `flex` tout en
-gardant `flex-col`), test relancé — échoue bien avec un message clair,
-fichier restauré immédiatement après. `testFileIdentityTrap.test.js`
-mis à jour (`flexDependentClassTrap.test.js` ajouté à
-`NO_SINGLE_SUBJECT`, même famille que les autres garde-fous globaux du
-projet — ce fichier scanne tout le projet, n'importe pas un "sujet"
-unique correspondant à son propre nom).
+migration recharts, corrections UI ciblées, cloneCount x4, centrage
+GuestModeBar/MiniPlayerBar x3, 4 refactors de composants partagés,
+garde-fou automatique) : voir `HISTORIQUE.md`, blocs 7 et 8.
 
 ## Autres fichiers de référence à ce niveau
 
