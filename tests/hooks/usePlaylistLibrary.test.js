@@ -41,17 +41,17 @@ afterEach(() => {
 function renderLibrary(currentPlaylist, overrides = {}) {
   const setCurrentPlaylist = overrides.setCurrentPlaylist || vi.fn();
   const setSavedPlaylists = overrides.setSavedPlaylists || vi.fn();
-  const { result } = renderHook(() => usePlaylistLibrary(
+  const { result } = renderHook(() => usePlaylistLibrary({
     currentPlaylist,
     setCurrentPlaylist,
-    overrides.savedPlaylists || [],
+    savedPlaylists: overrides.savedPlaylists || [],
     setSavedPlaylists,
-    overrides.showToast || vi.fn(),
-    overrides.openCuratedPlaylist || vi.fn(),
-    overrides.userStats || {},
-    overrides.checkTrophies || vi.fn(),
-    overrides.defaultPlaylistPublic || false,
-  ));
+    showToast: overrides.showToast || vi.fn(),
+    openCuratedPlaylist: overrides.openCuratedPlaylist || vi.fn(),
+    userStats: overrides.userStats || {},
+    checkTrophies: overrides.checkTrophies || vi.fn(),
+    defaultPlaylistPublic: overrides.defaultPlaylistPublic || false,
+  }));
   return result;
 }
 
