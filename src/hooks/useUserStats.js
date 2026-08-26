@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { TROPHIES_DATA } from '../appConfig';
 import { usePersistentState } from './usePersistentState';
 
@@ -62,7 +63,13 @@ export function useUserStats(showToast, user) {
   // session (12 → 25 trophées, philosophie "inciter à essayer") avait le plus
   // besoin de mettre en avant. Renvoyer explicitement le résultat plutôt que
   // de laisser l'appelant deviner depuis l'objet passé règle ça à la racine.
-  const checkTrophies = (newStats) => {
+  // Enveloppé dans useCallback (25/08, chantier perf — voir Sidebar.jsx) :
+  // remonte jusqu'à `toggleTheme` (App.jsx), lui-même passé à <Sidebar>,
+  // désormais mémoïsé (React.memo). Dépendances réelles : `user` (le garde-
+  // fou "toast suspendu si déconnecté" documenté plus haut) et `showToast`
+  // (déjà stabilisé, voir useToast.js) — `setUserStats` est un setState,
+  // garanti stable par React, omis comme ailleurs dans ce projet.
+  const checkTrophies = useCallback((newStats) => {
     const newlyUnlocked = TROPHIES_DATA.filter(t => {
       if (newStats.unlockedTrophies.includes(t.id)) return false;
       if (t.requirement.type === 'total' && newStats.totalCompleted >= t.requirement.count) return true;
@@ -98,7 +105,7 @@ export function useUserStats(showToast, user) {
       setUserStats(newStats);
       return false;
     }
-  };
+  }, [user, showToast]);
 
   // Badge de notification "vu/pas vu" (03/08, retour direct, capture
   // d'écran : "quand j'ai ouvert la partie trophées, l'icône doit devenir
