@@ -561,7 +561,7 @@ function AppContent({
   // `isAuthModalOpen` vivait ici (state local) avant le chantier "centraliser
   // les modales" (25/07) — dérivée maintenant de ModalContext
   // (`activeModal === 'AUTH'`), voir ModalContainer.jsx.
-  const { user, signUp, signIn, signOut, resetPassword, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, userCount, username, usernameLoading, checkUsernameAvailable, setUsername, profilePrivacy, updatePrivacySettings } = useAuthContext();
+  const { user, signUp, signIn, signOut, resetPassword, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, username, usernameLoading, checkUsernameAvailable, setUsername, profilePrivacy, updatePrivacySettings } = useAuthContext();
 
   // RETOUR DIRECT ("pas de message d'erreur quand je clique sur un lien
   // expiré ?") — Supabase redirige bien vers l'app avec le détail de
@@ -668,11 +668,14 @@ function AppContent({
   // plutôt que via `useAthleticProfile()` appelé ici) : cette API complète a
   // migré vers d'autres consommateurs (SettingsView, CustomActivityModal...)
   // qui l'obtiennent chacun via leur propre contexte, sans que cette copie-ci
-  // ait été réduite en conséquence. `athleticProfile`, `getProfileForWorkout`
-  // et `getProfileForWorkoutOrDefault` restent réellement utilisées ici (props
-  // de `<GeneratorView/>`/`<EditRoutineModal/>`).
+  // ait été réduite en conséquence. Seules `getProfileForWorkout` et
+  // `getProfileForWorkoutOrDefault` restent réellement utilisées ici (props
+  // de `<GeneratorView/>`/`<EditRoutineModal/>`). ⚠️ `athleticProfile` (la
+  // donnée brute elle-même) retirée de cette destructuration le 25/08 — plus
+  // aucun consommateur réel trouvé nulle part dans le projet une fois la
+  // chaîne remontée (StatsView, PlaylistDetailView, useGeneratorForm.js en
+  // consommaient chacun une copie jamais lue, tous nettoyés le même jour).
   const {
-    athleticProfile,
     getProfileForWorkout,
     getProfileForWorkoutOrDefault,
   } = athleticProfileApi;
@@ -1957,8 +1960,8 @@ function AppContent({
 
             {view === 'stats' && (
               <StatsView
-                theme={themeTokens} savedPlaylists={savedPlaylists} userStats={userStats} changeView={changeView}
-                setCurrentPlaylist={setCurrentPlaylist} athleticProfile={athleticProfile} getProfileForWorkout={getProfileForWorkout}
+                theme={themeTokens} savedPlaylists={savedPlaylists} changeView={changeView}
+                setCurrentPlaylist={setCurrentPlaylist} getProfileForWorkout={getProfileForWorkout}
                 getProfileForWorkoutOrDefault={getProfileForWorkoutOrDefault}
                 shareImageFile={shareImageFileWithTrophy} showToast={showToast}
                 isNaughtyMode={isNaughtyMode}
@@ -1977,7 +1980,6 @@ function AppContent({
                 updatePassword={updatePassword} exportUserData={exportUserData} deleteAccount={deleteAccount}
                 username={username} usernameLoading={usernameLoading} checkUsernameAvailable={checkUsernameAvailable} setUsername={setUsername}
                 profilePrivacy={profilePrivacy} updatePrivacySettings={updatePrivacySettings}
-                userCount={userCount}
                 isNaughtyMode={isNaughtyMode} showToast={showToast} changeView={changeView}
                 onViewOwnProfile={() => handleViewProfile(username)}
                 initialTab={settingsInitialTab}
@@ -2326,7 +2328,6 @@ export default function App() {
     <AthleticProvider isNaughtyMode={isNaughtyMode} athleticProfileApi={athleticProfileApi}>
       <GeneratorProvider
         isNaughtyMode={isNaughtyMode}
-        athleticProfileApi={athleticProfileApi}
       >
         <AudioPlayerProvider showToast={showToast}>
           <ErrorBoundary>
