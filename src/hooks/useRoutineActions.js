@@ -24,14 +24,18 @@ import { useModalContext } from '../contexts/ModalContext';
  * directement plutôt que reçu en paramètre, pour fermer EditRoutineModal après
  * application (`applyRoutineEditOnce`/`applyRoutineEditPermanently`).
  * Comportement strictement identique à l'original.
+ *
+ * Signature en objet nommé (25/08, chantier lisibilité — voir
+ * usePlaylistGeneration.js pour le même chantier et le même raisonnement) :
+ * remplace 14 paramètres positionnels.
  */
-export function useRoutineActions(
+export function useRoutineActions({
   isNaughtyMode, setIsNaughtyMode, showToast,
   routines, addRoutine, updateRoutine,
   editingRoutine, setEditingRoutine,
   newRoutineName, newRoutineIcon, newRoutineFreq,
   userStats, checkTrophies, executeGeneration,
-) {
+}) {
   const { closeModal } = useModalContext();
   const {
     workoutType, isIntervalMode, isCrescendoMode, bpm,
