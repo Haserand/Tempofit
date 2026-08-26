@@ -23,9 +23,18 @@ import { useGeneratorContext } from '../contexts/GeneratorContext';
  * (`isGenerating`/`generatingTotal`/`generatingDone`/`isGeneratingSlowGenre`)
  * reste dans App.jsx — lu directement par son propre JSX (bandeau de
  * progression) et transmis à GeneratorView/RoutinesView, donc pas déplaçable
- * ici ; seuls les setters sont reçus en paramètres.
+ * ici sans réordonner aussi `useElapsedTimer(isGenerating)` (ligne ~919 dans
+ * App.jsx, AVANT cet appel-ci) ; seuls les setters sont reçus en paramètres.
+ *
+ * Signature en objet nommé (25/08, chantier lisibilité) — remplace 16
+ * paramètres positionnels. Avec des positionnels, deux valeurs du même type
+ * juste échangées entre elles (deux booléens, deux setters) ne cassaient
+ * RIEN à la compilation, seulement au runtime, silencieusement. Avec un
+ * objet, une clé mal orthographiée ou absente est `undefined` de façon
+ * immédiatement repérable (ou plantée franchement si utilisée sans garde),
+ * jamais une confusion silencieuse entre deux valeurs valides.
  */
-export function usePlaylistGeneration(
+export function usePlaylistGeneration({
   showToast, userStats, checkTrophies,
   routines, setRoutines,
   favorites, spotifyTrackPool, isNaughtyMode,
@@ -33,7 +42,7 @@ export function usePlaylistGeneration(
   savedPlaylists, setSavedPlaylists,
   setIsGenerating, setGeneratingTotal, setGeneratingDone, setIsGeneratingSlowGenre,
   setIsGeneratingLongPlaylist, setGeneratingEstimatedTracksFound,
-) {
+}) {
   const { checkGenreWeightDeviation } = useGeneratorContext();
 
   // `savedPlaylistsRef`/`routinesRef`/`userStatsRef` (check-up 10/08 — même
