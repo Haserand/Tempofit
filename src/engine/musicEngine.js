@@ -1723,19 +1723,22 @@ const createPlaylistData = async (config, initialExcludeIds = [], favorites, spo
   return recalculateTimeline(rawPlaylist);
 };
 
+// Fonctions exportées ci-dessous : la vraie API publique de ce moteur,
+// consommée par au moins un autre fichier du projet (vérifié le 25/08,
+// `grep` systématique de chaque export). 4 fonctions retirées de ce bloc le
+// même jour (`detectBpmFromPreview`, `MAX_TRACK_DURATION`, `searchDeezerPage`,
+// `searchDeezerForGenres`) : toutes réellement utilisées, mais UNIQUEMENT en
+// interne à ce fichier — jamais importées ailleurs. Les exporter laissait
+// croire à tort qu'elles faisaient partie de l'API publique du moteur.
 export {
   safeFetchJson,
   deezerFetch,
   resolveDeezerGenre,
-  detectBpmFromPreview,
   resolveBpmForCandidates,
-  MAX_TRACK_DURATION,
   pickByDurationProximity,
   searchArtistsForBpm,
   fetchInBatches,
-  searchDeezerPage,
   resolveDeezerTrackByTitleArtist,
-  searchDeezerForGenres,
   buildGeneratedPlaylistName,
   estimateTrackCountFromDuration,
   getSingleMatchingTrack,
