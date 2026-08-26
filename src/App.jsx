@@ -1242,35 +1242,15 @@ function AppContent({
     isNaughtyMode,
   );
 
-  // Enveloppé dans useCallback (25/08, chantier perf — voir Sidebar.jsx) :
-  // passé à <Sidebar>, désormais mémoïsé (React.memo). `changeView` est déjà
-  // stabilisé (useNavigation.js) ; `setSettingsInitialTab` est un setState,
-  // stable par nature.
-  // ⚠️ DÉPLACÉ ICI (25/08, correctif — voir historique) : posé au départ à
-  // sa position d'origine (juste après `settingsInitialTab`, bien AVANT ce
-  // bloc `useNavigation`), `useCallback(..., [changeView])` plantait l'app
-  // entière au premier rendu (`ReferenceError: Cannot access 'changeView'
-  // before initialization` — TDZ, la fonction n'était PAS encore appelée à
-  // ce stade comme avant ce chantier, mais son tableau de dépendances, LUI,
-  // est évalué immédiatement par React, avant même que `changeView` (plus
-  // bas dans ce même composant) n'existe). esbuild/tsc/vitest ne l'ont PAS
-  // détecté (aucun ne monte l'app réelle dans un vrai navigateur) — trouvé
-  // uniquement en chargeant l'app pour de vrai via Playwright (mesure du
-  // gain memo(), voir plus bas). Leçon : un useCallback/useMemo qui
-  // référence une variable dans son tableau de dépendances doit être
-  // physiquement placé APRÈS la déclaration de cette variable, jamais avant
-  // — même si, sans useCallback, l'ordre n'aurait eu aucune importance
-  // (une fonction plane ne lit ses variables libres qu'à l'APPEL, jamais à
-  // la déclaration).
+  // Positionnées ICI (après `changeView`/`checkTrophies`, pas avant) : un
+  // useCallback dont le tableau de dépendances référence une variable pas
+  // encore déclarée plante l'app entière (TDZ) — récit complet et leçon
+  // détaillée dans historique/bloc-08.md, chantier perf du 25/08.
   const handleOpenSettings = useCallback((tab = null) => {
     setSettingsInitialTab(tab);
     changeView('settings');
   }, [changeView]);
 
-  // Même correctif, même raisonnement que handleOpenSettings juste au-dessus
-  // — DÉPLACÉ ICI (25/08) depuis sa position d'origine (juste après
-  // `[theme, setTheme]`), qui provoquait le même crash TDZ sur `checkTrophies`
-  // (déclarée bien plus bas, via `useUserStats`, mais AVANT ce point-ci).
   const toggleTheme = useCallback(() => {
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
@@ -1441,7 +1421,7 @@ function AppContent({
   // useGeneratorContext() (appelé à l'intérieur du hook). Appelée ici, AVANT
   // useRoutineActions() juste en dessous, qui a besoin d'executeGeneration en
   // paramètre (applyRoutineEditOnce/Permanently).
-  const { executeGeneration, cancelGeneration } = usePlaylistGeneration(
+  const { executeGeneration, cancelGeneration } = usePlaylistGeneration({
     showToast, userStats, checkTrophies,
     routines, setRoutines,
     favorites, spotifyTrackPool, isNaughtyMode,
@@ -1449,7 +1429,7 @@ function AppContent({
     savedPlaylists, setSavedPlaylists,
     setIsGenerating, setGeneratingTotal, setGeneratingDone, setIsGeneratingSlowGenre,
     setIsGeneratingLongPlaylist, setGeneratingEstimatedTracksFound,
-  );
+  });
 
   const { toggleNaughtyMode, handleSaveRoutine, applyRoutineEditOnce, applyRoutineEditPermanently } = useRoutineActions(
     isNaughtyMode, setIsNaughtyMode, showToast,
@@ -1541,22 +1521,13 @@ function AppContent({
   // Extrait dans src/hooks/useTheme.js (voir passation) — déstructuré ici avec
   // les mêmes noms qu'avant pour ne rien casser dans le reste du fichier, qui
   // n'est pas encore entièrement découpé en composants de vue.
-  // Enveloppé dans useMemo (25/08, chantier perf — voir Sidebar.jsx) : la
-  // mémoïsation a d'abord été tentée À L'INTÉRIEUR de useTheme.js lui-même,
-  // mais CASSÉE délibérément par le hook — `useTheme` est un principe de
-  // conception documenté et testé comme fonction PURE, appelable HORS
-  // contexte React (voir tests/hooks/useTheme.test.js, `renderHook` non
-  // utilisé, appels directs en environnement `node`) ; y ajouter un
-  // `useMemo` interne casse cette garantie (`Invalid hook call` dès qu'un
-  // test l'appelle en dehors d'un rendu React réel). Mémoïsé ICI, au point
-  // d'appel, à la place — sûr même si `useTheme` commence par "use" : la
-  // fonction elle-même n'appelle AUCUN hook React en interne (voir sa
-  // docstring), ce n'est donc pas un hook conditionnel malgré son nom.
-  // Sans cette stabilisation, `themeTokens` était un objet littéral neuf à
-  // chaque rendu d'AppContent, cassant le React.memo() de <MiniPlayerBar>/
-  // <GuestModeBar> (qui le reçoivent entier via `theme={themeTokens}`) —
-  // même cause, même correctif que `favorites` (useFavorites.js) pour
-  // <Sidebar>, mesuré avec le même Playwright/compteur de rendus.
+  // Enveloppé dans useMemo AU POINT D'APPEL (pas dans useTheme.js lui-même,
+  // qui est un principe de conception documenté et testé comme fonction
+  // PURE appelable hors contexte React — voir sa docstring et
+  // tests/hooks/useTheme.test.js) : sûr malgré le préfixe "use", la fonction
+  // n'appelle aucun hook React en interne. Récit complet (pourquoi la 1re
+  // tentative à l'intérieur du hook a cassé ses tests) dans
+  // historique/bloc-08.md, chantier perf du 25/08.
   const themeTokens = useMemo(() => useTheme(isNaughtyMode), [isNaughtyMode]);
   // ⚠️ `borderAccentClass`/`inputBg`/`inputBorder` retirés de cette
   // destructuration (check-up 22/08) : jamais utilisés comme identifiants
@@ -1581,12 +1552,8 @@ function AppContent({
   // chaque vrai rechargement de page, jamais persisté) est INCHANGÉ : un
   // simple `useState`, juste possédé un cran plus haut désormais.
   const [isGuestBarDismissed, setIsGuestBarDismissed] = useState(false);
-  // Enveloppé dans useCallback (25/08, chantier perf — voir Sidebar.jsx) :
-  // passé à <GuestModeBar>, désormais mémoïsé (React.memo) — la fonction
-  // fléchée posée directement dans le JSX (`() => setIsGuestBarDismissed
-  // (true)`) était recréée à chaque rendu, ce qui aurait rendu ce memo()
-  // inopérant. `setIsGuestBarDismissed` est un setState, stable par nature :
-  // tableau de dépendances vide légitime.
+  // Passé à <GuestModeBar> (React.memo) — stabilisé pour que le memo() serve
+  // à quelque chose. Voir historique/bloc-08.md, chantier perf du 25/08.
   const handleDismissGuestBar = useCallback(() => setIsGuestBarDismissed(true), []);
 
   // Source unique de vérité, calculée UNE SEULE FOIS ici et partagée entre
