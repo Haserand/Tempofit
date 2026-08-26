@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { buildCoverUrl } from '../utils/coverArt';
 import { recalculateTimeline } from '../engine/musicEngine';
 import { CATEGORY_DESCRIPTIONS } from '../data/curatedSessions';
@@ -81,7 +81,14 @@ export function useNavigation(
     && !savedPlaylists.find(p => p.id === currentPlaylist.id)
     && currentPlaylist.tracks && currentPlaylist.tracks.length > 0;
 
-  const changeView = (newView) => {
+  // Enveloppé dans useCallback (25/08, chantier perf — voir Sidebar.jsx) :
+  // `changeView` est passé à <Sidebar>, désormais mémoïsé (React.memo) —
+  // sans cette stabilisation, une nouvelle fonction à chaque rendu aurait
+  // rendu ce memo() inopérant. Dépendances réelles : `hasUnsavedPlaylist`
+  // change avec `view`/`currentPlaylist`/`savedPlaylists`, donc `changeView`
+  // reste stable la plupart du temps mais se recalcule bien quand ces
+  // valeurs changent — pas un contournement qui figerait le comportement.
+  const changeView = useCallback((newView) => {
     // Ne se déclenche que si on QUITTE réellement la vue détail (newView !== 'playlist').
     if (hasUnsavedPlaylist && newView !== 'playlist') {
       openModal('PENDING_NAVIGATION', newView);
@@ -95,7 +102,7 @@ export function useNavigation(
     // GeneratorView.jsx), il vit désormais comme onglet dans SettingsView.jsx
     // ('settings'), donc ce bug de retour n'a plus lieu d'être.
     if (newView === 'generator') { setWizardStep(1); }
-  };
+  }, [hasUnsavedPlaylist, openModal, setView, setIsMobileMenuOpen, setWizardStep]);
 
   /**
    * PIVOT PRODUIT (retour direct) — remplace `applyTemplateToGenerator`
