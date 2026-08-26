@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 
 /**
  * useToast — affiche un toast de notification temporaire, utilisé dans toute
@@ -41,12 +41,19 @@ export function useToast() {
   const [toast, setToast] = useState(null);
   const timerRef = useRef(null);
 
-  const showToast = (message, variant = 'default') => {
+  // Enveloppé dans useCallback (25/08, chantier perf — voir Sidebar.jsx) :
+  // `showToast` est reçu par de nombreux hooks (useFavorites, useRoutines...)
+  // et par `toggleNaughtyMode` (useRoutineActions.js), lui-même passé à
+  // <Sidebar>, désormais mémoïsé (React.memo) — une identité stable ici est
+  // nécessaire pour que cette chaîne de stabilisation tienne jusqu'au bout.
+  // Aucune dépendance réactive réelle (timerRef est une ref, sa propre
+  // identité ne change jamais) — tableau de dépendances vide légitime.
+  const showToast = useCallback((message, variant = 'default') => {
     if (timerRef.current) clearTimeout(timerRef.current);
     setToast({ message, variant });
     const duration = variant === 'default' ? 3000 : variant === 'error' ? 8000 : 5000;
     timerRef.current = setTimeout(() => { setToast(null); timerRef.current = null; }, duration);
-  };
+  }, []);
 
   return { toast, showToast };
 }
