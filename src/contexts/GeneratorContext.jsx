@@ -24,12 +24,14 @@ import { CustomActivityProvider } from './CustomActivityContext';
  * qui a permis d'isoler CE bout sans avoir à toucher `useAthleticProfile.js`
  * lui-même).
  *
- * `GeneratorProvider` reçoit toujours `isNaughtyMode`/`athleticProfileApi`
- * EN PROPS (nécessaires en interne — `useGeneratorForm(isNaughtyMode,
- * athleticProfile)` en a besoin pour ses calculs) — seule sa VALEUR DE
- * CONTEXTE ne les réexpose plus. Tout consommateur qui a besoin de ces 2
- * valeurs doit désormais appeler `useAthleticContext()` EN PLUS de (ou à la
- * place de) `useGeneratorContext()`, selon ce dont il a réellement besoin.
+ * `GeneratorProvider` reçoit toujours `isNaughtyMode` EN PROP — nécessaire en
+ * interne pour `useGeneratorForm(isNaughtyMode)`. `athleticProfileApi`, en
+ * revanche, a été entièrement RETIRÉ de sa signature le 25/08 (code mort
+ * trouvé mécaniquement, `tsc --noUnusedLocals` — plus aucun consommateur
+ * réel une fois `athleticProfile` lui-même nettoyé, voir plus bas). Tout
+ * consommateur qui a besoin du profil athlétique doit appeler
+ * `useAthleticContext()` EN PLUS de (ou à la place de) `useGeneratorContext()`,
+ * selon ce dont il a réellement besoin.
  *
  * ⚠️ DEPUIS LE 08/08 (suite, même jour) : `customActivityApi`
  * (useCustomActivity()) et `applyProfileBpmIfUntouched` NE SONT PLUS NON
@@ -52,10 +54,14 @@ import { CustomActivityProvider } from './CustomActivityContext';
  * persiste son état via `usePersistentState` — en appeler une 2e instance
  * créerait DEUX états React indépendants adossés à la même clé stockage,
  * exactement le genre de désynchronisation que ce projet évacue par
- * construction. `athleticProfile` (+ `getProfileForWorkout` etc.) est aussi
- * consommé DIRECTEMENT par StatsView et PlaylistDetailView (pas seulement
- * ici) — encore une raison de garder une seule source de vérité, remontée
- * en props des 2 côtés plutôt que recréée localement.
+ * construction. `getProfileForWorkout`/`getProfileForWorkoutOrDefault`
+ * (dérivées de cette même instance) sont aussi consommées DIRECTEMENT par
+ * StatsView et PlaylistDetailView (pas seulement ici) — encore une raison
+ * de garder une seule source de vérité, remontée en props des 2 côtés
+ * plutôt que recréée localement. ⚠️ Précision du 25/08 : c'est bien CES
+ * FONCTIONS DÉRIVÉES qui sont consommées ailleurs, pas `athleticProfile`
+ * (la donnée brute) elle-même — plus aucun consommateur direct de la donnée
+ * brute trouvé nulle part dans le projet, voir le nettoyage plus bas.
  *
  * `workoutType`/`setWorkoutType`, en revanche, N'A PAS cette contrainte (pas
  * de persistance, pas de consommateur hors générateur) — c'est le seul bout
@@ -66,20 +72,19 @@ const GeneratorContext = createContext(null);
 
 /**
  * @param {boolean} isNaughtyMode - mode "Intime" global de l'app (reçu, pas possédé —
- *   nécessaire ICI pour `useGeneratorForm(isNaughtyMode, ...)`, mais plus
+ *   nécessaire ICI pour `useGeneratorForm(isNaughtyMode)`, mais plus
  *   réexposé dans la valeur de ce Contexte, voir `AthleticContext.jsx`)
- * @param {object} athleticProfileApi - retour COMPLET et INCHANGÉ de useAthleticProfile()
- *   côté App.jsx (l'instance unique) — nécessaire ICI pour son champ
- *   `athleticProfile` (voir plus bas), plus réexposé en entier dans la
- *   valeur de ce Contexte.
+ *
+ * ⚠️ `athleticProfileApi` retiré de cette signature le 25/08 : plus aucun
+ * consommateur réel trouvé ici après remontée complète de la chaîne (voir
+ * `athleticProfile` plus bas dans le récit du même nettoyage) —
+ * `AthleticProvider` (App.jsx, même niveau) le reçoit déjà séparément pour
+ * qui en a réellement besoin, via `useAthleticContext()`.
  */
 export function GeneratorProvider({
   isNaughtyMode,
-  athleticProfileApi,
   children,
 }) {
-  const { athleticProfile } = athleticProfileApi;
-
   // Seul état réellement CRÉÉ ici (voir docstring plus haut) — déplacé tel
   // quel depuis App.jsx (`const [workoutType, setWorkoutType] = useState(...)`),
   // aucune logique changée.
@@ -88,10 +93,19 @@ export function GeneratorProvider({
   const customActivityApi = useCustomActivity(setWorkoutType);
   const { customActivity } = customActivityApi;
 
-  // `athleticProfile` (les données, pas l'API) est le seul bout de l'API
-  // athlétique dont useGeneratorForm a besoin en dépendance — exactement ce
-  // qu'App.jsx lui passait déjà avant ce chantier.
-  const generatorFormApi = useGeneratorForm(isNaughtyMode, athleticProfile);
+  // `athleticProfile` (les données) N'EST PLUS transmis à useGeneratorForm
+  // (check-up 25/08 — code mort trouvé mécaniquement via `tsc
+  // --noUnusedLocals`, jamais lu dans le corps du hook) : la seule voie
+  // RÉELLE par laquelle le profil athlétique influence le formulaire est
+  // `applyProfileBpmIfUntouched(activityProfile)`, qui reçoit le profil EN
+  // ARGUMENT au moment de l'appel (voir CustomActivityModal.jsx,
+  // `getProfileForWorkout('Autre', tempCustomActivity)`), pas via une
+  // valeur capturée à la construction du hook. Ce paramètre datait
+  // probablement d'avant ce mécanisme par callback et n'avait jamais été
+  // retiré. `athleticProfileApi` a été retiré dans la foulée de la
+  // signature de `GeneratorProvider` (voir sa docstring) — plus aucun
+  // consommateur réel trouvé une fois cette chaîne remontée jusqu'au bout.
+  const generatorFormApi = useGeneratorForm(isNaughtyMode);
   // `applyProfileBpmIfUntouched` sorti du spread ci-dessous — vit désormais
   // UNIQUEMENT dans CustomActivityContext.jsx (voir docstring plus haut),
   // pas dupliqué ici pour éviter 2 sources d'accès à la même fonction.
