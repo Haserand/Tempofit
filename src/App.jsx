@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, LogOut, Search as SearchIcon } from 'lucide-react';
 import { genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getRankStyle } from './appConfig';
@@ -436,10 +436,14 @@ function AppContent({
   // à côte — Sidebar.jsx (tab par défaut), le dropdown avatar (`'account'`)
   // et désormais StatsView.jsx (`'account'` aussi, carte de confidentialité
   // "Ton profil n'est pas encore public").
-  const handleOpenSettings = (tab = null) => {
+  // Enveloppé dans useCallback (25/08, chantier perf — voir Sidebar.jsx) :
+  // passé à <Sidebar>, désormais mémoïsé (React.memo). `changeView` est déjà
+  // stabilisé (useNavigation.js) ; `setSettingsInitialTab` est un setState,
+  // stable par nature.
+  const handleOpenSettings = useCallback((tab = null) => {
     setSettingsInitialTab(tab);
     changeView('settings');
-  };
+  }, [changeView]);
 
   useEffect(() => {
     if (!isUserMenuOpen) return;
@@ -463,13 +467,18 @@ function AppContent({
   // "Adepte de la Lumière" — activer le mode clair au moins une fois. Wrapper
   // autour de `setTheme` plutôt qu'un appel direct dans le JSX du bouton, pour
   // garder la détection de trophée au même endroit que la bascule elle-même.
-  const toggleTheme = () => {
+  // Enveloppé dans useCallback (25/08, chantier perf — voir Sidebar.jsx) :
+  // passé à <Sidebar>, désormais mémoïsé (React.memo). `checkTrophies`
+  // stabilisé en amont (useUserStats.js) ; `setTheme` est un setState,
+  // stable par nature. Dépend de `theme` et `userStats.hasLightMode` : reste
+  // stable la plupart du temps, se recalcule bien quand ces valeurs changent.
+  const toggleTheme = useCallback(() => {
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
     if (next === 'light' && !userStats.hasLightMode) {
       checkTrophies({ ...userStats, hasLightMode: true });
     }
-  };
+  }, [theme, userStats, checkTrophies, setTheme]);
 
   // Fix UI/Tech (28/07, "comportement Native App — anti-flash blanc au
   // rubber-banding") — les classes `.dark`/`.naughty` qui pilotent les
@@ -1541,6 +1550,13 @@ function AppContent({
   // chaque vrai rechargement de page, jamais persisté) est INCHANGÉ : un
   // simple `useState`, juste possédé un cran plus haut désormais.
   const [isGuestBarDismissed, setIsGuestBarDismissed] = useState(false);
+  // Enveloppé dans useCallback (25/08, chantier perf — voir Sidebar.jsx) :
+  // passé à <GuestModeBar>, désormais mémoïsé (React.memo) — la fonction
+  // fléchée posée directement dans le JSX (`() => setIsGuestBarDismissed
+  // (true)`) était recréée à chaque rendu, ce qui aurait rendu ce memo()
+  // inopérant. `setIsGuestBarDismissed` est un setState, stable par nature :
+  // tableau de dépendances vide légitime.
+  const handleDismissGuestBar = useCallback(() => setIsGuestBarDismissed(true), []);
 
   // Source unique de vérité, calculée UNE SEULE FOIS ici et partagée entre
   // GuestModeBar (l'affiche), le spacer du contenu principal ET Sidebar
@@ -2242,7 +2258,7 @@ function AppContent({
               ou non" remonte ici. */}
           <GuestModeBar
             theme={themeTokens} isVisible={isGuestBarVisible} openModal={openModal}
-            onDismiss={() => setIsGuestBarDismissed(true)}
+            onDismiss={handleDismissGuestBar}
           />
         </div>
 
