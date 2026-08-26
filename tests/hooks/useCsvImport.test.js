@@ -70,12 +70,7 @@ function baseProps(overrides = {}) {
 
 function renderCsvImportHook(initialProps) {
   return renderHook(
-    (props) => useCsvImport(
-      props.fileInputRef, props.csvUploadTargetDate, props.setCsvUploadTargetDate,
-      props.currentPlaylist, props.setCurrentPlaylist, props.savedPlaylists, props.setSavedPlaylists,
-      props.setSelectedAnalysisDate, props.setSelectedMetric,
-      props.userStats, props.checkTrophies, props.changeView, props.showToast,
-    ),
+    (props) => useCsvImport(props),
     { initialProps }
   );
 }
