@@ -58,10 +58,20 @@ import { CustomActivityProvider } from './CustomActivityContext';
  * (dérivées de cette même instance) sont aussi consommées DIRECTEMENT par
  * StatsView et PlaylistDetailView (pas seulement ici) — encore une raison
  * de garder une seule source de vérité, remontée en props des 2 côtés
- * plutôt que recréée localement. ⚠️ Précision du 25/08 : c'est bien CES
- * FONCTIONS DÉRIVÉES qui sont consommées ailleurs, pas `athleticProfile`
- * (la donnée brute) elle-même — plus aucun consommateur direct de la donnée
- * brute trouvé nulle part dans le projet, voir le nettoyage plus bas.
+ * plutôt que recréée localement.
+ *
+ * ⚠️ CORRECTION DU 25/08 (une 1re version de cette note, plus bas, affirmait
+ * à TORT que `athleticProfile` — la donnée brute — n'avait plus aucun
+ * consommateur nulle part dans le projet). Faux : `GeneratorWizard.jsx` la
+ * consomme bien, directement, via `useAthleticContext()` (le Contexte
+ * DÉDIÉ exposé par `AthleticContext.jsx`, PAS le chemin par props que ce
+ * fichier-ci (`GeneratorContext.jsx`) utilisait). Ce qui est réellement mort
+ * et retiré le 25/08, c'est UNIQUEMENT le fil de props parallèle et
+ * redondant qui existait EN PLUS de ce Contexte : `athleticProfile` transmis
+ * (sans jamais être lu) à `useGeneratorForm.js` via ce fichier, et à
+ * `StatsView`/`PlaylistDetailView` via App.jsx. Le vrai consommateur
+ * (`GeneratorWizard.jsx`, via le Contexte) n'a jamais été touché ni
+ * impacté par ce nettoyage.
  *
  * `workoutType`/`setWorkoutType`, en revanche, N'A PAS cette contrainte (pas
  * de persistance, pas de consommateur hors générateur) — c'est le seul bout
