@@ -41,13 +41,13 @@ afterEach(() => {
 
 function renderActions(editingRoutine, overrides = {}) {
   const updateRoutine = overrides.updateRoutine || vi.fn();
-  const { result } = renderHook(() => useRoutineActions(
-    overrides.isNaughtyMode ?? false, overrides.setIsNaughtyMode || vi.fn(), overrides.showToast || vi.fn(),
-    overrides.routines || [], overrides.addRoutine || vi.fn(), updateRoutine,
-    editingRoutine, overrides.setEditingRoutine || vi.fn(),
-    overrides.newRoutineName || '', overrides.newRoutineIcon || '⚡', overrides.newRoutineFreq || 'Manuel',
-    overrides.userStats || {}, overrides.checkTrophies || vi.fn(), overrides.executeGeneration || vi.fn(),
-  ));
+  const { result } = renderHook(() => useRoutineActions({
+    isNaughtyMode: overrides.isNaughtyMode ?? false, setIsNaughtyMode: overrides.setIsNaughtyMode || vi.fn(), showToast: overrides.showToast || vi.fn(),
+    routines: overrides.routines || [], addRoutine: overrides.addRoutine || vi.fn(), updateRoutine,
+    editingRoutine, setEditingRoutine: overrides.setEditingRoutine || vi.fn(),
+    newRoutineName: overrides.newRoutineName || '', newRoutineIcon: overrides.newRoutineIcon || '⚡', newRoutineFreq: overrides.newRoutineFreq || 'Manuel',
+    userStats: overrides.userStats || {}, checkTrophies: overrides.checkTrophies || vi.fn(), executeGeneration: overrides.executeGeneration || vi.fn(),
+  }));
   return { result, updateRoutine };
 }
 
