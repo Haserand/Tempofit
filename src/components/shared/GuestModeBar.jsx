@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { UserPlus, X } from 'lucide-react';
 import BottomBarShell from './BottomBarShell';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
@@ -122,7 +122,7 @@ import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
  * conteneur `h-[70px]` lui-même a migré vers `BottomBarShell.jsx`, voir
  * le commentaire du rendu juste plus bas pour ce dernier changement).
  */
-export default function GuestModeBar({ theme, isVisible, openModal, onDismiss = () => {} }) {
+function GuestModeBar({ theme, isVisible, openModal, onDismiss = () => {} }) {
   const { textMuted, textColorClass } = theme;
   // `confirmingDismiss` : voir la docstring "Fermeture SESSION-ONLY" plus
   // haut — seul état encore local à ce composant depuis le 04/08.
@@ -207,3 +207,12 @@ export default function GuestModeBar({ theme, isVisible, openModal, onDismiss = 
     </BottomBarShell>
   );
 }
+
+// Mémoïsé (25/08, chantier perf) : voir Sidebar.jsx pour le contexte complet
+// (même chantier). `onDismiss` était passé en ligne (`() => setIsGuestBar
+// Dismissed(true)}`) directement dans le JSX d'App.jsx — une NOUVELLE
+// fonction à chaque rendu, qui aurait rendu ce memo() totalement inopérant.
+// Remplacé côté App.jsx par un `handleDismissGuestBar` stabilisé via
+// useCallback. Vérifié : les 12 tests de GuestModeBar.test.jsx passent sans
+// modification.
+export default memo(GuestModeBar);
