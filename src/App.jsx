@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { Activity, Clock, Music, Check, Heart, Loader2, AlertCircle, Zap, Menu, Trophy, User as UserIcon, LogOut, Search as SearchIcon } from 'lucide-react';
 import { genreDisplayLabel } from './musicCatalog';
 import { NAUGHTY_ROUTINE_NAMES, getRankStyle } from './appConfig';
@@ -436,15 +436,6 @@ function AppContent({
   // à côte — Sidebar.jsx (tab par défaut), le dropdown avatar (`'account'`)
   // et désormais StatsView.jsx (`'account'` aussi, carte de confidentialité
   // "Ton profil n'est pas encore public").
-  // Enveloppé dans useCallback (25/08, chantier perf — voir Sidebar.jsx) :
-  // passé à <Sidebar>, désormais mémoïsé (React.memo). `changeView` est déjà
-  // stabilisé (useNavigation.js) ; `setSettingsInitialTab` est un setState,
-  // stable par nature.
-  const handleOpenSettings = useCallback((tab = null) => {
-    setSettingsInitialTab(tab);
-    changeView('settings');
-  }, [changeView]);
-
   useEffect(() => {
     if (!isUserMenuOpen) return;
     const handleClickOutside = (e) => {
@@ -467,19 +458,6 @@ function AppContent({
   // "Adepte de la Lumière" — activer le mode clair au moins une fois. Wrapper
   // autour de `setTheme` plutôt qu'un appel direct dans le JSX du bouton, pour
   // garder la détection de trophée au même endroit que la bascule elle-même.
-  // Enveloppé dans useCallback (25/08, chantier perf — voir Sidebar.jsx) :
-  // passé à <Sidebar>, désormais mémoïsé (React.memo). `checkTrophies`
-  // stabilisé en amont (useUserStats.js) ; `setTheme` est un setState,
-  // stable par nature. Dépend de `theme` et `userStats.hasLightMode` : reste
-  // stable la plupart du temps, se recalcule bien quand ces valeurs changent.
-  const toggleTheme = useCallback(() => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    if (next === 'light' && !userStats.hasLightMode) {
-      checkTrophies({ ...userStats, hasLightMode: true });
-    }
-  }, [theme, userStats, checkTrophies, setTheme]);
-
   // Fix UI/Tech (28/07, "comportement Native App — anti-flash blanc au
   // rubber-banding") — les classes `.dark`/`.naughty` qui pilotent les
   // variables CSS de thème (`--color-base`, etc. — voir index.css) ne
@@ -1264,6 +1242,43 @@ function AppContent({
     isNaughtyMode,
   );
 
+  // Enveloppé dans useCallback (25/08, chantier perf — voir Sidebar.jsx) :
+  // passé à <Sidebar>, désormais mémoïsé (React.memo). `changeView` est déjà
+  // stabilisé (useNavigation.js) ; `setSettingsInitialTab` est un setState,
+  // stable par nature.
+  // ⚠️ DÉPLACÉ ICI (25/08, correctif — voir historique) : posé au départ à
+  // sa position d'origine (juste après `settingsInitialTab`, bien AVANT ce
+  // bloc `useNavigation`), `useCallback(..., [changeView])` plantait l'app
+  // entière au premier rendu (`ReferenceError: Cannot access 'changeView'
+  // before initialization` — TDZ, la fonction n'était PAS encore appelée à
+  // ce stade comme avant ce chantier, mais son tableau de dépendances, LUI,
+  // est évalué immédiatement par React, avant même que `changeView` (plus
+  // bas dans ce même composant) n'existe). esbuild/tsc/vitest ne l'ont PAS
+  // détecté (aucun ne monte l'app réelle dans un vrai navigateur) — trouvé
+  // uniquement en chargeant l'app pour de vrai via Playwright (mesure du
+  // gain memo(), voir plus bas). Leçon : un useCallback/useMemo qui
+  // référence une variable dans son tableau de dépendances doit être
+  // physiquement placé APRÈS la déclaration de cette variable, jamais avant
+  // — même si, sans useCallback, l'ordre n'aurait eu aucune importance
+  // (une fonction plane ne lit ses variables libres qu'à l'APPEL, jamais à
+  // la déclaration).
+  const handleOpenSettings = useCallback((tab = null) => {
+    setSettingsInitialTab(tab);
+    changeView('settings');
+  }, [changeView]);
+
+  // Même correctif, même raisonnement que handleOpenSettings juste au-dessus
+  // — DÉPLACÉ ICI (25/08) depuis sa position d'origine (juste après
+  // `[theme, setTheme]`), qui provoquait le même crash TDZ sur `checkTrophies`
+  // (déclarée bien plus bas, via `useUserStats`, mais AVANT ce point-ci).
+  const toggleTheme = useCallback(() => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    if (next === 'light' && !userStats.hasLightMode) {
+      checkTrophies({ ...userStats, hasLightMode: true });
+    }
+  }, [theme, userStats, checkTrophies, setTheme]);
+
   // (L'effet `beforeunload` associé à hasUnsavedPlaylist vit maintenant DANS
   // useNavigation.js, avec le reste du cluster — pas dupliqué ici.)
 
@@ -1526,7 +1541,23 @@ function AppContent({
   // Extrait dans src/hooks/useTheme.js (voir passation) — déstructuré ici avec
   // les mêmes noms qu'avant pour ne rien casser dans le reste du fichier, qui
   // n'est pas encore entièrement découpé en composants de vue.
-  const themeTokens = useTheme(isNaughtyMode);
+  // Enveloppé dans useMemo (25/08, chantier perf — voir Sidebar.jsx) : la
+  // mémoïsation a d'abord été tentée À L'INTÉRIEUR de useTheme.js lui-même,
+  // mais CASSÉE délibérément par le hook — `useTheme` est un principe de
+  // conception documenté et testé comme fonction PURE, appelable HORS
+  // contexte React (voir tests/hooks/useTheme.test.js, `renderHook` non
+  // utilisé, appels directs en environnement `node`) ; y ajouter un
+  // `useMemo` interne casse cette garantie (`Invalid hook call` dès qu'un
+  // test l'appelle en dehors d'un rendu React réel). Mémoïsé ICI, au point
+  // d'appel, à la place — sûr même si `useTheme` commence par "use" : la
+  // fonction elle-même n'appelle AUCUN hook React en interne (voir sa
+  // docstring), ce n'est donc pas un hook conditionnel malgré son nom.
+  // Sans cette stabilisation, `themeTokens` était un objet littéral neuf à
+  // chaque rendu d'AppContent, cassant le React.memo() de <MiniPlayerBar>/
+  // <GuestModeBar> (qui le reçoivent entier via `theme={themeTokens}`) —
+  // même cause, même correctif que `favorites` (useFavorites.js) pour
+  // <Sidebar>, mesuré avec le même Playwright/compteur de rendus.
+  const themeTokens = useMemo(() => useTheme(isNaughtyMode), [isNaughtyMode]);
   // ⚠️ `borderAccentClass`/`inputBg`/`inputBorder` retirés de cette
   // destructuration (check-up 22/08) : jamais utilisés comme identifiants
   // nus ici. Sans impact sur les vues enfants qui en ont besoin : c'est
