@@ -51,7 +51,7 @@ import { supabase } from '../../supabaseClient';
  * automatiquement vers `music` si le Mode Intime s'active PENDANT que
  * l'onglet Profil est déjà ouvert.
  */
-export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, userCount, isNaughtyMode, showToast, changeView, username, usernameLoading, checkUsernameAvailable, setUsername, profilePrivacy, updatePrivacySettings, onViewOwnProfile, initialTab = null }) {
+export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, isNaughtyMode, showToast, changeView, username, usernameLoading, checkUsernameAvailable, setUsername, profilePrivacy, updatePrivacySettings, onViewOwnProfile, initialTab = null }) {
   const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg, textColorClass } = theme;
 
   // Onglet actif — `initialTab` (03/08, "cliquer sur mon compte" depuis le
