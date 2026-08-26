@@ -37,13 +37,17 @@ import { formatCompletionDate } from '../utils/format';
  * CONDITION, pouvant clairer par erreur la date d'un 2e import lancé pendant
  * que le 1er lisait encore son fichier. `csvUploadTargetDateRef` (même
  * convention que les 2 refs ci-dessus) protège maintenant ce 3e point.
+ *
+ * Signature en objet nommé (25/08, chantier lisibilité — voir
+ * usePlaylistGeneration.js pour le même chantier et le même raisonnement) :
+ * remplace 12 paramètres positionnels.
  */
-export function useCsvImport(
+export function useCsvImport({
   fileInputRef, csvUploadTargetDate, setCsvUploadTargetDate,
   currentPlaylist, setCurrentPlaylist, savedPlaylists, setSavedPlaylists,
   setSelectedAnalysisDate, setSelectedMetric,
   userStats, checkTrophies, changeView, showToast,
-) {
+}) {
   const currentPlaylistIdRef = useRef(currentPlaylist?.id);
   currentPlaylistIdRef.current = currentPlaylist?.id;
   const savedPlaylistsRef = useRef(savedPlaylists);
