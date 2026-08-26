@@ -38,7 +38,7 @@ function PlaylistDetailViewInner({
   // de usePlaylistDetail() ci-dessous. Passé de 78 à 26 props.
   theme, colorMode,
   currentPlaylist, setCurrentPlaylist, savedPlaylists,
-  handleShare, showToast,
+  handleShare,
   favorites, toggleTrackFavorite, toggleArtistFavorite,
   setIsBpmSearchMode,
   setPlaylistPlannedDate,
@@ -750,7 +750,7 @@ export default function PlaylistDetailView({
         <PlaylistDetailViewInner
           theme={theme} colorMode={colorMode}
           currentPlaylist={currentPlaylist} setCurrentPlaylist={setCurrentPlaylist} savedPlaylists={savedPlaylists}
-          handleShare={handleShare} showToast={showToast}
+          handleShare={handleShare}
           favorites={favorites} toggleTrackFavorite={toggleTrackFavorite} toggleArtistFavorite={toggleArtistFavorite}
           setIsBpmSearchMode={setIsBpmSearchMode}
           setPlaylistPlannedDate={setPlaylistPlannedDate}
