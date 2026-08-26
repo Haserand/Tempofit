@@ -19,11 +19,15 @@ import { supabase } from '../supabaseClient';
  * déclenche la confirmation via `openModal('PENDING_UNSAVE', playlist)` plutôt
  * qu'un setter dédié reçu en paramètre. Comportement strictement identique à
  * l'original.
+ *
+ * Signature en objet nommé (25/08, chantier lisibilité — voir
+ * usePlaylistGeneration.js pour le même chantier et le même raisonnement) :
+ * remplace 9 paramètres positionnels.
  */
-export function usePlaylistLibrary(
+export function usePlaylistLibrary({
   currentPlaylist, setCurrentPlaylist, savedPlaylists, setSavedPlaylists, showToast,
   openCuratedPlaylist, userStats, checkTrophies, defaultPlaylistPublic,
-) {
+}) {
   const { openModal } = useModalContext();
 
   // Ajoute la playlist en cours d'affichage à "Mes Playlists" (si pas déjà sauvegardée).
