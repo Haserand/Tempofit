@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, Compass, Sun, Moon } from 'lucide-react';
 import { VIEW_HEADER_TOP_PADDING } from '../../layout/viewHeaderLayout';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
@@ -84,7 +85,7 @@ import {
  * de sens que Trophées à côté du logo, plutôt territoire "identité de
  * l'app".
  */
-export default function Sidebar({
+function Sidebar({
   cardBorder, cardBorderStrong, bgAccentClass, isNaughtyMode, textHighlight, textColorClass, textMuted,
   isMobileMenuOpen, setIsMobileMenuOpen,
   changeView, view,
@@ -697,3 +698,21 @@ export default function Sidebar({
     </aside>
   );
 }
+
+// Mémoïsé (25/08, chantier perf) : Sidebar est monté en PERMANENCE dans
+// App.jsx, aux côtés de MiniPlayerBar/GuestModeBar (voir même chantier sur
+// ces 2 fichiers). Sans React.memo, ce composant se re-rendait à CHAQUE
+// re-render de AppContent — y compris pour des changements d'état qui ne le
+// concernent pas du tout (toast, progression de génération...). Aucun autre
+// composant du projet n'utilisait React.memo avant ce chantier — piste
+// identifiée mais jamais mesurée, voir historique/bloc-08.md pour le
+// contexte de l'audit qui l'a fait remonter. Callbacks passés en props
+// stabilisés en conséquence côté appelant (App.jsx `handleOpenSettings`/
+// `toggleTheme`, useNavigation.js `changeView`, useRoutineActions.js
+// `toggleNaughtyMode`) — sans ça, memo() n'aurait aucun effet (une nouvelle
+// référence de fonction à chaque rendu invalide la comparaison superficielle
+// des props que memo() fait). ⚠️ Gain non mesuré ici (pas de rendu réel
+// possible dans ce bac à sable, voir CLAUDE-SANDBOX-VERIFICATION.md) — a
+// minima vérifié : les 16 tests de Sidebar.test.jsx passent sans
+// modification, comportement fonctionnel inchangé.
+export default memo(Sidebar);
