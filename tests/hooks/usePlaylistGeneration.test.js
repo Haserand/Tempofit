@@ -55,15 +55,7 @@ const validConfig = { targetMode: 'time', hours: 0, minutes: 45, isIntervalMode:
 
 function renderGenerationHook(initialProps) {
   return renderHook(
-    (props) => usePlaylistGeneration(
-      props.showToast, props.userStats, props.checkTrophies,
-      props.routines, props.setRoutines,
-      props.favorites, props.spotifyTrackPool, props.isNaughtyMode,
-      props.setCurrentPlaylist, props.changeView,
-      props.savedPlaylists, props.setSavedPlaylists,
-      props.setIsGenerating, props.setGeneratingTotal, props.setGeneratingDone, props.setIsGeneratingSlowGenre,
-      props.setIsGeneratingLongPlaylist, props.setGeneratingEstimatedTracksFound,
-    ),
+    (props) => usePlaylistGeneration(props),
     { initialProps }
   );
 }
