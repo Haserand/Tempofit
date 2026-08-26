@@ -705,14 +705,25 @@ function Sidebar({
 // re-render de AppContent — y compris pour des changements d'état qui ne le
 // concernent pas du tout (toast, progression de génération...). Aucun autre
 // composant du projet n'utilisait React.memo avant ce chantier — piste
-// identifiée mais jamais mesurée, voir historique/bloc-08.md pour le
-// contexte de l'audit qui l'a fait remonter. Callbacks passés en props
-// stabilisés en conséquence côté appelant (App.jsx `handleOpenSettings`/
-// `toggleTheme`, useNavigation.js `changeView`, useRoutineActions.js
-// `toggleNaughtyMode`) — sans ça, memo() n'aurait aucun effet (une nouvelle
-// référence de fonction à chaque rendu invalide la comparaison superficielle
-// des props que memo() fait). ⚠️ Gain non mesuré ici (pas de rendu réel
-// possible dans ce bac à sable, voir CLAUDE-SANDBOX-VERIFICATION.md) — a
-// minima vérifié : les 16 tests de Sidebar.test.jsx passent sans
-// modification, comportement fonctionnel inchangé.
+// identifiée mais jamais mesurée au moment du diagnostic initial. Callbacks
+// passés en props stabilisés en conséquence côté appelant (App.jsx
+// `handleOpenSettings`/`toggleTheme`, useNavigation.js `changeView`,
+// useRoutineActions.js `toggleNaughtyMode`) — sans ça, memo() n'aurait aucun
+// effet (une nouvelle référence de fonction à chaque rendu invalide la
+// comparaison superficielle des props que memo() fait).
+//
+// ⚠️ GAIN RÉELLEMENT MESURÉ (25/08, PAS supposé) : `npm run dev` + Playwright
+// avec le Chromium déjà en cache du bac à sable (voir CLAUDE-SANDBOX-
+// VERIFICATION.md §5ter/§5quinquies — un vrai rendu EST possible ici,
+// contrairement à ce qu'une 1re version de ce commentaire affirmait à tort).
+// Compteur de rendu posé temporairement dans ce fichier + comparateur
+// personnalisé sur memo() loggant les props qui changent de référence.
+// Résultat : Sidebar se re-rendait 10 fois en 5 secondes de génération
+// (chrono `elapsedSeconds`, sans aucun rapport avec Sidebar) même APRÈS ce
+// memo() — la cause n'était PAS un callback mal stabilisé ici, mais la prop
+// `favorites` (App.jsx), reconstruite en objet littéral neuf à CHAQUE rendu
+// par `useFavorites.js` (voir son propre correctif useMemo, même chantier).
+// Une fois `favorites` mémoïsée à la source : 0 re-rendu de Sidebar sur les
+// mêmes 5 secondes. Vérifié aussi : les 16 tests de Sidebar.test.jsx passent
+// sans modification, comportement fonctionnel inchangé.
 export default memo(Sidebar);
