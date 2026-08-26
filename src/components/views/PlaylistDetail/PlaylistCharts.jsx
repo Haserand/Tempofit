@@ -14,7 +14,7 @@ import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
 // Tooltip personnalisé affiché au survol d'un point du graphique BPM. Affiche
 // le nom du morceau (si dispo), le temps écoulé, et selon les données
 // disponibles le BPM cible (musique) et/ou la cadence réelle en PPM (import Garmin/Strava).
-const CustomChartTooltip = ({ active, payload, isNaughtyMode, currentUnit, metric, cadenceUnit }) => {
+const CustomChartTooltip = ({ active, payload, isNaughtyMode, metric, cadenceUnit }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
@@ -435,7 +435,7 @@ export default function PlaylistCharts({
                   d'un des 2 camemberts plus bas — distincte de la surbrillance
                   rouge ci-dessus (un clic direct sur la courbe), en ambre pour
                   ne pas les confondre visuellement. */}
-              {hasDetailFilter && trackSegments.map((seg, i) => trackMatchesDetailFilter(seg.track) && (
+              {hasDetailFilter && trackSegments.map((seg) => trackMatchesDetailFilter(seg.track) && (
                 <ReferenceArea
                   key={`filter-${seg.track.trackId}`}
                   x1={chartAxisType === 'distance' ? seg.startDist * distanceDisplayFactor : seg.startTime}
@@ -479,7 +479,7 @@ export default function PlaylistCharts({
                   (ordre déjà correct visuellement grâce au hack interne),
                   changement sûr à faire avant la migration elle-même. */}
               <RechartsTooltip
-                content={(props) => <CustomChartTooltip {...props} isNaughtyMode={isNaughtyMode} currentUnit={currentPlaylist.distanceUnit} metric={selectedMetric} cadenceUnit={playlistCadenceUnit} />}
+                content={(props) => <CustomChartTooltip {...props} isNaughtyMode={isNaughtyMode} metric={selectedMetric} cadenceUnit={playlistCadenceUnit} />}
                 isAnimationActive={false}
               />
 
@@ -666,7 +666,7 @@ export default function PlaylistCharts({
             {/* Même optimisation que la légende genres plus haut (31/07). */}
             {(() => {
               const total = bpmDistributionData.reduce((s, e) => s + e.value, 0);
-              return bpmDistributionData.map((entry, i) => {
+              return bpmDistributionData.map((entry) => {
                 const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
                 return (
                   <button
