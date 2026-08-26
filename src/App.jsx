@@ -1407,10 +1407,10 @@ function AppContent({
   // pour sa propre logique (voir sa source), pas besoin d'une 2e copie ici.
   const {
     handleSavePlaylist, handleClonePlaylist, removeSavedPlaylist, requestRemoveSavedPlaylist, setPlaylistPlannedDate,
-  } = usePlaylistLibrary(
+  } = usePlaylistLibrary({
     currentPlaylist, setCurrentPlaylist, savedPlaylists, setSavedPlaylists, showToast,
-    openCuratedPlaylist, userStats, checkTrophies, profilePrivacy?.defaultPlaylistPublic,
-  );
+    openCuratedPlaylist, userStats, checkTrophies, defaultPlaylistPublic: profilePrivacy?.defaultPlaylistPublic,
+  });
 
   // MIGRÉ VERS PlaylistDetailContext (`handleUnsavePlaylist`, même wrapper
   // autour de requestRemoveSavedPlaylist, gardée ci-dessus car partagée avec
@@ -1431,13 +1431,13 @@ function AppContent({
     setIsGeneratingLongPlaylist, setGeneratingEstimatedTracksFound,
   });
 
-  const { toggleNaughtyMode, handleSaveRoutine, applyRoutineEditOnce, applyRoutineEditPermanently } = useRoutineActions(
+  const { toggleNaughtyMode, handleSaveRoutine, applyRoutineEditOnce, applyRoutineEditPermanently } = useRoutineActions({
     isNaughtyMode, setIsNaughtyMode, showToast,
     routines, addRoutine, updateRoutine,
     editingRoutine, setEditingRoutine,
     newRoutineName, newRoutineIcon, newRoutineFreq,
     userStats, checkTrophies, executeGeneration,
-  );
+  });
 
   // MIGRÉ VERS PlaylistDetailContext : handleRemoveTrack, handleDuplicateTrack,
   // handleRenamePlaylist, handleReplaceTrack, handleReplaceTrackSameArtist,
@@ -1481,12 +1481,12 @@ function AppContent({
   // chantier "réduire le God Component") : même schéma que les hooks
   // précédents — fileInputRef/csvUploadTargetDate (uniques, voir useSessionAnalysis
   // plus haut) transmis en paramètres.
-  const { triggerCSVUpload, handleCSVUpload, removeImportedData } = useCsvImport(
+  const { triggerCSVUpload, handleCSVUpload, removeImportedData } = useCsvImport({
     fileInputRef, csvUploadTargetDate, setCsvUploadTargetDate,
     currentPlaylist, setCurrentPlaylist, savedPlaylists, setSavedPlaylists,
     setSelectedAnalysisDate, setSelectedMetric,
     userStats, checkTrophies, changeView, showToast,
-  );
+  });
 
   // MIGRÉ VERS PlaylistDetailContext : chartAxisType/chartDistanceUnitOverride,
   // unifiedChartData, trackSegments, bpmDistributionData, genreDistributionData,
