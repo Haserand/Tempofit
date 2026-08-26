@@ -670,11 +670,20 @@ function AppContent({
   // qui l'obtiennent chacun via leur propre contexte, sans que cette copie-ci
   // ait été réduite en conséquence. Seules `getProfileForWorkout` et
   // `getProfileForWorkoutOrDefault` restent réellement utilisées ici (props
-  // de `<GeneratorView/>`/`<EditRoutineModal/>`). ⚠️ `athleticProfile` (la
-  // donnée brute elle-même) retirée de cette destructuration le 25/08 — plus
-  // aucun consommateur réel trouvé nulle part dans le projet une fois la
-  // chaîne remontée (StatsView, PlaylistDetailView, useGeneratorForm.js en
-  // consommaient chacun une copie jamais lue, tous nettoyés le même jour).
+  // de `<GeneratorView/>`/`<EditRoutineModal/>`). `athleticProfile` (la
+  // donnée brute elle-même) retirée de CETTE destructuration locale le
+  // 25/08 : jamais lue ICI (dans AppContent), seulement transmise plus loin
+  // sans être touchée. ⚠️ CORRECTION DU 25/08 (une 1re version de cette
+  // note affirmait à tort "aucun consommateur nulle part dans le projet") :
+  // `athleticProfile` reste bien consommée ailleurs, réellement —
+  // `GeneratorWizard.jsx`, via `useAthleticContext()` (Contexte DÉDIÉ,
+  // alimenté par `athleticProfileApi` transmis séparément à
+  // `<AthleticProvider>`, plus bas dans ce même fichier — PAS par cette
+  // destructuration locale ici, jamais le même chemin). Ce qui était
+  // réellement mort et a été nettoyé le même jour : la copie EN PLUS,
+  // redondante, transmise sans être lue à `useGeneratorForm.js` (via
+  // `GeneratorContext.jsx`) et à `StatsView`/`PlaylistDetailView` (props
+  // locales à ces 2 vues, jamais lues dedans).
   const {
     getProfileForWorkout,
     getProfileForWorkoutOrDefault,
