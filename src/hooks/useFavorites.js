@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { deezerFetch } from '../engine/musicEngine';
 import { usePersistentState } from './usePersistentState';
 import { normalizeFavorites } from '../utils/favoritesNormalize';
@@ -85,10 +85,22 @@ export function useFavorites(showToast, isNaughtyMode) {
   // (utils/favoritesNormalize.js, extraite d'ici pour être testable
   // isolément). Jamais de perte des favoris déjà enregistrés par un
   // utilisateur existant.
-  const normalized = normalizeFavorites(allFavorites);
+  //
+  // Enveloppé dans useMemo (25/08, chantier perf — voir Sidebar.jsx) : sans
+  // ça, `favorites` était un OBJET LITTÉRAL neuf reconstruit à CHAQUE rendu
+  // de useFavorites() (donc à chaque rendu d'AppContent), même quand
+  // `allFavorites`/`isNaughtyMode` n'avaient pas changé — trouvé en mesurant
+  // pour de vrai (Playwright, comparateur memo() avec log des props qui
+  // changent) que c'est CE `favorites` précisément qui invalidait le
+  // React.memo() de <Sidebar> à chaque rendu, quel que soit le reste du
+  // chantier de stabilisation des callbacks fait par ailleurs.
+  const normalized = useMemo(() => normalizeFavorites(allFavorites), [allFavorites]);
 
   const bucketKey = isNaughtyMode ? 'naughty' : 'standard';
-  const favorites = { useFavorites: normalized.useFavorites, ...normalized[bucketKey] };
+  const favorites = useMemo(
+    () => ({ useFavorites: normalized.useFavorites, ...normalized[bucketKey] }),
+    [normalized, bucketKey]
+  );
   const setFavorites = (updater) => {
     setAllFavorites(prev => {
       const prevNormalized = normalizeFavorites(prev);
