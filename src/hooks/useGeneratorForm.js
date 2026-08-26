@@ -27,7 +27,7 @@ import { checkGenreWeightDeviation, equalSplitWeights } from '../engine/genreWei
  *     bien plus large (touche savedPlaylists, routines, userStats...), reste
  *     dans App.jsx.
  */
-export function useGeneratorForm(isNaughtyMode, athleticProfile) {
+export function useGeneratorForm(isNaughtyMode) {
   const [wizardStep, setWizardStep] = useState(1);
   const [selectedGenres, setSelectedGenres] = useState(['Métal']);
   // Répartition en % entre les genres sélectionnés ENSEMBLE (utile uniquement à
