@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, memo } from 'react';
 import { Play, Pause, X, Music2, SkipBack, SkipForward, Volume2, Volume1, VolumeX } from 'lucide-react';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 import AudioProgressBar from './AudioProgressBar';
@@ -105,7 +105,7 @@ import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
  * étant déjà LE state global affiché par la vue détail, pas besoin de le
  * re-poser avant de changer de vue.
  */
-export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
+function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
   const {
     currentTrack, isPlaying,
@@ -317,3 +317,16 @@ export default function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
     </BottomBarShell>
   );
 }
+
+// Mémoïsé (25/08, chantier perf) : voir Sidebar.jsx pour le contexte complet
+// (même chantier, même raisonnement). Ce composant lit déjà l'essentiel de
+// son état via useAudioPlayer() directement (currentTrack, isPlaying...) —
+// ce memo() ne bloque PAS ces re-rendus légitimes (React ré-exécute un
+// composant mémoïsé quand un Contexte qu'il consomme change, memo() ne
+// filtre que les re-rendus déclenchés par le PARENT). Il évite seulement les
+// re-rendus inutiles causés par AppContent (App.jsx) pour un état qui ne
+// concerne ni `theme`, ni `currentPlaylist`, ni `changeView`. `changeView`
+// stabilisé côté appelant (useNavigation.js) pour que ce memo() serve à
+// quelque chose. Vérifié : les 13 tests de MiniPlayerBar.test.jsx passent
+// sans modification.
+export default memo(MiniPlayerBar);
