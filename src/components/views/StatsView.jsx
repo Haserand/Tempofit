@@ -49,7 +49,7 @@ import { supabase } from '../../supabaseClient';
  * technique ci-dessus, jamais corrigé après coup.
  */
 export default function StatsView({
-  theme, savedPlaylists, userStats, changeView, setCurrentPlaylist, athleticProfile, getProfileForWorkout, getProfileForWorkoutOrDefault,
+  theme, savedPlaylists, changeView, setCurrentPlaylist, getProfileForWorkout, getProfileForWorkoutOrDefault,
   shareImageFile, showToast,
   isNaughtyMode,
   user, username, profilePrivacy, onViewOwnProfile, onManageProfilePrivacy,
