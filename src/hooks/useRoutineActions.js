@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useGeneratorContext } from '../contexts/GeneratorContext';
 import { useCustomActivityContext } from '../contexts/CustomActivityContext';
 import { useModalContext } from '../contexts/ModalContext';
@@ -48,7 +49,13 @@ export function useRoutineActions(
   // Bascule le "mode Intime" : change à la volée les réglages par défaut
   // (BPM plus bas, genres différents, crossfade plus long...) pour coller à
   // l'ambiance, et les restaure au retour au mode standard.
-  const toggleNaughtyMode = () => {
+  // Enveloppé dans useCallback (25/08, chantier perf — voir Sidebar.jsx) :
+  // passé à <Sidebar>, désormais mémoïsé (React.memo). Ne dépend réellement
+  // que de `isNaughtyMode` et `showToast` (lui-même stabilisé, voir
+  // useToast.js) — tous les autres setters sont des fonctions setState,
+  // garanties stables par React, omises des dépendances comme ailleurs dans
+  // ce projet (voir les autres useCallback/useEffect du code).
+  const toggleNaughtyMode = useCallback(() => {
     if (!isNaughtyMode) {
       setIsNaughtyMode(true);
       // isIntervalMode n'est plus forcé à false ici : le mode Fractionné reste
@@ -62,7 +69,7 @@ export function useRoutineActions(
       setBpm(160); setBpmTolerance(10); setSelectedGenres(['Métal']); setGenreWeights({ 'Métal': 100 }); setLockedGenreWeights(new Set()); setCrossfade(2);
       showToast("Retour au mode Standard !");
     }
-  };
+  }, [isNaughtyMode, showToast]);
 
   // Sauvegarde la configuration actuelle du wizard comme routine réutilisable.
   const handleSaveRoutine = () => {
