@@ -340,13 +340,14 @@ describe('PlaylistDetailContext — course "Remplacer un titre" / changement de 
     const deferred = createDeferred();
     mockGetSingleMatchingTrack.mockImplementationOnce(() => deferred.promise);
 
+    const checkTrophies = vi.fn();
     const playlistA = makePlaylist({ id: 'plA', tracks: [makeReplaceableTrack()] });
     const { rerender } = render(
       <PlaylistDetailProvider
         currentPlaylist={playlistA} setCurrentPlaylist={setCurrentPlaylist}
         savedPlaylists={[playlistA]} setSavedPlaylists={setSavedPlaylists}
         favorites={{ tracks: [], artists: [] }} spotifyTrackPool={[]}
-        userStats={{ replacedTracks: 0 }} checkTrophies={vi.fn()}
+        userStats={{ replacedTracks: 0 }} checkTrophies={checkTrophies}
         showToast={showToast} requestRemoveSavedPlaylist={vi.fn()}
         handleSavePlaylist={vi.fn()} handleClonePlaylist={vi.fn()}
         currentActualData={null} selectedMetric="heartRate" setSelectedMetric={vi.fn()}
@@ -368,7 +369,7 @@ describe('PlaylistDetailContext — course "Remplacer un titre" / changement de 
         currentPlaylist={playlistB} setCurrentPlaylist={setCurrentPlaylist}
         savedPlaylists={[playlistB, playlistA]} setSavedPlaylists={setSavedPlaylists}
         favorites={{ tracks: [], artists: [] }} spotifyTrackPool={[]}
-        userStats={{ replacedTracks: 0 }} checkTrophies={vi.fn()}
+        userStats={{ replacedTracks: 0 }} checkTrophies={checkTrophies}
         showToast={showToast} requestRemoveSavedPlaylist={vi.fn()}
         handleSavePlaylist={vi.fn()} handleClonePlaylist={vi.fn()}
         currentActualData={null} selectedMetric="heartRate" setSelectedMetric={vi.fn()}
@@ -391,16 +392,22 @@ describe('PlaylistDetailContext — course "Remplacer un titre" / changement de 
     expect(setCurrentPlaylist).not.toHaveBeenCalled();
     expect(setSavedPlaylists).not.toHaveBeenCalled();
     expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Remplacement annulé'));
+    // BUG CORRIGÉ (25/08) : un remplacement ANNULÉ ne doit PAS faire
+    // progresser le trophée "remplacer N titres" — avant ce correctif,
+    // checkTrophies était appelé tout en haut de handleReplaceTrack, avant
+    // même de savoir si le remplacement allait aboutir.
+    expect(checkTrophies).not.toHaveBeenCalled();
   });
 
   it('handleReplaceTrack : SANS changement de playlist, le remplacement s\'applique normalement (comportement inchangé)', async () => {
     const setCurrentPlaylist = vi.fn();
     const setSavedPlaylists = vi.fn();
     const showToast = vi.fn();
+    const checkTrophies = vi.fn();
     mockGetSingleMatchingTrack.mockResolvedValue({ title: 'Nouveau titre', artist: 'Nouvel Artiste', genre: 'Rock', bpm: 145, duration: 210, trackId: 'deezer-99', preview: null });
 
     const playlistA = makePlaylist({ id: 'plA', tracks: [makeReplaceableTrack()] });
-    renderProviderForReplace({ currentPlaylist: playlistA, savedPlaylists: [playlistA], setCurrentPlaylist, setSavedPlaylists, showToast });
+    renderProviderForReplace({ currentPlaylist: playlistA, savedPlaylists: [playlistA], setCurrentPlaylist, setSavedPlaylists, showToast, checkTrophies, userStats: { replacedTracks: 0 } });
 
     fireEvent.click(screen.getByText('trigger-replace'));
     await waitFor(() => expect(setCurrentPlaylist).toHaveBeenCalled());
@@ -415,6 +422,9 @@ describe('PlaylistDetailContext — course "Remplacer un titre" / changement de 
     const updated = typeof updater === 'function' ? updater(playlistA) : updater;
     expect(updated.tracks[0].title).toBe('Nouveau titre');
     expect(showToast).toHaveBeenCalledWith('🎵 Titre remplacé et durée ajustée !');
+    // Cas miroir du test d'annulation ci-dessus (25/08) : un remplacement
+    // qui ABOUTIT réellement doit, lui, bien faire progresser le trophée.
+    expect(checkTrophies).toHaveBeenCalledWith(expect.objectContaining({ replacedTracks: 1 }));
   });
 
   it('handleReplaceTrackSameArtist : changer de playlist pendant le repli élargi (2e appel réseau) annule aussi le remplacement', async () => {
