@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   isDirectGenreMatch,
   genreRoughlyMatches,
+  classifyGenreMatchTier,
   isLiveOrPerformanceVersion,
   detectTitleStyleConflict,
   detectLanguageVersionConflict,
@@ -54,6 +55,39 @@ describe('genreRoughlyMatches', () => {
 
   it('refuse un genre totalement sans rapport', () => {
     expect(genreRoughlyMatches('Jazz', 'Métal')).toBe(false);
+  });
+});
+
+// NOUVEAU (27/08, retour direct — "pourquoi ne pas améliorer les 2 moteurs
+// d'un coup ?") — extrait de musicEngine.js/searchEngine.js, qui
+// réécrivaient chacun indépendamment cette même décision à 3 paliers. Les
+// 2 fichiers appelants ne sont PAS re-testés ici (déjà hors du périmètre
+// testable pour l'un — réseau, voir searchEngine.test.js — et déjà couvert
+// par ses propres tests d'intégration pour l'autre) : seule la fonction
+// PURE, partagée, est visée.
+describe('classifyGenreMatchTier', () => {
+  it('palier 0 : correspondance directe', () => {
+    expect(classifyGenreMatchTier('Rock', ['Rock'])).toBe(0);
+  });
+
+  it('palier 1 : équivalence uniquement (ex. Rock accepté pour Métal)', () => {
+    expect(classifyGenreMatchTier('Rock', ['Métal'])).toBe(1);
+  });
+
+  it('palier 2 : aucune correspondance ("genre non confirmé")', () => {
+    expect(classifyGenreMatchTier('Jazz', ['Métal'])).toBe(2);
+  });
+
+  it('palier 2 pour un genre réel absent, SAUF si "Autre" est demandé (aucune restriction)', () => {
+    expect(classifyGenreMatchTier(null, ['Rock'])).toBe(2);
+    expect(classifyGenreMatchTier(null, ['Autre'])).toBe(0);
+  });
+
+  it('accepte PLUSIEURS genres demandés à la fois — le meilleur palier parmi eux l\'emporte', () => {
+    // "Rock" est un match direct pour 'Rock' (palier 0), même si 'Jazz'
+    // (l'autre genre demandé) ne matche pas du tout — le meilleur des deux
+    // doit l'emporter, jamais le pire.
+    expect(classifyGenreMatchTier('Rock', ['Jazz', 'Rock'])).toBe(0);
   });
 });
 
