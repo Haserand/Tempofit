@@ -96,6 +96,25 @@ describe('MiniPlayerBar', () => {
     expect(screen.getByText('Test Artist')).toBeInTheDocument();
   });
 
+  // NOUVEAU (25/08, retour direct — "proposer d'écouter le titre en entier
+  // sur Deezer") : voir deezerLink.js pour le raisonnement complet.
+  it('lien "Écouter en entier sur Deezer" absent si le titre n\'a pas de vrai identifiant Deezer', () => {
+    useAudioPlayer.mockReturnValue(mockAudioPlayer({ currentTrack: baseTrack })); // trackId: 'track-1', pas 'deezer-...'
+    render(<MiniPlayerBar {...baseProps()} />);
+    expect(screen.queryByTitle('Écouter ce titre en entier sur Deezer')).not.toBeInTheDocument();
+  });
+
+  it('lien "Écouter en entier sur Deezer" présent et correct pour un titre réellement sourcé depuis Deezer', () => {
+    useAudioPlayer.mockReturnValue(mockAudioPlayer({
+      currentTrack: { ...baseTrack, trackId: 'deezer-123456' },
+    }));
+    render(<MiniPlayerBar {...baseProps()} />);
+    const link = screen.getByTitle('Écouter ce titre en entier sur Deezer');
+    expect(link).toHaveAttribute('href', 'https://www.deezer.com/track/123456');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
   it('bouton lecture/pause : affiche "Reprendre la lecture" si en pause, clic appelle resumeCurrentPreview', () => {
     const resumeCurrentPreview = vi.fn();
     useAudioPlayer.mockReturnValue(mockAudioPlayer({ currentTrack: baseTrack, isPlaying: false, resumeCurrentPreview }));
