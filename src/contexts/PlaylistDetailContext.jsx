@@ -294,7 +294,6 @@ export function PlaylistDetailProvider({
    */
   const handleReplaceTrack = async (indexToReplace) => {
     if (!currentPlaylist) return;
-    checkTrophies({ ...userStats, replacedTracks: userStats.replacedTracks + 1 });
 
     const playlistIdAtStart = currentPlaylist.id;
     const oldTrack = currentPlaylist.tracks[indexToReplace];
@@ -310,6 +309,17 @@ export function PlaylistDetailProvider({
       showToast("Remplacement annulé : tu as changé de playlist entre-temps.");
       return;
     }
+
+    // BUG CORRIGÉ (25/08, lecture attentive du fichier) : `checkTrophies`
+    // était appelé tout en haut de cette fonction, AVANT l'appel réseau —
+    // donc AVANT de savoir si le remplacement allait aboutir. Un
+    // remplacement annulé ci-dessus (changement de playlist en cours de
+    // route) incrémentait quand même `replacedTracks`, qui alimente
+    // directement une condition de déblocage de trophée
+    // (useUserStats.js). `handleReplaceTrackSameArtist` juste en dessous
+    // fait ça correctement depuis le début (checkTrophies seulement APRÈS
+    // la vérification d'annulation) — ce correctif aligne les deux.
+    checkTrophies({ ...userStats, replacedTracks: userStats.replacedTracks + 1 });
 
     applyPlaylistUpdate(prevTracks => {
       const idx = prevTracks.findIndex(t => t.id === oldTrack.id);
