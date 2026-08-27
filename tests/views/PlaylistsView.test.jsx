@@ -307,6 +307,38 @@ describe('PlaylistsView — pagination (section "Terminées")', () => {
   });
 });
 
+// NOUVEAU (27/08, retour direct — "filtrer par statut... si utilisé, avoir
+// en priorité celles utilisées le plus"). `getRankStyle` (baseProps) reste
+// un mock neutre ici — seul l'ORDRE d'affichage des cartes nous intéresse,
+// pas le style visuel de leur bordure.
+describe('PlaylistsView — tri de la section "Terminées" (retour direct, 27/08)', () => {
+  function orderedCardIds(container) {
+    return Array.from(container.querySelectorAll('[data-testid^="card-"]')).map(el => el.getAttribute('data-testid'));
+  }
+
+  it('par défaut ("Plus récentes") : triée par date de complétion la plus récente d\'abord, comportement inchangé', () => {
+    const oldOne = makePlaylist({ id: 'old', name: 'Ancienne mais jouée souvent', completions: ['2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04'] });
+    const recentOne = makePlaylist({ id: 'recent', name: 'Récente mais jouée une fois', completions: ['2026-03-01'] });
+    const { container } = render(<PlaylistsView {...baseProps({ savedPlaylists: [oldOne, recentOne] })} />);
+    expect(orderedCardIds(container)).toEqual(['card-recent', 'card-old']);
+  });
+
+  it('bascule sur "Plus jouées" : triée par nombre de complétions décroissant, indépendamment de la date', () => {
+    const oldButPopular = makePlaylist({ id: 'old', name: 'Ancienne mais jouée souvent', completions: ['2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04'] });
+    const recentButRare = makePlaylist({ id: 'recent', name: 'Récente mais jouée une fois', completions: ['2026-03-01'] });
+    const { container } = render(<PlaylistsView {...baseProps({ savedPlaylists: [oldButPopular, recentButRare] })} />);
+
+    fireEvent.change(screen.getByDisplayValue('Plus récentes'), { target: { value: 'most_played' } });
+
+    expect(orderedCardIds(container)).toEqual(['card-old', 'card-recent']);
+  });
+
+  it('le sélecteur de tri n\'apparaît pas s\'il n\'y a aucune playlist terminée', () => {
+    render(<PlaylistsView {...baseProps({ savedPlaylists: [makePlaylist({ plannedDate: null, completions: [] })] })} />);
+    expect(screen.queryByDisplayValue('Plus récentes')).not.toBeInTheDocument();
+  });
+});
+
 // NOUVEAU (20/08, fusion "Mes Routines" en onglet — voir la docstring de
 // PlaylistsView.jsx) — jusqu'ici aucune couverture de la fonctionnalité
 // d'onglet elle-même. `RoutinesView.jsx` réel (pas mocké, voir la
