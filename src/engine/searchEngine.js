@@ -41,7 +41,7 @@
  * complet — non reproduit ici pour éviter la duplication.
  */
 
-import { DEEZER_GENRE_KEYWORDS, genreRoughlyMatches, isDirectGenreMatch, ARTIST_CATALOG, GENRES_NEEDING_DEEP_CATALOG_SEARCH } from '../musicCatalog';
+import { DEEZER_GENRE_KEYWORDS, classifyGenreMatchTier, ARTIST_CATALOG, GENRES_NEEDING_DEEP_CATALOG_SEARCH } from '../musicCatalog';
 import { deezerFetch, resolveDeezerGenre, resolveBpmForCandidates, searchArtistsForBpm, fetchInBatches } from './musicEngine';
 import { debugLog } from '../utils/debugLog';
 
@@ -258,7 +258,23 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
   // pipeline (voir plus bas, `processStubBatch`) — la logique de "combien on
   // traite au total" ne change pas, seul le MOMENT où chaque lot est résolu
   // change (au fil de l'eau, pas tout d'un coup à la toute fin).
-  const stubCap = needsDeepCatalogSearch ? 150 : 18;
+  //
+  // ⚠️ MULTIPLIÉ PAR LE NOMBRE DE GENRES (retour direct, 27/08 — capture
+  // à l'appui : recherche "Rock + Dance & EDM + Reggae" à 140±10 BPM,
+  // majoritairement des résultats "Genre non confirmé" alors que ce sont 3
+  // styles très courants à ce tempo) — CE PLAFOND ÉTAIT PARTAGÉ ENTRE TOUS
+  // les genres sélectionnés, pas par genre : avec 3 genres, chacun ne
+  // disposait en pratique que d'une fraction de 18 candidats avant que la
+  // recherche entière ne s'arrête, même si de meilleurs candidats du bon
+  // genre existaient encore chez Deezer juste après. Le nombre d'appels
+  // réseau (recherche généraliste + catalogue) scalait déjà avec
+  // `genresToQuery.length` AVANT ce correctif (un lot par genre, voir
+  // `stubsByGenre`/`catalogSearchPromises` plus bas) — seule la PROFONDEUR
+  // de résolution (le coût de vérifier le genre réel de chaque candidat,
+  // un appel Deezer de plus chacun) ne suivait pas. Recherche un peu plus
+  // longue à plusieurs genres, mais avec un vrai budget par genre plutôt
+  // qu'une portion d'un total fixe.
+  const stubCap = (needsDeepCatalogSearch ? 150 : 18) * genresToQuery.length;
 
   // ─────────────────────────────────────────────────────────────────────
   // AFFICHAGE PROGRESSIF (retour direct : "chercher 10 morceaux d'abord,
@@ -338,7 +354,6 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
       // `genreRoughlyMatches` (GENRE_EQUIVALENCE_GROUPS) pour TOUTES les
       // sources, catalogue inclus — pas besoin d'un 2e mécanisme de
       // confiance par-dessus qui, lui, n'a plus aucun garde-fou.
-      const genreMismatch = !realGenre || !genresToQuery.some(g => genreRoughlyMatches(realGenre, g));
       // Retour direct (cas réel : "Métal" sélectionné, un titre du catalogue
       // dont le vrai genre Deezer est "Rock" — ex. Lamb of God, "Ghost
       // Walking" — ressortait à égalité de tri avec un titre littéralement
@@ -347,8 +362,13 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
       // au lieu de 2 : correspondance DIRECTE du genre_id (la plus fiable)
       // d'abord, équivalence/catalogue (ex. Rock accepté pour Métal, voir
       // GENRE_EQUIVALENCE_GROUPS) ensuite, mismatch en dernier.
-      const isDirectMatch = genresToQuery.some(g => isDirectGenreMatch(realGenre, g));
-      const matchTier = isDirectMatch ? 0 : (genreMismatch ? 2 : 1);
+      // ⚠️ EXTRAIT (27/08, retour direct — "pourquoi ne pas améliorer les 2
+      // moteurs d'un coup ?") : cette classification à 3 paliers vit
+      // maintenant dans `classifyGenreMatchTier` (musicCatalog.js), PARTAGÉE
+      // avec musicEngine.js (buildSegmentTracks) — même décision, un seul
+      // endroit désormais, plus une réécriture indépendante par fichier.
+      const matchTier = classifyGenreMatchTier(realGenre, genresToQuery);
+      const genreMismatch = matchTier === 2;
       return {
         id: t.id,
         trackId: `deezer-${t.id}`,
