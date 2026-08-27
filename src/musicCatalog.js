@@ -333,6 +333,37 @@ const genreRoughlyMatches = (realGenre, requestedGenre) => {
 };
 
 /**
+ * classifyGenreMatchTier — centralise en UN SEUL endroit une décision
+ * ("quelle confiance accorder au genre réel d'un candidat, face à un ou
+ * plusieurs genres demandés ?") qui était dupliquée indépendamment dans
+ * musicEngine.js (moteur de génération, `buildSegmentTracks`) et
+ * searchEngine.js (recherche manuelle, `fetchBpmSearchResults`) — chacun
+ * consommait le résultat différemment (pools filtrés séparément côté
+ * génération, tri par palier numérique côté recherche), mais la DÉCISION
+ * elle-même — direct d'abord, équivalence ensuite, mismatch en dernier
+ * recours — était réécrite 2 fois avec les mêmes 2 briques
+ * (`isDirectGenreMatch`/`genreRoughlyMatches`, déjà partagées). Extraite le
+ * 27/08 (retour direct : "pourquoi ne pas améliorer les 2 moteurs d'un
+ * coup ?") — PAS une fusion des 2 moteurs de recherche eux-mêmes (leurs
+ * besoins réels — remplir une durée précise vs afficher une liste
+ * paginable — restent trop différents pour ça, voir la discussion qui a
+ * mené à ce chantier), seulement cette brique de classification précise.
+ *
+ * @param {string|null} realGenre - genre réel résolu (Deezer), peut être
+ *   absent/non résolu.
+ * @param {string[]} requestedGenres - un ou plusieurs genres demandés.
+ * @returns {0|1|2} 0 = correspondance directe (la plus fiable), 1 =
+ *   équivalence uniquement (ex. Rock accepté pour Métal, voir
+ *   GENRE_EQUIVALENCE_GROUPS), 2 = aucune correspondance ("genre non
+ *   confirmé").
+ */
+const classifyGenreMatchTier = (realGenre, requestedGenres) => {
+  if (requestedGenres.some(g => isDirectGenreMatch(realGenre, g))) return 0;
+  if (requestedGenres.some(g => genreRoughlyMatches(realGenre, g))) return 1;
+  return 2;
+};
+
+/**
  * Mots-clés dans le TITRE qui trahissent un style différent du genre demandé,
  * même si le genre_id Deezer de l'ALBUM dit le contraire (trouvé après un test
  * réel : "Let Her Go (Selecta Hardstyle Remix Edit)" accepté comme Métal/Rock
@@ -669,6 +700,7 @@ export {
   GENRE_EQUIVALENCE_GROUPS,
   isDirectGenreMatch,
   genreRoughlyMatches,
+  classifyGenreMatchTier,
   TITLE_STYLE_OVERRIDE_KEYWORDS,
   isLiveOrPerformanceVersion,
   detectLanguageVersionConflict,
