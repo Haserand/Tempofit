@@ -912,7 +912,17 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
 // au MÊME total affiché à l'utilisateur : (a) genres pondérés (branche
 // récursive juste en dessous, un sous-appel par genre) et (b) segments
 // multiples en mode Fractionné (géré par l'appelant, createPlaylistData).
-const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, spotifyTrackPool, historyExcludeIds = [], onProgress = null, progressBaseCount = 0) => {
+// `siblingGenres` (25/08, retour direct — capture à l'appui : une génération
+// "Musique brésilienne + Blues + Musique africaine" affichait des titres
+// Rock/Pop "genre non confirmé" plutôt que du Brésilienne/Africaine, alors
+// que ces 2 genres étaient eux aussi explicitement demandés) : posée
+// UNIQUEMENT par la boucle de répartition pondérée juste en dessous — les
+// AUTRES genres du même mélange, pour que le dernier recours d'UN genre
+// (aucun titre trouvé pour LUI, voir plus bas) essaie d'abord ces genres
+// frères avant d'accepter n'importe quel genre au hasard. Vide par défaut
+// pour tout appel HORS de cette boucle (segment normal à un seul genre) —
+// n'a alors aucun effet, comportement inchangé.
+const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, spotifyTrackPool, historyExcludeIds = [], onProgress = null, progressBaseCount = 0, siblingGenres = []) => {
   // Genre effectif pour CE segment : si la portion a un genre spécifique défini
   // (override manuel à l'étape 3 du wizard), il prime sur le genre global de la
   // séance (config.selectedGenres) — sinon comportement inchangé.
@@ -949,7 +959,11 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
       const subDurationSeconds = segment.durationSeconds * (weight / 100);
       if (subDurationSeconds < 20) continue; // trop court pour espérer y caser un titre
       const subSegment = { ...segment, durationSeconds: subDurationSeconds, selectedGenres: [genre] };
-      const subTracks = await buildSegmentTracks(subSegment, config, runningExcludeIds, favorites, spotifyTrackPool, historyExcludeIds, onProgress, confirmedCountSoFar);
+      // Genres frères (25/08, voir docstring de `siblingGenres` plus haut) :
+      // tous les AUTRES genres de ce même mélange pondéré, pour le dernier
+      // recours de ce sous-appel précis.
+      const otherGenresInMix = effectiveGenres.filter(g => g !== genre);
+      const subTracks = await buildSegmentTracks(subSegment, config, runningExcludeIds, favorites, spotifyTrackPool, historyExcludeIds, onProgress, confirmedCountSoFar, otherGenresInMix);
       allSelected = [...allSelected, ...subTracks];
       confirmedCountSoFar += subTracks.length;
       runningExcludeIds = [...runningExcludeIds, ...subTracks.map(t => t.trackId)];
@@ -1333,8 +1347,28 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
         ? availablePool.filter(t => (t._isLocalDB && !t._genreMismatch) || (!t._deezerId && !t._isLocalDB))
         : availablePool;
       if (trustedOnly.length === 0) break;
-      searchPool = trustedOnly;
-      matchLevel = 'none';
+      // GENRES FRÈRES (25/08, retour direct — voir la docstring de
+      // `siblingGenres` en tête de fonction) : avant d'accepter n'importe
+      // quel genre au hasard, on essaie d'abord les AUTRES genres du même
+      // mélange pondéré — eux aussi explicitement demandés par
+      // l'utilisateur, contrairement à un genre totalement étranger.
+      // `genreRoughlyMatches` (tolérance d'équivalence, même fonction que
+      // le palier "équivalence" plus haut) — pas de `_genreMismatch` posé
+      // dans ce cas : le titre correspond réellement à l'un des genres
+      // choisis, il n'y a rien de "non confirmé" à signaler, juste une
+      // playlist qui penche un peu plus vers ce genre frère faute de
+      // matière suffisante dans le genre visé initialement pour cette
+      // fourchette de BPM précise.
+      const siblingMatches = siblingGenres.length > 0
+        ? trustedOnly.filter(t => siblingGenres.some(g => genreRoughlyMatches(t.genre, g)))
+        : [];
+      if (siblingMatches.length > 0) {
+        searchPool = siblingMatches;
+        matchLevel = 'sibling-genre';
+      } else {
+        searchPool = trustedOnly;
+        matchLevel = 'none';
+      }
     }
 
     // Versions live/performance déprioritisées (pas exclues) à qualité de
