@@ -181,6 +181,25 @@ describe('TrackItem', () => {
     expect(screen.getByText(/Favoriser l'artiste/)).toBeInTheDocument();
   });
 
+  // NOUVEAU (25/08, retour direct — "proposer d'écouter le titre en entier
+  // sur Deezer") : voir deezerLink.js pour le raisonnement complet. Présent
+  // même si canEditTracks=false (écouter n'est pas une action d'édition).
+  it('menu d\'options : "Écouter en entier sur Deezer" présent même sur une séance non éditable, avec le bon lien', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({ isSaved: false, openTrackMenuIndex: 0 }));
+    render(<TrackItem {...baseProps({ index: 0 })} />); // baseTrack.trackId = 'deezer-1'
+
+    const link = screen.getByText('Écouter en entier sur Deezer').closest('a');
+    expect(link).toHaveAttribute('href', 'https://www.deezer.com/track/1');
+    expect(link).toHaveAttribute('target', '_blank');
+  });
+
+  it('menu d\'options : "Écouter en entier sur Deezer" absent pour un titre de secours (pas de vrai identifiant Deezer)', () => {
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue({ openTrackMenuIndex: 0 }));
+    render(<TrackItem {...baseProps({ index: 0, track: { ...track, trackId: 'fallback-1724750000000-a1b2c3' } })} />);
+
+    expect(screen.queryByText('Écouter en entier sur Deezer')).not.toBeInTheDocument();
+  });
+
   it('"Favoriser l\'artiste" appelle toggleArtistFavorite avec le nom de l\'artiste', () => {
     const toggleArtistFavorite = vi.fn();
     mockUsePlaylistDetail.mockReturnValue(makeContextValue({ openTrackMenuIndex: 0 }));
