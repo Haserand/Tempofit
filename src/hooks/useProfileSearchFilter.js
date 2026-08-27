@@ -1,241 +1,208 @@
-// @vitest-environment jsdom
-//
-// Test dédié à useProfileSearchFilter.js — recherche/filtres 100%
-// client-side sur la grille combinée playlists+routines de
-// ProfileView.jsx. Rien à mocker (aucune dépendance à un Context React,
-// `getGenresForDisplay`/`genreDisplayLabel` sont des fonctions pures de
-// musicCatalog.js) — seul `renderHook`/`act` (@testing-library/react) sont
-// nécessaires, même convention que useShare.test.js.
-//
-// Le cas "item intime glissé dans le tableau source" (voir le brief) N'EST
-// PAS testé ici : ce hook n'a lui-même aucune connaissance de
-// `is_intimate`, le verrou est testé à l'intégration dans
-// ProfileView.test.jsx.
+import { useState, useMemo } from 'react';
+import { getGenresForDisplay, genreDisplayLabel } from '../musicCatalog';
 
-import { describe, it, expect, afterEach } from 'vitest';
-import { renderHook, act, cleanup } from '@testing-library/react';
-import { useProfileSearchFilter } from '../../src/hooks/useProfileSearchFilter.js';
+/**
+ * useProfileSearchFilter — recherche/filtres 100% client-side sur la grille
+ * "Playlists partagées"/"Routines partagées" de ProfileView.jsx.
+ *
+ * ⚠️ REFONTE (03/08, retour direct : "les routines sont invisibles, noyées
+ * en bas d'une grille de playlists") — la grille combinée playlists+
+ * routines (voir git blame de ce fichier pour l'ancienne version) est
+ * remplacée par 2 ONGLETS séparés dans ProfileView.jsx. Ce hook ne sait
+ * donc plus RIEN d'un mélange des deux types : `items` ne doit contenir
+ * QUE les items de l'onglet actuellement affiché (déjà filtrés par `kind`
+ * par l'appelant, avant même d'arriver ici) — l'ancien `typeFilter`
+ * ('all'/'playlist'/'routine') a été retiré, les onglets remplissent
+ * désormais ce rôle. Recherche texte + filtres sport/genre/durée restent
+ * PARTAGÉS entre les 2 onglets (même state, un seul hook par
+ * `ProfileView.jsx` réutilisé pour les 2 grilles l'une après l'autre selon
+ * l'onglet actif) — volontairement, pour ne pas perdre sa recherche en
+ * cours en changeant d'onglet.
+ *
+ * `items` doit être un tableau DÉJÀ filtré par mode Sport/Intime (le
+ * combiné de `visiblePlaylists`/`visibleRoutines`, PAS `publicItems.
+ * playlists`/`publicItems.routines` bruts) — ce hook n'a lui-même AUCUNE
+ * connaissance de `is_intimate` : c'est l'appelant (ProfileView.jsx) qui
+ * garantit qu'aucune ligne intime ne lui parvient hors Mode Intime. Un
+ * test dédié dans ProfileView.test.jsx verrouille cette garantie à
+ * l'intégration (pas ici — un item avec `is_intimate: true` glissé dans
+ * `items` serait filtré comme n'importe quel autre par ce hook, il n'a pas
+ * de logique spéciale pour le détecter).
+ *
+ * Chaque item de `items` doit porter un champ `kind` ('playlist' |
+ * 'routine'), posé par ProfileView.jsx au moment de combiner les deux
+ * tableaux — les lignes brutes `playlists`/`routines` (supabase-schema.sql)
+ * n'ont pas de colonne équivalente, ce n'est pas une donnée serveur.
+ *
+ * Extraction ADAPTATIVE selon `kind`, pas une seule formule qui suppose la
+ * forme d'une playlist pour les deux (une routine n'a jamais été générée :
+ * pas de `content.tracks`, pas de `content.totalDuration`) :
+ * - Genres : `getGenresForDisplay` sur les titres réels pour une playlist ;
+ *   `content.selectedGenres` (déjà canoniques) directement pour une
+ *   routine — pas de titres à désambiguïser.
+ * - Durée : `content.totalDuration` (secondes réelles) pour une playlist ;
+ *   pour une routine, seulement si elle cible une DURÉE
+ *   (`targetMode === 'time'`, `hours`/`minutes`) — une routine en mode
+ *   distance est exclue de tout bucket précis (pas de conversion
+ *   distance→temps approximative qui induirait en erreur), mais reste
+ *   visible tant que le filtre durée est sur "Toutes".
+ */
 
-afterEach(() => {
-  cleanup();
-});
-
-// `kind` posé à la main sur chaque item, comme le fait ProfileView.jsx en
-// combinant `visiblePlaylists`/`visibleRoutines` avant de les passer à ce
-// hook — les lignes brutes `playlists`/`routines` n'ont pas ce champ.
-const playlistA = {
-  id: 'pl-a', kind: 'playlist',
-  content: {
-    name: 'Sortie Running Rapide', workoutType: 'Course à pied', totalDuration: 1200, // 20 min
-    tracks: [{ genre: 'metal', artist: 'X', title: 'Y' }],
-  },
-};
-const playlistB = {
-  id: 'pl-b', kind: 'playlist',
-  content: {
-    name: 'Longue Sortie Vélo', workoutType: 'Cyclisme', totalDuration: 5400, // 90 min
-    tracks: [{ genre: 'electro', artist: 'X', title: 'Y' }],
-  },
-};
-const routineDistance = {
-  id: 'routine-a', kind: 'routine',
-  content: {
-    name: 'Mon 10km', workoutType: 'Course à pied', targetMode: 'distance',
-    distanceVal: 10, distanceUnit: 'km', bpm: 170, selectedGenres: ['Rock'],
-  },
-};
-const routineTime = {
-  id: 'routine-b', kind: 'routine',
-  content: {
-    name: 'HIIT Express', workoutType: 'Fractionné', targetMode: 'time',
-    hours: 0, minutes: 20, bpm: 175, selectedGenres: ['Hip-Hop'],
-  },
+const DURATION_BUCKETS = {
+  short: (min) => min < 30,
+  medium: (min) => min >= 30 && min <= 60,
+  long: (min) => min > 60,
 };
 
-function renderFilter(items) {
-  return renderHook(({ items }) => useProfileSearchFilter(items), { initialProps: { items } });
+function extractGenres(row) {
+  const content = row.content || {};
+  if (row.kind === 'routine') {
+    return (content.selectedGenres || []).map(genreDisplayLabel);
+  }
+  const tracks = content.tracks || [];
+  const genreSet = new Set();
+  tracks.forEach(t => {
+    if (!t.genre) return;
+    getGenresForDisplay(t.genre, t.artist, t.title).forEach(g => genreSet.add(g));
+  });
+  return Array.from(genreSet);
 }
 
-describe('useProfileSearchFilter', () => {
-  it('recherche vide : retourne tous les items, tels quels', () => {
-    const { result } = renderFilter([playlistA, playlistB, routineDistance, routineTime]);
-    expect(result.current.filteredItems).toEqual([playlistA, playlistB, routineDistance, routineTime]);
-  });
+// `null` = pas de durée exploitable pour le filtre (routine en mode
+// distance) — DÉLIBÉRÉMENT distinct de `0`, qui tomberait à tort dans le
+// bucket "< 30 min" au lieu d'être exclu de tout bucket précis.
+function extractDurationMinutes(row) {
+  const content = row.content || {};
+  if (row.kind === 'routine') {
+    if (content.targetMode !== 'time') return null;
+    return (content.hours || 0) * 60 + (content.minutes || 0);
+  }
+  return Math.round((content.totalDuration || 0) / 60);
+}
 
-  it('recherche textuelle insensible à la casse, sur le nom', () => {
-    const { result } = renderFilter([playlistA, playlistB]);
-    act(() => result.current.setSearchText('RUNNING'));
-    expect(result.current.filteredItems).toEqual([playlistA]);
-  });
+// Nombre de fois où CETTE playlist a été marquée comme faite (retour
+// direct, 27/08 : "filtrer par statut... si utilisée, avoir en priorité
+// celles utilisées le plus"). `null` pour une ROUTINE — même principe que
+// `extractDurationMinutes` ci-dessus pour une routine en mode distance :
+// une routine n'est qu'une CONFIG jamais encore lancée elle-même (voir
+// PublicItemCard, ProfileView.jsx — "une routine n'a jamais été générée"),
+// la notion même de "faite N fois" n'a pas de sens pour elle. `null`
+// plutôt que `0` : exclue de tout filtre de statut précis (comme "aucun
+// bucket de durée" pour une routine en distance), jamais comptée à tort
+// comme "jamais faite".
+function extractCompletionsCount(row) {
+  if (row.kind === 'routine') return null;
+  const content = row.content || {};
+  return Array.isArray(content.completions) ? content.completions.length : 0;
+}
 
-  it('recherche textuelle sur workoutType', () => {
-    const { result } = renderFilter([playlistA, playlistB]);
-    act(() => result.current.setSearchText('cyclisme'));
-    expect(result.current.filteredItems).toEqual([playlistB]);
-  });
+export function useProfileSearchFilter(items) {
+  const [searchText, setSearchText] = useState('');
+  const [durationFilter, setDurationFilter] = useState('all'); // 'all' | 'short' | 'medium' | 'long'
+  const [sportFilter, setSportFilter] = useState('all');
+  const [genreFilter, setGenreFilter] = useState('all');
+  // 'all' | 'done' | 'not_done' — voir extractCompletionsCount plus haut
+  // pour pourquoi une routine n'est concernée par AUCUNE des 2 valeurs
+  // précises (toujours exclue de 'done'/'not_done', jamais de 'all').
+  const [statusFilter, setStatusFilter] = useState('all');
 
-  it('recherche textuelle sur les genres — extraction adaptative : tracks pour une playlist, selectedGenres direct pour une routine', () => {
-    const { result } = renderFilter([playlistA, routineDistance]);
-    act(() => result.current.setSearchText('rock'));
-    // playlistA a un genre "metal" (via getGenresForDisplay sur son unique
-    // titre) — ne matche PAS "rock". routineDistance a selectedGenres:
-    // ['Rock'] — matche directement, sans aucun titre à parcourir.
-    expect(result.current.filteredItems).toEqual([routineDistance]);
-  });
-
-  // Vague 2, Chantier 3 — "description texte libre sur une playlist/routine
-  // publique" (02/08). Champ COMMUN aux deux `kind` (texte libre, pas de
-  // divergence de forme comme genre/durée) — pas d'extraction adaptative
-  // nécessaire, contrairement au test des genres juste au-dessus.
-  it('recherche textuelle sur content.description, insensible à la casse', () => {
-    const playlistWithDescription = { ...playlistA, content: { ...playlistA.content, description: 'Une sortie tranquille pour bien RÉCUPÉRER après une grosse semaine.' } };
-    const { result } = renderFilter([playlistWithDescription, playlistB]);
-    act(() => result.current.setSearchText('récupérer'));
-    expect(result.current.filteredItems).toEqual([playlistWithDescription]);
-  });
-
-  // RETIRÉ pour les routines (08/08, retour direct : "finalement pas
-  // emballé par la fonctionnalité description sur les routines... on
-  // conserve juste pour les playlists") — voir RoutinesView.jsx pour
-  // l'historique complet. Reproduit le cas d'une ANCIENNE routine qui
-  // porterait encore une description en base (jamais nettoyée
-  // rétroactivement, voir la docstring du champ `description` dans
-  // useProfileSearchFilter.js) : elle ne doit plus être trouvable par
-  // recherche texte, cohérent avec le fait qu'elle n'est plus affichée
-  // nulle part.
-  it('une description de ROUTINE n\'entre PLUS dans la recherche texte, même une ancienne encore en base (retiré le 08/08, non-régression)', () => {
-    const routineWithOldDescription = { ...routineDistance, content: { ...routineDistance.content, description: 'Une sortie tranquille pour bien RÉCUPÉRER après une grosse semaine.' } };
-    const { result } = renderFilter([routineWithOldDescription, playlistB]);
-    act(() => result.current.setSearchText('récupérer'));
-    expect(result.current.filteredItems).toEqual([]);
-  });
-
-
-  // ⚠️ RETIRÉ (03/08, refonte onglets Playlists/Routines) — `typeFilter`
-  // n'existe plus sur ce hook, voir sa docstring en tête de fichier
-  // source : filtrer par `kind` est désormais la responsabilité de
-  // l'APPELANT (ProfileView.jsx passe déjà `itemsForActiveTab`, un
-  // tableau à un seul `kind`, jamais mélangé). Le test "recherche vide :
-  // retourne tous les items, tels quels" plus haut couvre déjà
-  // implicitement le fait que ce hook ne filtre PAS par `kind` lui-même
-  // — un tableau mixte lui est passé et ressort intact.
-
-  it('filtre par sport, valeurs disponibles générées dynamiquement à partir des items affichés', () => {
-    const { result } = renderFilter([playlistA, playlistB, routineDistance]);
-    expect(result.current.availableSports.sort()).toEqual(['Course à pied', 'Cyclisme'].sort());
-    act(() => result.current.setSportFilter('Cyclisme'));
-    expect(result.current.filteredItems).toEqual([playlistB]);
-  });
-
-  it('filtre par durée : une playlist utilise totalDuration réel', () => {
-    const { result } = renderFilter([playlistA, playlistB]);
-    act(() => result.current.setDurationFilter('short')); // < 30 min
-    expect(result.current.filteredItems).toEqual([playlistA]);
-  });
-
-  it('filtre par durée : une routine en mode "time" convertit hours/minutes en minutes', () => {
-    const { result } = renderFilter([playlistB, routineTime]);
-    act(() => result.current.setDurationFilter('short')); // < 30 min
-    expect(result.current.filteredItems).toEqual([routineTime]);
-  });
-
-  it('filtre par durée : une routine en mode "distance" est exclue de TOUT bucket précis (pas de conversion approximative)', () => {
-    const { result } = renderFilter([routineDistance]);
-    act(() => result.current.setDurationFilter('short'));
-    expect(result.current.filteredItems).toEqual([]);
-    act(() => result.current.setDurationFilter('medium'));
-    expect(result.current.filteredItems).toEqual([]);
-    act(() => result.current.setDurationFilter('long'));
-    expect(result.current.filteredItems).toEqual([]);
-    // Mais reste visible tant que le filtre est sur "Toutes".
-    act(() => result.current.setDurationFilter('all'));
-    expect(result.current.filteredItems).toEqual([routineDistance]);
-  });
-
-  it('filtres combinés (texte + sport à la fois)', () => {
-    const { result } = renderFilter([playlistA, playlistB, routineDistance, routineTime]);
-    act(() => {
-      // "sortie" matche playlistA ("Sortie Running Rapide") ET playlistB
-      // ("Longue Sortie Vélo") sur le NOM seul — routineDistance/routineTime
-      // n'ont pas "sortie" dans leur nom, déjà exclues par le texte.
-      result.current.setSearchText('sortie');
-      // Le filtre sport narrove ENSUITE ce qui reste : seule playlistB
-      // (Cyclisme) passe, playlistA (Course à pied) est exclue à SON tour
-      // — la preuve que les 2 filtres s'appliquent bien ensemble, pas
-      // juste l'un après l'autre sans effet du second.
-      result.current.setSportFilter('Cyclisme');
-    });
-    expect(result.current.filteredItems).toEqual([playlistB]);
-  });
-
-  it('hasActiveFilters reflète l\'état réel des filtres', () => {
-    const { result } = renderFilter([playlistA]);
-    expect(result.current.hasActiveFilters).toBe(false);
-    act(() => result.current.setSearchText('x'));
-    expect(result.current.hasActiveFilters).toBe(true);
-  });
-
-  it('resetFilters remet tout à zéro et retourne l\'ensemble complet des items', () => {
-    const { result } = renderFilter([playlistA, playlistB]);
-    act(() => {
-      result.current.setSearchText('running');
-      result.current.setSportFilter('Course à pied');
-    });
-    expect(result.current.filteredItems).toEqual([playlistA]);
-    act(() => result.current.resetFilters());
-    expect(result.current.hasActiveFilters).toBe(false);
-    expect(result.current.filteredItems).toEqual([playlistA, playlistB]);
-  });
-
-  // NOUVEAU (27/08, retour direct — "filtrer par statut... si utilisé,
-  // avoir en priorité celles utilisées le plus").
-  describe('statusFilter', () => {
-    const playlistDone3x = {
-      id: 'pl-done-3', kind: 'playlist',
-      content: { name: 'Souvent jouée', workoutType: 'Course à pied', totalDuration: 1200, tracks: [], completions: ['2026-01-01', '2026-02-01', '2026-03-01'] },
+  // Enrichissement une seule fois par changement de `items` — évite de
+  // ré-extraire genres/durée à chaque frappe dans le champ de recherche
+  // (seul le `.filter()` plus bas doit re-tourner à chaque changement de
+  // filtre, pas cette extraction, plus coûteuse).
+  const enriched = useMemo(() => items.map(row => {
+    const content = row.content || {};
+    return {
+      row,
+      kind: row.kind || 'playlist',
+      name: (content.name || '').toLowerCase(),
+      workoutType: content.workoutType || '',
+      // Description libre — RESTREINTE AUX PLAYLISTS (08/08, retour
+      // direct : "finalement pas emballé par la fonctionnalité
+      // description sur les routines... on conserve juste pour les
+      // playlists") — voir RoutinesView.jsx pour l'historique complet du
+      // chantier retiré côté édition/affichage. Gaté ici sur `kind` pour
+      // la MÊME raison : une routine créée AVANT ce retrait pourrait
+      // encore porter une vieille description en base (jamais nettoyée
+      // rétroactivement) — sans ce garde, elle resterait trouvable par
+      // recherche texte alors qu'elle n'est plus affichée NULLE PART
+      // (RoutinesView.jsx, PublicRoutinePreviewModal.jsx,
+      // PublicItemCard/ProfileView.jsx l'ont tous les 3 retirée) —
+      // matcher sur un texte invisible aurait été déroutant.
+      description: row.kind === 'routine' ? '' : (content.description || '').toLowerCase(),
+      genres: extractGenres(row),
+      durationMinutes: extractDurationMinutes(row),
+      completionsCount: extractCompletionsCount(row),
     };
-    const playlistDone1x = {
-      id: 'pl-done-1', kind: 'playlist',
-      content: { name: 'Jouée une fois', workoutType: 'Course à pied', totalDuration: 1200, tracks: [], completions: ['2026-01-01'] },
-    };
-    const playlistNeverDone = {
-      id: 'pl-never', kind: 'playlist',
-      content: { name: 'Jamais lancée', workoutType: 'Course à pied', totalDuration: 1200, tracks: [], completions: [] },
-    };
+  }), [items]);
 
-    it('"done" ne garde que les playlists avec au moins une complétion, triées par nombre de fois jouée décroissant', () => {
-      const { result } = renderFilter([playlistNeverDone, playlistDone1x, playlistDone3x]);
-      act(() => result.current.setStatusFilter('done'));
-      expect(result.current.filteredItems).toEqual([playlistDone3x, playlistDone1x]);
-    });
+  const availableSports = useMemo(
+    () => Array.from(new Set(enriched.map(e => e.workoutType).filter(Boolean))).sort(),
+    [enriched]
+  );
+  const availableGenres = useMemo(
+    () => Array.from(new Set(enriched.flatMap(e => e.genres))).sort(),
+    [enriched]
+  );
 
-    it('"not_done" ne garde que les playlists jamais complétées', () => {
-      const { result } = renderFilter([playlistNeverDone, playlistDone1x, playlistDone3x]);
-      act(() => result.current.setStatusFilter('not_done'));
-      expect(result.current.filteredItems).toEqual([playlistNeverDone]);
-    });
+  const filteredItems = useMemo(() => {
+    const text = searchText.trim().toLowerCase();
+    const filtered = enriched
+      .filter(e => {
+        if (text) {
+          const matchesText = e.name.includes(text)
+            || e.workoutType.toLowerCase().includes(text)
+            || e.description.includes(text)
+            || e.genres.some(g => g.toLowerCase().includes(text));
+          if (!matchesText) return false;
+        }
+        if (sportFilter !== 'all' && e.workoutType !== sportFilter) return false;
+        if (genreFilter !== 'all' && !e.genres.includes(genreFilter)) return false;
+        if (durationFilter !== 'all') {
+          if (e.durationMinutes == null) return false;
+          if (!DURATION_BUCKETS[durationFilter](e.durationMinutes)) return false;
+        }
+        // Statut (27/08) — même principe que le filtre durée juste au-dessus
+        // pour une routine (`durationMinutes == null` → exclue dès qu'un
+        // bucket précis est demandé) : `completionsCount == null` (routine)
+        // exclue dès que 'done'/'not_done' est demandé, jamais de 'all'.
+        if (statusFilter !== 'all') {
+          if (e.completionsCount == null) return false;
+          if (statusFilter === 'done' && e.completionsCount === 0) return false;
+          if (statusFilter === 'not_done' && e.completionsCount > 0) return false;
+        }
+        return true;
+      });
+    // Tri par nombre de fois jouée, décroissant — UNIQUEMENT quand on
+    // regarde spécifiquement "Déjà faites" (retour direct : "si il a
+    // utilisé, avoir en priorité celles utilisées le plus") : un ordre
+    // par popularité n'a de sens que dans ce sous-ensemble précis, pas
+    // comme tri global par défaut (qui casserait l'ordre naturel habituel
+    // des 2 autres statuts, jamais demandé ici).
+    if (statusFilter === 'done') {
+      filtered.sort((a, b) => b.completionsCount - a.completionsCount);
+    }
+    return filtered.map(e => e.row);
+  }, [enriched, searchText, sportFilter, genreFilter, durationFilter, statusFilter]);
 
-    it('une ROUTINE est exclue de "done" ET de "not_done" (la notion de "faite" n\'a pas de sens pour elle) mais reste visible sur "all"', () => {
-      const { result } = renderFilter([playlistDone1x, routineDistance]);
-      expect(result.current.filteredItems).toEqual([playlistDone1x, routineDistance]);
-      act(() => result.current.setStatusFilter('done'));
-      expect(result.current.filteredItems).toEqual([playlistDone1x]);
-      act(() => result.current.setStatusFilter('not_done'));
-      expect(result.current.filteredItems).toEqual([]);
-    });
+  const hasActiveFilters = searchText.trim() !== ''
+    || durationFilter !== 'all' || sportFilter !== 'all' || genreFilter !== 'all' || statusFilter !== 'all';
 
-    it('"all" (par défaut) ne trie PAS par popularité — ordre d\'origine conservé', () => {
-      const { result } = renderFilter([playlistDone1x, playlistDone3x]);
-      expect(result.current.filteredItems).toEqual([playlistDone1x, playlistDone3x]);
-    });
+  const resetFilters = () => {
+    setSearchText('');
+    setDurationFilter('all');
+    setSportFilter('all');
+    setGenreFilter('all');
+    setStatusFilter('all');
+  };
 
-    it('statusFilter fait partie de hasActiveFilters/resetFilters', () => {
-      const { result } = renderFilter([playlistDone1x]);
-      act(() => result.current.setStatusFilter('done'));
-      expect(result.current.hasActiveFilters).toBe(true);
-      act(() => result.current.resetFilters());
-      expect(result.current.statusFilter).toBe('all');
-      expect(result.current.hasActiveFilters).toBe(false);
-    });
-  });
-});
+  return {
+    searchText, setSearchText,
+    durationFilter, setDurationFilter,
+    sportFilter, setSportFilter,
+    genreFilter, setGenreFilter,
+    statusFilter, setStatusFilter,
+    availableSports, availableGenres,
+    filteredItems, hasActiveFilters, resetFilters,
+  };
+}
