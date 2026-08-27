@@ -1,7 +1,8 @@
-import { GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, Lock, Play, Pause, Loader2 } from 'lucide-react';
+import { GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, Lock, Play, Pause, Loader2, ExternalLink } from 'lucide-react';
 import { getGenresForDisplay } from '../../../musicCatalog';
 import { getZoneForValue, getBpmBucketColor, getBpmBucketStart } from '../../../appConfig';
 import { formatDuration } from '../../../utils/format';
+import { getDeezerTrackUrl } from '../../../utils/deezerLink';
 import { usePlaylistDetail } from '../../../contexts/PlaylistDetailContext';
 
 /**
@@ -91,6 +92,14 @@ export default function TrackItem({
 
   const isFav = favorites.tracks.some(t => t.trackId === track.trackId);
   const tracksCount = currentPlaylist?.tracks?.length || 0;
+  // "Écouter en entier sur Deezer" (retour direct, 27/08) — voir
+  // deezerLink.js pour le raisonnement complet. Placé dans le menu "Plus
+  // d'options" plutôt qu'un nouvel icône permanent sur cette ligne déjà
+  // dense (poignée, index, lecture, favori, menu, retrait) — et EN DEHORS
+  // du bloc `canEditTracks` juste en dessous : écouter un titre n'a rien
+  // d'une action d'édition, ça reste pertinent même sur une séance verrouillée
+  // ou pas encore sauvegardée.
+  const deezerUrl = getDeezerTrackUrl(track.trackId);
 
   return (
     <div
@@ -169,6 +178,18 @@ export default function TrackItem({
             <div className={`absolute right-0 z-20 w-64 rounded-xl border shadow-2xl ${cardBg} ${cardBorder} overflow-hidden ${
               index >= tracksCount - 2 ? 'bottom-full mb-1' : 'top-full mt-1'
             }`}>
+              {deezerUrl && (
+                <>
+                  <a
+                    href={deezerUrl} target="_blank" rel="noopener noreferrer"
+                    onClick={() => setOpenTrackMenuIndex(null)}
+                    className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}
+                  >
+                    <ExternalLink size={16} className="text-green-500"/> Écouter en entier sur Deezer
+                  </a>
+                  <div className={`h-px my-1 ${cardBorder} border-t`}></div>
+                </>
+              )}
               {canEditTracks && (
                 <>
                   <button onClick={() => { handleDuplicateTrack(index); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
