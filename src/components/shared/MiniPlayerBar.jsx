@@ -1,9 +1,10 @@
 import { useState, useRef, memo } from 'react';
-import { Play, Pause, X, Music2, SkipBack, SkipForward, Volume2, Volume1, VolumeX } from 'lucide-react';
+import { Play, Pause, X, Music2, SkipBack, SkipForward, Volume2, Volume1, VolumeX, ExternalLink } from 'lucide-react';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 import AudioProgressBar from './AudioProgressBar';
 import BottomBarShell from './BottomBarShell';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
+import { getDeezerTrackUrl } from '../../utils/deezerLink';
 
 /**
  * MiniPlayerBar — barre persistante en bas d'écran (façon Spotify), monté
@@ -143,6 +144,12 @@ function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
 
   const trackIndex = currentPlaylist?.tracks ? currentPlaylist.tracks.findIndex(t => t.id === currentTrack.id) : -1;
   const belongsToCurrentPlaylist = trackIndex !== -1;
+  // Lien de sortie "écouter en entier sur Deezer" (retour direct, 27/08 —
+  // voir la docstring de deezerLink.js pour le raisonnement complet :
+  // pourquoi un simple lien plutôt qu'un widget intégré). `null` si ce
+  // titre précis n'a pas de vrai identifiant Deezer (secours/vitrine) —
+  // le bouton ne s'affiche alors pas du tout, plutôt qu'un lien mort.
+  const deezerUrl = getDeezerTrackUrl(currentTrack.trackId);
 
   return (
     // Plus de `fixed bottom-0 left-0 right-0 z-[65]` ICI (25/07) — déplacé sur
@@ -185,6 +192,25 @@ function MiniPlayerBar({ theme, currentPlaylist, changeView }) {
             <p className={`text-sm font-bold truncate ${textHighlight}`} title={currentTrack.title}>{currentTrack.title}</p>
             <p className={`text-xs truncate ${textMuted}`} title={`${currentTrack.artist}${currentTrack.bpm ? ` · ${currentTrack.bpm} BPM` : ''}`}>{currentTrack.artist}{currentTrack.bpm ? ` · ${currentTrack.bpm} BPM` : ''}</p>
           </div>
+          {/* "Écouter en entier sur Deezer" (retour direct, 27/08) — un
+              simple lien de sortie (nouvel onglet, ou l'appli Deezer si
+              installée sur mobile), jamais un lecteur intégré : voir
+              deezerLink.js pour pourquoi. Toujours dans cette zone GAUCHE
+              (jamais masquée, contrairement à la zone droite `hidden
+              md:flex`) — aussi utile sur mobile que sur desktop, aucune
+              raison de le réserver à l'un des deux. Absent du DOM (pas
+              juste caché) si ce titre n'a pas de vrai identifiant Deezer
+              (secours/vitrine) — `getDeezerTrackUrl` renvoie `null` dans
+              ce cas. */}
+          {deezerUrl && (
+            <a
+              href={deezerUrl} target="_blank" rel="noopener noreferrer"
+              title="Écouter ce titre en entier sur Deezer"
+              className={`shrink-0 p-1.5 ${ICON_BUTTON_ROUNDING} transition-colors ${textMuted} hover:text-main hover:bg-surface-hover`}
+            >
+              <ExternalLink size={14}/>
+            </a>
+          )}
         </div>
 
         {/* ── Zone centre : contrôles + progression (cœur du lecteur, jamais masqué) ── */}
