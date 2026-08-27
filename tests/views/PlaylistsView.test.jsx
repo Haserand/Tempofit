@@ -403,3 +403,88 @@ describe('PlaylistsView — onglets Playlists/Routines (fusion 20/08, renommage 
     expect(screen.getByText('Mes Playlists')).toBeInTheDocument();
   });
 });
+
+// NOUVEAU (27/08, retour direct — "le système de filtres du compte
+// vitrine devrait-il être adapté pour Mes Playlists ?"). Réutilise
+// useProfileSearchFilter.js (déjà testé isolément, voir son propre
+// fichier de test) — ici, seulement l'INTÉGRATION : recherche/filtres
+// bien branchés sur de vrais objets playlist locaux (pas des lignes
+// Supabase), répartition dans les 3 sections toujours correcte une fois
+// filtrée.
+describe('PlaylistsView — recherche & filtres (retour direct, 27/08)', () => {
+  function openFilterPanel() {
+    fireEvent.click(screen.getByTitle('Plus de filtres'));
+  }
+
+  it('absente si la collection est totalement vide (pas de barre de recherche vide)', () => {
+    render(<PlaylistsView {...baseProps({ savedPlaylists: [] })} />);
+    expect(screen.queryByPlaceholderText(/Rechercher un titre/)).not.toBeInTheDocument();
+  });
+
+  it('recherche texte sur le nom, insensible à la casse, filtre les 3 sections à la fois', () => {
+    const toPlanPl = makePlaylist({ id: 'p1', name: 'Sortie Running Rapide', plannedDate: null, completions: [] });
+    const plannedPl = makePlaylist({ id: 'p2', name: 'Longue Sortie Vélo', plannedDate: '2026-05-01', completions: [] });
+    const donePl = makePlaylist({ id: 'p3', name: 'Sortie Running Terminée', completions: ['2026-01-01'] });
+    render(<PlaylistsView {...baseProps({ savedPlaylists: [toPlanPl, plannedPl, donePl] })} />);
+
+    fireEvent.change(screen.getByPlaceholderText(/Rechercher un titre/), { target: { value: 'running' } });
+
+    expect(screen.getByText('Sortie Running Rapide')).toBeInTheDocument();
+    expect(screen.getByText('Sortie Running Terminée')).toBeInTheDocument();
+    expect(screen.queryByText('Longue Sortie Vélo')).not.toBeInTheDocument();
+  });
+
+  it('filtre par sport, valeurs générées dynamiquement à partir des playlists réellement présentes', async () => {
+    const running = makePlaylist({ id: 'p1', name: 'Séance course', workoutType: 'Course à pied', plannedDate: null, completions: [] });
+    const cycling = makePlaylist({ id: 'p2', name: 'Séance vélo', workoutType: 'Cyclisme', plannedDate: null, completions: [] });
+    render(<PlaylistsView {...baseProps({ savedPlaylists: [running, cycling] })} />);
+    openFilterPanel();
+
+    fireEvent.change(await screen.findByDisplayValue('Tous les sports'), { target: { value: 'Cyclisme' } });
+
+    expect(screen.getByText('Séance vélo')).toBeInTheDocument();
+    expect(screen.queryByText('Séance course')).not.toBeInTheDocument();
+  });
+
+  it('état "aucun résultat" distinct de l\'état "collection vide" — propose de réinitialiser, pas de générer une 1re playlist', () => {
+    const onlyOne = makePlaylist({ id: 'p1', name: 'Unique Séance', plannedDate: null, completions: [] });
+    render(<PlaylistsView {...baseProps({ savedPlaylists: [onlyOne] })} />);
+
+    fireEvent.change(screen.getByPlaceholderText(/Rechercher un titre/), { target: { value: 'zzz-introuvable' } });
+
+    expect(screen.getByText('Aucune playlist ne correspond à ta recherche.')).toBeInTheDocument();
+    expect(screen.queryByText('Aucune playlist sauvegardée')).not.toBeInTheDocument();
+    expect(screen.queryByText('Générer ma première playlist')).not.toBeInTheDocument();
+  });
+
+  it('réinitialiser les filtres depuis l\'état "aucun résultat" fait réapparaître toutes les playlists', () => {
+    const onlyOne = makePlaylist({ id: 'p1', name: 'Unique Séance', plannedDate: null, completions: [] });
+    render(<PlaylistsView {...baseProps({ savedPlaylists: [onlyOne] })} />);
+
+    fireEvent.change(screen.getByPlaceholderText(/Rechercher un titre/), { target: { value: 'zzz-introuvable' } });
+    fireEvent.click(screen.getByText('Réinitialiser les filtres'));
+
+    expect(screen.getByText('Unique Séance')).toBeInTheDocument();
+  });
+
+  it('le classement (bordure or/argent/bronze) reste calculé sur TOUTES les playlists, pas juste celles que le filtre laisse visibles', async () => {
+    const getRankStyle = vi.fn(() => null);
+    // 3 playlists, complétions décroissantes : Or (rang 0), Argent (rang 1),
+    // Bronze (rang 2). Le filtre sport ne laisse visibles que Or et Bronze
+    // (Course à pied) — Argent (Cyclisme) est exclue du résultat, mais doit
+    // rester dans le CALCUL du classement : si le classement était calculé
+    // à tort sur le seul sous-ensemble affiché, Bronze remonterait au rang
+    // 1 au lieu de son vrai rang 2.
+    const goldOne = makePlaylist({ id: 'gold', name: 'Championne Or', workoutType: 'Course à pied', completions: ['2026-01-01', '2026-01-02', '2026-01-03'] });
+    const silverOne = makePlaylist({ id: 'silver', name: 'Milieu Argent', workoutType: 'Cyclisme', completions: ['2026-01-01', '2026-01-02'] });
+    const bronzeOne = makePlaylist({ id: 'bronze', name: 'Dernière Bronze', workoutType: 'Course à pied', completions: ['2026-01-01'] });
+    render(<PlaylistsView {...baseProps({ savedPlaylists: [goldOne, silverOne, bronzeOne], getRankStyle })} />);
+    openFilterPanel();
+
+    fireEvent.change(await screen.findByDisplayValue('Tous les sports'), { target: { value: 'Course à pied' } });
+
+    expect(screen.queryByText('Milieu Argent')).not.toBeInTheDocument();
+    expect(getRankStyle).toHaveBeenCalledWith(0); // Or
+    expect(getRankStyle).toHaveBeenCalledWith(2); // Bronze — bien rang 2, pas 1
+  });
+});
