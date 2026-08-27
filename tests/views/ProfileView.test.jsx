@@ -801,3 +801,53 @@ describe('ProfileView — profil vitrine officiel (@tempofit_officiel)', () => {
     expect(onOpenRoutine).toHaveBeenCalledWith(expect.objectContaining({ id: 'vitrine-routine-1', is_public: true }));
   });
 });
+
+// NOUVEAU (27/08, retour direct — "filtrer par statut... si utilisé, avoir
+// en priorité celles utilisées le plus"). Voir useProfileSearchFilter.js
+// pour la couverture du calcul lui-même (filtre + tri) — ici, seulement
+// l'intégration : le sélecteur existe bien, au bon endroit, avec le bon
+// effet visible.
+describe('ProfileView — filtre "Statut" (retour direct, 27/08)', () => {
+  const playlistDone3x = { id: 'pl-done-3', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Souvent jouée', totalDuration: 1200, completions: ['2026-01-01', '2026-02-01', '2026-03-01'] } };
+  const playlistDone1x = { id: 'pl-done-1', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Jouée une fois', totalDuration: 1200, completions: ['2026-01-01'] } };
+  const playlistNeverDone = { id: 'pl-never', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Jamais lancée', totalDuration: 1200, completions: [] } };
+
+  async function openFilterPanel() {
+    fireEvent.click(await screen.findByTitle('Plus de filtres'));
+  }
+
+  it('absent sur l\'onglet Routines (la notion de "faite" n\'a pas de sens pour une routine)', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ routines: [{ id: 'r1', user_id: 'owner-uuid-123', is_public: true, is_intimate: false, content: { name: 'Ma routine', workoutType: 'Course à pied', targetMode: 'time', hours: 0, minutes: 20, selectedGenres: [] } }] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+    await switchToRoutinesTab();
+    await openFilterPanel();
+
+    expect(screen.queryByText('Statut : tous')).not.toBeInTheDocument();
+  });
+
+  it('"Déjà faites" ne garde que les playlists complétées, triées par nombre de fois jouée décroissant', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ playlists: [playlistNeverDone, playlistDone1x, playlistDone3x] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+    await openFilterPanel();
+
+    fireEvent.change(await screen.findByDisplayValue('Statut : tous'), { target: { value: 'done' } });
+
+    expect(screen.getByText('Souvent jouée')).toBeInTheDocument();
+    expect(screen.getByText('Jouée une fois')).toBeInTheDocument();
+    expect(screen.queryByText('Jamais lancée')).not.toBeInTheDocument();
+  });
+
+  it('"Jamais faites" ne garde que les playlists sans aucune complétion', async () => {
+    mockRpc.mockResolvedValue({ data: mockProfileData, error: null });
+    setupTableMocks({ playlists: [playlistNeverDone, playlistDone1x] });
+    render(<ProfileView {...baseProps} user={{ id: 'visitor' }} />);
+    await openFilterPanel();
+
+    fireEvent.change(await screen.findByDisplayValue('Statut : tous'), { target: { value: 'not_done' } });
+
+    expect(screen.getByText('Jamais lancée')).toBeInTheDocument();
+    expect(screen.queryByText('Jouée une fois')).not.toBeInTheDocument();
+  });
+});
