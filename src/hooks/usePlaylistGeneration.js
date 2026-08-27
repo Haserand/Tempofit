@@ -395,7 +395,7 @@ export function usePlaylistGeneration({
       }
       const deviations = checkGenreWeightDeviation(pl.tracks, config.genreWeights);
       if (deviations) {
-        showToast(`⚠️ Répartition entre genres différente de ce qui était visé : ${deviations.join(', ')}.`, 'error');
+        showToast(`⚠️ Répartition entre genres différente de ce qui était visé : ${deviations.join(', ')}. Un style peut être sous-représenté si peu de titres de ce style existent au BPM demandé (les styles au tempo naturellement lent, par exemple, en ont rarement à un BPM élevé).`, 'error');
       }
     } else {
       // `savedPlaylistsRef.current` (PAS `savedPlaylists`, voir la
@@ -414,7 +414,7 @@ export function usePlaylistGeneration({
       const allTracksInBatch = generatedPlaylists.flatMap(p => p.tracks);
       const batchDeviations = checkGenreWeightDeviation(allTracksInBatch, config.genreWeights);
       if (batchDeviations) {
-        showToast(`⚠️ Répartition entre genres différente de ce qui était visé sur cette série : ${batchDeviations.join(', ')}.`, 'error');
+        showToast(`⚠️ Répartition entre genres différente de ce qui était visé sur cette série : ${batchDeviations.join(', ')}. Un style peut être sous-représenté si peu de titres de ce style existent au BPM demandé (les styles au tempo naturellement lent, par exemple, en ont rarement à un BPM élevé).`, 'error');
       }
     }
   };
