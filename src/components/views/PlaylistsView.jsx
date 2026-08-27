@@ -121,6 +121,14 @@ export default function PlaylistsView({
   const [draggedId, setDraggedId] = useState(null);
   const [plannedPage, setPlannedPage] = useState(0);
   const [completedPage, setCompletedPage] = useState(0);
+  // Ordre d'affichage de la section "Terminées" (retour direct, 27/08 :
+  // "filtrer par statut... si utilisé, avoir en priorité celles utilisées
+  // le plus") — 'recent' (comportement historique, inchangé par défaut :
+  // triées par date de complétion la plus récente) ou 'most_played' (par
+  // NOMBRE de fois jouée, decroissant — la même donnée que playlistRankMap
+  // plus bas, déjà calculée pour la bordure or/argent/bronze des cartes,
+  // mais jusqu'ici jamais utilisée pour l'ORDRE d'affichage lui-même).
+  const [completedSortMode, setCompletedSortMode] = useState('recent');
   // Onglet actif — lazy init comme SettingsView.jsx : ce composant est
   // démonté/remonté à chaque changement de vue (pas de `key` ni de state
   // persistant, voir App.jsx), donc `initialTab` est systématiquement relu
@@ -192,6 +200,12 @@ export default function PlaylistsView({
     const plannedList = [...visible.filter(p => !isCompleted(p) && p.plannedDate)]
       .sort((a, b) => a.plannedDate.localeCompare(b.plannedDate));
     const completedList = [...visible.filter(isCompleted)].sort((a, b) => {
+      // Tri par NOMBRE de fois jouée (retour direct, 27/08) — même donnée
+      // que le classement plus bas (playlistRankMap), juste appliquée ici à
+      // l'ORDRE d'affichage plutôt qu'à la seule bordure des cartes.
+      if (completedSortMode === 'most_played') {
+        return b.completions.length - a.completions.length;
+      }
       const lastA = a.completions[a.completions.length - 1];
       const lastB = b.completions[b.completions.length - 1];
       return lastB.localeCompare(lastA);
@@ -208,7 +222,7 @@ export default function PlaylistsView({
     const ranked = [...completedList].sort((a, b) => b.completions.length - a.completions.length);
     const rankMap = new Map(ranked.map((p, i) => [p.id, i]));
     return { visiblePlaylists: visible, toPlan: toPlanList, planned: plannedList, completedPlaylists: completedList, playlistRankMap: rankMap };
-  }, [savedPlaylists, isNaughtyMode]);
+  }, [savedPlaylists, isNaughtyMode, completedSortMode]);
 
   const { pageItems: plannedPageItems, totalPages: plannedTotalPages, safePage: plannedSafePage } = usePageSlice(planned, plannedPage);
   const { pageItems: completedPageItems, totalPages: completedTotalPages, safePage: completedSafePage } = usePageSlice(completedPlaylists, completedPage);
@@ -419,9 +433,24 @@ export default function PlaylistsView({
               {/* --- TERMINÉES (fusionne l'ancien "Historique", paginée) --- */}
               {completedPlaylists.length > 0 && (
                 <div className="space-y-4">
-                  <h2 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${textMuted}`}>
-                    <CheckCircle size={14} /> Terminées
-                  </h2>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <h2 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${textMuted}`}>
+                      <CheckCircle size={14} /> Terminées
+                    </h2>
+                    {/* Ordre d'affichage (retour direct, 27/08) — voir la
+                        docstring de `completedSortMode` plus haut pour le
+                        raisonnement complet. Remis à la page 1 au
+                        changement : la page actuelle n'a plus forcément de
+                        sens dans le nouvel ordre. */}
+                    <select
+                      value={completedSortMode}
+                      onChange={(e) => { setCompletedSortMode(e.target.value); setCompletedPage(0); }}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold border ${cardBorder} ${textMuted} outline-hidden cursor-pointer bg-transparent`}
+                    >
+                      <option value="recent">Plus récentes</option>
+                      <option value="most_played">Plus jouées</option>
+                    </select>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {completedPageItems.map(p => renderCard(p))}
                   </div>
