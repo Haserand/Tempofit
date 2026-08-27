@@ -487,6 +487,7 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
     durationFilter, setDurationFilter,
     sportFilter, setSportFilter,
     genreFilter, setGenreFilter,
+    statusFilter, setStatusFilter,
     availableSports, availableGenres,
     filteredItems, hasActiveFilters, resetFilters,
   } = useProfileSearchFilter(itemsForActiveTab);
@@ -850,6 +851,28 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
                       <option value="medium">30-60 min</option>
                       <option value="long">Plus de 60 min</option>
                     </select>
+
+                    {/* Statut (retour direct, 27/08 : "filtrer par statut...
+                        si utilisée, avoir en priorité celles utilisées le
+                        plus") — UNIQUEMENT sur l'onglet Playlists : une
+                        routine n'est qu'une CONFIG jamais encore lancée
+                        elle-même (voir PublicItemCard plus haut), la notion
+                        de "déjà faite" n'a pas de sens pour elle. "Déjà
+                        faites" trie automatiquement par nombre de fois
+                        jouée décroissant (voir useProfileSearchFilter.js)
+                        — pas un tri global par défaut, seulement dans ce
+                        sous-ensemble précis. */}
+                    {activeProfileTab === 'playlist' && (
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold border ${cardBorder} ${inputBg} ${textMuted} outline-hidden cursor-pointer`}
+                      >
+                        <option value="all">Statut : tous</option>
+                        <option value="done">Déjà faites</option>
+                        <option value="not_done">Jamais faites</option>
+                      </select>
+                    )}
 
                     {hasActiveFilters && (
                       <button
