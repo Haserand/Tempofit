@@ -42,7 +42,10 @@ export const ZONE_SPACING_BY_ACTIVITY = {
   'Course à pied': 15,
   'Cyclisme': 5,
 };
-export const DEFAULT_ZONE_SPACING = 10;
+// Non exporté (25/08, même chantier que musicEngine.js/appConfig.js) :
+// réellement utilisé, mais uniquement en interne (buildDefaultPreviewProfile,
+// getZoneSpacingForActivity ci-dessous) — jamais importé ailleurs.
+const DEFAULT_ZONE_SPACING = 10;
 
 // Espacement resserré utilisé UNIQUEMENT si `cadenceIntent === 'sync'` pour
 // cette activité — sinon `ZONE_SPACING_BY_ACTIVITY` ci-dessus reste la
@@ -51,13 +54,19 @@ export const SYNC_ZONE_SPACING_BY_ACTIVITY = {
   'Course à pied': 6,
   'Cyclisme': 3,
 };
-export const DEFAULT_SYNC_ZONE_SPACING = 4;
+// Non exporté (25/08, même chantier) : même raison que DEFAULT_ZONE_SPACING
+// plus haut.
+const DEFAULT_SYNC_ZONE_SPACING = 4;
 
 // Activités où la notion même de "cadence" (un rythme de mouvement répété,
 // pas/pédalage) n'a pas de sens — Musculation n'a pas de rythme cyclique
 // comparable, donc pas de mode Synchro proposé pour elle. Toute activité
 // personnalisée reste éligible par défaut.
-export const CADENCE_INTENT_INELIGIBLE_ACTIVITIES = ['Musculation'];
+// Non exportée (25/08, même chantier) : réellement utilisée, mais
+// uniquement en interne (isCadenceIntentEligible ci-dessous) — jamais
+// importée ailleurs, `isCadenceIntentEligible` étant la vraie porte
+// d'entrée publique.
+const CADENCE_INTENT_INELIGIBLE_ACTIVITIES = ['Musculation'];
 export const isCadenceIntentEligible = (activityKey) =>
   !CADENCE_INTENT_INELIGIBLE_ACTIVITIES.includes(activityKey);
 
