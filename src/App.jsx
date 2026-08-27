@@ -561,7 +561,7 @@ function AppContent({
   // `isAuthModalOpen` vivait ici (state local) avant le chantier "centraliser
   // les modales" (25/07) — dérivée maintenant de ModalContext
   // (`activeModal === 'AUTH'`), voir ModalContainer.jsx.
-  const { user, signUp, signIn, signOut, resetPassword, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, username, usernameLoading, checkUsernameAvailable, setUsername, profilePrivacy, updatePrivacySettings } = useAuthContext();
+  const { user, signUp, signIn, signOut, resetPassword, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, userCount, username, usernameLoading, checkUsernameAvailable, setUsername, profilePrivacy, updatePrivacySettings } = useAuthContext();
 
   // RETOUR DIRECT ("pas de message d'erreur quand je clique sur un lien
   // expiré ?") — Supabase redirige bien vers l'app avec le détail de
@@ -1989,6 +1989,7 @@ function AppContent({
                 updatePassword={updatePassword} exportUserData={exportUserData} deleteAccount={deleteAccount}
                 username={username} usernameLoading={usernameLoading} checkUsernameAvailable={checkUsernameAvailable} setUsername={setUsername}
                 profilePrivacy={profilePrivacy} updatePrivacySettings={updatePrivacySettings}
+                userCount={userCount}
                 isNaughtyMode={isNaughtyMode} showToast={showToast} changeView={changeView}
                 onViewOwnProfile={() => handleViewProfile(username)}
                 initialTab={settingsInitialTab}
