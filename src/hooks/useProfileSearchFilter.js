@@ -80,11 +80,31 @@ function extractDurationMinutes(row) {
   return Math.round((content.totalDuration || 0) / 60);
 }
 
+// Nombre de fois où CETTE playlist a été marquée comme faite (retour
+// direct, 27/08 : "filtrer par statut... si utilisée, avoir en priorité
+// celles utilisées le plus"). `null` pour une ROUTINE — même principe que
+// `extractDurationMinutes` ci-dessus pour une routine en mode distance :
+// une routine n'est qu'une CONFIG jamais encore lancée elle-même (voir
+// PublicItemCard, ProfileView.jsx — "une routine n'a jamais été générée"),
+// la notion même de "faite N fois" n'a pas de sens pour elle. `null`
+// plutôt que `0` : exclue de tout filtre de statut précis (comme "aucun
+// bucket de durée" pour une routine en distance), jamais comptée à tort
+// comme "jamais faite".
+function extractCompletionsCount(row) {
+  if (row.kind === 'routine') return null;
+  const content = row.content || {};
+  return Array.isArray(content.completions) ? content.completions.length : 0;
+}
+
 export function useProfileSearchFilter(items) {
   const [searchText, setSearchText] = useState('');
   const [durationFilter, setDurationFilter] = useState('all'); // 'all' | 'short' | 'medium' | 'long'
   const [sportFilter, setSportFilter] = useState('all');
   const [genreFilter, setGenreFilter] = useState('all');
+  // 'all' | 'done' | 'not_done' — voir extractCompletionsCount plus haut
+  // pour pourquoi une routine n'est concernée par AUCUNE des 2 valeurs
+  // précises (toujours exclue de 'done'/'not_done', jamais de 'all').
+  const [statusFilter, setStatusFilter] = useState('all');
 
   // Enrichissement une seule fois par changement de `items` — évite de
   // ré-extraire genres/durée à chaque frappe dans le champ de recherche
@@ -112,6 +132,7 @@ export function useProfileSearchFilter(items) {
       description: row.kind === 'routine' ? '' : (content.description || '').toLowerCase(),
       genres: extractGenres(row),
       durationMinutes: extractDurationMinutes(row),
+      completionsCount: extractCompletionsCount(row),
     };
   }), [items]);
 
@@ -126,7 +147,7 @@ export function useProfileSearchFilter(items) {
 
   const filteredItems = useMemo(() => {
     const text = searchText.trim().toLowerCase();
-    return enriched
+    const filtered = enriched
       .filter(e => {
         if (text) {
           const matchesText = e.name.includes(text)
@@ -141,19 +162,38 @@ export function useProfileSearchFilter(items) {
           if (e.durationMinutes == null) return false;
           if (!DURATION_BUCKETS[durationFilter](e.durationMinutes)) return false;
         }
+        // Statut (27/08) — même principe que le filtre durée juste au-dessus
+        // pour une routine (`durationMinutes == null` → exclue dès qu'un
+        // bucket précis est demandé) : `completionsCount == null` (routine)
+        // exclue dès que 'done'/'not_done' est demandé, jamais de 'all'.
+        if (statusFilter !== 'all') {
+          if (e.completionsCount == null) return false;
+          if (statusFilter === 'done' && e.completionsCount === 0) return false;
+          if (statusFilter === 'not_done' && e.completionsCount > 0) return false;
+        }
         return true;
-      })
-      .map(e => e.row);
-  }, [enriched, searchText, sportFilter, genreFilter, durationFilter]);
+      });
+    // Tri par nombre de fois jouée, décroissant — UNIQUEMENT quand on
+    // regarde spécifiquement "Déjà faites" (retour direct : "si il a
+    // utilisé, avoir en priorité celles utilisées le plus") : un ordre
+    // par popularité n'a de sens que dans ce sous-ensemble précis, pas
+    // comme tri global par défaut (qui casserait l'ordre naturel habituel
+    // des 2 autres statuts, jamais demandé ici).
+    if (statusFilter === 'done') {
+      filtered.sort((a, b) => b.completionsCount - a.completionsCount);
+    }
+    return filtered.map(e => e.row);
+  }, [enriched, searchText, sportFilter, genreFilter, durationFilter, statusFilter]);
 
   const hasActiveFilters = searchText.trim() !== ''
-    || durationFilter !== 'all' || sportFilter !== 'all' || genreFilter !== 'all';
+    || durationFilter !== 'all' || sportFilter !== 'all' || genreFilter !== 'all' || statusFilter !== 'all';
 
   const resetFilters = () => {
     setSearchText('');
     setDurationFilter('all');
     setSportFilter('all');
     setGenreFilter('all');
+    setStatusFilter('all');
   };
 
   return {
@@ -161,6 +201,7 @@ export function useProfileSearchFilter(items) {
     durationFilter, setDurationFilter,
     sportFilter, setSportFilter,
     genreFilter, setGenreFilter,
+    statusFilter, setStatusFilter,
     availableSports, availableGenres,
     filteredItems, hasActiveFilters, resetFilters,
   };
