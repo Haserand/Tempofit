@@ -405,7 +405,11 @@ export {
   AVAILABLE_ICONS,
   AUTO_GEN_OPTIONS,
   DISTRIBUTION_COLORS,
-  BPM_BUCKET_COLORS,
+  // `BPM_BUCKET_COLORS` retiré de cet export le 25/08 (même chantier que
+  // musicEngine.js) : réellement utilisé, mais uniquement en interne, via
+  // `getBpmBucketColor` — jamais importé directement par aucun autre
+  // fichier (vérifié). `getBpmBucketColor` reste la seule vraie porte
+  // d'entrée publique.
   getBpmBucketColor,
   getBpmBucketStart,
   getBpmBucketLabel,
