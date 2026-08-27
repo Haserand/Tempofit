@@ -29,7 +29,7 @@
  * sans risque (même logique que `searchWorldMusicApi` conservée dans App.jsx).
  */
 
-import { ARTIST_CATALOG, DEEZER_GENRE_KEYWORDS, WEAK_DEEZER_KEYWORD_GENRES, GENRES_NEEDING_DEEP_CATALOG_SEARCH, isDirectGenreMatch, genreRoughlyMatches, detectTitleStyleConflict, detectLanguageVersionConflict, isLiveOrPerformanceVersion } from '../musicCatalog';
+import { ARTIST_CATALOG, DEEZER_GENRE_KEYWORDS, WEAK_DEEZER_KEYWORD_GENRES, GENRES_NEEDING_DEEP_CATALOG_SEARCH, genreRoughlyMatches, classifyGenreMatchTier, detectTitleStyleConflict, detectLanguageVersionConflict, isLiveOrPerformanceVersion } from '../musicCatalog';
 import { getActivityEmoji } from '../appConfig';
 import { formatDuration } from '../utils/format';
 import { debugLog } from '../utils/debugLog';
@@ -1296,18 +1296,17 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
     // mot dans le titre).
     const titleConflictFree = (t) => (!t._deezerId && !t._isLocalDB) || (!detectTitleStyleConflict(t.title, effectiveGenres) && !detectLanguageVersionConflict(t.title, effectiveGenres));
     const favoritesPool = availablePool.filter(t => !t._deezerId && !t._isLocalDB && effectiveGenres.some(g => genreRoughlyMatches(t.genre, g)));
-    const deezerDirectPool = availablePool.filter(t => t._deezerId && titleConflictFree(t) && effectiveGenres.some(g => isDirectGenreMatch(t.genre, g)));
+    // `classifyGenreMatchTier` (extrait le 27/08, voir sa docstring dans
+    // musicCatalog.js — même décision auparavant réécrite indépendamment
+    // ici et dans searchEngine.js) : 0 = correspondance directe, 1 =
+    // équivalence uniquement. Remplace l'ancien couple `isDirectGenreMatch`/
+    // `genreRoughlyMatches` + le `Set` d'exclusion ci-dessous (devenu
+    // inutile : un tier 1 exclut DÉJÀ par construction tout ce qui est
+    // tier 0, pas besoin de le retirer une 2e fois après coup).
+    const deezerDirectPool = availablePool.filter(t => t._deezerId && titleConflictFree(t) && classifyGenreMatchTier(t.genre, effectiveGenres) === 0);
     const localPoolMatches = availablePool.filter(t => t._isLocalDB && titleConflictFree(t) && !t._genreMismatch);
-    // Optimisation (03/08, check-up perf) — `deezerDirectPool.includes(t)`
-    // (recherche linéaire, O(m)) remplacé par `deezerDirectPoolSet.has(t)`
-    // (O(1)) : cette boucle `while` tourne une fois par titre sélectionné,
-    // et CE filtre en particulier était le seul des 4 à re-scanner un
-    // tableau dérivé À L'INTÉRIEUR de son propre filtre — équivalence
-    // stricte de comportement (`Set` construit sur les MÊMES références
-    // d'objets que `deezerDirectPool`, donc `.has(t)` teste exactement la
-    // même égalité par référence que `.includes(t)` faisait).
-    const deezerDirectPoolSet = new Set(deezerDirectPool);
-    const equivalencePool = availablePool.filter(t => t._deezerId && titleConflictFree(t) && !deezerDirectPoolSet.has(t) && effectiveGenres.some(g => genreRoughlyMatches(t.genre, g)));
+    const equivalencePool = availablePool.filter(t => t._deezerId && titleConflictFree(t) && classifyGenreMatchTier(t.genre, effectiveGenres) === 1);
+
 
     let searchPool, matchLevel;
     if (favoritesPool.length > 0) { searchPool = favoritesPool; matchLevel = 'favoris'; }
