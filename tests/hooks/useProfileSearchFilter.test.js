@@ -186,4 +186,56 @@ describe('useProfileSearchFilter', () => {
     expect(result.current.hasActiveFilters).toBe(false);
     expect(result.current.filteredItems).toEqual([playlistA, playlistB]);
   });
+
+  // NOUVEAU (27/08, retour direct — "filtrer par statut... si utilisé,
+  // avoir en priorité celles utilisées le plus").
+  describe('statusFilter', () => {
+    const playlistDone3x = {
+      id: 'pl-done-3', kind: 'playlist',
+      content: { name: 'Souvent jouée', workoutType: 'Course à pied', totalDuration: 1200, tracks: [], completions: ['2026-01-01', '2026-02-01', '2026-03-01'] },
+    };
+    const playlistDone1x = {
+      id: 'pl-done-1', kind: 'playlist',
+      content: { name: 'Jouée une fois', workoutType: 'Course à pied', totalDuration: 1200, tracks: [], completions: ['2026-01-01'] },
+    };
+    const playlistNeverDone = {
+      id: 'pl-never', kind: 'playlist',
+      content: { name: 'Jamais lancée', workoutType: 'Course à pied', totalDuration: 1200, tracks: [], completions: [] },
+    };
+
+    it('"done" ne garde que les playlists avec au moins une complétion, triées par nombre de fois jouée décroissant', () => {
+      const { result } = renderFilter([playlistNeverDone, playlistDone1x, playlistDone3x]);
+      act(() => result.current.setStatusFilter('done'));
+      expect(result.current.filteredItems).toEqual([playlistDone3x, playlistDone1x]);
+    });
+
+    it('"not_done" ne garde que les playlists jamais complétées', () => {
+      const { result } = renderFilter([playlistNeverDone, playlistDone1x, playlistDone3x]);
+      act(() => result.current.setStatusFilter('not_done'));
+      expect(result.current.filteredItems).toEqual([playlistNeverDone]);
+    });
+
+    it('une ROUTINE est exclue de "done" ET de "not_done" (la notion de "faite" n\'a pas de sens pour elle) mais reste visible sur "all"', () => {
+      const { result } = renderFilter([playlistDone1x, routineDistance]);
+      expect(result.current.filteredItems).toEqual([playlistDone1x, routineDistance]);
+      act(() => result.current.setStatusFilter('done'));
+      expect(result.current.filteredItems).toEqual([playlistDone1x]);
+      act(() => result.current.setStatusFilter('not_done'));
+      expect(result.current.filteredItems).toEqual([]);
+    });
+
+    it('"all" (par défaut) ne trie PAS par popularité — ordre d\'origine conservé', () => {
+      const { result } = renderFilter([playlistDone1x, playlistDone3x]);
+      expect(result.current.filteredItems).toEqual([playlistDone1x, playlistDone3x]);
+    });
+
+    it('statusFilter fait partie de hasActiveFilters/resetFilters', () => {
+      const { result } = renderFilter([playlistDone1x]);
+      act(() => result.current.setStatusFilter('done'));
+      expect(result.current.hasActiveFilters).toBe(true);
+      act(() => result.current.resetFilters());
+      expect(result.current.statusFilter).toBe('all');
+      expect(result.current.hasActiveFilters).toBe(false);
+    });
+  });
 });
