@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
-import { List, Library, Plus, Calendar, CheckCircle, ChevronLeft, ChevronRight, ListPlus } from 'lucide-react';
+import { List, Library, Plus, Calendar, CheckCircle, ChevronLeft, ChevronRight, ListPlus, Search, SlidersHorizontal, ChevronDown, X, SearchX } from 'lucide-react';
 import PlaylistCard from './PlaylistCard';
 import RoutinesView from './RoutinesView';
 import ViewHeader from '../shared/ViewHeader';
 import TabPills from '../shared/TabPills';
+import { useProfileSearchFilter } from '../../hooks/useProfileSearchFilter';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 
 /**
@@ -117,10 +118,17 @@ export default function PlaylistsView({
   // et celle de ce fichier) : `null` = onglet "Séances" par défaut.
   initialTab = null,
 }) {
-  const { cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
+  const { cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass, inputBg, inputBorder } = theme;
   const [draggedId, setDraggedId] = useState(null);
   const [plannedPage, setPlannedPage] = useState(0);
   const [completedPage, setCompletedPage] = useState(0);
+  // Barre de filtres pliable (retour direct, 27/08 : "le système de filtres
+  // du compte vitrine devrait-il être adapté pour Mes Playlists ?" — même
+  // constat que ProfileView.jsx : aucune recherche/filtre ici alors que
+  // cette collection PERSONNELLE est potentiellement bien plus grosse que
+  // ce qui est exposé publiquement) — même state/composant que
+  // ProfileView.jsx pour un comportement identique.
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   // Ordre d'affichage de la section "Terminées" (retour direct, 27/08 :
   // "filtrer par statut... si utilisé, avoir en priorité celles utilisées
   // le plus") — 'recent' (comportement historique, inchangé par défaut :
@@ -183,7 +191,46 @@ export default function PlaylistsView({
   // undefined/false en booléen propre avant comparaison (playlists
   // anciennes sans ce champ), même garde-fou déjà en place dans
   // StatsView.jsx pour le même filtre.
-  //
+  const visiblePlaylists = useMemo(
+    () => savedPlaylists.filter(p => !!p.isNaughty === !!isNaughtyMode),
+    [savedPlaylists, isNaughtyMode]
+  );
+
+  // Recherche & filtres (retour direct, 27/08) — réutilise TEL QUEL le hook
+  // déjà écrit/testé pour ProfileView.jsx, plutôt qu'une 2e implémentation
+  // dupliquée. Ce hook attend un format "ligne" (`row.content.xxx`,
+  // `row.kind`) pensé pour des lignes Supabase brutes — `savedPlaylists`,
+  // ici, sont des objets LOCAUX À PLAT (`p.name` directement, pas
+  // `p.content.name`). Enveloppés à la volée (`{ content: p, kind:
+  // 'playlist' }`) plutôt que de généraliser le hook ou de dupliquer sa
+  // logique : la forme la plus étroite, la moins risquée — `ProfileView.jsx`
+  // n'est pas touché, ce hook continue de recevoir EXACTEMENT ce qu'il
+  // recevait avant dans les deux fichiers qui l'utilisent maintenant.
+  // `kind: 'playlist'` toujours — cette vue n'exerce jamais la branche
+  // "routine" du hook (les routines ont leur propre onglet, RoutinesView.jsx,
+  // pas touché ici).
+  // ⚠️ Le filtre "Statut" du hook (statusFilter) n'est PAS exposé ici — ce
+  // serait redondant : cette vue a déjà MIEUX qu'un simple "fait/pas fait"
+  // (3 sections À planifier/Planifiées/Terminées, qui encodent aussi
+  // l'aspect temporel). `statusFilter` reste à sa valeur par défaut ('all'),
+  // jamais modifié depuis ce fichier — no-op silencieux, comportement du
+  // hook inchangé pour cette vue.
+  const searchableItems = useMemo(
+    () => visiblePlaylists.map(p => ({ content: p, kind: 'playlist' })),
+    [visiblePlaylists]
+  );
+  const {
+    searchText, setSearchText,
+    durationFilter, setDurationFilter,
+    sportFilter, setSportFilter,
+    genreFilter, setGenreFilter,
+    availableSports, availableGenres,
+    filteredItems: filteredWrappedItems, hasActiveFilters, resetFilters,
+  } = useProfileSearchFilter(searchableItems);
+  // Désenveloppé aussitôt — le reste de ce fichier continue de manipuler de
+  // vrais objets playlist locaux, jamais la forme "ligne" du hook.
+  const searchedPlaylists = useMemo(() => filteredWrappedItems.map(row => row.content), [filteredWrappedItems]);
+
   // ⚠️ OPTIMISATION (audit perf, 07/08 — même famille exacte que le
   // correctif déjà fait dans RoutinesView.jsx le 05/08, généralisé ici
   // après l'avoir cherché ailleurs dans l'app comme le veut l'habitude de
@@ -192,14 +239,19 @@ export default function PlaylistsView({
   // composant (pas de `useMemo`) — y compris un rendu déclenché par
   // `draggedId`/`plannedPage`/`completedPage` (state local à ce même
   // composant, sans rapport avec le CONTENU de `savedPlaylists`).
-  // Memoïsé sur `[savedPlaylists, isNaughtyMode]` : ne se recalcule plus
-  // que quand la liste ou le mode changent vraiment.
-  const { visiblePlaylists, toPlan, planned, completedPlaylists, playlistRankMap } = useMemo(() => {
-    const visible = savedPlaylists.filter(p => !!p.isNaughty === !!isNaughtyMode);
-    const toPlanList = visible.filter(p => !isCompleted(p) && !p.plannedDate);
-    const plannedList = [...visible.filter(p => !isCompleted(p) && p.plannedDate)]
+  // ⚠️ Base de la répartition changée le 27/08 : `searchedPlaylists` (déjà
+  // filtré par mode ET par recherche/sport/genre/durée) plutôt que
+  // `visiblePlaylists` brut — chaque section ne montre plus que ce qui
+  // correspond à la recherche en cours. `playlistRankMap`, LUI, reste
+  // calculé sur `visiblePlaylists` EN ENTIER (pas `searchedPlaylists`) :
+  // un badge or/argent/bronze est un classement PERMANENT parmi toutes tes
+  // playlists de ce mode, il n'a aucune raison de changer/disparaître
+  // parce qu'une recherche est en cours.
+  const { toPlan, planned, completedPlaylists, playlistRankMap } = useMemo(() => {
+    const toPlanList = searchedPlaylists.filter(p => !isCompleted(p) && !p.plannedDate);
+    const plannedList = [...searchedPlaylists.filter(p => !isCompleted(p) && p.plannedDate)]
       .sort((a, b) => a.plannedDate.localeCompare(b.plannedDate));
-    const completedList = [...visible.filter(isCompleted)].sort((a, b) => {
+    const completedList = [...searchedPlaylists.filter(isCompleted)].sort((a, b) => {
       // Tri par NOMBRE de fois jouée (retour direct, 27/08) — même donnée
       // que le classement plus bas (playlistRankMap), juste appliquée ici à
       // l'ORDRE d'affichage plutôt qu'à la seule bordure des cartes.
@@ -212,17 +264,18 @@ export default function PlaylistsView({
     });
     // Classement par nombre d'utilisations, uniquement parmi celles ayant
     // déjà été faites au moins une fois — sert à la bordure or/argent/
-    // bronze. Calculé sur la liste COMPLÈTE (pas juste la page affichée),
-    // sinon le classement changerait selon la page consultée.
+    // bronze. Calculé sur `visiblePlaylists` (TOUT le mode, pas juste le
+    // sous-ensemble recherché/affiché) — sinon le classement changerait
+    // selon la page ET la recherche en cours.
     // `Map` id → rang (O(1) par carte) plutôt qu'un `playlistRanks
     // .indexOf(playlist.id)` recalculé DANS la boucle `.map()` de
     // `renderCard` (voir plus bas) — O(n) par carte, donc O(n²) au total
     // pour toute la grille, exactement le même piège déjà corrigé dans
     // RoutinesView.jsx (`routineRankMap`).
-    const ranked = [...completedList].sort((a, b) => b.completions.length - a.completions.length);
+    const ranked = [...visiblePlaylists.filter(isCompleted)].sort((a, b) => b.completions.length - a.completions.length);
     const rankMap = new Map(ranked.map((p, i) => [p.id, i]));
-    return { visiblePlaylists: visible, toPlan: toPlanList, planned: plannedList, completedPlaylists: completedList, playlistRankMap: rankMap };
-  }, [savedPlaylists, isNaughtyMode, completedSortMode]);
+    return { toPlan: toPlanList, planned: plannedList, completedPlaylists: completedList, playlistRankMap: rankMap };
+  }, [searchedPlaylists, visiblePlaylists, completedSortMode]);
 
   const { pageItems: plannedPageItems, totalPages: plannedTotalPages, safePage: plannedSafePage } = usePageSlice(planned, plannedPage);
   const { pageItems: completedPageItems, totalPages: completedTotalPages, safePage: completedSafePage } = usePageSlice(completedPlaylists, completedPage);
@@ -367,6 +420,84 @@ export default function PlaylistsView({
           bloc centralisé désormais, dans Sidebar.jsx (persistante sur toutes
           les vues) — voir son commentaire pour le raisonnement complet. */}
 
+      {/* Recherche & filtres (retour direct, 27/08) — MÊME markup que
+          ProfileView.jsx (barre de recherche toujours visible, filtres
+          sport/genre/durée repliables derrière un bouton) : cohérence
+          visuelle avec l'endroit d'où l'idée est partie. Affichée
+          UNIQUEMENT sur l'onglet Playlists (`activeTab === 'playlist'`,
+          jamais pour l'onglet Routines) ET seulement s'il y a au moins une
+          playlist à filtrer — pas la peine de montrer une barre de
+          recherche vide sur une collection vide (voir `isEmpty`, qui régit
+          l'état vide juste en dessous). */}
+      {activeTab === 'playlist' && !isEmpty && (
+        <div className="space-y-3">
+          <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border ${inputBorder} ${inputBg}`}>
+            <Search size={18} className={textMuted} />
+            <input
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="Rechercher un titre, un sport, un style..."
+              className={`flex-1 bg-transparent outline-hidden text-sm ${textHighlight}`}
+            />
+            <button
+              onClick={() => setFiltersExpanded(v => !v)}
+              className={`flex items-center gap-1 text-xs font-bold shrink-0 ${filtersExpanded ? textColorClass : textMuted} hover:text-main transition-colors`}
+              title={filtersExpanded ? "Masquer les filtres" : "Plus de filtres"}
+            >
+              <SlidersHorizontal size={15} />
+              <ChevronDown size={14} className={`transition-transform ${filtersExpanded ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+
+          {filtersExpanded && (
+            <div className="flex flex-wrap items-center gap-2">
+              {availableSports.length > 0 && (
+                <select
+                  value={sportFilter}
+                  onChange={(e) => setSportFilter(e.target.value)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold border ${cardBorder} ${inputBg} ${textMuted} outline-hidden cursor-pointer`}
+                >
+                  <option value="all">Tous les sports</option>
+                  {availableSports.map(sport => <option key={sport} value={sport}>{sport}</option>)}
+                </select>
+              )}
+
+              {availableGenres.length > 0 && (
+                <select
+                  value={genreFilter}
+                  onChange={(e) => setGenreFilter(e.target.value)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold border ${cardBorder} ${inputBg} ${textMuted} outline-hidden cursor-pointer`}
+                >
+                  <option value="all">Tous les genres</option>
+                  {availableGenres.map(genre => <option key={genre} value={genre}>{genre}</option>)}
+                </select>
+              )}
+
+              <select
+                value={durationFilter}
+                onChange={(e) => setDurationFilter(e.target.value)}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold border ${cardBorder} ${inputBg} ${textMuted} outline-hidden cursor-pointer`}
+              >
+                <option value="all">Toutes durées</option>
+                <option value="short">Moins de 30 min</option>
+                <option value="medium">30-60 min</option>
+                <option value="long">Plus de 60 min</option>
+              </select>
+
+              {hasActiveFilters && (
+                <button
+                  onClick={resetFilters}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold ${textMuted} hover:text-red-500 transition-colors`}
+                >
+                  <X size={13} /> Réinitialiser
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {activeTab === 'routine' ? (
         <RoutinesView
           theme={theme} isNaughtyMode={isNaughtyMode} routines={routines} setRoutines={setRoutines}
@@ -386,6 +517,18 @@ export default function PlaylistsView({
               <p className={`text-sm mb-6 max-w-sm mx-auto ${textMuted}`}>Génère une playlist et sauvegarde-la pour la retrouver ici.</p>
               <button onClick={() => changeView('generator')} className={`px-6 py-3 rounded-xl font-bold text-white shadow-md transition-colors ${bgAccentClass} hover:brightness-110`}>
                 Générer ma première playlist
+              </button>
+            </div>
+          ) : searchedPlaylists.length === 0 ? (
+            // État vide DISTINCT de "aucune playlist sauvegardée" (isEmpty
+            // ci-dessus) — retour direct, 27/08, même principe que
+            // ProfileView.jsx : la collection n'est pas vide, c'est la
+            // recherche/les filtres actuels qui ne matchent rien.
+            <div className="py-16 text-center">
+              <SearchX size={40} className={`mx-auto mb-3 ${textMuted}`} />
+              <p className={`text-sm mb-3 ${textMuted}`}>Aucune playlist ne correspond à ta recherche.</p>
+              <button onClick={resetFilters} className={`text-xs font-bold ${textColorClass} hover:underline`}>
+                Réinitialiser les filtres
               </button>
             </div>
           ) : (
