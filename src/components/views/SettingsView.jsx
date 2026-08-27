@@ -51,7 +51,7 @@ import { supabase } from '../../supabaseClient';
  * automatiquement vers `music` si le Mode Intime s'active PENDANT que
  * l'onglet Profil est déjà ouvert.
  */
-export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, isNaughtyMode, showToast, changeView, username, usernameLoading, checkUsernameAvailable, setUsername, profilePrivacy, updatePrivacySettings, onViewOwnProfile, initialTab = null }) {
+export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpotifyToken, spotifyRedirectUri, user, updateEmail, updatePassword, exportUserData, deleteAccount, isSupabaseConfigured, userCount, isNaughtyMode, showToast, changeView, username, usernameLoading, checkUsernameAvailable, setUsername, profilePrivacy, updatePrivacySettings, onViewOwnProfile, initialTab = null }) {
   const { cardBg, cardBorder, textHighlight, textMuted, inputBorder, inputBg, textColorClass } = theme;
 
   // Onglet actif — `initialTab` (03/08, "cliquer sur mon compte" depuis le
@@ -897,6 +897,29 @@ export default function SettingsView({ theme, spotifyToken, loginSpotify, setSpo
               </>
             ) : null}
           </div>
+          )}
+
+          {/* Bloc 2bis — Compteur de comptes créés (25/08, fonctionnalité
+              terminée — la récupération existait déjà côté AuthContext.jsx
+              depuis un moment, `get_registered_users_count`, mais rien ne
+              l'affichait plus nulle part : un aller-retour réseau à chaque
+              connexion pour un chiffre jamais montré à personne).
+              Volontairement DISCRET (pas de carte, juste une ligne de texte
+              muette) et réservé aux comptes CONNECTÉS (`user &&`) — décision
+              actée après discussion : un compteur affiché PUBLIQUEMENT (à un
+              visiteur pas encore connecté) ne rassure que si le chiffre est
+              déjà grand, ce qui n'est pas le cas tant que ce projet n'a pas
+              d'utilisateurs réels ; l'afficher publiquement demanderait en
+              plus d'ouvrir `get_registered_users_count` aux visiteurs
+              anonymes côté Supabase (RLS/permissions), un vrai chantier de
+              sécurité à part, pas juste un changement d'UI. `userCount` reste
+              `null` tant qu'il n'a pas encore été récupéré (ou si Supabase
+              n'est pas configuré) — rien affiché dans ce cas, pas de "0"
+              trompeur pendant le chargement. */}
+          {user && userCount != null && (
+            <p className={`text-xs text-center ${textMuted}`}>
+              🎉 {userCount} {userCount > 1 ? 'comptes créés' : 'compte créé'} sur TempoFit jusqu'ici.
+            </p>
           )}
 
           {/* Bloc 3 — Données personnelles (RGPD, portabilité) — NOUVEAU.
