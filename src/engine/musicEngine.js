@@ -584,10 +584,21 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   //    la recherche libre). `favorites.tracks` contient désormais des objets complets
   //    (bpm, extrait audio...) et non plus juste des noms, ce qui permet de les
   //    utiliser réellement ici plutôt que comme simple affichage.
+  //
+  // GARDE-FOU GENRE AJOUTÉ (retour direct du 27/08, capture à l'appui —
+  // "Mr. Brightside" (Rock) sorti d'une génération 100% Rap demandée) :
+  // jusqu'ici, un titre favori suffisait à lui seul (BPM correct), sans
+  // aucune vérification de genre — incohérent avec le garde-fou DÉJÀ posé
+  // juste en dessous pour les ARTISTES favoris (étape 1.5, trouvé après le
+  // même genre de bug avec "Stan"/Eminem). Décision produit explicitement
+  // inversée : un favori doit désormais aussi correspondre au genre
+  // demandé, sinon il est écarté ici et retombe dans la cascade normale
+  // (Spotify/Deezer/catalogue) comme n'importe quel autre candidat.
   if (favorites && Array.isArray(favorites.tracks) && favorites.tracks.length > 0) {
     const perfectFavoriteTracks = favorites.tracks.filter(t =>
       typeof t === 'object' && t.bpm >= minBpm && t.bpm <= maxBpm &&
-      !excludeTrackIds.includes(t.trackId)
+      !excludeTrackIds.includes(t.trackId) &&
+      selectedGenres.some(g => genreRoughlyMatches(t.genre, g))
     );
     if (perfectFavoriteTracks.length > 0) {
       // `_fromFavorites` : marqueur ajouté sur une COPIE (pas de mutation directe
@@ -1241,7 +1252,17 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
   // PRIORITÉ RAFFINÉE UNE 2E FOIS (sur demande explicite : "je veux que Deezer en
   // direct soit toujours privilégié sur mon catalogue codé en dur, qui ne doit
   // servir qu'en dernier recours dans sa propre catégorie") — 4 niveaux maintenant :
-  //   1. FAVORIS/Spotify : choix explicites de l'utilisateur, jamais concurrencés.
+  //   1. FAVORIS/Spotify : choix explicites de l'utilisateur, mais désormais
+  //      soumis à la MÊME condition de genre que les autres sources (retour
+  //      direct du 27/08, capture à l'appui — "Mr. Brightside" (Rock) sorti
+  //      d'une génération 100% Rap demandée) : un favori qui ne correspond
+  //      pas, même par équivalence, au genre demandé est écarté de cette
+  //      priorité — il retombe hors du pool de sélection, comme n'importe
+  //      quel autre candidat hors-genre (les 3 autres paliers ci-dessous
+  //      exigent tous `_deezerId`/`_isLocalDB`, jamais posés sur un favori,
+  //      donc il n'y réapparaît pas non plus). Comportement d'origine
+  //      (priorité ABSOLUE, y compris hors-genre) explicitement abandonné —
+  //      décision produit inversée, pas un correctif silencieux.
   //   2. Deezer EN DIRECT, genre confirmé : la vraie source "fraîche", privilégiée
   //      sur le catalogue local même quand les deux ont un genre tout aussi valide.
   //   3. CATALOGUE LOCAL (déjà vérifié par Deezer, voir plus haut) : utilisé
@@ -1260,7 +1281,7 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
     // favoris explicites (choix délibéré de l'utilisateur, jamais annulé par un
     // mot dans le titre).
     const titleConflictFree = (t) => (!t._deezerId && !t._isLocalDB) || (!detectTitleStyleConflict(t.title, effectiveGenres) && !detectLanguageVersionConflict(t.title, effectiveGenres));
-    const favoritesPool = availablePool.filter(t => !t._deezerId && !t._isLocalDB);
+    const favoritesPool = availablePool.filter(t => !t._deezerId && !t._isLocalDB && effectiveGenres.some(g => genreRoughlyMatches(t.genre, g)));
     const deezerDirectPool = availablePool.filter(t => t._deezerId && titleConflictFree(t) && effectiveGenres.some(g => isDirectGenreMatch(t.genre, g)));
     const localPoolMatches = availablePool.filter(t => t._isLocalDB && titleConflictFree(t) && !t._genreMismatch);
     // Optimisation (03/08, check-up perf) — `deezerDirectPool.includes(t)`
