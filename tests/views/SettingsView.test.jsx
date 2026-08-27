@@ -219,6 +219,28 @@ describe('SettingsView — onglet Mon Compte (Informations & Sécurité)', () =>
     expect(screen.queryByPlaceholderText('alex_runner')).not.toBeInTheDocument();
   });
 
+  // NOUVEAU (25/08, fonctionnalité terminée — voir App.jsx/AuthContext.jsx :
+  // la récupération existait déjà, rien ne l'affichait plus nulle part).
+  it('userCount renseigné, connecté : compteur discret affiché, au singulier/pluriel correct', () => {
+    renderOnAccountTab({ userCount: 1 });
+    expect(screen.getByText(/1 compte créé sur TempoFit/)).toBeInTheDocument();
+  });
+
+  it('userCount à plusieurs : accord au pluriel', () => {
+    renderOnAccountTab({ userCount: 42 });
+    expect(screen.getByText(/42 comptes créés sur TempoFit/)).toBeInTheDocument();
+  });
+
+  it('userCount encore null (pas récupéré) : rien affiché, pas de "0" trompeur', () => {
+    renderOnAccountTab({ userCount: null });
+    expect(screen.queryByText(/comptes? créés? sur TempoFit/)).not.toBeInTheDocument();
+  });
+
+  it('mode invité (pas connecté) : jamais affiché, même si userCount est renseigné', () => {
+    render(<SettingsView {...baseProps({ user: null, userCount: 42 })} />);
+    expect(screen.queryByText(/comptes? créés? sur TempoFit/)).not.toBeInTheDocument();
+  });
+
   it('usernameLoading=true : n\'affiche ni le formulaire ni le badge (évite le flash trompeur)', () => {
     renderOnAccountTab({ username: null, usernameLoading: true });
     expect(screen.queryByText('Choisis ton pseudonyme')).not.toBeInTheDocument();
