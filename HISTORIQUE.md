@@ -77,10 +77,13 @@ contenu perdu ni dupliqué dans ces opérations.
 ### Bloc 8 — 22/08 suite (cloneCount x4, centrage GuestModeBar/MiniPlayerBar x3, 4 refactors de composants partagés, garde-fou automatique)
 - `historique/bloc-08.md` — bloc complet (sous la limite, pas de découpe nécessaire)
 
+### Bloc 9 — 25-27/08 (audit exhaustif contextes/modales/vues, biais favoris/genre dans le moteur musical, lien Deezer externe, recherche & filtres sur Mes Playlists, classement de genre unifié)
+- `historique/bloc-09.md` — bloc complet (13 655 caractères, sous la limite de troncature réelle malgré un léger dépassement de la cible interne de 13 000 — pas jugé utile de découper pour quelques centaines de caractères)
+
 ## Blocs futurs
 
-Le prochain bloc (9) doit suivre la même convention : un ou plusieurs
-fichiers `historique/bloc-09x.md`, chacun sous ~13 000 caractères,
+Le prochain bloc (10) doit suivre la même convention : un ou plusieurs
+fichiers `historique/bloc-10x.md`, chacun sous ~13 000 caractères,
 la coupure tombant sur une frontière de session/date plutôt qu'un
 comptage aveugle de caractères — ajoutés à l'index ci-dessus au moment
 de leur création.
