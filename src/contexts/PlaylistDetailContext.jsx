@@ -117,6 +117,21 @@ export function PlaylistDetailProvider({
   const currentPlaylistIdRef = useRef(currentPlaylist?.id);
   currentPlaylistIdRef.current = currentPlaylist?.id;
 
+  // AJOUTÉ (28/08, sanity check périodique) — même famille de course que
+  // `currentPlaylistIdRef` ci-dessus, mais sur `userStats` : les 2
+  // `checkTrophies({ ...userStats, replacedTracks: ... })` de
+  // `handleReplaceTrack`/`handleReplaceTrackSameArtist` (plus bas)
+  // s'exécutent APRÈS un vrai appel réseau (`await getSingleMatchingTrack`/
+  // `await findSameArtistReplacement`) — `userStats` a largement le temps de
+  // changer PENDANT ce laps de temps par une tout autre action (terminer une
+  // séance, importer un CSV...). Utiliser le `userStats` figé au moment du
+  // clic écraserait silencieusement ce changement concurrent au moment où le
+  // trophée est (re)calculé — même risque déjà corrigé ailleurs
+  // (`useCsvImport.js`, `usePlaylistGeneration.js`, `shareImageFileWithTrophy`
+  // dans App.jsx).
+  const userStatsRef = useRef(userStats);
+  userStatsRef.current = userStats;
+
   // ⚠️ CORRECTIF DE COURSE (20/08 — "écritures concurrentes de même type sur
   // la même playlist", limite connue depuis le check-up du 10/08, voir
   // README) — cette fonction acceptait AVANT un tableau déjà entièrement
@@ -319,7 +334,7 @@ export function PlaylistDetailProvider({
     // (useUserStats.js). `handleReplaceTrackSameArtist` juste en dessous
     // fait ça correctement depuis le début (checkTrophies seulement APRÈS
     // la vérification d'annulation) — ce correctif aligne les deux.
-    checkTrophies({ ...userStats, replacedTracks: userStats.replacedTracks + 1 });
+    checkTrophies({ ...userStatsRef.current, replacedTracks: userStatsRef.current.replacedTracks + 1 });
 
     applyPlaylistUpdate(prevTracks => {
       const idx = prevTracks.findIndex(t => t.id === oldTrack.id);
@@ -372,7 +387,7 @@ export function PlaylistDetailProvider({
         showToast("Remplacement annulé : tu as changé de playlist entre-temps.");
         return;
       }
-      checkTrophies({ ...userStats, replacedTracks: userStats.replacedTracks + 1 });
+      checkTrophies({ ...userStatsRef.current, replacedTracks: userStatsRef.current.replacedTracks + 1 });
       showToast(`🎵 Remplacé par un autre titre de ${newRawTrack.artist} !`);
     }
 
