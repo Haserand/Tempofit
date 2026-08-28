@@ -1313,21 +1313,21 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
     else if (localPoolMatches.length > 0) { searchPool = localPoolMatches; matchLevel = 'local'; }
     else if (equivalencePool.length > 0) { searchPool = equivalencePool; matchLevel = 'equivalence'; }
     else {
-      // GARDE-FOU SUPPLÉMENTAIRE pour les genres au mot-clé Deezer fragile
-      // (K-pop, Musique asiatique, Bandes originales — voir
-      // WEAK_DEEZER_KEYWORD_GENRES) : retour direct après un cas réel où des
-      // artistes totalement hors-sujet (aucun rapport avec le genre demandé,
-      // absents de tout catalogue) se sont retrouvés en dernier recours sans
-      // qu'on identifie le mécanisme exact d'entrée dans le pool. Plutôt que
-      // de continuer à chercher CE mécanisme précis, on ferme la porte de
-      // force ici : pour ces genres, le dernier recours n'accepte QUE des
-      // titres venant du catalogue d'artistes (`_isLocalDB`) ou des favoris/
-      // Spotify explicites (ni `_deezerId` ni `_isLocalDB`) — jamais un
-      // résidu de recherche Deezer généraliste, quelle qu'en soit la
+      // GARDE-FOU (initialement pour K-pop/Musique asiatique/Bandes
+      // originales, voir historique — étendu depuis au fil des correctifs
+      // jusqu'à s'appliquer maintenant à TOUS les genres, `needsDeepCatalogSearch`
+      // valant `true` inconditionnellement, voir sa docstring plus haut) :
+      // retour direct après un cas réel où des artistes totalement hors-sujet
+      // (aucun rapport avec le genre demandé, absents de tout catalogue) se
+      // sont retrouvés en dernier recours sans qu'on identifie le mécanisme
+      // exact d'entrée dans le pool. Plutôt que de continuer à chercher CE
+      // mécanisme précis, on ferme la porte de force ici : le dernier recours
+      // n'accepte QUE des titres venant du catalogue d'artistes (`_isLocalDB`)
+      // ou des favoris/Spotify explicites (ni `_deezerId` ni `_isLocalDB`) —
+      // jamais un résidu de recherche Deezer généraliste, quelle qu'en soit la
       // provenance. Si même ça n'a rien à proposer, la boucle s'arrête ici
       // (pool épuisé) et le remplissage restant passe par le filet de secours
-      // de fin de fonction (`getSingleMatchingTrack`, déjà restreint de la
-      // même façon pour ces genres).
+      // de fin de fonction (`getSingleMatchingTrack`).
       // BUG RÉEL TROUVÉ (probable cause du mystère "Infected Rain"/"Mental
       // Crush" jamais expliqué, voir passation) : ce filtre réadmettait TOUT
       // titre `_isLocalDB`, y compris ceux déjà marqués `_genreMismatch` plus
