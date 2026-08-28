@@ -169,8 +169,22 @@ const DEEZER_GENRE_KEYWORDS = {
  * - 'Bandes originales' a PLUSIEURS mots-clés tentés en même temps
  *   (['soundtrack', 'films/games', 'film', 'games']), déjà signalé comme
  *   jamais confirmé avec certitude contre le vrai vocabulaire Deezer.
+ * - 'Electro' AJOUTÉ (28/08, retour direct — capture à l'appui : recherche
+ *   "Titres à ce BPM" à 140±10, Foster The People (Alternative), Gorillaz
+ *   (Rap), Michael Jackson (Pop), Eagles (Rock) et Lady Gaga (Bandes
+ *   originales) ressortis en "Genre non confirmé") — même mécanisme
+ *   qu'"asian"/Heaven 17 : la requête `bpm_min:"X" bpm_max:"Y" electro`
+ *   matche "electro" en texte libre dans des métadonnées Deezer sans
+ *   rapport avec le genre réel du titre. Confirmé qu'aucun de ces 5
+ *   artistes n'existe dans `ARTIST_CATALOG['Electro']` (voir plus haut) —
+ *   ils ne peuvent donc venir QUE de cette recherche généraliste bruitée,
+ *   jamais du catalogue. Contrairement à K-pop/Musique asiatique/Bandes
+ *   originales, "electro" reste un mot-clé PARFAITEMENT valide comme genre
+ *   (pas de collision de type "k-pop" ⊂ "pop") — le problème n'est pas le
+ *   mot lui-même, mais la recherche Deezer en TEXTE LIBRE qui l'associe à
+ *   n'importe quelle métadonnée, pas seulement au genre_id structuré.
  */
-const WEAK_DEEZER_KEYWORD_GENRES = ['K-pop', 'Musique asiatique', 'Bandes originales'];
+const WEAK_DEEZER_KEYWORD_GENRES = ['K-pop', 'Musique asiatique', 'Bandes originales', 'Electro'];
 
 /**
  * BUG CORRIGÉ (retour direct, logs de diagnostic à l'appui — recherche
