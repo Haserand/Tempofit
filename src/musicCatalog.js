@@ -191,13 +191,31 @@ const WEAK_DEEZER_KEYWORD_GENRES = ['K-pop', 'Musique asiatique', 'Bandes origin
  * de celui de `WEAK_DEEZER_KEYWORD_GENRES` (mot-clé absent ou peu fiable en
  * recherche texte) mais a la MÊME conséquence pratique : sans un renfort
  * profond par catalogue d'artistes, la plupart des résultats obtenus restent
- * mal étiquetés/hors-genre. D'où cette 2e liste, distincte, qui capture ce
- * cas précis en plus des genres déjà couverts par `WEAK_DEEZER_KEYWORD_GENRES`
- * — à utiliser PARTOUT où le code décide s'il faut déclencher une recherche
- * profonde par catalogue (searchEngine.js ET musicEngine.js, un seul endroit
- * à mettre à jour si un autre genre s'avère souffrir du même problème).
+ * mal étiquetés/hors-genre.
+ *
+ * ⚠️ RETIRÉE (28/08, retour direct — capture à l'appui : recherche "Titres à
+ * ce BPM" sur Electro à 140±10, une bonne moitié des résultats en "Genre non
+ * confirmé" malgré un tempo pourtant très courant pour ce style) — cette
+ * liste ne couvrait que 4 genres (K-pop, Musique asiatique, Bandes
+ * originales, Métal), ajoutés au fil des bugs remontés un par un, jamais par
+ * une vraie revue de tous les genres. Electro souffrait du MÊME problème
+ * (son mot-clé 'electro' matche du texte libre hors-sujet dans les
+ * métadonnées Deezer, comme 'asian' pour K-pop) sans avoir jamais été
+ * signalé. Vérification faite sur TOUT `ARTIST_CATALOG` (28/08) : aucun
+ * genre n'a un catalogue trop petit pour justifier une recherche profonde —
+ * même les plus modestes (Blues, Folk, Musique brésilienne...) comptent
+ * 33-39 artistes, la plupart 100-150. La recherche profonde par catalogue
+ * est donc désormais le comportement PAR DÉFAUT pour tous les genres, dans
+ * `searchEngine.js` ET `musicEngine.js` — plus de liste d'exceptions à tenir
+ * à jour au coup par coup. Coût accepté en connaissance de cause (retour
+ * direct, "partout") : plus d'appels réseau par recherche/génération, un
+ * risque légèrement accru de rate-limiting Deezer sur une génération à
+ * plusieurs genres (déjà rencontré une fois par le passé, voir
+ * `fetchInBatches`) — et, en génération, un dernier recours plus strict
+ * (rejette désormais un candidat au genre non confirmé au lieu de l'accepter
+ * faute de mieux, pour TOUS les genres, pas seulement les 4 ci-dessus — voir
+ * `buildSegmentTracks`, la variable `trustedOnly`).
  */
-const GENRES_NEEDING_DEEP_CATALOG_SEARCH = [...WEAK_DEEZER_KEYWORD_GENRES, 'Métal'];
 
 /**
  * Texte d'info affiché sur le panneau "+ Plus de genres", à la fois dans
@@ -694,7 +712,6 @@ export {
   EXTRA_GENRES,
   DEEZER_GENRE_KEYWORDS,
   WEAK_DEEZER_KEYWORD_GENRES,
-  GENRES_NEEDING_DEEP_CATALOG_SEARCH,
   GENRE_SEARCH_DEPTH_HINT,
   getGenreLocalDepthWarning,
   GENRE_EQUIVALENCE_GROUPS,
