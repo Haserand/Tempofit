@@ -789,11 +789,11 @@ function AppContent({
     config: { workoutName: 'Course à pied', targetMode: 'time', hours: 0, minutes: 18, bpm: 150, tolerance: 15, isIntervalMode: false, selectedGenres: ['Rock', 'Métal'] },
     totalDuration: 1138,
     tracks: [
-      { id: 'ex-track-1', segmentIndex: 1, targetSegmentBpm: 148, title: 'Mr. Brightside', artist: 'The Killers', genre: 'Rock', bpm: 148, duration: 222, trackId: 'gGdGFtwPNsQ', preview: null, startTimeStr: '0m 00s', startDistVal: 0 },
-      { id: 'ex-track-2', segmentIndex: 1, targetSegmentBpm: 145, title: 'Duality', artist: 'Slipknot', genre: 'Métal', bpm: 145, duration: 252, trackId: 'v2H4l9RpkwM', preview: null, startTimeStr: '3m 40s', startDistVal: 0.67 },
-      { id: 'ex-track-3', segmentIndex: 1, targetSegmentBpm: 180, title: 'Smash', artist: 'The Offspring', genre: 'Métal', bpm: 180, duration: 170, trackId: 'L_jWHffIx5E', preview: null, startTimeStr: '7m 50s', startDistVal: 1.42 },
-      { id: 'ex-track-4', segmentIndex: 1, targetSegmentBpm: 133, title: 'Thunderstruck', artist: 'AC/DC', genre: 'Rock', bpm: 133, duration: 292, trackId: 'v2AC41dglnM', preview: null, startTimeStr: '10m 38s', startDistVal: 1.93 },
-      { id: 'ex-track-5', segmentIndex: 1, targetSegmentBpm: 128, title: 'Chop Suey!', artist: 'System Of A Down', genre: 'Métal', bpm: 128, duration: 210, trackId: 'CSvFpBOe8eY', preview: null, startTimeStr: '15m 28s', startDistVal: 2.81 }
+      { id: 'ex-track-1', segmentIndex: 1, targetSegmentBpm: 148, title: 'Mr. Brightside', artist: 'The Killers', genre: 'Rock', bpm: 148, duration: 222, trackId: 'deezer-1041329372', preview: null, startTimeStr: '0m 00s', startDistVal: 0 },
+      { id: 'ex-track-2', segmentIndex: 1, targetSegmentBpm: 145, title: 'Duality', artist: 'Slipknot', genre: 'Métal', bpm: 145, duration: 252, trackId: 'deezer-3819908', preview: null, startTimeStr: '3m 40s', startDistVal: 0.67 },
+      { id: 'ex-track-3', segmentIndex: 1, targetSegmentBpm: 180, title: 'Smash', artist: 'The Offspring', genre: 'Métal', bpm: 180, duration: 170, trackId: 'deezer-378299661', preview: null, startTimeStr: '7m 50s', startDistVal: 1.42 },
+      { id: 'ex-track-4', segmentIndex: 1, targetSegmentBpm: 133, title: 'Thunderstruck', artist: 'AC/DC', genre: 'Rock', bpm: 133, duration: 292, trackId: 'deezer-92720102', preview: null, startTimeStr: '10m 38s', startDistVal: 1.93 },
+      { id: 'ex-track-5', segmentIndex: 1, targetSegmentBpm: 128, title: 'Chop Suey!', artist: 'System Of A Down', genre: 'Métal', bpm: 128, duration: 210, trackId: 'deezer-859699', preview: null, startTimeStr: '15m 28s', startDistVal: 2.81 }
     ]
   }, {
     // Mode Intime — 1 exemple dédié (retour direct : "manque d'exemples
@@ -1218,7 +1218,24 @@ function AppContent({
         }
       }
 
-      const demoTrackIds = ['uRyAIyq53FY', 'CSvFpBOe8eY'];
+      // ⚠️ CORRIGÉ (28/08, suite à une question directe sur l'absence du lien
+      // "écouter sur Deezer" pour la playlist de démo) — ces 2 ID ne
+      // correspondaient à AUCUN trackId réel de `favorites.tracks`
+      // (`useFavorites.js` a évolué depuis l'écriture de ce tableau sans que
+      // celui-ci soit mis à jour) : ce bloc entier était du code mort, les 2
+      // favoris de démo ("Mr. Brightside"/"Thunderstruck") ne recevaient
+      // JAMAIS d'extrait automatique au premier lancement — seul un clic
+      // manuel sur play les résolvait (via `resolveAndPlay`,
+      // useAudioPreview.js), auquel cas leur `trackId` devenait un VRAI
+      // `deezer-{id}` à ce moment-là seulement. Remis en cohérence avec les
+      // 2 mêmes trackId maintenant posés en dur dans `useFavorites.js`
+      // (`deezer-1041329372` Mr. Brightside, `deezer-92720102`
+      // Thunderstruck — mêmes ID réels que ceux de la playlist de démo
+      // ci-dessus, mêmes titres) : en plus de réactiver l'extrait
+      // automatique, ce sont maintenant de VRAIS ID Deezer dès le départ,
+      // donc le lien "écouter en entier sur Deezer" fonctionne aussi sur ces
+      // 2 favoris sans attendre un premier clic.
+      const demoTrackIds = ['deezer-1041329372', 'deezer-92720102'];
       if (favorites.tracks.some(t => demoTrackIds.includes(t.trackId) && !t.preview)) {
         const resolvedFavs = await Promise.all(favorites.tracks.map(async (t) => {
           if (!demoTrackIds.includes(t.trackId) || t.preview) return t;
