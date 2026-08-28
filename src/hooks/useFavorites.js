@@ -37,16 +37,17 @@ import { normalizeFavorites } from '../utils/favoritesNormalize';
  */
 export function useFavorites(showToast, isNaughtyMode) {
   // RETOUR DIRECT ("par défaut, est-ce pertinent de pousser vers Métal, plutôt
-  // dur à identifier ?") — 'Métal' est explicitement documenté dans
-  // musicCatalog.js (`GENRES_NEEDING_DEEP_CATALOG_SEARCH`) comme un genre
-  // fragile à rechercher : Deezer classe la quasi-totalité des titres Metal
+  // dur à identifier ?") — Deezer classe la quasi-totalité des titres Metal
   // réels sous "Rock" dans son propre système de genres, jamais "Metal" — la
   // recherche pour ce genre dépend donc d'un renfort par catalogue d'artistes,
   // plus lent et plus sujet aux erreurs de correspondance (voir le bug
-  // "Infected Rain"/"Mental Crush" de la passation précédente). Basculé sur
-  // Rock, qui n'a pas ce problème — mêmes titres déjà validés que la playlist
-  // de démo (voir App.jsx, `ex-track-1`/`ex-track-4`), pas de nouvel ID
-  // YouTube inventé ici.
+  // "Infected Rain"/"Mental Crush" de la passation précédente). ⚠️ Ce raisonnement
+  // reste vrai, mais la recherche profonde par catalogue est désormais le
+  // comportement PAR DÉFAUT pour tous les genres (28/08, voir musicCatalog.js) —
+  // "Métal" n'a donc plus ce désavantage relatif par rapport aux autres genres.
+  // Gardé sur Rock malgré tout (pas de raison de changer un choix déjà bon) —
+  // mêmes titres déjà validés que la playlist de démo (voir App.jsx,
+  // `ex-track-1`/`ex-track-4`), pas de nouvel ID YouTube inventé ici.
   const [allFavorites, setAllFavorites] = usePersistentState('favorites', () => ({
     useFavorites: true,
     standard: {
