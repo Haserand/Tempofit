@@ -41,7 +41,7 @@
  * complet — non reproduit ici pour éviter la duplication.
  */
 
-import { DEEZER_GENRE_KEYWORDS, classifyGenreMatchTier, ARTIST_CATALOG } from '../musicCatalog';
+import { DEEZER_GENRE_KEYWORDS, classifyGenreMatchTier, ARTIST_CATALOG, WEAK_DEEZER_KEYWORD_GENRES } from '../musicCatalog';
 import { deezerFetch, resolveDeezerGenre, resolveBpmForCandidates, searchArtistsForBpm, fetchInBatches } from './musicEngine';
 import { debugLog } from '../utils/debugLog';
 
@@ -387,8 +387,23 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
   // Recherche généraliste par mot-clé — traitée comme UN lot de plus parmi
   // d'autres, résolue tôt (elle est rapide, un seul appel par genre) plutôt
   // que mise de côté jusqu'à la toute fin comme avant.
+  //
+  // ⚠️ SAUTÉE PAR GENRE POUR LES GENRES AU MOT-CLÉ DEEZER FRAGILE (28/08,
+  // retour direct — capture à l'appui : recherche "Electro" à 140±10, des
+  // titres Foster The People/Gorillaz/Michael Jackson/Eagles/Lady Gaga
+  // ressortis en "Genre non confirmé", aucun d'eux dans ARTIST_CATALOG
+  // ['Electro'] — ne pouvaient venir QUE de cette recherche généraliste,
+  // "electro" matchant du texte libre hors-sujet dans les métadonnées
+  // Deezer, exactement comme "asian" pour K-pop). Contrairement à
+  // `musicEngine.js` (`allEffectiveGenresWeak`, tout-ou-rien : le bloc entier
+  // n'est sauté QUE si TOUS les genres sélectionnés sont fragiles), ici
+  // chaque genre est décidé INDÉPENDAMMENT — la structure en `map` par genre
+  // s'y prête déjà nativement, plus précis qu'un all-or-nothing sur une
+  // recherche multi-genre (ex. "Electro + Rock" : Rock garde sa recherche
+  // généraliste, seul Electro la saute).
   const genericSearchPromise = (async () => {
     const stubsByGenre = await Promise.all(genresToQuery.map(async (genre) => {
+      if (WEAK_DEEZER_KEYWORD_GENRES.includes(genre)) return [];
       const keyword = DEEZER_GENRE_KEYWORDS[genre] || '';
       const q = `bpm_min:"${minBpm}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
       const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=6`);
