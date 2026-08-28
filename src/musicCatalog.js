@@ -161,8 +161,10 @@ const DEEZER_GENRE_KEYWORDS = {
  * tente le catalogue d'artistes (recherche par ARTISTE représentatif du
  * genre, beaucoup plus fiable) AVANT la recherche Deezer généraliste par
  * mot-clé, plutôt qu'en dernier recours comme pour les genres au mot-clé
- * direct (ex. "rock", "jazz" — des mots qui correspondent vraisemblablement
- * de façon fiable au vocabulaire de genre réel de Deezer).
+ * direct (ex. "jazz", "reggae" — des mots suffisamment spécifiques au
+ * vocabulaire musical pour ne pas apparaître largement hors contexte de
+ * genre, contrairement à "rock"/"pop"/"dance"/"country"/"soul", ajoutés à
+ * cette liste le 28/08, voir plus bas).
  *
  * - 'K-pop' et 'Musique asiatique' partagent le même mot-clé ('asian'), donc
  *   le même risque.
@@ -183,8 +185,42 @@ const DEEZER_GENRE_KEYWORDS = {
  *   (pas de collision de type "k-pop" ⊂ "pop") — le problème n'est pas le
  *   mot lui-même, mais la recherche Deezer en TEXTE LIBRE qui l'associe à
  *   n'importe quelle métadonnée, pas seulement au genre_id structuré.
+ *
+ * ⚠️ GÉNÉRALISATION (28/08, même jour — 2e occurrence du motif structurel
+ * "mot-clé de genre courant en anglais, présent dans des paroles/titres sans
+ * aucun rapport avec le genre musical" : K-pop/"asian" (05/08), puis Electro
+ * (28/08). Suivant la règle déjà établie sur ce projet ("dès la 2e
+ * occurrence d'un motif, généraliser la recherche à toute la base, pas
+ * juste corriger le prochain cas signalé"), les 6 mots-clés suivants
+ * partagent le même profil de risque — mots anglais génériques, largement
+ * utilisés dans le vocabulaire courant/les paroles de chansons de TOUS
+ * genres, pas seulement comme signal de genre musical :
+ * - 'Country' ('country') — désigne aussi un PAYS ; extrêmement courant
+ *   dans des titres/paroles sans aucun rapport avec le genre (ex. "Country
+ *   Roads" n'est qu'un exemple parmi des milliers de titres qui évoquent un
+ *   pays/une région sans être de la musique country).
+ * - 'Dance & EDM' ('dance') — un des mots les plus génériques de toute la
+ *   chanson populaire, toutes époques/tous genres confondus (danser est un
+ *   thème, pas un genre).
+ * - 'Soul & Funk' ('soul') — mot d'émotion/esprit omniprésent dans les
+ *   paroles indépendamment du genre musical réel du titre.
+ * - 'Alternative' ('alternative') — souvent une simple mention de
+ *   version/mix ("Alternative Take", "Alternative Version") plutôt qu'un
+ *   signal de genre.
+ * - 'Rock' ('rock') et 'Pop' ('pop') — mots extrêmement génériques du
+ *   vocabulaire courant/des paroles ("rock the boat", "pop culture"...),
+ *   déjà documentés comme piégeurs ailleurs dans ce fichier (voir le
+ *   retrait du mot-clé 'k-pop', plus haut, PRÉCISÉMENT à cause de la
+ *   collision avec "pop").
+ * ⚠️ Contrairement à Electro/K-pop ci-dessus, AUCUNE capture d'écran/retour
+ * direct ne confirme empiriquement un faux positif réel pour CES 6 genres
+ * précis — extrapolation raisonnée par analogie linguistique, pas une
+ * observation directe. Si un de ces 6 genres s'avère en pratique ne PAS
+ * souffrir du problème (peu de bruit réel constaté), le retirer de cette
+ * liste plutôt que de laisser une règle non vérifiée s'y accumuler
+ * indéfiniment.
  */
-const WEAK_DEEZER_KEYWORD_GENRES = ['K-pop', 'Musique asiatique', 'Bandes originales', 'Electro'];
+const WEAK_DEEZER_KEYWORD_GENRES = ['K-pop', 'Musique asiatique', 'Bandes originales', 'Electro', 'Country', 'Dance & EDM', 'Soul & Funk', 'Alternative', 'Rock', 'Pop'];
 
 /**
  * BUG CORRIGÉ (retour direct, logs de diagnostic à l'appui — recherche
