@@ -184,3 +184,50 @@ describe('useCsvImport — course "2e import lancé pendant la lecture du 1er" (
     expect(setCsvUploadTargetDate).toHaveBeenCalledWith(null);
   });
 });
+
+// RÉGRESSION (28/08, sanity check périodique) — 3e occurrence du même motif
+// structurel dans ce fichier (voir la docstring de useCsvImport.js,
+// "3e COURSE CORRIGÉE") : `checkTrophies` utilisait `userStats` FIGÉ au
+// moment du clic sur l'import plutôt que sa version la plus fraîche au
+// moment où `onload` se déclenche réellement.
+describe('useCsvImport — course "userStats obsolète dans checkTrophies" (régression 28/08)', () => {
+  it('userStats ayant changé PENDANT la lecture du fichier, checkTrophies reçoit la version FRAÎCHE, pas celle figée au clic', () => {
+    const checkTrophies = vi.fn();
+    mockParseGarminCsv.mockReturnValue({ ok: true, data: [{ t: 0, cadence: 170 }], hasCadence: true, hasHeartRate: false });
+
+    const playlistA = makePlaylist({ id: 'plA' });
+    const { result, rerender } = renderCsvImportHook(
+      baseProps({ currentPlaylist: playlistA, savedPlaylists: [playlistA], userStats: { dataImports: 0 }, checkTrophies })
+    );
+
+    act(() => { result.current.handleCSVUpload(makeFakeEvent()); });
+    expect(FakeFileReader.instances).toHaveLength(1);
+
+    // Une tout autre action (ex. terminer une séance) fait évoluer
+    // userStats PENDANT que le fichier est encore en cours de lecture.
+    rerender(baseProps({ currentPlaylist: playlistA, savedPlaylists: [playlistA], userStats: { dataImports: 0, hasStreak3: true }, checkTrophies }));
+
+    // La lecture se termine enfin — APRÈS ce changement concurrent.
+    act(() => { FakeFileReader.instances[0].onload({ target: { result: 'fake,csv,content' } }); });
+
+    expect(checkTrophies).toHaveBeenCalledTimes(1);
+    const statsPassed = checkTrophies.mock.calls[0][0];
+    expect(statsPassed.hasStreak3).toBe(true); // pas perdu
+    expect(statsPassed.dataImports).toBe(1); // +1 appliqué sur la base fraîche
+  });
+
+  it('SANS changement concurrent de userStats, checkTrophies reçoit toujours dataImports incrémenté normalement (comportement inchangé)', () => {
+    const checkTrophies = vi.fn();
+    mockParseGarminCsv.mockReturnValue({ ok: true, data: [{ t: 0, cadence: 170 }], hasCadence: true, hasHeartRate: false });
+
+    const playlistA = makePlaylist({ id: 'plA' });
+    const { result } = renderCsvImportHook(
+      baseProps({ currentPlaylist: playlistA, savedPlaylists: [playlistA], userStats: { dataImports: 3 }, checkTrophies })
+    );
+
+    act(() => { result.current.handleCSVUpload(makeFakeEvent()); });
+    act(() => { FakeFileReader.instances[0].onload({ target: { result: 'fake,csv,content' } }); });
+
+    expect(checkTrophies).toHaveBeenCalledWith(expect.objectContaining({ dataImports: 4 }));
+  });
+});
