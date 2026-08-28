@@ -29,7 +29,7 @@
  * sans risque (même logique que `searchWorldMusicApi` conservée dans App.jsx).
  */
 
-import { ARTIST_CATALOG, DEEZER_GENRE_KEYWORDS, WEAK_DEEZER_KEYWORD_GENRES, GENRES_NEEDING_DEEP_CATALOG_SEARCH, genreRoughlyMatches, classifyGenreMatchTier, detectTitleStyleConflict, detectLanguageVersionConflict, isLiveOrPerformanceVersion } from '../musicCatalog';
+import { ARTIST_CATALOG, DEEZER_GENRE_KEYWORDS, WEAK_DEEZER_KEYWORD_GENRES, genreRoughlyMatches, classifyGenreMatchTier, detectTitleStyleConflict, detectLanguageVersionConflict, isLiveOrPerformanceVersion } from '../musicCatalog';
 import { getActivityEmoji } from '../appConfig';
 import { formatDuration } from '../utils/format';
 import { debugLog } from '../utils/debugLog';
@@ -1038,19 +1038,18 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
   // fiable pour ces genres) prend seul le relais, avec une profondeur de
   // recherche renforcée (voir plus bas).
   const allEffectiveGenresWeak = genresForQuery.length > 0 && genresForQuery.every(g => WEAK_DEEZER_KEYWORD_GENRES.includes(g));
-  // BUG CORRIGÉ (retour direct, logs de diagnostic à l'appui — recherche
-  // "Métal" : seulement 8 artistes testés/6 candidats au lieu de 120/10) —
-  // `allEffectiveGenresWeak` (juste au-dessus) ne capture QUE les genres sans
-  // mot-clé Deezer fiable — or "Métal" A bien un mot-clé ('metal'), donc
-  // n'était JAMAIS considéré comme ayant besoin d'une recherche profonde par
-  // catalogue, malgré tous les commentaires de cette session affirmant le
-  // contraire (jamais revérifiés directement dans musicCatalog.js). Variable
-  // séparée, dédiée à la PROFONDEUR de recherche catalogue (voir plus bas) —
-  // `allEffectiveGenresWeak` continue de ne servir qu'à la décision "sauter
-  // la recherche généraliste par mot-clé" (ligne suivante), qui elle reste
-  // valide : rien ne prouve que le mot-clé 'metal' pose le même problème de
-  // collision que 'asian' pour K-pop.
-  const needsDeepCatalogSearch = genresForQuery.length > 0 && genresForQuery.every(g => GENRES_NEEDING_DEEP_CATALOG_SEARCH.includes(g));
+  // ⚠️ RECHERCHE PROFONDE PAR CATALOGUE RENDUE PAR DÉFAUT POUR TOUS LES
+  // GENRES (28/08, retour direct — voir musicCatalog.js pour le
+  // raisonnement complet). Auparavant réservée à une courte liste de genres
+  // jugés "fragiles" (K-pop, Musique asiatique, Bandes originales, Métal) —
+  // remplacée ici par une constante locale toujours vraie, pour que les 3
+  // usages plus bas (profondeur de `searchArtistsForBpm`, plafond de
+  // `fetchInBatches`, sélectivité du dernier recours `trustedOnly`) n'aient
+  // plus besoin d'une liste d'exceptions à maintenir au coup par coup.
+  // `allEffectiveGenresWeak` (juste au-dessus) reste, LUI, inchangé — décision
+  // séparée ("sauter la recherche généraliste par mot-clé"), qui ne concerne
+  // toujours que les genres au mot-clé Deezer fragile.
+  const needsDeepCatalogSearch = true;
   // Voir la docstring de `onProgress` en tête de fonction — portée FONCTION
   // (pas juste le bloc `if` ci-dessous, où vivait déjà `genreValidDurationSoFar`
   // avant ce correctif) : le bloc CATALOGUE D'ARTISTES plus bas doit
