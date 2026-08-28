@@ -64,8 +64,22 @@ export function useFavorites(showToast, isNaughtyMode) {
       // contrairement à une playlist — voir musicEngine.js) : suffisant
       // pour rendre chaque titre identifiable individuellement.
       tracks: [
-        { id: 'gGdGFtwPNsQ', trackId: 'gGdGFtwPNsQ', title: 'Mr. Brightside', artist: 'The Killers', bpm: 148, duration: 222, preview: null, genre: 'Rock' },
-        { id: 'v2AC41dglnM', trackId: 'v2AC41dglnM', title: 'Thunderstruck', artist: 'AC/DC', bpm: 133, duration: 292, preview: null, genre: 'Rock' }
+        // ⚠️ CORRIGÉ (28/08) — `trackId`/`id` étaient auparavant des ID
+        // vidéo YouTube hérités ('gGdGFtwPNsQ'/'v2AC41dglnM', jamais de
+        // vrais ID Deezer), exactement comme les 5 titres de la playlist de
+        // démo (voir App.jsx, `playlist-example-1`) — `getDeezerTrackUrl`
+        // (deezerLink.js) ne construit un lien QUE pour un `trackId` de la
+        // forme `deezer-{id}`, donc le lien "écouter en entier sur Deezer"
+        // ne s'affichait jamais pour ces 2 favoris de démo, ni dans
+        // FavoritesView.jsx ni dans le lecteur (MiniPlayerBar.jsx). Vrais ID
+        // Deezer vérifiés : "Mr. Brightside" (The Killers, album Hot Fuss)
+        // et "Thunderstruck" (AC/DC, album The Razors Edge) — MÊMES ID que
+        // ceux posés dans App.jsx pour les mêmes titres de la playlist de
+        // démo, et dans `demoTrackIds` juste au-dessus dans App.jsx (pour
+        // que l'extrait automatique au 1er lancement continue de
+        // fonctionner).
+        { id: 'deezer-1041329372', trackId: 'deezer-1041329372', title: 'Mr. Brightside', artist: 'The Killers', bpm: 148, duration: 222, preview: null, genre: 'Rock' },
+        { id: 'deezer-92720102', trackId: 'deezer-92720102', title: 'Thunderstruck', artist: 'AC/DC', bpm: 133, duration: 292, preview: null, genre: 'Rock' }
       ]
     },
     // Mêmes titres exactement que "Late Night R&B" (App.jsx, playlist
