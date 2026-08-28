@@ -47,10 +47,7 @@ d'historique à purger plutôt qu'à découper (voir ci-dessus).
 - `readme/partie-01.md` — présentation du projet, "⚠️ À LIRE avant de
   retoucher le code" (règles de mise à jour de ce README, convention de
   taille des fichiers), "État d'avancement" (état courant UNIQUEMENT +
-  règle de purge), "Contraintes de travail", "Stack", "Décisions
-  d'architecture non évidentes en lisant juste le code" (identité des
-  playlists/routines, validation source vs consommation, confidentialité,
-  synchronisation Supabase, pseudos réservés, profil vitrine, login wall)
+  règle de purge), "Contraintes de travail", "Stack"
 - `readme/partie-02.md` — "Convention UI — règles génériques accumulées
   au fil des retours directs" (pseudo cliquable, centrage flexbox
   asymétrique, élément décoratif vs fonctionnel, mesurer plutôt que
@@ -60,6 +57,13 @@ d'historique à purger plutôt qu'à découper (voir ci-dessus).
   chantier Pulses/Leaderboard", "Décidé mais pas encore construit —
   futur champ `profile.bio`", "Tests", "À vérifier visuellement à la
   première occasion", "Autres fichiers de référence à ce niveau"
+- `readme/partie-04.md` (27/08, extrait de partie-01.md qui dépassait le
+  seuil de taille) — "Décisions d'architecture non évidentes en lisant
+  juste le code" (identité des playlists/routines, validation source vs
+  consommation, confidentialité, synchronisation Supabase, pseudos
+  réservés, profil vitrine, login wall, réutilisation de
+  `useProfileSearchFilter.js`, garde-fou genre sur les favoris,
+  `classifyGenreMatchTier` partagé, lien Deezer externe)
 
 ## Autres fichiers de référence à ce niveau
 
