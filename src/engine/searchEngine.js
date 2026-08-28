@@ -41,7 +41,7 @@
  * complet — non reproduit ici pour éviter la duplication.
  */
 
-import { DEEZER_GENRE_KEYWORDS, classifyGenreMatchTier, ARTIST_CATALOG, WEAK_DEEZER_KEYWORD_GENRES } from '../musicCatalog';
+import { DEEZER_GENRE_KEYWORDS, classifyGenreMatchTier, genreRoughlyMatches, ARTIST_CATALOG, WEAK_DEEZER_KEYWORD_GENRES } from '../musicCatalog';
 import { deezerFetch, resolveDeezerGenre, resolveBpmForCandidates, searchArtistsForBpm, fetchInBatches } from './musicEngine';
 import { debugLog } from '../utils/debugLog';
 
@@ -238,7 +238,7 @@ export const fetchWorldSearchResults = async (query, { reset, offset, activeArti
  * filtre avancé natif Deezer (`bpm_min:`/`bpm_max:`). Pure : aucun setState,
  * aucune lecture de state React.
  */
-export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProgress = null) => {
+export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProgress = null, favorites = null) => {
   const minBpm = Math.max(1, targetBpm - tolerance);
   const maxBpm = targetBpm + tolerance;
   const genresToQuery = genres && genres.length > 0 ? genres : ['Autre'];
@@ -383,6 +383,120 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
     resolved.forEach(r => accumulator.set(r.id, r));
     emitProgress();
   };
+
+  // ─────────────────────────────────────────────────────────────────────
+  // FAVORIS EN PREMIER (28/08, retour direct — "si je mets AC/DC en
+  // favoris et que je cherche du Rock à un certain BPM, je devrais voir en
+  // premier les musiques de ce groupe avant de regarder les autres") —
+  // généralisation à la recherche manuelle du même principe déjà acté pour
+  // la génération de playlist (`getSingleMatchingTrack`, musicEngine.js,
+  // priorité 1/1.5 : titres favoris PUIS artistes favoris, tous deux
+  // soumis à la MÊME condition de genre que n'importe quelle autre source —
+  // voir le correctif du 27/08 sur "Mr. Brightside"/"Stan"). RÉPONSE
+  // EXPLICITE aux 4 points de cadrage validés ce jour-là :
+  //   1. Un favori doit CONFIRMER le genre demandé (via `genreRoughlyMatches`,
+  //      tolérance d'équivalence incluse, ex. Rock accepté pour Métal) —
+  //      jamais de priorité inconditionnelle, sinon même bug que celui déjà
+  //      corrigé ailleurs.
+  //   2. LES DEUX sources sont couvertes : titres explicitement mis en
+  //      Favoris (`favorites.tracks`) ET artistes suivis ("Top Artistes",
+  //      `favorites.artists`).
+  //   3. Réutilise `searchArtistsForBpm` (déjà utilisé pour le catalogue par
+  //      genre) — aucun nouveau mécanisme réseau, juste une source de plus.
+  //   4. Si rien ne correspond à ce BPM chez un favori, la recherche
+  //      continue normalement sur le reste — aucun trou, juste rien en tête.
+  //
+  // Deux nouveaux paliers NÉGATIFS, strictement AU-DESSUS du palier 0
+  // existant (correspondance directe) dans le tri final (`sort` ascendant
+  // par `_matchTier`) — jamais mélangés avec l'échelle 0/1/2 déjà en place,
+  // qui reste inchangée pour tout le reste :
+  //   -2 : titre explicitement en Favoris (le plus fort signal — un choix
+  //        DÉLIBÉRÉ de l'utilisateur, pas juste un artiste suivi).
+  //   -1 : trouvé via un artiste suivi ("Top Artistes"), genre reconfirmé.
+  // EXCLUS du budget `stubCap` (voir plus bas) : les favoris sont un bonus
+  // TOUJOURS inclus, pas soumis au plafond anti-bruit pensé pour les
+  // recherches génériques/catalogue.
+  if (favorites) {
+    // -2 : titres explicitement en Favoris — déjà résolus (BPM/genre/extrait
+    // déjà connus), aucun appel réseau nécessaire ici contrairement aux
+    // artistes ci-dessous.
+    if (Array.isArray(favorites.tracks) && favorites.tracks.length > 0) {
+      favorites.tracks.forEach(t => {
+        if (typeof t !== 'object' || typeof t.bpm !== 'number') return;
+        if (t.bpm < minBpm || t.bpm > maxBpm) return;
+        if (!genresToQuery.some(g => genreRoughlyMatches(t.genre, g))) return;
+        // Même convention que `seenIds`/`accumulator` ailleurs dans ce
+        // fichier (clé = ID NUMÉRIQUE Deezer brut, PAS une chaîne — les
+        // stubs Deezer JSON portent `id` en `number`, jamais en `string`) —
+        // `Number(...)` ici, pas juste `.slice(...)` (qui renverrait une
+        // chaîne), sinon la dédup contre les stubs Deezer plus bas échoue
+        // silencieusement (`'123' !== 123` pour un Set/Map JS) et un même
+        // titre pourrait apparaître deux fois dans la liste finale.
+        const dedupeKey = (typeof t.trackId === 'string' && t.trackId.startsWith('deezer-'))
+          ? Number(t.trackId.slice('deezer-'.length)) : t.trackId;
+        if (!dedupeKey || seenIds.has(dedupeKey)) return;
+        seenIds.add(dedupeKey);
+        accumulator.set(dedupeKey, {
+          id: dedupeKey,
+          trackId: t.trackId,
+          title: t.title,
+          artist: t.artist,
+          bpm: Math.round(t.bpm),
+          duration: t.duration || 180,
+          genre: t.genre || 'Genre inconnu',
+          preview: t.preview || null,
+          _genreMismatch: false,
+          _matchTier: -2,
+          _fromFavorites: true,
+        });
+      });
+      emitProgress();
+    }
+
+    // -1 : artistes suivis ("Top Artistes") — recherche Deezer par nom
+    // d'artiste (searchArtistsForBpm, même mécanisme que le catalogue par
+    // genre), genre RECONFIRMÉ pour chaque candidat (contrairement au
+    // catalogue choisi PAR genre, un artiste favori n'est pas garanti
+    // correspondre au genre demandé — même garde-fou que
+    // getSingleMatchingTrack, musicEngine.js, trouvé après le bug
+    // "Stan"/Eminem). Échec silencieux si le réseau lâche : la recherche
+    // continue normalement sans ce boost plutôt que d'échouer entièrement.
+    if (Array.isArray(favorites.artists) && favorites.artists.length > 0) {
+      try {
+        const favoriteStubs = await searchArtistsForBpm(favorites.artists, minBpm, maxBpm, [], favorites.artists.length, 10);
+        const freshStubs = favoriteStubs.filter(s => !seenIds.has(s.id));
+        const details = await fetchInBatches(freshStubs, 15, async (stub) => {
+          const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
+          return (full && full.bpm && parseFloat(full.bpm) >= minBpm && parseFloat(full.bpm) <= maxBpm) ? full : null;
+        });
+        const resolved = await fetchInBatches(details.filter(Boolean), 15, async (t) => {
+          const realGenre = await resolveDeezerGenre(t.id);
+          if (!genresToQuery.some(g => genreRoughlyMatches(realGenre, g))) return null;
+          return {
+            id: t.id,
+            trackId: `deezer-${t.id}`,
+            title: t.title,
+            artist: t.artist ? t.artist.name : 'Inconnu',
+            bpm: Math.round(parseFloat(t.bpm)),
+            duration: t.duration || 180,
+            genre: realGenre || 'Genre inconnu',
+            preview: t.preview || null,
+            _genreMismatch: false,
+            _matchTier: -1,
+            _fromFavorites: true,
+          };
+        });
+        resolved.filter(Boolean).forEach(r => {
+          if (seenIds.has(r.id)) return;
+          seenIds.add(r.id);
+          accumulator.set(r.id, r);
+        });
+        emitProgress();
+      } catch (e) {
+        // Échec silencieux (même philosophie que le reste de ce fichier).
+      }
+    }
+  }
 
   // Recherche généraliste par mot-clé — traitée comme UN lot de plus parmi
   // d'autres, résolue tôt (elle est rapide, un seul appel par genre) plutôt
