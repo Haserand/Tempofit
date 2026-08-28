@@ -480,6 +480,67 @@ describe('PlaylistDetailContext — course "Remplacer un titre" / changement de 
   });
 });
 
+// RÉGRESSION (28/08, sanity check périodique) — 3e occurrence du même motif
+// structurel déjà rencontré 6 fois sur ce projet (voir la docstring du
+// Provider, "AJOUTÉ (28/08...)") : `checkTrophies` dans `handleReplaceTrack`
+// utilisait `userStats` FIGÉ au moment du clic plutôt que sa version la plus
+// fraîche au moment où l'appel réseau (`getSingleMatchingTrack`) se termine
+// réellement.
+describe('PlaylistDetailContext — course "userStats obsolète dans checkTrophies" (régression 28/08)', () => {
+  it('userStats ayant changé PENDANT la recherche réseau, checkTrophies reçoit la version FRAÎCHE, pas celle figée au clic', async () => {
+    const checkTrophies = vi.fn();
+    const deferred = createDeferred();
+    mockGetSingleMatchingTrack.mockImplementationOnce(() => deferred.promise);
+
+    const playlistA = makePlaylist({ id: 'plA', tracks: [makeReplaceableTrack()] });
+    const { rerender } = render(
+      <PlaylistDetailProvider
+        currentPlaylist={playlistA} setCurrentPlaylist={vi.fn()}
+        savedPlaylists={[playlistA]} setSavedPlaylists={vi.fn()}
+        favorites={{ tracks: [], artists: [] }} spotifyTrackPool={[]}
+        userStats={{ replacedTracks: 0 }} checkTrophies={checkTrophies}
+        showToast={vi.fn()} requestRemoveSavedPlaylist={vi.fn()}
+        handleSavePlaylist={vi.fn()} handleClonePlaylist={vi.fn()}
+        currentActualData={null} selectedMetric="heartRate" setSelectedMetric={vi.fn()}
+        dataOffset={0} setDataOffset={vi.fn()}
+        selectedAnalysisDate={null} setSelectedAnalysisDate={vi.fn()} availableMetrics={[]}
+      >
+        <ReplaceProbe />
+      </PlaylistDetailProvider>
+    );
+
+    fireEvent.click(screen.getByText('trigger-replace'));
+
+    // Une tout autre action (ex. terminer une séance ailleurs dans l'app)
+    // fait évoluer userStats PENDANT que la recherche réseau est en vol —
+    // MÊME playlist, MÊME id, donc currentPlaylistIdRef ne bloque rien ici
+    // (à raison : le remplacement doit bien aboutir).
+    rerender(
+      <PlaylistDetailProvider
+        currentPlaylist={playlistA} setCurrentPlaylist={vi.fn()}
+        savedPlaylists={[playlistA]} setSavedPlaylists={vi.fn()}
+        favorites={{ tracks: [], artists: [] }} spotifyTrackPool={[]}
+        userStats={{ replacedTracks: 0, hasStreak3: true }} checkTrophies={checkTrophies}
+        showToast={vi.fn()} requestRemoveSavedPlaylist={vi.fn()}
+        handleSavePlaylist={vi.fn()} handleClonePlaylist={vi.fn()}
+        currentActualData={null} selectedMetric="heartRate" setSelectedMetric={vi.fn()}
+        dataOffset={0} setDataOffset={vi.fn()}
+        selectedAnalysisDate={null} setSelectedAnalysisDate={vi.fn()} availableMetrics={[]}
+      >
+        <ReplaceProbe />
+      </PlaylistDetailProvider>
+    );
+
+    deferred.resolve({ title: 'Nouveau titre', artist: 'Nouvel Artiste', genre: 'Rock', bpm: 145, duration: 210, trackId: 'deezer-99', preview: null });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(checkTrophies).toHaveBeenCalledTimes(1);
+    const statsPassed = checkTrophies.mock.calls[0][0];
+    expect(statsPassed.hasStreak3).toBe(true); // pas perdu
+    expect(statsPassed.replacedTracks).toBe(1); // +1 appliqué sur la base fraîche
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────
 // RÉGRESSION (20/08) — "écritures concurrentes de MÊME TYPE sur la MÊME
 // playlist", limite connue et NON corrigée depuis le check-up du 10/08
