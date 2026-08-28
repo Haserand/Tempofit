@@ -39,21 +39,18 @@ VERIFICATION.md`, restructuré en `claude-sandbox-verification/partie-
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement — session longue (25-27/08), tous les
-chantiers fermés et vérifiés. Deux moitiés : un audit exhaustif du code
-jamais relu en entier (contextes/modales/`ProfileView.jsx`/
-`StatsView.jsx`/`GeneratorWizard.jsx`, 2 vrais bugs trouvés), puis une
-série de corrections concrètes sur le moteur musical déclenchées par
-des retours directs en usage réel — favoris qui ignoraient le genre
-demandé (2 points d'entrée corrigés), repli de genre pondéré vers un
-style totalement étranger, budget de recherche manuelle partagé au lieu
-d'être par genre, classification de confiance de genre unifiée entre
-les 2 moteurs (`classifyGenreMatchTier`), lien externe "écouter en
-entier sur Deezer", filtre par statut sur le profil public + tri par
-popularité sur "Mes Playlists", recherche & filtres portés sur "Mes
-Playlists". Voir l'index `HISTORIQUE.md` → bloc 9 pour le récit complet,
-y compris 2 incidents Vercel (casse de fichier, contenu de fichier
-inversé) tous deux attrapés par les garde-fous automatiques existants.
+Rien en cours actuellement — sanity check périodique (28/08), 2 bugs réels
+trouvés et corrigés, tous deux la MÊME classe de bug déjà rencontrée 5 fois
+sur ce projet (fermeture async figée sur `userStats`, `checkTrophies`
+écrasant silencieusement un trophée débloqué entre-temps par une tout
+autre action) : `useCsvImport.js` (callback `FileReader.onload`) et
+`PlaylistDetailContext.jsx` (`handleReplaceTrack`/
+`handleReplaceTrackSameArtist`, après un vrai appel réseau) — les deux
+corrigés avec un `userStatsRef` (même convention que les refs déjà en
+place dans ces fichiers pour `currentPlaylist`/`savedPlaylists`). Reste
+du check-up (esbuild/tsc --checkJs sur 237 fichiers, résolution d'imports,
+pièges Tailwind/jest-dom) : rien à signaler. Voir l'index `HISTORIQUE.md`
+→ bloc 10 pour le récit complet.
 
 ### ⚠️ Règle permanente (25/08) — cette section ne contient QUE le chantier en cours, jamais l'historique clos
 
