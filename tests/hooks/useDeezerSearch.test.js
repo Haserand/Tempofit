@@ -294,7 +294,13 @@ describe('searchTracksByBpm', () => {
     const showToast = vi.fn();
     const { searchTracksByBpm } = useDeezerSearch(search, showToast, false);
 
-    await searchTracksByBpm(140, 10, ['Rock']);
+    // 'Jazz' plutôt que 'Rock' (28/08) — 'Rock' a rejoint
+    // WEAK_DEEZER_KEYWORD_GENRES le même jour (voir musicCatalog.js, mot-clé
+    // 'rock' jugé trop générique en recherche texte libre), donc il
+    // déclenche maintenant, à raison, le message dédié que ce test vérifie
+    // justement l'ABSENCE. 'Jazz' reste un mot-clé suffisamment spécifique
+    // au vocabulaire musical pour ne pas avoir rejoint cette liste.
+    await searchTracksByBpm(140, 10, ['Jazz']);
 
     expect(search.setSearchLoadingMessage).not.toHaveBeenCalledWith('Recherche plus approfondie pour ce genre...');
   });
