@@ -38,6 +38,17 @@ import { formatCompletionDate } from '../utils/format';
  * que le 1er lisait encore son fichier. `csvUploadTargetDateRef` (même
  * convention que les 2 refs ci-dessus) protège maintenant ce 3e point.
  *
+ * ⚠️ 3e COURSE CORRIGÉE (28/08, sanity check périodique) — même famille
+ * encore, cette fois sur `userStats`/`checkTrophies` : `onload` calculait
+ * `{ ...userStats, dataImports: userStats.dataImports + 1 }` avec le
+ * `userStats` FIGÉ au moment du clic sur l'import, exactement le même risque
+ * que celui déjà corrigé ailleurs (`shareImageFileWithTrophy`/App.jsx,
+ * `usePlaylistGeneration.js`) — un trophée débloqué par une tout autre
+ * action PENDANT la lecture du fichier (terminer une séance, remplacer un
+ * titre...) aurait été écrasé silencieusement par ce `checkTrophies` appelé
+ * après coup avec des stats obsolètes. `userStatsRef` (même convention que
+ * les 3 refs ci-dessus) protège maintenant ce 4e point.
+ *
  * Signature en objet nommé (25/08, chantier lisibilité — voir
  * usePlaylistGeneration.js pour le même chantier et le même raisonnement) :
  * remplace 12 paramètres positionnels.
@@ -58,6 +69,12 @@ export function useCsvImport({
   // du `finally` de `handleCSVUpload` plus bas pour le détail du risque.
   const csvUploadTargetDateRef = useRef(csvUploadTargetDate);
   csvUploadTargetDateRef.current = csvUploadTargetDate;
+  // AJOUTÉ (28/08, sanity check périodique — voir la docstring du fichier,
+  // "3e COURSE CORRIGÉE") : toujours lire la version la plus fraîche de
+  // `userStats` dans le `checkTrophies` de `onload`, jamais celle figée au
+  // moment du clic.
+  const userStatsRef = useRef(userStats);
+  userStatsRef.current = userStats;
 
   // Déclenche le sélecteur de fichier caché pour l'import CSV Garmin/Strava, en
   // mémorisant d'abord quelle playlist ET quelle date de complétion précise sont
@@ -131,7 +148,7 @@ export function useCsvImport({
         if (!hasCadence && hasHeartRate) setSelectedMetric('heartRate');
         else if (hasCadence && !hasHeartRate) setSelectedMetric('cadence');
 
-        let stats = { ...userStats, dataImports: userStats.dataImports + 1 };
+        let stats = { ...userStatsRef.current, dataImports: userStatsRef.current.dataImports + 1 };
         checkTrophies(stats);
         changeView('playlist');
         const importedLabel = hasCadence && hasHeartRate ? "Cadence (PPM) et fréquence cardiaque importées"
