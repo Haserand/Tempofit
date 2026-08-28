@@ -305,6 +305,35 @@ describe('searchTracksByBpm', () => {
     expect(search.setSearchLoadingMessage).not.toHaveBeenCalledWith('Recherche plus approfondie pour ce genre...');
   });
 
+  // NOUVEAU (28/08, chantier "favoris en premier dans la recherche BPM") —
+  // `favorites` reçu par le hook (4e paramètre, voir sa docstring) doit être
+  // transmis TEL QUEL à `fetchBpmSearchResults` (searchEngine.js, où vit
+  // tout le mécanisme réel de priorisation) — logique interne hors scope
+  // ici (nécessite un mock HTTP complet, voir searchEngine.test.js), on
+  // vérifie seulement le CÂBLAGE : le bon objet arrive au bon endroit.
+  it('transmet `favorites` à fetchBpmSearchResults quand fourni au hook', async () => {
+    mockFetchBpmSearchResults.mockResolvedValue({ results: [] });
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const favorites = { tracks: [{ trackId: 'deezer-1', title: 'X', artist: 'Y', bpm: 140, genre: 'Rock' }], artists: ['AC/DC'] };
+    const { searchTracksByBpm } = useDeezerSearch(search, showToast, false, favorites);
+
+    await searchTracksByBpm(140, 10, ['Rock']);
+
+    expect(mockFetchBpmSearchResults).toHaveBeenCalledWith(140, 10, ['Rock'], expect.any(Function), favorites);
+  });
+
+  it('sans favoris fournis au hook (undefined), transmet `null` à fetchBpmSearchResults (pas de crash)', async () => {
+    mockFetchBpmSearchResults.mockResolvedValue({ results: [] });
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { searchTracksByBpm } = useDeezerSearch(search, showToast, false);
+
+    await searchTracksByBpm(140, 10, ['Jazz']);
+
+    expect(mockFetchBpmSearchResults).toHaveBeenCalledWith(140, 10, ['Jazz'], expect.any(Function), null);
+  });
+
   it('applique la progression (onProgress) EN COURS de recherche avant le résultat final', async () => {
     let capturedOnProgress;
     mockFetchBpmSearchResults.mockImplementation(async (bpm, tol, genres, onProgress) => {
