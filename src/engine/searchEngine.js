@@ -41,7 +41,7 @@
  * complet — non reproduit ici pour éviter la duplication.
  */
 
-import { DEEZER_GENRE_KEYWORDS, classifyGenreMatchTier, ARTIST_CATALOG, GENRES_NEEDING_DEEP_CATALOG_SEARCH } from '../musicCatalog';
+import { DEEZER_GENRE_KEYWORDS, classifyGenreMatchTier, ARTIST_CATALOG } from '../musicCatalog';
 import { deezerFetch, resolveDeezerGenre, resolveBpmForCandidates, searchArtistsForBpm, fetchInBatches } from './musicEngine';
 import { debugLog } from '../utils/debugLog';
 
@@ -243,17 +243,7 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
   const maxBpm = targetBpm + tolerance;
   const genresToQuery = genres && genres.length > 0 ? genres : ['Autre'];
 
-  // BUG CORRIGÉ (retour direct, logs de diagnostic à l'appui : recherche
-  // "Métal", seulement 8 artistes testés/6 candidats au lieu de 120/10) —
-  // l'ancien test "ce genre a-t-il un mot-clé Deezer ?" répondait FAUX pour
-  // Métal, qui a pourtant bien un mot-clé ('metal', voir DEEZER_GENRE_
-  // KEYWORDS) — le vrai critère est "ce genre a-t-il besoin d'un renfort
-  // profond par catalogue ?", capturé maintenant par
-  // GENRES_NEEDING_DEEP_CATALOG_SEARCH (musicCatalog.js), qui inclut
-  // explicitement Métal en plus des genres sans mot-clé fiable. Voir le
-  // commentaire complet à sa définition pour le detail de cette confusion.
-  const needsDeepCatalogSearch = genresToQuery.every(g => GENRES_NEEDING_DEEP_CATALOG_SEARCH.includes(g));
-  // Même plafond que précédemment (150/18), mais maintenant un plafond de
+  // Même plafond que précédemment (150), mais maintenant un plafond de
   // SOUMISSION progressive plutôt qu'un simple `.slice()` unique en fin de
   // pipeline (voir plus bas, `processStubBatch`) — la logique de "combien on
   // traite au total" ne change pas, seul le MOMENT où chaque lot est résolu
@@ -264,7 +254,7 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
   // majoritairement des résultats "Genre non confirmé" alors que ce sont 3
   // styles très courants à ce tempo) — CE PLAFOND ÉTAIT PARTAGÉ ENTRE TOUS
   // les genres sélectionnés, pas par genre : avec 3 genres, chacun ne
-  // disposait en pratique que d'une fraction de 18 candidats avant que la
+  // disposait en pratique que d'une fraction du total avant que la
   // recherche entière ne s'arrête, même si de meilleurs candidats du bon
   // genre existaient encore chez Deezer juste après. Le nombre d'appels
   // réseau (recherche généraliste + catalogue) scalait déjà avec
@@ -274,7 +264,15 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
   // un appel Deezer de plus chacun) ne suivait pas. Recherche un peu plus
   // longue à plusieurs genres, mais avec un vrai budget par genre plutôt
   // qu'une portion d'un total fixe.
-  const stubCap = (needsDeepCatalogSearch ? 150 : 18) * genresToQuery.length;
+  //
+  // ⚠️ RECHERCHE PROFONDE RENDUE PAR DÉFAUT POUR TOUS LES GENRES (28/08,
+  // retour direct — voir musicCatalog.js pour le détail complet du
+  // raisonnement) : ce plafond de 150 candidats par genre (au lieu de 18
+  // auparavant, réservé à une courte liste de genres jugés "fragiles") et
+  // la profondeur `artists.length`/10 par artiste juste plus bas
+  // s'appliquent maintenant systématiquement — plus de distinction
+  // "genre fragile vs fiable" à maintenir au coup par coup.
+  const stubCap = 150 * genresToQuery.length;
 
   // ─────────────────────────────────────────────────────────────────────
   // AFFICHAGE PROGRESSIF (retour direct : "chercher 10 morceaux d'abord,
@@ -411,8 +409,8 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
     if (!artists || artists.length === 0) return;
     await searchArtistsForBpm(
       artists, minBpm, maxBpm, [],
-      needsDeepCatalogSearch ? artists.length : 8,
-      needsDeepCatalogSearch ? 10 : 6,
+      artists.length,
+      10,
       (batchStubs) => processStubBatch(batchStubs.map(s => ({ ...s, matchedGenre: genre, _fromCatalog: true })))
     );
   });
