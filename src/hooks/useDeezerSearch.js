@@ -34,8 +34,18 @@ import { useModalContext } from '../contexts/ModalContext';
  * l'ajout d'un titre) plantait donc avec `TypeError: setIsSearchModalOpen is
  * not a function`. `closeModal` (ModalContext) remplace maintenant ce champ
  * fantôme — un vrai import de contexte, pas un champ qui n'a jamais existé.
+ *
+ * `favorites` (28/08, chantier "favoris en premier dans la recherche BPM")
+ * — paramètre optionnel, transmis tel quel à `fetchBpmSearchResults`
+ * (searchEngine.js, voir sa docstring pour le détail complet du mécanisme).
+ * Reçu ICI au niveau du hook plutôt que threadé comme argument
+ * supplémentaire de `searchTracksByBpm` : cette fonction est appelée depuis
+ * 3 composants différents (SearchModal.jsx, GeneratorWizard.jsx,
+ * FavoritesView.jsx) sans qu'aucun d'eux n'ait besoin de connaître ce détail
+ * d'implémentation — le hook capture `favorites` une fois via sa fermeture,
+ * aucun des 3 appelants existants n'a à changer.
  */
-export function useDeezerSearch(search, showToast, isNaughtyMode) {
+export function useDeezerSearch(search, showToast, isNaughtyMode, favorites = null) {
   const { closeModal } = useModalContext();
   const {
     searchQuery, searchResultsOffset, searchActiveArtistName, isWorldSearching,
@@ -178,7 +188,7 @@ export function useDeezerSearch(search, showToast, isNaughtyMode) {
       // rapidement plutôt que d'attendre la recherche exhaustive en entier.
       const { results } = await fetchBpmSearchResults(targetBpm, tolerance, genres, (partialResults) => {
         setWorldSearchResults(partialResults);
-      });
+      }, favorites);
       setWorldSearchResults(results);
       if (results.length === 0) setNoUsableResultsHint(true);
     } catch (e) {
