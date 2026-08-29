@@ -20,6 +20,7 @@ export default function SearchModal({
   theme,
   isSearchModalOpen, closeSearchModal,
   isBpmSearchMode, bpmSearchParams, searchTracksByBpm,
+  loadMoreBpmResults,
   searchQuery, setSearchQuery, searchWorldMusicApi,
   isWorldSearching, worldSearchResults, worldSearchOtherResults,
   searchLoadingMessage, searchElapsedSeconds,
@@ -239,6 +240,26 @@ export default function SearchModal({
                 >
                   {isLoadingMoreResults ? <Loader2 className="animate-spin" size={16}/> : <ChevronDown size={16}/>}
                   <span>{isLoadingMoreResults ? "Chargement..." : "Voir plus de résultats"}</span>
+                </button>
+              )}
+              {/* "Charger plus" en mode BPM (28/08, retour direct — voir la
+                  docstring de `loadMoreBpmResults`, useDeezerSearch.js, pour
+                  le raisonnement complet) — PAS de notion de "page suivante"
+                  ici contrairement au bouton texte libre ci-dessus (pas de
+                  `searchHasMoreResults` équivalent, la recherche catalogue
+                  explore déjà tout le catalogue dès le 1er appel) : affiché
+                  dès que la recherche initiale est terminée
+                  (`!isWorldSearching`) et qu'il y a déjà des résultats à
+                  compléter, comme une action "chercher plus loin" plutôt
+                  qu'une vraie pagination. */}
+              {isBpmSearchMode && !isWorldSearching && worldSearchResults.length > 0 && (
+                <button
+                  onClick={loadMoreBpmResults}
+                  disabled={isLoadingMoreResults}
+                  className={`w-full mt-1 py-2.5 rounded-xl border-2 border-dashed text-sm font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-60 ${inputBorder} ${textMuted} hover:text-main hover:border-gray-400`}
+                >
+                  {isLoadingMoreResults ? <Loader2 className="animate-spin" size={16}/> : <ChevronDown size={16}/>}
+                  <span>{isLoadingMoreResults ? "Chargement..." : "Charger plus de résultats"}</span>
                 </button>
               )}
               {/* Réserve "autres résultats" (titres qui matchent le texte tapé
