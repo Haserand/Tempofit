@@ -5,6 +5,7 @@ import {
   levenshteinDistance,
   isConfidentArtistMatch,
   dedupeAppend,
+  mergeAndResortBpmResults,
 } from '../../src/engine/searchEngine.js';
 
 /**
@@ -110,5 +111,44 @@ describe('dedupeAppend', () => {
     expect(dedupeAppend(prev, incoming, false)).toEqual([
       { trackId: 1 }, { trackId: 2 }, { trackId: 3 },
     ]);
+  });
+});
+
+// NOUVEAU (28/08, chantier "Charger plus" pour la recherche BPM) — dédiée à
+// la fusion utilisée par `loadMoreBpmResults` (useDeezerSearch.js) :
+// `dedupeAppend` seul ne suffit pas ici, il préserverait l'ordre "tout
+// `prev` d'abord, puis tout `incoming` ensuite" — un nouveau titre CONFIRMÉ
+// trouvé par "Charger plus" atterrirait alors sous un ANCIEN titre non
+// confirmé déjà affiché, brisant la garantie "confirmé avant non confirmé".
+describe('mergeAndResortBpmResults', () => {
+  it('retrie l\'ENSEMBLE par _matchTier — un nouveau titre confirmé passe devant un ancien non confirmé', () => {
+    const prev = [
+      { trackId: 'a', _matchTier: 0 },
+      { trackId: 'b', _matchTier: 2 }, // ancien, non confirmé
+    ];
+    const incoming = [
+      { trackId: 'c', _matchTier: 0 }, // nouveau, confirmé — doit passer devant 'b'
+    ];
+    expect(mergeAndResortBpmResults(prev, incoming).map(t => t.trackId)).toEqual(['a', 'c', 'b']);
+  });
+
+  it('déduplique par trackId (un titre déjà présent dans prev n\'est pas dupliqué)', () => {
+    const prev = [{ trackId: 'a', _matchTier: 0 }];
+    const incoming = [{ trackId: 'a', _matchTier: 0 }, { trackId: 'b', _matchTier: 1 }];
+    const result = mergeAndResortBpmResults(prev, incoming);
+    expect(result).toHaveLength(2);
+    expect(result.map(t => t.trackId)).toEqual(['a', 'b']);
+  });
+
+  it('respecte les paliers négatifs (favoris) : toujours devant les paliers 0/1/2', () => {
+    const prev = [{ trackId: 'a', _matchTier: 0 }];
+    const incoming = [{ trackId: 'b', _matchTier: -2 }, { trackId: 'c', _matchTier: -1 }];
+    expect(mergeAndResortBpmResults(prev, incoming).map(t => t.trackId)).toEqual(['b', 'c', 'a']);
+  });
+
+  it('gère un `_matchTier` absent comme 0 (repli neutre, ne plante pas)', () => {
+    const prev = [{ trackId: 'a' /* pas de _matchTier */ }];
+    const incoming = [{ trackId: 'b', _matchTier: -1 }, { trackId: 'c', _matchTier: 2 }];
+    expect(mergeAndResortBpmResults(prev, incoming).map(t => t.trackId)).toEqual(['b', 'a', 'c']);
   });
 });
