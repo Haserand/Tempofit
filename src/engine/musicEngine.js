@@ -29,7 +29,7 @@
  * sans risque (même logique que `searchWorldMusicApi` conservée dans App.jsx).
  */
 
-import { ARTIST_CATALOG, DEEZER_GENRE_KEYWORDS, WEAK_DEEZER_KEYWORD_GENRES, genreRoughlyMatches, classifyGenreMatchTier, detectTitleStyleConflict, detectLanguageVersionConflict, isLiveOrPerformanceVersion } from '../musicCatalog';
+import { ARTIST_CATALOG, DEEZER_GENRE_KEYWORDS, WEAK_DEEZER_KEYWORD_GENRES, genreRoughlyMatches, findCatalogGenreForArtist, classifyGenreMatchTier, detectTitleStyleConflict, detectLanguageVersionConflict, isLiveOrPerformanceVersion } from '../musicCatalog';
 import { getActivityEmoji } from '../appConfig';
 import { formatDuration } from '../utils/format';
 import { debugLog } from '../utils/debugLog';
@@ -640,18 +640,29 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
         const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
         if (full && full.bpm && parseFloat(full.bpm) >= minBpm && parseFloat(full.bpm) <= maxBpm) {
           const realGenre = await resolveDeezerGenre(full.id);
-          if (selectedGenres.some(g => genreRoughlyMatches(realGenre, g))) {
-            return {
-              trackId: `deezer-${full.id}`,
-              title: full.title,
-              artist: full.artist ? full.artist.name : 'Inconnu',
-              bpm: Math.round(parseFloat(full.bpm)),
-              duration: full.duration || 180,
-              genre: realGenre || 'Genre inconnu',
-              preview: full.preview || null,
-              _fromFavorites: true,
-            };
-          }
+          if (!selectedGenres.some(g => genreRoughlyMatches(realGenre, g))) continue;
+          // SECOND AVIS (28/08, capture à l'appui — même correctif que
+          // searchEngine.js/fetchBpmSearchResults le même jour, voir la
+          // docstring de `findCatalogGenreForArtist`, musicCatalog.js, pour
+          // le détail complet du bug "War Machine (Live...)" d'AC/DC
+          // étiqueté "Pop") : le genre RÉSOLU PAR TITRE peut être
+          // ponctuellement faux côté Deezer (réédition/version live mal
+          // cataloguée) — pour un artiste qu'on connaît déjà bien via
+          // ARTIST_CATALOG (choisi PAR genre, donc fiable), on croise avec
+          // CE genre-là plutôt que de faire une confiance aveugle au genre
+          // d'un seul titre isolé.
+          const catalogGenre = findCatalogGenreForArtist(full.artist ? full.artist.name : null);
+          if (catalogGenre && !selectedGenres.some(g => genreRoughlyMatches(catalogGenre, g))) continue;
+          return {
+            trackId: `deezer-${full.id}`,
+            title: full.title,
+            artist: full.artist ? full.artist.name : 'Inconnu',
+            bpm: Math.round(parseFloat(full.bpm)),
+            duration: full.duration || 180,
+            genre: realGenre || 'Genre inconnu',
+            preview: full.preview || null,
+            _fromFavorites: true,
+          };
         }
       }
     } catch (e) {
