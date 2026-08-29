@@ -123,6 +123,76 @@ describe('SearchModal — mode BPM', () => {
   });
 });
 
+// NOUVEAU (28/08, retour direct — "un compteur de résultats en haut à
+// droite, qui augmente ou diminue selon les ajouts et retraits") — Option A
+// retenue après discussion : compte les résultats CONFIRMÉS VISIBLES à
+// l'écran (donc affecté par le filtre favoris), jamais la réserve non
+// confirmée encore cachée. Voir la docstring de `visibleResultsCount`,
+// SearchModal.jsx.
+describe('SearchModal — compteur de résultats (mode BPM)', () => {
+  it('affiche le nombre de résultats visibles, singulier pour 1 seul', () => {
+    render(<SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview] })} />);
+    expect(screen.getByText('1 résultat')).toBeInTheDocument();
+  });
+
+  it('affiche le nombre de résultats visibles, pluriel pour plusieurs', () => {
+    render(<SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview, trackNoPreview] })} />);
+    expect(screen.getByText('2 résultats')).toBeInTheDocument();
+  });
+
+  it('absent tant qu\'aucun résultat (avant toute recherche, ou 0 résultat)', () => {
+    render(<SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [] })} />);
+    expect(screen.queryByText(/^\d+ résultat/)).not.toBeInTheDocument();
+  });
+
+  it('diminue quand un titre déjà en favoris est filtré de l\'affichage (hors contexte playlist)', () => {
+    render(
+      <SearchModal
+        {...baseProps({
+          isBpmSearchMode: true,
+          worldSearchResults: [trackWithPreview, trackNoPreview],
+          favorites: { tracks: [{ trackId: trackWithPreview.trackId }], artists: [] },
+        })}
+      />
+    );
+    // trackWithPreview est filtré (déjà en favoris) : il ne reste que
+    // trackNoPreview parmi les résultats VISIBLES.
+    expect(screen.getByText('1 résultat')).toBeInTheDocument();
+  });
+
+  it('en contexte playlist, ne filtre PAS les favoris — le compteur les inclut', () => {
+    render(
+      <SearchModal
+        {...baseProps({
+          isBpmSearchMode: true,
+          currentPlaylist: { id: 'pl1' },
+          worldSearchResults: [trackWithPreview, trackNoPreview],
+          favorites: { tracks: [{ trackId: trackWithPreview.trackId }], artists: [] },
+        })}
+      />
+    );
+    expect(screen.getByText('2 résultats')).toBeInTheDocument();
+  });
+
+  it('inclut la réserve non confirmée une fois révélée (bpmSearchExhausted), jamais avant', () => {
+    const unconfirmedTrack = { ...trackDetectedBpm, _genreMismatch: true };
+    const { rerender } = render(
+      <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], bpmUnconfirmedReserve: [unconfirmedTrack], bpmSearchExhausted: false })} />
+    );
+    expect(screen.getByText('1 résultat')).toBeInTheDocument();
+
+    rerender(
+      <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], bpmUnconfirmedReserve: [unconfirmedTrack], bpmSearchExhausted: true })} />
+    );
+    expect(screen.getByText('2 résultats')).toBeInTheDocument();
+  });
+
+  it('absent en mode recherche texte libre (réservé au mode BPM)', () => {
+    render(<SearchModal {...baseProps({ isBpmSearchMode: false, worldSearchResults: [trackWithPreview] })} />);
+    expect(screen.queryByText(/^\d+ résultat/)).not.toBeInTheDocument();
+  });
+});
+
 describe('SearchModal — mode texte', () => {
   it('la saisie appelle setSearchQuery, Entrée déclenche la recherche', () => {
     const setSearchQuery = vi.fn();
