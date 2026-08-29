@@ -49,6 +49,30 @@ export default function SearchModal({
     ? [...worldSearchResults, ...bpmUnconfirmedReserve]
     : worldSearchResults;
 
+  // Filtre les titres déjà en favoris — pas la peine de les remontrer à
+  // chaque nouvelle recherche identique. Uniquement hors contexte playlist :
+  // dans une playlist, un titre déjà en favoris reste pertinent à ajouter,
+  // la notion de "favori" n'a rien à voir avec ce qu'on cherche à faire ici.
+  // Extrait en portée partagée (28/08, chantier "compteur de résultats") —
+  // auparavant recalculé localement dans l'IIFE plus bas ; réutilisé
+  // maintenant aussi pour le compteur affiché sur la ligne "Cible" (voir
+  // `visibleResultsCount` juste en dessous).
+  const isAlreadyFav = (t) => !currentPlaylist && favorites.tracks.some(f => f.trackId === t.trackId);
+
+  // Compteur de résultats (28/08, retour direct — "un compteur en haut à
+  // droite, qui augmente ou diminue selon les ajouts et retraits") — Option
+  // A retenue après discussion : compte les résultats CONFIRMÉS VISIBLES à
+  // l'écran (donc `displayedResults`, qui inclut la réserve non confirmée
+  // une fois révélée — à ce moment-là, elle EST ce qui s'affiche), après le
+  // même filtre favoris que la liste réelle (`isAlreadyFav`) — jamais un
+  // total "brut" côté serveur qui inclurait les non confirmés encore
+  // cachés, ce qui aurait indirectement révélé leur existence avant l'heure
+  // (voir la docstring de `bpmUnconfirmedReserve`, useTrackSearch.js).
+  // Diminue naturellement quand un titre rejoint les favoris (retiré de
+  // l'affichage par `isAlreadyFav` ci-dessus), augmente à chaque nouveau lot
+  // reçu (recherche initiale progressive OU "Charger plus").
+  const visibleResultsCount = displayedResults.filter(t => !isAlreadyFav(t)).length;
+
   // Texte évolutif du bouton "Charger plus" PENDANT le chargement (28/08,
   // retour direct — "faudrait avoir le texte 'chargement' qui évolue un peu
   // comme pour le reste de la génération") — même principe à paliers de
@@ -194,11 +218,27 @@ export default function SearchModal({
         <p className={`text-xs mb-5 ${textMuted}`}>* Connecté via Deezer — le BPM peut être approximatif, et certains titres peuvent rester introuvables.</p>
 
         {isBpmSearchMode ? (
-          <div className={`mb-4 px-4 py-3 rounded-xl border ${inputBorder} ${inputBg} flex items-center justify-between`}>
+          <div className={`mb-4 px-4 py-3 rounded-xl border ${inputBorder} ${inputBg} flex items-center justify-between gap-2`}>
             <span className={`text-sm font-bold ${textMuted}`}>Cible : <span className={textColorClass}>{bpmSearchParams.bpm} BPM ± {bpmSearchParams.tolerance}</span> · {bpmSearchParams.genres.length > 0 ? bpmSearchParams.genres.map(genreDisplayLabel).join(', ') : 'tous genres'}</span>
-            <button onClick={() => searchTracksByBpm(bpmSearchParams.bpm, bpmSearchParams.tolerance, bpmSearchParams.genres)} disabled={isWorldSearching} className={`p-2 rounded-lg text-white ${bgAccentClass}`}>
-              {isWorldSearching ? <Loader2 className="animate-spin" size={16}/> : <RefreshCw size={16}/>}
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Compteur de résultats (28/08, retour direct — "un compteur
+                  de résultats en haut à droite") — voir la docstring de
+                  `visibleResultsCount` en tête de composant pour ce qu'il
+                  compte exactement (Option A retenue après discussion :
+                  confirmé visible à l'écran, jamais la réserve cachée).
+                  N'apparaît que s'il y a au moins 1 résultat à annoncer —
+                  pas de "0 résultat" avant même d'avoir cherché quoi que ce
+                  soit, ni pendant un état déjà couvert par le message "Aucun
+                  résultat" plus bas. */}
+              {visibleResultsCount > 0 && (
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${textMuted} bg-black/5 dark:bg-white/10`}>
+                  {visibleResultsCount} résultat{visibleResultsCount > 1 ? 's' : ''}
+                </span>
+              )}
+              <button onClick={() => searchTracksByBpm(bpmSearchParams.bpm, bpmSearchParams.tolerance, bpmSearchParams.genres)} disabled={isWorldSearching} className={`p-2 rounded-lg text-white ${bgAccentClass}`}>
+                {isWorldSearching ? <Loader2 className="animate-spin" size={16}/> : <RefreshCw size={16}/>}
+              </button>
+            </div>
           </div>
         ) : (
           <div className="mb-4 flex gap-2">
@@ -270,16 +310,10 @@ export default function SearchModal({
                 </div>
               )}
               {(() => {
-                // Filtre les titres déjà en favoris — pas la peine de les
-                // remontrer à chaque nouvelle recherche identique. Uniquement
-                // hors contexte playlist : dans une playlist, un titre déjà
-                // en favoris reste pertinent à ajouter, la notion de
-                // "favori" n'a rien à voir avec ce qu'on cherche à faire ici.
-                //
-                // `displayedResults` (pas `worldSearchResults` directement) :
-                // inclut la réserve non confirmée une fois révélée (voir sa
-                // déclaration en tête de composant).
-                const isAlreadyFav = (t) => !currentPlaylist && favorites.tracks.some(f => f.trackId === t.trackId);
+                // `isAlreadyFav`/le filtre lui-même sont maintenant calculés
+                // en tête de composant (28/08, chantier "compteur de
+                // résultats" — voir `visibleResultsCount`) et réutilisés ici
+                // tels quels, plutôt que recalculés localement en double.
                 const visibleMainResults = displayedResults.filter(t => !isAlreadyFav(t));
                 return (
                   <>
