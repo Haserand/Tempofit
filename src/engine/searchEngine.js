@@ -41,7 +41,7 @@
  * complet — non reproduit ici pour éviter la duplication.
  */
 
-import { DEEZER_GENRE_KEYWORDS, classifyGenreMatchTier, genreRoughlyMatches, ARTIST_CATALOG, WEAK_DEEZER_KEYWORD_GENRES } from '../musicCatalog';
+import { DEEZER_GENRE_KEYWORDS, classifyGenreMatchTier, genreRoughlyMatches, findCatalogGenreForArtist, ARTIST_CATALOG, WEAK_DEEZER_KEYWORD_GENRES } from '../musicCatalog';
 import { deezerFetch, resolveDeezerGenre, resolveBpmForCandidates, searchArtistsForBpm, fetchInBatches } from './musicEngine';
 import { debugLog } from '../utils/debugLog';
 
@@ -472,6 +472,21 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
         const resolved = await fetchInBatches(details.filter(Boolean), 15, async (t) => {
           const realGenre = await resolveDeezerGenre(t.id);
           if (!genresToQuery.some(g => genreRoughlyMatches(realGenre, g))) return null;
+          // SECOND AVIS (28/08, capture à l'appui — voir la docstring de
+          // `findCatalogGenreForArtist`, musicCatalog.js, pour le détail
+          // complet du bug "War Machine (Live...)" d'AC/DC étiqueté "Pop") :
+          // le genre RÉSOLU PAR TITRE peut être ponctuellement faux côté
+          // Deezer (réédition/version live mal cataloguée) — pour un
+          // artiste qu'on connaît déjà bien via ARTIST_CATALOG (choisi PAR
+          // genre, donc fiable), on croise avec CE genre-là plutôt que de
+          // faire une confiance aveugle au genre d'un seul titre isolé. Un
+          // artiste absent de tout catalogue (cas le plus courant) n'est
+          // pas concerné par ce garde-fou — `findCatalogGenreForArtist`
+          // renvoie `null`, le genre résolu par Deezer reste seul juge,
+          // comme avant ce correctif.
+          const artistName = t.artist ? t.artist.name : null;
+          const catalogGenre = findCatalogGenreForArtist(artistName);
+          if (catalogGenre && !genresToQuery.some(g => genreRoughlyMatches(catalogGenre, g))) return null;
           return {
             id: t.id,
             trackId: `deezer-${t.id}`,
