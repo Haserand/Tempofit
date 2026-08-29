@@ -277,7 +277,7 @@ describe('searchTracksByBpm', () => {
     expect(search.setBpmSearchParams).toHaveBeenCalledWith({ bpm: 140, tolerance: 10, genres: [] });
   });
 
-  it('genre fragile (K-pop/Musique asiatique/Bandes originales) : message de chargement dédié "Recherche plus approfondie"', async () => {
+  it('genre fragile (K-pop/Musique asiatique/Bandes originales) : message de chargement dédié "Recherche plus longue"', async () => {
     mockFetchBpmSearchResults.mockResolvedValue({ results: [] });
     const search = makeSearch();
     const showToast = vi.fn();
@@ -285,7 +285,7 @@ describe('searchTracksByBpm', () => {
 
     await searchTracksByBpm(140, 10, ['K-pop']);
 
-    expect(search.setSearchLoadingMessage).toHaveBeenCalledWith('Recherche plus approfondie pour ce genre...');
+    expect(search.setSearchLoadingMessage).toHaveBeenCalledWith('Recherche plus longue pour ce genre...');
   });
 
   it('genre standard : message de chargement tiré parmi SEARCH_LOADING_MESSAGES (pas le message dédié genre fragile)', async () => {
@@ -302,7 +302,7 @@ describe('searchTracksByBpm', () => {
     // au vocabulaire musical pour ne pas avoir rejoint cette liste.
     await searchTracksByBpm(140, 10, ['Jazz']);
 
-    expect(search.setSearchLoadingMessage).not.toHaveBeenCalledWith('Recherche plus approfondie pour ce genre...');
+    expect(search.setSearchLoadingMessage).not.toHaveBeenCalledWith('Recherche plus longue pour ce genre...');
   });
 
   // NOUVEAU (28/08, chantier "favoris en premier dans la recherche BPM") —
