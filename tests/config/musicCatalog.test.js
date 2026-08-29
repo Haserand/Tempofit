@@ -6,6 +6,7 @@ import {
   isLiveOrPerformanceVersion,
   detectTitleStyleConflict,
   detectLanguageVersionConflict,
+  findCatalogGenreForArtist,
 } from '../../src/musicCatalog.js';
 
 describe('isDirectGenreMatch', () => {
@@ -55,6 +56,48 @@ describe('genreRoughlyMatches', () => {
 
   it('refuse un genre totalement sans rapport', () => {
     expect(genreRoughlyMatches('Jazz', 'Métal')).toBe(false);
+  });
+});
+
+// NOUVEAU (28/08, retour direct — capture à l'appui : recherche "Pop" à
+// 140±10 après le chantier "favoris en premier", "War Machine (Live at
+// River Plate Stadium...)" d'AC/DC — artiste favori — remonté en tête
+// étiqueté "Pop" sans le moindre avertissement, alors qu'AC/DC n'existe
+// QUE dans ARTIST_CATALOG['Rock']). Fonction PURE, testable sans réseau —
+// son usage réel (croiser le genre résolu par Deezer PAR TITRE avec le
+// genre catalogué PAR ARTISTE) vit dans searchEngine.js/musicEngine.js,
+// hors scope ici (réseau, voir leurs propres fichiers de test).
+describe('findCatalogGenreForArtist', () => {
+  it("trouve le genre catalogué d'un artiste connu (comparaison exacte)", () => {
+    expect(findCatalogGenreForArtist('AC/DC')).toBe('Rock');
+  });
+
+  it('insensible à la casse', () => {
+    expect(findCatalogGenreForArtist('ac/dc')).toBe('Rock');
+    expect(findCatalogGenreForArtist('Ac/Dc')).toBe('Rock');
+  });
+
+  it('insensible aux espaces superflus en début/fin', () => {
+    expect(findCatalogGenreForArtist('  AC/DC  ')).toBe('Rock');
+  });
+
+  it('renvoie null pour un artiste absent de tout catalogue', () => {
+    expect(findCatalogGenreForArtist('Un Groupe Totalement Inconnu')).toBeNull();
+  });
+
+  it('renvoie null pour une entrée vide/absente, sans planter', () => {
+    expect(findCatalogGenreForArtist(null)).toBeNull();
+    expect(findCatalogGenreForArtist(undefined)).toBeNull();
+    expect(findCatalogGenreForArtist('')).toBeNull();
+  });
+
+  it("ne matche PAS une correspondance partielle (contrairement à isDirectGenreMatch) — un nom d'artiste doit être EXACT", () => {
+    // "The Killers" est catalogué, mais pas "Killers" seul ni "The Killers Band" —
+    // contrairement à la correspondance de GENRE (substring tolérée), un nom
+    // d'ARTISTE doit matcher exactement pour éviter les faux positifs.
+    expect(findCatalogGenreForArtist('Killers')).toBeNull();
+    expect(findCatalogGenreForArtist('The Killers Band')).toBeNull();
+    expect(findCatalogGenreForArtist('The Killers')).toBe('Rock');
   });
 });
 
