@@ -275,10 +275,11 @@ describe('SearchModal — états de la liste', () => {
       expect(screen.queryByText('Charger plus de résultats')).not.toBeInTheDocument();
     });
 
-    it('absent une fois bpmSearchExhausted à vrai — plus rien à charger', () => {
+    it('reste présent même une fois bpmSearchExhausted à vrai (28/08, retour direct — "un coup de malchance ne doit pas fermer la porte"), avec un texte différent', () => {
       render(
         <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, bpmSearchExhausted: true })} />
       );
+      expect(screen.getByText('Chercher encore plus loin')).toBeInTheDocument();
       expect(screen.queryByText('Charger plus de résultats')).not.toBeInTheDocument();
     });
 
