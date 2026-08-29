@@ -539,7 +539,20 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeTrac
     // différent (remix hardstyle, version acoustique...) même si le genre_id de
     // l'album dit le contraire.
     const titleConflict = detectTitleStyleConflict(candidate.title, genresForQuery) || detectLanguageVersionConflict(candidate.title, genresForQuery);
-    const matches = !titleConflict && genresForQuery.some(g => genreRoughlyMatches(realGenre, g));
+    // SECOND AVIS (28/08, retour direct — "pourquoi tu regardes que les
+    // favoris et pas tous ceux qu'on regarde via le catalogue" — voir la
+    // docstring de `findCatalogGenreForArtist`, musicCatalog.js, pour le
+    // détail complet du bug "War Machine (Live...)" d'AC/DC étiqueté "Pop")
+    // — pour un artiste qu'on connaît déjà bien via ARTIST_CATALOG (choisi
+    // PAR genre, donc fiable), on croise le genre RÉSOLU PAR TITRE
+    // (`realGenre`, ponctuellement faux) avec le genre CATALOGUÉ PAR
+    // ARTISTE, plus stable. Un artiste absent de tout catalogue (cas le
+    // plus courant en recherche généraliste texte libre) n'est pas
+    // concerné — `findCatalogGenreForArtist` renvoie `null`, comportement
+    // inchangé.
+    const catalogGenre = findCatalogGenreForArtist(candidate.artist ? candidate.artist.name : null);
+    const catalogContradicts = catalogGenre && !genresForQuery.some(g => genreRoughlyMatches(catalogGenre, g));
+    const matches = !titleConflict && !catalogContradicts && genresForQuery.some(g => genreRoughlyMatches(realGenre, g));
     if (matches) {
       full = candidate;
       break;
@@ -786,7 +799,22 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
             const candidate = ordered[attempt];
             const realGenre = await resolveDeezerGenre(candidate.id);
             attempted.push({ candidate, realGenre });
-            if (realGenre && validGenres.some(g => genreRoughlyMatches(realGenre, g))) {
+            // SECOND AVIS (28/08, retour direct — voir la docstring de
+            // `findCatalogGenreForArtist`, musicCatalog.js) — cet artiste
+            // vient déjà du catalogue DU GENRE DEMANDÉ (`catalogArtists`),
+            // donc ce croisement est le plus souvent un no-op ; il protège
+            // le cas plus rare où le même artiste est AUSSI catalogué sous
+            // un genre différent ailleurs (`ARTIST_CATALOG` n'empêche pas
+            // qu'un nom apparaisse dans 2 listes), auquel cas
+            // `findCatalogGenreForArtist` renvoie le PREMIER genre trouvé
+            // — pas nécessairement celui-ci. Reste un avis, pas une vérité
+            // absolue : `catalogGenre` peut être `null` (artiste absent
+            // d'ARTIST_CATALOG malgré tout — cas normalement impossible ici
+            // mais pas vérifié activement) sans bloquer quoi que ce soit.
+            const artistName = candidate.artist ? candidate.artist.name : null;
+            const catalogGenre = findCatalogGenreForArtist(artistName);
+            const catalogContradicts = catalogGenre && !validGenres.some(g => genreRoughlyMatches(catalogGenre, g));
+            if (realGenre && !catalogContradicts && validGenres.some(g => genreRoughlyMatches(realGenre, g))) {
               picked = candidate;
               pickedRealGenre = realGenre;
               break;
@@ -1138,6 +1166,20 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
     }
 
     for (const full of allResolvedCandidates) {
+      // SECOND AVIS (28/08, retour direct — voir la docstring de
+      // `findCatalogGenreForArtist`, musicCatalog.js, pour le détail complet
+      // du bug "War Machine (Live...)" d'AC/DC étiqueté "Pop") — pour un
+      // artiste qu'on connaît déjà bien via ARTIST_CATALOG (choisi PAR
+      // genre, donc fiable), on croise le genre RÉSOLU PAR TITRE
+      // (`full._resolvedGenre`, ponctuellement faux — réédition/version
+      // live mal cataloguée) avec le genre CATALOGUÉ PAR ARTISTE, plus
+      // stable. `deezerDirectPool`/`equivalencePool` (plus bas) décident
+      // uniquement via `classifyGenreMatchTier(t.genre, ...)`, sans jamais
+      // consulter `_genreMismatch` pour les candidats `_deezerId` — on
+      // écarte donc ici, à la source, plutôt que de compter sur un filtre
+      // en aval qui ne regarde pas ce champ pour cette source précise.
+      const catalogGenre = findCatalogGenreForArtist(full.artist ? full.artist.name : null);
+      if (catalogGenre && !effectiveGenres.some(g => genreRoughlyMatches(catalogGenre, g))) continue;
       addIfValid({
         trackId: `deezer-${full.id}`, title: full.title,
         artist: full.artist ? full.artist.name : 'Inconnu',
@@ -1231,7 +1273,16 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
       // (lots de 10, pause 250ms entre lots), comme pour tout le reste du pool.
       await fetchInBatches(validDetails, 10, async (full) => {
         const realGenre = await resolveDeezerGenre(full.id);
-        const genreMismatch = !realGenre || !validGenres.some(g => genreRoughlyMatches(realGenre, g));
+        // SECOND AVIS (28/08, retour direct — voir la docstring de
+        // `findCatalogGenreForArtist`, musicCatalog.js) — cet artiste vient
+        // déjà du catalogue DU GENRE DEMANDÉ (`catalogArtists`), donc ce
+        // croisement est le plus souvent un no-op ; protège le cas plus
+        // rare où le même artiste est AUSSI catalogué sous un genre
+        // différent ailleurs.
+        const artistName = full.artist ? full.artist.name : null;
+        const catalogGenre = findCatalogGenreForArtist(artistName);
+        const catalogContradicts = catalogGenre && !validGenres.some(g => genreRoughlyMatches(catalogGenre, g));
+        const genreMismatch = !realGenre || catalogContradicts || !validGenres.some(g => genreRoughlyMatches(realGenre, g));
         // `_isLocalDB` : nom conservé pour la priorité à 4 niveaux ci-dessous
         // (distingue ce filet de secours par artiste des favoris/Spotify — ce
         // sont des choix explicites de l'utilisateur, pas un filet de secours —
@@ -1534,7 +1585,15 @@ const findSameArtistReplacement = async (artistName, minBpm, maxBpm, excludeTrac
       const realGenre = await resolveDeezerGenre(candidate.id);
       candidate._resolvedGenre = realGenre || 'Genre inconnu';
       attempted.push(candidate);
-      if (requestedGenres.some(g => genreRoughlyMatches(realGenre, g))) { pick = candidate; break; }
+      // SECOND AVIS (28/08, retour direct — voir la docstring de
+      // `findCatalogGenreForArtist`, musicCatalog.js) — même artiste pour
+      // TOUS les candidats ici (recherche `artist:"${artistName}"`), donc
+      // un seul lookup suffirait en théorie ; fait dans la boucle par
+      // simplicité (coût négligeable, aucun appel réseau, pas de cache
+      // nécessaire pour un lookup en mémoire).
+      const catalogGenre = findCatalogGenreForArtist(candidate.artist ? candidate.artist.name : artistName);
+      const catalogContradicts = catalogGenre && !requestedGenres.some(g => genreRoughlyMatches(catalogGenre, g));
+      if (!catalogContradicts && requestedGenres.some(g => genreRoughlyMatches(realGenre, g))) { pick = candidate; break; }
     }
     if (!pick && attempted.length > 0) { pick = attempted[0]; genreMismatch = true; }
     if (!pick) return null;
