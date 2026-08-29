@@ -1017,6 +1017,7 @@ function AppContent({
     searchLoadingMessage,
     worldSearchOtherResults,
     bpmSearchParams,
+    bpmUnconfirmedReserve, bpmSearchExhausted,
   } = search;
   // ⚠️ 9 setters retirés de cette destructuration (check-up 22/08) :
   // `setIsWorldSearching`, `setSearchResultsOffset` (et son getter
@@ -2141,7 +2142,7 @@ function AppContent({
           theme={themeTokens}
           isSearchModalOpen={isSearchModalOpen} closeSearchModal={closeSearchModal}
           isBpmSearchMode={isBpmSearchMode} bpmSearchParams={bpmSearchParams} searchTracksByBpm={searchTracksByBpm}
-          loadMoreBpmResults={loadMoreBpmResults}
+          loadMoreBpmResults={loadMoreBpmResults} bpmUnconfirmedReserve={bpmUnconfirmedReserve} bpmSearchExhausted={bpmSearchExhausted}
           searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchWorldMusicApi={searchWorldMusicApi}
           isWorldSearching={isWorldSearching} worldSearchResults={worldSearchResults} worldSearchOtherResults={worldSearchOtherResults}
           searchLoadingMessage={searchLoadingMessage} searchElapsedSeconds={searchElapsedSeconds}
