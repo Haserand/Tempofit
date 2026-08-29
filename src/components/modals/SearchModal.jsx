@@ -1,4 +1,4 @@
-import { Target, Search, RefreshCw, Loader2, ChevronDown, Play, Pause, Edit3, Check, Plus } from 'lucide-react';
+import { Target, Search, Loader2, ChevronDown, Play, Pause, Edit3, Check, Plus } from 'lucide-react';
 import { genreDisplayLabel, getGenresForDisplay } from '../../musicCatalog';
 import ModalShell from '../shared/ModalShell';
 import ModalCloseButton from '../shared/ModalCloseButton';
@@ -19,7 +19,7 @@ import ModalCloseButton from '../shared/ModalCloseButton';
 export default function SearchModal({
   theme,
   isSearchModalOpen, closeSearchModal,
-  isBpmSearchMode, bpmSearchParams, searchTracksByBpm,
+  isBpmSearchMode, bpmSearchParams,
   loadMoreBpmResults, bpmUnconfirmedReserve, bpmSearchExhausted, loadMoreElapsedSeconds,
   searchQuery, setSearchQuery, searchWorldMusicApi,
   isWorldSearching, worldSearchResults, worldSearchOtherResults,
@@ -220,25 +220,41 @@ export default function SearchModal({
         {isBpmSearchMode ? (
           <div className={`mb-4 px-4 py-3 rounded-xl border ${inputBorder} ${inputBg} flex items-center justify-between gap-2`}>
             <span className={`text-sm font-bold ${textMuted}`}>Cible : <span className={textColorClass}>{bpmSearchParams.bpm} BPM ± {bpmSearchParams.tolerance}</span> · {bpmSearchParams.genres.length > 0 ? bpmSearchParams.genres.map(genreDisplayLabel).join(', ') : 'tous genres'}</span>
-            <div className="flex items-center gap-2 shrink-0">
-              {/* Compteur de résultats (28/08, retour direct — "un compteur
-                  de résultats en haut à droite") — voir la docstring de
-                  `visibleResultsCount` en tête de composant pour ce qu'il
-                  compte exactement (Option A retenue après discussion :
-                  confirmé visible à l'écran, jamais la réserve cachée).
-                  N'apparaît que s'il y a au moins 1 résultat à annoncer —
-                  pas de "0 résultat" avant même d'avoir cherché quoi que ce
-                  soit, ni pendant un état déjà couvert par le message "Aucun
-                  résultat" plus bas. */}
-              {visibleResultsCount > 0 && (
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${textMuted} bg-black/5 dark:bg-white/10`}>
-                  {visibleResultsCount} résultat{visibleResultsCount > 1 ? 's' : ''}
+            {/* PASTILLE-BOUTON UNIQUE (28/08, retour direct — "j'ai du mal à
+                comprendre l'utilité du bouton rouge à droite, est-ce que
+                justement ça ne correspond pas au charger plus ?" puis "je ne
+                veux pas de bouton pour rafraîchir depuis 0") — le bouton
+                🔄 (rafraîchir depuis zéro) a été retiré : le catalogue
+                d'artistes est déjà exploré EN ENTIER dès le tout premier
+                clic (voir searchArtistsForBpm, maxArtistsToTry =
+                artists.length) — "rafraîchir" ne changeait donc quasiment
+                rien au fond des résultats, contrairement à "Charger plus"
+                (qui, LUI, élargit vraiment le budget de vérification et
+                garde ce qui est déjà affiché plutôt que de tout jeter).
+                L'ancien bouton en pointillés tout en bas de la liste
+                (`isBpmSearchMode && !isWorldSearching && ...`) est
+                supprimé — cette pastille cumule maintenant SON rôle
+                (déclenche `loadMoreBpmResults`) ET celui du compteur
+                (`visibleResultsCount`, ajouté juste avant ce chantier) : au
+                repos elle affiche le nombre de résultats, pendant le
+                chargement elle affiche le texte évolutif à sa place
+                (`getLoadMoreButtonText`), plutôt que 2 éléments séparés
+                (une pastille + un bouton pointillé) qui faisaient une
+                redondance visuelle avec le 🔄 retiré. */}
+            {(visibleResultsCount > 0 || bpmUnconfirmedReserve.length > 0) && !isWorldSearching && (
+              <button
+                onClick={loadMoreBpmResults}
+                disabled={isLoadingMoreResults}
+                className={`shrink-0 flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full transition-colors disabled:opacity-70 ${textMuted} bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20`}
+              >
+                {isLoadingMoreResults && <Loader2 className="animate-spin" size={12}/>}
+                <span>
+                  {isLoadingMoreResults
+                    ? getLoadMoreButtonText()
+                    : (visibleResultsCount > 0 ? `${visibleResultsCount} résultat${visibleResultsCount > 1 ? 's' : ''}` : "Chercher des résultats")}
                 </span>
-              )}
-              <button onClick={() => searchTracksByBpm(bpmSearchParams.bpm, bpmSearchParams.tolerance, bpmSearchParams.genres)} disabled={isWorldSearching} className={`p-2 rounded-lg text-white ${bgAccentClass}`}>
-                {isWorldSearching ? <Loader2 className="animate-spin" size={16}/> : <RefreshCw size={16}/>}
               </button>
-            </div>
+            )}
           </div>
         ) : (
           <div className="mb-4 flex gap-2">
@@ -332,47 +348,6 @@ export default function SearchModal({
                 >
                   {isLoadingMoreResults ? <Loader2 className="animate-spin" size={16}/> : <ChevronDown size={16}/>}
                   <span>{isLoadingMoreResults ? "Chargement..." : "Voir plus de résultats"}</span>
-                </button>
-              )}
-              {/* "Charger plus" en mode BPM (28/08, retour direct — voir la
-                  docstring de `loadMoreBpmResults`, useDeezerSearch.js, pour
-                  le raisonnement complet) — PAS de notion de "page suivante"
-                  ici contrairement au bouton texte libre ci-dessus (pas de
-                  `searchHasMoreResults` équivalent, la recherche catalogue
-                  explore déjà tout le catalogue dès le 1er appel) : affiché
-                  dès que la recherche initiale est terminée
-                  (`!isWorldSearching`) et qu'il y a déjà des résultats
-                  (confirmés OU en réserve cachée) à compléter, comme une
-                  action "chercher plus loin" plutôt qu'une vraie pagination.
-                  ⚠️ NE DISPARAÎT JAMAIS (28/08, retour direct — "un coup de
-                  malchance sur le tirage aléatoire des artistes ne devrait
-                  pas fermer définitivement la porte") — `bpmSearchExhausted`
-                  servait initialement à CACHER ce bouton une fois épuisé ;
-                  un seul "Charger plus" sans rien trouver de nouveau n'est
-                  qu'une indication, pas une preuve absolue qu'il n'y a
-                  vraiment plus rien (le tirage aléatoire des artistes,
-                  searchArtistsForBpm, aurait pu tomber sur un lot peu
-                  chanceux). `bpmSearchExhausted` sert maintenant UNIQUEMENT
-                  à révéler la réserve non confirmée (voir `displayedResults`
-                  en tête de composant) et à changer le texte du bouton
-                  ci-dessous — plus jamais à le faire disparaître. */}
-              {isBpmSearchMode && !isWorldSearching && (worldSearchResults.length > 0 || bpmUnconfirmedReserve.length > 0) && (
-                <button
-                  onClick={loadMoreBpmResults}
-                  disabled={isLoadingMoreResults}
-                  className={`w-full mt-1 py-2.5 rounded-xl border-2 border-dashed text-sm font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-60 ${inputBorder} ${textMuted} hover:text-main hover:border-gray-400`}
-                >
-                  {isLoadingMoreResults ? <Loader2 className="animate-spin" size={16}/> : <ChevronDown size={16}/>}
-                  <span>
-                    {isLoadingMoreResults
-                      ? getLoadMoreButtonText()
-                      // Texte différent une fois qu'un 1er "Charger plus" n'a
-                      // rien trouvé de nouveau (28/08) — signale honnêtement
-                      // que la suite est moins probable, SANS fermer la porte :
-                      // "chercher encore plus loin" plutôt que redonner
-                      // l'impression d'une action IDENTIQUE à la 1re fois.
-                      : (bpmSearchExhausted ? "Chercher encore plus loin" : "Charger plus de résultats")}
-                  </span>
                 </button>
               )}
               {/* Réserve "autres résultats" (titres qui matchent le texte tapé
