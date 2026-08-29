@@ -235,9 +235,22 @@ export default function SearchModal({
                   la branche "Aucun résultat" plus bas), mais UNIQUEMENT des
                   titres au genre non confirmé, tous encore cachés en
                   réserve. Message honnête plutôt qu'une liste vide sans
-                  explication, avant le bouton "Charger plus" juste après. */}
+                  explication, avant le bouton "Charger plus" juste après.
+                  ⚠️ NOMBRE EXACT AJOUTÉ (28/08, retour direct — "ça peut
+                  sembler être un échec total") : le message générique
+                  précédent ("Rien de confirmé...") ne distinguait pas "on
+                  n'a RIEN trouvé du tout" de "on a des pistes, juste pas
+                  sûres encore" — ce 2e cas mérite une formulation moins
+                  décourageante. Le CHIFFRE (`bpmUnconfirmedReserve.length`)
+                  change cette perception sans pour autant montrer ces
+                  titres avant d'avoir vraiment épuisé la recherche —
+                  toujours aucune contamination visuelle du non confirmé,
+                  juste une meilleure information sur ce qui attend déjà en
+                  coulisses. */}
               {isBpmSearchMode && !isWorldSearching && !bpmSearchExhausted && worldSearchResults.length === 0 && bpmUnconfirmedReserve.length > 0 && (
-                <div className={`text-sm font-medium px-1 pb-2 ${textMuted}`}>Rien de confirmé pour l'instant à ce BPM/genre — essaie "Charger plus" pour chercher plus loin.</div>
+                <div className={`text-sm font-medium px-1 pb-2 ${textMuted}`}>
+                  Rien de confirmé pour l'instant à ce BPM/genre — {bpmUnconfirmedReserve.length} titre{bpmUnconfirmedReserve.length > 1 ? 's' : ''} approximatif{bpmUnconfirmedReserve.length > 1 ? 's' : ''} trouvé{bpmUnconfirmedReserve.length > 1 ? 's' : ''} (genre non garanti), essaie "Charger plus" pour chercher mieux.
+                </div>
               )}
               {(() => {
                 // Filtre les titres déjà en favoris — pas la peine de les
