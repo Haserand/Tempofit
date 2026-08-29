@@ -331,6 +331,21 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
   // (`mergeAndResortBpmResults`, voir plus bas) — cette fonction reste pure
   // et ne connaît rien des résultats d'un appel précédent au-delà de
   // `excludeTrackIds`.
+  //
+  // ⚠️ CONFIRMÉ/NON CONFIRMÉ SÉPARÉS EN 2 GROUPES (28/08, retour direct —
+  // "je vois pas énormément de confirmés" puis "les non confirmés ne
+  // devraient apparaître qu'une fois qu'on a vraiment fait le tour") —
+  // jusqu'ici, `onProgress`/le retour final mélangeaient confirmé et non
+  // confirmé dans UNE seule liste (triée pour que le confirmé arrive
+  // visuellement en premier, mais le non confirmé restait affiché dès le 1er
+  // chargement). Renvoie désormais 2 groupes distincts partout
+  // (`{ confirmed, unconfirmed }` pour `onProgress`, `{ results,
+  // unconfirmed }` pour le retour final) — cette fonction reste neutre sur
+  // la DÉCISION de quand révéler le non confirmé (elle se contente de
+  // classer et séparer) : c'est `loadMoreBpmResults` (useDeezerSearch.js)
+  // qui décide de ne les révéler qu'une fois un "Charger plus" n'ayant rien
+  // trouvé de nouveau confirmé — le signal honnête que la recherche est
+  // allée aussi loin qu'elle peut raisonnablement aller.
   const seenIds = new Set(
     (excludeTrackIds || [])
       .map(id => (typeof id === 'string' && id.startsWith('deezer-')) ? Number(id.slice('deezer-'.length)) : id)
@@ -342,7 +357,18 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
   const emitProgress = () => {
     if (!onProgress) return;
     const sorted = Array.from(accumulator.values()).sort((a, b) => a._matchTier - b._matchTier);
-    onProgress(sorted);
+    // ⚠️ SÉPARÉ EN 2 GROUPES (28/08, retour direct — "les non confirmés ne
+    // devraient apparaître qu'une fois qu'on a vraiment fait le tour") —
+    // `onProgress` recevait jusqu'ici UNE liste mélangée (confirmé et non
+    // confirmé ensemble, déjà triés pour que le confirmé arrive en premier
+    // visuellement). Renvoie désormais 2 listes distinctes : à l'appelant
+    // (`useDeezerSearch.js`) de décider QUAND révéler les non confirmés
+    // (voir la docstring de `loadMoreBpmResults`) plutôt que de les mélanger
+    // systématiquement dès le 1er lot résolu.
+    onProgress({
+      confirmed: sorted.filter(r => r._matchTier < 2),
+      unconfirmed: sorted.filter(r => r._matchTier === 2),
+    });
   };
 
   // Traite un lot de stubs bruts (catalogue OU recherche généraliste) :
@@ -663,5 +689,11 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
   const tierCounts = results.reduce((acc, r) => { acc[r._matchTier] = (acc[r._matchTier] || 0) + 1; return acc; }, {});
   debugLog(`[BPM search] Résultat final : ${results.length} titre(s) — tier 0 (genre direct) : ${tierCounts[0] || 0}, tier 1 (équivalence/catalogue) : ${tierCounts[1] || 0}, tier 2 (mismatch) : ${tierCounts[2] || 0}.`);
 
-  return { results };
+  // ⚠️ RETOUR SÉPARÉ (28/08, même raisonnement que `emitProgress` ci-dessus)
+  // — `results` ne contient plus QUE le confirmé (palier < 2) ; `unconfirmed`
+  // (palier 2, ex-mismatch) est renvoyé À PART, jamais mélangé d'office.
+  return {
+    results: results.filter(r => r._matchTier < 2),
+    unconfirmed: results.filter(r => r._matchTier === 2),
+  };
 };
