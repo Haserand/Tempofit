@@ -20,7 +20,7 @@ export default function SearchModal({
   theme,
   isSearchModalOpen, closeSearchModal,
   isBpmSearchMode, bpmSearchParams, searchTracksByBpm,
-  loadMoreBpmResults, bpmUnconfirmedReserve, bpmSearchExhausted,
+  loadMoreBpmResults, bpmUnconfirmedReserve, bpmSearchExhausted, loadMoreElapsedSeconds,
   searchQuery, setSearchQuery, searchWorldMusicApi,
   isWorldSearching, worldSearchResults, worldSearchOtherResults,
   searchLoadingMessage, searchElapsedSeconds,
@@ -48,6 +48,23 @@ export default function SearchModal({
   const displayedResults = (isBpmSearchMode && bpmSearchExhausted)
     ? [...worldSearchResults, ...bpmUnconfirmedReserve]
     : worldSearchResults;
+
+  // Texte évolutif du bouton "Charger plus" PENDANT le chargement (28/08,
+  // retour direct — "faudrait avoir le texte 'chargement' qui évolue un peu
+  // comme pour le reste de la génération") — même principe à paliers de
+  // temps que `getGenerationBannerMessage` (GenerationProgressBanner.jsx),
+  // adapté à un bouton compact plutôt qu'un bandeau flottant (messages plus
+  // courts, pas de compte de titres en cours — contrairement à la
+  // génération, cette recherche n'expose pas de compteur progressif fiable
+  // pendant le chargement). Recherche catalogue déjà exhaustive sur tout le
+  // catalogue à chaque "Charger plus" (voir loadMoreBpmResults) — peut
+  // légitimement prendre du temps, d'où l'intérêt de rassurer au-delà de
+  // quelques secondes plutôt que de laisser "Chargement..." statique.
+  const getLoadMoreButtonText = () => {
+    if (loadMoreElapsedSeconds < 8) return "Chargement...";
+    if (loadMoreElapsedSeconds < 20) return "Encore un instant...";
+    return "Ça prend plus de temps que prévu...";
+  };
 
   // Une seule ligne de résultat de recherche (bouton extrait + ajout/favori) —
   // extraite en fonction réutilisable pour être partagée entre la liste
@@ -314,7 +331,7 @@ export default function SearchModal({
                   {isLoadingMoreResults ? <Loader2 className="animate-spin" size={16}/> : <ChevronDown size={16}/>}
                   <span>
                     {isLoadingMoreResults
-                      ? "Chargement..."
+                      ? getLoadMoreButtonText()
                       // Texte différent une fois qu'un 1er "Charger plus" n'a
                       // rien trouvé de nouveau (28/08) — signale honnêtement
                       // que la suite est moins probable, SANS fermer la porte :
