@@ -39,6 +39,8 @@ function baseProps(overrides = {}) {
     bpmSearchParams: { bpm: 150, tolerance: 10, genres: [] },
     searchTracksByBpm: vi.fn(),
     loadMoreBpmResults: vi.fn(),
+    bpmUnconfirmedReserve: [],
+    bpmSearchExhausted: false,
     searchQuery: '',
     setSearchQuery: vi.fn(),
     searchWorldMusicApi: vi.fn(),
@@ -271,6 +273,64 @@ describe('SearchModal — états de la liste', () => {
         <SearchModal {...baseProps({ isBpmSearchMode: false, worldSearchResults: [trackWithPreview], isWorldSearching: false })} />
       );
       expect(screen.queryByText('Charger plus de résultats')).not.toBeInTheDocument();
+    });
+
+    it('absent une fois bpmSearchExhausted à vrai — plus rien à charger', () => {
+      render(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, bpmSearchExhausted: true })} />
+      );
+      expect(screen.queryByText('Charger plus de résultats')).not.toBeInTheDocument();
+    });
+
+    it('présent même sans résultat confirmé, tant qu\'il y a une réserve non confirmée à explorer', () => {
+      const unconfirmedTrack = { ...trackDetectedBpm, _genreMismatch: true };
+      render(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [], bpmUnconfirmedReserve: [unconfirmedTrack], isWorldSearching: false })} />
+      );
+      expect(screen.getByText('Charger plus de résultats')).toBeInTheDocument();
+    });
+  });
+
+  // NOUVEAU (28/08, chantier "révéler le non confirmé seulement si vraiment
+  // épuisé") — voir la docstring de `displayedResults`, SearchModal.jsx.
+  describe('réserve non confirmée (mode BPM) — révélée seulement une fois bpmSearchExhausted', () => {
+    it('confirmé vide, réserve non vide, PAS encore épuisé : ni la réserve ni un titre ne s\'affichent, message honnête à la place', () => {
+      const unconfirmedTrack = { ...trackDetectedBpm, _genreMismatch: true };
+      render(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [], bpmUnconfirmedReserve: [unconfirmedTrack], isWorldSearching: false, bpmSearchExhausted: false })} />
+      );
+      expect(screen.queryByText('Mystery Track')).not.toBeInTheDocument();
+      expect(screen.getByText(/Rien de confirmé pour l'instant/)).toBeInTheDocument();
+    });
+
+    it('confirmé vide, réserve non vide, ÉPUISÉ : la réserve est enfin révélée', () => {
+      const unconfirmedTrack = { ...trackDetectedBpm, _genreMismatch: true };
+      render(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [], bpmUnconfirmedReserve: [unconfirmedTrack], isWorldSearching: false, bpmSearchExhausted: true })} />
+      );
+      expect(screen.getByText('Mystery Track')).toBeInTheDocument();
+      expect(screen.getByText('⚠️ Genre non confirmé')).toBeInTheDocument();
+      // Le message "rien de confirmé" ne doit plus apparaître une fois la
+      // réserve révélée : le titre non confirmé EST maintenant le résultat affiché.
+      expect(screen.queryByText(/Rien de confirmé pour l'instant/)).not.toBeInTheDocument();
+    });
+
+    it('confirmé ET réserve non vides, ÉPUISÉ : les deux s\'affichent, confirmé avant réserve', () => {
+      const unconfirmedTrack = { ...trackDetectedBpm, _genreMismatch: true };
+      render(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], bpmUnconfirmedReserve: [unconfirmedTrack], isWorldSearching: false, bpmSearchExhausted: true })} />
+      );
+      const order = screen.getAllByText(/Blitzkrieg Bop|Mystery Track/).map(el => el.textContent);
+      expect(order).toEqual(['Blitzkrieg Bop', 'Mystery Track']);
+    });
+
+    it('confirmé non vide, réserve non vide, PAS encore épuisé : seul le confirmé s\'affiche, la réserve reste cachée', () => {
+      const unconfirmedTrack = { ...trackDetectedBpm, _genreMismatch: true };
+      render(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], bpmUnconfirmedReserve: [unconfirmedTrack], isWorldSearching: false, bpmSearchExhausted: false })} />
+      );
+      expect(screen.getByText('Blitzkrieg Bop')).toBeInTheDocument();
+      expect(screen.queryByText('Mystery Track')).not.toBeInTheDocument();
     });
   });
 
