@@ -1128,7 +1128,7 @@ function AppContent({
   // playlist en cours, lecture audio) — les 4 autres fonctions ne
   // dépendaient QUE de l'état de recherche + showToast + isNaughtyMode,
   // extraites sans risque dans hooks/useDeezerSearch.js.
-  const { searchWorldMusicApi, commitBpmEdit, closeSearchModal, searchTracksByBpm } = useDeezerSearch(search, showToast, isNaughtyMode, favorites);
+  const { searchWorldMusicApi, commitBpmEdit, closeSearchModal, searchTracksByBpm, loadMoreBpmResults } = useDeezerSearch(search, showToast, isNaughtyMode, favorites);
 
   // renderSearchResultRow : déplacée dans SearchModal.jsx (retour direct :
   // "continue avec renderSearchResultRow" — elle produit du JSX propre à
@@ -2141,6 +2141,7 @@ function AppContent({
           theme={themeTokens}
           isSearchModalOpen={isSearchModalOpen} closeSearchModal={closeSearchModal}
           isBpmSearchMode={isBpmSearchMode} bpmSearchParams={bpmSearchParams} searchTracksByBpm={searchTracksByBpm}
+          loadMoreBpmResults={loadMoreBpmResults}
           searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchWorldMusicApi={searchWorldMusicApi}
           isWorldSearching={isWorldSearching} worldSearchResults={worldSearchResults} worldSearchOtherResults={worldSearchOtherResults}
           searchLoadingMessage={searchLoadingMessage} searchElapsedSeconds={searchElapsedSeconds}
