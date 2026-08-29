@@ -38,6 +38,7 @@ function baseProps(overrides = {}) {
     isBpmSearchMode: false,
     bpmSearchParams: { bpm: 150, tolerance: 10, genres: [] },
     searchTracksByBpm: vi.fn(),
+    loadMoreBpmResults: vi.fn(),
     searchQuery: '',
     setSearchQuery: vi.fn(),
     searchWorldMusicApi: vi.fn(),
@@ -227,6 +228,50 @@ describe('SearchModal — états de la liste', () => {
       <SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], searchHasMoreResults: true, isLoadingMoreResults: true })} />
     );
     expect(screen.getByText('Chargement...')).toBeInTheDocument();
+  });
+
+  // NOUVEAU (28/08, chantier "Charger plus" pour la recherche BPM) — bouton
+  // dédié, distinct de "Voir plus de résultats" (texte libre, ci-dessus) :
+  // pas de `searchHasMoreResults` ici (voir la docstring de
+  // `loadMoreBpmResults`, useDeezerSearch.js — la recherche catalogue
+  // explore déjà tout le catalogue dès le 1er appel, aucune notion de page
+  // suivante), affiché dès que la recherche initiale est terminée avec au
+  // moins un résultat déjà là.
+  describe('"Charger plus de résultats" (mode BPM)', () => {
+    it('appelle loadMoreBpmResults au clic, texte change pendant le chargement', () => {
+      const loadMoreBpmResults = vi.fn();
+      const { rerender } = render(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, loadMoreBpmResults })} />
+      );
+      fireEvent.click(screen.getByText('Charger plus de résultats'));
+      expect(loadMoreBpmResults).toHaveBeenCalledTimes(1);
+
+      rerender(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, isLoadingMoreResults: true })} />
+      );
+      expect(screen.getByText('Chargement...')).toBeInTheDocument();
+    });
+
+    it('absent tant que la recherche initiale est encore en cours', () => {
+      render(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: true })} />
+      );
+      expect(screen.queryByText('Charger plus de résultats')).not.toBeInTheDocument();
+    });
+
+    it('absent sans aucun résultat (rien à compléter)', () => {
+      render(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [], isWorldSearching: false })} />
+      );
+      expect(screen.queryByText('Charger plus de résultats')).not.toBeInTheDocument();
+    });
+
+    it('absent en mode recherche texte libre (réservé au mode BPM)', () => {
+      render(
+        <SearchModal {...baseProps({ isBpmSearchMode: false, worldSearchResults: [trackWithPreview], isWorldSearching: false })} />
+      );
+      expect(screen.queryByText('Charger plus de résultats')).not.toBeInTheDocument();
+    });
   });
 
   it('réserve "autres résultats" affichée seulement une fois la recherche générale épuisée', () => {
