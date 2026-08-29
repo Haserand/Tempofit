@@ -304,6 +304,28 @@ describe('SearchModal — états de la liste', () => {
       expect(screen.getByText(/Rien de confirmé pour l'instant/)).toBeInTheDocument();
     });
 
+    // NOUVEAU (28/08, retour direct — "ça peut sembler être un échec total")
+    // — le message affiche maintenant le NOMBRE EXACT de titres en réserve,
+    // pour distinguer "rien trouvé du tout" de "des pistes existent, pas
+    // sûres encore". Singulier/pluriel vérifiés séparément.
+    it('message avec le nombre exact de titres en réserve, au singulier pour 1 seul', () => {
+      const unconfirmedTrack = { ...trackDetectedBpm, _genreMismatch: true };
+      render(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [], bpmUnconfirmedReserve: [unconfirmedTrack], isWorldSearching: false, bpmSearchExhausted: false })} />
+      );
+      expect(screen.getByText(/1 titre approximatif trouvé \(genre non garanti\)/)).toBeInTheDocument();
+    });
+
+    it('message avec le nombre exact de titres en réserve, au pluriel pour plusieurs', () => {
+      const unconfirmedTrack1 = { ...trackDetectedBpm, trackId: 'nc1', _genreMismatch: true };
+      const unconfirmedTrack2 = { ...trackDetectedBpm, trackId: 'nc2', _genreMismatch: true };
+      const unconfirmedTrack3 = { ...trackDetectedBpm, trackId: 'nc3', _genreMismatch: true };
+      render(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [], bpmUnconfirmedReserve: [unconfirmedTrack1, unconfirmedTrack2, unconfirmedTrack3], isWorldSearching: false, bpmSearchExhausted: false })} />
+      );
+      expect(screen.getByText(/3 titres approximatifs trouvés \(genre non garanti\)/)).toBeInTheDocument();
+    });
+
     it('confirmé vide, réserve non vide, ÉPUISÉ : la réserve est enfin révélée', () => {
       const unconfirmedTrack = { ...trackDetectedBpm, _genreMismatch: true };
       render(
