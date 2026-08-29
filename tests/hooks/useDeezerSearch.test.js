@@ -14,10 +14,12 @@ vi.mock('../../src/contexts/ModalContext.jsx', () => ({
 }));
 
 const mockDedupeAppend = vi.fn((prev, incoming, reset) => (reset ? incoming : [...prev, ...incoming]));
+const mockMergeAndResortBpmResults = vi.fn((prev, incoming) => [...prev, ...incoming]);
 const mockFetchWorldSearchResults = vi.fn();
 const mockFetchBpmSearchResults = vi.fn();
 vi.mock('../../src/engine/searchEngine.js', () => ({
   dedupeAppend: (...args) => mockDedupeAppend(...args),
+  mergeAndResortBpmResults: (...args) => mockMergeAndResortBpmResults(...args),
   fetchWorldSearchResults: (...args) => mockFetchWorldSearchResults(...args),
   fetchBpmSearchResults: (...args) => mockFetchBpmSearchResults(...args),
 }));
@@ -34,6 +36,9 @@ function makeSearch(overrides = {}) {
     searchResultsOffset: 0,
     searchActiveArtistName: null,
     isWorldSearching: false,
+    worldSearchResults: [],
+    bpmSearchParams: { bpm: 140, tolerance: 10, genres: ['Rock'] },
+    isLoadingMoreResults: false,
     setSearchActiveArtistName: vi.fn(),
     setWorldSearchResults: vi.fn(),
     setWorldSearchOtherResults: vi.fn(),
@@ -373,5 +378,108 @@ describe('searchTracksByBpm', () => {
 
     expect(showToast).toHaveBeenCalledWith('Erreur réseau lors de la recherche.', 'error');
     expect(search.setIsWorldSearching).toHaveBeenLastCalledWith(false);
+  });
+});
+
+// NOUVEAU (28/08, chantier "Charger plus" pour la recherche BPM) —
+// `loadMoreBpmResults` : relance `fetchBpmSearchResults` avec un budget de
+// vérification plus large (`stubCapMultiplier`) et exclut les titres déjà
+// affichés, fusionne via `mergeAndResortBpmResults` (mockée en simple
+// concaténation ici, sa vraie logique de retri est testée dans
+// searchEngine.test.js — hors scope de ce fichier, qui vérifie uniquement
+// le CÂBLAGE : bons paramètres transmis, bon état mis à jour, bons
+// garde-fous anti-concurrence).
+describe('loadMoreBpmResults', () => {
+  it('relance fetchBpmSearchResults avec les paramètres BPM en cours, les trackId déjà affichés en exclusion, et un budget doublé', async () => {
+    const existing = [{ trackId: 'deezer-1', _matchTier: 0 }, { trackId: 'deezer-2', _matchTier: 2 }];
+    mockFetchBpmSearchResults.mockResolvedValue({ results: [...existing, { trackId: 'deezer-3', _matchTier: 0 }] });
+    const search = makeSearch({
+      worldSearchResults: existing,
+      bpmSearchParams: { bpm: 140, tolerance: 10, genres: ['Electro'] },
+    });
+    const showToast = vi.fn();
+    const favorites = { tracks: [], artists: ['AC/DC'] };
+    const { loadMoreBpmResults } = useDeezerSearch(search, showToast, false, favorites);
+
+    await loadMoreBpmResults();
+
+    expect(mockFetchBpmSearchResults).toHaveBeenCalledWith(
+      140, 10, ['Electro'],
+      expect.any(Function),
+      favorites,
+      ['deezer-1', 'deezer-2'], // trackId déjà affichés, extraits de worldSearchResults
+      2 // stubCapMultiplier
+    );
+  });
+
+  it('fusionne le résultat final avec les résultats déjà affichés via mergeAndResortBpmResults (pas un simple remplacement)', async () => {
+    const existing = [{ trackId: 'deezer-1', _matchTier: 0 }];
+    const newOnes = [{ trackId: 'deezer-3', _matchTier: 0 }];
+    mockFetchBpmSearchResults.mockResolvedValue({ results: newOnes });
+    const search = makeSearch({ worldSearchResults: existing });
+    const showToast = vi.fn();
+    const { loadMoreBpmResults } = useDeezerSearch(search, showToast, false);
+
+    await loadMoreBpmResults();
+
+    expect(mockMergeAndResortBpmResults).toHaveBeenCalledWith(existing, newOnes);
+    expect(search.setWorldSearchResults).toHaveBeenLastCalledWith([...existing, ...newOnes]);
+  });
+
+  it('refuse un appel concurrent si une recherche BPM initiale est déjà en cours (isWorldSearching)', async () => {
+    const search = makeSearch({ isWorldSearching: true });
+    const showToast = vi.fn();
+    const { loadMoreBpmResults } = useDeezerSearch(search, showToast, false);
+
+    await loadMoreBpmResults();
+
+    expect(mockFetchBpmSearchResults).not.toHaveBeenCalled();
+    expect(search.setIsLoadingMoreResults).not.toHaveBeenCalled();
+  });
+
+  it('refuse un appel concurrent si un "Charger plus" est déjà en cours (isLoadingMoreResults)', async () => {
+    const search = makeSearch({ isLoadingMoreResults: true });
+    const showToast = vi.fn();
+    const { loadMoreBpmResults } = useDeezerSearch(search, showToast, false);
+
+    await loadMoreBpmResults();
+
+    expect(mockFetchBpmSearchResults).not.toHaveBeenCalled();
+  });
+
+  it('affichage progressif : chaque lot partiel est fusionné avec la base FIGÉE (pas le state déjà modifié par un lot précédent)', async () => {
+    const existing = [{ trackId: 'deezer-1', _matchTier: 0 }];
+    let capturedOnProgress;
+    mockFetchBpmSearchResults.mockImplementation(async (_bpm, _tol, _genres, onProgress) => {
+      capturedOnProgress = onProgress;
+      onProgress([{ trackId: 'deezer-2', _matchTier: 0 }]);
+      onProgress([{ trackId: 'deezer-2', _matchTier: 0 }, { trackId: 'deezer-3', _matchTier: -1 }]);
+      return { results: [{ trackId: 'deezer-2', _matchTier: 0 }, { trackId: 'deezer-3', _matchTier: -1 }] };
+    });
+    const search = makeSearch({ worldSearchResults: existing });
+    const showToast = vi.fn();
+    const { loadMoreBpmResults } = useDeezerSearch(search, showToast, false);
+
+    await loadMoreBpmResults();
+
+    expect(typeof capturedOnProgress).toBe('function');
+    // Chaque appel de fusion utilise TOUJOURS `existing` comme base — jamais
+    // un résultat partiel précédent déjà écrit dans le state (voir la
+    // docstring de `loadMoreBpmResults` : "photo figée AVANT ce nouvel appel").
+    expect(mockMergeAndResortBpmResults).toHaveBeenNthCalledWith(1, existing, [{ trackId: 'deezer-2', _matchTier: 0 }]);
+    expect(mockMergeAndResortBpmResults).toHaveBeenNthCalledWith(2, existing, [{ trackId: 'deezer-2', _matchTier: 0 }, { trackId: 'deezer-3', _matchTier: -1 }]);
+    expect(mockMergeAndResortBpmResults).toHaveBeenNthCalledWith(3, existing, [{ trackId: 'deezer-2', _matchTier: 0 }, { trackId: 'deezer-3', _matchTier: -1 }]);
+  });
+
+  it('erreur réseau : toast erreur, retombe sur isLoadingMoreResults=false', async () => {
+    mockFetchBpmSearchResults.mockRejectedValue(new Error('network down'));
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { loadMoreBpmResults } = useDeezerSearch(search, showToast, false);
+
+    await loadMoreBpmResults();
+
+    expect(showToast).toHaveBeenCalledWith('Erreur réseau lors de la recherche.', 'error');
+    expect(search.setIsLoadingMoreResults).toHaveBeenLastCalledWith(false);
   });
 });
