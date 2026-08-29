@@ -1032,6 +1032,14 @@ function AppContent({
   // Chrono affiché pendant le chargement — repart de 0 à chaque nouvelle
   // recherche, incrémente chaque seconde tant que isWorldSearching est vrai.
   const searchElapsedSeconds = useElapsedTimer(isWorldSearching);
+  // Chrono dédié au bouton "Charger plus" (28/08, retour direct — "faudrait
+  // avoir le texte 'chargement' qui évolue un peu comme pour le reste de la
+  // génération") — SÉPARÉ de `searchElapsedSeconds` ci-dessus (qui suit
+  // `isWorldSearching`, la recherche INITIALE, jamais actif pendant un
+  // "Charger plus") : réutilise le même hook `useElapsedTimer` déjà partagé
+  // par le bandeau de génération, tenu sur `isLoadingMoreResults` cette
+  // fois.
+  const loadMoreElapsedSeconds = useElapsedTimer(isLoadingMoreResults);
   // MIGRÉ VERS PlaylistDetailContext (édition du nom de la playlist).
 
   // MIGRÉ VERS AudioPlayerContext : useAudioPreview(showToast) n'est plus
@@ -2143,6 +2151,7 @@ function AppContent({
           isSearchModalOpen={isSearchModalOpen} closeSearchModal={closeSearchModal}
           isBpmSearchMode={isBpmSearchMode} bpmSearchParams={bpmSearchParams} searchTracksByBpm={searchTracksByBpm}
           loadMoreBpmResults={loadMoreBpmResults} bpmUnconfirmedReserve={bpmUnconfirmedReserve} bpmSearchExhausted={bpmSearchExhausted}
+          loadMoreElapsedSeconds={loadMoreElapsedSeconds}
           searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchWorldMusicApi={searchWorldMusicApi}
           isWorldSearching={isWorldSearching} worldSearchResults={worldSearchResults} worldSearchOtherResults={worldSearchOtherResults}
           searchLoadingMessage={searchLoadingMessage} searchElapsedSeconds={searchElapsedSeconds}
