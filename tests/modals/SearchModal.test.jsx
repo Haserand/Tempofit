@@ -37,7 +37,6 @@ function baseProps(overrides = {}) {
     closeSearchModal: vi.fn(),
     isBpmSearchMode: false,
     bpmSearchParams: { bpm: 150, tolerance: 10, genres: [] },
-    searchTracksByBpm: vi.fn(),
     loadMoreBpmResults: vi.fn(),
     bpmUnconfirmedReserve: [],
     bpmSearchExhausted: false,
@@ -99,22 +98,17 @@ describe('SearchModal — affichage de base', () => {
 });
 
 describe('SearchModal — mode BPM', () => {
-  it('affiche la cible BPM/tolérance/genres, le refresh appelle searchTracksByBpm', () => {
-    const searchTracksByBpm = vi.fn();
-    const { container } = render(
+  it('affiche la cible BPM/tolérance/genres', () => {
+    render(
       <SearchModal
         {...baseProps({
           isBpmSearchMode: true,
           bpmSearchParams: { bpm: 150, tolerance: 10, genres: ['Rock', 'Métal'] },
-          searchTracksByBpm,
         })}
       />
     );
     expect(screen.getByText(/150 BPM ± 10/)).toBeInTheDocument();
     expect(screen.getByText(/Rock, Métal/)).toBeInTheDocument();
-
-    fireEvent.click(container.querySelector('svg.lucide-refresh-cw').closest('button'));
-    expect(searchTracksByBpm).toHaveBeenCalledWith(150, 10, ['Rock', 'Métal']);
   });
 
   it('sans genre ciblé, affiche "tous genres"', () => {
@@ -124,12 +118,18 @@ describe('SearchModal — mode BPM', () => {
 });
 
 // NOUVEAU (28/08, retour direct — "un compteur de résultats en haut à
-// droite, qui augmente ou diminue selon les ajouts et retraits") — Option A
-// retenue après discussion : compte les résultats CONFIRMÉS VISIBLES à
-// l'écran (donc affecté par le filtre favoris), jamais la réserve non
-// confirmée encore cachée. Voir la docstring de `visibleResultsCount`,
-// SearchModal.jsx.
-describe('SearchModal — compteur de résultats (mode BPM)', () => {
+// droite, qui augmente ou diminue selon les ajouts et retraits", puis "le
+// bouton rouge à droite fait doublon avec Charger plus, je préfère tout
+// avoir dans la pastille du haut") — Option A retenue après discussion :
+// compte les résultats CONFIRMÉS VISIBLES à l'écran (donc affecté par le
+// filtre favoris), jamais la réserve non confirmée encore cachée. Cette
+// même pastille est ensuite devenue un vrai BOUTON déclenchant
+// `loadMoreBpmResults` — l'ancien bouton "Charger plus" en pointillés tout
+// en bas ET le bouton 🔄 (rafraîchir depuis zéro, jugé redondant : le
+// catalogue est déjà exploré en entier dès le 1er appel) ont tous les deux
+// été retirés au profit de cette pastille unique. Voir sa docstring,
+// SearchModal.jsx, pour le détail complet.
+describe('SearchModal — pastille compteur/action "Charger plus" (mode BPM)', () => {
   it('affiche le nombre de résultats visibles, singulier pour 1 seul', () => {
     render(<SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview] })} />);
     expect(screen.getByText('1 résultat')).toBeInTheDocument();
@@ -140,9 +140,10 @@ describe('SearchModal — compteur de résultats (mode BPM)', () => {
     expect(screen.getByText('2 résultats')).toBeInTheDocument();
   });
 
-  it('absent tant qu\'aucun résultat (avant toute recherche, ou 0 résultat)', () => {
-    render(<SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [] })} />);
+  it('absent tant qu\'aucun résultat NI réserve (avant toute recherche, ou rien à compléter)', () => {
+    render(<SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [], bpmUnconfirmedReserve: [] })} />);
     expect(screen.queryByText(/^\d+ résultat/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Chercher des résultats')).not.toBeInTheDocument();
   });
 
   it('diminue quand un titre déjà en favoris est filtré de l\'affichage (hors contexte playlist)', () => {
@@ -187,9 +188,58 @@ describe('SearchModal — compteur de résultats (mode BPM)', () => {
     expect(screen.getByText('2 résultats')).toBeInTheDocument();
   });
 
+  it('affiche "Chercher des résultats" (au lieu d\'un compte) quand rien de confirmé mais une réserve existe déjà', () => {
+    const unconfirmedTrack = { ...trackDetectedBpm, _genreMismatch: true };
+    render(
+      <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [], bpmUnconfirmedReserve: [unconfirmedTrack], isWorldSearching: false })} />
+    );
+    expect(screen.getByText('Chercher des résultats')).toBeInTheDocument();
+  });
+
   it('absent en mode recherche texte libre (réservé au mode BPM)', () => {
     render(<SearchModal {...baseProps({ isBpmSearchMode: false, worldSearchResults: [trackWithPreview] })} />);
     expect(screen.queryByText(/^\d+ résultat/)).not.toBeInTheDocument();
+  });
+
+  it('absente tant que la recherche initiale est encore en cours', () => {
+    render(
+      <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: true })} />
+    );
+    expect(screen.queryByText('1 résultat')).not.toBeInTheDocument();
+  });
+
+  it('clic sur la pastille appelle loadMoreBpmResults', () => {
+    const loadMoreBpmResults = vi.fn();
+    render(
+      <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, loadMoreBpmResults })} />
+    );
+    fireEvent.click(screen.getByText('1 résultat'));
+    expect(loadMoreBpmResults).toHaveBeenCalledTimes(1);
+  });
+
+  // NOUVEAU (28/08, retour direct — "faudrait avoir le texte 'chargement'
+  // qui évolue un peu comme pour le reste de la génération") — même
+  // principe à paliers de temps que GenerationProgressBanner.jsx, testé ici
+  // via `loadMoreElapsedSeconds` (le chrono lui-même, `useElapsedTimer`, est
+  // déjà testé ailleurs — hors scope ici, on vérifie juste le CHOIX du
+  // texte pour chaque palier). Pendant le chargement, ce texte REMPLACE le
+  // compte de résultats dans la même pastille.
+  it('pendant le chargement, le texte évolutif remplace le compte dans la pastille', () => {
+    const { rerender } = render(
+      <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, isLoadingMoreResults: true, loadMoreElapsedSeconds: 0 })} />
+    );
+    expect(screen.getByText('Chargement...')).toBeInTheDocument();
+    expect(screen.queryByText('1 résultat')).not.toBeInTheDocument();
+
+    rerender(
+      <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, isLoadingMoreResults: true, loadMoreElapsedSeconds: 10 })} />
+    );
+    expect(screen.getByText('Encore un instant...')).toBeInTheDocument();
+
+    rerender(
+      <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, isLoadingMoreResults: true, loadMoreElapsedSeconds: 25 })} />
+    );
+    expect(screen.getByText('Ça prend plus de temps que prévu...')).toBeInTheDocument();
   });
 });
 
@@ -301,89 +351,6 @@ describe('SearchModal — états de la liste', () => {
       <SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], searchHasMoreResults: true, isLoadingMoreResults: true })} />
     );
     expect(screen.getByText('Chargement...')).toBeInTheDocument();
-  });
-
-  // NOUVEAU (28/08, chantier "Charger plus" pour la recherche BPM) — bouton
-  // dédié, distinct de "Voir plus de résultats" (texte libre, ci-dessus) :
-  // pas de `searchHasMoreResults` ici (voir la docstring de
-  // `loadMoreBpmResults`, useDeezerSearch.js — la recherche catalogue
-  // explore déjà tout le catalogue dès le 1er appel, aucune notion de page
-  // suivante), affiché dès que la recherche initiale est terminée avec au
-  // moins un résultat déjà là.
-  describe('"Charger plus de résultats" (mode BPM)', () => {
-    it('appelle loadMoreBpmResults au clic, texte change pendant le chargement', () => {
-      const loadMoreBpmResults = vi.fn();
-      const { rerender } = render(
-        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, loadMoreBpmResults })} />
-      );
-      fireEvent.click(screen.getByText('Charger plus de résultats'));
-      expect(loadMoreBpmResults).toHaveBeenCalledTimes(1);
-
-      rerender(
-        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, isLoadingMoreResults: true })} />
-      );
-      expect(screen.getByText('Chargement...')).toBeInTheDocument();
-    });
-
-    // NOUVEAU (28/08, retour direct — "faudrait avoir le texte 'chargement'
-    // qui évolue un peu comme pour le reste de la génération") — même
-    // principe à paliers de temps que GenerationProgressBanner.jsx, testé
-    // ici via `loadMoreElapsedSeconds` (le chrono lui-même, `useElapsedTimer`,
-    // est déjà testé ailleurs — hors scope ici, on vérifie juste le CHOIX du
-    // texte pour chaque palier).
-    it('texte de chargement évolue par palier de temps (loadMoreElapsedSeconds)', () => {
-      const { rerender } = render(
-        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, isLoadingMoreResults: true, loadMoreElapsedSeconds: 0 })} />
-      );
-      expect(screen.getByText('Chargement...')).toBeInTheDocument();
-
-      rerender(
-        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, isLoadingMoreResults: true, loadMoreElapsedSeconds: 10 })} />
-      );
-      expect(screen.getByText('Encore un instant...')).toBeInTheDocument();
-
-      rerender(
-        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, isLoadingMoreResults: true, loadMoreElapsedSeconds: 25 })} />
-      );
-      expect(screen.getByText('Ça prend plus de temps que prévu...')).toBeInTheDocument();
-    });
-
-    it('absent tant que la recherche initiale est encore en cours', () => {
-      render(
-        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: true })} />
-      );
-      expect(screen.queryByText('Charger plus de résultats')).not.toBeInTheDocument();
-    });
-
-    it('absent sans aucun résultat (rien à compléter)', () => {
-      render(
-        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [], isWorldSearching: false })} />
-      );
-      expect(screen.queryByText('Charger plus de résultats')).not.toBeInTheDocument();
-    });
-
-    it('absent en mode recherche texte libre (réservé au mode BPM)', () => {
-      render(
-        <SearchModal {...baseProps({ isBpmSearchMode: false, worldSearchResults: [trackWithPreview], isWorldSearching: false })} />
-      );
-      expect(screen.queryByText('Charger plus de résultats')).not.toBeInTheDocument();
-    });
-
-    it('reste présent même une fois bpmSearchExhausted à vrai (28/08, retour direct — "un coup de malchance ne doit pas fermer la porte"), avec un texte différent', () => {
-      render(
-        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, bpmSearchExhausted: true })} />
-      );
-      expect(screen.getByText('Chercher encore plus loin')).toBeInTheDocument();
-      expect(screen.queryByText('Charger plus de résultats')).not.toBeInTheDocument();
-    });
-
-    it('présent même sans résultat confirmé, tant qu\'il y a une réserve non confirmée à explorer', () => {
-      const unconfirmedTrack = { ...trackDetectedBpm, _genreMismatch: true };
-      render(
-        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [], bpmUnconfirmedReserve: [unconfirmedTrack], isWorldSearching: false })} />
-      );
-      expect(screen.getByText('Charger plus de résultats')).toBeInTheDocument();
-    });
   });
 
   // NOUVEAU (28/08, chantier "révéler le non confirmé seulement si vraiment
