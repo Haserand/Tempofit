@@ -280,19 +280,35 @@ export default function SearchModal({
                   (`!isWorldSearching`) et qu'il y a déjà des résultats
                   (confirmés OU en réserve cachée) à compléter, comme une
                   action "chercher plus loin" plutôt qu'une vraie pagination.
-                  ⚠️ Disparaît une fois `bpmSearchExhausted` à `true` (28/08,
-                  même chantier) : "Charger plus" a déjà prouvé qu'il n'y a
-                  plus rien de nouveau à trouver, le reproposer n'aurait plus
-                  de sens — la réserve non confirmée est révélée à la place
-                  (voir `displayedResults` en tête de composant). */}
-              {isBpmSearchMode && !isWorldSearching && !bpmSearchExhausted && (worldSearchResults.length > 0 || bpmUnconfirmedReserve.length > 0) && (
+                  ⚠️ NE DISPARAÎT JAMAIS (28/08, retour direct — "un coup de
+                  malchance sur le tirage aléatoire des artistes ne devrait
+                  pas fermer définitivement la porte") — `bpmSearchExhausted`
+                  servait initialement à CACHER ce bouton une fois épuisé ;
+                  un seul "Charger plus" sans rien trouver de nouveau n'est
+                  qu'une indication, pas une preuve absolue qu'il n'y a
+                  vraiment plus rien (le tirage aléatoire des artistes,
+                  searchArtistsForBpm, aurait pu tomber sur un lot peu
+                  chanceux). `bpmSearchExhausted` sert maintenant UNIQUEMENT
+                  à révéler la réserve non confirmée (voir `displayedResults`
+                  en tête de composant) et à changer le texte du bouton
+                  ci-dessous — plus jamais à le faire disparaître. */}
+              {isBpmSearchMode && !isWorldSearching && (worldSearchResults.length > 0 || bpmUnconfirmedReserve.length > 0) && (
                 <button
                   onClick={loadMoreBpmResults}
                   disabled={isLoadingMoreResults}
                   className={`w-full mt-1 py-2.5 rounded-xl border-2 border-dashed text-sm font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-60 ${inputBorder} ${textMuted} hover:text-main hover:border-gray-400`}
                 >
                   {isLoadingMoreResults ? <Loader2 className="animate-spin" size={16}/> : <ChevronDown size={16}/>}
-                  <span>{isLoadingMoreResults ? "Chargement..." : "Charger plus de résultats"}</span>
+                  <span>
+                    {isLoadingMoreResults
+                      ? "Chargement..."
+                      // Texte différent une fois qu'un 1er "Charger plus" n'a
+                      // rien trouvé de nouveau (28/08) — signale honnêtement
+                      // que la suite est moins probable, SANS fermer la porte :
+                      // "chercher encore plus loin" plutôt que redonner
+                      // l'impression d'une action IDENTIQUE à la 1re fois.
+                      : (bpmSearchExhausted ? "Chercher encore plus loin" : "Charger plus de résultats")}
+                  </span>
                 </button>
               )}
               {/* Réserve "autres résultats" (titres qui matchent le texte tapé
