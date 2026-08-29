@@ -2149,7 +2149,7 @@ function AppContent({
         <SearchModal
           theme={themeTokens}
           isSearchModalOpen={isSearchModalOpen} closeSearchModal={closeSearchModal}
-          isBpmSearchMode={isBpmSearchMode} bpmSearchParams={bpmSearchParams} searchTracksByBpm={searchTracksByBpm}
+          isBpmSearchMode={isBpmSearchMode} bpmSearchParams={bpmSearchParams}
           loadMoreBpmResults={loadMoreBpmResults} bpmUnconfirmedReserve={bpmUnconfirmedReserve} bpmSearchExhausted={bpmSearchExhausted}
           loadMoreElapsedSeconds={loadMoreElapsedSeconds}
           searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchWorldMusicApi={searchWorldMusicApi}
