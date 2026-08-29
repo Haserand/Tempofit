@@ -41,6 +41,7 @@ function baseProps(overrides = {}) {
     loadMoreBpmResults: vi.fn(),
     bpmUnconfirmedReserve: [],
     bpmSearchExhausted: false,
+    loadMoreElapsedSeconds: 0,
     searchQuery: '',
     setSearchQuery: vi.fn(),
     searchWorldMusicApi: vi.fn(),
@@ -252,6 +253,29 @@ describe('SearchModal — états de la liste', () => {
         <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, isLoadingMoreResults: true })} />
       );
       expect(screen.getByText('Chargement...')).toBeInTheDocument();
+    });
+
+    // NOUVEAU (28/08, retour direct — "faudrait avoir le texte 'chargement'
+    // qui évolue un peu comme pour le reste de la génération") — même
+    // principe à paliers de temps que GenerationProgressBanner.jsx, testé
+    // ici via `loadMoreElapsedSeconds` (le chrono lui-même, `useElapsedTimer`,
+    // est déjà testé ailleurs — hors scope ici, on vérifie juste le CHOIX du
+    // texte pour chaque palier).
+    it('texte de chargement évolue par palier de temps (loadMoreElapsedSeconds)', () => {
+      const { rerender } = render(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, isLoadingMoreResults: true, loadMoreElapsedSeconds: 0 })} />
+      );
+      expect(screen.getByText('Chargement...')).toBeInTheDocument();
+
+      rerender(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, isLoadingMoreResults: true, loadMoreElapsedSeconds: 10 })} />
+      );
+      expect(screen.getByText('Encore un instant...')).toBeInTheDocument();
+
+      rerender(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, isLoadingMoreResults: true, loadMoreElapsedSeconds: 25 })} />
+      );
+      expect(screen.getByText('Ça prend plus de temps que prévu...')).toBeInTheDocument();
     });
 
     it('absent tant que la recherche initiale est encore en cours', () => {
