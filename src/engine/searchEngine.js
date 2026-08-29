@@ -91,6 +91,22 @@ export const dedupeAppend = (prev, incoming, reset) => {
   return combined.filter(t => { if (seen.has(t.trackId)) return false; seen.add(t.trackId); return true; });
 };
 
+// Même principe que dedupeAppend (fusion dédoublonnée par trackId, pure),
+// mais RETRIE ensuite l'ENSEMBLE par `_matchTier` — dédiée à "Charger plus"
+// sur la recherche BPM (28/08, retour direct — voir la docstring de
+// `fetchBpmSearchResults` pour le raisonnement complet). `dedupeAppend`
+// seul ne suffit PAS ici : il préserverait l'ordre "tout `prev` d'abord,
+// puis tout `incoming` ensuite", donc un nouveau titre CONFIRMÉ trouvé par
+// "Charger plus" atterrirait sous un ANCIEN titre non confirmé déjà affiché
+// — brisant exactement la garantie "confirmé toujours avant non confirmé"
+// que ce chantier construit. Non utilisée pour la recherche texte libre
+// (`dedupeAppend` reste inchangée pour cet usage) : ces résultats-là n'ont
+// pas de notion de palier de confiance à respecter.
+export const mergeAndResortBpmResults = (prev, incoming) => {
+  const combined = dedupeAppend(prev, incoming, false);
+  return combined.sort((a, b) => (a._matchTier ?? 0) - (b._matchTier ?? 0));
+};
+
 /**
  * Cœur de `searchWorldMusicApi` — recherche texte/artiste avec résolution BPM
  * en cascade (Deezer → GetSongBPM → détection audio). Aucun setState, aucune
@@ -238,7 +254,7 @@ export const fetchWorldSearchResults = async (query, { reset, offset, activeArti
  * filtre avancé natif Deezer (`bpm_min:`/`bpm_max:`). Pure : aucun setState,
  * aucune lecture de state React.
  */
-export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProgress = null, favorites = null) => {
+export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProgress = null, favorites = null, excludeTrackIds = [], stubCapMultiplier = 1) => {
   const minBpm = Math.max(1, targetBpm - tolerance);
   const maxBpm = targetBpm + tolerance;
   const genresToQuery = genres && genres.length > 0 ? genres : ['Autre'];
@@ -272,7 +288,20 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
   // la profondeur `artists.length`/10 par artiste juste plus bas
   // s'appliquent maintenant systématiquement — plus de distinction
   // "genre fragile vs fiable" à maintenir au coup par coup.
-  const stubCap = 150 * genresToQuery.length;
+  const stubCap = 150 * genresToQuery.length * stubCapMultiplier;
+
+  // ⚠️ "CHARGER PLUS" AJOUTÉ (28/08, retour direct — voir la discussion qui a
+  // mené à ce chantier : la recherche catalogue explore déjà TOUT le
+  // catalogue d'artistes dès le 1er appel — ce n'est pas `stubCap` qui
+  // limite QUELS artistes sont visités, seulement COMBIEN de candidats bruts
+  // déjà trouvés sont réellement VÉRIFIÉS (BPM/genre réels). "Charger plus"
+  // relance donc EXACTEMENT la même recherche, avec :
+  //   - `stubCapMultiplier` > 1 : débloque la vérification d'un plus grand
+  //     nombre de candidats bruts (le tirage aléatoire de l'ordre des
+  //     artistes change à chaque appel, donc un budget plus large a de
+  //     bonnes chances de vérifier des candidats jamais atteints la 1re fois).
+  //   - `excludeTrackIds` : les titres déjà affichés (résultat de l'appel
+  //     précédent) ne sont ni revérifiés ni redoublés dans la liste finale.
 
   // ─────────────────────────────────────────────────────────────────────
   // AFFICHAGE PROGRESSIF (retour direct : "chercher 10 morceaux d'abord,
@@ -291,7 +320,22 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
   // jamais un tri partiel figé sur un sous-ensemble incomplet : à tout moment,
   // ce qui est affiché respecte déjà l'ordre Metal > Rock > mismatch sur TOUT
   // ce qui a été résolu jusque-là, pas seulement sur le dernier lot arrivé.
-  const seenIds = new Set();
+  //
+  // Ce même principe s'étend maintenant à "Charger plus" (voir plus haut) :
+  // `excludeTrackIds` converti en ID NUMÉRIQUES Deezer bruts pour préremplir
+  // `seenIds` (même convention que le reste de ce fichier, voir plus bas) —
+  // un titre déjà affiché est ainsi ignoré dès la 1re rencontre, qu'il
+  // vienne des favoris, du catalogue ou de la recherche généraliste. La
+  // fusion finale avec les résultats déjà affichés (RETRIÉE dans son
+  // ensemble, jamais un simple append) est faite côté appelant
+  // (`mergeAndResortBpmResults`, voir plus bas) — cette fonction reste pure
+  // et ne connaît rien des résultats d'un appel précédent au-delà de
+  // `excludeTrackIds`.
+  const seenIds = new Set(
+    (excludeTrackIds || [])
+      .map(id => (typeof id === 'string' && id.startsWith('deezer-')) ? Number(id.slice('deezer-'.length)) : id)
+      .filter(id => id !== null && id !== undefined)
+  );
   const accumulator = new Map();
   let submittedCount = 0;
 
