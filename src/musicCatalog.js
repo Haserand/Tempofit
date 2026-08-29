@@ -401,6 +401,45 @@ const genreRoughlyMatches = (realGenre, requestedGenre) => {
 };
 
 /**
+ * findCatalogGenreForArtist — cherche dans quel(s) genre(s) de ARTIST_CATALOG
+ * un artiste donné est déjà répertorié (comparaison insensible à la casse).
+ * Renvoie le PREMIER genre trouvé, ou `null` si l'artiste n'est catalogué
+ * nulle part chez nous.
+ *
+ * RETOUR DIRECT (28/08, capture à l'appui : recherche "Pop" à 140±10 après
+ * le chantier "favoris en premier" — "War Machine (Live at River Plate
+ * Stadium...)" d'AC/DC, un artiste FAVORI, remonté en tête étiqueté "Pop"
+ * sans le moindre avertissement) — AC/DC n'existe QUE dans
+ * ARTIST_CATALOG['Rock'], jamais 'Pop' : la classification Deezer de CE
+ * titre précis (vraisemblablement une réédition/version live mal
+ * cataloguée côté Deezer, `resolveDeezerGenre` renvoyant littéralement
+ * "Pop" pour ce titre) était manifestement fausse, mais rien ne permettait
+ * de le détecter puisque le genre RÉEL du titre matchait littéralement le
+ * genre demandé — exactement le type d'erreur déjà rencontré au niveau
+ * d'un GENRE ENTIER (Métal→Rock, voir GENRE_EQUIVALENCE_GROUPS), mais cette
+ * fois au niveau d'un TITRE ISOLÉ.
+ *
+ * Utilisé par le boost artiste-favori (searchEngine.js, `fetchBpmSearch
+ * Results`) comme second avis : pour un artiste qu'on connaît déjà bien via
+ * notre propre catalogue (choisi PAR genre, donc fiable — voir la
+ * docstring d'ARTIST_CATALOG), si son genre catalogué ne correspond à
+ * AUCUN des genres demandés (ni équivalence), on se méfie du genre résolu
+ * PAR TITRE plutôt que de lui faire une confiance aveugle. Pour un artiste
+ * favori absent de tout catalogue (cas le plus courant — la plupart des
+ * artistes suivis par un utilisateur ne seront pas dans nos listes
+ * curées), cette fonction renvoie `null` et le genre résolu par Deezer
+ * reste la seule source disponible, comme avant ce correctif.
+ */
+const findCatalogGenreForArtist = (artistName) => {
+  if (!artistName) return null;
+  const normalized = artistName.trim().toLowerCase();
+  for (const [genre, artists] of Object.entries(ARTIST_CATALOG)) {
+    if (artists.some(a => a.toLowerCase() === normalized)) return genre;
+  }
+  return null;
+};
+
+/**
  * classifyGenreMatchTier — centralise en UN SEUL endroit une décision
  * ("quelle confiance accorder au genre réel d'un candidat, face à un ou
  * plusieurs genres demandés ?") qui était dupliquée indépendamment dans
@@ -767,6 +806,7 @@ export {
   GENRE_EQUIVALENCE_GROUPS,
   isDirectGenreMatch,
   genreRoughlyMatches,
+  findCatalogGenreForArtist,
   classifyGenreMatchTier,
   TITLE_STYLE_OVERRIDE_KEYWORDS,
   isLiveOrPerformanceVersion,
