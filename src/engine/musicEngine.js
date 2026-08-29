@@ -371,7 +371,23 @@ const searchArtistsForBpm = async (artistNames, minBpm, maxBpm, excludeTrackIds,
     }));
     const newStubs = batchResults.flat();
     allStubs.push(...newStubs);
-    if (onBatch && newStubs.length > 0) await onBatch(newStubs);
+    // ⚠️ SIGNAL D'ARRÊT ANTICIPÉ AJOUTÉ (28/08, retour direct — "pourquoi
+    // interroger que 10 titres par artiste, autant en demander plus ?") —
+    // cette fonction ignorait jusqu'ici TOTALEMENT le budget de vérification
+    // propre à l'appelant (`stubCap`, searchEngine.js) : une fois ce budget
+    // épuisé côté appelant, `onBatch` devenait un no-op silencieux
+    // (`processStubBatch` retournait juste sans rien faire), mais CETTE
+    // boucle continuait quand même à interroger Deezer pour TOUS LES
+    // ARTISTES RESTANTS du catalogue — jusqu'à plusieurs dizaines de
+    // requêtes pour des résultats systématiquement jetés. `onBatch` peut
+    // désormais renvoyer EXPLICITEMENT `false` pour signaler "plus de place,
+    // inutile de continuer" — tout autre retour (y compris `undefined`, le
+    // cas de TOUS les appelants existants qui ne renvoient rien) laisse le
+    // comportement exactement inchangé, RÉTROCOMPATIBLE par construction.
+    if (onBatch && newStubs.length > 0) {
+      const signal = await onBatch(newStubs);
+      if (signal === false) break;
+    }
     if (allStubs.length >= enoughStubs) break;
     if (i + BATCH_SIZE < shuffled.length) {
       await new Promise(resolve => setTimeout(resolve, 250));
