@@ -71,6 +71,21 @@ export function useTrackSearch() {
   // (wizard ou page Favoris) — permet à la modale d'afficher le bon contexte
   // et de relancer une recherche identique via le bouton "actualiser".
   const [bpmSearchParams, setBpmSearchParams] = useState({ bpm: 140, tolerance: 10, genres: [] });
+  // Réserve CACHÉE des résultats "Genre non confirmé" pour la recherche BPM
+  // (28/08, retour direct — "les non confirmés ne devraient apparaître
+  // qu'une fois qu'on a vraiment fait le tour") — même principe que
+  // `worldSearchOtherResults` ci-dessus (recherche texte libre), appliqué
+  // ici au palier de confiance du genre plutôt qu'à l'identité de l'artiste.
+  // Jamais affichée tant que `bpmSearchExhausted` (juste en dessous) est
+  // faux — voir la docstring de `loadMoreBpmResults`, useDeezerSearch.js,
+  // pour le détail complet de quand elle bascule à vrai.
+  const [bpmUnconfirmedReserve, setBpmUnconfirmedReserve] = useState([]);
+  // true une fois qu'un "Charger plus" (voir loadMoreBpmResults) n'a trouvé
+  // STRICTEMENT AUCUN nouveau résultat (ni confirmé ni non confirmé) — le
+  // signal le plus honnête disponible que la recherche est allée aussi loin
+  // qu'elle peut raisonnablement aller. Réinitialisé à `false` à chaque
+  // NOUVELLE recherche (searchTracksByBpm), jamais par un "Charger plus".
+  const [bpmSearchExhausted, setBpmSearchExhausted] = useState(false);
 
   return {
     searchQuery, setSearchQuery,
@@ -87,5 +102,7 @@ export function useTrackSearch() {
     searchLoadingMessage, setSearchLoadingMessage,
     worldSearchOtherResults, setWorldSearchOtherResults,
     bpmSearchParams, setBpmSearchParams,
+    bpmUnconfirmedReserve, setBpmUnconfirmedReserve,
+    bpmSearchExhausted, setBpmSearchExhausted,
   };
 }
