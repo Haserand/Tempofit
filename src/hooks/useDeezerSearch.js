@@ -1,5 +1,5 @@
 import { WEAK_DEEZER_KEYWORD_GENRES } from '../musicCatalog';
-import { dedupeAppend, fetchWorldSearchResults, fetchBpmSearchResults } from '../engine/searchEngine';
+import { dedupeAppend, mergeAndResortBpmResults, fetchWorldSearchResults, fetchBpmSearchResults } from '../engine/searchEngine';
 import { SEARCH_LOADING_MESSAGES } from './useTrackSearch';
 import { useModalContext } from '../contexts/ModalContext';
 
@@ -49,6 +49,7 @@ export function useDeezerSearch(search, showToast, isNaughtyMode, favorites = nu
   const { closeModal } = useModalContext();
   const {
     searchQuery, searchResultsOffset, searchActiveArtistName, isWorldSearching,
+    worldSearchResults, bpmSearchParams, isLoadingMoreResults,
     setSearchActiveArtistName, setWorldSearchResults, setWorldSearchOtherResults,
     setResultsContextLabel, setNoUsableResultsHint, setSearchResultsOffset,
     setSearchHasMoreResults, setIsWorldSearching, setIsLoadingMoreResults,
@@ -214,5 +215,49 @@ export function useDeezerSearch(search, showToast, isNaughtyMode, favorites = nu
     setIsWorldSearching(false);
   };
 
-  return { searchWorldMusicApi, commitBpmEdit, closeSearchModal, searchTracksByBpm };
+  /**
+   * "Charger plus" pour la recherche BPM (28/08, retour direct — voir la
+   * discussion qui a mené à ce chantier). Contrairement à `searchWorldMusicApi`
+   * (pagination Deezer classique, `reset`/`offset`), cette recherche n'a PAS
+   * de "page suivante" au sens propre — la recherche catalogue explore déjà
+   * TOUT le catalogue d'artistes dès le 1er appel (voir `fetchBpmSearchResults`,
+   * searchEngine.js). "Charger plus" relance donc la MÊME recherche avec un
+   * budget de vérification plus large (`stubCapMultiplier`) et exclut les
+   * titres déjà affichés (`excludeTrackIds`), pour maximiser les chances de
+   * vérifier des candidats bruts jamais atteints au 1er passage (l'ordre des
+   * artistes est retiré au hasard à chaque appel — voir searchArtistsForBpm).
+   *
+   * Fusion via `mergeAndResortBpmResults` (PAS `dedupeAppend`, utilisée pour
+   * la recherche texte libre) : un nouveau titre confirmé doit pouvoir
+   * remonter AU-DESSUS d'un ancien titre non confirmé déjà affiché — même
+   * garantie "confirmé avant non confirmé" que le 1er appel, maintenue au
+   * fil des "Charger plus" successifs plutôt que juste au chargement initial.
+   */
+  const loadMoreBpmResults = async () => {
+    if (isWorldSearching || isLoadingMoreResults) return;
+    setIsLoadingMoreResults(true);
+    // Photo figée des résultats déjà affichés AVANT ce nouvel appel — sert de
+    // base stable pour chaque fusion progressive ci-dessous (voir la
+    // docstring de `mergeAndResortBpmResults`) : `worldSearchResults` (le
+    // state React) ne doit PAS être relu en cours de route, sous peine de
+    // fusionner un résultat partiel avec une base qui a déjà bougé entre
+    // 2 lots.
+    const existingResults = worldSearchResults;
+    const existingTrackIds = existingResults.map(t => t.trackId);
+    try {
+      const { results } = await fetchBpmSearchResults(
+        bpmSearchParams.bpm, bpmSearchParams.tolerance, bpmSearchParams.genres,
+        (partialResults) => {
+          setWorldSearchResults(mergeAndResortBpmResults(existingResults, partialResults));
+        },
+        favorites, existingTrackIds, 2
+      );
+      setWorldSearchResults(mergeAndResortBpmResults(existingResults, results));
+    } catch (e) {
+      showToast("Erreur réseau lors de la recherche.", 'error');
+    }
+    setIsLoadingMoreResults(false);
+  };
+
+  return { searchWorldMusicApi, commitBpmEdit, closeSearchModal, searchTracksByBpm, loadMoreBpmResults };
 }
