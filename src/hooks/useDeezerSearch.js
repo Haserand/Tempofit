@@ -49,12 +49,12 @@ export function useDeezerSearch(search, showToast, isNaughtyMode, favorites = nu
   const { closeModal } = useModalContext();
   const {
     searchQuery, searchResultsOffset, searchActiveArtistName, isWorldSearching,
-    worldSearchResults, bpmSearchParams, isLoadingMoreResults,
+    worldSearchResults, bpmSearchParams, isLoadingMoreResults, bpmUnconfirmedReserve,
     setSearchActiveArtistName, setWorldSearchResults, setWorldSearchOtherResults,
     setResultsContextLabel, setNoUsableResultsHint, setSearchResultsOffset,
     setSearchHasMoreResults, setIsWorldSearching, setIsLoadingMoreResults,
     setSearchLoadingMessage, setSearchQuery, setIsBpmSearchMode,
-    setEditingBpmId, setBpmSearchParams,
+    setEditingBpmId, setBpmSearchParams, setBpmUnconfirmedReserve, setBpmSearchExhausted,
   } = search;
 
   const searchWorldMusicApi = async (reset = true) => {
@@ -198,17 +198,39 @@ export function useDeezerSearch(search, showToast, isNaughtyMode, favorites = nu
     setWorldSearchResults([]);
     setResultsContextLabel(`${targetBpm} BPM ± ${tolerance}`);
     setNoUsableResultsHint(false);
+    // NOUVELLE recherche : on repart de zéro sur la réserve cachée et le
+    // signal d'épuisement — voir la docstring de `bpmUnconfirmedReserve`/
+    // `bpmSearchExhausted`, useTrackSearch.js. Seul "Charger plus"
+    // (loadMoreBpmResults, plus bas) peut faire passer `bpmSearchExhausted`
+    // à `true` — jamais cette fonction.
+    setBpmUnconfirmedReserve([]);
+    setBpmSearchExhausted(false);
     try {
       // RETOUR DIRECT ("affichage progressif plutôt qu'attendre la fin") —
       // `onProgress` est appelé à chaque lot résolu (voir fetchBpmSearchResults,
       // searchEngine.js), avec le résultat COMPLET déjà retrié jusque-là — pas
       // juste le dernier lot. Permet de voir les premiers titres apparaître
       // rapidement plutôt que d'attendre la recherche exhaustive en entier.
-      const { results } = await fetchBpmSearchResults(targetBpm, tolerance, genres, (partialResults) => {
-        setWorldSearchResults(partialResults);
+      //
+      // ⚠️ CONFIRMÉ/NON CONFIRMÉ SÉPARÉS (28/08, retour direct — "les non
+      // confirmés ne devraient apparaître qu'une fois qu'on a vraiment fait
+      // le tour") — `onProgress`/le retour final renvoient désormais 2
+      // groupes distincts (voir la docstring de `fetchBpmSearchResults`) :
+      // `confirmed` va dans `worldSearchResults` (affiché tout de suite),
+      // `unconfirmed` va dans `bpmUnconfirmedReserve` (gardé CACHÉ — révélé
+      // seulement une fois `bpmSearchExhausted` à `true`, voir
+      // `loadMoreBpmResults` plus bas et SearchModal.jsx pour où cette
+      // réserve est effectivement affichée).
+      const { results, unconfirmed } = await fetchBpmSearchResults(targetBpm, tolerance, genres, ({ confirmed, unconfirmed: partialUnconfirmed }) => {
+        setWorldSearchResults(confirmed);
+        setBpmUnconfirmedReserve(partialUnconfirmed);
       }, favorites);
       setWorldSearchResults(results);
-      if (results.length === 0) setNoUsableResultsHint(true);
+      setBpmUnconfirmedReserve(unconfirmed);
+      // "Rien d'utilisable du tout" : ni confirmé, ni même une approximation
+      // en réserve — distinct d'un simple "rien de confirmé pour l'instant"
+      // (qui, lui, laisse la porte ouverte via "Charger plus").
+      if (results.length === 0 && unconfirmed.length === 0) setNoUsableResultsHint(true);
     } catch (e) {
       showToast("Erreur réseau lors de la recherche.", 'error');
     }
@@ -232,27 +254,51 @@ export function useDeezerSearch(search, showToast, isNaughtyMode, favorites = nu
    * remonter AU-DESSUS d'un ancien titre non confirmé déjà affiché — même
    * garantie "confirmé avant non confirmé" que le 1er appel, maintenue au
    * fil des "Charger plus" successifs plutôt que juste au chargement initial.
+   *
+   * ⚠️ RÉVÉLATION DE LA RÉSERVE NON CONFIRMÉE (28/08, retour direct — "les
+   * non confirmés ne devraient apparaître qu'une fois qu'on a vraiment fait
+   * le tour") — cette fonction est le SEUL endroit qui peut faire passer
+   * `bpmSearchExhausted` à `true`, et seulement dans un cas précis : ce
+   * passage à budget plus large n'a trouvé STRICTEMENT AUCUN nouveau titre,
+   * ni confirmé NI non confirmé. C'est le signal le plus honnête disponible
+   * que la recherche est allée aussi loin qu'elle peut raisonnablement
+   * aller — à ce moment-là seulement, `bpmUnconfirmedReserve` (déjà
+   * accumulée en mémoire depuis le 1er appel, jamais montrée jusqu'ici) est
+   * révélée par SearchModal.jsx (qui l'ajoute à l'affichage une fois ce
+   * signal reçu). Si CE passage trouve encore quelque chose de nouveau
+   * (confirmé ou non), même un seul titre, on reste dans le doute — la
+   * réserve continue d'attendre, le bouton reste disponible pour un nouveau
+   * clic.
    */
   const loadMoreBpmResults = async () => {
     if (isWorldSearching || isLoadingMoreResults) return;
     setIsLoadingMoreResults(true);
-    // Photo figée des résultats déjà affichés AVANT ce nouvel appel — sert de
-    // base stable pour chaque fusion progressive ci-dessous (voir la
-    // docstring de `mergeAndResortBpmResults`) : `worldSearchResults` (le
-    // state React) ne doit PAS être relu en cours de route, sous peine de
-    // fusionner un résultat partiel avec une base qui a déjà bougé entre
-    // 2 lots.
-    const existingResults = worldSearchResults;
-    const existingTrackIds = existingResults.map(t => t.trackId);
+    // Photo figée des résultats déjà affichés/en réserve AVANT ce nouvel
+    // appel — sert de base stable pour chaque fusion progressive ci-dessous
+    // (voir la docstring de `mergeAndResortBpmResults`) : le state React ne
+    // doit PAS être relu en cours de route, sous peine de fusionner un
+    // résultat partiel avec une base qui a déjà bougé entre 2 lots.
+    const existingConfirmed = worldSearchResults;
+    const existingReserve = bpmUnconfirmedReserve;
+    // Exclut LES DEUX piles (affichée ET cachée) — un titre déjà classé non
+    // confirmé lors d'un appel précédent ne doit pas être re-découvert et
+    // re-traité pour rien à ce 2e passage.
+    const existingTrackIds = [...existingConfirmed, ...existingReserve].map(t => t.trackId);
     try {
-      const { results } = await fetchBpmSearchResults(
+      const { results, unconfirmed } = await fetchBpmSearchResults(
         bpmSearchParams.bpm, bpmSearchParams.tolerance, bpmSearchParams.genres,
-        (partialResults) => {
-          setWorldSearchResults(mergeAndResortBpmResults(existingResults, partialResults));
+        ({ confirmed: partialConfirmed, unconfirmed: partialUnconfirmed }) => {
+          setWorldSearchResults(mergeAndResortBpmResults(existingConfirmed, partialConfirmed));
+          setBpmUnconfirmedReserve(mergeAndResortBpmResults(existingReserve, partialUnconfirmed));
         },
         favorites, existingTrackIds, 2
       );
-      setWorldSearchResults(mergeAndResortBpmResults(existingResults, results));
+      setWorldSearchResults(mergeAndResortBpmResults(existingConfirmed, results));
+      setBpmUnconfirmedReserve(mergeAndResortBpmResults(existingReserve, unconfirmed));
+      // Voir la docstring ci-dessus : rien de NOUVEAU trouvé du tout (ni
+      // confirmé, ni non confirmé) = recherche jugée épuisée, la réserve
+      // peut enfin être montrée honnêtement (SearchModal.jsx).
+      if (results.length === 0 && unconfirmed.length === 0) setBpmSearchExhausted(true);
     } catch (e) {
       showToast("Erreur réseau lors de la recherche.", 'error');
     }
