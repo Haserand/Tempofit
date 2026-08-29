@@ -652,7 +652,20 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   //      de l'utilisateur plutôt qu'une liste choisie par genre).
   if (favorites && Array.isArray(favorites.artists) && favorites.artists.length > 0) {
     try {
-      const candidateStubs = await searchArtistsForBpm(favorites.artists, minBpm, maxBpm, excludeTrackIds, 3, 5);
+      // ⚠️ RELEVÉ (28/08, retour direct — "des choses de la recherche
+      // manuelle peuvent-elles s'appliquer à la génération ?") — plafonné à
+      // 3 artistes essayés/5 candidats chacun jusqu'ici : un utilisateur
+      // avec PLUS de 3 artistes favoris ("Top Artistes") n'avait donc
+      // JAMAIS ses artistes au-delà du 3e (dans un ordre aléatoire à chaque
+      // appel) pris en compte ici, quelle que soit la taille réelle de sa
+      // liste. `favorites.artists.length` (jamais de plafond artificiel,
+      // même raisonnement que la recherche manuelle) + 10 candidats par
+      // artiste (aligné sur le même chiffre que `fetchBpmSearchResults`,
+      // searchEngine.js, pour ce même cas d'usage précis) — recherche pour
+      // UN SEUL titre (pas de pool à construire), donc pas le même risque
+      // de diversité écrasée qu'un relèvement similaire aurait pour
+      // `buildSegmentTracks` (voir plus bas dans ce fichier).
+      const candidateStubs = await searchArtistsForBpm(favorites.artists, minBpm, maxBpm, excludeTrackIds, favorites.artists.length, 10);
       // GARDE-FOU GENRE (trou trouvé après un test réel : "Stan" d'Eminem et
       // "Thinking Out Loud" d'Ed Sheeran s'invitaient dans des playlists
       // Métal/Rock via ce chemin précis) : contrairement à ARTIST_CATALOG (choisi
@@ -785,7 +798,21 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
       // maintenant que cette recherche par catalogue est la stratégie PRIMAIRE
       // (pas juste un repli) pour les genres à mot-clé Deezer fragile (voir
       // WEAK_DEEZER_KEYWORD_GENRES et l'ordre de la cascade plus bas).
-      const stubs = await searchArtistsForBpm(catalogArtists, minBpm, maxBpm, localExcludeIds, 12, 8);
+      //
+      // ⚠️ RE-RELEVÉ (28/08, même raisonnement mené à son terme) — 12
+      // restait ENCORE un plafond arbitraire, pas la taille réelle du
+      // catalogue : ce correctif précédent avait amélioré la situation sans
+      // la résoudre. `catalogArtists.length` (jamais de plafond, même
+      // principe que `fetchBpmSearchResults`, searchEngine.js) garantit
+      // maintenant que TOUS les artistes du catalogue du genre demandé ont
+      // une chance d'être interrogés, pas seulement les 12 premiers du
+      // tirage aléatoire. 25 candidats par artiste (au lieu de 8, même
+      // valeur que la recherche manuelle) — recherche pour UN SEUL titre
+      // (dernier recours de la cascade, "rien d'autre n'a marché"), donc pas
+      // le même risque de diversité écrasée qu'un relèvement similaire pour
+      // `buildSegmentTracks` (qui construit un POOL, pas un seul titre —
+      // voir sa docstring plus bas, laissée à une valeur plus modeste).
+      const stubs = await searchArtistsForBpm(catalogArtists, minBpm, maxBpm, localExcludeIds, catalogArtists.length, 25);
       if (stubs.length > 0) {
         let details = (await fetchInBatches(stubs.slice(0, 20), 10, async (s) => {
           const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
@@ -1233,7 +1260,29 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
       // source fiable (genres à mot-clé Deezer fragile, voir plus haut) — sinon
       // les réglages habituels suffisent, Deezer en direct ayant déjà pu
       // apporter l'essentiel du pool.
-      const stubs = await searchArtistsForBpm(catalogArtists, minBpm, maxBpm, localExcludeIds, needsDeepCatalogSearch ? 20 : 8, needsDeepCatalogSearch ? 10 : 6);
+      //
+      // ⚠️ SIMPLIFIÉ + EXPLORATION GARANTIE (28/08, retour direct — "des
+      // choses de la recherche manuelle peuvent-elles s'appliquer à la
+      // génération ?") — `needsDeepCatalogSearch` valant maintenant toujours
+      // `true` (voir sa docstring, plus haut dans ce fichier), le ternaire
+      // ci-dessus ne servait plus à rien, remplacé par ses valeurs "profondes"
+      // directement. `catalogArtists.length` (plus de plafond arbitraire à
+      // 20, même principe que `fetchBpmSearchResults`, searchEngine.js) :
+      // garantit que TOUS les artistes du catalogue du genre demandé ont une
+      // chance d'être interrogés, pas seulement les 20 premiers d'un tirage
+      // aléatoire (même bug de fond que celui déjà trouvé et corrigé dans
+      // `tryArtistCatalogSearch`, plus haut). `candidatesPerArtist` VOLONTAIREMENT
+      // laissé à 10 (pas relevé à 25 comme les 2 autres appels de ce fichier) :
+      // CETTE fonction construit un POOL DIVERSIFIÉ pour tout un segment de
+      // playlist (pas UN SEUL titre comme les 2 autres) — le relever sans
+      // aussi relever le plafond de vérification juste en dessous
+      // (`stubs.slice(0, 60)`, inchangé) risquerait de laisser quelques
+      // artistes précoces du tirage aléatoire monopoliser ce plafond avec
+      // PLUS de leurs propres titres, au détriment de la diversité
+      // d'artistes représentés dans le pool final — l'exact effet de bord
+      // déjà mis en évidence lors du chantier "pourquoi 25 et pas plus ?"
+      // sur la recherche manuelle.
+      const stubs = await searchArtistsForBpm(catalogArtists, minBpm, maxBpm, localExcludeIds, catalogArtists.length, 10);
       // Progression (14/08, complète la couverture de `onProgress` — voir sa
       // docstring en tête de fonction — au chemin de repli par catalogue
       // d'artistes, jusqu'ici sans le moindre signal pendant sa recherche :
