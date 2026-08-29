@@ -20,7 +20,7 @@ export default function SearchModal({
   theme,
   isSearchModalOpen, closeSearchModal,
   isBpmSearchMode, bpmSearchParams, searchTracksByBpm,
-  loadMoreBpmResults,
+  loadMoreBpmResults, bpmUnconfirmedReserve, bpmSearchExhausted,
   searchQuery, setSearchQuery, searchWorldMusicApi,
   isWorldSearching, worldSearchResults, worldSearchOtherResults,
   searchLoadingMessage, searchElapsedSeconds,
@@ -34,6 +34,20 @@ export default function SearchModal({
   const { cardBg, cardBorder, textHighlight, textColorClass, textMuted, inputBg, inputBorder, bgAccentClass } = theme;
 
   if (!isSearchModalOpen) return null;
+
+  // ⚠️ RÉVÉLATION DE LA RÉSERVE NON CONFIRMÉE (28/08, retour direct — "les
+  // non confirmés ne devraient apparaître qu'une fois qu'on a vraiment fait
+  // le tour") — voir la docstring de `loadMoreBpmResults`, useDeezerSearch.js,
+  // pour le détail complet du signal `bpmSearchExhausted`. Tant qu'il est
+  // faux, `bpmUnconfirmedReserve` reste invisible ; une fois vrai (un
+  // "Charger plus" n'a rien trouvé de nouveau, confirmé ou non), la réserve
+  // rejoint l'affichage — ajoutée EN FIN de liste sans nouveau tri, puisque
+  // `worldSearchResults` (confirmé) est déjà trié en amont et que
+  // `bpmUnconfirmedReserve` ne contient QUE du palier 2 (toujours en
+  // dernier par construction, voir classifyGenreMatchTier).
+  const displayedResults = (isBpmSearchMode && bpmSearchExhausted)
+    ? [...worldSearchResults, ...bpmUnconfirmedReserve]
+    : worldSearchResults;
 
   // Une seule ligne de résultat de recherche (bouton extrait + ajout/favori) —
   // extraite en fonction réutilisable pour être partagée entre la liste
@@ -198,7 +212,7 @@ export default function SearchModal({
                 </span>
               </div>
             </div>
-          ) : (worldSearchResults.length > 0 || (!searchHasMoreResults && worldSearchOtherResults.length > 0)) ? (
+          ) : (worldSearchResults.length > 0 || (isBpmSearchMode && bpmUnconfirmedReserve.length > 0) || (!searchHasMoreResults && worldSearchOtherResults.length > 0)) ? (
             <>
               {/* RETOUR DIRECT (affichage progressif) : indicateur discret que la
                   recherche continue en arrière-plan même une fois les premiers
@@ -215,17 +229,31 @@ export default function SearchModal({
               {resultsContextLabel && !isBpmSearchMode && worldSearchResults.length > 0 && (
                 <div className={`text-xs font-bold uppercase tracking-wider mb-2 px-1 ${textMuted}`}>{resultsContextLabel}</div>
               )}
+              {/* RIEN DE CONFIRMÉ POUR L'INSTANT (28/08, chantier "révéler le
+                  non confirmé seulement si vraiment épuisé") — cas où la
+                  recherche a bien trouvé quelque chose (sinon on serait dans
+                  la branche "Aucun résultat" plus bas), mais UNIQUEMENT des
+                  titres au genre non confirmé, tous encore cachés en
+                  réserve. Message honnête plutôt qu'une liste vide sans
+                  explication, avant le bouton "Charger plus" juste après. */}
+              {isBpmSearchMode && !isWorldSearching && !bpmSearchExhausted && worldSearchResults.length === 0 && bpmUnconfirmedReserve.length > 0 && (
+                <div className={`text-sm font-medium px-1 pb-2 ${textMuted}`}>Rien de confirmé pour l'instant à ce BPM/genre — essaie "Charger plus" pour chercher plus loin.</div>
+              )}
               {(() => {
                 // Filtre les titres déjà en favoris — pas la peine de les
                 // remontrer à chaque nouvelle recherche identique. Uniquement
                 // hors contexte playlist : dans une playlist, un titre déjà
                 // en favoris reste pertinent à ajouter, la notion de
                 // "favori" n'a rien à voir avec ce qu'on cherche à faire ici.
+                //
+                // `displayedResults` (pas `worldSearchResults` directement) :
+                // inclut la réserve non confirmée une fois révélée (voir sa
+                // déclaration en tête de composant).
                 const isAlreadyFav = (t) => !currentPlaylist && favorites.tracks.some(f => f.trackId === t.trackId);
-                const visibleMainResults = worldSearchResults.filter(t => !isAlreadyFav(t));
+                const visibleMainResults = displayedResults.filter(t => !isAlreadyFav(t));
                 return (
                   <>
-                    {worldSearchResults.length > 0 && visibleMainResults.length === 0 && (
+                    {displayedResults.length > 0 && visibleMainResults.length === 0 && (
                       <div className={`text-xs italic px-1 pb-1 ${textMuted}`}>Tous les titres trouvés ici sont déjà dans tes favoris.</div>
                     )}
                     {visibleMainResults.map((track, i) => renderSearchResultRow(track, i))}
@@ -249,10 +277,15 @@ export default function SearchModal({
                   `searchHasMoreResults` équivalent, la recherche catalogue
                   explore déjà tout le catalogue dès le 1er appel) : affiché
                   dès que la recherche initiale est terminée
-                  (`!isWorldSearching`) et qu'il y a déjà des résultats à
-                  compléter, comme une action "chercher plus loin" plutôt
-                  qu'une vraie pagination. */}
-              {isBpmSearchMode && !isWorldSearching && worldSearchResults.length > 0 && (
+                  (`!isWorldSearching`) et qu'il y a déjà des résultats
+                  (confirmés OU en réserve cachée) à compléter, comme une
+                  action "chercher plus loin" plutôt qu'une vraie pagination.
+                  ⚠️ Disparaît une fois `bpmSearchExhausted` à `true` (28/08,
+                  même chantier) : "Charger plus" a déjà prouvé qu'il n'y a
+                  plus rien de nouveau à trouver, le reproposer n'aurait plus
+                  de sens — la réserve non confirmée est révélée à la place
+                  (voir `displayedResults` en tête de composant). */}
+              {isBpmSearchMode && !isWorldSearching && !bpmSearchExhausted && (worldSearchResults.length > 0 || bpmUnconfirmedReserve.length > 0) && (
                 <button
                   onClick={loadMoreBpmResults}
                   disabled={isLoadingMoreResults}
