@@ -39,6 +39,7 @@ function makeSearch(overrides = {}) {
     worldSearchResults: [],
     bpmSearchParams: { bpm: 140, tolerance: 10, genres: ['Rock'] },
     isLoadingMoreResults: false,
+    bpmUnconfirmedReserve: [],
     setSearchActiveArtistName: vi.fn(),
     setWorldSearchResults: vi.fn(),
     setWorldSearchOtherResults: vi.fn(),
@@ -53,6 +54,8 @@ function makeSearch(overrides = {}) {
     setIsBpmSearchMode: vi.fn(),
     setEditingBpmId: vi.fn(),
     setBpmSearchParams: vi.fn(),
+    setBpmUnconfirmedReserve: vi.fn(),
+    setBpmSearchExhausted: vi.fn(),
     ...overrides,
   };
 }
@@ -272,7 +275,7 @@ describe('searchTracksByBpm', () => {
   });
 
   it('mémorise les paramètres de recherche (bpm/tolerance/genres), même en cas de genres omis', async () => {
-    mockFetchBpmSearchResults.mockResolvedValue({ results: [{ trackId: 'a' }] });
+    mockFetchBpmSearchResults.mockResolvedValue({ results: [{ trackId: 'a' }], unconfirmed: [] });
     const search = makeSearch();
     const showToast = vi.fn();
     const { searchTracksByBpm } = useDeezerSearch(search, showToast, false);
@@ -283,7 +286,7 @@ describe('searchTracksByBpm', () => {
   });
 
   it('genre fragile (K-pop/Musique asiatique/Bandes originales) : message de chargement dédié "Recherche plus longue"', async () => {
-    mockFetchBpmSearchResults.mockResolvedValue({ results: [] });
+    mockFetchBpmSearchResults.mockResolvedValue({ results: [], unconfirmed: [] });
     const search = makeSearch();
     const showToast = vi.fn();
     const { searchTracksByBpm } = useDeezerSearch(search, showToast, false);
@@ -294,7 +297,7 @@ describe('searchTracksByBpm', () => {
   });
 
   it('genre standard : message de chargement tiré parmi SEARCH_LOADING_MESSAGES (pas le message dédié genre fragile)', async () => {
-    mockFetchBpmSearchResults.mockResolvedValue({ results: [] });
+    mockFetchBpmSearchResults.mockResolvedValue({ results: [], unconfirmed: [] });
     const search = makeSearch();
     const showToast = vi.fn();
     const { searchTracksByBpm } = useDeezerSearch(search, showToast, false);
@@ -317,7 +320,7 @@ describe('searchTracksByBpm', () => {
   // ici (nécessite un mock HTTP complet, voir searchEngine.test.js), on
   // vérifie seulement le CÂBLAGE : le bon objet arrive au bon endroit.
   it('transmet `favorites` à fetchBpmSearchResults quand fourni au hook', async () => {
-    mockFetchBpmSearchResults.mockResolvedValue({ results: [] });
+    mockFetchBpmSearchResults.mockResolvedValue({ results: [], unconfirmed: [] });
     const search = makeSearch();
     const showToast = vi.fn();
     const favorites = { tracks: [{ trackId: 'deezer-1', title: 'X', artist: 'Y', bpm: 140, genre: 'Rock' }], artists: ['AC/DC'] };
@@ -329,7 +332,7 @@ describe('searchTracksByBpm', () => {
   });
 
   it('sans favoris fournis au hook (undefined), transmet `null` à fetchBpmSearchResults (pas de crash)', async () => {
-    mockFetchBpmSearchResults.mockResolvedValue({ results: [] });
+    mockFetchBpmSearchResults.mockResolvedValue({ results: [], unconfirmed: [] });
     const search = makeSearch();
     const showToast = vi.fn();
     const { searchTracksByBpm } = useDeezerSearch(search, showToast, false);
@@ -339,12 +342,12 @@ describe('searchTracksByBpm', () => {
     expect(mockFetchBpmSearchResults).toHaveBeenCalledWith(140, 10, ['Jazz'], expect.any(Function), null);
   });
 
-  it('applique la progression (onProgress) EN COURS de recherche avant le résultat final', async () => {
+  it('applique la progression (onProgress) EN COURS de recherche avant le résultat final — confirmé et non confirmé séparés', async () => {
     let capturedOnProgress;
     mockFetchBpmSearchResults.mockImplementation(async (bpm, tol, genres, onProgress) => {
       capturedOnProgress = onProgress;
-      onProgress([{ trackId: 'partiel-1' }]);
-      return { results: [{ trackId: 'partiel-1' }, { trackId: 'final-2' }] };
+      onProgress({ confirmed: [{ trackId: 'partiel-1' }], unconfirmed: [] });
+      return { results: [{ trackId: 'partiel-1' }, { trackId: 'final-2' }], unconfirmed: [{ trackId: 'nc-1' }] };
     });
     const search = makeSearch();
     const showToast = vi.fn();
@@ -355,10 +358,14 @@ describe('searchTracksByBpm', () => {
     expect(typeof capturedOnProgress).toBe('function');
     expect(search.setWorldSearchResults).toHaveBeenCalledWith([{ trackId: 'partiel-1' }]);
     expect(search.setWorldSearchResults).toHaveBeenLastCalledWith([{ trackId: 'partiel-1' }, { trackId: 'final-2' }]);
+    // Le non confirmé va dans la réserve CACHÉE, jamais dans
+    // setWorldSearchResults (voir la docstring de bpmUnconfirmedReserve,
+    // useTrackSearch.js) — c'est tout l'objet du chantier du 28/08.
+    expect(search.setBpmUnconfirmedReserve).toHaveBeenLastCalledWith([{ trackId: 'nc-1' }]);
   });
 
-  it('résultat final vide : signale noUsableResultsHint', async () => {
-    mockFetchBpmSearchResults.mockResolvedValue({ results: [] });
+  it('résultat final vide (ni confirmé ni non confirmé) : signale noUsableResultsHint', async () => {
+    mockFetchBpmSearchResults.mockResolvedValue({ results: [], unconfirmed: [] });
     const search = makeSearch();
     const showToast = vi.fn();
     const { searchTracksByBpm } = useDeezerSearch(search, showToast, false);
@@ -366,6 +373,39 @@ describe('searchTracksByBpm', () => {
     await searchTracksByBpm(140, 10, ['Rock']);
 
     expect(search.setNoUsableResultsHint).toHaveBeenCalledWith(true);
+  });
+
+  // NOUVEAU (28/08, chantier "révéler le non confirmé seulement si vraiment
+  // épuisé") — même si AUCUN résultat confirmé n'est trouvé, la présence
+  // d'un non confirmé en réserve signifie qu'on a trouvé QUELQUE CHOSE (pas
+  // "rien du tout") : noUsableResultsHint ne doit PAS se déclencher, pour
+  // laisser la porte ouverte au bouton "Charger plus" plutôt que d'afficher
+  // un message définitif "Aucun résultat".
+  it('confirmé vide MAIS non confirmé présent : ne signale PAS noUsableResultsHint (reste \'à essayer avec Charger plus\')', async () => {
+    mockFetchBpmSearchResults.mockResolvedValue({ results: [], unconfirmed: [{ trackId: 'nc-1' }] });
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { searchTracksByBpm } = useDeezerSearch(search, showToast, false);
+
+    await searchTracksByBpm(140, 10, ['Rock']);
+
+    expect(search.setNoUsableResultsHint).not.toHaveBeenCalledWith(true);
+    expect(search.setBpmUnconfirmedReserve).toHaveBeenLastCalledWith([{ trackId: 'nc-1' }]);
+  });
+
+  // NOUVEAU (28/08, même chantier) — chaque NOUVELLE recherche doit repartir
+  // à zéro sur la réserve et le signal d'épuisement, jamais hériter d'un état
+  // laissé par une recherche précédente (BPM/genres différents).
+  it('réinitialise la réserve non confirmée et le signal d\'épuisement à chaque nouvelle recherche', async () => {
+    mockFetchBpmSearchResults.mockResolvedValue({ results: [], unconfirmed: [] });
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const { searchTracksByBpm } = useDeezerSearch(search, showToast, false);
+
+    await searchTracksByBpm(140, 10, ['Rock']);
+
+    expect(search.setBpmUnconfirmedReserve).toHaveBeenCalledWith([]);
+    expect(search.setBpmSearchExhausted).toHaveBeenCalledWith(false);
   });
 
   it('erreur réseau : toast erreur, retombe sur isWorldSearching=false', async () => {
@@ -390,11 +430,13 @@ describe('searchTracksByBpm', () => {
 // le CÂBLAGE : bons paramètres transmis, bon état mis à jour, bons
 // garde-fous anti-concurrence).
 describe('loadMoreBpmResults', () => {
-  it('relance fetchBpmSearchResults avec les paramètres BPM en cours, les trackId déjà affichés en exclusion, et un budget doublé', async () => {
-    const existing = [{ trackId: 'deezer-1', _matchTier: 0 }, { trackId: 'deezer-2', _matchTier: 2 }];
-    mockFetchBpmSearchResults.mockResolvedValue({ results: [...existing, { trackId: 'deezer-3', _matchTier: 0 }] });
+  it('relance fetchBpmSearchResults avec les paramètres BPM en cours, les trackId déjà affichés (confirmés ET en réserve) en exclusion, et un budget doublé', async () => {
+    const existingConfirmed = [{ trackId: 'deezer-1', _matchTier: 0 }];
+    const existingReserve = [{ trackId: 'deezer-2', _matchTier: 2 }];
+    mockFetchBpmSearchResults.mockResolvedValue({ results: [{ trackId: 'deezer-3', _matchTier: 0 }], unconfirmed: [] });
     const search = makeSearch({
-      worldSearchResults: existing,
+      worldSearchResults: existingConfirmed,
+      bpmUnconfirmedReserve: existingReserve,
       bpmSearchParams: { bpm: 140, tolerance: 10, genres: ['Electro'] },
     });
     const showToast = vi.fn();
@@ -407,23 +449,27 @@ describe('loadMoreBpmResults', () => {
       140, 10, ['Electro'],
       expect.any(Function),
       favorites,
-      ['deezer-1', 'deezer-2'], // trackId déjà affichés, extraits de worldSearchResults
+      ['deezer-1', 'deezer-2'], // trackId déjà affichés OU en réserve, les 2 piles combinées
       2 // stubCapMultiplier
     );
   });
 
-  it('fusionne le résultat final avec les résultats déjà affichés via mergeAndResortBpmResults (pas un simple remplacement)', async () => {
-    const existing = [{ trackId: 'deezer-1', _matchTier: 0 }];
-    const newOnes = [{ trackId: 'deezer-3', _matchTier: 0 }];
-    mockFetchBpmSearchResults.mockResolvedValue({ results: newOnes });
-    const search = makeSearch({ worldSearchResults: existing });
+  it('fusionne le résultat final avec les résultats déjà affichés (confirmés ET réserve) via mergeAndResortBpmResults', async () => {
+    const existingConfirmed = [{ trackId: 'deezer-1', _matchTier: 0 }];
+    const existingReserve = [{ trackId: 'deezer-2', _matchTier: 2 }];
+    const newConfirmed = [{ trackId: 'deezer-3', _matchTier: 0 }];
+    const newUnconfirmed = [{ trackId: 'deezer-4', _matchTier: 2 }];
+    mockFetchBpmSearchResults.mockResolvedValue({ results: newConfirmed, unconfirmed: newUnconfirmed });
+    const search = makeSearch({ worldSearchResults: existingConfirmed, bpmUnconfirmedReserve: existingReserve });
     const showToast = vi.fn();
     const { loadMoreBpmResults } = useDeezerSearch(search, showToast, false);
 
     await loadMoreBpmResults();
 
-    expect(mockMergeAndResortBpmResults).toHaveBeenCalledWith(existing, newOnes);
-    expect(search.setWorldSearchResults).toHaveBeenLastCalledWith([...existing, ...newOnes]);
+    expect(mockMergeAndResortBpmResults).toHaveBeenCalledWith(existingConfirmed, newConfirmed);
+    expect(mockMergeAndResortBpmResults).toHaveBeenCalledWith(existingReserve, newUnconfirmed);
+    expect(search.setWorldSearchResults).toHaveBeenLastCalledWith([...existingConfirmed, ...newConfirmed]);
+    expect(search.setBpmUnconfirmedReserve).toHaveBeenLastCalledWith([...existingReserve, ...newUnconfirmed]);
   });
 
   it('refuse un appel concurrent si une recherche BPM initiale est déjà en cours (isWorldSearching)', async () => {
@@ -447,28 +493,67 @@ describe('loadMoreBpmResults', () => {
     expect(mockFetchBpmSearchResults).not.toHaveBeenCalled();
   });
 
-  it('affichage progressif : chaque lot partiel est fusionné avec la base FIGÉE (pas le state déjà modifié par un lot précédent)', async () => {
-    const existing = [{ trackId: 'deezer-1', _matchTier: 0 }];
+  it('affichage progressif : chaque lot partiel (confirmé et réserve) est fusionné avec la base FIGÉE, jamais un résultat partiel précédent déjà écrit dans le state', async () => {
+    const existingConfirmed = [{ trackId: 'deezer-1', _matchTier: 0 }];
+    const existingReserve = [];
     let capturedOnProgress;
     mockFetchBpmSearchResults.mockImplementation(async (_bpm, _tol, _genres, onProgress) => {
       capturedOnProgress = onProgress;
-      onProgress([{ trackId: 'deezer-2', _matchTier: 0 }]);
-      onProgress([{ trackId: 'deezer-2', _matchTier: 0 }, { trackId: 'deezer-3', _matchTier: -1 }]);
-      return { results: [{ trackId: 'deezer-2', _matchTier: 0 }, { trackId: 'deezer-3', _matchTier: -1 }] };
+      onProgress({ confirmed: [{ trackId: 'deezer-2', _matchTier: 0 }], unconfirmed: [] });
+      onProgress({ confirmed: [{ trackId: 'deezer-2', _matchTier: 0 }, { trackId: 'deezer-3', _matchTier: -1 }], unconfirmed: [] });
+      return { results: [{ trackId: 'deezer-2', _matchTier: 0 }, { trackId: 'deezer-3', _matchTier: -1 }], unconfirmed: [] };
     });
-    const search = makeSearch({ worldSearchResults: existing });
+    const search = makeSearch({ worldSearchResults: existingConfirmed, bpmUnconfirmedReserve: existingReserve });
     const showToast = vi.fn();
     const { loadMoreBpmResults } = useDeezerSearch(search, showToast, false);
 
     await loadMoreBpmResults();
 
     expect(typeof capturedOnProgress).toBe('function');
-    // Chaque appel de fusion utilise TOUJOURS `existing` comme base — jamais
-    // un résultat partiel précédent déjà écrit dans le state (voir la
-    // docstring de `loadMoreBpmResults` : "photo figée AVANT ce nouvel appel").
-    expect(mockMergeAndResortBpmResults).toHaveBeenNthCalledWith(1, existing, [{ trackId: 'deezer-2', _matchTier: 0 }]);
-    expect(mockMergeAndResortBpmResults).toHaveBeenNthCalledWith(2, existing, [{ trackId: 'deezer-2', _matchTier: 0 }, { trackId: 'deezer-3', _matchTier: -1 }]);
-    expect(mockMergeAndResortBpmResults).toHaveBeenNthCalledWith(3, existing, [{ trackId: 'deezer-2', _matchTier: 0 }, { trackId: 'deezer-3', _matchTier: -1 }]);
+    // Chaque appel de fusion CONFIRMÉ utilise TOUJOURS `existingConfirmed`
+    // comme base — jamais un résultat partiel précédent déjà écrit dans le
+    // state (voir la docstring de `loadMoreBpmResults` : "photo figée AVANT
+    // ce nouvel appel").
+    expect(search.setWorldSearchResults).toHaveBeenCalledWith([...existingConfirmed, { trackId: 'deezer-2', _matchTier: 0 }]);
+    expect(search.setWorldSearchResults).toHaveBeenLastCalledWith([...existingConfirmed, { trackId: 'deezer-2', _matchTier: 0 }, { trackId: 'deezer-3', _matchTier: -1 }]);
+  });
+
+  // NOUVEAU (28/08, chantier "révéler le non confirmé seulement si vraiment
+  // épuisé") — 3 cas déterminant `bpmSearchExhausted` : voir la docstring de
+  // `loadMoreBpmResults`, useDeezerSearch.js, pour le raisonnement complet.
+  describe('signal bpmSearchExhausted', () => {
+    it('trouve un nouveau titre CONFIRMÉ : bpmSearchExhausted reste faux, la réserve n\'est pas révélée', async () => {
+      mockFetchBpmSearchResults.mockResolvedValue({ results: [{ trackId: 'nouveau', _matchTier: 0 }], unconfirmed: [] });
+      const search = makeSearch();
+      const showToast = vi.fn();
+      const { loadMoreBpmResults } = useDeezerSearch(search, showToast, false);
+
+      await loadMoreBpmResults();
+
+      expect(search.setBpmSearchExhausted).not.toHaveBeenCalledWith(true);
+    });
+
+    it('trouve seulement un nouveau NON CONFIRMÉ (rien de confirmé) : bpmSearchExhausted reste faux (encore de l\'espoir)', async () => {
+      mockFetchBpmSearchResults.mockResolvedValue({ results: [], unconfirmed: [{ trackId: 'nc-nouveau', _matchTier: 2 }] });
+      const search = makeSearch();
+      const showToast = vi.fn();
+      const { loadMoreBpmResults } = useDeezerSearch(search, showToast, false);
+
+      await loadMoreBpmResults();
+
+      expect(search.setBpmSearchExhausted).not.toHaveBeenCalledWith(true);
+    });
+
+    it('ne trouve STRICTEMENT RIEN de nouveau (ni confirmé ni non confirmé) : bpmSearchExhausted passe à vrai, la réserve peut être révélée', async () => {
+      mockFetchBpmSearchResults.mockResolvedValue({ results: [], unconfirmed: [] });
+      const search = makeSearch();
+      const showToast = vi.fn();
+      const { loadMoreBpmResults } = useDeezerSearch(search, showToast, false);
+
+      await loadMoreBpmResults();
+
+      expect(search.setBpmSearchExhausted).toHaveBeenCalledWith(true);
+    });
   });
 
   it('erreur réseau : toast erreur, retombe sur isLoadingMoreResults=false', async () => {
