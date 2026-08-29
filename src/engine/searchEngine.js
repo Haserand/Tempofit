@@ -313,7 +313,16 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
     const fresh = rawStubs.filter(s => !seenIds.has(s.id));
     if (fresh.length === 0) return;
     const room = stubCap - submittedCount;
-    if (room <= 0) return;
+    // ⚠️ RENVOIE `false` EXPLICITEMENT ICI (28/08, retour direct — voir la
+    // docstring du paramètre `onBatch` dans `searchArtistsForBpm`,
+    // musicEngine.js, pour le détail complet) — un simple `return;` (donc
+    // `undefined`) ne suffisait pas à signaler à l'appelant qu'il n'y a
+    // PLUS DE PLACE : `searchArtistsForBpm` continuait alors à interroger
+    // Deezer pour tous les artistes restants du catalogue, même si leurs
+    // résultats seraient de toute façon jetés ici. `false` fait remonter ce
+    // signal jusqu'à la boucle d'artistes, qui s'arrête net dès qu'elle le
+    // reçoit.
+    if (room <= 0) return false;
     const toProcess = fresh.slice(0, room);
     toProcess.forEach(s => seenIds.add(s.id));
     submittedCount += toProcess.length;
@@ -578,7 +587,20 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
     await searchArtistsForBpm(
       artists, minBpm, maxBpm, [],
       artists.length,
-      10,
+      // ⚠️ RELEVÉ DE 10 À 25 (28/08, retour direct — "pourquoi interroger
+      // que 10 titres par artiste, autant en demander plus ?") — coût
+      // RÉSEAU inchangé (toujours 1 seule requête de recherche par artiste,
+      // juste avec plus de résultats bruts dedans) ; le vrai risque était
+      // ailleurs, pour les genres à gros catalogue (Rock, Pop...) : plus de
+      // candidats bruts par artiste = le budget de vérification partagé
+      // (`stubCap`) atteint plus vite, PAR MOINS D'ARTISTES DISTINCTS (les
+      // premiers du tirage aléatoire), au détriment de la diversité. Sûr
+      // maintenant SEULEMENT parce que `searchArtistsForBpm` sait enfin
+      // s'arrêter net dès que `processStubBatch` renvoie `false` (voir sa
+      // docstring, musicEngine.js) — sans ce garde-fou, relever cette
+      // valeur aurait aussi aggravé le gaspillage réseau déjà identifié
+      // (continuer à interroger des artistes pour des résultats jetés).
+      25,
       (batchStubs) => processStubBatch(batchStubs.map(s => ({ ...s, matchedGenre: genre, _fromCatalog: true })))
     );
   });
