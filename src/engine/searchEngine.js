@@ -366,7 +366,31 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
       // avec musicEngine.js (buildSegmentTracks) — même décision, un seul
       // endroit désormais, plus une réécriture indépendante par fichier.
       const matchTier = classifyGenreMatchTier(realGenre, genresToQuery);
-      const genreMismatch = matchTier === 2;
+      // SECOND AVIS (28/08, retour direct — "pourquoi tu regardes que les
+      // favoris et pas tous ceux qu'on regarde via le catalogue" — capture
+      // à l'appui : "War Machine (Live...)" d'AC/DC, un artiste FAVORI,
+      // étiqueté "Pop" à tort. Généralisé le même jour à CE pipeline, qui
+      // traite catalogue ET recherche généraliste : même risque, même genre
+      // de problème (un titre isolé mal étiqueté côté Deezer) que le bug
+      // Judas Priest ci-dessus, mais Judas Priest était détecté parce que
+      // son mismatch tombait sur un genre SANS AUCUNE équivalence (Pop
+      // n'est équivalent de rien) — un artiste catalogué qui déraille vers
+      // un genre qui, LUI, a une équivalence acceptée (ex. un artiste Métal
+      // dérivant vers "Rock" alors que la vraie équivalence Métal/Rock est
+      // volontairement acceptée ailleurs) ne serait PAS forcément détecté
+      // par `classifyGenreMatchTier` seul) — pour un artiste qu'on connaît
+      // déjà bien via ARTIST_CATALOG (choisi PAR genre, donc fiable), on
+      // croise le genre RÉSOLU PAR TITRE (`realGenre`, ponctuellement faux)
+      // avec le genre CATALOGUÉ PAR ARTISTE (`findCatalogGenreForArtist`,
+      // plus stable). Si les deux sont incompatibles, on retombe au palier
+      // mismatch (2) plutôt que de laisser `matchTier` déclarer une
+      // correspondance à tort. RESTE UN AVIS, PAS UNE VÉRITÉ ABSOLUE : ne
+      // s'applique QUE si l'artiste est effectivement catalogué (sinon
+      // `findCatalogGenreForArtist` renvoie `null`, comportement inchangé).
+      const catalogGenre = findCatalogGenreForArtist(t.artist ? t.artist.name : null);
+      const catalogContradicts = catalogGenre && !genresToQuery.some(g => genreRoughlyMatches(catalogGenre, g));
+      const finalTier = catalogContradicts ? 2 : matchTier;
+      const genreMismatch = finalTier === 2;
       return {
         id: t.id,
         trackId: `deezer-${t.id}`,
@@ -377,7 +401,7 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
         genre: realGenre || 'Genre inconnu',
         preview: t.preview || null,
         _genreMismatch: genreMismatch,
-        _matchTier: matchTier,
+        _matchTier: finalTier,
       };
     });
     resolved.forEach(r => accumulator.set(r.id, r));
