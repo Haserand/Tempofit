@@ -168,13 +168,30 @@ export function useDeezerSearch(search, showToast, isNaughtyMode, favorites = nu
     setIsWorldSearching(true);
     // Même logique que le bandeau "Génération en cours" (voir isGeneratingSlowGenre,
     // executeGeneration, App.jsx) : message dédié quand un genre au mot-clé Deezer fragile
-    // (K-pop, J-pop & C-pop, Bandes originales) est demandé, ici plutôt que dans
-    // un avertissement statique avant le clic — partagé par le wizard ("Explorer
-    // les titres à X BPM") ET la page Favoris ("Chercher des titres à X BPM"),
-    // qui passent tous les deux par cette même fonction.
+    // (K-pop, J-pop & C-pop, Bandes originales, Electro, Country, Dance & EDM,
+    // Soul & Funk, Alternative, Rock, Pop — voir WEAK_DEEZER_KEYWORD_GENRES) est
+    // demandé, ici plutôt que dans un avertissement statique avant le clic —
+    // partagé par le wizard ("Explorer les titres à X BPM") ET la page Favoris
+    // ("Chercher des titres à X BPM"), qui passent tous les deux par cette
+    // même fonction.
+    //
+    // ⚠️ TEXTE CORRIGÉ (28/08, retour direct — "pourquoi 'recherche plus
+    // approfondie' pour Pop à 140 BPM, alors que c'est un style et un tempo
+    // ultra classiques ?") — l'ancien texte ("Recherche plus approfondie
+    // pour ce genre...") avait été écrit à l'origine pour K-pop/Musique
+    // asiatique, des genres RÉELLEMENT moins courants, et sous-entendait à
+    // tort "ce genre est difficile à trouver". Depuis que Pop/Rock/Dance &
+    // EDM/etc. ont rejoint cette même liste (28/08, même jour — mot-clé
+    // Deezer trop générique en recherche texte libre, PAS une question de
+    // rareté du style), ce sous-entendu n'a plus aucun sens : le mécanisme
+    // réel n'a jamais varié en fréquence/rareté du GENRE, seulement en
+    // fiabilité du MOT-CLÉ de recherche texte libre. Aligné sur la
+    // formulation déjà établie et plus juste du bandeau de génération
+    // ("genre plus long à cibler", GenerationProgressBanner.jsx) — parle de
+    // DURÉE, jamais de difficulté ou de rareté.
     setSearchLoadingMessage(
       (genres || []).some(g => WEAK_DEEZER_KEYWORD_GENRES.includes(g))
-        ? "Recherche plus approfondie pour ce genre..."
+        ? "Recherche plus longue pour ce genre..."
         : SEARCH_LOADING_MESSAGES[Math.floor(Math.random() * SEARCH_LOADING_MESSAGES.length)]
     );
     setWorldSearchResults([]);
