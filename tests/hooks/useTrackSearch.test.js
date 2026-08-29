@@ -27,6 +27,11 @@ describe('useTrackSearch — valeurs par défaut', () => {
     expect(result.current.searchLoadingMessage).toBe(SEARCH_LOADING_MESSAGES[0]);
     expect(result.current.worldSearchOtherResults).toEqual([]);
     expect(result.current.bpmSearchParams).toEqual({ bpm: 140, tolerance: 10, genres: [] });
+    // NOUVEAU (28/08, chantier "révéler le non confirmé seulement si
+    // vraiment épuisé") — voir la docstring de ces 2 champs dans
+    // useTrackSearch.js.
+    expect(result.current.bpmUnconfirmedReserve).toEqual([]);
+    expect(result.current.bpmSearchExhausted).toBe(false);
   });
 });
 
@@ -62,6 +67,18 @@ describe('useTrackSearch — chaque setter met bien à jour son propre champ, sa
     expect(result.current.isBpmSearchMode).toBe(true);
     expect(result.current.searchHasMoreResults).toBe(false);
     expect(result.current.isLoadingMoreResults).toBe(false);
+  });
+
+  it('setBpmUnconfirmedReserve/setBpmSearchExhausted', () => {
+    const { result } = renderHook(() => useTrackSearch());
+    act(() => {
+      result.current.setBpmUnconfirmedReserve([{ trackId: 'x' }]);
+      result.current.setBpmSearchExhausted(true);
+    });
+    expect(result.current.bpmUnconfirmedReserve).toEqual([{ trackId: 'x' }]);
+    expect(result.current.bpmSearchExhausted).toBe(true);
+    // Indépendants du reste (pas de couplage accidentel avec worldSearchResults).
+    expect(result.current.worldSearchResults).toEqual([]);
   });
 });
 
