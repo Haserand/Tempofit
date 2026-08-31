@@ -42,7 +42,15 @@ function viewFiles() {
   // filtrer ici plutôt que la renommer (`RoutinesBody.jsx` aurait été plus
   // exact, mais un renommage de fichier est un changement plus large,
   // pas fait dans ce chantier).
-  return fs.readdirSync(VIEWS_DIR).filter(f => f.endsWith('View.jsx') && f !== 'RoutinesView.jsx');
+  //
+  // ⚠️ 2e EXCLUSION AJOUTÉE (28/08, même raisonnement exact, retour direct —
+  // "Exclusion devrait être un onglet contenu dans l'onglet favoris, comme
+  // le modèle playlists/routines contenu dans la vue playlists") —
+  // `ExclusionsView.jsx` a suivi EXACTEMENT le même chemin que
+  // `RoutinesView.jsx` le même jour : fusionnée en onglet de
+  // `FavoritesView.jsx`, ne rend plus qu'un corps (3 sections), sans
+  // `<ViewHeader/>` ni `VIEW_CONTENT_WRAPPER` propres non plus.
+  return fs.readdirSync(VIEWS_DIR).filter(f => f.endsWith('View.jsx') && f !== 'RoutinesView.jsx' && f !== 'ExclusionsView.jsx');
 }
 
 describe('viewHeaderLayout — valeurs actuelles', () => {
