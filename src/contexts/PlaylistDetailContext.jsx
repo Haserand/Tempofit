@@ -91,7 +91,7 @@ const PlaylistDetailContext = createContext(null);
 
 export function PlaylistDetailProvider({
   currentPlaylist, setCurrentPlaylist, savedPlaylists, setSavedPlaylists,
-  favorites, spotifyTrackPool, userStats, checkTrophies,
+  favorites, spotifyTrackPool, userStats, checkTrophies, exclusions,
   showToast, requestRemoveSavedPlaylist, handleSavePlaylist, handleClonePlaylist,
   currentActualData, selectedMetric, setSelectedMetric,
   dataOffset, setDataOffset,
@@ -317,7 +317,7 @@ export function PlaylistDetailProvider({
     const newRawTrack = await getSingleMatchingTrack(
       oldTrack.targetSegmentBpm, currentPlaylist.tolerance || 10,
       currentPlaylist.config?.selectedGenres || ['Métal'], usedIds, favorites, spotifyTrackPool,
-      null, [], currentPlaylist.config?.allowLongTracks || false,
+      null, [], currentPlaylist.config?.allowLongTracks || false, exclusions,
     );
 
     if (currentPlaylistIdRef.current !== playlistIdAtStart) {
@@ -372,11 +372,11 @@ export function PlaylistDetailProvider({
     const requestedGenres = currentPlaylist.config?.selectedGenres || ['Métal'];
     const allowLong = currentPlaylist.config?.allowLongTracks || false;
 
-    let newRawTrack = await findSameArtistReplacement(oldTrack.artist, minBpm, maxBpm, usedIds, requestedGenres, allowLong);
+    let newRawTrack = await findSameArtistReplacement(oldTrack.artist, minBpm, maxBpm, usedIds, requestedGenres, allowLong, exclusions);
 
     if (!newRawTrack) {
       if (currentPlaylistIdRef.current !== playlistIdAtStart) return; // playlist déjà changée, pas la peine de lancer la recherche élargie
-      newRawTrack = await getSingleMatchingTrack(oldTrack.targetSegmentBpm, currentPlaylist.tolerance || 10, requestedGenres, usedIds, favorites, spotifyTrackPool, null, [], allowLong);
+      newRawTrack = await getSingleMatchingTrack(oldTrack.targetSegmentBpm, currentPlaylist.tolerance || 10, requestedGenres, usedIds, favorites, spotifyTrackPool, null, [], allowLong, exclusions);
       if (currentPlaylistIdRef.current !== playlistIdAtStart) {
         showToast("Remplacement annulé : tu as changé de playlist entre-temps.");
         return;
