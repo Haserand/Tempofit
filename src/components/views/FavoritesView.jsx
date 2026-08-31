@@ -52,7 +52,7 @@ export default function FavoritesView({
   isAddingArtist, setIsAddingArtist, newFavArtist, setNewFavArtist, addFavoriteArtistValidated,
   availableGenres, favSelectedGenres, setFavSelectedGenres, showExtraGenres, setShowExtraGenres,
   favBpmTarget, setFavBpmTarget, favBpmTolerance, setFavBpmTolerance,
-  searchTracksByBpm, changeView,
+  searchTracksByBpm, handleOpenSettings,
   exclusions, toggleTrackExclusion, toggleArtistExclusion, toggleGenreExclusion,
   newExclusionArtist, setNewExclusionArtist, isAddingExclusionArtist, setIsAddingExclusionArtist,
 }) {
@@ -136,10 +136,23 @@ export default function FavoritesView({
               d'un même signal "ce lien t'emmène ailleurs" à travers l'app.
               Infobulle reformulée dans le même esprit : "Ouvre" plutôt
               qu'une formulation qui pourrait laisser croire à une action
-              déjà en cours. */}
+              déjà en cours.
+              ⚠️ CIBLE L'ONGLET "SERVICES MUSICAUX" DIRECTEMENT (28/08,
+              retour direct — "prends du recul, je dois avoir l'onglet
+              profil athlétique ou services musicaux par défaut ?") —
+              `changeView('settings')` seul rouvrait Réglages sur son onglet
+              par défaut (`isNaughtyMode ? 'music' : 'profile'`, voir
+              SettingsView.jsx), donc "Profil Athlétique" la plupart du
+              temps — sans rapport avec l'intention réelle de ce lien (lier
+              Spotify/Deezer). `handleOpenSettings('music')` réutilise le
+              mécanisme déjà en place pour le même besoin ailleurs (menu
+              déroulant avatar → `'account'`, StatsView.jsx → `'account'`)
+              plutôt que d'inventer un 2e chemin : une seule fonction
+              partagée (App.jsx) qui pose `settingsInitialTab` AVANT de
+              naviguer, jamais 2 lignes dupliquées ici. */}
           <button
-            onClick={() => changeView('settings')}
-            title="Ouvre la page Comptes pour lier Spotify et élargir le catalogue de titres disponibles."
+            onClick={() => handleOpenSettings('music')}
+            title="Ouvre la page Comptes (onglet Services Musicaux) pour lier Spotify et élargir le catalogue de titres disponibles."
             className={`text-sm ${INLINE_NAV_LINK_CLASS} ${textColorClass}`}
           >
             Synchroniser mes comptes →
