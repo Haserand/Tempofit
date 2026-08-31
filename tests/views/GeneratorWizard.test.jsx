@@ -153,7 +153,7 @@ function baseProps(overrides = {}) {
     executeGeneration: vi.fn(),
     isGenerating: false,
     toggleNaughtyMode: vi.fn(),
-    changeView: vi.fn(),
+    handleOpenSettings: vi.fn(),
     ...overrides,
   };
 }
@@ -608,12 +608,17 @@ describe('GeneratorWizard — navigation Précédent/Suivant (étapes 1 à 3)', 
     expect(setWizardStep).toHaveBeenCalledWith(4);
   });
 
-  it('étape 1, mode normal : le lien "Configurer mes zones BPM" appelle changeView("settings")', () => {
-    const changeView = vi.fn();
+  // ⚠️ CORRIGÉ (28/08, retour direct — capture à l'appui : un état
+  // `settingsInitialTab` périmé d'une visite précédente sur un AUTRE onglet
+  // de Réglages faisait ouvrir ce lien sur le mauvais onglet) —
+  // `changeView('settings')` seul ne réinitialisait jamais cette valeur ;
+  // `handleOpenSettings('profile')` la pose explicitement à chaque clic.
+  it('étape 1, mode normal : le lien "Configurer mes zones BPM" appelle handleOpenSettings(\'profile\')', () => {
+    const handleOpenSettings = vi.fn();
     mockUseGeneratorContext.mockReturnValue(makeContextValue({ wizardStep: 1, isNaughtyMode: false }));
-    render(<GeneratorWizard {...baseProps({ changeView })} />);
+    render(<GeneratorWizard {...baseProps({ handleOpenSettings })} />);
     fireEvent.click(screen.getByText(/Configurer mes zones BPM/));
-    expect(changeView).toHaveBeenCalledWith('settings');
+    expect(handleOpenSettings).toHaveBeenCalledWith('profile');
   });
 
   it('étape 1, Mode Intime : pas de lien profil (aucun bouton "Précédent" ni lien à sa place)', () => {
