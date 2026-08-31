@@ -56,7 +56,10 @@ function baseProps(overrides = {}) {
     noUsableResultsHint: false,
     currentPlaylist: null,
     favorites: { tracks: [], artists: [] },
-    setFavorites: vi.fn(),
+    toggleTrackFavorite: vi.fn(),
+    exclusions: { tracks: [], artists: [] },
+    toggleTrackExclusion: vi.fn(),
+    toggleArtistExclusion: vi.fn(),
     editingBpmId: null,
     setEditingBpmId: vi.fn(),
     commitBpmEdit: vi.fn(),
@@ -466,19 +469,16 @@ describe('SearchModal — ligne de résultat (renderSearchResultRow)', () => {
     expect(container.querySelector('.lucide-pause')).toBeTruthy();
   });
 
-  it('hors contexte playlist : clic sur le titre ajoute aux favoris (et le retire si déjà présent)', () => {
-    const setFavorites = vi.fn();
-    const showToast = vi.fn();
-    const { rerender } = render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], setFavorites, showToast })} />);
+  it('hors contexte playlist : clic sur le titre appelle toggleTrackFavorite (délègue entièrement, plus de logique dupliquée ici)', () => {
+    const toggleTrackFavorite = vi.fn();
+    const { rerender } = render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], toggleTrackFavorite })} />);
 
     fireEvent.click(screen.getByText('Blitzkrieg Bop'));
-    const addUpdater = setFavorites.mock.calls[0][0];
-    expect(addUpdater({ tracks: [], artists: [] }).tracks).toEqual([trackWithPreview]);
-    expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Ajouté'));
+    expect(toggleTrackFavorite).toHaveBeenCalledWith(trackWithPreview);
 
     rerender(
       <SearchModal
-        {...baseProps({ worldSearchResults: [trackWithPreview], favorites: { tracks: [{ trackId: 't1' }], artists: [] }, setFavorites, showToast, currentPlaylist: { id: 'pl1' } })}
+        {...baseProps({ worldSearchResults: [trackWithPreview], favorites: { tracks: [{ trackId: 't1' }], artists: [] }, toggleTrackFavorite, currentPlaylist: { id: 'pl1' } })}
       />
     );
     // en contexte playlist, le titre reste visible même déjà favori (pas filtré) — vérifie juste qu'il est bien là
@@ -487,17 +487,44 @@ describe('SearchModal — ligne de résultat (renderSearchResultRow)', () => {
 
   it('en contexte playlist : clic sur le titre appelle handleAddManualTrack (pas de bascule favoris)', () => {
     const handleAddManualTrack = vi.fn();
-    const setFavorites = vi.fn();
+    const toggleTrackFavorite = vi.fn();
     render(
       <SearchModal
-        {...baseProps({ currentPlaylist: { id: 'pl1' }, worldSearchResults: [trackWithPreview], handleAddManualTrack, setFavorites })}
+        {...baseProps({ currentPlaylist: { id: 'pl1' }, worldSearchResults: [trackWithPreview], handleAddManualTrack, toggleTrackFavorite })}
       />
     );
 
     fireEvent.click(screen.getByText('Blitzkrieg Bop'));
 
     expect(handleAddManualTrack).toHaveBeenCalledWith(trackWithPreview);
-    expect(setFavorites).not.toHaveBeenCalled();
+    expect(toggleTrackFavorite).not.toHaveBeenCalled();
+  });
+
+  // NOUVEAU (28/08, chantier "mécanisme d'exclusion") — audit demandé sur
+  // la recherche manuelle en plus de la playlist (TrackItem.jsx). Action
+  // ponctuelle sur ce titre précis, indépendante d'"Ajouter aux favoris".
+  describe('exclusion depuis un résultat de recherche (28/08)', () => {
+    it('clic sur "Exclure ce titre" appelle toggleTrackExclusion avec le titre entier', () => {
+      const toggleTrackExclusion = vi.fn();
+      render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], toggleTrackExclusion })} />);
+
+      fireEvent.click(screen.getByTitle('Exclure ce titre'));
+
+      expect(toggleTrackExclusion).toHaveBeenCalledWith(trackWithPreview);
+    });
+
+    it('titre déjà exclu : le bouton propose de le retirer des exclusions, couleur distincte', () => {
+      render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], exclusions: { tracks: [{ trackId: 't1' }], artists: [] } })} />);
+
+      expect(screen.getByTitle('Retirer des exclusions')).toBeInTheDocument();
+      expect(screen.queryByTitle('Exclure ce titre')).not.toBeInTheDocument();
+    });
+
+    it('absent si toggleTrackExclusion n\'est pas fourni (composant utilisable sans le mécanisme d\'exclusion branché)', () => {
+      render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], toggleTrackExclusion: undefined })} />);
+
+      expect(screen.queryByTitle('Exclure ce titre')).not.toBeInTheDocument();
+    });
   });
 
   it('BPM "detected" : éditable, clic ouvre l\'édition ; BPM "deezer" : texte simple, pas de bouton', () => {
@@ -546,9 +573,9 @@ describe('SearchModal — ligne de résultat (renderSearchResultRow)', () => {
   });
 
   it('le bouton favori de la ligne (Plus/Check) déclenche aussi addOrToggleFavorite', () => {
-    const setFavorites = vi.fn();
-    render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], setFavorites })} />);
+    const toggleTrackFavorite = vi.fn();
+    render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], toggleTrackFavorite })} />);
     fireEvent.click(screen.getByTitle('Ajouter'));
-    expect(setFavorites).toHaveBeenCalled();
+    expect(toggleTrackFavorite).toHaveBeenCalledWith(trackWithPreview);
   });
 });
