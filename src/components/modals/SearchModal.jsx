@@ -1,4 +1,4 @@
-import { Target, Search, Loader2, ChevronDown, Play, Pause, Edit3, Check, Plus, Ban } from 'lucide-react';
+import { Target, Search, Loader2, ChevronDown, Play, Pause, Edit3, Check, Plus, Ban, RefreshCw } from 'lucide-react';
 import { genreDisplayLabel, getGenresForDisplay } from '../../musicCatalog';
 import ModalShell from '../shared/ModalShell';
 import ModalCloseButton from '../shared/ModalCloseButton';
@@ -239,41 +239,39 @@ export default function SearchModal({
         {isBpmSearchMode ? (
           <div className={`mb-4 px-4 py-3 rounded-xl border ${inputBorder} ${inputBg} flex items-center justify-between gap-2`}>
             <span className={`text-sm font-bold ${textMuted}`}>Cible : <span className={textColorClass}>{bpmSearchParams.bpm} BPM ± {bpmSearchParams.tolerance}</span> · {bpmSearchParams.genres.length > 0 ? bpmSearchParams.genres.map(genreDisplayLabel).join(', ') : 'tous genres'}</span>
-            {/* PASTILLE-BOUTON UNIQUE (28/08, retour direct — "j'ai du mal à
-                comprendre l'utilité du bouton rouge à droite, est-ce que
-                justement ça ne correspond pas au charger plus ?" puis "je ne
-                veux pas de bouton pour rafraîchir depuis 0") — le bouton
-                🔄 (rafraîchir depuis zéro) a été retiré : le catalogue
-                d'artistes est déjà exploré EN ENTIER dès le tout premier
-                clic (voir searchArtistsForBpm, maxArtistsToTry =
-                artists.length) — "rafraîchir" ne changeait donc quasiment
-                rien au fond des résultats, contrairement à "Charger plus"
-                (qui, LUI, élargit vraiment le budget de vérification et
-                garde ce qui est déjà affiché plutôt que de tout jeter).
-                L'ancien bouton en pointillés tout en bas de la liste
-                (`isBpmSearchMode && !isWorldSearching && ...`) est
-                supprimé — cette pastille cumule maintenant SON rôle
-                (déclenche `loadMoreBpmResults`) ET celui du compteur
-                (`visibleResultsCount`, ajouté juste avant ce chantier) : au
-                repos elle affiche le nombre de résultats, pendant le
-                chargement elle affiche le texte évolutif à sa place
-                (`getLoadMoreButtonText`), plutôt que 2 éléments séparés
-                (une pastille + un bouton pointillé) qui faisaient une
-                redondance visuelle avec le 🔄 retiré. */}
-            {(visibleResultsCount > 0 || bpmUnconfirmedReserve.length > 0) && !isWorldSearching && (
-              <button
-                onClick={loadMoreBpmResults}
-                disabled={isLoadingMoreResults}
-                className={`shrink-0 flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full transition-colors disabled:opacity-70 ${textMuted} bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20`}
-              >
-                {isLoadingMoreResults && <Loader2 className="animate-spin" size={12}/>}
-                <span>
+            {/* ⚠️ REVENU À 2 ÉLÉMENTS SÉPARÉS (28/08, retour direct — "j'aimais
+                vraiment bien avoir un bouton qui correspondait au truc pour
+                rafraîchir [au niveau du DESIGN], je veux juste que la
+                fonctionnalité désormais ce soit charger plus/approfondir")
+                — la pastille-bouton unique fusionnée juste avant (compteur +
+                action dans le MÊME élément cliquable) est abandonnée : on
+                retrouve la même identité visuelle que l'ancien bouton 🔄
+                (rond, `bgAccentClass`, icône blanche) — mais son action
+                déclenche maintenant `loadMoreBpmResults` au lieu de tout
+                relancer depuis zéro. La pastille de compteur redevient un
+                simple BADGE non cliquable, comme avant la fusion — le texte
+                évolutif pendant le chargement (`getLoadMoreButtonText`,
+                inchangé) s'affiche maintenant DANS ce badge plutôt que dans
+                le bouton (trop petit pour du texte). */}
+            <div className="flex items-center gap-2 shrink-0">
+              {(visibleResultsCount > 0 || bpmUnconfirmedReserve.length > 0) && (
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${textMuted} bg-black/5 dark:bg-white/10`}>
                   {isLoadingMoreResults
                     ? getLoadMoreButtonText()
-                    : (visibleResultsCount > 0 ? `${visibleResultsCount} résultat${visibleResultsCount > 1 ? 's' : ''}` : "Chercher des résultats")}
+                    : (visibleResultsCount > 0 ? `${visibleResultsCount} résultat${visibleResultsCount > 1 ? 's' : ''}` : "Rien de confirmé")}
                 </span>
-              </button>
-            )}
+              )}
+              {(visibleResultsCount > 0 || bpmUnconfirmedReserve.length > 0) && !isWorldSearching && (
+                <button
+                  onClick={loadMoreBpmResults}
+                  disabled={isLoadingMoreResults}
+                  title={isLoadingMoreResults ? getLoadMoreButtonText() : (bpmSearchExhausted ? "Chercher encore plus loin" : "Charger plus de résultats")}
+                  className={`p-2 rounded-lg text-white shrink-0 disabled:opacity-70 ${bgAccentClass}`}
+                >
+                  {isLoadingMoreResults ? <Loader2 className="animate-spin" size={16}/> : <RefreshCw size={16}/>}
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="mb-4 flex gap-2">
