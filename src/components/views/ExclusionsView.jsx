@@ -1,12 +1,23 @@
 import { Ban, X, Plus, User, Music } from 'lucide-react';
 import { getGenresForDisplay, STANDARD_GENRES, NAUGHTY_GENRES, EXTRA_GENRES, genreDisplayLabel } from '../../musicCatalog';
-import ViewHeader from '../shared/ViewHeader';
-import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 import SelectablePill from '../shared/SelectablePill';
 
 /**
- * ExclusionsView — vue "Exclusions" (titres/artistes jamais souhaités),
- * pendant négatif de FavoritesView.jsx.
+ * ExclusionsView — CORPS SEUL de l'onglet "Exclusions" (titres/artistes/
+ * genres jamais souhaités). N'inclut PLUS son propre `<ViewHeader/>` ni son
+ * propre wrapper `VIEW_CONTENT_WRAPPER` — voir la FUSION du 28/08 ci-dessous.
+ *
+ * ⚠️ FUSIONNÉ dans FavoritesView.jsx (28/08, retour direct — "Exclusion
+ * devrait être un onglet contenu dans l'onglet favoris, comme le modèle
+ * playlists/routines contenu dans la vue playlists") : "Exclusions" n'est
+ * plus une entrée de menu séparée dans la Sidebar — c'est maintenant un
+ * ONGLET de "Mes Favoris" (FavoritesView.jsx), EXACTEMENT le même schéma
+ * que l'onglet Playlists/Routines déjà en place sur PlaylistsView.jsx
+ * (fusion du 20/08, voir RoutinesView.jsx pour le même raisonnement). Ce
+ * fichier ne rend plus que le contenu (3 sections : titres/artistes/genres
+ * exclus) ; `<ViewHeader/>`/le sélecteur d'onglet vivent maintenant UNE
+ * SEULE FOIS dans FavoritesView.jsx (le titre/sous-titre y changent selon
+ * l'onglet actif), pas dupliqués ici.
  *
  * RETOUR DIRECT (28/08, "mécanisme d'exclusion — artistes ou titres qu'on
  * ne souhaite jamais avoir, alimentable via d'autres points d'entrée comme
@@ -47,16 +58,7 @@ export default function ExclusionsView({
   };
 
   return (
-    <div className={`${VIEW_CONTENT_WRAPPER} space-y-8`}>
-      <ViewHeader
-        theme={theme}
-        isNaughtyMode={isNaughtyMode}
-        icon={<Ban className="text-red-500" size={VIEW_HEADER_ICON_SIZE} />}
-        title="Exclusions"
-        subtitle="Ces titres et artistes n'apparaîtront plus dans les futures générations et recherches — jamais retiré d'une playlist déjà existante."
-      />
-
-      <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
+    <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
         <div className="space-y-8">
           {/* LIGNE 1 : Titres exclus — ajoutés uniquement depuis ailleurs
               (menu d'un titre dans une playlist, recherche manuelle) : pas
@@ -153,7 +155,6 @@ export default function ExclusionsView({
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 }
