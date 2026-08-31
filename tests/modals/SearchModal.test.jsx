@@ -132,7 +132,7 @@ describe('SearchModal — mode BPM', () => {
 // catalogue est déjà exploré en entier dès le 1er appel) ont tous les deux
 // été retirés au profit de cette pastille unique. Voir sa docstring,
 // SearchModal.jsx, pour le détail complet.
-describe('SearchModal — pastille compteur/action "Charger plus" (mode BPM)', () => {
+describe('SearchModal — pastille compteur + bouton "Charger plus" (mode BPM)', () => {
   it('affiche le nombre de résultats visibles, singulier pour 1 seul', () => {
     render(<SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview] })} />);
     expect(screen.getByText('1 résultat')).toBeInTheDocument();
@@ -146,7 +146,7 @@ describe('SearchModal — pastille compteur/action "Charger plus" (mode BPM)', (
   it('absent tant qu\'aucun résultat NI réserve (avant toute recherche, ou rien à compléter)', () => {
     render(<SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [], bpmUnconfirmedReserve: [] })} />);
     expect(screen.queryByText(/^\d+ résultat/)).not.toBeInTheDocument();
-    expect(screen.queryByText('Chercher des résultats')).not.toBeInTheDocument();
+    expect(screen.queryByText('Rien de confirmé')).not.toBeInTheDocument();
   });
 
   it('diminue quand un titre déjà en favoris est filtré de l\'affichage (hors contexte playlist)', () => {
@@ -191,12 +191,12 @@ describe('SearchModal — pastille compteur/action "Charger plus" (mode BPM)', (
     expect(screen.getByText('2 résultats')).toBeInTheDocument();
   });
 
-  it('affiche "Chercher des résultats" (au lieu d\'un compte) quand rien de confirmé mais une réserve existe déjà', () => {
+  it('affiche "Rien de confirmé" (au lieu d\'un compte) quand rien de confirmé mais une réserve existe déjà', () => {
     const unconfirmedTrack = { ...trackDetectedBpm, _genreMismatch: true };
     render(
       <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [], bpmUnconfirmedReserve: [unconfirmedTrack], isWorldSearching: false })} />
     );
-    expect(screen.getByText('Chercher des résultats')).toBeInTheDocument();
+    expect(screen.getByText('Rien de confirmé')).toBeInTheDocument();
   });
 
   it('absent en mode recherche texte libre (réservé au mode BPM)', () => {
@@ -204,45 +204,62 @@ describe('SearchModal — pastille compteur/action "Charger plus" (mode BPM)', (
     expect(screen.queryByText(/^\d+ résultat/)).not.toBeInTheDocument();
   });
 
-  it('absente tant que la recherche initiale est encore en cours', () => {
-    render(
-      <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: true })} />
-    );
-    expect(screen.queryByText('1 résultat')).not.toBeInTheDocument();
-  });
+  // ⚠️ REVENU À 2 ÉLÉMENTS SÉPARÉS (28/08, retour direct — "j'aimais
+  // vraiment bien avoir un bouton qui correspondait au truc pour
+  // rafraîchir [au niveau du DESIGN], je veux juste que la fonctionnalité
+  // désormais ce soit charger plus/approfondir") — voir la docstring du
+  // composant : la pastille de compteur est redevenue un simple badge non
+  // cliquable ; c'est le BOUTON ROND distinct (même identité visuelle que
+  // l'ancien 🔄) qui déclenche `loadMoreBpmResults`.
+  describe('bouton rond "Charger plus" (28/08, distinct de la pastille de compteur)', () => {
+    it('le badge de compteur reste visible PENDANT la recherche initiale (compte progressif) — seul le bouton d\'action se cache', () => {
+      render(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: true })} />
+      );
+      expect(screen.getByText('1 résultat')).toBeInTheDocument();
+      expect(screen.queryByTitle('Charger plus de résultats')).not.toBeInTheDocument();
+    });
 
-  it('clic sur la pastille appelle loadMoreBpmResults', () => {
-    const loadMoreBpmResults = vi.fn();
-    render(
-      <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, loadMoreBpmResults })} />
-    );
-    fireEvent.click(screen.getByText('1 résultat'));
-    expect(loadMoreBpmResults).toHaveBeenCalledTimes(1);
-  });
+    it('clic sur le bouton rond appelle loadMoreBpmResults (pas un clic sur le badge)', () => {
+      const loadMoreBpmResults = vi.fn();
+      render(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, loadMoreBpmResults })} />
+      );
+      fireEvent.click(screen.getByTitle('Charger plus de résultats'));
+      expect(loadMoreBpmResults).toHaveBeenCalledTimes(1);
+    });
 
-  // NOUVEAU (28/08, retour direct — "faudrait avoir le texte 'chargement'
-  // qui évolue un peu comme pour le reste de la génération") — même
-  // principe à paliers de temps que GenerationProgressBanner.jsx, testé ici
-  // via `loadMoreElapsedSeconds` (le chrono lui-même, `useElapsedTimer`, est
-  // déjà testé ailleurs — hors scope ici, on vérifie juste le CHOIX du
-  // texte pour chaque palier). Pendant le chargement, ce texte REMPLACE le
-  // compte de résultats dans la même pastille.
-  it('pendant le chargement, le texte évolutif remplace le compte dans la pastille', () => {
-    const { rerender } = render(
-      <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, isLoadingMoreResults: true, loadMoreElapsedSeconds: 0 })} />
-    );
-    expect(screen.getByText('Chargement...')).toBeInTheDocument();
-    expect(screen.queryByText('1 résultat')).not.toBeInTheDocument();
+    it('reste présent même une fois bpmSearchExhausted à vrai (un coup de malchance ne doit pas fermer la porte) — infobulle différente', () => {
+      render(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, bpmSearchExhausted: true })} />
+      );
+      expect(screen.getByTitle('Chercher encore plus loin')).toBeInTheDocument();
+    });
 
-    rerender(
-      <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, isLoadingMoreResults: true, loadMoreElapsedSeconds: 10 })} />
-    );
-    expect(screen.getByText('Encore un instant...')).toBeInTheDocument();
+    // NOUVEAU (28/08, retour direct — "faudrait avoir le texte 'chargement'
+    // qui évolue un peu comme pour le reste de la génération") — même
+    // principe à paliers de temps que GenerationProgressBanner.jsx, testé
+    // ici via `loadMoreElapsedSeconds` (le chrono lui-même, `useElapsedTimer`,
+    // est déjà testé ailleurs — hors scope ici, on vérifie juste le CHOIX
+    // du texte pour chaque palier). Affiché dans le BADGE de compteur
+    // (trop petit pour du texte dans le bouton rond lui-même).
+    it('pendant le chargement, le texte évolutif remplace le compte dans le badge', () => {
+      const { rerender } = render(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, isLoadingMoreResults: true, loadMoreElapsedSeconds: 0 })} />
+      );
+      expect(screen.getByText('Chargement...')).toBeInTheDocument();
+      expect(screen.queryByText('1 résultat')).not.toBeInTheDocument();
 
-    rerender(
-      <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, isLoadingMoreResults: true, loadMoreElapsedSeconds: 25 })} />
-    );
-    expect(screen.getByText('Ça prend plus de temps que prévu...')).toBeInTheDocument();
+      rerender(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, isLoadingMoreResults: true, loadMoreElapsedSeconds: 10 })} />
+      );
+      expect(screen.getByText('Encore un instant...')).toBeInTheDocument();
+
+      rerender(
+        <SearchModal {...baseProps({ isBpmSearchMode: true, worldSearchResults: [trackWithPreview], isWorldSearching: false, isLoadingMoreResults: true, loadMoreElapsedSeconds: 25 })} />
+      );
+      expect(screen.getByText('Ça prend plus de temps que prévu...')).toBeInTheDocument();
+    });
   });
 });
 
