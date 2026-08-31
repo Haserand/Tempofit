@@ -440,6 +440,55 @@ const findCatalogGenreForArtist = (artistName) => {
 };
 
 /**
+ * isExcludedTrack — vrai si un titre doit être écarté par le mécanisme
+ * d'exclusion (28/08, retour direct : "mécanisme d'exclusion — artistes ou
+ * titres qu'on ne souhaite jamais avoir"). Fonction PURE, sans dépendance à
+ * React ni au stockage — reçoit `exclusions` ({artists, tracks, genres},
+ * forme exacte de `useExclusions.js`) en paramètre, pour rester appelable
+ * aussi bien depuis musicEngine.js (génération) que searchEngine.js
+ * (recherche manuelle) sans dépendance circulaire.
+ *
+ * Vrai si :
+ * - le `trackId` du titre est explicitement dans `exclusions.tracks`, OU
+ * - l'ARTISTE du titre est dans `exclusions.artists` (comparaison insensible
+ *   à la casse, même convention que `findCatalogGenreForArtist` ci-dessus)
+ *   — exclure un artiste exclut TOUS ses titres, jamais besoin de les lister
+ *   un par un (voir la docstring de `toggleArtistExclusion`,
+ *   useExclusions.js, pour le raisonnement complet de cette asymétrie), OU
+ * - le GENRE du titre correspond à un genre exclu (`exclusions.genres`,
+ *   28/08, retour direct — "prends du recul, pouvoir exclure un style au
+ *   besoin ?") — via `genreRoughlyMatches` (PAS une simple égalité stricte),
+ *   pour respecter la même tolérance d'équivalence que partout ailleurs
+ *   dans l'app (ex. Métal/Rock, voir GENRE_EQUIVALENCE_GROUPS) : si "Rock"
+ *   est exclu, un titre dont le genre réel Deezer résout en "Rock" est
+ *   écarté même si le titre a été trouvé via une recherche "Métal" (cas
+ *   réel possible depuis le correctif du second avis catalogue, plus haut).
+ *   Utile SURTOUT quand aucun genre n'est demandé ("Autre"/tous genres,
+ *   où n'importe quel style peut sortir) ou pour une sélection large de
+ *   plusieurs genres où "tout sauf X" est plus simple qu'une désélection
+ *   manuelle — voir la discussion qui a mené à ce chantier.
+ *
+ * `exclusions` peut être `null`/`undefined` (appelant qui ne gère pas encore
+ * ce mécanisme, ou hook pas encore monté) — renvoie `false` dans ce cas,
+ * jamais une exception : mieux vaut ne rien exclure par erreur qu'un plantage
+ * qui bloquerait toute la recherche/génération.
+ */
+const isExcludedTrack = (track, exclusions) => {
+  if (!exclusions || !track) return false;
+  const trackId = track.trackId;
+  if (trackId && Array.isArray(exclusions.tracks) && exclusions.tracks.some(t => t.trackId === trackId)) return true;
+  const artistName = track.artist;
+  if (artistName && Array.isArray(exclusions.artists)) {
+    const normalized = artistName.trim().toLowerCase();
+    if (exclusions.artists.some(a => a.trim().toLowerCase() === normalized)) return true;
+  }
+  if (track.genre && Array.isArray(exclusions.genres) && exclusions.genres.length > 0) {
+    if (exclusions.genres.some(g => genreRoughlyMatches(track.genre, g))) return true;
+  }
+  return false;
+};
+
+/**
  * classifyGenreMatchTier — centralise en UN SEUL endroit une décision
  * ("quelle confiance accorder au genre réel d'un candidat, face à un ou
  * plusieurs genres demandés ?") qui était dupliquée indépendamment dans
@@ -807,6 +856,7 @@ export {
   isDirectGenreMatch,
   genreRoughlyMatches,
   findCatalogGenreForArtist,
+  isExcludedTrack,
   classifyGenreMatchTier,
   TITLE_STYLE_OVERRIDE_KEYWORDS,
   isLiveOrPerformanceVersion,
