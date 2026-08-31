@@ -43,6 +43,7 @@ import { useToast } from './hooks/useToast';
 import { useTrackSearch } from './hooks/useTrackSearch';
 import { useDeezerSearch } from './hooks/useDeezerSearch';
 import { useFavorites } from './hooks/useFavorites';
+import { useExclusions } from './hooks/useExclusions';
 import { useSpotifyImport } from './hooks/useSpotifyImport';
 import { useAthleticProfile } from './hooks/useAthleticProfile';
 import { useRoutines } from './hooks/useRoutines';
@@ -80,6 +81,7 @@ import { useSessionAnalysis } from './hooks/useSessionAnalysis';
 // pas orphelin, toujours utilisé ailleurs dans le projet.
 const SettingsView = lazy(() => import('./components/views/SettingsView'));
 const FavoritesView = lazy(() => import('./components/views/FavoritesView'));
+const ExclusionsView = lazy(() => import('./components/views/ExclusionsView'));
 const TrophiesView = lazy(() => import('./components/views/TrophiesView'));
 // `RoutinesView` RETIRÉ d'ici (20/08, fusion "Mes Routines" en onglet de
 // "Mes Playlists") — plus une vue de premier niveau chargée en lazy depuis
@@ -532,6 +534,84 @@ function AppContent({
     isAddingArtist, setIsAddingArtist,
     addFavoriteArtistValidated, toggleTrackFavorite, toggleArtistFavorite,
   } = useFavorites(showToast, isNaughtyMode);
+
+  // MÉCANISME D'EXCLUSION (28/08, retour direct — "artistes ou titres qu'on
+  // ne souhaite jamais avoir") — voir useExclusions.js pour le raisonnement
+  // complet (notamment pourquoi pas de cloisonnement Mode Intime, contrairement
+  // aux favoris juste au-dessus).
+  const {
+    exclusions, setExclusions, toggleArtistExclusion, toggleTrackExclusion, toggleGenreExclusion,
+    newExclusionArtist, setNewExclusionArtist, isAddingExclusionArtist, setIsAddingExclusionArtist,
+  } = useExclusions(showToast);
+
+  // ⚠️ EXCLUSIVITÉ MUTUELLE FAVORIS/EXCLUSIONS (28/08, point 5 du cadrage :
+  // "l'action réalisée en dernier prime, mais faut un message indiquant
+  // qu'un son ou un artiste passe d'une catégorie à l'autre") — vit ICI,
+  // dans App.jsx, seul endroit qui a déjà accès aux DEUX hooks en même
+  // temps (voir la docstring de useExclusions.js) : ni useFavorites.js ni
+  // useExclusions.js ne se connaissent l'un l'autre, pour rester
+  // découplés et testables isolément.
+  //
+  // Ces 4 fonctions COORDONNÉES remplacent les brutes des 2 hooks partout
+  // où l'app peut BASCULER favori/exclusion (pas juste retirer un favori
+  // déjà favori, ou une exclusion déjà exclue — ce cas simple continue de
+  // passer par les fonctions brutes des hooks, avec leur toast normal).
+  const toggleArtistFavoriteCoordinated = (artistName) => {
+    const isFav = favorites.artists.includes(artistName);
+    if (isFav) { toggleArtistFavorite(artistName); return; } // simple retrait, pas de transition
+    const wasExcludedIdx = exclusions.artists.findIndex(a => a.trim().toLowerCase() === artistName.trim().toLowerCase());
+    if (wasExcludedIdx !== -1) {
+      setExclusions(prev => ({ ...prev, artists: prev.artists.filter((_, i) => i !== wasExcludedIdx) }));
+      setFavorites(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, artistName])) }));
+      showToast(`⭐ "${artistName}" déplacé des exclusions vers les favoris.`);
+      return;
+    }
+    toggleArtistFavorite(artistName); // simple ajout, pas de transition
+  };
+
+  const toggleArtistExclusionCoordinated = (artistName) => {
+    const isExcluded = exclusions.artists.some(a => a.trim().toLowerCase() === artistName.trim().toLowerCase());
+    if (isExcluded) { toggleArtistExclusion(artistName); return; } // simple retrait, pas de transition
+    const wasFav = favorites.artists.includes(artistName);
+    if (wasFav) {
+      setFavorites(prev => ({ ...prev, artists: prev.artists.filter(a => a !== artistName) }));
+      setExclusions(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, artistName])) }));
+      showToast(`🚫 "${artistName}" déplacé des favoris vers les exclusions.`);
+      return;
+    }
+    toggleArtistExclusion(artistName); // simple ajout, pas de transition
+  };
+
+  const toggleTrackFavoriteCoordinated = (track) => {
+    const isFav = favorites.tracks.some(t => t.trackId === track.trackId);
+    if (isFav) { toggleTrackFavorite(track); return; } // simple retrait, pas de transition
+    const wasExcludedIdx = exclusions.tracks.findIndex(t => t.trackId === track.trackId);
+    if (wasExcludedIdx !== -1) {
+      setExclusions(prev => ({ ...prev, tracks: prev.tracks.filter((_, i) => i !== wasExcludedIdx) }));
+      setFavorites(prev => ({
+        ...prev,
+        artists: Array.from(new Set([...prev.artists, track.artist])),
+        tracks: [...prev.tracks, track],
+      }));
+      showToast(`⭐ "${track.title}" déplacé des exclusions vers les favoris.`);
+      return;
+    }
+    toggleTrackFavorite(track); // simple ajout, pas de transition
+  };
+
+  const toggleTrackExclusionCoordinated = (track) => {
+    const isExcluded = exclusions.tracks.some(t => t.trackId === track.trackId);
+    if (isExcluded) { toggleTrackExclusion(track); return; } // simple retrait, pas de transition
+    const wasFavIdx = favorites.tracks.findIndex(t => t.trackId === track.trackId);
+    if (wasFavIdx !== -1) {
+      setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter((_, i) => i !== wasFavIdx) }));
+      setExclusions(prev => ({ ...prev, tracks: [...prev.tracks, track] }));
+      showToast(`🚫 "${track.title}" déplacé des favoris vers les exclusions.`);
+      return;
+    }
+    toggleTrackExclusion(track); // simple ajout, pas de transition
+  };
+
 
   // MOTEUR SPOTIFY (voir hooks/useSpotifyImport.js) — appelé ICI, après
   // useFavorites, parce qu'il a besoin de `setFavorites` (la synchro fusionne
@@ -1137,7 +1217,7 @@ function AppContent({
   // playlist en cours, lecture audio) — les 4 autres fonctions ne
   // dépendaient QUE de l'état de recherche + showToast + isNaughtyMode,
   // extraites sans risque dans hooks/useDeezerSearch.js.
-  const { searchWorldMusicApi, commitBpmEdit, closeSearchModal, searchTracksByBpm, loadMoreBpmResults } = useDeezerSearch(search, showToast, isNaughtyMode, favorites);
+  const { searchWorldMusicApi, commitBpmEdit, closeSearchModal, searchTracksByBpm, loadMoreBpmResults } = useDeezerSearch(search, showToast, isNaughtyMode, favorites, exclusions);
 
   // renderSearchResultRow : déplacée dans SearchModal.jsx (retour direct :
   // "continue avec renderSearchResultRow" — elle produit du JSX propre à
@@ -1462,7 +1542,7 @@ function AppContent({
   const { executeGeneration, cancelGeneration } = usePlaylistGeneration({
     showToast, userStats, checkTrophies,
     routines, setRoutines,
-    favorites, spotifyTrackPool, isNaughtyMode,
+    favorites, spotifyTrackPool, isNaughtyMode, exclusions,
     setCurrentPlaylist, changeView,
     savedPlaylists, setSavedPlaylists,
     setIsGenerating, setGeneratingTotal, setGeneratingDone, setIsGeneratingSlowGenre,
@@ -2049,6 +2129,22 @@ function AppContent({
               />
             )}
 
+            {/* ===================== VIEW: EXCLUSIONS ===================== */}
+            {/* Nouvel onglet (28/08, retour direct — "mécanisme d'exclusion")
+                — pendant négatif de "Mes Favoris" juste au-dessus, même
+                emplacement de code pour rester facile à retrouver ensemble. */}
+            {view === 'exclusions' && (
+              <ExclusionsView
+                theme={themeTokens} isNaughtyMode={isNaughtyMode}
+                exclusions={exclusions}
+                toggleTrackExclusion={toggleTrackExclusionCoordinated}
+                toggleArtistExclusion={toggleArtistExclusionCoordinated}
+                toggleGenreExclusion={toggleGenreExclusion}
+                newExclusionArtist={newExclusionArtist} setNewExclusionArtist={setNewExclusionArtist}
+                isAddingExclusionArtist={isAddingExclusionArtist} setIsAddingExclusionArtist={setIsAddingExclusionArtist}
+              />
+            )}
+
             {view === 'trophies' && (
               <TrophiesView theme={themeTokens} userStats={userStats} handleShare={handleShare} isNaughtyMode={isNaughtyMode} markTrophiesSeen={markTrophiesSeen} />
             )}
@@ -2058,7 +2154,7 @@ function AppContent({
                 currentPlaylist={currentPlaylist} setCurrentPlaylist={setCurrentPlaylist}
                 savedPlaylists={savedPlaylists} setSavedPlaylists={setSavedPlaylists}
                 favorites={favorites} spotifyTrackPool={spotifyTrackPool}
-                userStats={userStats} checkTrophies={checkTrophies}
+                userStats={userStats} checkTrophies={checkTrophies} exclusions={exclusions}
                 showToast={showToast} requestRemoveSavedPlaylist={requestRemoveSavedPlaylist} handleSavePlaylist={handleSavePlaylist}
                 handleClonePlaylist={handleClonePlaylist}
                 currentActualData={currentActualData} selectedMetric={selectedMetric} setSelectedMetric={setSelectedMetric}
@@ -2066,7 +2162,8 @@ function AppContent({
                 selectedAnalysisDate={selectedAnalysisDate} setSelectedAnalysisDate={setSelectedAnalysisDate}
                 availableMetrics={availableMetrics}
                 theme={themeTokens} colorMode={theme} handleShare={handleShare}
-                toggleTrackFavorite={toggleTrackFavorite} toggleArtistFavorite={toggleArtistFavorite}
+                toggleTrackFavorite={toggleTrackFavoriteCoordinated} toggleArtistFavorite={toggleArtistFavoriteCoordinated}
+                toggleTrackExclusion={toggleTrackExclusionCoordinated} toggleArtistExclusion={toggleArtistExclusionCoordinated}
                 setIsBpmSearchMode={setIsBpmSearchMode}
                 setPlaylistPlannedDate={setPlaylistPlannedDate}
                 editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
@@ -2157,10 +2254,10 @@ function AppContent({
           searchLoadingMessage={searchLoadingMessage} searchElapsedSeconds={searchElapsedSeconds}
           searchHasMoreResults={searchHasMoreResults} isLoadingMoreResults={isLoadingMoreResults}
           resultsContextLabel={resultsContextLabel} searchActiveArtistName={searchActiveArtistName} noUsableResultsHint={noUsableResultsHint}
-          currentPlaylist={currentPlaylist} favorites={favorites} setFavorites={setFavorites}
+          currentPlaylist={currentPlaylist} favorites={favorites} toggleTrackFavorite={toggleTrackFavoriteCoordinated}
+          exclusions={exclusions} toggleTrackExclusion={toggleTrackExclusionCoordinated} toggleArtistExclusion={toggleArtistExclusionCoordinated}
           editingBpmId={editingBpmId} setEditingBpmId={setEditingBpmId} commitBpmEdit={commitBpmEdit}
           handleAddManualTrack={handleAddManualTrack} togglePreview={togglePreview} playingPreviewId={playingPreviewId}
-          showToast={showToast}
         />
 
         {/* PendingNavigationModal/PendingUnsaveModal migrées vers ModalContext
