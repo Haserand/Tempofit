@@ -51,7 +51,7 @@ function baseProps(overrides = {}) {
     executeGeneration: vi.fn(),
     isGenerating: false,
     toggleNaughtyMode: vi.fn(),
-    changeView: vi.fn(),
+    handleOpenSettings: vi.fn(),
     ...overrides,
   };
 }
