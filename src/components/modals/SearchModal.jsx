@@ -233,8 +233,17 @@ export default function SearchModal({
         </div>
         {/* Disclaimer honnête : l'utilisateur n'a pas besoin de savoir qu'on passe par
             une API, mais mérite de savoir que les résultats viennent d'un service tiers
-            (Deezer) et peuvent être incomplets ou approximatifs — sans jargon technique. */}
-        <p className={`text-xs mb-5 ${textMuted}`}>* Connecté via Deezer — le BPM peut être approximatif, et certains titres peuvent rester introuvables.</p>
+            (Deezer) et peuvent être incomplets ou approximatifs — sans jargon technique.
+            CONDENSÉE EN UNE LIGNE (retour direct, 28/08) — l'ancienne phrase (104
+            caractères) passait sur 2 lignes dans ce conteneur (`ModalShell
+            maxWidth="max-w-lg"`, texte en `text-xs`). Les 3 informations essentielles
+            (via Deezer, BPM approximatif, certains titres introuvables) tiennent
+            toutes dans cette version à 61 caractères — largement sous le budget
+            estimé pour cette taille/largeur (~72-80 caractères). Reste une
+            ESTIMATION (aucun navigateur réel dans cet environnement de dev, même
+            limite déjà documentée dans ViewHeader.jsx/StatsView.jsx) — à confirmer
+            sur un vrai déploiement. */}
+        <p className={`text-xs mb-5 ${textMuted}`}>* Via Deezer — BPM approximatif, titres parfois introuvables.</p>
 
         {isBpmSearchMode ? (
           <div className={`mb-4 px-4 py-3 rounded-xl border ${inputBorder} ${inputBg} flex items-center justify-between gap-2`}>
