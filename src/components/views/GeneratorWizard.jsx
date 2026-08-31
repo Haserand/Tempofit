@@ -51,7 +51,7 @@ export default function GeneratorWizard({
   setCurrentPlaylist, setIsBpmSearchMode, setSearchQuery, setWorldSearchResults,
   setResultsContextLabel, setNoUsableResultsHint, searchTracksByBpm,
   executeGeneration, isGenerating,
-  toggleNaughtyMode, changeView,
+  toggleNaughtyMode, handleOpenSettings,
 }) {
   const { openModal } = useModalContext();
   const {
@@ -1256,8 +1256,24 @@ export default function GeneratorWizard({
               // ce même jour) appliquée ici comme partout ailleurs — voir sa
               // docstring pour l'audit complet et la règle pour un futur
               // lien de ce type.
+              // ⚠️ CORRIGÉ (28/08, retour direct — capture à l'appui : "j'ai
+              // cliqué sur synchroniser mes comptes [Services Musicaux],
+              // maintenant configurer mes zones BPM ouvre aussi sur Services
+              // Musicaux") — `changeView('settings')` seul ne réinitialise
+              // JAMAIS `settingsInitialTab` (App.jsx) : une visite précédente
+              // sur un AUTRE onglet de Réglages (ici, via "Synchroniser mes
+              // comptes", FavoritesView.jsx) laissait cette valeur en mémoire,
+              // rouvrant Réglages sur le MAUVAIS onglet au clic suivant — un
+              // point d'entrée doit toujours mener à SON propre onglet,
+              // jamais dépendre du dernier visité. `handleOpenSettings('profile')`
+              // (App.jsx) pose explicitement `settingsInitialTab = 'profile'`
+              // AVANT de naviguer — même mécanisme partagé déjà utilisé
+              // ailleurs pour éviter EXACTEMENT ce risque (menu déroulant
+              // avatar, `onManageProfilePrivacy` de StatsView.jsx,
+              // "Synchroniser mes comptes →" de FavoritesView.jsx, corrigé
+              // le même jour pour la même raison).
               <button
-                onClick={() => changeView('settings')} disabled={isGenerating}
+                onClick={() => handleOpenSettings('profile')} disabled={isGenerating}
                 className={`text-sm ${INLINE_NAV_LINK_CLASS} ${textColorClass} hover:opacity-80 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
               >
                 Configurer mes zones BPM →
