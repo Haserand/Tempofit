@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, Compass, Sun, Moon, Ban } from 'lucide-react';
+import { Heart, Activity, X, Zap, List, Star, Settings, Trophy, Compass, Sun, Moon } from 'lucide-react';
 import { VIEW_HEADER_TOP_PADDING } from '../../layout/viewHeaderLayout';
 import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import {
@@ -464,15 +464,6 @@ function Sidebar({
           <button onClick={() => changeView('favorites')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'favorites' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Star size={18} className={favorites.useFavorites && favorites.artists.length > 0 ? "text-yellow-500 fill-yellow-500/20" : (view === 'favorites' ? 'text-white' : '')} />
             <span className="font-bold text-sm">Mes Favoris</span>
-          </button>
-
-          {/* "Exclusions" (28/08, retour direct — "mécanisme d'exclusion")
-              — pendant négatif de "Mes Favoris" juste au-dessus, même
-              emplacement dans la navigation pour rester facile à trouver
-              ensemble. */}
-          <button onClick={() => changeView('exclusions')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'exclusions' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
-            <Ban size={18} className={view === 'exclusions' ? 'text-white' : textColorClass} />
-            <span className="font-bold text-sm">Exclusions</span>
           </button>
 
           <button onClick={() => changeView('stats')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'stats' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
