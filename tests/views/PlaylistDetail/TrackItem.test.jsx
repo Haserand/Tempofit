@@ -77,6 +77,9 @@ function baseProps(overrides = {}) {
     favorites: { tracks: [], artists: [] },
     toggleTrackFavorite: vi.fn(),
     toggleArtistFavorite: vi.fn(),
+    exclusions: { tracks: [], artists: [] },
+    toggleTrackExclusion: vi.fn(),
+    toggleArtistExclusion: vi.fn(),
     resolveAndTogglePreview: vi.fn(),
     getNextTrackForAutoAdvance: vi.fn(),
     isDimmed: false, isHighlighted: false,
@@ -208,6 +211,56 @@ describe('TrackItem', () => {
     fireEvent.click(screen.getByText(/Favoriser l'artiste/));
 
     expect(toggleArtistFavorite).toHaveBeenCalledWith('The Ramones');
+  });
+
+  // NOUVEAU (28/08, chantier "mécanisme d'exclusion") — même emplacement que
+  // "Favoriser l'artiste" ci-dessus, en négatif. `toggleTrackExclusion`/
+  // `toggleArtistExclusion` reçus ici sont déjà les versions COORDONNÉES
+  // avec les favoris (voir App.jsx) — ce composant se contente de les
+  // appeler, la logique de coordination elle-même est hors scope ici.
+  describe('menu d\'options — exclusion (28/08)', () => {
+    it('"Exclure ce titre" appelle toggleTrackExclusion avec le titre entier', () => {
+      const toggleTrackExclusion = vi.fn();
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({ openTrackMenuIndex: 0 }));
+      render(<TrackItem {...baseProps({ index: 0, toggleTrackExclusion })} />);
+
+      fireEvent.click(screen.getByText('Exclure ce titre'));
+
+      expect(toggleTrackExclusion).toHaveBeenCalledWith(track);
+    });
+
+    it('titre déjà exclu : le texte du bouton propose de le retirer des exclusions', () => {
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({ openTrackMenuIndex: 0 }));
+      render(<TrackItem {...baseProps({ index: 0, exclusions: { tracks: [{ trackId: track.trackId }], artists: [] } })} />);
+
+      expect(screen.getByText('Retirer ce titre des exclusions')).toBeInTheDocument();
+      expect(screen.queryByText('Exclure ce titre')).not.toBeInTheDocument();
+    });
+
+    it('"Exclure l\'artiste" appelle toggleArtistExclusion avec le nom de l\'artiste', () => {
+      const toggleArtistExclusion = vi.fn();
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({ openTrackMenuIndex: 0 }));
+      render(<TrackItem {...baseProps({ index: 0, toggleArtistExclusion })} />);
+
+      fireEvent.click(screen.getByText(/Exclure l'artiste/));
+
+      expect(toggleArtistExclusion).toHaveBeenCalledWith('The Ramones');
+    });
+
+    it('artiste déjà exclu : le texte du bouton propose de le retirer des exclusions', () => {
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({ openTrackMenuIndex: 0 }));
+      render(<TrackItem {...baseProps({ index: 0, exclusions: { tracks: [], artists: ['The Ramones'] } })} />);
+
+      expect(screen.getByText('Retirer The Ramones des exclusions')).toBeInTheDocument();
+      expect(screen.queryByText(/Exclure l'artiste/)).not.toBeInTheDocument();
+    });
+
+    it('absent si toggleTrackExclusion/toggleArtistExclusion ne sont pas fournis (composant utilisé sans le mécanisme d\'exclusion branché)', () => {
+      mockUsePlaylistDetail.mockReturnValue(makeContextValue({ openTrackMenuIndex: 0 }));
+      render(<TrackItem {...baseProps({ index: 0, toggleTrackExclusion: undefined, toggleArtistExclusion: undefined })} />);
+
+      expect(screen.queryByText(/Exclure/)).not.toBeInTheDocument();
+    });
   });
 
   it('le clic sur le fond du menu ouvert le referme (setOpenTrackMenuIndex(null))', () => {
