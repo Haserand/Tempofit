@@ -40,6 +40,7 @@ function PlaylistDetailViewInner({
   currentPlaylist, setCurrentPlaylist, savedPlaylists,
   handleShare,
   favorites, toggleTrackFavorite, toggleArtistFavorite,
+  exclusions, toggleTrackExclusion, toggleArtistExclusion,
   setIsBpmSearchMode,
   setPlaylistPlannedDate,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
@@ -650,6 +651,7 @@ function PlaylistDetailViewInner({
       <TrackList
         theme={theme} isLocked={isLocked}
         favorites={favorites} toggleTrackFavorite={toggleTrackFavorite} toggleArtistFavorite={toggleArtistFavorite}
+        exclusions={exclusions} toggleTrackExclusion={toggleTrackExclusion} toggleArtistExclusion={toggleArtistExclusion}
         resolveAndTogglePreview={resolveAndTogglePreview} getNextTrackForAutoAdvance={getNextTrackForAutoAdvance}
         setIsBpmSearchMode={setIsBpmSearchMode}
         hasDetailFilter={hasDetailFilter} trackMatchesDetailFilter={trackMatchesDetailFilter}
@@ -694,13 +696,13 @@ function PlaylistDetailViewInner({
  */
 export default function PlaylistDetailView({
   currentPlaylist, setCurrentPlaylist, savedPlaylists, setSavedPlaylists,
-  favorites, spotifyTrackPool, userStats, checkTrophies,
+  favorites, spotifyTrackPool, userStats, checkTrophies, exclusions,
   showToast, requestRemoveSavedPlaylist, handleSavePlaylist, handleClonePlaylist,
   currentActualData, selectedMetric, setSelectedMetric,
   dataOffset, setDataOffset,
   selectedAnalysisDate, setSelectedAnalysisDate, availableMetrics,
   theme, colorMode, handleShare,
-  toggleTrackFavorite, toggleArtistFavorite,
+  toggleTrackFavorite, toggleArtistFavorite, toggleTrackExclusion, toggleArtistExclusion,
   setIsBpmSearchMode, setPlaylistPlannedDate,
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate,
   getRankStyle, triggerCSVUpload, removeImportedData,
@@ -738,7 +740,7 @@ export default function PlaylistDetailView({
         currentPlaylist={currentPlaylist} setCurrentPlaylist={setCurrentPlaylist}
         savedPlaylists={savedPlaylists} setSavedPlaylists={setSavedPlaylists}
         favorites={favorites} spotifyTrackPool={spotifyTrackPool}
-        userStats={userStats} checkTrophies={checkTrophies}
+        userStats={userStats} checkTrophies={checkTrophies} exclusions={exclusions}
         showToast={showToast} requestRemoveSavedPlaylist={requestRemoveSavedPlaylist} handleSavePlaylist={handleSavePlaylist}
         handleClonePlaylist={handleClonePlaylist}
         currentActualData={currentActualData} selectedMetric={selectedMetric} setSelectedMetric={setSelectedMetric}
@@ -752,6 +754,7 @@ export default function PlaylistDetailView({
           currentPlaylist={currentPlaylist} setCurrentPlaylist={setCurrentPlaylist} savedPlaylists={savedPlaylists}
           handleShare={handleShare}
           favorites={favorites} toggleTrackFavorite={toggleTrackFavorite} toggleArtistFavorite={toggleArtistFavorite}
+          exclusions={exclusions} toggleTrackExclusion={toggleTrackExclusion} toggleArtistExclusion={toggleArtistExclusion}
           setIsBpmSearchMode={setIsBpmSearchMode}
           setPlaylistPlannedDate={setPlaylistPlannedDate}
           editingCompletion={editingCompletion} setEditingCompletion={setEditingCompletion}
