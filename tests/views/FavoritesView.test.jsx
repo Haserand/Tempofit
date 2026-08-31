@@ -84,7 +84,7 @@ function baseProps(overrides = {}) {
     favBpmTolerance: 5,
     setFavBpmTolerance: vi.fn(),
     searchTracksByBpm: vi.fn(),
-    changeView: vi.fn(),
+    handleOpenSettings: vi.fn(),
     // NOUVEAU (28/08, fusion "Exclusions" en onglet) — voir la docstring de
     // FavoritesView.jsx.
     exclusions: { tracks: [], artists: [], genres: [] },
@@ -273,11 +273,17 @@ describe('FavoritesView', () => {
     expect(searchTracksByBpm).toHaveBeenCalledWith(140, 5, ['Rock']);
   });
 
-  it('le clic sur "Synchroniser mes comptes" appelle changeView("settings")', () => {
-    const changeView = vi.fn();
-    render(<FavoritesView {...baseProps({ changeView })} />);
+  // ⚠️ CIBLE L'ONGLET "SERVICES MUSICAUX" DIRECTEMENT (28/08, retour direct
+  // — "prends du recul, je dois avoir l'onglet profil athlétique ou
+  // services musicaux par défaut ?") — voir la docstring du bouton dans
+  // FavoritesView.jsx. `changeView('settings')` seul rouvrait Réglages sur
+  // son onglet PAR DÉFAUT (Profil Athlétique la plupart du temps), sans
+  // rapport avec l'intention réelle de ce lien.
+  it('le clic sur "Synchroniser mes comptes" appelle handleOpenSettings(\'music\') — PAS un simple changeView', () => {
+    const handleOpenSettings = vi.fn();
+    render(<FavoritesView {...baseProps({ handleOpenSettings })} />);
     fireEvent.click(screen.getByText('Synchroniser mes comptes →'));
-    expect(changeView).toHaveBeenCalledWith('settings');
+    expect(handleOpenSettings).toHaveBeenCalledWith('music');
   });
 });
 
