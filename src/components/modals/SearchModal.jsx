@@ -1,4 +1,4 @@
-import { Target, Search, Loader2, ChevronDown, Play, Pause, Edit3, Check, Plus } from 'lucide-react';
+import { Target, Search, Loader2, ChevronDown, Play, Pause, Edit3, Check, Plus, Ban } from 'lucide-react';
 import { genreDisplayLabel, getGenresForDisplay } from '../../musicCatalog';
 import ModalShell from '../shared/ModalShell';
 import ModalCloseButton from '../shared/ModalCloseButton';
@@ -26,10 +26,10 @@ export default function SearchModal({
   searchLoadingMessage, searchElapsedSeconds,
   searchHasMoreResults, isLoadingMoreResults,
   resultsContextLabel, searchActiveArtistName, noUsableResultsHint,
-  currentPlaylist, favorites, setFavorites,
+  currentPlaylist, favorites, toggleTrackFavorite,
+  exclusions, toggleTrackExclusion, toggleArtistExclusion,
   editingBpmId, setEditingBpmId, commitBpmEdit,
   handleAddManualTrack, togglePreview, playingPreviewId,
-  showToast,
 }) {
   const { cardBg, cardBorder, textHighlight, textColorClass, textMuted, inputBg, inputBorder, bgAccentClass } = theme;
 
@@ -97,20 +97,21 @@ export default function SearchModal({
   const renderSearchResultRow = (track, key) => {
     const isEditingThisBpm = editingBpmId === track.trackId;
     const isAlreadyFavorited = !currentPlaylist && favorites.tracks.some(t => t.trackId === track.trackId);
+    // ⚠️ HARMONISÉ (28/08, retour direct — "prends du recul, harmonise
+    // aussi l'ajout depuis la recherche") — manipulait auparavant
+    // `setFavorites` directement, EN DOUBLE de `toggleTrackFavorite`
+    // (useFavorites.js), et surtout SANS jamais passer par la coordination
+    // favoris/exclusions (voir App.jsx, `toggleTrackFavoriteCoordinated`) :
+    // un titre ajouté ICI qui se trouvait déjà exclu ne déclenchait ni le
+    // retrait de l'exclusion, ni le message de transition dédié — juste un
+    // ajout aux favoris silencieusement en doublon avec l'exclusion
+    // toujours active en mémoire. `toggleTrackFavorite` reçu en prop est
+    // désormais la SEULE source de vérité pour cette action, qu'on soit ici
+    // ou dans TrackItem.jsx (playlist) — plus de logique dupliquée.
     const addOrToggleFavorite = () => {
       // Si on est dans la vue Playlist, on l'ajoute. Sinon, ça bascule dans les Favoris !
       if (currentPlaylist) handleAddManualTrack(track);
-      else if (isAlreadyFavorited) {
-         setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter(t => t.trackId !== track.trackId) }));
-         showToast("Retiré de tes favoris.");
-      } else {
-         setFavorites(prev => ({
-           ...prev,
-           artists: Array.from(new Set([...prev.artists, track.artist])),
-           tracks: [...prev.tracks, track]
-         }));
-         showToast("🎵 Ajouté à tes favoris !");
-      }
+      else toggleTrackFavorite(track);
     };
     return (
     <div key={key} className={`flex items-center gap-2 p-2 rounded-xl hover:bg-surface-hover transition-colors border border-transparent hover:border-divider`}>
@@ -198,6 +199,24 @@ export default function SearchModal({
             <Plus size={16} className={textMuted}/>
           )}
         </button>
+        {/* EXCLUSION (28/08, retour direct : "mécanisme d'exclusion... via
+            d'autres points d'entrée" — audit demandé sur la recherche
+            manuelle) — action ponctuelle sur CE titre précis trouvé par la
+            recherche, indépendante d'"Ajouter aux favoris" juste au-dessus
+            (les deux peuvent coexister dans le flux, ex. ajouter un titre
+            puis se raviser et l'exclure plus tard). `toggleTrackExclusion`
+            reçu ici est déjà la version COORDONNÉE avec les favoris (voir
+            App.jsx) — gère seule la transition favori→exclu si besoin.
+            Optionnel (`toggleTrackExclusion &&`) : ce composant reste
+            utilisable sans le mécanisme d'exclusion branché. */}
+        {toggleTrackExclusion && (() => {
+          const isExcluded = exclusions && exclusions.tracks.some(t => t.trackId === track.trackId);
+          return (
+            <button onClick={() => toggleTrackExclusion(track)} title={isExcluded ? "Retirer des exclusions" : "Exclure ce titre"}>
+              <Ban size={16} className={isExcluded ? "text-red-500" : textMuted}/>
+            </button>
+          );
+        })()}
       </div>
     </div>
     );
