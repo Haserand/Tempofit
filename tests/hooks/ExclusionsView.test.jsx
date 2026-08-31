@@ -1,150 +1,169 @@
 // @vitest-environment jsdom
 //
-// Premier fichier de test pour useExclusions.js (28/08, chantier "mécanisme
-// d'exclusion") — même raisonnement que useFavorites.test.js : s'appuie sur
-// `usePersistentState`, qui retombe sur un repli sûr sans wrapper
-// `<AuthProvider>` (voir AuthContext.jsx) dans ce bac à sable.
+// Premier fichier de test pour ExclusionsView.jsx (28/08, chantier
+// "mécanisme d'exclusion") — même patron que FavoritesView.test.js.
+// `musicCatalog.js` mocké pour la même raison : `getGenresForDisplay` est
+// déjà couverte par tests/config/musicCatalog.test.js (fonction pure).
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useExclusions } from '../../src/hooks/useExclusions.js';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
 
-beforeEach(() => {
-  window.localStorage.clear();
+vi.mock('../../src/musicCatalog.js', () => ({
+  getGenresForDisplay: vi.fn((genre) => [genre]),
+  genreDisplayLabel: vi.fn((genre) => genre),
+  STANDARD_GENRES: ['Pop', 'Rock'],
+  NAUGHTY_GENRES: ['R&B Sensuel'],
+  EXTRA_GENRES: ['Jazz', 'Autre'],
+}));
+
+import ExclusionsView from '../../src/components/views/ExclusionsView.jsx';
+
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
 });
 
-describe('useExclusions — état par défaut', () => {
-  it('démarre avec des listes vides (artists/tracks/genres)', () => {
-    const { result } = renderHook(() => useExclusions(vi.fn()));
-    expect(result.current.exclusions).toEqual({ artists: [], tracks: [], genres: [] });
+const mockTheme = {
+  cardBg: 'mock-card-bg',
+  cardBorder: 'mock-border',
+  textHighlight: 'mock-highlight',
+  textMuted: 'mock-muted',
+  textColorClass: 'mock-text-color',
+  bgAccentClass: 'mock-accent-bg',
+  inputBg: 'mock-input-bg',
+  inputBorder: 'mock-input-border',
+};
+
+const excludedTrack = { trackId: 'deezer-1', title: 'Photograph', artist: 'Nickelback', bpm: 100, genre: 'Rock' };
+
+function baseProps(overrides = {}) {
+  return {
+    theme: mockTheme,
+    isNaughtyMode: false,
+    exclusions: { tracks: [], artists: [], genres: [] },
+    toggleTrackExclusion: vi.fn(),
+    toggleArtistExclusion: vi.fn(),
+    toggleGenreExclusion: vi.fn(),
+    newExclusionArtist: '',
+    setNewExclusionArtist: vi.fn(),
+    isAddingExclusionArtist: false,
+    setIsAddingExclusionArtist: vi.fn(),
+    ...overrides,
+  };
+}
+
+describe('ExclusionsView', () => {
+  it('message "aucun titre exclu" quand la liste des titres est vide', () => {
+    render(<ExclusionsView {...baseProps()} />);
+    expect(screen.getByText(/Aucun titre exclu/)).toBeInTheDocument();
   });
 
-  it('démarre avec le formulaire d\'ajout d\'artiste fermé et vide', () => {
-    const { result } = renderHook(() => useExclusions(vi.fn()));
-    expect(result.current.newExclusionArtist).toBe('');
-    expect(result.current.isAddingExclusionArtist).toBe(false);
-  });
-});
-
-describe('toggleArtistExclusion', () => {
-  it('ajoute un artiste non encore exclu, avec un toast dédié', () => {
-    const showToast = vi.fn();
-    const { result } = renderHook(() => useExclusions(showToast));
-
-    act(() => { result.current.toggleArtistExclusion('Nickelback'); });
-
-    expect(result.current.exclusions.artists).toEqual(['Nickelback']);
-    expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Nickelback'));
-    expect(showToast).toHaveBeenCalledWith(expect.stringContaining('🚫'));
+  it('affiche les titres exclus (titre, artiste, BPM)', () => {
+    render(<ExclusionsView {...baseProps({ exclusions: { tracks: [excludedTrack], artists: [], genres: [] } })} />);
+    expect(screen.getByText('Photograph')).toBeInTheDocument();
+    expect(screen.getByText(/Nickelback/)).toBeInTheDocument();
+    expect(screen.getByText('100 BPM')).toBeInTheDocument();
   });
 
-  it('retire un artiste déjà exclu (bascule), avec un toast différent', () => {
-    const showToast = vi.fn();
-    const { result } = renderHook(() => useExclusions(showToast));
+  it('retirer un titre exclu appelle toggleTrackExclusion avec ce titre', () => {
+    const toggleTrackExclusion = vi.fn();
+    render(<ExclusionsView {...baseProps({ exclusions: { tracks: [excludedTrack], artists: [], genres: [] }, toggleTrackExclusion })} />);
 
-    act(() => { result.current.toggleArtistExclusion('Nickelback'); });
-    act(() => { result.current.toggleArtistExclusion('Nickelback'); });
+    fireEvent.click(screen.getByTitle('Retirer des exclusions'));
 
-    expect(result.current.exclusions.artists).toEqual([]);
-    expect(showToast).toHaveBeenLastCalledWith('"Nickelback" retiré des exclusions.');
+    expect(toggleTrackExclusion).toHaveBeenCalledWith(excludedTrack);
   });
 
-  it('ne duplique pas un artiste déjà présent (Set implicite via Array.from(new Set(...)))', () => {
-    const { result } = renderHook(() => useExclusions(vi.fn()));
-    act(() => { result.current.toggleArtistExclusion('Nickelback'); });
-    act(() => { result.current.setExclusions(prev => ({ ...prev, artists: [...prev.artists, 'Nickelback'].filter((v, i, a) => a.indexOf(v) === i) })); });
-    expect(result.current.exclusions.artists).toEqual(['Nickelback']);
-  });
-});
+  it('affiche les artistes exclus, retrait au clic sur le X', () => {
+    const toggleArtistExclusion = vi.fn();
+    render(<ExclusionsView {...baseProps({ exclusions: { tracks: [], artists: ['Nickelback'], genres: [] }, toggleArtistExclusion })} />);
 
-describe('toggleTrackExclusion', () => {
-  const track = { trackId: 'deezer-123', title: 'Photograph', artist: 'Nickelback', bpm: 100, genre: 'Rock' };
+    expect(screen.getByText('Nickelback')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Nickelback').parentElement.querySelector('button'));
 
-  it('ajoute un titre non encore exclu, avec un toast dédié', () => {
-    const showToast = vi.fn();
-    const { result } = renderHook(() => useExclusions(showToast));
-
-    act(() => { result.current.toggleTrackExclusion(track); });
-
-    expect(result.current.exclusions.tracks).toEqual([track]);
-    expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Photograph'));
+    expect(toggleArtistExclusion).toHaveBeenCalledWith('Nickelback');
   });
 
-  it('retire un titre déjà exclu (bascule par trackId), avec un toast différent', () => {
-    const showToast = vi.fn();
-    const { result } = renderHook(() => useExclusions(showToast));
+  it('bouton "+" ouvre le formulaire d\'ajout d\'artiste', () => {
+    const setIsAddingExclusionArtist = vi.fn();
+    render(<ExclusionsView {...baseProps({ setIsAddingExclusionArtist })} />);
 
-    act(() => { result.current.toggleTrackExclusion(track); });
-    act(() => { result.current.toggleTrackExclusion(track); });
+    fireEvent.click(screen.getByTitle('Exclure un artiste'));
 
-    expect(result.current.exclusions.tracks).toEqual([]);
-    expect(showToast).toHaveBeenLastCalledWith('Retiré des titres exclus.');
+    expect(setIsAddingExclusionArtist).toHaveBeenCalledWith(true);
   });
 
-  it('exclure un titre n\'exclut PAS son artiste (asymétrie assumée, même principe que useFavorites.js)', () => {
-    const { result } = renderHook(() => useExclusions(vi.fn()));
-    act(() => { result.current.toggleTrackExclusion(track); });
-    expect(result.current.exclusions.artists).toEqual([]);
-  });
-});
+  it('formulaire ouvert : Entrée sur le champ appelle toggleArtistExclusion avec le nom tapé', () => {
+    const toggleArtistExclusion = vi.fn();
+    const setNewExclusionArtist = vi.fn();
+    const setIsAddingExclusionArtist = vi.fn();
+    render(<ExclusionsView {...baseProps({
+      isAddingExclusionArtist: true, newExclusionArtist: 'Coldplay',
+      toggleArtistExclusion, setNewExclusionArtist, setIsAddingExclusionArtist,
+    })} />);
 
-describe('setNewExclusionArtist/setIsAddingExclusionArtist — état UI de ExclusionsView.jsx', () => {
-  it('sont bien exposés et indépendants de exclusions/toggle*', () => {
-    const { result } = renderHook(() => useExclusions(vi.fn()));
-    act(() => {
-      result.current.setNewExclusionArtist('Coldplay');
-      result.current.setIsAddingExclusionArtist(true);
-    });
-    expect(result.current.newExclusionArtist).toBe('Coldplay');
-    expect(result.current.isAddingExclusionArtist).toBe(true);
-    expect(result.current.exclusions.artists).toEqual([]);
+    fireEvent.keyDown(screen.getByPlaceholderText("Nom de l'artiste..."), { key: 'Enter' });
+
+    expect(toggleArtistExclusion).toHaveBeenCalledWith('Coldplay');
+    expect(setNewExclusionArtist).toHaveBeenCalledWith('');
+    expect(setIsAddingExclusionArtist).toHaveBeenCalledWith(false);
+  });
+
+  it('formulaire ouvert : Échap ferme sans appeler toggleArtistExclusion', () => {
+    const toggleArtistExclusion = vi.fn();
+    const setIsAddingExclusionArtist = vi.fn();
+    render(<ExclusionsView {...baseProps({
+      isAddingExclusionArtist: true, newExclusionArtist: 'Coldplay',
+      toggleArtistExclusion, setIsAddingExclusionArtist,
+    })} />);
+
+    fireEvent.keyDown(screen.getByPlaceholderText("Nom de l'artiste..."), { key: 'Escape' });
+
+    expect(toggleArtistExclusion).not.toHaveBeenCalled();
+    expect(setIsAddingExclusionArtist).toHaveBeenCalledWith(false);
+  });
+
+  it('champ vide (espaces uniquement) : n\'appelle pas toggleArtistExclusion', () => {
+    const toggleArtistExclusion = vi.fn();
+    render(<ExclusionsView {...baseProps({ isAddingExclusionArtist: true, newExclusionArtist: '   ', toggleArtistExclusion })} />);
+
+    fireEvent.keyDown(screen.getByPlaceholderText("Nom de l'artiste..."), { key: 'Enter' });
+
+    expect(toggleArtistExclusion).not.toHaveBeenCalled();
   });
 });
 
 // NOUVEAU (28/08, "prends du recul, pouvoir exclure un style au besoin ?")
-describe('toggleGenreExclusion', () => {
-  it('ajoute un genre non encore exclu, avec un toast dédié', () => {
-    const showToast = vi.fn();
-    const { result } = renderHook(() => useExclusions(showToast));
-
-    act(() => { result.current.toggleGenreExclusion('Rap'); });
-
-    expect(result.current.exclusions.genres).toEqual(['Rap']);
-    expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Rap'));
-    expect(showToast).toHaveBeenCalledWith(expect.stringContaining('🚫'));
+// — liste complète (STANDARD_GENRES + NAUGHTY_GENRES + EXTRA_GENRES,
+// dédoublonnée, "Autre" écarté), volontairement PAS filtrée par
+// isNaughtyMode (voir la docstring du composant).
+describe('ExclusionsView — genres exclus', () => {
+  it('affiche toutes les pastilles de genre (mock : Pop, Rock, R&B Sensuel, Jazz — "Autre" écarté)', () => {
+    render(<ExclusionsView {...baseProps()} />);
+    expect(screen.getByText('Pop')).toBeInTheDocument();
+    expect(screen.getByText('Rock')).toBeInTheDocument();
+    expect(screen.getByText('R&B Sensuel')).toBeInTheDocument();
+    expect(screen.getByText('Jazz')).toBeInTheDocument();
+    expect(screen.queryByText('Autre')).not.toBeInTheDocument();
   });
 
-  it('retire un genre déjà exclu (bascule), avec un toast différent', () => {
-    const showToast = vi.fn();
-    const { result } = renderHook(() => useExclusions(showToast));
+  it('clic sur une pastille non exclue appelle toggleGenreExclusion avec ce genre', () => {
+    const toggleGenreExclusion = vi.fn();
+    render(<ExclusionsView {...baseProps({ toggleGenreExclusion })} />);
 
-    act(() => { result.current.toggleGenreExclusion('Rap'); });
-    act(() => { result.current.toggleGenreExclusion('Rap'); });
+    fireEvent.click(screen.getByText('Rock'));
 
-    expect(result.current.exclusions.genres).toEqual([]);
-    expect(showToast).toHaveBeenLastCalledWith('"Rap" retiré des genres exclus.');
+    expect(toggleGenreExclusion).toHaveBeenCalledWith('Rock');
   });
 
-  it('exclure un genre n\'affecte pas artists/tracks', () => {
-    const { result } = renderHook(() => useExclusions(vi.fn()));
-    act(() => { result.current.toggleGenreExclusion('Rap'); });
-    expect(result.current.exclusions.artists).toEqual([]);
-    expect(result.current.exclusions.tracks).toEqual([]);
-  });
-});
-
-// NOUVEAU (28/08, même chantier) — migration défensive : un utilisateur
-// ayant déjà des exclusions enregistrées AVANT l'ajout de `genres` ne doit
-// jamais planter, ni perdre ses artistes/titres déjà exclus. Clé réelle du
-// stockage : `STORAGE_PREFIX + 'exclusions'` (voir usePersistentState.js),
-// pas juste `'exclusions'` — sinon ce test ne simule rien du tout et passe
-// à tort (l'initialiseur écrirait alors sa propre valeur par défaut).
-describe('migration défensive — exclusions sans champ `genres` (données antérieures à ce chantier)', () => {
-  it('normalise `exclusions.genres` à un tableau vide sans perdre artists/tracks existants', () => {
-    window.localStorage.setItem('tempofit:exclusions', JSON.stringify({ artists: ['Nickelback'], tracks: [] }));
-    const { result } = renderHook(() => useExclusions(vi.fn()));
-
-    expect(result.current.exclusions.genres).toEqual([]);
-    expect(result.current.exclusions.artists).toEqual(['Nickelback']);
+  it('un genre déjà exclu est affiché sélectionné (même mécanisme visuel que SelectablePill ailleurs)', () => {
+    const { container } = render(<ExclusionsView {...baseProps({ exclusions: { tracks: [], artists: [], genres: ['Rock'] } })} />);
+    const rockButton = screen.getByText('Rock').closest('button');
+    const popButton = screen.getByText('Pop').closest('button');
+    // SelectablePill applique des classes différentes selon `selected` — on
+    // vérifie juste qu'elles DIFFÈRENT entre le genre exclu et un genre non
+    // exclu, sans dépendre du détail exact des classes Tailwind utilisées.
+    expect(rockButton.className).not.toEqual(popButton.className);
   });
 });
