@@ -37,7 +37,7 @@ import { useGeneratorContext } from '../contexts/GeneratorContext';
 export function usePlaylistGeneration({
   showToast, userStats, checkTrophies,
   routines, setRoutines,
-  favorites, spotifyTrackPool, isNaughtyMode,
+  favorites, spotifyTrackPool, isNaughtyMode, exclusions,
   setCurrentPlaylist, changeView,
   savedPlaylists, setSavedPlaylists,
   setIsGenerating, setGeneratingTotal, setGeneratingDone, setIsGeneratingSlowGenre,
@@ -279,7 +279,7 @@ export function usePlaylistGeneration({
         if (estimatedCount <= lastReportedTrackCount) return; // voir le clamp anti-régression ci-dessus
         lastReportedTrackCount = estimatedCount;
         setGeneratingEstimatedTracksFound(estimatedCount);
-      });
+      }, exclusions);
       if (count > 1) pl.name = `${pl.name} (Session ${i + 1})`;
       generatedPlaylists.push(pl);
       setGeneratingDone(i + 1);
