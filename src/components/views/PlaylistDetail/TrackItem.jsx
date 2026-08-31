@@ -1,4 +1,4 @@
-import { GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, Lock, Play, Pause, Loader2, ExternalLink } from 'lucide-react';
+import { GripVertical, Star, MoreVertical, Plus, User, RefreshCw, X, Lock, Play, Pause, Loader2, ExternalLink, Ban } from 'lucide-react';
 import { getGenresForDisplay } from '../../../musicCatalog';
 import { getZoneForValue, getBpmBucketColor, getBpmBucketStart } from '../../../appConfig';
 import { formatDuration } from '../../../utils/format';
@@ -37,6 +37,7 @@ export default function TrackItem({
   track, index,
   theme, isLocked,
   favorites, toggleTrackFavorite, toggleArtistFavorite,
+  exclusions, toggleTrackExclusion, toggleArtistExclusion,
   resolveAndTogglePreview, getNextTrackForAutoAdvance,
   isDimmed, isHighlighted,
 }) {
@@ -210,6 +211,34 @@ export default function TrackItem({
                 return (
                   <button onClick={() => { toggleArtistFavorite(track.artist); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
                     <Star size={16} className="text-amber-500" fill={artistIsFav ? 'currentColor' : 'none'}/> {artistIsFav ? `Retirer ${track.artist} des favoris` : `Favoriser l'artiste (${track.artist})`}
+                  </button>
+                );
+              })()}
+              {/* EXCLUSION (28/08, retour direct : "mécanisme d'exclusion —
+                  artistes ou titres qu'on ne souhaite jamais avoir,
+                  alimentable via une playlist générée") — même emplacement
+                  que "Favoriser l'artiste" juste au-dessus, en négatif :
+                  n'affecte jamais LA PLAYLIST EN COURS (aucun titre retiré
+                  d'ici, l'exclusion n'est pas rétroactive — voir la
+                  docstring de useExclusions.js) : agit uniquement sur les
+                  FUTURES générations/recherches. `toggleTrackExclusion`/
+                  `toggleArtistExclusion` reçus ici sont déjà les versions
+                  COORDONNÉES avec les favoris (voir App.jsx) — gèrent seules
+                  la transition favori→exclu si besoin, avec le message
+                  dédié. */}
+              {toggleTrackExclusion && (() => {
+                const trackIsExcluded = exclusions && exclusions.tracks.some(t => t.trackId === track.trackId);
+                return (
+                  <button onClick={() => { toggleTrackExclusion(track); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
+                    <Ban size={16} className="text-red-500"/> {trackIsExcluded ? "Retirer ce titre des exclusions" : "Exclure ce titre"}
+                  </button>
+                );
+              })()}
+              {toggleArtistExclusion && (() => {
+                const artistIsExcluded = exclusions && exclusions.artists.some(a => a.trim().toLowerCase() === track.artist.trim().toLowerCase());
+                return (
+                  <button onClick={() => { toggleArtistExclusion(track.artist); setOpenTrackMenuIndex(null); }} className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}>
+                    <Ban size={16} className="text-red-500"/> {artistIsExcluded ? `Retirer ${track.artist} des exclusions` : `Exclure l'artiste (${track.artist})`}
                   </button>
                 );
               })()}
