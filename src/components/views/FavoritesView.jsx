@@ -1,10 +1,13 @@
-import { Star, Heart, Play, Pause, Loader2, X, Plus, User, Target, Search, Info } from 'lucide-react';
+import { Star, Heart, Play, Pause, Loader2, X, Plus, User, Target, Search, Info, Ban } from 'lucide-react';
 import { getGenreLocalDepthWarning, getGenresForDisplay, genreDisplayLabel, EXTRA_GENRES, GENRE_SEARCH_DEPTH_HINT } from '../../musicCatalog';
 import { useModalContext } from '../../contexts/ModalContext';
 import ViewHeader from '../shared/ViewHeader';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 import { INLINE_NAV_LINK_CLASS } from '../../layout/inlineLinkLayout';
 import SelectablePill from '../shared/SelectablePill';
+import TabPills from '../shared/TabPills';
+import ExclusionsView from './ExclusionsView';
+import { useState } from 'react';
 
 /**
  * FavoritesView — vue "Mes Favoris" (titres/artistes favoris + exploration BPM/genre).
@@ -28,6 +31,17 @@ import SelectablePill from '../shared/SelectablePill';
  * implémentation) : résout l'extrait via Deezer au moment du clic si
  * absent, puis met à jour `favorites.tracks` avec le titre résolu (pour que
  * les clics suivants n'aient plus besoin de re-résoudre).
+ *
+ * ⚠️ ONGLET "EXCLUSIONS" FUSIONNÉ ICI (28/08, retour direct — "Exclusion
+ * devrait être un onglet contenu dans l'onglet favoris, comme le modèle
+ * playlists/routines contenu dans la vue playlists") — "Exclusions" n'est
+ * plus une entrée de menu séparée dans la Sidebar (retirée) : c'est
+ * maintenant un ONGLET de "Mes Favoris", exactement le même schéma que
+ * Playlists/Routines dans PlaylistsView.jsx (fusion du 20/08). `activeTab`
+ * géré localement (pas besoin d'un `initialTab` threadé depuis App.jsx,
+ * contrairement à PlaylistsView — aucun autre endroit de l'app n'a besoin
+ * de lier directement vers l'onglet Exclusions pour l'instant) — voir
+ * ExclusionsView.jsx, qui ne rend plus que le CORPS de cet onglet.
  */
 export default function FavoritesView({
   theme, isNaughtyMode,
@@ -39,8 +53,11 @@ export default function FavoritesView({
   availableGenres, favSelectedGenres, setFavSelectedGenres, showExtraGenres, setShowExtraGenres,
   favBpmTarget, setFavBpmTarget, favBpmTolerance, setFavBpmTolerance,
   searchTracksByBpm, changeView,
+  exclusions, toggleTrackExclusion, toggleArtistExclusion, toggleGenreExclusion,
+  newExclusionArtist, setNewExclusionArtist, isAddingExclusionArtist, setIsAddingExclusionArtist,
 }) {
   const { openModal } = useModalContext();
+  const [activeTab, setActiveTab] = useState('favorites');
   const {
     cardBg, cardBorder, textHighlight, textMuted, textColorClass,
     bgAccentClass, inputBg, inputBorder,
@@ -66,15 +83,44 @@ export default function FavoritesView({
   };
 
   return (
-    <div className={`${VIEW_CONTENT_WRAPPER} space-y-8`}>
+    <div className={`${VIEW_CONTENT_WRAPPER} space-y-6`}>
       <ViewHeader
         theme={theme}
         isNaughtyMode={isNaughtyMode}
-        icon={<Star className="text-yellow-500 fill-yellow-500/20" size={VIEW_HEADER_ICON_SIZE} />}
-        title="Mes Favoris"
-        subtitle="Priorité à la génération : favoris d'abord, puis artistes favoris, puis recherche élargie si besoin."
+        icon={activeTab === 'exclusions'
+          ? <Ban className="text-red-500" size={VIEW_HEADER_ICON_SIZE} />
+          : <Star className="text-yellow-500 fill-yellow-500/20" size={VIEW_HEADER_ICON_SIZE} />}
+        title={activeTab === 'exclusions' ? 'Exclusions' : 'Mes Favoris'}
+        subtitle={activeTab === 'exclusions'
+          ? "Ces titres et artistes n'apparaîtront plus dans les futures générations et recherches — jamais retiré d'une playlist déjà existante."
+          : "Priorité à la génération : favoris d'abord, puis artistes favoris, puis recherche élargie si besoin."}
       />
 
+      {/* Onglets Favoris/Exclusions (28/08, fusion — voir la docstring de
+          ce fichier) — même composant partagé (TabPills.jsx) que
+          Playlists/Routines (PlaylistsView.jsx), ProfileView.jsx,
+          DiscoverView.jsx, SettingsView.jsx, TrophiesView.jsx. */}
+      <TabPills
+        theme={theme}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        tabs={[
+          { value: 'favorites', label: 'Favoris' },
+          { value: 'exclusions', label: 'Exclusions' },
+        ]}
+      />
+
+      {activeTab === 'exclusions' ? (
+        <ExclusionsView
+          theme={theme} isNaughtyMode={isNaughtyMode}
+          exclusions={exclusions}
+          toggleTrackExclusion={toggleTrackExclusion}
+          toggleArtistExclusion={toggleArtistExclusion}
+          toggleGenreExclusion={toggleGenreExclusion}
+          newExclusionArtist={newExclusionArtist} setNewExclusionArtist={setNewExclusionArtist}
+          isAddingExclusionArtist={isAddingExclusionArtist} setIsAddingExclusionArtist={setIsAddingExclusionArtist}
+        />
+      ) : (
       <div className={`${cardBg} rounded-3xl p-6 md:p-8 border ${cardBorder} shadow-xl`}>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-2">
           <h3 className={`font-bold text-xl ${textHighlight} ${isNaughtyMode ? 'dark:text-white' : ''}`}>Tes Préférences Musicales</h3>
@@ -284,6 +330,7 @@ export default function FavoritesView({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }
