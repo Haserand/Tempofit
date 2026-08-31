@@ -244,21 +244,27 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode, use
             <div className={`w-16 h-16 rounded-full flex items-center justify-center ${bgAccentClass} text-white`}>
               <Lock size={28} />
             </div>
-            <p className={`font-bold text-xl ${textHighlight}`}>Rejoins la communauté TempoFit</p>
-            <p className={`text-sm max-w-sm ${textMuted}`}>
-              {/* SYNTHÉTISÉE (retour direct : "en une seule ligne") — l'ancienne
-                  phrase ("Connecte-toi ou crée un compte pour rechercher
-                  d'autres utilisateurs et découvrir leurs playlists
-                  publiques.") passait sur 2 lignes dans ce conteneur
-                  `max-w-sm`. Le bouton juste en dessous ("Se connecter /
-                  S'inscrire") couvre déjà les 2 actions ("connecte-toi OU
-                  crée un compte") — pas besoin de les répéter ici, cette
-                  phrase n'a plus qu'à expliquer POURQUOI. Reste une
-                  ESTIMATION de tenue sur une ligne (aucun navigateur réel
-                  dans cet environnement de dev, même limite déjà documentée
-                  dans ViewHeader.jsx) — à confirmer sur un vrai déploiement. */}
-              Trouve d'autres utilisateurs et leurs playlists publiques.
-            </p>
+            {/* FUSIONNÉ EN UNE SEULE LIGNE (retour direct, 28/08 — "prends du
+                recul... j'aime bien comme pour la vue stats n'avoir qu'un
+                bouton avec un message au-dessus") — même chantier que celui
+                du 20/08 sur StatsView.jsx (voir sa docstring : "titre blanc"
+                + "sous-titre gris qui redit presque la même chose" faisait
+                trop) : avant, `<p>` titre "Rejoins la communauté TempoFit"
+                + `<p>` gris "Trouve d'autres utilisateurs..." en dessous —
+                redondant, le titre générique n'apportait rien que le
+                sous-titre n'expliquait pas déjà mieux. Un seul texte
+                maintenant, même construction ("Découvre..." plutôt que
+                "Rejoins..."), même style que le message de StatsView.jsx
+                (`text-lg font-bold max-w-sm mx-auto`) — RÉUTILISE le budget
+                de caractères déjà confirmé réel là-bas (38-40 caractères à
+                cette taille/largeur, voir sa docstring) plutôt que d'en
+                réestimer un nouveau à l'aveugle. 39 caractères ici (aucune
+                variable — contrairement à ProfileView.jsx juste après, qui
+                doit composer avec un pseudo de longueur variable — donc
+                garanti sur une ligne, pas juste une estimation). */}
+            <h3 className={`text-lg font-bold max-w-sm mx-auto ${textHighlight}`}>
+              Découvre profils et playlists publiques.
+            </h3>
             <button
               onClick={() => openModal('AUTH')}
               className={`mt-2 px-6 py-3 rounded-xl font-bold text-white shadow-md hover:brightness-110 transition-all ${bgAccentClass}`}
