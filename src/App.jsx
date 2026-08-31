@@ -2015,7 +2015,7 @@ function AppContent({
               // directement via useGeneratorContext(). Passé de 93 à 15 props.
               <GeneratorView
                 theme={themeTokens}
-                toggleNaughtyMode={toggleNaughtyMode} changeView={changeView}
+                toggleNaughtyMode={toggleNaughtyMode} handleOpenSettings={handleOpenSettings}
                 setCurrentPlaylist={setCurrentPlaylist} setIsBpmSearchMode={setIsBpmSearchMode}
                 setSearchQuery={setSearchQuery} setWorldSearchResults={setWorldSearchResults}
                 setResultsContextLabel={setResultsContextLabel} setNoUsableResultsHint={setNoUsableResultsHint}
