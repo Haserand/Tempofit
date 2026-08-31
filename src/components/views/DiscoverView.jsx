@@ -246,7 +246,18 @@ export default function DiscoverView({ theme, onPlayTemplate, isNaughtyMode, use
             </div>
             <p className={`font-bold text-xl ${textHighlight}`}>Rejoins la communauté TempoFit</p>
             <p className={`text-sm max-w-sm ${textMuted}`}>
-              Connecte-toi ou crée un compte pour rechercher d'autres utilisateurs et découvrir leurs playlists publiques.
+              {/* SYNTHÉTISÉE (retour direct : "en une seule ligne") — l'ancienne
+                  phrase ("Connecte-toi ou crée un compte pour rechercher
+                  d'autres utilisateurs et découvrir leurs playlists
+                  publiques.") passait sur 2 lignes dans ce conteneur
+                  `max-w-sm`. Le bouton juste en dessous ("Se connecter /
+                  S'inscrire") couvre déjà les 2 actions ("connecte-toi OU
+                  crée un compte") — pas besoin de les répéter ici, cette
+                  phrase n'a plus qu'à expliquer POURQUOI. Reste une
+                  ESTIMATION de tenue sur une ligne (aucun navigateur réel
+                  dans cet environnement de dev, même limite déjà documentée
+                  dans ViewHeader.jsx) — à confirmer sur un vrai déploiement. */}
+              Trouve d'autres utilisateurs et leurs playlists publiques.
             </p>
             <button
               onClick={() => openModal('AUTH')}
