@@ -2124,7 +2124,7 @@ function AppContent({
                 setShowExtraGenres={setShowExtraGenres}
                 favBpmTarget={favBpmTarget} setFavBpmTarget={setFavBpmTarget}
                 favBpmTolerance={favBpmTolerance} setFavBpmTolerance={setFavBpmTolerance}
-                searchTracksByBpm={searchTracksByBpm} changeView={changeView}
+                searchTracksByBpm={searchTracksByBpm} handleOpenSettings={handleOpenSettings}
                 exclusions={exclusions}
                 toggleTrackExclusion={toggleTrackExclusionCoordinated}
                 toggleArtistExclusion={toggleArtistExclusionCoordinated}
