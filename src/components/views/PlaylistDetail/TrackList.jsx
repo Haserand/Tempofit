@@ -45,6 +45,7 @@ import TrackItem from './TrackItem';
 export default function TrackList({
   theme, isLocked,
   favorites, toggleTrackFavorite, toggleArtistFavorite,
+  exclusions, toggleTrackExclusion, toggleArtistExclusion,
   resolveAndTogglePreview, getNextTrackForAutoAdvance,
   setIsBpmSearchMode,
   hasDetailFilter, trackMatchesDetailFilter,
@@ -82,6 +83,7 @@ export default function TrackList({
             track={track} index={index}
             theme={theme} isLocked={isLocked}
             favorites={favorites} toggleTrackFavorite={toggleTrackFavorite} toggleArtistFavorite={toggleArtistFavorite}
+            exclusions={exclusions} toggleTrackExclusion={toggleTrackExclusion} toggleArtistExclusion={toggleArtistExclusion}
             resolveAndTogglePreview={resolveAndTogglePreview} getNextTrackForAutoAdvance={getNextTrackForAutoAdvance}
             isDimmed={hasDetailFilter && !trackMatchesDetailFilter(track)}
             isHighlighted={hasDetailFilter && trackMatchesDetailFilter(track)}
