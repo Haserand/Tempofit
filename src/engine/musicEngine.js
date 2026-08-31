@@ -29,7 +29,7 @@
  * sans risque (même logique que `searchWorldMusicApi` conservée dans App.jsx).
  */
 
-import { ARTIST_CATALOG, DEEZER_GENRE_KEYWORDS, WEAK_DEEZER_KEYWORD_GENRES, genreRoughlyMatches, findCatalogGenreForArtist, classifyGenreMatchTier, detectTitleStyleConflict, detectLanguageVersionConflict, isLiveOrPerformanceVersion } from '../musicCatalog';
+import { ARTIST_CATALOG, DEEZER_GENRE_KEYWORDS, WEAK_DEEZER_KEYWORD_GENRES, genreRoughlyMatches, findCatalogGenreForArtist, isExcludedTrack, classifyGenreMatchTier, detectTitleStyleConflict, detectLanguageVersionConflict, isLiveOrPerformanceVersion } from '../musicCatalog';
 import { getActivityEmoji } from '../appConfig';
 import { formatDuration } from '../utils/format';
 import { debugLog } from '../utils/debugLog';
@@ -487,7 +487,7 @@ const resolveDeezerTrackByTitleArtist = async (title, artist) => {
   }
 };
 
-const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeTrackIds, preferredDuration, candidateCap, allowLongTracks = false, allowGenreMismatch = true) => {
+const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeTrackIds, preferredDuration, candidateCap, allowLongTracks = false, allowGenreMismatch = true, exclusions = null) => {
   const stubsByGenre = await Promise.all(genresForQuery.map(async (g) => {
     const keyword = DEEZER_GENRE_KEYWORDS[g] || '';
     const q = `bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"${keyword ? ' ' + keyword : ''}`;
@@ -521,6 +521,12 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeTrac
   // buildSegmentTracks, appliquée ici pour que le remplacement manuel d'un titre
   // et la cascade de repli respectent aussi ce réglage.
   if (!allowLongTracks) validCandidates = validCandidates.filter(c => (c.duration || 0) <= MAX_TRACK_DURATION);
+  // FILTRE D'EXCLUSION (28/08, chantier "mécanisme d'exclusion") — retiré
+  // ICI, AVANT la construction de `ordered` et la boucle de vérification de
+  // genre plus bas : un candidat exclu ne doit jamais devenir le REPLI de
+  // dernier recours (`attempted[0] || ordered[0]`, plus bas) même s'il n'y a
+  // "rien d'autre" — l'exclusion doit primer sur "mieux que rien".
+  validCandidates = validCandidates.filter(c => !isExcludedTrack({ trackId: `deezer-${c.id}`, artist: c.artist ? c.artist.name : null }, exclusions));
   if (validCandidates.length === 0) return null;
 
   // Même garde-fou genre que dans buildSegmentTracks (voir le commentaire détaillé
@@ -568,7 +574,15 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeTrac
     // inchangé.
     const catalogGenre = findCatalogGenreForArtist(candidate.artist ? candidate.artist.name : null);
     const catalogContradicts = catalogGenre && !genresForQuery.some(g => genreRoughlyMatches(catalogGenre, g));
-    const matches = !titleConflict && !catalogContradicts && genresForQuery.some(g => genreRoughlyMatches(realGenre, g));
+    // FILTRE D'EXCLUSION PAR GENRE (28/08, chantier "exclure un style au
+    // besoin") — SÉPARÉ du filtre artiste/titre déjà fait plus haut (avant
+    // cette boucle, sur `validCandidates`) : le genre RÉEL n'est connu
+    // qu'ICI, après `resolveDeezerGenre` — impossible de le vérifier plus
+    // tôt sans lancer cet appel réseau pour rien sur des candidats qu'on
+    // aurait de toute façon jetés. `isExcludedTrack` reçoit ici l'objet le
+    // plus complet possible (trackId + artiste + genre RÉSOLU).
+    const isExcluded = isExcludedTrack({ trackId: `deezer-${candidate.id}`, artist: candidate.artist ? candidate.artist.name : null, genre: realGenre }, exclusions);
+    const matches = !titleConflict && !catalogContradicts && !isExcluded && genresForQuery.some(g => genreRoughlyMatches(realGenre, g));
     if (matches) {
       full = candidate;
       break;
@@ -588,7 +602,18 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeTrac
     // (même catalogue d'artistes, BPM ignoré), qui donne au moins un VRAI artiste
     // du genre demandé plutôt qu'un résultat texte libre arbitraire.
     if (!allowGenreMismatch) return null;
-    full = attempted[0] || ordered[0];
+    // FILTRE D'EXCLUSION PAR GENRE (28/08) — même principe que le filtre
+    // artiste/titre plus haut : un candidat de genre EXPLICITEMENT exclu ne
+    // doit jamais devenir ce repli, même faute de mieux. `attempted` porte
+    // déjà `_resolvedGenre` (posé dans la boucle ci-dessus) pour chaque
+    // candidat essayé — `ordered[0]` (repli du repli) n'a lui, PAR
+    // CONSTRUCTION, jamais son genre résolu à ce stade (la boucle tourne au
+    // moins 1 fois dès que `ordered` a au moins 1 élément, donc `attempted`
+    // n'est vide QUE si `ordered` l'est aussi) — ce cas ne se présente donc
+    // jamais en pratique, gardé tel quel comme filet de sécurité neutre.
+    const attemptedNotGenreExcluded = attempted.filter(c => !(exclusions && Array.isArray(exclusions.genres) && exclusions.genres.length > 0 && exclusions.genres.some(g => genreRoughlyMatches(c._resolvedGenre, g))));
+    if (attemptedNotGenreExcluded.length === 0 && attempted.length > 0) return null;
+    full = attemptedNotGenreExcluded[0] || ordered[0];
     genreMismatch = true;
   }
 
@@ -605,7 +630,7 @@ const searchDeezerForGenres = async (genresForQuery, minBpm, maxBpm, excludeTrac
   };
 };
 
-const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excludeTrackIds = [], favorites = null, spotifyTrackPool = [], preferredDuration = null, historyExcludeIds = [], allowLongTracks = false) => {
+const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excludeTrackIds = [], favorites = null, spotifyTrackPool = [], preferredDuration = null, historyExcludeIds = [], allowLongTracks = false, exclusions = null) => {
   const minBpm = targetBpm - tolerance;
   const maxBpm = targetBpm + tolerance;
 
@@ -627,6 +652,13 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
     const perfectFavoriteTracks = favorites.tracks.filter(t =>
       typeof t === 'object' && t.bpm >= minBpm && t.bpm <= maxBpm &&
       !excludeTrackIds.includes(t.trackId) &&
+      // ⚠️ FILTRE D'EXCLUSION AJOUTÉ (28/08, chantier "mécanisme
+      // d'exclusion") — même si un titre est en Favoris, l'exclusion
+      // explicite doit primer (voir la docstring de useExclusions.js,
+      // point 5 du cadrage : "l'action réalisée en dernier prime") — un
+      // favori qu'on a explicitement exclu APRÈS coup ne doit plus
+      // remonter ici.
+      !isExcludedTrack(t, exclusions) &&
       selectedGenres.some(g => genreRoughlyMatches(t.genre, g))
     );
     if (perfectFavoriteTracks.length > 0) {
@@ -695,6 +727,12 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
           // d'un seul titre isolé.
           const catalogGenre = findCatalogGenreForArtist(full.artist ? full.artist.name : null);
           if (catalogGenre && !selectedGenres.some(g => genreRoughlyMatches(catalogGenre, g))) continue;
+          // FILTRE D'EXCLUSION (28/08, chantier "mécanisme d'exclusion") —
+          // même si `favorites.artists` ne devrait normalement jamais
+          // contenir un artiste exclu (exclusivité mutuelle gérée à la
+          // source, voir App.jsx), on revérifie ici en dernière ligne pour
+          // ne jamais dépendre uniquement de cette hypothèse.
+          if (isExcludedTrack({ trackId: `deezer-${full.id}`, artist: full.artist ? full.artist.name : null, genre: realGenre }, exclusions)) continue;
           return {
             trackId: `deezer-${full.id}`,
             title: full.title,
@@ -742,6 +780,19 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   const artistGenreMap = new Map();
   validGenres.forEach(g => { if (ARTIST_CATALOG[g]) ARTIST_CATALOG[g].forEach(a => { if (!artistGenreMap.has(a)) artistGenreMap.set(a, g); }); });
   let catalogArtists = [...artistGenreMap.keys()];
+  // FILTRE D'EXCLUSION (28/08, chantier "mécanisme d'exclusion") — retiré ICI,
+  // À LA SOURCE de `catalogArtists`, AVANT le test de liste vide juste en
+  // dessous (sinon un cas extrême où l'exclusion viderait entièrement cette
+  // liste ne déclencherait jamais le repli sur ARTIST_CATALOG['Pop']) —
+  // plutôt que patché séparément à chaque endroit qui consomme cette liste
+  // plus bas (`tryArtistCatalogSearch` ET le repli extrême de fin de
+  // fonction, tous les deux tirent leurs candidats de CETTE MÊME liste) : un
+  // artiste exclu n'est ainsi JAMAIS interrogé du tout dans cette fonction,
+  // pas seulement écarté après coup.
+  if (exclusions && Array.isArray(exclusions.artists) && exclusions.artists.length > 0) {
+    const excludedLower = new Set(exclusions.artists.map(a => a.trim().toLowerCase()));
+    catalogArtists = catalogArtists.filter(a => !excludedLower.has(a.trim().toLowerCase()));
+  }
   if (catalogArtists.length === 0) { catalogArtists = ARTIST_CATALOG['Pop']; ARTIST_CATALOG['Pop'].forEach(a => artistGenreMap.set(a, 'Pop')); }
 
   // DEEZER EN DIRECT, mot-clé de CHAQUE genre sélectionné, une recherche par genre
@@ -751,14 +802,14 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
   // ci-dessous, selon l'ordre décidé plus bas (voir WEAK_DEEZER_KEYWORD_GENRES).
   const tryDeezerKeywordSearch = async () => {
     try {
-      const exactMatch = await searchDeezerForGenres(genresForQuery, minBpm, maxBpm, excludeTrackIds, preferredDuration, candidateCap, allowLongTracks, !allGenresHaveWeakKeyword);
+      const exactMatch = await searchDeezerForGenres(genresForQuery, minBpm, maxBpm, excludeTrackIds, preferredDuration, candidateCap, allowLongTracks, !allGenresHaveWeakKeyword, exclusions);
       if (exactMatch) return exactMatch;
     } catch (e) {
       // Échec silencieux (proxy indisponible, hors-ligne...) : on continue vers la tentative suivante.
     }
     try {
       const widenedTolerance = Math.min(tolerance * 2, 40);
-      const widenedMatch = await searchDeezerForGenres(genresForQuery, targetBpm - widenedTolerance, targetBpm + widenedTolerance, excludeTrackIds, preferredDuration, candidateCap, allowLongTracks, !allGenresHaveWeakKeyword);
+      const widenedMatch = await searchDeezerForGenres(genresForQuery, targetBpm - widenedTolerance, targetBpm + widenedTolerance, excludeTrackIds, preferredDuration, candidateCap, allowLongTracks, !allGenresHaveWeakKeyword, exclusions);
       if (widenedMatch) return { ...widenedMatch, _isFallback: true };
     } catch (e) {
       // Échec silencieux : on continue vers le fallback local.
@@ -823,6 +874,14 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
         // de ce titre peut être dans un tout autre style (ex. remix hardstyle).
         details = details.filter(f => !detectTitleStyleConflict(f.title, validGenres) && !detectLanguageVersionConflict(f.title, validGenres));
         if (!allowLongTracks) details = details.filter(f => (f.duration || 0) <= MAX_TRACK_DURATION);
+        // FILTRE D'EXCLUSION (28/08, chantier "mécanisme d'exclusion") —
+        // retiré ICI, avant la construction d'`ordered` et la boucle de
+        // vérification de genre plus bas, pour la MÊME raison que
+        // `searchDeezerForGenres` plus haut dans ce fichier : un candidat
+        // exclu ne doit jamais devenir le repli de dernier recours
+        // (`attempted[0] || ordered[0]`, plus bas) même si "rien d'autre"
+        // n'a été trouvé.
+        details = details.filter(f => !isExcludedTrack({ trackId: `deezer-${f.id}`, artist: f.artist ? f.artist.name : null }, exclusions));
         if (details.length > 0) {
           const ordered = preferredDuration
             ? [...details].sort((a, b) => {
@@ -857,14 +916,24 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
             const artistName = candidate.artist ? candidate.artist.name : null;
             const catalogGenre = findCatalogGenreForArtist(artistName);
             const catalogContradicts = catalogGenre && !validGenres.some(g => genreRoughlyMatches(catalogGenre, g));
-            if (realGenre && !catalogContradicts && validGenres.some(g => genreRoughlyMatches(realGenre, g))) {
+            // FILTRE D'EXCLUSION PAR GENRE (28/08) — le genre RÉEL n'est
+            // connu qu'ICI (après `resolveDeezerGenre`) — voir la même
+            // remarque dans `searchDeezerForGenres`, plus haut, pour le
+            // raisonnement complet du filtrage en 2 temps (artiste/titre
+            // avant la boucle, genre dedans).
+            const isGenreExcluded = isExcludedTrack({ trackId: `deezer-${candidate.id}`, artist: artistName, genre: realGenre }, exclusions);
+            if (realGenre && !catalogContradicts && !isGenreExcluded && validGenres.some(g => genreRoughlyMatches(realGenre, g))) {
               picked = candidate;
               pickedRealGenre = realGenre;
               break;
             }
           }
           if (!picked) {
-            const fallback = attempted[0] || { candidate: ordered[0], realGenre: null };
+            // Même principe que searchDeezerForGenres : un candidat de
+            // genre EXPLICITEMENT exclu ne doit jamais devenir ce repli.
+            const attemptedNotGenreExcluded = attempted.filter(({ realGenre }) => !(exclusions && Array.isArray(exclusions.genres) && exclusions.genres.length > 0 && exclusions.genres.some(g => genreRoughlyMatches(realGenre, g))));
+            const fallback = attemptedNotGenreExcluded[0] || (attempted.length === 0 ? { candidate: ordered[0], realGenre: null } : null);
+            if (!fallback) return null;
             picked = fallback.candidate;
             pickedRealGenre = fallback.realGenre;
             genreMismatch = true;
@@ -927,13 +996,29 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
         const { data: full } = await deezerFetch(`https://api.deezer.com/track/${s.id}`);
         return full;
       })).filter(f => f && f.bpm && parseFloat(f.bpm) > 0);
-      if (details.length > 0) {
+      // FILTRE D'EXCLUSION (28/08, chantier "mécanisme d'exclusion") —
+      // `pickedArtist` est déjà garanti non exclu (`catalogArtists` filtré à
+      // la source, plus haut), mais un TITRE PRÉCIS de cet artiste peut
+      // l'être individuellement (exclusion par titre, pas par artiste) —
+      // vérifié ici même dans ce repli "garanti non-vide" : l'exclusion doit
+      // primer sur "mieux que rien", même en tout dernier recours.
+      // ⚠️ LIMITE CONNUE, ASSUMÉE (exclusion PAR GENRE non vérifiée ici) —
+      // ce repli extrême n'appelle JAMAIS `resolveDeezerGenre` (voir
+      // commentaire plus haut : "peu importe le tempo... peu importe le
+      // genre réel"), le "genre" assigné plus bas n'est qu'une ÉTIQUETTE
+      // reprise du genre DEMANDÉ (`artistGenreMap`/`validGenres[0]`), pas
+      // une vraie classification Deezer — vérifier une exclusion de genre
+      // contre une étiquette qui n'est jamais qu'une copie du genre déjà
+      // demandé n'aurait pas de sens (et ajouter un vrai appel réseau ici
+      // irait à l'encontre du rôle de ce repli, pensé pour rester rapide).
+      const details2 = details.filter(f => !isExcludedTrack({ trackId: `deezer-${f.id}`, artist: f.artist ? f.artist.name : null }, exclusions));
+      if (details2.length > 0) {
         // Comme pour les autres derniers recours de cette cascade : on essaie de
         // respecter le filtre de durée, mais on l'ignore plutôt que de renvoyer
         // un trou si vraiment aucun candidat de cet artiste ne le respecte —
         // cette étape est garantie non-vide, ça reste la priorité absolue.
-        const durationFiltered = allowLongTracks ? details : details.filter(f => (f.duration || 0) <= MAX_TRACK_DURATION);
-        const finalDetails = durationFiltered.length > 0 ? durationFiltered : details;
+        const durationFiltered = allowLongTracks ? details2 : details2.filter(f => (f.duration || 0) <= MAX_TRACK_DURATION);
+        const finalDetails = durationFiltered.length > 0 ? durationFiltered : details2;
         const sortedByProximity = [...finalDetails].sort((a, b) => Math.abs(parseFloat(a.bpm) - targetBpm) - Math.abs(parseFloat(b.bpm) - targetBpm));
         const picked = pickByDurationProximity(sortedByProximity.slice(0, 3), preferredDuration);
         return {
@@ -1004,7 +1089,7 @@ const getSingleMatchingTrack = async (targetBpm, tolerance, selectedGenres, excl
 // frères avant d'accepter n'importe quel genre au hasard. Vide par défaut
 // pour tout appel HORS de cette boucle (segment normal à un seul genre) —
 // n'a alors aucun effet, comportement inchangé.
-const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, spotifyTrackPool, historyExcludeIds = [], onProgress = null, progressBaseCount = 0, siblingGenres = []) => {
+const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, spotifyTrackPool, historyExcludeIds = [], onProgress = null, progressBaseCount = 0, siblingGenres = [], exclusions = null) => {
   // Genre effectif pour CE segment : si la portion a un genre spécifique défini
   // (override manuel à l'étape 3 du wizard), il prime sur le genre global de la
   // séance (config.selectedGenres) — sinon comportement inchangé.
@@ -1045,7 +1130,7 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
       // tous les AUTRES genres de ce même mélange pondéré, pour le dernier
       // recours de ce sous-appel précis.
       const otherGenresInMix = effectiveGenres.filter(g => g !== genre);
-      const subTracks = await buildSegmentTracks(subSegment, config, runningExcludeIds, favorites, spotifyTrackPool, historyExcludeIds, onProgress, confirmedCountSoFar, otherGenresInMix);
+      const subTracks = await buildSegmentTracks(subSegment, config, runningExcludeIds, favorites, spotifyTrackPool, historyExcludeIds, onProgress, confirmedCountSoFar, otherGenresInMix, exclusions);
       allSelected = [...allSelected, ...subTracks];
       confirmedCountSoFar += subTracks.length;
       runningExcludeIds = [...runningExcludeIds, ...subTracks.map(t => t.trackId)];
@@ -1067,6 +1152,13 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
   const addIfValid = (t) => {
     if (t && typeof t.bpm === 'number' && t.bpm >= minBpm && t.bpm <= maxBpm && t.duration && t.trackId && !seenIds.has(t.trackId)) {
       if (!config.allowLongTracks && t.duration > MAX_TRACK_DURATION) return;
+      // FILTRE D'EXCLUSION (28/08, chantier "mécanisme d'exclusion") — placé
+      // ICI, au point d'acceptation CENTRAL de cette fonction : protège
+      // d'un coup TOUTES les sources qui appellent `addIfValid` plus bas
+      // (favoris, Spotify, recherche Deezer généraliste, catalogue) plutôt
+      // que de patcher chaque source séparément — un candidat exclu ne
+      // rejoint jamais le pool, quelle que soit sa provenance.
+      if (isExcludedTrack(t, exclusions)) return;
       pool.push(t);
       seenIds.add(t.trackId); // évite aussi les doublons À L'INTÉRIEUR du pool lui-même
     }
@@ -1253,6 +1345,16 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
   const artistGenreMap = new Map();
   validGenres.forEach(g => { if (ARTIST_CATALOG[g]) ARTIST_CATALOG[g].forEach(a => { if (!artistGenreMap.has(a)) artistGenreMap.set(a, g); }); });
   let catalogArtists = [...artistGenreMap.keys()];
+  // FILTRE D'EXCLUSION (28/08, chantier "mécanisme d'exclusion") — retiré
+  // ICI, À LA SOURCE (même principe que getSingleMatchingTrack) : `addIfValid`
+  // (plus haut dans cette fonction) filtrerait de toute façon un candidat
+  // exclu au moment de l'ajouter au pool, mais l'écarter ICI évite en plus
+  // de gaspiller des appels réseau à interroger un artiste dont on sait déjà
+  // qu'aucun titre ne sera jamais accepté.
+  if (exclusions && Array.isArray(exclusions.artists) && exclusions.artists.length > 0) {
+    const excludedLower = new Set(exclusions.artists.map(a => a.trim().toLowerCase()));
+    catalogArtists = catalogArtists.filter(a => !excludedLower.has(a.trim().toLowerCase()));
+  }
 
   if (catalogArtists.length > 0) {
     try {
@@ -1530,7 +1632,7 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
   // information transmise à l'utilisateur après génération (voir createPlaylistData).
   while (remaining > 30) {
     const usedSoFar = [...excludeTrackIds, ...selected.map(t => t.trackId)];
-    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, effectiveGenres, usedSoFar, favorites, spotifyTrackPool, remaining, historyExcludeIds, config.allowLongTracks);
+    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, effectiveGenres, usedSoFar, favorites, spotifyTrackPool, remaining, historyExcludeIds, config.allowLongTracks, exclusions);
     extra._isFallback = true;
     selected.push(extra);
     remaining -= extra.duration;
@@ -1552,7 +1654,7 @@ const buildSegmentTracks = async (segment, config, excludeTrackIds, favorites, s
 
   // Filet de sécurité ultime : un segment ne doit jamais rester totalement vide.
   if (selected.length === 0) {
-    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, effectiveGenres, excludeTrackIds, favorites, spotifyTrackPool, segment.durationSeconds, historyExcludeIds, config.allowLongTracks);
+    const extra = await getSingleMatchingTrack(segment.bpm, config.bpmTolerance, effectiveGenres, excludeTrackIds, favorites, spotifyTrackPool, segment.durationSeconds, historyExcludeIds, config.allowLongTracks, exclusions);
     extra._isFallback = true;
     selected.push(extra);
     // Même raisonnement que la boucle juste au-dessus — un seul appel ici
@@ -1622,7 +1724,7 @@ const recalculateTimeline = (playlistToUpdate) => {
  * musicEngine.js plutôt que searchEngine.js : ceci concerne le remplacement
  * d'un titre DANS une playlist déjà générée, pas la recherche manuelle libre.
  */
-const findSameArtistReplacement = async (artistName, minBpm, maxBpm, excludeTrackIds, requestedGenres, allowLongTracks = false) => {
+const findSameArtistReplacement = async (artistName, minBpm, maxBpm, excludeTrackIds, requestedGenres, allowLongTracks = false, exclusions = null) => {
   try {
     const q = `artist:"${artistName}" bpm_min:"${Math.max(1, minBpm)}" bpm_max:"${maxBpm}"`;
     const { data } = await deezerFetch(`https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=8`);
@@ -1636,6 +1738,18 @@ const findSameArtistReplacement = async (artistName, minBpm, maxBpm, excludeTrac
     let valid = details.filter(f => f && f.bpm && parseFloat(f.bpm) >= minBpm && parseFloat(f.bpm) <= maxBpm);
     if (!allowLongTracks) valid = valid.filter(f => (f.duration || 0) <= MAX_TRACK_DURATION);
     valid = valid.filter(f => !detectTitleStyleConflict(f.title, requestedGenres) && !detectLanguageVersionConflict(f.title, requestedGenres));
+    // FILTRE D'EXCLUSION (28/08, chantier "mécanisme d'exclusion") — retiré
+    // ICI, avant le tri/la boucle de vérification de genre plus bas, pour la
+    // MÊME raison que les autres cascades de ce fichier : si `artistName`
+    // lui-même est exclu (cas possible — l'exclusion n'est pas rétroactive,
+    // un titre déjà présent dans une playlist plus ancienne peut être d'un
+    // artiste exclu DEPUIS), aucun candidat de cet artiste ne doit être
+    // proposé, même en dernier recours (`attempted[0]`, plus bas). Renvoyer
+    // `null` ici fait automatiquement retomber l'appelant
+    // (PlaylistDetailContext.jsx) sur `getSingleMatchingTrack` (recherche
+    // large), qui respecte lui aussi ce même filtre — dégradation cohérente
+    // avec le comportement de repli déjà en place.
+    valid = valid.filter(f => !isExcludedTrack({ trackId: `deezer-${f.id}`, artist: f.artist ? f.artist.name : artistName }, exclusions));
     valid = valid.sort(() => Math.random() - 0.5);
 
     // Même garde-fou genre que le reste du moteur : même en restant sur le MÊME
@@ -1658,9 +1772,20 @@ const findSameArtistReplacement = async (artistName, minBpm, maxBpm, excludeTrac
       // nécessaire pour un lookup en mémoire).
       const catalogGenre = findCatalogGenreForArtist(candidate.artist ? candidate.artist.name : artistName);
       const catalogContradicts = catalogGenre && !requestedGenres.some(g => genreRoughlyMatches(catalogGenre, g));
-      if (!catalogContradicts && requestedGenres.some(g => genreRoughlyMatches(realGenre, g))) { pick = candidate; break; }
+      // FILTRE D'EXCLUSION PAR GENRE (28/08) — genre réel connu qu'ICI, voir
+      // le même raisonnement que `searchDeezerForGenres`/`tryArtistCatalogSearch`
+      // plus haut dans ce fichier.
+      const isGenreExcluded = isExcludedTrack({ trackId: `deezer-${candidate.id}`, artist: candidate.artist ? candidate.artist.name : artistName, genre: realGenre }, exclusions);
+      if (!catalogContradicts && !isGenreExcluded && requestedGenres.some(g => genreRoughlyMatches(realGenre, g))) { pick = candidate; break; }
     }
-    if (!pick && attempted.length > 0) { pick = attempted[0]; genreMismatch = true; }
+    if (!pick && attempted.length > 0) {
+      // Même principe que les autres replis de ce fichier : un candidat de
+      // genre EXPLICITEMENT exclu ne doit jamais devenir ce repli.
+      const attemptedNotGenreExcluded = attempted.filter(c => !(exclusions && Array.isArray(exclusions.genres) && exclusions.genres.length > 0 && exclusions.genres.some(g => genreRoughlyMatches(c._resolvedGenre, g))));
+      if (attemptedNotGenreExcluded.length === 0) return null;
+      pick = attemptedNotGenreExcluded[0];
+      genreMismatch = true;
+    }
     if (!pick) return null;
 
     return {
@@ -1842,7 +1967,7 @@ const buildGeneratedPlaylistName = (config, isNaughtyMode, finalWorkoutName) => 
 // segment est `tracks.length` — le compte RÉEL des titres déjà CONFIRMÉS
 // par les segments précédents — pour que la progression affichée reste
 // cumulative sur toute la séance, pas seulement le segment en cours.
-const createPlaylistData = async (config, initialExcludeIds = [], favorites, spotifyTrackPool, isNaughtyMode, onProgress = null) => {
+const createPlaylistData = async (config, initialExcludeIds = [], favorites, spotifyTrackPool, isNaughtyMode, onProgress = null, exclusions = null) => {
   let activeSegments = [];
   const unitPaceSecs = config.targetMode === 'distance' ? ((parseInt(config.paceMin)||0)*60 + (parseInt(config.paceSec)||0)) : 330;
 
@@ -1873,7 +1998,7 @@ const createPlaylistData = async (config, initialExcludeIds = [], favorites, spo
       // vue d'ensemble, ce qui pouvait faire largement dépasser la cible.
       const segmentTracks = await buildSegmentTracks(
         segment, config, usedTrackIds, favorites, spotifyTrackPool, initialExcludeIds,
-        onProgress, tracks.length,
+        onProgress, tracks.length, [], exclusions,
       );
       segmentTracks.forEach((randomTrack) => {
           if (randomTrack._isFallback) fallbackCount++;
