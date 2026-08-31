@@ -45,7 +45,7 @@ import { useModalContext } from '../contexts/ModalContext';
  * d'implémentation — le hook capture `favorites` une fois via sa fermeture,
  * aucun des 3 appelants existants n'a à changer.
  */
-export function useDeezerSearch(search, showToast, isNaughtyMode, favorites = null) {
+export function useDeezerSearch(search, showToast, isNaughtyMode, favorites = null, exclusions = null) {
   const { closeModal } = useModalContext();
   const {
     searchQuery, searchResultsOffset, searchActiveArtistName, isWorldSearching,
@@ -224,7 +224,7 @@ export function useDeezerSearch(search, showToast, isNaughtyMode, favorites = nu
       const { results, unconfirmed } = await fetchBpmSearchResults(targetBpm, tolerance, genres, ({ confirmed, unconfirmed: partialUnconfirmed }) => {
         setWorldSearchResults(confirmed);
         setBpmUnconfirmedReserve(partialUnconfirmed);
-      }, favorites);
+      }, favorites, [], 1, exclusions);
       setWorldSearchResults(results);
       setBpmUnconfirmedReserve(unconfirmed);
       // "Rien d'utilisable du tout" : ni confirmé, ni même une approximation
@@ -291,7 +291,7 @@ export function useDeezerSearch(search, showToast, isNaughtyMode, favorites = nu
           setWorldSearchResults(mergeAndResortBpmResults(existingConfirmed, partialConfirmed));
           setBpmUnconfirmedReserve(mergeAndResortBpmResults(existingReserve, partialUnconfirmed));
         },
-        favorites, existingTrackIds, 2
+        favorites, existingTrackIds, 2, exclusions
       );
       setWorldSearchResults(mergeAndResortBpmResults(existingConfirmed, results));
       setBpmUnconfirmedReserve(mergeAndResortBpmResults(existingReserve, unconfirmed));
