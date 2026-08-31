@@ -32,7 +32,7 @@ export default function GeneratorView({
   setCurrentPlaylist, setIsBpmSearchMode, setSearchQuery, setWorldSearchResults,
   setResultsContextLabel, setNoUsableResultsHint, searchTracksByBpm,
   executeGeneration, isGenerating,
-  toggleNaughtyMode, changeView,
+  toggleNaughtyMode, handleOpenSettings,
 }) {
   const { displaySubtitleGen } = useGeneratorContext();
   const { isNaughtyMode } = useAthleticContext();
@@ -63,7 +63,7 @@ export default function GeneratorView({
         setResultsContextLabel={setResultsContextLabel} setNoUsableResultsHint={setNoUsableResultsHint}
         searchTracksByBpm={searchTracksByBpm}
         executeGeneration={executeGeneration} isGenerating={isGenerating}
-        toggleNaughtyMode={toggleNaughtyMode} changeView={changeView}
+        toggleNaughtyMode={toggleNaughtyMode} handleOpenSettings={handleOpenSettings}
       />
     </div>
   );
