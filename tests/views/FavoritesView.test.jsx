@@ -26,6 +26,11 @@ vi.mock('../../src/musicCatalog.js', () => ({
   // GeneratorWizard.jsx, voir sa docstring dans musicCatalog.js). Mock
   // statique, pas un vi.fn() : c'est une simple chaîne dans le vrai module.
   GENRE_SEARCH_DEPTH_HINT: 'mock genre search depth hint',
+  // NOUVEAU (28/08, fusion "Exclusions" en onglet de FavoritesView.jsx) —
+  // ExclusionsView.jsx est désormais importé DIRECTEMENT (pas mocké) par ce
+  // fichier, donc ce mock DOIT aussi couvrir ce dont il a besoin.
+  STANDARD_GENRES: ['Pop', 'Rock'],
+  NAUGHTY_GENRES: ['R&B Sensuel'],
 }));
 
 import FavoritesView from '../../src/components/views/FavoritesView.jsx';
@@ -80,6 +85,16 @@ function baseProps(overrides = {}) {
     setFavBpmTolerance: vi.fn(),
     searchTracksByBpm: vi.fn(),
     changeView: vi.fn(),
+    // NOUVEAU (28/08, fusion "Exclusions" en onglet) — voir la docstring de
+    // FavoritesView.jsx.
+    exclusions: { tracks: [], artists: [], genres: [] },
+    toggleTrackExclusion: vi.fn(),
+    toggleArtistExclusion: vi.fn(),
+    toggleGenreExclusion: vi.fn(),
+    newExclusionArtist: '',
+    setNewExclusionArtist: vi.fn(),
+    isAddingExclusionArtist: false,
+    setIsAddingExclusionArtist: vi.fn(),
     ...overrides,
   };
 }
@@ -263,5 +278,53 @@ describe('FavoritesView', () => {
     render(<FavoritesView {...baseProps({ changeView })} />);
     fireEvent.click(screen.getByText('Synchroniser mes comptes →'));
     expect(changeView).toHaveBeenCalledWith('settings');
+  });
+});
+
+// NOUVEAU (28/08, fusion "Exclusions" en onglet — voir la docstring de
+// FavoritesView.jsx, "ONGLET EXCLUSIONS FUSIONNÉ ICI") — jusqu'ici aucune
+// couverture de la fonctionnalité d'onglet elle-même. `ExclusionsView.jsx`
+// réel (pas mocké, voir la docstring en tête de fichier) : ces tests
+// exercent aussi, en creux, que le passage de props vers ce sous-composant
+// fonctionne (un artiste exclu s'affiche vraiment quand on bascule dessus).
+// Même patron exact que "PlaylistsView — onglets Playlists/Routines"
+// (tests/views/PlaylistsView.test.jsx), même raisonnement de fusion.
+describe('FavoritesView — onglets Favoris/Exclusions (fusion 28/08)', () => {
+  it('démarre sur l\'onglet Favoris par défaut — titre/sous-titre "Mes Favoris"', () => {
+    render(<FavoritesView {...baseProps()} />);
+    expect(screen.getByText('Mes Favoris')).toBeInTheDocument();
+    expect(screen.getByText(/Priorité à la génération/)).toBeInTheDocument();
+  });
+
+  it('affiche les 2 onglets Favoris/Exclusions', () => {
+    render(<FavoritesView {...baseProps()} />);
+    expect(screen.getByRole('tab', { name: 'Favoris' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Exclusions' })).toBeInTheDocument();
+  });
+
+  it('cliquer sur l\'onglet Exclusions change le titre/sous-titre ET affiche le contenu réel d\'ExclusionsView', () => {
+    render(<FavoritesView {...baseProps({ exclusions: { tracks: [], artists: ['Nickelback'], genres: [] } })} />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Exclusions' }));
+
+    expect(screen.getByRole('heading', { name: 'Exclusions' })).toBeInTheDocument();
+    expect(screen.getByText(/n'apparaîtront plus dans les futures générations/)).toBeInTheDocument();
+    // Contenu RÉEL d'ExclusionsView.jsx (pas mocké) — preuve que le
+    // sous-composant reçoit bien ses props et s'affiche pour de vrai.
+    expect(screen.getByText('Nickelback')).toBeInTheDocument();
+    // Le contenu de l'onglet Favoris (titres favoris) ne doit PLUS être
+    // affiché en même temps.
+    expect(screen.queryByText('Mr. Brightside')).not.toBeInTheDocument();
+  });
+
+  it('revenir sur l\'onglet Favoris après avoir visité Exclusions restaure le bon en-tête et contenu', () => {
+    render(<FavoritesView {...baseProps({ exclusions: { tracks: [], artists: ['Nickelback'], genres: [] } })} />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Exclusions' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Favoris' }));
+
+    expect(screen.getByText('Mes Favoris')).toBeInTheDocument();
+    expect(screen.getByText('Mr. Brightside')).toBeInTheDocument();
+    expect(screen.queryByText('Nickelback')).not.toBeInTheDocument();
   });
 });
