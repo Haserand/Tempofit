@@ -41,7 +41,7 @@
  * complet — non reproduit ici pour éviter la duplication.
  */
 
-import { DEEZER_GENRE_KEYWORDS, classifyGenreMatchTier, genreRoughlyMatches, findCatalogGenreForArtist, ARTIST_CATALOG, WEAK_DEEZER_KEYWORD_GENRES } from '../musicCatalog';
+import { DEEZER_GENRE_KEYWORDS, classifyGenreMatchTier, genreRoughlyMatches, findCatalogGenreForArtist, isExcludedTrack, ARTIST_CATALOG, WEAK_DEEZER_KEYWORD_GENRES } from '../musicCatalog';
 import { deezerFetch, resolveDeezerGenre, resolveBpmForCandidates, searchArtistsForBpm, fetchInBatches } from './musicEngine';
 import { debugLog } from '../utils/debugLog';
 
@@ -254,7 +254,7 @@ export const fetchWorldSearchResults = async (query, { reset, offset, activeArti
  * filtre avancé natif Deezer (`bpm_min:`/`bpm_max:`). Pure : aucun setState,
  * aucune lecture de state React.
  */
-export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProgress = null, favorites = null, excludeTrackIds = [], stubCapMultiplier = 1) => {
+export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProgress = null, favorites = null, excludeTrackIds = [], stubCapMultiplier = 1, exclusions = null) => {
   const minBpm = Math.max(1, targetBpm - tolerance);
   const maxBpm = targetBpm + tolerance;
   const genresToQuery = genres && genres.length > 0 ? genres : ['Autre'];
@@ -409,7 +409,15 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
     // mesurée lot par lot maintenant plutôt qu'en un seul bloc final.
     debugLog(`[BPM search] Lot : ${toProcess.length} candidat(s) brut(s) → ${detailedTracks.filter(Boolean).length} détail(s) → ${validDetailedTracks.length} avec un BPM Deezer réellement dans ${minBpm}-${maxBpm}.`);
 
-    const resolved = await fetchInBatches(validDetailedTracks, 15, async (t) => {
+    // FILTRE D'EXCLUSION (28/08, chantier "mécanisme d'exclusion") — retiré
+    // ICI, AVANT la résolution du genre réel (économise des appels réseau
+    // pour un candidat qu'on sait déjà écarter) — contrairement à un
+    // "Genre non confirmé", un titre exclu ne doit JAMAIS apparaître dans
+    // les résultats, même flagué : c'est le sens même de l'exclusion
+    // ("jamais ça"), pas juste une réserve de confiance moindre.
+    const excludableFilteredTracks = validDetailedTracks.filter(t => !isExcludedTrack({ trackId: `deezer-${t.id}`, artist: t.artist ? t.artist.name : null }, exclusions));
+
+    const resolved = await fetchInBatches(excludableFilteredTracks, 15, async (t) => {
       const realGenre = await resolveDeezerGenre(t.id);
       // BUG CORRIGÉ (retour direct, capture d'écran à l'appui : recherche
       // "Métal", des titres Judas Priest ressortaient étiquetés "Pop", sans
@@ -470,6 +478,16 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
       const catalogContradicts = catalogGenre && !genresToQuery.some(g => genreRoughlyMatches(catalogGenre, g));
       const finalTier = catalogContradicts ? 2 : matchTier;
       const genreMismatch = finalTier === 2;
+      // FILTRE D'EXCLUSION PAR GENRE (28/08, chantier "exclure un style au
+      // besoin") — le genre RÉEL n'est connu qu'ICI (après
+      // `resolveDeezerGenre`) — impossible de le vérifier plus tôt (voir
+      // `excludableFilteredTracks`, plus haut, qui ne filtre QUE artiste/
+      // titre pour cette raison). Contrairement à un simple "Genre non
+      // confirmé" (`_genreMismatch`, qui reste affiché avec un
+      // avertissement), un genre EXPLICITEMENT exclu ne doit JAMAIS
+      // apparaître — `null` ici (retiré via `.filter(Boolean)` juste en
+      // dessous), pas juste un palier dégradé.
+      if (isExcludedTrack({ trackId: `deezer-${t.id}`, artist: t.artist ? t.artist.name : null, genre: realGenre }, exclusions)) return null;
       return {
         id: t.id,
         trackId: `deezer-${t.id}`,
@@ -483,7 +501,7 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
         _matchTier: finalTier,
       };
     });
-    resolved.forEach(r => accumulator.set(r.id, r));
+    resolved.filter(Boolean).forEach(r => accumulator.set(r.id, r));
     emitProgress();
   };
 
@@ -528,6 +546,12 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
         if (typeof t !== 'object' || typeof t.bpm !== 'number') return;
         if (t.bpm < minBpm || t.bpm > maxBpm) return;
         if (!genresToQuery.some(g => genreRoughlyMatches(t.genre, g))) return;
+        // FILTRE D'EXCLUSION (28/08, chantier "mécanisme d'exclusion") —
+        // même si `favorites.tracks` ne devrait normalement jamais contenir
+        // un titre exclu (exclusivité mutuelle gérée à la source, voir
+        // App.jsx), on revérifie ici en dernière ligne pour ne jamais
+        // dépendre uniquement de cette hypothèse.
+        if (isExcludedTrack(t, exclusions)) return;
         // Même convention que `seenIds`/`accumulator` ailleurs dans ce
         // fichier (clé = ID NUMÉRIQUE Deezer brut, PAS une chaîne — les
         // stubs Deezer JSON portent `id` en `number`, jamais en `string`) —
@@ -566,7 +590,22 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
     // continue normalement sans ce boost plutôt que d'échouer entièrement.
     if (Array.isArray(favorites.artists) && favorites.artists.length > 0) {
       try {
-        const favoriteStubs = await searchArtistsForBpm(favorites.artists, minBpm, maxBpm, [], favorites.artists.length, 10);
+        // FILTRE D'EXCLUSION (28/08, chantier "mécanisme d'exclusion") —
+        // retiré ICI, avant de lancer la recherche, pour éviter de
+        // gaspiller des appels réseau sur un artiste dont on sait déjà
+        // qu'aucun titre ne sera jamais accepté (le filtre par TITRE plus
+        // bas reste nécessaire en complément, pour un titre précis exclu
+        // d'un artiste par ailleurs non exclu). `if` englobant plutôt qu'un
+        // `return;` anticipé : CE bloc est directement dans le corps de
+        // `fetchBpmSearchResults`, pas dans une fonction imbriquée — un
+        // `return;` ici aurait quitté TOUTE la fonction, sautant la
+        // recherche généraliste/catalogue plus bas (trouvé en relisant
+        // avant de livrer, jamais exécuté en l'état).
+        const favoriteArtistsToSearch = exclusions && Array.isArray(exclusions.artists) && exclusions.artists.length > 0
+          ? favorites.artists.filter(a => !exclusions.artists.some(ex => ex.trim().toLowerCase() === a.trim().toLowerCase()))
+          : favorites.artists;
+        if (favoriteArtistsToSearch.length > 0) {
+        const favoriteStubs = await searchArtistsForBpm(favoriteArtistsToSearch, minBpm, maxBpm, [], favoriteArtistsToSearch.length, 10);
         const freshStubs = favoriteStubs.filter(s => !seenIds.has(s.id));
         const details = await fetchInBatches(freshStubs, 15, async (stub) => {
           const { data: full } = await deezerFetch(`https://api.deezer.com/track/${stub.id}`);
@@ -590,6 +629,9 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
           const artistName = t.artist ? t.artist.name : null;
           const catalogGenre = findCatalogGenreForArtist(artistName);
           if (catalogGenre && !genresToQuery.some(g => genreRoughlyMatches(catalogGenre, g))) return null;
+          // FILTRE D'EXCLUSION (28/08, chantier "mécanisme d'exclusion") —
+          // même raisonnement que le second avis catalogue juste au-dessus.
+          if (isExcludedTrack({ trackId: `deezer-${t.id}`, artist: artistName, genre: realGenre }, exclusions)) return null;
           return {
             id: t.id,
             trackId: `deezer-${t.id}`,
@@ -610,6 +652,7 @@ export const fetchBpmSearchResults = async (targetBpm, tolerance, genres, onProg
           accumulator.set(r.id, r);
         });
         emitProgress();
+        }
       } catch (e) {
         // Échec silencieux (même philosophie que le reste de ce fichier).
       }
