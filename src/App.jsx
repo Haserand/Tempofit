@@ -81,7 +81,6 @@ import { useSessionAnalysis } from './hooks/useSessionAnalysis';
 // pas orphelin, toujours utilisé ailleurs dans le projet.
 const SettingsView = lazy(() => import('./components/views/SettingsView'));
 const FavoritesView = lazy(() => import('./components/views/FavoritesView'));
-const ExclusionsView = lazy(() => import('./components/views/ExclusionsView'));
 const TrophiesView = lazy(() => import('./components/views/TrophiesView'));
 // `RoutinesView` RETIRÉ d'ici (20/08, fusion "Mes Routines" en onglet de
 // "Mes Playlists") — plus une vue de premier niveau chargée en lazy depuis
@@ -2126,16 +2125,6 @@ function AppContent({
                 favBpmTarget={favBpmTarget} setFavBpmTarget={setFavBpmTarget}
                 favBpmTolerance={favBpmTolerance} setFavBpmTolerance={setFavBpmTolerance}
                 searchTracksByBpm={searchTracksByBpm} changeView={changeView}
-              />
-            )}
-
-            {/* ===================== VIEW: EXCLUSIONS ===================== */}
-            {/* Nouvel onglet (28/08, retour direct — "mécanisme d'exclusion")
-                — pendant négatif de "Mes Favoris" juste au-dessus, même
-                emplacement de code pour rester facile à retrouver ensemble. */}
-            {view === 'exclusions' && (
-              <ExclusionsView
-                theme={themeTokens} isNaughtyMode={isNaughtyMode}
                 exclusions={exclusions}
                 toggleTrackExclusion={toggleTrackExclusionCoordinated}
                 toggleArtistExclusion={toggleArtistExclusionCoordinated}
