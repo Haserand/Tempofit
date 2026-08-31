@@ -280,7 +280,7 @@ describe('DiscoverView — onglet "Profils" (recherche de profils intégrée, 20
     render(<DiscoverView {...baseProps({ user: null })} />);
     fireEvent.click(screen.getByRole('tab', { name: 'Profils' }));
 
-    expect(screen.getByText('Rejoins la communauté TempoFit')).toBeInTheDocument();
+    expect(screen.getByText('Découvre profils et playlists publiques.')).toBeInTheDocument();
     expect(screen.queryByPlaceholderText('Pseudo (ex: alex_runner)')).not.toBeInTheDocument();
     // La grille de séances ne doit plus être affichée non plus.
     expect(screen.queryByText(knownTemplate.title)).not.toBeInTheDocument();
@@ -301,7 +301,7 @@ describe('DiscoverView — onglet "Profils" (recherche de profils intégrée, 20
     fireEvent.click(screen.getByRole('tab', { name: 'Profils' }));
 
     expect(screen.getByPlaceholderText('Pseudo (ex: alex_runner)')).toBeInTheDocument();
-    expect(screen.queryByText('Rejoins la communauté TempoFit')).not.toBeInTheDocument();
+    expect(screen.queryByText('Découvre profils et playlists publiques.')).not.toBeInTheDocument();
   });
 
   it('connecté : taper 2+ caractères déclenche search_public_profiles après le debounce, affiche les résultats', async () => {
