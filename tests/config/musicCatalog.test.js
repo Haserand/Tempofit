@@ -7,6 +7,7 @@ import {
   detectTitleStyleConflict,
   detectLanguageVersionConflict,
   findCatalogGenreForArtist,
+  isExcludedTrack,
 } from '../../src/musicCatalog.js';
 
 describe('isDirectGenreMatch', () => {
@@ -206,5 +207,82 @@ describe('detectLanguageVersionConflict', () => {
 
   it('renvoie null pour un titre absent', () => {
     expect(detectLanguageVersionConflict('', ['K-pop'])).toBeNull();
+  });
+});
+
+// NOUVEAU (28/08, chantier "mécanisme d'exclusion") — fonction PURE,
+// testable sans réseau ; son usage réel (filtrer les candidats dans
+// musicEngine.js/searchEngine.js) est hors scope ici (réseau, voir leurs
+// propres fichiers de test).
+describe('isExcludedTrack', () => {
+  const exclusions = { artists: ['AC/DC'], tracks: [{ trackId: 'deezer-123' }] };
+
+  it('exclut un titre dont le trackId est explicitement dans exclusions.tracks', () => {
+    expect(isExcludedTrack({ trackId: 'deezer-123', artist: 'Inconnu' }, exclusions)).toBe(true);
+  });
+
+  it('exclut TOUS les titres d\'un artiste exclu, même un trackId jamais listé', () => {
+    expect(isExcludedTrack({ trackId: 'deezer-999', artist: 'AC/DC' }, exclusions)).toBe(true);
+  });
+
+  it('insensible à la casse pour la comparaison d\'artiste', () => {
+    expect(isExcludedTrack({ trackId: 'deezer-999', artist: 'ac/dc' }, exclusions)).toBe(true);
+  });
+
+  it('n\'exclut PAS un titre non listé d\'un artiste non exclu', () => {
+    expect(isExcludedTrack({ trackId: 'deezer-999', artist: 'The Killers' }, exclusions)).toBe(false);
+  });
+
+  it('renvoie false sans planter si exclusions est null/undefined (appelant qui ne gère pas encore ce mécanisme)', () => {
+    expect(isExcludedTrack({ trackId: 'deezer-123', artist: 'AC/DC' }, null)).toBe(false);
+    expect(isExcludedTrack({ trackId: 'deezer-123', artist: 'AC/DC' }, undefined)).toBe(false);
+  });
+
+  it('renvoie false sans planter si le titre est null/undefined', () => {
+    expect(isExcludedTrack(null, exclusions)).toBe(false);
+    expect(isExcludedTrack(undefined, exclusions)).toBe(false);
+  });
+
+  it('renvoie false si exclusions.artists/tracks sont absents ou mal formés', () => {
+    expect(isExcludedTrack({ trackId: 'x', artist: 'AC/DC' }, {})).toBe(false);
+  });
+});
+
+// NOUVEAU (28/08, "prends du recul, pouvoir exclure un style au besoin ?")
+describe('isExcludedTrack — exclusion par genre', () => {
+  it('exclut un titre dont le genre correspond exactement à un genre exclu', () => {
+    const exclusions = { artists: [], tracks: [], genres: ['Rap'] };
+    expect(isExcludedTrack({ trackId: 'deezer-1', artist: 'Inconnu', genre: 'Rap' }, exclusions)).toBe(true);
+  });
+
+  it('respecte les équivalences de genre (genreRoughlyMatches), pas une égalité stricte — Rock exclu écarte aussi un titre catalogué Métal', () => {
+    const exclusions = { artists: [], tracks: [], genres: ['Rock'] };
+    expect(isExcludedTrack({ trackId: 'deezer-1', artist: 'Inconnu', genre: 'Métal' }, exclusions)).toBe(true);
+  });
+
+  it('n\'exclut pas un titre d\'un genre différent, sans rapport', () => {
+    const exclusions = { artists: [], tracks: [], genres: ['Rap'] };
+    expect(isExcludedTrack({ trackId: 'deezer-1', artist: 'Inconnu', genre: 'Jazz' }, exclusions)).toBe(false);
+  });
+
+  it('sans genre exclu configuré (tableau vide), n\'exclut jamais par genre', () => {
+    const exclusions = { artists: [], tracks: [], genres: [] };
+    expect(isExcludedTrack({ trackId: 'deezer-1', artist: 'Inconnu', genre: 'Rap' }, exclusions)).toBe(false);
+  });
+
+  it('renvoie false sans planter si track.genre est absent', () => {
+    const exclusions = { artists: [], tracks: [], genres: ['Rap'] };
+    expect(isExcludedTrack({ trackId: 'deezer-1', artist: 'Inconnu' }, exclusions)).toBe(false);
+  });
+
+  it('renvoie false sans planter si exclusions.genres est absent (ancienne forme sans ce champ)', () => {
+    const exclusions = { artists: [], tracks: [] };
+    expect(isExcludedTrack({ trackId: 'deezer-1', artist: 'Inconnu', genre: 'Rap' }, exclusions)).toBe(false);
+  });
+
+  it('les 3 critères (trackId, artiste, genre) restent indépendants — un seul suffit à exclure', () => {
+    const exclusions = { artists: [], tracks: [], genres: ['Jazz'] };
+    // Ni trackId ni artiste exclu, mais le genre l'est.
+    expect(isExcludedTrack({ trackId: 'deezer-1', artist: 'Miles Davis', genre: 'Jazz' }, exclusions)).toBe(true);
   });
 });
