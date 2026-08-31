@@ -328,10 +328,10 @@ describe('searchTracksByBpm', () => {
 
     await searchTracksByBpm(140, 10, ['Rock']);
 
-    expect(mockFetchBpmSearchResults).toHaveBeenCalledWith(140, 10, ['Rock'], expect.any(Function), favorites);
+    expect(mockFetchBpmSearchResults).toHaveBeenCalledWith(140, 10, ['Rock'], expect.any(Function), favorites, [], 1, null);
   });
 
-  it('sans favoris fournis au hook (undefined), transmet `null` à fetchBpmSearchResults (pas de crash)', async () => {
+  it('sans favoris NI exclusions fournis au hook (undefined), transmet `null` pour les deux à fetchBpmSearchResults (pas de crash)', async () => {
     mockFetchBpmSearchResults.mockResolvedValue({ results: [], unconfirmed: [] });
     const search = makeSearch();
     const showToast = vi.fn();
@@ -339,7 +339,24 @@ describe('searchTracksByBpm', () => {
 
     await searchTracksByBpm(140, 10, ['Jazz']);
 
-    expect(mockFetchBpmSearchResults).toHaveBeenCalledWith(140, 10, ['Jazz'], expect.any(Function), null);
+    expect(mockFetchBpmSearchResults).toHaveBeenCalledWith(140, 10, ['Jazz'], expect.any(Function), null, [], 1, null);
+  });
+
+  // NOUVEAU (28/08, chantier "mécanisme d'exclusion") — `exclusions` reçu
+  // par le hook (5e paramètre, même convention que `favorites`) doit être
+  // transmis TEL QUEL à `fetchBpmSearchResults` — logique réelle de
+  // filtrage hors scope ici (réseau, voir searchEngine.test.js), on
+  // vérifie seulement le câblage.
+  it('transmet `exclusions` à fetchBpmSearchResults quand fourni au hook', async () => {
+    mockFetchBpmSearchResults.mockResolvedValue({ results: [], unconfirmed: [] });
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const exclusions = { artists: ['Nickelback'], tracks: [] };
+    const { searchTracksByBpm } = useDeezerSearch(search, showToast, false, null, exclusions);
+
+    await searchTracksByBpm(140, 10, ['Rock']);
+
+    expect(mockFetchBpmSearchResults).toHaveBeenCalledWith(140, 10, ['Rock'], expect.any(Function), null, [], 1, exclusions);
   });
 
   it('applique la progression (onProgress) EN COURS de recherche avant le résultat final — confirmé et non confirmé séparés', async () => {
@@ -450,7 +467,22 @@ describe('loadMoreBpmResults', () => {
       expect.any(Function),
       favorites,
       ['deezer-1', 'deezer-2'], // trackId déjà affichés OU en réserve, les 2 piles combinées
-      2 // stubCapMultiplier
+      2, // stubCapMultiplier
+      null // exclusions, pas fourni au hook dans ce test
+    );
+  });
+
+  it('transmet `exclusions` à fetchBpmSearchResults (loadMoreBpmResults) quand fourni au hook', async () => {
+    mockFetchBpmSearchResults.mockResolvedValue({ results: [], unconfirmed: [] });
+    const search = makeSearch();
+    const showToast = vi.fn();
+    const exclusions = { artists: ['Nickelback'], tracks: [] };
+    const { loadMoreBpmResults } = useDeezerSearch(search, showToast, false, null, exclusions);
+
+    await loadMoreBpmResults();
+
+    expect(mockFetchBpmSearchResults).toHaveBeenCalledWith(
+      140, 10, ['Rock'], expect.any(Function), null, [], 2, exclusions
     );
   });
 
