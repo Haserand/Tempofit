@@ -147,7 +147,7 @@ describe('ProfileView — Login Wall', () => {
   it('visiteur NON connecté : affiche l\'écran de verrouillage, n\'appelle JAMAIS supabase.rpc', async () => {
     render(<ProfileView {...baseProps} user={null} />);
 
-    expect(await screen.findByText('Rejoins la communauté TempoFit')).toBeInTheDocument();
+    expect(await screen.findByText('Connecte-toi pour @tempofit_admin')).toBeInTheDocument();
     expect(mockRpc).not.toHaveBeenCalled();
   });
 
@@ -158,6 +158,27 @@ describe('ProfileView — Login Wall', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Se connecter/ }));
 
     expect(openModal).toHaveBeenCalledWith('AUTH');
+  });
+
+  // NOUVEAU (28/08, retour direct — "assure-toi bien que ça tienne à chaque
+  // fois juste sur 1 ligne") — le pseudo est de longueur VARIABLE
+  // (contrairement au reste du message), donc le seul cas qui compte
+  // vraiment pour la garantie demandée est le PIRE CAS : un pseudo au
+  // maximum autorisé par `USERNAME_REGEX` (utils/username.js,
+  // `/^[a-z0-9_]{3,20}$/`, 20 caractères). Gabarit "Connecte-toi pour @" =
+  // 19 caractères + 20 = 39 caractères total, dans le même budget que celui
+  // confirmé réel pour StatsView.jsx (38-40 caractères à `text-lg font-bold
+  // max-w-sm mx-auto`, voir sa docstring) — ce test fige ce calcul en dur
+  // pour qu'une régression future (gabarit alourdi, pseudo autorisé à
+  // dépasser 20) se voie immédiatement ici plutôt qu'en repérant une
+  // capture d'écran cassée bien plus tard.
+  it('avec un pseudo au MAXIMUM autorisé (20 caractères), le message reste dans le budget de caractères déjà validé (StatsView.jsx, 38-40)', async () => {
+    const maxLengthUsername = 'a'.repeat(20); // 20 caractères, le maximum de USERNAME_REGEX
+    render(<ProfileView {...baseProps} username={maxLengthUsername} user={null} />);
+
+    const expectedText = `Connecte-toi pour @${maxLengthUsername}`;
+    expect(expectedText.length).toBeLessThanOrEqual(40);
+    expect(await screen.findByText(expectedText)).toBeInTheDocument();
   });
 });
 
@@ -640,7 +661,7 @@ describe('ProfileView — profil vitrine officiel (@tempofit_officiel)', () => {
     render(<ProfileView {...baseProps} username={OFFICIAL_VITRINE_USERNAME} user={null} />);
 
     expect(await screen.findByText(`@${OFFICIAL_VITRINE_USERNAME}`)).toBeInTheDocument();
-    expect(screen.queryByText('Rejoins la communauté TempoFit')).toBeNull();
+    expect(screen.queryByText(`Connecte-toi pour @${OFFICIAL_VITRINE_USERNAME}`)).toBeNull();
     expect(mockRpc).not.toHaveBeenCalled();
   });
 
