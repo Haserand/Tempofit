@@ -571,10 +571,29 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
           <div className={`w-16 h-16 rounded-full flex items-center justify-center ${bgAccentClass} text-white`}>
             <Lock size={28} />
           </div>
-          <p className={`font-bold text-xl ${textHighlight}`}>Rejoins la communauté TempoFit</p>
-          <p className={`text-sm max-w-sm ${textMuted}`}>
-            Connecte-toi ou crée un compte pour découvrir les statistiques et les playlists de @{username}.
-          </p>
+          {/* FUSIONNÉ EN UNE SEULE LIGNE (retour direct, 28/08 — voir la
+              docstring du même changement dans DiscoverView.jsx, chantier
+              identique) — MAIS `@{username}` (longueur VARIABLE, contrairement
+              au message fixe de DiscoverView.jsx) complique la garantie
+              "tient à chaque fois sur 1 ligne" demandée explicitement. Pseudo
+              limité à 20 caractères (`USERNAME_REGEX`, utils/username.js,
+              `/^[a-z0-9_]{3,20}$/`) — calcul fait sur CE MAXIMUM, pas sur un
+              pseudo "typique" : gabarit "Connecte-toi pour @" = 19 caractères
+              + pseudo (≤20) = 39 caractères MÊME DANS LE PIRE CAS, dans le
+              même budget que celui confirmé réel pour StatsView.jsx (38-40
+              caractères à `text-lg font-bold max-w-sm mx-auto`, voir sa
+              docstring) — contrairement à l'ancienne formulation ("Connecte-toi
+              ou crée un compte pour découvrir les statistiques et les
+              playlists de @{username}.", bien plus longue), garanti quel que
+              soit le pseudo, pas juste une estimation optimiste. Formulation
+              plus courte que "pour voir le profil de @X" (qui aurait dépassé
+              le budget avec un pseudo proche du maximum) — @ suffit déjà à
+              signaler qu'il s'agit d'un profil, avec l'icône verrou juste
+              au-dessus et le bouton "Se connecter" juste en dessous pour le
+              contexte. */}
+          <h3 className={`text-lg font-bold max-w-sm mx-auto ${textHighlight}`}>
+            Connecte-toi pour @{username}
+          </h3>
           <button
             onClick={() => openModal('AUTH')}
             className={`mt-2 px-6 py-3 rounded-xl font-bold text-white shadow-md hover:brightness-110 transition-all ${bgAccentClass}`}
