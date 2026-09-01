@@ -5,7 +5,7 @@ import { ICON_BUTTON_ROUNDING } from '../../layout/iconButtonLayout';
 import {
   SIDEBAR_LINK_PADDING, SIDEBAR_LINK_GAP, SIDEBAR_SECTION_TITLE_MARGIN,
   SIDEBAR_SEPARATOR_MARGIN, SIDEBAR_SEPARATOR_MARGIN_COMPACT,
-  SIDEBAR_DISCOVER_SEPARATOR_MARGIN, SIDEBAR_DISCOVER_SEPARATOR_MARGIN_COMPACT,
+  SIDEBAR_DISCOVER_SEPARATOR_MARGIN, SIDEBAR_DISCOVER_SEPARATOR_MARGIN_COMPACT, SIDEBAR_DISCOVER_BOTTOM_MARGIN,
   SIDEBAR_SCROLL_PADDING, SIDEBAR_FOOTER_LINK_PADDING,
   SIDEBAR_LINK_PADDING_COMPACT, SIDEBAR_LINK_GAP_COMPACT, SIDEBAR_SECTION_TITLE_MARGIN_COMPACT,
   SIDEBAR_SCROLL_PADDING_COMPACT, SIDEBAR_NAUGHTY_EXIT_MARGIN_BOTTOM,
@@ -122,6 +122,14 @@ function Sidebar({
   // problème concrètement (Découvrir hors champ sans scroll).
   const separatorMargin = isNaughtyMode ? SIDEBAR_SEPARATOR_MARGIN_COMPACT : SIDEBAR_SEPARATOR_MARGIN;
   const discoverSeparatorMargin = isNaughtyMode ? SIDEBAR_DISCOVER_SEPARATOR_MARGIN_COMPACT : SIDEBAR_DISCOVER_SEPARATOR_MARGIN;
+  // Vide en Mode Intime (01/09) — le retour direct qui demandait "Découvrir"
+  // centré dans son bloc (pas collé au pied de page) portait sur une
+  // capture en thème STANDARD (icônes rouges, pas roses) ; le Mode Intime,
+  // jamais concerné par cette demande, garde son comportement d'avant
+  // (tout l'espace réservé au-dessus de "Découvrir", rien après) — ajouter
+  // cette marge aussi ici referait courir le risque de scroll déjà réglé
+  // pixel par pixel le 21/08 pour ce mode précis (SIDEBAR_SCROLL_PADDING_COMPACT).
+  const discoverBottomMargin = isNaughtyMode ? '' : SIDEBAR_DISCOVER_BOTTOM_MARGIN;
 
   // BUG CORRIGÉ (25/07, retour direct : "je ne peux pas cliquer sur Options
   // & Comptes quand le lecteur audio est actif") — le padding précédent
@@ -534,7 +542,7 @@ function Sidebar({
             visiteur ne s'y attende. Séparateur au-dessus conservé (reste
             visuellement distinct de "Mon Espace"), seul le texte
             "Découverte" disparaît. */}
-        <div className={`flex flex-col ${linkGap}`}>
+        <div className={`flex flex-col ${linkGap} ${discoverBottomMargin}`}>
           <button onClick={() => changeView('discover')} className={`w-full flex items-center space-x-3 ${linkPadding} rounded-xl transition-colors select-none cursor-pointer ${view === 'discover' ? `${bgAccentClass} text-white shadow-lg` : `${textMuted} hover:bg-surface-hover hover:text-main`}`}>
             <Compass size={18} className={view === 'discover' ? 'text-white' : textColorClass} />
             <span className="font-bold text-sm">Découvrir</span>
