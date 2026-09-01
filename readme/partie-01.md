@@ -39,24 +39,22 @@ VERIFICATION.md`, restructuré en `claude-sandbox-verification/partie-
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement — session longue du 28/08 (plusieurs chantiers
-enchaînés sur retours directs successifs). Points marquants : (1)
-**mécanisme d'exclusion complet** (artistes/titres/genres jamais
-souhaités, `useExclusions.js`) — pendant négatif des favoris, filtré aux
-deux moteurs (génération ET recherche manuelle) à chaque point
-d'acceptation y compris les replis de dernier recours, avec exclusivité
-mutuelle favoris/exclusions et messages de transition ; (2) **"Exclusions"
-fusionné en onglet de "Mes Favoris"** (même schéma que Playlists/Routines
-du 20/08) ; (3) **2 bugs réels de navigation Réglages** corrigés (même
-motif : `changeView('settings')` nu hérite d'un onglet périmé d'une visite
-précédente — `handleOpenSettings(tab)` est désormais la seule voie
-correcte) ; (4) recherche manuelle BPM : compteur de résultats, bouton
-"Charger plus" (jamais définitif), menu unifié favori/exclusion
-titre+artiste (aligné sur le menu déjà en place dans une playlist) ; (5)
-plusieurs textes condensés à une ligne en réutilisant un budget de
-caractères déjà validé réel (`StatsView.jsx`, 38-40 caractères à
-`text-lg font-bold max-w-sm`). Suite complète : 122 fichiers, 1699 tests
-au vert. Voir l'index `HISTORIQUE.md` → bloc 11 pour le récit complet.
+Rien en cours actuellement — check-up de reprise du 01/09 (sanity check
+général + 2 corrections ponctuelles demandées). Points marquants : (1)
+**sanity check complet** (esbuild/tsc sur tout `src/`+`tests/`, résolution
+d'imports, pièges Tailwind/jest-dom, suite complète) sans rien à corriger
+côté mécanique — 2 fichiers de commentaires reformulés dans
+`testFileIdentityTrap.test.js` pour ne plus déclencher de faux positifs à
+l'audit manuel, `key` React de `SearchModal.jsx` corrigée (index → `trackId`,
+cohérent avec le raisonnement déjà écrit dans ce même fichier) ; (2)
+**bug visuel "texte blanc sur fond clair" corrigé à 3 endroits**
+(`StatsView.jsx`, `ProfileView.jsx`, `PlaylistDetailView.jsx`) — repéré par
+comparaison de captures d'écran "Mes Statistiques" vs "Découvrir",
+généralisé ensuite à tout le projet ; (3) **nouveau garde-fou permanent**
+`tests/hoverWhiteTextTrap.test.js` pour ce motif récurrent (déjà corrigé 2
+fois avant sans laisser de garde-fou derrière — voir Convention UI, règle
+9, `readme/partie-02.md`). Suite complète : 123 fichiers, 1701 tests au
+vert. Voir l'index `HISTORIQUE.md` → bloc 12 pour le récit complet.
 
 ### ⚠️ Règle permanente (25/08) — cette section ne contient QUE le chantier en cours, jamais l'historique clos
 
