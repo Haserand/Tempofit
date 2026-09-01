@@ -2244,6 +2244,7 @@ function AppContent({
           searchHasMoreResults={searchHasMoreResults} isLoadingMoreResults={isLoadingMoreResults}
           resultsContextLabel={resultsContextLabel} searchActiveArtistName={searchActiveArtistName} noUsableResultsHint={noUsableResultsHint}
           currentPlaylist={currentPlaylist} favorites={favorites} toggleTrackFavorite={toggleTrackFavoriteCoordinated}
+          toggleArtistFavorite={toggleArtistFavoriteCoordinated}
           exclusions={exclusions} toggleTrackExclusion={toggleTrackExclusionCoordinated} toggleArtistExclusion={toggleArtistExclusionCoordinated}
           editingBpmId={editingBpmId} setEditingBpmId={setEditingBpmId} commitBpmEdit={commitBpmEdit}
           handleAddManualTrack={handleAddManualTrack} togglePreview={togglePreview} playingPreviewId={playingPreviewId}
