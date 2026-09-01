@@ -59,5 +59,21 @@ et la présence/absence d'éléments, jamais sur la structure interne
 **Suite complète** : 123 fichiers, 1704 tests, tous verts (inchangé,
 aucun autre fichier touché).
 
-**Livraison** : `src/components/modals/ShareModal.jsx` — chemin repo
-exact, esbuild + tsc --checkJs + `npx vitest run` avant livraison.
+**Addendum — "Télécharger le visuel" déplacé sous le visuel** : retour
+direct suivant, avec une nouvelle capture annotée : "le bouton télécharger
+le visuel devrait pas être juste en dessous du dit visuel ?". Diagnostic :
+ce lien avait été positionné après "Copier le lien" comme repli manuel
+pour WhatsApp/X/Facebook plus haut (ces réseaux n'ouvrent qu'une URL,
+impossible d'y joindre un fichier automatiquement) — logique valable au
+moment où ce lien suivait directement les tuiles WhatsApp/X/Facebook,
+mais "Copier le lien" (gros bouton plein, très visible) s'était entre-temps
+intercalé entre les deux, cassant cette proximité et éloignant le lien du
+visuel qu'il concerne. Remonté juste sous le visuel (avant la grille de
+boutons de partage) — reste tout aussi accessible avant qu'après avoir
+cliqué WhatsApp/X/Facebook. Vérifié par capture d'écran réelle (même
+harnais que l'addendum précédent). Suite complète re-confirmée après ce
+2e changement : 123 fichiers, 1704 tests, tous verts.
+
+**Livraison finale** : `src/components/modals/ShareModal.jsx` — chemin
+repo exact, esbuild + tsc --checkJs + `npx vitest run` avant chaque
+livraison.
