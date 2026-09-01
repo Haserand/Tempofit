@@ -1,4 +1,5 @@
-import { Target, Search, Loader2, ChevronDown, Play, Pause, Edit3, Check, Plus, Ban, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
+import { Target, Search, Loader2, ChevronDown, Play, Pause, Edit3, Star, MoreVertical, Ban, RefreshCw } from 'lucide-react';
 import { genreDisplayLabel, getGenresForDisplay } from '../../musicCatalog';
 import ModalShell from '../shared/ModalShell';
 import ModalCloseButton from '../shared/ModalCloseButton';
@@ -26,12 +27,22 @@ export default function SearchModal({
   searchLoadingMessage, searchElapsedSeconds,
   searchHasMoreResults, isLoadingMoreResults,
   resultsContextLabel, searchActiveArtistName, noUsableResultsHint,
-  currentPlaylist, favorites, toggleTrackFavorite,
+  currentPlaylist, favorites, toggleTrackFavorite, toggleArtistFavorite,
   exclusions, toggleTrackExclusion, toggleArtistExclusion,
   editingBpmId, setEditingBpmId, commitBpmEdit,
   handleAddManualTrack, togglePreview, playingPreviewId,
 }) {
   const { cardBg, cardBorder, textHighlight, textColorClass, textMuted, inputBg, inputBorder, bgAccentClass } = theme;
+  // Menu d'options d'un résultat de recherche (28/08, retour direct —
+  // "prends du recul, pouvoir ajouter/exclure un ARTISTE depuis le moteur
+  // de recherche, pas juste le morceau") — même patron que
+  // `openTrackMenuIndex` dans TrackItem.jsx (playlist), mais keyé par
+  // `trackId` plutôt que par index de tableau : contrairement à une
+  // tracklist de playlist (ordre stable), cette liste de résultats peut se
+  // RÉORGANISER sous le menu ouvert (ex. favoriser un titre le fait
+  // disparaître de `visibleMainResults`, décalant les index suivants) — un
+  // état gardé par INDEX pointerait alors sur le mauvais titre après coup.
+  const [openResultMenuId, setOpenResultMenuId] = useState(null);
 
   if (!isSearchModalOpen) return null;
 
@@ -94,7 +105,7 @@ export default function SearchModal({
   // extraite en fonction réutilisable pour être partagée entre la liste
   // principale (worldSearchResults) et la réserve "autres résultats" révélée en
   // bas une fois la recherche épuisée (voir worldSearchOtherResults).
-  const renderSearchResultRow = (track, key) => {
+  const renderSearchResultRow = (track, key, isNearEnd = false) => {
     const isEditingThisBpm = editingBpmId === track.trackId;
     const isAlreadyFavorited = !currentPlaylist && favorites.tracks.some(t => t.trackId === track.trackId);
     // ⚠️ HARMONISÉ (28/08, retour direct — "prends du recul, harmonise
@@ -192,31 +203,77 @@ export default function SearchModal({
           // voir le commentaire ci-dessus pour le raisonnement complet.
           <span className={"font-mono text-sm font-bold " + textColorClass}>{track.bpm} BPM</span>
         )}
-        <button onClick={addOrToggleFavorite} title={isAlreadyFavorited ? "Retirer des favoris" : "Ajouter"}>
-          {isAlreadyFavorited ? (
-            <Check size={16} className="text-green-500" />
-          ) : (
-            <Plus size={16} className={textMuted}/>
+        {/* MENU D'OPTIONS (28/08, retour direct — "prends du recul, pouvoir
+            ajouter un artiste aux favoris depuis le moteur de recherche, ou
+            à l'inverse exclure l'artiste ; et pas juste le morceau") —
+            remplace les 2 boutons rapides précédents (favori titre / exclure
+            titre) par un menu à 4 actions, même patron que le menu "..." de
+            TrackItem.jsx (playlist) : favoriser/exclure le TITRE, favoriser/
+            exclure l'ARTISTE. Un artiste favori/exclu depuis ICI a EXACTEMENT
+            le même effet qu'ajouté depuis une playlist — mêmes fonctions
+            coordonnées (`toggleArtistFavorite`/`toggleArtistExclusion`,
+            App.jsx), pas une 2e implémentation. `toggleArtistFavorite`/
+            `toggleArtistExclusion` optionnels (`&&`) : ce composant reste
+            utilisable sans ces mécanismes branchés (tests existants,
+            composant appelé sans props exhaustives). */}
+        <div className="relative shrink-0">
+          <button
+            onClick={() => setOpenResultMenuId(openResultMenuId === track.trackId ? null : track.trackId)}
+            className={`p-2 rounded-lg transition-colors ${textMuted} hover:text-main`}
+            title="Plus d'options"
+          >
+            <MoreVertical size={16}/>
+          </button>
+          {openResultMenuId === track.trackId && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setOpenResultMenuId(null)}></div>
+              <div className={`absolute right-0 z-20 w-64 rounded-xl border shadow-2xl ${cardBg} ${cardBorder} overflow-hidden ${isNearEnd ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
+                <button
+                  onClick={() => { addOrToggleFavorite(); setOpenResultMenuId(null); }}
+                  className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}
+                >
+                  <Star size={16} className="text-amber-500" fill={isAlreadyFavorited ? 'currentColor' : 'none'}/>
+                  {currentPlaylist ? "Ajouter à la playlist" : (isAlreadyFavorited ? "Retirer ce titre des favoris" : "Favoriser ce titre")}
+                </button>
+                {toggleArtistFavorite && (() => {
+                  const artistIsFav = favorites.artists.includes(track.artist);
+                  return (
+                    <button
+                      onClick={() => { toggleArtistFavorite(track.artist); setOpenResultMenuId(null); }}
+                      className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}
+                    >
+                      <Star size={16} className="text-amber-500" fill={artistIsFav ? 'currentColor' : 'none'}/>
+                      {artistIsFav ? `Retirer ${track.artist} des favoris` : `Favoriser l'artiste (${track.artist})`}
+                    </button>
+                  );
+                })()}
+                {(toggleTrackExclusion || toggleArtistExclusion) && <div className={`h-px my-1 ${cardBorder} border-t`}></div>}
+                {toggleTrackExclusion && (() => {
+                  const trackIsExcluded = exclusions && exclusions.tracks.some(t => t.trackId === track.trackId);
+                  return (
+                    <button
+                      onClick={() => { toggleTrackExclusion(track); setOpenResultMenuId(null); }}
+                      className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}
+                    >
+                      <Ban size={16} className="text-red-500"/> {trackIsExcluded ? "Retirer ce titre des exclusions" : "Exclure ce titre"}
+                    </button>
+                  );
+                })()}
+                {toggleArtistExclusion && (() => {
+                  const artistIsExcluded = exclusions && exclusions.artists.some(a => a.trim().toLowerCase() === track.artist.trim().toLowerCase());
+                  return (
+                    <button
+                      onClick={() => { toggleArtistExclusion(track.artist); setOpenResultMenuId(null); }}
+                      className={`w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 hover:bg-surface-hover transition-colors ${textHighlight}`}
+                    >
+                      <Ban size={16} className="text-red-500"/> {artistIsExcluded ? `Retirer ${track.artist} des exclusions` : `Exclure l'artiste (${track.artist})`}
+                    </button>
+                  );
+                })()}
+              </div>
+            </>
           )}
-        </button>
-        {/* EXCLUSION (28/08, retour direct : "mécanisme d'exclusion... via
-            d'autres points d'entrée" — audit demandé sur la recherche
-            manuelle) — action ponctuelle sur CE titre précis trouvé par la
-            recherche, indépendante d'"Ajouter aux favoris" juste au-dessus
-            (les deux peuvent coexister dans le flux, ex. ajouter un titre
-            puis se raviser et l'exclure plus tard). `toggleTrackExclusion`
-            reçu ici est déjà la version COORDONNÉE avec les favoris (voir
-            App.jsx) — gère seule la transition favori→exclu si besoin.
-            Optionnel (`toggleTrackExclusion &&`) : ce composant reste
-            utilisable sans le mécanisme d'exclusion branché. */}
-        {toggleTrackExclusion && (() => {
-          const isExcluded = exclusions && exclusions.tracks.some(t => t.trackId === track.trackId);
-          return (
-            <button onClick={() => toggleTrackExclusion(track)} title={isExcluded ? "Retirer des exclusions" : "Exclure ce titre"}>
-              <Ban size={16} className={isExcluded ? "text-red-500" : textMuted}/>
-            </button>
-          );
-        })()}
+        </div>
       </div>
     </div>
     );
@@ -362,7 +419,7 @@ export default function SearchModal({
                     {displayedResults.length > 0 && visibleMainResults.length === 0 && (
                       <div className={`text-xs italic px-1 pb-1 ${textMuted}`}>Tous les titres trouvés ici sont déjà dans tes favoris.</div>
                     )}
-                    {visibleMainResults.map((track, i) => renderSearchResultRow(track, i))}
+                    {visibleMainResults.map((track, i) => renderSearchResultRow(track, i, i >= visibleMainResults.length - 2))}
                   </>
                 );
               })()}
@@ -383,7 +440,10 @@ export default function SearchModal({
               {!searchHasMoreResults && !isBpmSearchMode && worldSearchOtherResults.length > 0 && (
                 <>
                   <div className={`text-xs font-bold uppercase tracking-wider mt-4 mb-2 px-1 ${textMuted}`}>Autres résultats pour "{searchQuery}" (pas {searchActiveArtistName})</div>
-                  {worldSearchOtherResults.filter(t => !(!currentPlaylist && favorites.tracks.some(f => f.trackId === t.trackId))).map((track, i) => renderSearchResultRow(track, `other-${i}`))}
+                  {(() => {
+                    const filteredOtherResults = worldSearchOtherResults.filter(t => !(!currentPlaylist && favorites.tracks.some(f => f.trackId === t.trackId)));
+                    return filteredOtherResults.map((track, i) => renderSearchResultRow(track, `other-${i}`, i >= filteredOtherResults.length - 2));
+                  })()}
                 </>
               )}
             </>
