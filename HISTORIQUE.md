@@ -88,6 +88,9 @@ contenu perdu ni dupliqué dans ces opérations.
 - `historique/bloc-11b.md` — harmonisation favoris recherche/playlist, exclusion par genre (filtrage en 2 temps), bug "Synchroniser mes comptes" (mauvais onglet Réglages), fusion Exclusions en onglet de Favoris, textes condensés à une ligne (budget validé StatsView.jsx), 2e bug identique ("Configurer mes zones BPM"), discussion sans suite (exclusions pré-remplies)
 - `historique/bloc-11c.md` — menu unifié favori/exclusion (titre+artiste) sur la recherche manuelle, bilan du bloc et 2 leçons de test généralisables
 
+### Bloc 12 — 01/09 (reprise de projet, sanity check + bug texte blanc récurrent)
+- `historique/bloc-12.md` — lecture complète de passation, sanity check général (mécanique + audit ciblé, aucune régression trouvée), 2 corrections mineures (faux positifs testFileIdentityTrap.test.js, `key` React de SearchModal.jsx), bug "texte blanc sur fond clair" repéré par capture d'écran puis généralisé à 3 fichiers, nouveau garde-fou permanent `hoverWhiteTextTrap.test.js`
+
 ## Blocs futurs
 
 Le prochain bloc (12) doit suivre la même convention : un ou plusieurs
