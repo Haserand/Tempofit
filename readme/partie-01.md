@@ -56,9 +56,15 @@ retiré pour préserver l'espace de nav) — présenté à l'utilisateur avant
 d'implémenter, solution retenue compatible (n'absorbe que le vide déjà
 inutilisé, ne force jamais rien à grandir). Résidu d'environ 5px trouvé
 après un vrai déploiement (mesure sur capture d'écran par analyse
-d'image calibrée, pas à l'œil), corrigé — voir bloc 13. Suite complète :
-123 fichiers, 1702 tests au vert. Voir l'index `HISTORIQUE.md` → blocs 12
-et 13 pour le récit complet.
+d'image calibrée, pas à l'œil), corrigé. Puis "Découvrir" plus centré
+dans son bloc (tout l'espace réservé était d'un seul côté) — réparti en
+2 (17px/11px, asymétrique pour compenser un padding caché de 6px), sans
+déplacer la ligne. Enfin, un "léger scroll" du menu de gauche sur fenêtre
+courte, causé par une marge (`mt-4`) devenue inerte mais toujours
+consommée — mise à 0px, seuil de débordement repoussé à ~500-550px de
+hauteur de fenêtre (vérifié par mesure réelle, 450-1000px). Voir bloc 13.
+Suite complète : 123 fichiers, 1704 tests au vert. Voir l'index
+`HISTORIQUE.md` → blocs 12 et 13 pour le récit complet.
 
 ### ⚠️ Règle permanente (25/08) — cette section ne contient QUE le chantier en cours, jamais l'historique clos
 
