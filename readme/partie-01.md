@@ -65,13 +65,17 @@ consommée — mise à 0px, seuil de débordement repoussé à ~500-550px de
 hauteur de fenêtre (vérifié par mesure réelle, 450-1000px). Enfin, 4
 principes tirés de ce chantier transformés en documentation permanente
 (1 dans Convention UI, 3 dans CLAUDE-SANDBOX-VERIFICATION.md) — voir
-blocs 13 et 14. Puis chantier séparé : `ShareModal.jsx`, texte de partage
-fusionné à côté de la vignette du Bilan Visuel (au lieu d'au-dessus,
-isolée) quand l'image est prête, puis "Télécharger le visuel" remonté
-juste sous le visuel (après un 2e retour direct — le bouton "Copier le
-lien" s'était intercalé entre ce lien et sa justification d'origine) —
-voir bloc 15. Suite complète : 123 fichiers, 1704 tests au vert.
-Voir l'index `HISTORIQUE.md` → blocs 12 à 15 pour le récit complet.
+blocs 13 et 14. Puis `ShareModal.jsx` : texte de partage fusionné à côté
+de la vignette du Bilan Visuel (au lieu d'au-dessus, isolée), "Télécharger
+le visuel" remonté juste sous le visuel — voir bloc 15. Enfin, vrai
+partage Instagram Stories sur iOS (`shareToInstagramStories`, useShare.js)
+— le bouton "Story / IG" n'avait jusqu'ici aucune intégration Instagram
+réelle, juste le partage générique de l'OS ; ⚠️ jamais testé sur un vrai
+iPhone (aucun disponible dans ce bac à sable), à confirmer sur un vrai
+appareil — même correctif étendu à `StatsView.jsx` ("Partager mon bilan",
+oublié une 1re fois, traité sur rappel direct) — voir bloc 16. Suite
+complète : 123 fichiers, 1710 tests au vert. Voir l'index `HISTORIQUE.md`
+→ blocs 12 à 16 pour le récit complet.
 
 ### ⚠️ Règle permanente (25/08) — cette section ne contient QUE le chantier en cours, jamais l'historique clos
 
