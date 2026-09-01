@@ -1014,7 +1014,7 @@ function AppContent({
     isShareModalOpen,
     handleShare: handleShareBase, copyToClipboard, shareNative,
     shareToWhatsApp, shareToTwitter, shareToFacebook, shareViaEmail,
-    shareImageFile,
+    shareImageFile, shareToInstagramStories,
   } = useShare(showToast);
 
   // "Partager" — utilise le bouton Partager (playlist ou trophée) au moins
@@ -2077,7 +2077,7 @@ function AppContent({
                 theme={themeTokens} savedPlaylists={savedPlaylists} changeView={changeView}
                 setCurrentPlaylist={setCurrentPlaylist} getProfileForWorkout={getProfileForWorkout}
                 getProfileForWorkoutOrDefault={getProfileForWorkoutOrDefault}
-                shareImageFile={shareImageFileWithTrophy} showToast={showToast}
+                shareImageFile={shareImageFileWithTrophy} shareToInstagramStories={shareToInstagramStories} showToast={showToast}
                 isNaughtyMode={isNaughtyMode}
                 user={user} username={username} profilePrivacy={profilePrivacy}
                 onViewOwnProfile={() => handleViewProfile(username)}
@@ -2299,7 +2299,7 @@ function AppContent({
           isShareModalOpen={isShareModalOpen} onClose={closeModal} shareData={shareData}
           shareNative={shareNative} shareToWhatsApp={shareToWhatsApp} shareToTwitter={shareToTwitter} shareToFacebook={shareToFacebook}
           copyToClipboard={copyToClipboard} shareViaEmail={shareViaEmail}
-          shareImageFile={shareImageFileWithTrophy}
+          shareImageFile={shareImageFileWithTrophy} shareToInstagramStories={shareToInstagramStories}
         />
 
         {/* Feature Sociale — Navigation (01/08) — déclenchée depuis le
