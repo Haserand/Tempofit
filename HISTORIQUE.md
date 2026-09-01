@@ -83,10 +83,15 @@ contenu perdu ni dupliqué dans ces opérations.
 ### Bloc 10 — 28/08 (sanity check périodique — 2 bugs réels de fermeture async sur checkTrophies/userStats)
 - `historique/bloc-10.md` — bloc complet (sous la limite, pas de découpe nécessaire)
 
+### Bloc 11 — 28/08 (session longue, chantiers enchaînés — moteur de recherche, mécanisme d'exclusion complet, fusion Exclusions→Favoris, 2 bugs de navigation Réglages, menu unifié favori/exclusion)
+- `historique/bloc-11a.md` — recherche manuelle BPM (pourquoi 25 candidats/artiste et pas plus, pourquoi le signal d'arrêt anticipé n'était utile qu'à un endroit), application à la génération des mêmes correctifs, cadrage du mécanisme d'exclusion (5 points), implémentation artistes/titres (partie 1)
+- `historique/bloc-11b.md` — harmonisation favoris recherche/playlist, exclusion par genre (filtrage en 2 temps), bug "Synchroniser mes comptes" (mauvais onglet Réglages), fusion Exclusions en onglet de Favoris, textes condensés à une ligne (budget validé StatsView.jsx), 2e bug identique ("Configurer mes zones BPM"), discussion sans suite (exclusions pré-remplies)
+- `historique/bloc-11c.md` — menu unifié favori/exclusion (titre+artiste) sur la recherche manuelle, bilan du bloc et 2 leçons de test généralisables
+
 ## Blocs futurs
 
-Le prochain bloc (11) doit suivre la même convention : un ou plusieurs
-fichiers `historique/bloc-11x.md`, chacun sous ~13 000 caractères,
+Le prochain bloc (12) doit suivre la même convention : un ou plusieurs
+fichiers `historique/bloc-12x.md`, chacun sous ~13 000 caractères,
 la coupure tombant sur une frontière de session/date plutôt qu'un
 comptage aveugle de caractères — ajoutés à l'index ci-dessus au moment
 de leur création.
