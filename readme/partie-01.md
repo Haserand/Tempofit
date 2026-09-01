@@ -65,8 +65,11 @@ consommée — mise à 0px, seuil de débordement repoussé à ~500-550px de
 hauteur de fenêtre (vérifié par mesure réelle, 450-1000px). Enfin, 4
 principes tirés de ce chantier transformés en documentation permanente
 (1 dans Convention UI, 3 dans CLAUDE-SANDBOX-VERIFICATION.md) — voir
-blocs 13 et 14. Suite complète : 123 fichiers, 1704 tests au vert.
-Voir l'index `HISTORIQUE.md` → blocs 12 à 14 pour le récit complet.
+blocs 13 et 14. Puis chantier séparé : `ShareModal.jsx`, texte de partage
+fusionné à côté de la vignette du Bilan Visuel (au lieu d'au-dessus,
+isolée) quand l'image est prête — voir bloc 15. Suite complète :
+123 fichiers, 1704 tests au vert. Voir l'index `HISTORIQUE.md` → blocs
+12 à 15 pour le récit complet.
 
 ### ⚠️ Règle permanente (25/08) — cette section ne contient QUE le chantier en cours, jamais l'historique clos
 
