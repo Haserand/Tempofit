@@ -51,6 +51,12 @@ function baseProps(overrides = {}) {
     copyToClipboard: vi.fn(),
     shareViaEmail: vi.fn(),
     shareImageFile: vi.fn(() => Promise.resolve('shared')),
+    // Mock par défaut : délègue directement au repli reçu en 4e argument
+    // (`shareImageFile`, voir ShareModal.jsx) — reproduit le comportement
+    // réel de `shareToInstagramStories` (useShare.js) hors iOS, le cas
+    // TOUJOURS vrai dans l'environnement de test jsdom (`navigator.userAgent`
+    // n'y ressemble jamais à un iPhone).
+    shareToInstagramStories: vi.fn((file, title, text, fallback) => fallback(file, title, text)),
     ...overrides,
   };
 }
@@ -192,9 +198,10 @@ describe('ShareModal — canaux de partage', () => {
     expect(shareImageFile).not.toHaveBeenCalled();
   });
 
-  it('avec navigator.share ET image prête : le bouton natif appelle shareImageFile puis ferme la modale', async () => {
+  it('avec navigator.share ET image prête : le bouton natif appelle shareToInstagramStories (avec shareImageFile en repli) puis ferme la modale', async () => {
     navigator.share = vi.fn();
     const shareImageFile = vi.fn(() => Promise.resolve('shared'));
+    const shareToInstagramStories = vi.fn((file, title, text, fallback) => fallback(file, title, text));
     const shareNative = vi.fn();
     const onClose = vi.fn();
     const file = new File(['x'], 'bilan.png');
@@ -203,12 +210,21 @@ describe('ShareModal — canaux de partage', () => {
     }));
     render(
       <ShareModal
-        {...baseProps({ shareImageFile, shareNative, onClose })}
+        {...baseProps({ shareImageFile, shareToInstagramStories, shareNative, onClose })}
       />
     );
 
     fireEvent.click(screen.getByTitle('Partager le visuel (Story, Instagram, WhatsApp...)'));
 
+    // `shareToInstagramStories` reçoit bien `shareImageFile` (PAS une
+    // version fermée en dur dans useShare.js) en 4e argument — condition
+    // pour que le trophée "hasSharedSomething" (voir
+    // `shareImageFileWithTrophy`, App.jsx) se déclenche pareil quel que
+    // soit le chemin de partage réellement emprunté (01/09, retour direct
+    // "es-tu sûr que les boutons de partage ouvrent bien les réseaux
+    // sociaux ?" — Instagram Stories n'a pas d'URL de partage web, voir
+    // la docstring de `shareToInstagramStories`, useShare.js).
+    await waitFor(() => expect(shareToInstagramStories).toHaveBeenCalledWith(file, 'Ma Séance', 'Je viens de terminer une séance !', shareImageFile));
     await waitFor(() => expect(shareImageFile).toHaveBeenCalledWith(file, 'Ma Séance', 'Je viens de terminer une séance !'));
     expect(shareNative).not.toHaveBeenCalled();
     await waitFor(() => expect(onClose).toHaveBeenCalled());
