@@ -166,7 +166,74 @@ identique à un vrai déploiement — à reconfirmer visuellement pour ce
 type de réglage fin, exactement comme le rappelle déjà
 `CLAUDE-SANDBOX-VERIFICATION.md` pour d'autres mesures de ce projet.
 
+**2e addendum — "Découvrir" n'était plus centré dans son bloc** (nouvelle
+capture d'écran, nouveau retour direct) : tout l'espace réservé pour
+l'alignement (`mb-7`, 28px) était placé D'UN SEUL CÔTÉ (entre la ligne et
+"Découvrir"), rien après — "Découvrir" se retrouvait donc collé au pied de
+page plutôt que centré dans le vide disponible. Un signalement de "léger
+scroll" est arrivé dans le même message ; non reproduit dans ce bac à
+sable même en testant des hauteurs de fenêtre très courtes (600-1000px,
+zéro débordement à chaque fois) — cause probablement propre à
+l'environnement réel de l'utilisateur (zoom, police, fenêtre encore plus
+étroite), question de clarification posée en retour plutôt que de deviner
+un correctif sans preuve.
+
+Correctif du centrage — les 28px réservés RÉPARTIS en 2, plutôt que
+concentrés avant "Découvrir" :
+- `SIDEBAR_DISCOVER_SEPARATOR_MARGIN` (`mb`) : 17px (au lieu de 28px).
+- Nouvelle constante `SIDEBAR_DISCOVER_BOTTOM_MARGIN` (11px), appliquée
+  au conteneur du bouton "Découvrir" lui-même (`Sidebar.jsx`, nouvelle
+  variable locale `discoverBottomMargin`, vide en Mode Intime — la
+  demande de centrage portait sur une capture en thème standard).
+- Répartition VOLONTAIREMENT ASYMÉTRIQUE (17/11, pas 14/14) : mesuré via
+  Playwright qu'une répartition égale (14/14) aurait donné un espace
+  PERÇU de 14px avant "Découvrir" mais 20px après — `SIDEBAR_SCROLL_PADDING`
+  (`pb-1.5`, 6px) ajoute de l'espace invisible après "Découvrir", avant le
+  pied de page, que la simple lecture du fichier ne révèle pas. 17/11
+  compense exactement ce déséquilibre caché.
+- Total inchangé (17+11=28px) : la position de la ligne elle-même ne
+  bouge PAS, seule la répartition change — vérifié par mesure réelle
+  (5 hauteurs de fenêtre, 600-1000px) : espace perçu de 17px des 2 côtés
+  du bouton à chaque fois, 0px de débordement.
+
+**Piège de mesure rencontré en cours de route** (pour la prochaine fois) :
+une 1re mesure Playwright de "l'écart ligne/bloc du bas" a semblé montrer
+une régression (-5px au lieu de 0px attendu) après le correctif de
+centrage — fausse alerte, entièrement expliquée : le -5px vient du `mb-7`
+lui-même (déjà présent AVANT le correctif de centrage, résidu
+volontairement ajouté pour compenser l'écart de production, voir
+l'addendum précédent), pas de la répartition 17/11. Vérifié en revenant
+temporairement à `mb-7` seul dans ce même bac à sable : même -5px,
+confirmant que la répartition ne change rien à l'alignement, seulement à
+la façon dont l'espace est distribué. Leçon : quand une mesure ne
+correspond pas à l'attendu, comparer contre la configuration précédente
+DANS LE MÊME environnement de test avant de conclure à une régression.
+
+**Suite complète après ce 2e addendum** : 123 fichiers, 1704 tests, tous
+verts.
+
+**3e addendum — "léger scroll" identifié et corrigé** : clarification
+demandée puis obtenue — c'est bien le menu de gauche (Sidebar) qui
+devient scrollable, uniquement sur une fenêtre pas trop haute. Diagnostic :
+`mt-4`(16px), bien qu'établi comme SANS AUCUN effet visuel une fois
+l'espaceur actif (voir le 1er addendum), restait un `margin` FIXE — donc
+TOUJOURS consommé dans le calcul de hauteur de la nav, contrairement à
+l'espaceur `flex-1` qui, lui, dégrade proprement à 0px sous contrainte.
+Ces 16px, strictement inutiles visuellement, réduisaient d'autant la
+marge de sécurité avant qu'un `overflow-y-auto` ne se déclenche sur une
+fenêtre courte. `mt-4` → `mt-0` : aucune perte dans le cas normal
+(l'espaceur reste seul maître de la position), seul le cas de repli
+DÉGRADÉ (contenu qui déborde malgré tout) perd un peu de respiration
+au-dessus de la ligne — compromis accepté (un scroll évité vaut mieux
+qu'un espacement cosmétique dans un état déjà dégradé). Vérifié par
+mesure réelle sur une plage élargie (450 à 1000px) : le seuil de
+débordement descend à ~500-550px (contre un seuil plus haut avant ce
+correctif) — alignement (-5px, résidu prod volontaire) et centrage
+(17px/17px) inchangés à toutes les hauteurs sans débordement.
+
+**Suite complète après ce 3e addendum** : 123 fichiers, 1704 tests, tous
+verts.
+
 **Livraison** : `src/components/shared/Sidebar.jsx`, `src/layout/sidebarLayout.js`,
-`tests/layout/sidebarLayout.test.js`, `readme/partie-02.md`, `HISTORIQUE.md`,
-`historique/bloc-13.md` — fichier par fichier, chemin repo exact, esbuild +
-tsc --checkJs + `npx vitest run` avant chaque livraison.
+`tests/layout/sidebarLayout.test.js` — fichier par fichier, chemin repo
+exact, esbuild + tsc --checkJs + `npx vitest run` avant chaque livraison.
