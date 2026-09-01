@@ -323,3 +323,129 @@ describe('useShare — shareImageFile', () => {
     expect(outcome).toBe('downloaded');
   });
 });
+
+// RETOUR DIRECT (01/09, capture d'écran : "es-tu sûr que les boutons de
+// partage vers les réseaux sociaux ouvrent bien les réseaux sociaux ? ça ne
+// me semble pas être le cas pour Instagram") — voir la docstring complète
+// de `shareToInstagramStories` dans useShare.js pour le contexte et la
+// limite honnête (jamais testé sur un vrai iPhone, uniquement ce que
+// jsdom/ce bac à sable permettent de vérifier : la LOGIQUE de bascule
+// elle-même, pas le vrai comportement d'iOS/Instagram).
+describe('useShare — shareToInstagramStories', () => {
+  function stubIOSUserAgent() {
+    // Objet simple plutôt que `Object.create(Navigator.prototype)` — `userAgent`
+    // n'est qu'un getter sur le vrai prototype `Navigator`, `Object.assign`
+    // déclenche son setter (inexistant) et lève une erreur. Un objet neuf
+    // suffit : chaque test ajoute ensuite lui-même les propriétés dont il a
+    // besoin (`clipboard`...) via `Object.assign(navigator, {...})`, APRÈS
+    // cet appel.
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15' });
+  }
+
+  it('hors iOS (userAgent jsdom par défaut) : bascule directement sur le repli, sans toucher au presse-papier', async () => {
+    const { result } = renderUseShare();
+    const file = new File(['x'], 'bilan.png', { type: 'image/png' });
+    const fallback = vi.fn(() => Promise.resolve('shared'));
+
+    await act(async () => { await result.current.shareToInstagramStories(file, 'Titre', 'Texte', fallback); });
+
+    expect(fallback).toHaveBeenCalledWith(file, 'Titre', 'Texte');
+  });
+
+  it('iOS mais API presse-papier indisponible : bascule directement sur le repli', async () => {
+    stubIOSUserAgent();
+    const { result } = renderUseShare();
+    const file = new File(['x'], 'bilan.png', { type: 'image/png' });
+    const fallback = vi.fn(() => Promise.resolve('shared'));
+
+    await act(async () => { await result.current.shareToInstagramStories(file, 'Titre', 'Texte', fallback); });
+
+    expect(fallback).toHaveBeenCalledWith(file, 'Titre', 'Texte');
+  });
+
+  it('iOS + presse-papier dispo mais écriture refusée/échoue : bascule sur le repli', async () => {
+    stubIOSUserAgent();
+    global.ClipboardItem = vi.fn(function (items) { this.items = items; });
+    Object.assign(navigator, { clipboard: { write: vi.fn(() => Promise.reject(new Error('denied'))) } });
+    const { result } = renderUseShare();
+    const file = new File(['x'], 'bilan.png', { type: 'image/png' });
+    const fallback = vi.fn(() => Promise.resolve('shared'));
+
+    await act(async () => { await result.current.shareToInstagramStories(file, 'Titre', 'Texte', fallback); });
+
+    expect(fallback).toHaveBeenCalledWith(file, 'Titre', 'Texte');
+    delete global.ClipboardItem;
+  });
+
+  it('iOS + écriture presse-papier réussie : écrit le fichier avec son propre type MIME, PAS de repli immédiat', async () => {
+    stubIOSUserAgent();
+    global.ClipboardItem = vi.fn(function (items) { this.items = items; });
+    const writeSpy = vi.fn(() => Promise.resolve());
+    Object.assign(navigator, { clipboard: { write: writeSpy } });
+    const originalLocation = window.location;
+    delete window.location;
+    window.location = { ...originalLocation, href: '' };
+    const { result } = renderUseShare();
+    const file = new File(['x'], 'bilan.png', { type: 'image/png' });
+    const fallback = vi.fn(() => Promise.resolve('shared'));
+
+    await act(async () => { await result.current.shareToInstagramStories(file, 'Titre', 'Texte', fallback); });
+
+    expect(global.ClipboardItem).toHaveBeenCalledWith({ 'image/png': file });
+    expect(writeSpy).toHaveBeenCalled();
+    expect(window.location.href).toBe('instagram-stories://share?source_application=tempofit');
+    expect(fallback).not.toHaveBeenCalled();
+    window.location = originalLocation;
+    delete global.ClipboardItem;
+  });
+
+  it('iOS + navigation tentée mais page TOUJOURS visible après le délai (Instagram probablement non installé) : bascule sur le repli', async () => {
+    vi.useFakeTimers();
+    stubIOSUserAgent();
+    global.ClipboardItem = vi.fn(function (items) { this.items = items; });
+    Object.assign(navigator, { clipboard: { write: vi.fn(() => Promise.resolve()) } });
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    const originalLocation = window.location;
+    delete window.location;
+    window.location = { ...originalLocation, href: '' };
+    const { result } = renderUseShare();
+    const file = new File(['x'], 'bilan.png', { type: 'image/png' });
+    const fallback = vi.fn(() => Promise.resolve('shared'));
+
+    await act(async () => { await result.current.shareToInstagramStories(file, 'Titre', 'Texte', fallback); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1600); });
+
+    expect(fallback).toHaveBeenCalledWith(file, 'Titre', 'Texte');
+    window.location = originalLocation;
+    delete global.ClipboardItem;
+    vi.useRealTimers();
+  });
+
+  it('iOS + page cachée avant le délai (Instagram probablement ouvert avec succès) : le repli n\'est PAS déclenché', async () => {
+    vi.useFakeTimers();
+    stubIOSUserAgent();
+    global.ClipboardItem = vi.fn(function (items) { this.items = items; });
+    Object.assign(navigator, { clipboard: { write: vi.fn(() => Promise.resolve()) } });
+    let visibilityState = 'visible';
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibilityState });
+    const originalLocation = window.location;
+    delete window.location;
+    window.location = { ...originalLocation, href: '' };
+    const { result } = renderUseShare();
+    const file = new File(['x'], 'bilan.png', { type: 'image/png' });
+    const fallback = vi.fn(() => Promise.resolve('shared'));
+
+    await act(async () => { await result.current.shareToInstagramStories(file, 'Titre', 'Texte', fallback); });
+    // Simule le passage au premier plan d'Instagram (page cachée) AVANT le
+    // délai de repli, puis déclenche l'event que le vrai navigateur
+    // émettrait dans ce cas.
+    visibilityState = 'hidden';
+    document.dispatchEvent(new Event('visibilitychange'));
+    await act(async () => { await vi.advanceTimersByTimeAsync(1600); });
+
+    expect(fallback).not.toHaveBeenCalled();
+    window.location = originalLocation;
+    delete global.ClipboardItem;
+    vi.useRealTimers();
+  });
+});
