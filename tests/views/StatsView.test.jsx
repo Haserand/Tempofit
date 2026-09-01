@@ -100,6 +100,11 @@ function baseProps(overrides = {}) {
     getProfileForWorkout: vi.fn(),
     getProfileForWorkoutOrDefault: vi.fn(),
     shareImageFile: vi.fn(),
+    // Mock par défaut : délègue directement au repli reçu en 4e argument
+    // (`shareImageFile`) — reproduit le comportement réel de
+    // `shareToInstagramStories` (useShare.js) hors iOS, le cas TOUJOURS
+    // vrai dans l'environnement de test jsdom.
+    shareToInstagramStories: vi.fn((file, title, text, fallback) => fallback(file, title, text)),
     showToast: vi.fn(),
     isNaughtyMode: false,
     user: { id: 'user-abc' },
@@ -160,13 +165,27 @@ describe('StatsView — "Partager mon bilan" (sous la grille des 4 chiffres, 2e 
     expect(screen.queryByTitle('Générer une image de ton bilan global à partager')).not.toBeInTheDocument();
   });
 
-  it('le clic appelle bien exportGlobalStatsImage (via shareImageFile, prop transmise)', async () => {
+  it('le clic appelle bien exportGlobalStatsImage — via shareToInstagramStories (avec shareImageFile en repli, 01/09 : même correctif que ShareModal.jsx, "Story / IG")', async () => {
     mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
     const shareImageFile = vi.fn().mockResolvedValue('shared');
-    render(<StatsView {...baseProps({ shareImageFile })} />);
+    const shareToInstagramStories = vi.fn((file, title, text, fallback) => fallback(file, title, text));
+    render(<StatsView {...baseProps({ shareImageFile, shareToInstagramStories })} />);
 
     fireEvent.click(screen.getByTitle('Générer une image de ton bilan global à partager'));
 
+    // `shareToInstagramStories` reçoit bien `shareImageFile` (PAS une
+    // version fermée en dur dans useShare.js) en 4e argument — condition
+    // pour que le trophée "hasSharedSomething" (`shareImageFileWithTrophy`,
+    // App.jsx) se déclenche pareil quel que soit le chemin de partage
+    // réellement emprunté.
+    // `undefined` en 1er argument : `captureElementAsFile` est mocké par un
+    // simple `vi.fn()` dans ce fichier (aucune valeur de retour configurée
+    // pour CE test précis), donc `file` vaut `undefined` ici — sans
+    // incidence sur ce qui est réellement vérifié (le bon texte et le bon
+    // repli transmis).
+    await waitFor(() => expect(shareToInstagramStories).toHaveBeenCalledWith(
+      undefined, 'Mon Bilan TempoFit', "Mon bilan d'entraînement sur TempoFit 💪🎧", shareImageFile
+    ));
     await waitFor(() => expect(shareImageFile).toHaveBeenCalled());
   });
 });
