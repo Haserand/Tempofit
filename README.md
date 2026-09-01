@@ -52,7 +52,11 @@ d'historique à purger plutôt qu'à découper (voir ci-dessus).
   au fil des retours directs" (pseudo cliquable, centrage flexbox
   asymétrique, élément décoratif vs fonctionnel, mesurer plutôt que
   raisonner sur du CSS, extraire un composant partagé dès le 2e cas de
-  recette dupliquée, classes Tailwind dépendantes)
+  recette dupliquée)
+- `readme/partie-02b.md` (01/09, extrait de partie-02.md qui dépassait le
+  seuil de taille) — suite de "Convention UI" : classes Tailwind
+  dépendantes (`flex-col` sans `flex`), marge fixe rendue inerte par un
+  espaceur `flex-1` ajouté à côté
 - `readme/partie-03.md` — "Décisions actées, pas encore implémentées —
   chantier Pulses/Leaderboard", "Décidé mais pas encore construit —
   futur champ `profile.bio`", "Tests", "À vérifier visuellement à la
