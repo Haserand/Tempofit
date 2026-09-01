@@ -82,16 +82,27 @@ describe('sidebarLayout — valeurs stabilisées actuelles (état final après 9
     expect(SIDEBAR_FOOTER_LINK_PADDING).toBe('px-3 py-1.5');
   });
 
-  it('séparateur avant "Découvrir" — DISTINCT du séparateur Création/Mon Espace, resserré de 10px en bas puis encore un peu en haut (01/09)', () => {
-    expect(SIDEBAR_DISCOVER_SEPARATOR_MARGIN).toBe('mt-4 mb-2.5');
-    // `mt-4` (16px, resserré depuis `mt-5`/20px le 01/09 — retour direct
-    // avec capture d'écran : aligner cette ligne avec le haut du bloc
-    // MiniPlayerBar+GuestModeBar) ; `mb-2.5` (10px) contre `mb-5` (20px)
-    // qu'aurait donné la constante partagée — la moitié "haut" des -10px
-    // demandés autour de "Découvrir" (21/08).
-    const mbDiscover = parseFloat(SIDEBAR_DISCOVER_SEPARATOR_MARGIN.match(/mb-([\d.]+)/)[1]);
-    const mbShared = parseFloat(SIDEBAR_SEPARATOR_MARGIN.match(/my-([\d.]+)/)[1]);
-    expect(mbDiscover).toBeLessThan(mbShared);
+  it('séparateur avant "Découvrir" — DISTINCT du séparateur Création/Mon Espace, resserré de 10px en bas puis ancré au bloc du bas (01/09)', () => {
+    expect(SIDEBAR_DISCOVER_SEPARATOR_MARGIN).toBe('mt-4 mb-[23px]');
+    // `mt-4` : SANS effet réel sur la position absolue de la ligne depuis
+    // l'ajout de l'espaceur flexible juste avant (01/09, voir Sidebar.jsx,
+    // `<div className="flex-1">` avant ce séparateur, dans un `<nav
+    // className="flex flex-col h-full">`) — la ligne est désormais ANCRÉE
+    // au bas de la nav (donc au pied de page juste en dessous), pas
+    // positionnée depuis le haut. Gardé néanmoins pour le cas où le
+    // contenu de la nav dépasse la hauteur disponible (Mode Intime, petit
+    // écran) : l'espaceur vaut alors 0px, `overflow-y-auto` prend le
+    // relais, et la ligne redevient positionnée depuis le haut comme
+    // avant — ce `mt` redevient pertinent dans CE cas précis.
+    // `mb-[23px]` (23px, contre `mb-2.5`/10px avant) : LE vrai levier
+    // maintenant que la ligne est ancrée au bas — ce qui vient APRÈS elle
+    // (cette marge + "Découvrir") détermine sa distance au bas réel de la
+    // nav. Valeur mesurée réellement via Playwright (vrai Chromium en
+    // cache, voir CLAUDE-SANDBOX-VERIFICATION.md), PAS calculée à la main
+    // comme l'avait été, faute de mieux à l'époque, le calcul similaire du
+    // 22/08 (`creditRowHeight`, retiré depuis).
+    const mbDiscover = parseFloat(SIDEBAR_DISCOVER_SEPARATOR_MARGIN.match(/mb-\[(\d+)px\]/)[1]);
+    expect(mbDiscover).toBeGreaterThan(0);
   });
 
   it('marge après le bouton "Quitter le Mode Intime" — 13px après 3 passes de resserrement (retours directs successifs le 21/08)', () => {
@@ -119,9 +130,18 @@ describe('sidebarLayout — valeurs stabilisées actuelles (état final après 9
     const mtDiscoverNormal = parseFloat(SIDEBAR_DISCOVER_SEPARATOR_MARGIN.match(/mt-([\d.]+)/)[1]) * 4;
     expect(mtDiscoverCompact).toBeLessThan(mtDiscoverNormal);
 
-    // Le "mb" (bas), lui, doit rester IDENTIQUE entre normal et compact —
-    // seul le haut devait bouger d'après les traits rouges.
+    // Le "mb" du séparateur PARTAGÉ (Création/Mon Espace) reste IDENTIQUE
+    // entre normal et compact — seul son "mt" devait bouger d'après les
+    // traits rouges du 21/08.
     expect(SIDEBAR_SEPARATOR_MARGIN_COMPACT).toContain('mb-5');
+    // ⚠️ Le "mb" du séparateur DÉCOUVRIR, lui, DIVERGE désormais entre
+    // normal et compact depuis le 01/09 (contrairement à ce qui était vrai
+    // jusqu'ici) : la variante NORMALE a été ancrée au bloc du bas
+    // (`mb-[23px]`, voir le test dédié plus haut) sur demande explicite
+    // avec capture d'écran en thème standard — la variante Mode Intime
+    // n'a PAS été concernée par cette demande (capture montrait des icônes
+    // rouges, pas roses) et garde donc sa valeur d'origine, désormais
+    // délibérément différente plutôt qu'un oubli.
     expect(SIDEBAR_DISCOVER_SEPARATOR_MARGIN_COMPACT).toContain('mb-2.5');
   });
 });
@@ -139,5 +159,32 @@ describe('sidebarLayout — importé par Sidebar.jsx (pas recopié en dur)', () 
     ]) {
       expect(SIDEBAR_JSX).toContain(name);
     }
+  });
+});
+
+describe('Sidebar.jsx — ancrage du séparateur "Découvrir" au bloc du bas (01/09)', () => {
+  it('la nav est étirée sur toute la hauteur disponible (h-full) avec un espaceur flexible avant le séparateur Découvrir', () => {
+    // Garde-fou structurel : SANS `h-full` sur `<nav>` ET l'espaceur
+    // `flex-1` juste avant le séparateur, la ligne au-dessus de
+    // "Découvrir" perd son ancrage au bas de la Sidebar et redevient
+    // positionnée depuis le haut (régression silencieuse vers le
+    // comportement d'avant le 01/09 — voir mesure Playwright réelle dans
+    // historique/bloc-12.md : écart constant de 0px à 5 hauteurs de
+    // fenêtre testées avec cet ancrage, contre un écart proportionnel à la
+    // hauteur de fenêtre sans lui).
+    expect(SIDEBAR_JSX).toMatch(/<nav className="flex flex-col h-full">/);
+    // L'espaceur doit apparaître AVANT le séparateur Découvrir dans le
+    // texte source (l'ordre DOM détermine l'ordre visuel) — vérifié par
+    // position d'index plutôt que juste "contient les deux", pour repérer
+    // un futur réordonnancement accidentel. Cherche l'attribut seul
+    // (`className="flex-1"`), pas la balise complète avec sa fermeture
+    // (`<div ...></div>`) : ce fichier est un `.js`, et une balise
+    // fermante littérale y déclenche à tort le garde-fou anti-JSX-dans-.js
+    // (voir fileExtensionTrap.test.js, repéré en livrant ce test).
+    const spacerIndex = SIDEBAR_JSX.indexOf('className="flex-1"');
+    const separatorIndex = SIDEBAR_JSX.indexOf('${discoverSeparatorMargin}');
+    expect(spacerIndex).toBeGreaterThan(-1);
+    expect(separatorIndex).toBeGreaterThan(-1);
+    expect(spacerIndex).toBeLessThan(separatorIndex);
   });
 });
