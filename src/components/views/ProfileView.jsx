@@ -555,7 +555,7 @@ export default function ProfileView({ theme, username, isNaughtyMode, changeView
     <div className={`${VIEW_CONTENT_WRAPPER} space-y-6`}>
       <button
         onClick={() => changeView('generator')}
-        className="mb-2 text-sm font-medium text-slate-400 hover:text-white transition-colors flex items-center gap-2"
+        className="mb-2 text-sm font-medium text-slate-400 hover:text-main transition-colors flex items-center gap-2"
       >
         ← Retour
       </button>
