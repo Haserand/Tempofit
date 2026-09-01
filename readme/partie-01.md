@@ -39,18 +39,24 @@ VERIFICATION.md`, restructuré en `claude-sandbox-verification/partie-
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement — sanity check périodique (28/08), 2 bugs réels
-trouvés et corrigés, tous deux la MÊME classe de bug déjà rencontrée 5 fois
-sur ce projet (fermeture async figée sur `userStats`, `checkTrophies`
-écrasant silencieusement un trophée débloqué entre-temps par une tout
-autre action) : `useCsvImport.js` (callback `FileReader.onload`) et
-`PlaylistDetailContext.jsx` (`handleReplaceTrack`/
-`handleReplaceTrackSameArtist`, après un vrai appel réseau) — les deux
-corrigés avec un `userStatsRef` (même convention que les refs déjà en
-place dans ces fichiers pour `currentPlaylist`/`savedPlaylists`). Reste
-du check-up (esbuild/tsc --checkJs sur 237 fichiers, résolution d'imports,
-pièges Tailwind/jest-dom) : rien à signaler. Voir l'index `HISTORIQUE.md`
-→ bloc 10 pour le récit complet.
+Rien en cours actuellement — session longue du 28/08 (plusieurs chantiers
+enchaînés sur retours directs successifs). Points marquants : (1)
+**mécanisme d'exclusion complet** (artistes/titres/genres jamais
+souhaités, `useExclusions.js`) — pendant négatif des favoris, filtré aux
+deux moteurs (génération ET recherche manuelle) à chaque point
+d'acceptation y compris les replis de dernier recours, avec exclusivité
+mutuelle favoris/exclusions et messages de transition ; (2) **"Exclusions"
+fusionné en onglet de "Mes Favoris"** (même schéma que Playlists/Routines
+du 20/08) ; (3) **2 bugs réels de navigation Réglages** corrigés (même
+motif : `changeView('settings')` nu hérite d'un onglet périmé d'une visite
+précédente — `handleOpenSettings(tab)` est désormais la seule voie
+correcte) ; (4) recherche manuelle BPM : compteur de résultats, bouton
+"Charger plus" (jamais définitif), menu unifié favori/exclusion
+titre+artiste (aligné sur le menu déjà en place dans une playlist) ; (5)
+plusieurs textes condensés à une ligne en réutilisant un budget de
+caractères déjà validé réel (`StatsView.jsx`, 38-40 caractères à
+`text-lg font-bold max-w-sm`). Suite complète : 122 fichiers, 1699 tests
+au vert. Voir l'index `HISTORIQUE.md` → bloc 11 pour le récit complet.
 
 ### ⚠️ Règle permanente (25/08) — cette section ne contient QUE le chantier en cours, jamais l'historique clos
 
