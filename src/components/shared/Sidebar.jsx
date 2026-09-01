@@ -385,7 +385,7 @@ function Sidebar({
           enfant ne doit plus porter sa propre marge de fin), bouton
           Réglages du footer en `py-1.5` (délibérément différent : ce
           conteneur a une hauteur stricte à respecter, voir plus bas). */}
-      <nav className="flex flex-col">
+      <nav className="flex flex-col h-full">
 
         {/* --- CRÉATION --- */}
         <div className={`flex flex-col ${linkGap}`}>
@@ -471,6 +471,33 @@ function Sidebar({
             <span className="font-bold text-sm">Mes Statistiques</span>
           </button>
         </div>
+
+        {/* Espaceur flexible (01/09, retour direct avec capture — aligner
+            la ligne au-dessus de "Découvrir" avec le haut du bloc
+            MiniPlayerBar+GuestModeBar) — pousse "Découvrir" + sa ligne vers
+            le BAS, juste au-dessus du pied de page, au lieu de les laisser
+            flotter juste après "Mon Espace" avec un grand vide en dessous.
+            ⚠️ DISTINCT du `creditRowHeight` retiré le 22/08 (voir sa
+            docstring plus bas, "HAUTEUR FORCÉE RETIRÉE") — celui-ci FORÇAIT
+            le pied de page à grandir jusqu'à 162px, rognant d'autant la
+            hauteur RÉELLEMENT disponible pour cette zone de nav
+            scrollable. CET espaceur-ci ne force RIEN : il absorbe
+            uniquement l'espace déjà inutilisé (`flex-1` sur un `<nav
+            className="flex flex-col h-full">`, voir plus haut) — si le
+            contenu de la nav dépasse déjà la hauteur disponible (Mode
+            Intime, petit écran), cet espaceur vaut 0px et `overflow-y-auto`
+            (sur le conteneur parent) prend le relais normalement, sans
+            jamais rogner quoi que ce soit. Aucun risque de reproduire le
+            souci d'accessibilité du 22/08.
+            Ne suffit PAS à lui seul à un alignement pixel-parfait avec le
+            bloc du bas (140px) : le pied de page (Réglages + crédit) garde
+            sa propre hauteur naturelle, pas forcément identique — voir
+            SIDEBAR_DISCOVER_SEPARATOR_MARGIN (sidebarLayout.js) pour
+            l'ajustement fin fait par-dessus, mesuré réellement via
+            Playwright plutôt qu'au calcul à la main (contrairement au 22/08,
+            où Playwright n'était pas encore disponible dans ce bac à
+            sable). */}
+        <div className="flex-1"></div>
 
         {/* Séparateur — même traitement visuel que celui entre Création et
             Mon Espace juste au-dessus (`border-t ${cardBorder}`, voir sa
