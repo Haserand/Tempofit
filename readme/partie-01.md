@@ -54,7 +54,9 @@ en cache, écart de 0px à 5 hauteurs testées), pas au calcul à la main.
 Découverte en cours de route d'un précédent du 22/08 (`creditRowHeight`,
 retiré pour préserver l'espace de nav) — présenté à l'utilisateur avant
 d'implémenter, solution retenue compatible (n'absorbe que le vide déjà
-inutilisé, ne force jamais rien à grandir) — voir bloc 13. Suite complète :
+inutilisé, ne force jamais rien à grandir). Résidu d'environ 5px trouvé
+après un vrai déploiement (mesure sur capture d'écran par analyse
+d'image calibrée, pas à l'œil), corrigé — voir bloc 13. Suite complète :
 123 fichiers, 1702 tests au vert. Voir l'index `HISTORIQUE.md` → blocs 12
 et 13 pour le récit complet.
 
