@@ -98,60 +98,71 @@ export const SIDEBAR_SEPARATOR_MARGIN_COMPACT = 'mt-[13px] mb-5';
 // "réduire l'espace Découvrir de 10px en haut et 10px en bas") — DISTINCT
 // de SIDEBAR_SEPARATOR_MARGIN ci-dessus : seul CET écart précis devait être
 // resserré, pas celui entre Création/Mon Espace (jamais mentionné, resté
-// inchangé). `mt-5` conservé (même écart qu'avant entre "Mes Statistiques"
-// et la ligne elle-même, 20px) ; `mb-2.5` (10px, contre `mb-5`/20px avant)
-// pour l'écart entre la ligne et "Découvrir" — les -10px demandés en haut
-// de "Découvrir" viennent d'ici. Voir aussi `SIDEBAR_SCROLL_PADDING`
-// ci-dessous pour les -10px en BAS (après "Découvrir", avant le pied de
-// page).
-// ⚠️ RESSERRÉ UNE 2e FOIS (01/09, retour direct avec capture d'écran :
-// "réhausser légèrement la barre au-dessus de Découvrir pour s'aligner
-// pile poil à la hauteur à laquelle on arrive avec la guestmodebar + le
-// mini lecteur audio") — `mt-5`(20px) → `mt-4`(16px), -4px, PREMIÈRE
-// estimation à l'aveugle (pas de vrai navigateur invoqué à ce stade),
-// insuffisante (retour direct suivant : "je ne vois pas de changement").
+// inchangé).
 //
-// ⚠️ ANCRAGE STRUCTUREL AJOUTÉ ENSUITE (même jour) — après clarification du
-// besoin réel ("une seule ligne continue sur toute la largeur, fine côté
-// Sidebar, épaisse côté lecteur") et mesure réelle (Playwright + Chromium
-// en cache) révélant un écart de 343px, pas une histoire de quelques
-// pixels : la nav de la Sidebar empilait son contenu depuis le HAUT, sans
-// AUCUN lien structurel avec le bloc MiniPlayerBar+GuestModeBar (fixe en
-// bas). Un espaceur flexible a été ajouté juste avant le séparateur
+// ⚠️ ANCRAGE STRUCTUREL AU BLOC DU BAS (01/09, retour direct avec capture
+// d'écran — "aligner la ligne au-dessus de Découvrir avec le haut du bloc
+// MiniPlayerBar+GuestModeBar", confirmé ensuite : "une seule ligne continue
+// sur toute la largeur") — récit complet du diagnostic (écart de 343px
+// mesuré via Playwright, découverte du précédent `creditRowHeight` retiré
+// le 22/08) dans `historique/bloc-13.md`. En résumé : un espaceur flexible
 // (`<div className="flex-1">`, dans un `<nav className="flex flex-col
-// h-full">`, voir Sidebar.jsx) — il ancre désormais "Découvrir" + sa ligne
-// au bas de la Sidebar, quelle que soit la hauteur de fenêtre (vérifié à
-// 5 hauteurs différentes, 700-1100px). Ce `mt-4` ci-dessus n'a alors PLUS
-// AUCUN effet sur la position absolue de la ligne (l'espaceur absorbe
-// toute variation en amont) — gardé néanmoins pour le cas où le contenu
-// de la nav dépasse la hauteur disponible (Mode Intime, petit écran),
-// seul cas où il redevient pertinent (l'espaceur vaut alors 0px).
+// h-full">`, voir Sidebar.jsx) ancre "Découvrir" + sa ligne au bas de la
+// Sidebar, quelle que soit la hauteur de fenêtre — SANS jamais forcer
+// quoi que ce soit à grandir (contrairement à `creditRowHeight`) : il
+// n'absorbe que le vide déjà inutilisé, vaut 0px si le contenu déborde.
+// `mt-4` (ci-dessous) n'a PLUS d'effet sur la position absolue de la ligne
+// depuis cet ancrage (voir l'analyse algébrique complète dans
+// `historique/bloc-13.md`) — gardé seulement pour le cas où l'espaceur
+// vaut 0px (contenu qui déborde, Mode Intime/petit écran).
 //
-// ⚠️ Découverte en cours de route : un mécanisme presque identique
-// (`creditRowHeight`) avait déjà existé et avait été retiré le 22/08 pour
-// ne pas rogner l'espace de nav (voir Sidebar.jsx, section pied de page,
-// et readme/partie-02.md "Élément décoratif vs espace fonctionnel").
-// Cet espaceur-ci n'a PAS le même défaut : il n'absorbe QUE le vide déjà
-// inutilisé, ne force jamais rien à grandir.
+// `mb` : LE vrai levier de position une fois l'espaceur en place (ce qui
+// vient APRÈS la ligne détermine sa distance au bas réel de la nav).
+// 3 valeurs successives : `mb-2.5`(10px, d'origine) → `mb-[23px]` (mesuré
+// via Playwright, écart de 0.0px en bac à sable) → `mb-7`(28px, +5px après
+// un vrai déploiement ayant révélé un résidu, mesuré par analyse d'image
+// calibrée sur une vraie capture). Fonctionnait pour l'ALIGNEMENT, mais
+// mettait tout l'espace réservé D'UN SEUL CÔTÉ (avant "Découvrir") — retour
+// direct suivant : la ligne est bien positionnée, mais "Découvrir" n'est
+// plus centré dans son bloc (tout l'espace au-dessus, rien en dessous
+// avant le pied de page). Les 28px sont donc désormais RÉPARTIS en 2 :
+// `mb-[17px]` ICI + `SIDEBAR_DISCOVER_BOTTOM_MARGIN` (11px, sur le
+// conteneur du bouton "Découvrir" lui-même, voir plus bas) — même TOTAL
+// (28px), donc la position de la ligne ne change PAS. Répartition
+// VOLONTAIREMENT ASYMÉTRIQUE (17/11, pas 14/14) : le conteneur scrollable
+// englobant (`SIDEBAR_SCROLL_PADDING`, `pb-1.5`/6px) ajoute déjà 6px
+// d'espace visuel APRÈS "Découvrir", avant le pied de page, invisible à la
+// simple lecture de ce fichier — 14/14 aurait donc donné un espace
+// PERÇU de 14px avant / 20px après (mesuré réellement via Playwright,
+// pas supposé). 17/11 compense exactement ce déséquilibre : 17px perçus
+// avant, 11+6=17px perçus après — "Découvrir" vraiment centré à l'écran.
 //
-// `mb-2.5`(10px) → `mb-[23px]` : le VRAI levier une fois l'espaceur en
-// place (la position de la ligne dépend désormais de ce qui vient APRÈS
-// elle, pas avant — voir historique/bloc-13.md pour l'analyse complète).
-// Valeur mesurée réellement via Playwright dans ce bac à sable (écart de
-// 0.0px à 5 hauteurs de fenêtre testées).
-//
-// ⚠️ RÉSIDU CORRIGÉ APRÈS UN VRAI DÉPLOIEMENT (même jour, capture d'écran
-// de l'app RÉELLEMENT en ligne) — la mesure en bac à sable (0px) ne s'est
-// PAS reproduite à l'identique en production : un écart résiduel d'environ
-// 4-5px restait visible. Mesuré sur la capture par analyse d'image
-// (calibration de l'échelle via la largeur connue de la Sidebar, `w-64`
-// = 256px CSS, comparée à sa largeur en pixels dans l'image — écran à
-// très haute résolution, ~3,1x). Cause probable : une différence fine de
-// rendu de police entre le bac à sable et l'environnement réel (jamais
-// isolée avec certitude, l'écart étant trop petit pour valoir la peine
-// d'investiguer plus). `mb-[23px]` → `mb-7` (28px, +5px) pour absorber ce
-// résidu.
-export const SIDEBAR_DISCOVER_SEPARATOR_MARGIN = 'mt-4 mb-7';
+// ⚠️ `mt-4` → `mt-0` (01/09, 3e retour direct — "léger scroll" du menu de
+// gauche, confirmé propre à une fenêtre pas trop haute) — CAUSE RÉELLE :
+// `mt-4`(16px) n'a plus AUCUN effet visuel une fois l'espaceur actif (voir
+// plus haut), mais restait un `margin` FIXE, donc TOUJOURS consommé, même
+// pour rien. Contrairement à l'espaceur `flex-1` (qui, lui, dégrade
+// proprement à 0px sous contrainte), un `margin` ne cède JAMAIS — il
+// contribuait donc 16px de hauteur strictement inutile au calcul de
+// débordement de la nav, rendant un `overflow-y-auto` (donc un scroll)
+// possible sur des fenêtres où il ne l'aurait pas été autrement. Mis à
+// `mt-0` : aucune perte visuelle dans le cas normal (l'espaceur reste seul
+// maître de la position, comme avant), seul le cas de repli DÉGRADÉ
+// (contenu qui déborde malgré tout) perd un peu de respiration au-dessus
+// de la ligne — compromis accepté, un scroll évité vaut mieux qu'un
+// espacement cosmétique dans un état déjà dégradé.
+export const SIDEBAR_DISCOVER_SEPARATOR_MARGIN = 'mt-0 mb-[17px]';
+
+// Marge APRÈS le bouton "Découvrir", avant le pied de page (01/09) — voir
+// la docstring de SIDEBAR_DISCOVER_SEPARATOR_MARGIN juste au-dessus pour
+// le raisonnement complet (répartition ASYMÉTRIQUE 17/11, pas 14/14,
+// pour compenser les 6px de `pb-1.5` déjà présents après "Découvrir").
+// Doit rester telle que (cette valeur + 6px de pb-1.5) égale le `mb` de
+// SIDEBAR_DISCOVER_SEPARATOR_MARGIN, et leur SOMME (moins ces 6px) doit
+// rester à 28px pour ne pas déplacer la ligne — si l'une des 3 valeurs
+// est retouchée un jour (celle-ci, le `mb` du séparateur, ou
+// `SIDEBAR_SCROLL_PADDING`), recalculer les 2 autres en miroir.
+export const SIDEBAR_DISCOVER_BOTTOM_MARGIN = 'mb-[11px]';
 
 // Variante Mode Intime (21/08, retour direct : "supprime 2 pixels à chaque
 // trait rouge pour voir Découvrir sans scroll") — même principe que
