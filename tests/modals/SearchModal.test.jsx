@@ -57,6 +57,7 @@ function baseProps(overrides = {}) {
     currentPlaylist: null,
     favorites: { tracks: [], artists: [] },
     toggleTrackFavorite: vi.fn(),
+    toggleArtistFavorite: vi.fn(),
     exclusions: { tracks: [], artists: [] },
     toggleTrackExclusion: vi.fn(),
     toggleArtistExclusion: vi.fn(),
@@ -517,30 +518,121 @@ describe('SearchModal — ligne de résultat (renderSearchResultRow)', () => {
     expect(toggleTrackFavorite).not.toHaveBeenCalled();
   });
 
-  // NOUVEAU (28/08, chantier "mécanisme d'exclusion") — audit demandé sur
-  // la recherche manuelle en plus de la playlist (TrackItem.jsx). Action
-  // ponctuelle sur ce titre précis, indépendante d'"Ajouter aux favoris".
-  describe('exclusion depuis un résultat de recherche (28/08)', () => {
+  // ⚠️ MENU UNIFIÉ (28/08, retour direct — "prends du recul, pouvoir
+  // ajouter un artiste aux favoris depuis le moteur de recherche, ou à
+  // l'inverse exclure l'artiste ; et pas juste le morceau") — les 2 boutons
+  // rapides (favori titre / exclure titre) ont fusionné dans un menu "..."
+  // à 4 actions (titre + artiste, favori + exclusion), même patron que le
+  // menu de TrackItem.jsx (playlist). `screen.getByTitle("Plus d'options")`
+  // ouvre le menu avant chaque clic sur une action.
+  describe('menu d\'options d\'un résultat de recherche (28/08)', () => {
+    const openMenu = () => fireEvent.click(screen.getByTitle("Plus d'options"));
+
+    it('clic sur "Favoriser ce titre" appelle toggleTrackFavorite avec le titre entier', () => {
+      const toggleTrackFavorite = vi.fn();
+      render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], toggleTrackFavorite })} />);
+      openMenu();
+      fireEvent.click(screen.getByText('Favoriser ce titre'));
+      expect(toggleTrackFavorite).toHaveBeenCalledWith(trackWithPreview);
+    });
+
+    // ⚠️ PAS DE TEST "titre déjà favori : le menu propose de le retirer"
+    // (piège trouvé en écrivant ce test, pas juste une omission) — hors
+    // contexte playlist, un titre DÉJÀ favori est filtré de l'affichage
+    // ENTIER par `visibleMainResults` (voir le commentaire "Filtre les
+    // titres déjà en favoris" plus haut dans ce fichier) : son menu "..."
+    // n'est donc jamais atteignable par ce chemin, la ligne elle-même
+    // disparaît avant que quiconque puisse l'ouvrir. En contexte playlist,
+    // le libellé de CETTE action devient "Ajouter à la playlist" (testé
+    // juste au-dessus) — jamais "Retirer des favoris" non plus, puisque
+    // cette branche du code sert alors une intention différente. Le
+    // rameau conditionnel `isAlreadyFavorited ? "Retirer..." : "Favoriser..."`
+    // existe bien dans le code, mais n'est réellement exercé par AUCUN
+    // chemin naturel de ce composant — documenté ici plutôt que de forcer
+    // un test sur un état qui ne survient jamais en pratique.
+
+    it('en contexte playlist, le libellé change ("Ajouter à la playlist") et déclenche handleAddManualTrack', () => {
+      const handleAddManualTrack = vi.fn();
+      render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], currentPlaylist: { id: 'pl1' }, handleAddManualTrack })} />);
+      openMenu();
+      fireEvent.click(screen.getByText('Ajouter à la playlist'));
+      expect(handleAddManualTrack).toHaveBeenCalledWith(trackWithPreview);
+    });
+
+    it('clic sur "Favoriser l\'artiste" appelle toggleArtistFavorite avec le nom de l\'artiste', () => {
+      const toggleArtistFavorite = vi.fn();
+      render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], toggleArtistFavorite })} />);
+      openMenu();
+      fireEvent.click(screen.getByText(/Favoriser l'artiste/));
+      expect(toggleArtistFavorite).toHaveBeenCalledWith('The Ramones');
+    });
+
+    it('artiste déjà favori : le menu propose de le retirer des favoris', () => {
+      render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], favorites: { tracks: [], artists: ['The Ramones'] } })} />);
+      openMenu();
+      expect(screen.getByText('Retirer The Ramones des favoris')).toBeInTheDocument();
+    });
+
+    it('absent de "Favoriser l\'artiste" si toggleArtistFavorite n\'est pas fourni', () => {
+      render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], toggleArtistFavorite: undefined })} />);
+      openMenu();
+      expect(screen.queryByText(/Favoriser l'artiste/)).not.toBeInTheDocument();
+    });
+
     it('clic sur "Exclure ce titre" appelle toggleTrackExclusion avec le titre entier', () => {
       const toggleTrackExclusion = vi.fn();
       render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], toggleTrackExclusion })} />);
-
-      fireEvent.click(screen.getByTitle('Exclure ce titre'));
-
+      openMenu();
+      fireEvent.click(screen.getByText('Exclure ce titre'));
       expect(toggleTrackExclusion).toHaveBeenCalledWith(trackWithPreview);
     });
 
-    it('titre déjà exclu : le bouton propose de le retirer des exclusions, couleur distincte', () => {
+    it('titre déjà exclu : le menu propose de le retirer des exclusions', () => {
       render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], exclusions: { tracks: [{ trackId: 't1' }], artists: [] } })} />);
-
-      expect(screen.getByTitle('Retirer des exclusions')).toBeInTheDocument();
-      expect(screen.queryByTitle('Exclure ce titre')).not.toBeInTheDocument();
+      openMenu();
+      expect(screen.getByText('Retirer ce titre des exclusions')).toBeInTheDocument();
+      expect(screen.queryByText('Exclure ce titre')).not.toBeInTheDocument();
     });
 
-    it('absent si toggleTrackExclusion n\'est pas fourni (composant utilisable sans le mécanisme d\'exclusion branché)', () => {
+    it('absent de "Exclure ce titre" si toggleTrackExclusion n\'est pas fourni (composant utilisable sans le mécanisme d\'exclusion branché)', () => {
       render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], toggleTrackExclusion: undefined })} />);
+      openMenu();
+      expect(screen.queryByText('Exclure ce titre')).not.toBeInTheDocument();
+    });
 
-      expect(screen.queryByTitle('Exclure ce titre')).not.toBeInTheDocument();
+    it('clic sur "Exclure l\'artiste" appelle toggleArtistExclusion avec le nom de l\'artiste', () => {
+      const toggleArtistExclusion = vi.fn();
+      render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], toggleArtistExclusion })} />);
+      openMenu();
+      fireEvent.click(screen.getByText(/Exclure l'artiste/));
+      expect(toggleArtistExclusion).toHaveBeenCalledWith('The Ramones');
+    });
+
+    it('artiste déjà exclu : le menu propose de le retirer des exclusions', () => {
+      render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], exclusions: { tracks: [], artists: ['The Ramones'] } })} />);
+      openMenu();
+      expect(screen.getByText('Retirer The Ramones des exclusions')).toBeInTheDocument();
+    });
+
+    it('absent de "Exclure l\'artiste" si toggleArtistExclusion n\'est pas fourni', () => {
+      render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], toggleArtistExclusion: undefined })} />);
+      openMenu();
+      expect(screen.queryByText(/Exclure l'artiste/)).not.toBeInTheDocument();
+    });
+
+    it('un clic en dehors du menu le referme', () => {
+      render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview] })} />);
+      openMenu();
+      expect(screen.getByText('Favoriser ce titre')).toBeInTheDocument();
+      // Sélecteur PRÉCIS (pas juste `.fixed.inset-0`) — `ModalShell.jsx`
+      // possède SON PROPRE fond `.fixed.inset-0` (avec un z-index différent,
+      // z-[70]) pour fermer la modale entière ; un sélecteur trop générique
+      // attraperait CELUI-LÀ en premier (premier dans l'ordre du DOM),
+      // jamais l'overlay dédié à la fermeture DE CE MENU (`.z-10`, propre à
+      // `renderSearchResultRow`).
+      // eslint-disable-next-line testing-library/no-node-access
+      fireEvent.click(document.body.querySelector('.fixed.inset-0.z-10'));
+      expect(screen.queryByText('Favoriser ce titre')).not.toBeInTheDocument();
     });
   });
 
@@ -587,12 +679,5 @@ describe('SearchModal — ligne de résultat (renderSearchResultRow)', () => {
     );
     expect(screen.getByText(/Genre non confirmé/)).toBeInTheDocument();
     expect(screen.getByText(/BPM estimé/)).toBeInTheDocument();
-  });
-
-  it('le bouton favori de la ligne (Plus/Check) déclenche aussi addOrToggleFavorite', () => {
-    const toggleTrackFavorite = vi.fn();
-    render(<SearchModal {...baseProps({ worldSearchResults: [trackWithPreview], toggleTrackFavorite })} />);
-    fireEvent.click(screen.getByTitle('Ajouter'));
-    expect(toggleTrackFavorite).toHaveBeenCalledWith(trackWithPreview);
   });
 });
