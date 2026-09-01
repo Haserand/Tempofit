@@ -20,8 +20,8 @@ import { fileURLToPath } from 'node:url';
 // Principe : pour chaque fichier `tests/**/Sujet.test.jsx` (hors la liste
 // blanche ci-dessous), au moins UN import relatif vers `src/` doit
 // correspondre à `Sujet` — soit par le nom de fichier importé (cas le plus
-// courant : `import Sujet from '.../Sujet.jsx'`), soit par un import nommé
-// exact (`import { sujet } from '.../fichierPartagé.js'`, pour un test qui
+// courant : `import Sujet from "chemin/vers/Sujet.jsx"`), soit par un import
+// nommé exact (`import { sujet } from "chemin/vers/fichierPartagé.js"`, pour un test qui
 // cible une fonction précise au sein d'un plus gros fichier partagé — ex.
 // `fetchInBatches.test.js` teste une fonction de `musicEngine.js`, pas un
 // fichier `fetchInBatches.js` qui n'existe pas). La comparaison est
@@ -59,7 +59,7 @@ function walk(dir) {
   return files;
 }
 
-// Capture chaque `import ... from '...'` STATIQUE (suffisant ici — un
+// Capture chaque `import Truc from "chemin"` STATIQUE (suffisant ici — un
 // `vi.mock()`/`import()` dynamique n'est pas le signal recherché : c'est
 // bien l'import réel du sujet testé qui doit correspondre à son nom).
 const IMPORT_LINE = /import\s+([^;]+?)\s+from\s+['"](\.\.[^'"]+)['"]/g;
