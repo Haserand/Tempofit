@@ -81,6 +81,14 @@ Règle : avant d'écrire un test qui vérifie l'apparition d'un élément (`getB
 Ça arrive occasionnellement : le contenu réellement présent sur le repo GitHub diverge de celui livré (copier-coller partiel, version intermédiaire recopiée par erreur). Symptôme typique : un test échoue au build Vercel d'une façon qui ne correspond à AUCUN changement de logique fait en session.
 Règle : si une reproduction locale de l'échec ne colle pas au symptôme réel (ou échoue plusieurs fois avec des résultats qui changent d'un essai à l'autre), ne pas insister sur la reproduction — aller directement vérifier le VRAI contenu du fichier en question (recherche de code GitHub si accessible, ou demander à l'utilisateur de coller le contenu réel), pas la peine de raffiner un environnement de reproduction pour ce cas de figure.
 
+## 4decies. Un état UI "à tester" peut être structurellement inatteignable ailleurs dans le même composant — et un sélecteur CSS générique peut cibler le mauvais élément
+
+Deux pièges de test trouvés le 28/08 en écrivant les tests d'un menu unifié favori/exclusion (`SearchModal.jsx`), génériques au-delà de ce chantier précis.
+
+**Piège 1** : un test voulait vérifier "que montre le menu pour un titre déjà favori" — mais un mécanisme de filtrage DÉJÀ existant ailleurs dans le même composant (masquer les titres déjà favoris de la liste affichée) rendait ce scénario structurellement inatteignable dans le flux réel : la ligne disparaît de l'affichage avant que quiconque puisse ouvrir son menu. Avant de forcer un test sur un état qui semble légitime en composant des props isolément, vérifier qu'il survient réellement dans le flux naturel du composant complet — pas seulement qu'il est représentable.
+
+**Piège 2** : un test "un clic en dehors du menu le referme" utilisait un sélecteur CSS trop générique (`.fixed.inset-0`) pour cibler l'overlay de fermeture — un AUTRE élément du même rendu (le fond de la modale elle-même, `ModalShell.jsx`, avec un z-index différent) partageait les mêmes classes de base et se faisait attraper en premier par `querySelector` (premier dans l'ordre du DOM). Préférer un sélecteur qui inclut au moins une classe distinctive propre à l'élément réellement visé (ici, ajouter la classe de z-index propre à l'overlay du menu) plutôt qu'un sélecteur générique qui matche par coïncidence structurelle.
+
 ## 5. Ce que ces outils NE remplacent PAS
 
 Historiquement, aucun de ces scripts n'exécutait réellement `vitest` — une
