@@ -47,7 +47,7 @@ export default function ShareModal({
   isShareModalOpen, onClose, shareData,
   shareNative, shareToWhatsApp, shareToTwitter, shareToFacebook,
   copyToClipboard, shareViaEmail,
-  shareImageFile,
+  shareImageFile, shareToInstagramStories,
 }) {
   const { cardBg, cardBorder, textHighlight, textColorClass, inputBg, inputBorder, textMuted, bgAccentClass } = theme;
   const { summaryImageStatus, summaryImageFile, summaryImagePreviewUrl, includeSummaryImage, setIncludeSummaryImage } = useShareImage();
@@ -56,15 +56,27 @@ export default function ShareModal({
 
   const hasReadyImage = shareData.type === 'playlist' && summaryImageStatus === 'ready' && includeSummaryImage && summaryImageFile;
 
-  // Partage natif AVEC l'image si elle est prête et incluse (le fichier
-  // ET le texte partent ensemble via shareImageFile — voir useShare.js) —
-  // sinon repli sur le partage texte/lien classique (`shareNative`), comme
-  // avant ce chantier. `shareImageFile` ne ferme pas la modale elle-même
-  // (appelée aussi ailleurs sans modale de partage ouverte, voir
-  // PlaylistDetailView.jsx) — fermée ici explicitement après.
+  // RETOUR DIRECT (01/09, capture d'écran : "es-tu sûr que les boutons de
+  // partage vers les réseaux sociaux ouvrent bien les réseaux sociaux ? ça
+  // ne me semble pas être le cas pour Instagram") — confirmé : ce bouton
+  // n'appelait jusqu'ici QUE le partage générique de l'OS (`shareImageFile`/
+  // `shareNative`), sans aucune tentative d'ouvrir Instagram spécifiquement,
+  // contrairement à ce que son libellé "Story / IG" laisse penser. Tente
+  // maintenant `shareToInstagramStories` en premier (iOS uniquement — voir
+  // sa docstring dans useShare.js pour le détail complet et sa limite
+  // honnête : jamais testé sur un vrai iPhone dans ce bac à sable) avec
+  // `shareImageFile` passé explicitement comme repli (PAS la version fermée
+  // en dur dans useShare.js) pour que le trophée "hasSharedSomething"
+  // (voir `shareImageFileWithTrophy`, App.jsx) se déclenche pareil, quel
+  // que soit le chemin de partage effectivement emprunté. Hors iOS (ou sans
+  // image prête), `shareToInstagramStories` bascule lui-même directement
+  // sur ce même repli — comportement inchangé pour ces cas. `shareImageFile`
+  // ne ferme pas la modale elle-même (appelée aussi ailleurs sans modale de
+  // partage ouverte, voir PlaylistDetailView.jsx/StatsView.jsx) — fermée
+  // ici explicitement après.
   const handleNativeShare = async () => {
     if (hasReadyImage) {
-      await shareImageFile(summaryImageFile, shareData.title, shareData.text);
+      await shareToInstagramStories(summaryImageFile, shareData.title, shareData.text, shareImageFile);
       onClose();
     } else {
       shareNative();
