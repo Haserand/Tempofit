@@ -39,22 +39,24 @@ VERIFICATION.md`, restructuré en `claude-sandbox-verification/partie-
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement — check-up de reprise du 01/09 (sanity check
-général + 2 corrections ponctuelles demandées). Points marquants : (1)
-**sanity check complet** (esbuild/tsc sur tout `src/`+`tests/`, résolution
-d'imports, pièges Tailwind/jest-dom, suite complète) sans rien à corriger
-côté mécanique — 2 fichiers de commentaires reformulés dans
-`testFileIdentityTrap.test.js` pour ne plus déclencher de faux positifs à
-l'audit manuel, `key` React de `SearchModal.jsx` corrigée (index → `trackId`,
-cohérent avec le raisonnement déjà écrit dans ce même fichier) ; (2)
-**bug visuel "texte blanc sur fond clair" corrigé à 3 endroits**
-(`StatsView.jsx`, `ProfileView.jsx`, `PlaylistDetailView.jsx`) — repéré par
-comparaison de captures d'écran "Mes Statistiques" vs "Découvrir",
-généralisé ensuite à tout le projet ; (3) **nouveau garde-fou permanent**
-`tests/hoverWhiteTextTrap.test.js` pour ce motif récurrent (déjà corrigé 2
-fois avant sans laisser de garde-fou derrière — voir Convention UI, règle
-9, `readme/partie-02.md`). Suite complète : 123 fichiers, 1701 tests au
-vert. Voir l'index `HISTORIQUE.md` → bloc 12 pour le récit complet.
+Rien en cours actuellement — 2 chantiers le 01/09, même session. (1)
+**Check-up de reprise** : sanity check complet (mécanique + audit ciblé,
+rien à corriger côté architecture), 2 petites corrections (faux positifs
+`testFileIdentityTrap.test.js`, `key` React de `SearchModal.jsx`), bug
+"texte blanc sur fond clair" trouvé et généralisé à 3 fichiers
+(`StatsView.jsx`/`ProfileView.jsx`/`PlaylistDetailView.jsx`), nouveau
+garde-fou permanent `hoverWhiteTextTrap.test.js` — voir bloc 12. (2)
+**Alignement Sidebar/bloc du bas** : la ligne au-dessus de "Découvrir"
+est désormais ANCRÉE (espaceur `flex-1` + `h-full` sur `<nav>`,
+`Sidebar.jsx`) au haut du bloc MiniPlayerBar+GuestModeBar, quelle que soit
+la hauteur de fenêtre — vérifié par une vraie mesure Playwright (Chromium
+en cache, écart de 0px à 5 hauteurs testées), pas au calcul à la main.
+Découverte en cours de route d'un précédent du 22/08 (`creditRowHeight`,
+retiré pour préserver l'espace de nav) — présenté à l'utilisateur avant
+d'implémenter, solution retenue compatible (n'absorbe que le vide déjà
+inutilisé, ne force jamais rien à grandir) — voir bloc 13. Suite complète :
+123 fichiers, 1702 tests au vert. Voir l'index `HISTORIQUE.md` → blocs 12
+et 13 pour le récit complet.
 
 ### ⚠️ Règle permanente (25/08) — cette section ne contient QUE le chantier en cours, jamais l'historique clos
 
