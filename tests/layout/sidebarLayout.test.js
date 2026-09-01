@@ -82,12 +82,13 @@ describe('sidebarLayout — valeurs stabilisées actuelles (état final après 9
     expect(SIDEBAR_FOOTER_LINK_PADDING).toBe('px-3 py-1.5');
   });
 
-  it('séparateur avant "Découvrir" — DISTINCT du séparateur Création/Mon Espace, resserré de 10px en bas', () => {
-    expect(SIDEBAR_DISCOVER_SEPARATOR_MARGIN).toBe('mt-5 mb-2.5');
-    // `mt-5` = même écart que SIDEBAR_SEPARATOR_MARGIN (haut inchangé,
-    // jamais mentionné dans la demande) ; `mb-2.5` (10px) contre `mb-5`
-    // (20px) qu'aurait donné la constante partagée — la moitié "haut" des
-    // -10px demandés autour de "Découvrir".
+  it('séparateur avant "Découvrir" — DISTINCT du séparateur Création/Mon Espace, resserré de 10px en bas puis encore un peu en haut (01/09)', () => {
+    expect(SIDEBAR_DISCOVER_SEPARATOR_MARGIN).toBe('mt-4 mb-2.5');
+    // `mt-4` (16px, resserré depuis `mt-5`/20px le 01/09 — retour direct
+    // avec capture d'écran : aligner cette ligne avec le haut du bloc
+    // MiniPlayerBar+GuestModeBar) ; `mb-2.5` (10px) contre `mb-5` (20px)
+    // qu'aurait donné la constante partagée — la moitié "haut" des -10px
+    // demandés autour de "Découvrir" (21/08).
     const mbDiscover = parseFloat(SIDEBAR_DISCOVER_SEPARATOR_MARGIN.match(/mb-([\d.]+)/)[1]);
     const mbShared = parseFloat(SIDEBAR_SEPARATOR_MARGIN.match(/my-([\d.]+)/)[1]);
     expect(mbDiscover).toBeLessThan(mbShared);
