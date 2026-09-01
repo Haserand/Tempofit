@@ -97,6 +97,9 @@ contenu perdu ni dupliqué dans ces opérations.
 ### Bloc 14 — 01/09 (suite, généralisation des principes du bloc 13)
 - `historique/bloc-14.md` — 4 principes tirés du chantier d'alignement transformés en documentation permanente : marge fixe rendue inerte par un espaceur flexible (Convention UI), calibrer l'échelle avant de lire des pixels sur une capture, mesure en bac à sable = approximation pas garantie, vérifier une capacité réelle avant de la nier (les 3 derniers dans CLAUDE-SANDBOX-VERIFICATION.md)
 
+### Bloc 15 — 01/09 (suite, ShareModal.jsx — texte à côté du Bilan Visuel plutôt qu'au-dessus)
+- `historique/bloc-15.md` — retour direct avec capture annotée ("la localisation du texte serait pas meilleure à gauche de l'image ?") : diagnostic confirmé (image du Bilan Visuel en format portrait, ~63px de large affichée à `h-28`, isolée dans sa propre ligne loin du texte au-dessus), mockup de comparaison avant/après présenté puis validé, implémentation en un seul encart flex (image + texte, uniquement quand l'image est prête — sinon texte pleine largeur inchangé), vérifié par capture d'écran réelle des 2 états (avec/sans image)
+
 ## Blocs futurs
 
 Le prochain bloc (12) doit suivre la même convention : un ou plusieurs
