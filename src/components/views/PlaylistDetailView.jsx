@@ -556,7 +556,7 @@ function PlaylistDetailViewInner({
           l'échelle de z-index déjà en place ailleurs dans l'app. */}
       <button
         onClick={() => changeView('playlists')}
-        className="relative z-40 mb-4 text-sm font-medium text-slate-400 hover:text-white transition-colors flex items-center gap-2"
+        className="relative z-40 mb-4 text-sm font-medium text-slate-400 hover:text-main transition-colors flex items-center gap-2"
       >
         ← Retour
       </button>
