@@ -419,7 +419,7 @@ export default function SearchModal({
                     {displayedResults.length > 0 && visibleMainResults.length === 0 && (
                       <div className={`text-xs italic px-1 pb-1 ${textMuted}`}>Tous les titres trouvés ici sont déjà dans tes favoris.</div>
                     )}
-                    {visibleMainResults.map((track, i) => renderSearchResultRow(track, i, i >= visibleMainResults.length - 2))}
+                    {visibleMainResults.map((track, i) => renderSearchResultRow(track, track.trackId, i >= visibleMainResults.length - 2))}
                   </>
                 );
               })()}
@@ -442,7 +442,7 @@ export default function SearchModal({
                   <div className={`text-xs font-bold uppercase tracking-wider mt-4 mb-2 px-1 ${textMuted}`}>Autres résultats pour "{searchQuery}" (pas {searchActiveArtistName})</div>
                   {(() => {
                     const filteredOtherResults = worldSearchOtherResults.filter(t => !(!currentPlaylist && favorites.tracks.some(f => f.trackId === t.trackId)));
-                    return filteredOtherResults.map((track, i) => renderSearchResultRow(track, `other-${i}`, i >= filteredOtherResults.length - 2));
+                    return filteredOtherResults.map((track, i) => renderSearchResultRow(track, `other-${track.trackId}`, i >= filteredOtherResults.length - 2));
                   })()}
                 </>
               )}
