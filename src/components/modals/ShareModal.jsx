@@ -80,30 +80,56 @@ export default function ShareModal({
           </h3>
           <ModalCloseButton onClick={() => onClose()} />
         </div>
-        <div className={`p-4 rounded-xl mb-4 text-sm ${inputBg} border ${inputBorder} ${textHighlight}`}>
-          {shareData.text}
-        </div>
+        {/* Texte de partage — RETOUR DIRECT (01/09, capture d'écran) : "la
+            localisation du texte serait pas meilleure à gauche de l'image
+            dans un encart dédié plutôt qu'au-dessus, là ça isole quand même
+            vachement le visuel ?" — vérifié avant d'y toucher : l'image du
+            Bilan Visuel est un format PORTRAIT (1080×1920, voir
+            PlaylistDetailView.jsx, `scale: 2.7` sur une carte 400px de
+            large) donc affichée à `h-28` (112px), elle ne fait qu'environ
+            63px de large — un petit rectangle qui flottait seul dans sa
+            ligne, avec tout le reste de la largeur de la modale vide à
+            côté, pendant que le texte occupait sa PROPRE ligne pleine
+            largeur juste au-dessus. D'où le fractionnement en 2 cas :
+            avec image prête, texte + vignette dans UN SEUL encart flex
+            (`flex gap-3`, image à gauche, texte à droite, centré
+            verticalement) — sans image (chargement, trophée, ou image
+            retirée), le texte redevient pleine largeur comme avant. Le
+            bouton "×" (retrait de l'image) reste positionné pareil
+            (`absolute -top-2 -right-2` sur le conteneur RELATIF de
+            l'image, pas de l'encart entier) — fonctionne à l'identique en
+            flex qu'en `inline-block`. */}
+        {hasReadyImage ? (
+          <div className={`flex gap-3 p-3 rounded-xl mb-4 text-sm ${inputBg} border ${inputBorder} ${textHighlight}`}>
+            <div className="relative shrink-0">
+              <img src={summaryImagePreviewUrl} alt="Bilan visuel de la séance" className={`h-28 rounded-lg border ${inputBorder} object-cover`} />
+              <button
+                onClick={() => setIncludeSummaryImage(false)}
+                title="Retirer le bilan visuel"
+                className={`absolute -top-2 -right-2 w-6 h-6 ${ICON_BUTTON_ROUNDING} bg-gray-900 text-white flex items-center justify-center shadow-md hover:bg-red-500 transition-colors`}
+              >
+                <X size={14}/>
+              </button>
+            </div>
+            <div className="flex items-center">{shareData.text}</div>
+          </div>
+        ) : (
+          <div className={`p-4 rounded-xl mb-4 text-sm ${inputBg} border ${inputBorder} ${textHighlight}`}>
+            {shareData.text}
+          </div>
+        )}
 
-        {/* Aperçu du Bilan Visuel de Séance — génération en arrière-plan (voir
-            la docstring), jamais déclenchée depuis cette modale. 3 états
-            visibles, le 4e (error) reste silencieux (voir
-            startBackgroundImageGeneration, PlaylistDetailView.jsx — c'est un
-            bonus discret, pas une action explicitement demandée). */}
+        {/* État "en cours" du Bilan Visuel de Séance — génération en
+            arrière-plan (voir la docstring de tête de fichier), jamais
+            déclenchée depuis cette modale. Le 4e état (error) reste
+            silencieux (voir startBackgroundImageGeneration,
+            PlaylistDetailView.jsx — c'est un bonus discret, pas une action
+            explicitement demandée). Reste un bloc à part, SOUS le texte
+            (pas fusionné avec lui comme le cas "prêt" ci-dessus) : il n'y a
+            pas encore d'image à ce stade, rien à mettre côte-à-côte. */}
         {shareData.type === 'playlist' && summaryImageStatus === 'loading' && (
           <div className={`flex items-center gap-2 mb-4 text-xs font-semibold ${textMuted}`}>
             <Loader2 size={14} className="animate-spin"/> Préparation du bilan visuel...
-          </div>
-        )}
-        {hasReadyImage && (
-          <div className="relative mb-4 inline-block">
-            <img src={summaryImagePreviewUrl} alt="Bilan visuel de la séance" className={`h-28 rounded-xl border ${inputBorder} object-cover`} />
-            <button
-              onClick={() => setIncludeSummaryImage(false)}
-              title="Retirer le bilan visuel"
-              className={`absolute -top-2 -right-2 w-6 h-6 ${ICON_BUTTON_ROUNDING} bg-gray-900 text-white flex items-center justify-center shadow-md hover:bg-red-500 transition-colors`}
-            >
-              <X size={14}/>
-            </button>
           </div>
         )}
 
