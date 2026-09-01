@@ -82,8 +82,8 @@ describe('sidebarLayout — valeurs stabilisées actuelles (état final après 9
     expect(SIDEBAR_FOOTER_LINK_PADDING).toBe('px-3 py-1.5');
   });
 
-  it('séparateur avant "Découvrir" — DISTINCT du séparateur Création/Mon Espace, resserré de 10px en bas puis ancré au bloc du bas (01/09)', () => {
-    expect(SIDEBAR_DISCOVER_SEPARATOR_MARGIN).toBe('mt-4 mb-[23px]');
+  it('séparateur avant "Découvrir" — DISTINCT du séparateur Création/Mon Espace, resserré de 10px en bas puis ancré au bloc du bas (01/09, ajusté après un vrai déploiement)', () => {
+    expect(SIDEBAR_DISCOVER_SEPARATOR_MARGIN).toBe('mt-4 mb-7');
     // `mt-4` : SANS effet réel sur la position absolue de la ligne depuis
     // l'ajout de l'espaceur flexible juste avant (01/09, voir Sidebar.jsx,
     // `<div className="flex-1">` avant ce séparateur, dans un `<nav
@@ -94,14 +94,16 @@ describe('sidebarLayout — valeurs stabilisées actuelles (état final après 9
     // écran) : l'espaceur vaut alors 0px, `overflow-y-auto` prend le
     // relais, et la ligne redevient positionnée depuis le haut comme
     // avant — ce `mt` redevient pertinent dans CE cas précis.
-    // `mb-[23px]` (23px, contre `mb-2.5`/10px avant) : LE vrai levier
-    // maintenant que la ligne est ancrée au bas — ce qui vient APRÈS elle
-    // (cette marge + "Découvrir") détermine sa distance au bas réel de la
-    // nav. Valeur mesurée réellement via Playwright (vrai Chromium en
-    // cache, voir CLAUDE-SANDBOX-VERIFICATION.md), PAS calculée à la main
-    // comme l'avait été, faute de mieux à l'époque, le calcul similaire du
-    // 22/08 (`creditRowHeight`, retiré depuis).
-    const mbDiscover = parseFloat(SIDEBAR_DISCOVER_SEPARATOR_MARGIN.match(/mb-\[(\d+)px\]/)[1]);
+    // `mb-7` (28px, contre `mb-2.5`/10px avant) : LE vrai levier maintenant
+    // que la ligne est ancrée au bas. 1re valeur mesurée réellement via
+    // Playwright dans ce bac à sable (`mb-[23px]`, écart de 0.0px sur 5
+    // hauteurs de fenêtre) — puis un vrai déploiement a révélé un résidu
+    // d'environ 5px (capture d'écran réelle, mesuré par analyse d'image
+    // avec calibration d'échelle), corrigé ici. Le bac à sable donne une
+    // TRÈS bonne approximation, pas une garantie pixel-perfect identique à
+    // la prod (rendu de police notamment) — toujours reconfirmer sur un
+    // vrai déploiement pour ce type de réglage fin.
+    const mbDiscover = parseFloat(SIDEBAR_DISCOVER_SEPARATOR_MARGIN.match(/mb-(\d+)/)[1]) * 4;
     expect(mbDiscover).toBeGreaterThan(0);
   });
 
@@ -137,7 +139,7 @@ describe('sidebarLayout — valeurs stabilisées actuelles (état final après 9
     // ⚠️ Le "mb" du séparateur DÉCOUVRIR, lui, DIVERGE désormais entre
     // normal et compact depuis le 01/09 (contrairement à ce qui était vrai
     // jusqu'ici) : la variante NORMALE a été ancrée au bloc du bas
-    // (`mb-[23px]`, voir le test dédié plus haut) sur demande explicite
+    // (`mb-7`, voir le test dédié plus haut) sur demande explicite
     // avec capture d'écran en thème standard — la variante Mode Intime
     // n'a PAS été concernée par cette demande (capture montrait des icônes
     // rouges, pas roses) et garde donc sa valeur d'origine, désormais
