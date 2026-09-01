@@ -48,7 +48,8 @@ renuméroter les fichiers déjà existants.
   de test pour un composant existant", "4quater. Suppression sandbox ≠
   suppression repo", "4quinquies. ProfileView.jsx vs vitrine",
   "4sexies/4septies. grep avant modification de texte",
-  "4octies/4nonies. règle de visibilité en liste, fichier mal poussé"
+  "4octies/4nonies. règle de visibilité en liste, fichier mal poussé",
+  "4decies. état UI inatteignable / sélecteur CSS générique dans un test"
 - `claude-sandbox-verification/partie-06.md` — "5. Ce que ces outils ne
   remplacent pas", "5bis. matcher jest-dom manquant", "5ter. npm
   install/vite/Playwright fonctionnent réellement en sandbox",
