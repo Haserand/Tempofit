@@ -885,7 +885,7 @@ export default function StatsView({
               confirmer après déploiement, marge de sécurité volontaire
               (40 caractères, quasi identique au budget de la variante
               normale déjà validée) plutôt que de coller pile au max estimé. */}
-          <h3 className="text-lg font-bold mb-6 max-w-sm mx-auto text-white">
+          <h3 className={`text-lg font-bold mb-6 max-w-sm mx-auto ${textHighlight}`}>
             {statsMode === 'naughty'
               ? 'Termine une séance intime pour tes stats'
               : 'Termine une séance pour voir tes stats'}
