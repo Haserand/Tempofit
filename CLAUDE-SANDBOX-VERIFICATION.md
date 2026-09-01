@@ -56,6 +56,11 @@ renuméroter les fichiers déjà existants.
   "5quinquies. régression puis contournement Playwright/Chromium
   (22/08)", "5quater. mesurer le GLYPHE d'un bouton-icône, pas juste sa
   boîte"
+- `claude-sandbox-verification/partie-06b.md` — "5sexies. calibrer
+  l'échelle avant de lire des pixels bruts sur une capture d'écran",
+  "5septies. une mesure en bac à sable est une approximation, pas une
+  garantie identique à la prod", "5octies. vérifier une capacité réelle
+  avant de la nier à l'utilisateur, même déjà documentée dans ce fichier"
 
 ## Autres fichiers de référence à ce niveau
 
