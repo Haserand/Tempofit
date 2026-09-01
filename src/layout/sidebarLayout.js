@@ -107,17 +107,51 @@ export const SIDEBAR_SEPARATOR_MARGIN_COMPACT = 'mt-[13px] mb-5';
 // ⚠️ RESSERRÉ UNE 2e FOIS (01/09, retour direct avec capture d'écran :
 // "réhausser légèrement la barre au-dessus de Découvrir pour s'aligner
 // pile poil à la hauteur à laquelle on arrive avec la guestmodebar + le
-// mini lecteur audio") — `mt-5`(20px) → `mt-4`(16px), -4px. Estimation
-// prudente (pas de vrai navigateur dans ce bac à sable pour mesurer l'écart
-// exact, voir CLAUDE-SANDBOX-VERIFICATION.md) : ce réglage rapproche cette
-// ligne du haut du bloc MiniPlayerBar+GuestModeBar (140px cumulés, voir
-// BOTTOM_BAR_HEIGHT_PX, bottomBarLayout.js) SANS lien structurel garanti
-// entre les deux (2 conteneurs positionnés indépendamment sur desktop —
-// la Sidebar dans le flux normal, ces 2 barres en `fixed bottom-0` à côté
-// d'elle) : un pur réglage visuel pour la hauteur de fenêtre de la
-// capture, à confirmer/affiner après un vrai déploiement, pas un invariant
-// à toute résolution.
-export const SIDEBAR_DISCOVER_SEPARATOR_MARGIN = 'mt-4 mb-[23px]';
+// mini lecteur audio") — `mt-5`(20px) → `mt-4`(16px), -4px, PREMIÈRE
+// estimation à l'aveugle (pas de vrai navigateur invoqué à ce stade),
+// insuffisante (retour direct suivant : "je ne vois pas de changement").
+//
+// ⚠️ ANCRAGE STRUCTUREL AJOUTÉ ENSUITE (même jour) — après clarification du
+// besoin réel ("une seule ligne continue sur toute la largeur, fine côté
+// Sidebar, épaisse côté lecteur") et mesure réelle (Playwright + Chromium
+// en cache) révélant un écart de 343px, pas une histoire de quelques
+// pixels : la nav de la Sidebar empilait son contenu depuis le HAUT, sans
+// AUCUN lien structurel avec le bloc MiniPlayerBar+GuestModeBar (fixe en
+// bas). Un espaceur flexible a été ajouté juste avant le séparateur
+// (`<div className="flex-1">`, dans un `<nav className="flex flex-col
+// h-full">`, voir Sidebar.jsx) — il ancre désormais "Découvrir" + sa ligne
+// au bas de la Sidebar, quelle que soit la hauteur de fenêtre (vérifié à
+// 5 hauteurs différentes, 700-1100px). Ce `mt-4` ci-dessus n'a alors PLUS
+// AUCUN effet sur la position absolue de la ligne (l'espaceur absorbe
+// toute variation en amont) — gardé néanmoins pour le cas où le contenu
+// de la nav dépasse la hauteur disponible (Mode Intime, petit écran),
+// seul cas où il redevient pertinent (l'espaceur vaut alors 0px).
+//
+// ⚠️ Découverte en cours de route : un mécanisme presque identique
+// (`creditRowHeight`) avait déjà existé et avait été retiré le 22/08 pour
+// ne pas rogner l'espace de nav (voir Sidebar.jsx, section pied de page,
+// et readme/partie-02.md "Élément décoratif vs espace fonctionnel").
+// Cet espaceur-ci n'a PAS le même défaut : il n'absorbe QUE le vide déjà
+// inutilisé, ne force jamais rien à grandir.
+//
+// `mb-2.5`(10px) → `mb-[23px]` : le VRAI levier une fois l'espaceur en
+// place (la position de la ligne dépend désormais de ce qui vient APRÈS
+// elle, pas avant — voir historique/bloc-13.md pour l'analyse complète).
+// Valeur mesurée réellement via Playwright dans ce bac à sable (écart de
+// 0.0px à 5 hauteurs de fenêtre testées).
+//
+// ⚠️ RÉSIDU CORRIGÉ APRÈS UN VRAI DÉPLOIEMENT (même jour, capture d'écran
+// de l'app RÉELLEMENT en ligne) — la mesure en bac à sable (0px) ne s'est
+// PAS reproduite à l'identique en production : un écart résiduel d'environ
+// 4-5px restait visible. Mesuré sur la capture par analyse d'image
+// (calibration de l'échelle via la largeur connue de la Sidebar, `w-64`
+// = 256px CSS, comparée à sa largeur en pixels dans l'image — écran à
+// très haute résolution, ~3,1x). Cause probable : une différence fine de
+// rendu de police entre le bac à sable et l'environnement réel (jamais
+// isolée avec certitude, l'écart étant trop petit pour valoir la peine
+// d'investiguer plus). `mb-[23px]` → `mb-7` (28px, +5px) pour absorber ce
+// résidu.
+export const SIDEBAR_DISCOVER_SEPARATOR_MARGIN = 'mt-4 mb-7';
 
 // Variante Mode Intime (21/08, retour direct : "supprime 2 pixels à chaque
 // trait rouge pour voir Découvrir sans scroll") — même principe que
