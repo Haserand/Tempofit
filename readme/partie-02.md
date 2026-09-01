@@ -89,15 +89,14 @@ direct :
    garder pour tout NOUVEAU `title=` conditionnel écrit désormais, vérifier
    que le texte/état visible suit la MÊME condition, pas une condition plus
    pauvre.
-9. **`text-white`/`hover:text-white` écrit EN DUR (hors `dark:text-white`,
-   cantonné au thème sombre) n'est sans risque QUE sur un fond TOUJOURS
-   coloré/opaque — jamais sur `bg-base`/`cardBg`/aucun fond (adaptatifs,
-   clairs en thème clair). Motif récurrent, corrigé séparément au moins 4
-   fois sans qu'un garde-fou ne survive entre deux (`RoutinesView.jsx`
-   29/07, `GeneratorWizard.jsx`, puis `StatsView.jsx`/`ProfileView.jsx`/
-   `PlaylistDetailView.jsx` le 01/09). `text-main`/`${textHighlight}`
-   (useTheme.js) est l'équivalent adaptatif à utiliser à la place. Garde-fou
-   permanent depuis le 01/09 : `tests/hoverWhiteTextTrap.test.js`.
+9. **`text-white`/`hover:text-white` écrit EN DUR (hors `dark:text-white`)
+   n'est sans risque QUE sur un fond TOUJOURS coloré/opaque — jamais sur
+   `bg-base`/`cardBg`/aucun fond (adaptatifs, clairs en thème clair).
+   Motif récurrent, corrigé séparément au moins 4 fois sans qu'un
+   garde-fou ne survive entre deux (`RoutinesView.jsx` 29/07,
+   `GeneratorWizard.jsx`, puis `StatsView.jsx`/`ProfileView.jsx`/
+   `PlaylistDetailView.jsx` le 01/09). `text-main`/`${textHighlight}` est
+   l'équivalent adaptatif. Garde-fou permanent : `hoverWhiteTextTrap.test.js`.
 
 ### Pseudo/nom d'auteur cliquable vers un profil — `underline` PERMANENT
 
@@ -161,6 +160,12 @@ consultée activement) qui partage le même conteneur. En cas de conflit
 entre les deux, la fonction gagne — quitte à accepter un léger défaut
 visuel (ici, un désalignement de bordure) comme compromis assumé plutôt
 que corrigé.
+
+⚠️ **Nuance (01/09)** — interdit de FORCER un élément fonctionnel à
+grandir pour un gain cosmétique, pas d'absorber l'espace déjà INUTILISÉ :
+un espaceur `flex-1` où il y a du vide (ex. avant "Découvrir",
+`Sidebar.jsx`) ne retire rien à la nav — vaut 0px si le contenu dépasse
+la hauteur disponible, `overflow-y-auto` reprend la main.
 
 ### Vérifier un alignement CSS par le raisonnement seul est risqué — mesurer dès que possible
 
