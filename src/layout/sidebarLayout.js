@@ -104,7 +104,20 @@ export const SIDEBAR_SEPARATOR_MARGIN_COMPACT = 'mt-[13px] mb-5';
 // de "Découvrir" viennent d'ici. Voir aussi `SIDEBAR_SCROLL_PADDING`
 // ci-dessous pour les -10px en BAS (après "Découvrir", avant le pied de
 // page).
-export const SIDEBAR_DISCOVER_SEPARATOR_MARGIN = 'mt-5 mb-2.5';
+// ⚠️ RESSERRÉ UNE 2e FOIS (01/09, retour direct avec capture d'écran :
+// "réhausser légèrement la barre au-dessus de Découvrir pour s'aligner
+// pile poil à la hauteur à laquelle on arrive avec la guestmodebar + le
+// mini lecteur audio") — `mt-5`(20px) → `mt-4`(16px), -4px. Estimation
+// prudente (pas de vrai navigateur dans ce bac à sable pour mesurer l'écart
+// exact, voir CLAUDE-SANDBOX-VERIFICATION.md) : ce réglage rapproche cette
+// ligne du haut du bloc MiniPlayerBar+GuestModeBar (140px cumulés, voir
+// BOTTOM_BAR_HEIGHT_PX, bottomBarLayout.js) SANS lien structurel garanti
+// entre les deux (2 conteneurs positionnés indépendamment sur desktop —
+// la Sidebar dans le flux normal, ces 2 barres en `fixed bottom-0` à côté
+// d'elle) : un pur réglage visuel pour la hauteur de fenêtre de la
+// capture, à confirmer/affiner après un vrai déploiement, pas un invariant
+// à toute résolution.
+export const SIDEBAR_DISCOVER_SEPARATOR_MARGIN = 'mt-4 mb-2.5';
 
 // Variante Mode Intime (21/08, retour direct : "supprime 2 pixels à chaque
 // trait rouge pour voir Découvrir sans scroll") — même principe que
