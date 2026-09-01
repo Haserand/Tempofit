@@ -89,6 +89,15 @@ direct :
    garder pour tout NOUVEAU `title=` conditionnel écrit désormais, vérifier
    que le texte/état visible suit la MÊME condition, pas une condition plus
    pauvre.
+9. **`text-white`/`hover:text-white` écrit EN DUR (hors `dark:text-white`,
+   cantonné au thème sombre) n'est sans risque QUE sur un fond TOUJOURS
+   coloré/opaque — jamais sur `bg-base`/`cardBg`/aucun fond (adaptatifs,
+   clairs en thème clair). Motif récurrent, corrigé séparément au moins 4
+   fois sans qu'un garde-fou ne survive entre deux (`RoutinesView.jsx`
+   29/07, `GeneratorWizard.jsx`, puis `StatsView.jsx`/`ProfileView.jsx`/
+   `PlaylistDetailView.jsx` le 01/09). `text-main`/`${textHighlight}`
+   (useTheme.js) est l'équivalent adaptatif à utiliser à la place. Garde-fou
+   permanent depuis le 01/09 : `tests/hoverWhiteTextTrap.test.js`.
 
 ### Pseudo/nom d'auteur cliquable vers un profil — `underline` PERMANENT
 
