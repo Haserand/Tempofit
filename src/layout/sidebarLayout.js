@@ -117,7 +117,7 @@ export const SIDEBAR_SEPARATOR_MARGIN_COMPACT = 'mt-[13px] mb-5';
 // d'elle) : un pur réglage visuel pour la hauteur de fenêtre de la
 // capture, à confirmer/affiner après un vrai déploiement, pas un invariant
 // à toute résolution.
-export const SIDEBAR_DISCOVER_SEPARATOR_MARGIN = 'mt-4 mb-2.5';
+export const SIDEBAR_DISCOVER_SEPARATOR_MARGIN = 'mt-4 mb-[23px]';
 
 // Variante Mode Intime (21/08, retour direct : "supprime 2 pixels à chaque
 // trait rouge pour voir Découvrir sans scroll") — même principe que
