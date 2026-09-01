@@ -67,9 +67,11 @@ principes tirés de ce chantier transformés en documentation permanente
 (1 dans Convention UI, 3 dans CLAUDE-SANDBOX-VERIFICATION.md) — voir
 blocs 13 et 14. Puis chantier séparé : `ShareModal.jsx`, texte de partage
 fusionné à côté de la vignette du Bilan Visuel (au lieu d'au-dessus,
-isolée) quand l'image est prête — voir bloc 15. Suite complète :
-123 fichiers, 1704 tests au vert. Voir l'index `HISTORIQUE.md` → blocs
-12 à 15 pour le récit complet.
+isolée) quand l'image est prête, puis "Télécharger le visuel" remonté
+juste sous le visuel (après un 2e retour direct — le bouton "Copier le
+lien" s'était intercalé entre ce lien et sa justification d'origine) —
+voir bloc 15. Suite complète : 123 fichiers, 1704 tests au vert.
+Voir l'index `HISTORIQUE.md` → blocs 12 à 15 pour le récit complet.
 
 ### ⚠️ Règle permanente (25/08) — cette section ne contient QUE le chantier en cours, jamais l'historique clos
 
