@@ -133,6 +133,28 @@ export default function ShareModal({
           </div>
         )}
 
+        {/* RETOUR DIRECT (01/09, capture d'écran annotée) : "le bouton
+            télécharger le visuel devrait pas être juste en dessous du dit
+            visuel ?" — jusqu'ici positionné après "Copier le lien" comme
+            repli manuel pour WhatsApp/X/Facebook plus bas (ces liens
+            n'ouvrent qu'une URL, impossible d'y joindre un fichier
+            automatiquement — limite technique de ces plateformes, pas de
+            ce code), MAIS "Copier le lien" (gros bouton plein, très
+            visible) s'était entre-temps intercalé entre ce lien et les
+            tuiles WhatsApp/X/Facebook (voir commentaire retiré du 14/08 :
+            "juste SOUS les tuiles ... ci-dessus", plus vrai depuis) —
+            cassant la proximité qui justifiait sa position. Remonté ici,
+            juste sous le visuel lui-même : reste tout aussi accessible
+            avant de cliquer WhatsApp/X/Facebook plus bas qu'après. */}
+        {hasReadyImage && (
+          <a
+            href={summaryImagePreviewUrl} download="tempofit-bilan-de-seance.png"
+            className={`w-full py-3 mb-4 rounded-xl text-sm font-bold ${textMuted} hover:text-main transition-colors flex items-center justify-center gap-2`}
+          >
+            <Download size={16}/> Télécharger le visuel
+          </a>
+        )}
+
         {/* Boutons directs vers les réseaux les plus courants — tuiles discrètes
             (fond léger + accent coloré) plutôt que des blocs pleins saturés qui se
             battaient visuellement entre eux. Le partage natif (menu "Partager"
@@ -162,27 +184,6 @@ export default function ShareModal({
         <button onClick={copyToClipboard} className={`w-full py-4 text-white font-bold rounded-xl shadow-md hover:brightness-110 transition-all flex items-center justify-center gap-2 ${bgAccentClass}`}>
           <Copy size={18}/> Copier le lien
         </button>
-
-        {/* Repli manuel pour WhatsApp/X/Facebook ci-dessus : ces liens n'ouvrent
-            qu'une URL, impossible d'y joindre un fichier automatiquement (limite
-            technique de ces plateformes, pas de ce code) — au moins l'image est
-            à portée de main pour l'attacher soi-même après. */}
-        {hasReadyImage && (
-          <a
-            href={summaryImagePreviewUrl} download="tempofit-bilan-de-seance.png"
-            className={`w-full py-3 mt-2 rounded-xl text-sm font-bold ${textMuted} hover:text-main transition-colors flex items-center justify-center gap-2`}
-          >
-            {/* Suffixe "(WhatsApp/X/Facebook)" retiré (14/08, retour direct
-                avec capture) — redondant avec la position de ce bouton,
-                juste SOUS les tuiles WhatsApp/X/Facebook ci-dessus : le
-                contexte est déjà donné visuellement, pas besoin de le
-                répéter dans le texte. Avant ça (08/08), le texte avait déjà
-                été condensé en 1 seule ligne (96 → 43 caractères) en
-                gardant ce suffixe — cette fois-ci c'est le suffixe
-                lui-même qui saute. */}
-            <Download size={16}/> Télécharger le visuel
-          </a>
-        )}
 
         <button onClick={shareViaEmail} className={`w-full py-3 mt-2 rounded-xl text-sm font-bold ${textMuted} hover:text-main transition-colors flex items-center justify-center gap-2`}>
           <MessageCircle size={16}/> Envoyer par e-mail
