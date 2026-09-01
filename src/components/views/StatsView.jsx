@@ -50,7 +50,7 @@ import { supabase } from '../../supabaseClient';
  */
 export default function StatsView({
   theme, savedPlaylists, changeView, setCurrentPlaylist, getProfileForWorkout, getProfileForWorkoutOrDefault,
-  shareImageFile, showToast,
+  shareImageFile, shareToInstagramStories, showToast,
   isNaughtyMode,
   user, username, profilePrivacy, onViewOwnProfile, onManageProfilePrivacy,
 }) {
@@ -142,6 +142,20 @@ export default function StatsView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNaughtyMode]);
 
+  // RETOUR DIRECT (01/09, suite du chantier ShareModal.jsx — "tu as oublié
+  // de m'en parler [le même souci pour ce bouton] et traite aussi ce cas")
+  // — ce bouton appelait `shareImageFile` directement (partage générique de
+  // l'OS uniquement), même souci que "Story / IG" dans ShareModal.jsx avant
+  // correction (voir sa docstring, useShare.js) : aucune tentative
+  // spécifique d'ouvrir Instagram. Tente maintenant `shareToInstagramStories`
+  // en premier (iOS uniquement, voir sa docstring complète dans
+  // useShare.js pour le détail et sa limite honnête — jamais testé sur un
+  // vrai iPhone dans ce bac à sable) avec `shareImageFile` passé
+  // explicitement en repli (déjà la version enveloppée avec le trophée
+  // "hasSharedSomething", voir `shareImageFileWithTrophy`, App.jsx) —
+  // même raisonnement que ShareModal.jsx : ne JAMAIS fermer `shareImageFile`
+  // en dur dans useShare.js, sous peine de court-circuiter ce trophée pour
+  // tout partage qui transite par cette fonction.
   const exportGlobalStatsImage = async () => {
     if (isExportingGlobalStats) return;
     setIsExportingGlobalStats(true);
@@ -155,7 +169,7 @@ export default function StatsView({
       // sans effet ici, mais ne coûtent rien non plus — pas de raison de
       // s'en passer pour cette seule carte.
       const file = await captureElementAsFile(globalStatsCardRef.current, 'tempofit-bilan-global.png', { scale: 2 });
-      await shareImageFile(file, 'Mon Bilan TempoFit', "Mon bilan d'entraînement sur TempoFit 💪🎧");
+      await shareToInstagramStories(file, 'Mon Bilan TempoFit', "Mon bilan d'entraînement sur TempoFit 💪🎧", shareImageFile);
     } catch (e) {
       if (showToast) showToast("Impossible de générer l'image du bilan — réessaie dans un instant.", 'error');
     } finally {
