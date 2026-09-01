@@ -149,6 +149,23 @@ inutilisé (dégrade proprement à 0px si le vide disparaît un jour).
 **Suite complète en fin de chantier** : 123 fichiers, 1702 tests, tous
 verts.
 
+**Addendum — résidu corrigé après un vrai déploiement** : capture d'écran
+de l'app réellement en ligne montrant "toujours pas" alignée. Mesure par
+analyse d'image (Python/Pillow, pas à l'œil) : calibration de l'échelle
+via la largeur connue de la Sidebar (`w-64` = 256px CSS, comparée à sa
+largeur en pixels dans l'image — écran à très haute résolution, ~3,1x),
+puis mesure du décalage entre les 2 lignes une fois ramené en px CSS :
+environ 4-5px résiduels (pas les ~15px qu'une lecture brute des pixels de
+l'image, sans calibration d'échelle, aurait suggéré à tort). `mb-[23px]`
+→ `mb-7` (28px, +5px). Cause probable du résidu : une différence fine de
+rendu de police entre le bac à sable et la prod, jamais isolée avec
+certitude (écart trop petit pour valoir une investigation plus poussée).
+Confirme que la mesure en bac à sable (Playwright + Chromium en cache)
+donne une TRÈS bonne approximation mais pas une garantie pixel-perfect
+identique à un vrai déploiement — à reconfirmer visuellement pour ce
+type de réglage fin, exactement comme le rappelle déjà
+`CLAUDE-SANDBOX-VERIFICATION.md` pour d'autres mesures de ce projet.
+
 **Livraison** : `src/components/shared/Sidebar.jsx`, `src/layout/sidebarLayout.js`,
 `tests/layout/sidebarLayout.test.js`, `readme/partie-02.md`, `HISTORIQUE.md`,
 `historique/bloc-13.md` — fichier par fichier, chemin repo exact, esbuild +
