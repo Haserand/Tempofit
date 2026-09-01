@@ -91,6 +91,9 @@ contenu perdu ni dupliqué dans ces opérations.
 ### Bloc 12 — 01/09 (reprise de projet, sanity check + bug texte blanc récurrent)
 - `historique/bloc-12.md` — lecture complète de passation, sanity check général (mécanique + audit ciblé, aucune régression trouvée), 2 corrections mineures (faux positifs testFileIdentityTrap.test.js, `key` React de SearchModal.jsx), bug "texte blanc sur fond clair" repéré par capture d'écran puis généralisé à 3 fichiers, nouveau garde-fou permanent `hoverWhiteTextTrap.test.js`
 
+### Bloc 13 — 01/09 (suite, alignement Sidebar/bloc du bas — mesure réelle Playwright)
+- `historique/bloc-13.md` — retour direct sur l'alignement de la ligne au-dessus de "Découvrir" avec le haut du bloc MiniPlayerBar+GuestModeBar, clarification du besoin (une seule ligne continue), découverte du précédent du 22/08 (`creditRowHeight`, retiré pour préserver l'espace de nav), solution par espaceur flexible n'absorbant que le vide inutilisé, vraie mesure Playwright à 5 hauteurs de fenêtre (écart réduit à 0px partout), nuance ajoutée à la Convention UI
+
 ## Blocs futurs
 
 Le prochain bloc (12) doit suivre la même convention : un ou plusieurs
