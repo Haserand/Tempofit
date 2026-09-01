@@ -171,11 +171,99 @@ export function useShare(showToast) {
     return 'downloaded';
   };
 
+  // Partage DIRECT vers une Story Instagram (iOS uniquement) — RETOUR DIRECT
+  // (01/09, capture d'écran : "es-tu sûr que les boutons de partage vers les
+  // réseaux sociaux ouvrent bien les réseaux sociaux ? ça ne me semble pas
+  // être le cas pour Instagram"). Confirmé à raison : le bouton "Story / IG"
+  // n'appelait jusqu'ici QUE `shareImageFile`/`shareNative` (partage
+  // générique de l'OS, voir plus haut) — aucune intégration Instagram
+  // réelle, juste l'espoir qu'Instagram apparaisse dans le sélecteur d'apps
+  // du téléphone. Contrairement à WhatsApp/Twitter/Facebook (liens web
+  // officiels documentés, fiables), Instagram n'expose PAS d'URL de partage
+  // web classique — mais expose un schéma d'URL dédié aux Stories,
+  // documenté par Meta, UNIQUEMENT sur iOS : `instagram-stories://share`,
+  // qui lit l'image à partager depuis le presse-papier général du système.
+  //
+  // ⚠️ LIMITE HONNÊTE — jamais testé sur un vrai appareil iOS (aucun
+  // disponible dans ce bac à sable, et un navigateur piloté par Playwright
+  // ne peut pas simuler un vrai passage de main vers l'app Instagram
+  // installée) : ce qui suit est une implémentation basée sur la
+  // documentation Meta et des retours d'expérience publics d'autres sites
+  // ayant déjà ce bouton (Spotify Wrapped, Strava...), PAS une vérification
+  // de bout en bout faite dans ce projet. À reconfirmer sur un vrai iPhone
+  // avec Instagram installé avant de considérer ce chantier clos.
+  //
+  // Mécanique : (1) écrit l'image dans le presse-papier GÉNÉRAL via
+  // `navigator.clipboard.write()` (API standard, pas une astuce interne
+  // à Instagram) — Instagram, une fois ouvert via ce schéma d'URL, va la
+  // relire automatiquement s'il n'y trouve aucune des clés spéciales
+  // `com.instagram.sharedSticker.*` (celles-ci ne sont accessibles qu'aux
+  // apps natives via `UIPasteboard`, pas au web — donc hors de portée ici,
+  // le simple presse-papier standard est le seul levier disponible côté
+  // web). (2) navigue vers `instagram-stories://share` — si Instagram
+  // n'est pas installé, cette navigation échoue SILENCIEUSEMENT (aucune
+  // erreur JS levée, la page reste simplement affichée). (3) détection
+  // best-effort de cet échec silencieux : si la page est ENCORE visible
+  // après un court délai, on considère que ça n'a pas marché et on
+  // bascule sur le partage générique (`shareImageFile`) — pattern
+  // standard pour ce type de lien profond, mais PAS garanti à 100% (aucune
+  // API web ne confirme directement l'échec d'ouverture d'un schéma d'URL
+  // personnalisé). `source_application` laissé à une valeur générique : un
+  // vrai identifiant Meta for Developers n'est pas configuré pour ce
+  // projet (voir `.env.example`, rien de tel n'y figure) — sans lui,
+  // Instagram accepte quand même l'image du presse-papier d'après les
+  // retours publics consultés, seule l'attribution affichée en moins.
+  //
+  // `fallbackShareFn` (paramètre, PAS `shareImageFile` fermé directement
+  // sur cette fonction) — App.jsx enveloppe `shareImageFile` dans
+  // `shareImageFileWithTrophy` (déclenche `checkTrophies` sur un partage
+  // réussi, voir App.jsx) : appeler `shareImageFile` en dur ici court-
+  // circuiterait ce trophée pour tout partage qui transite par CETTE
+  // fonction (repli iOS raté, ou Android/desktop d'emblée). Le vrai
+  // "repli" à utiliser doit donc venir de l'appelant (ShareModal.jsx,
+  // via sa prop `shareImageFile` — déjà la version enveloppée).
+  const shareToInstagramStories = async (file, title, text, fallbackShareFn) => {
+    const fallback = fallbackShareFn || shareImageFile;
+    const isIOS = typeof navigator !== 'undefined' && /iP(hone|ad|od)/.test(navigator.userAgent) && !window.MSStream;
+    if (!isIOS || !file || typeof navigator.clipboard?.write !== 'function' || typeof ClipboardItem === 'undefined') {
+      // Schéma d'URL Instagram Stories inexistant hors iOS (documenté par
+      // Meta), ou API presse-papier indisponible (contexte non sécurisé,
+      // navigateur trop ancien) — repli direct, inutile de tenter.
+      return fallback(file, title, text);
+    }
+
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ [file.type]: file })]);
+    } catch (e) {
+      // Écriture presse-papier refusée/impossible — repli direct, aucune
+      // image à proposer à Instagram sans elle.
+      return fallback(file, title, text);
+    }
+
+    // Repli après un court délai SI la page est toujours visible (voir
+    // limite honnête ci-dessus) — nettoyé si la page se cache entre-temps
+    // (signe que la navigation vers Instagram a probablement fonctionné).
+    const fallbackTimer = setTimeout(() => {
+      if (document.visibilityState === 'visible') {
+        fallback(file, title, text);
+      }
+    }, 1500);
+    document.addEventListener('visibilitychange', function onHide() {
+      if (document.visibilityState === 'hidden') {
+        clearTimeout(fallbackTimer);
+        document.removeEventListener('visibilitychange', onHide);
+      }
+    });
+
+    window.location.href = 'instagram-stories://share?source_application=tempofit';
+    return 'attempted';
+  };
+
   return {
     shareData,
     isShareModalOpen,
     handleShare, copyToClipboard, shareNative,
     shareToWhatsApp, shareToTwitter, shareToFacebook, shareViaEmail,
-    shareImageFile,
+    shareImageFile, shareToInstagramStories,
   };
 }
