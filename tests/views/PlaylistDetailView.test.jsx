@@ -126,6 +126,15 @@ function mockShareImage(overrides = {}) {
     setSummaryImagePreviewUrl: vi.fn(),
     includeSummaryImage: true,
     setIncludeSummaryImage: vi.fn(),
+    // `summaryImageContextKey`/son setter (01/09, chantier "visuel de
+    // trophée partageable") — voir la docstring de ShareImageContext.jsx :
+    // ce Contexte, jusqu'ici produit uniquement par PlaylistDetailView.jsx,
+    // est désormais aussi produit par TrophiesView.jsx (un trophée à la
+    // fois) ; cette clé évite que `startBackgroundImageGeneration` ne
+    // confonde un "ready" appartenant à un AUTRE sujet avec celui de LA
+    // playlist courante.
+    summaryImageContextKey: null,
+    setSummaryImageContextKey: vi.fn(),
     ...overrides,
   };
 }
@@ -240,10 +249,16 @@ describe('PlaylistDetailView', () => {
     await waitFor(() => expect(setSummaryImageStatus).toHaveBeenCalledWith('ready'));
   });
 
-  it('ne relance pas la génération d\'image si déjà "loading" ou "ready"', () => {
+  it('ne relance pas la génération d\'image si déjà "loading", ou "ready" pour CETTE MÊME playlist (clé de contexte correspondante)', () => {
     const setSummaryImageStatus = vi.fn();
     mockUsePlaylistDetail.mockReturnValue(makeContextValue());
-    useShareImage.mockReturnValue(mockShareImage({ setSummaryImageStatus, summaryImageStatus: 'ready' }));
+    // `summaryImageContextKey` DOIT correspondre à la playlist courante
+    // (`pl1`, voir makePlaylist) pour que "ready" soit considéré comme
+    // valide ici — sans cette clé correspondante, un "ready" pourrait
+    // provenir d'un AUTRE sujet (une playlist différente, ou un trophée,
+    // voir ShareImageContext.jsx) et ne doit alors PAS être réutilisé tel
+    // quel (voir le test suivant pour ce cas précis).
+    useShareImage.mockReturnValue(mockShareImage({ setSummaryImageStatus, summaryImageStatus: 'ready', summaryImageContextKey: 'playlist:pl1' }));
     render(<PlaylistDetailView {...baseProps()} />);
     // L'effet de reset (currentPlaylist.id) se déclenche AUSSI au tout 1er
     // montage (undefined → l'id réel) — on vide les appels d'abord pour
@@ -253,6 +268,18 @@ describe('PlaylistDetailView', () => {
     fireEvent.click(screen.getByText('trigger-share'));
 
     expect(setSummaryImageStatus).not.toHaveBeenCalled();
+  });
+
+  it('un "ready" appartenant à un AUTRE sujet (clé de contexte différente, ex. un trophée) régénère bien — ne réutilise jamais l\'image d\'un autre partage par erreur (01/09, bug potentiel évité avant qu\'il n\'existe en prod)', async () => {
+    const setSummaryImageStatus = vi.fn();
+    mockUsePlaylistDetail.mockReturnValue(makeContextValue());
+    useShareImage.mockReturnValue(mockShareImage({ setSummaryImageStatus, summaryImageStatus: 'ready', summaryImageContextKey: 'trophy:t_first' }));
+    render(<PlaylistDetailView {...baseProps()} />);
+    setSummaryImageStatus.mockClear();
+
+    fireEvent.click(screen.getByText('trigger-share'));
+
+    await waitFor(() => expect(setSummaryImageStatus).toHaveBeenCalledWith('loading'));
   });
 
   it('changer de playlist réinitialise l\'état de l\'image de bilan (et révoque l\'ancienne URL si présente)', () => {
