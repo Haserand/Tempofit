@@ -54,7 +54,12 @@ export default function ShareModal({
 
   if (!isShareModalOpen || !shareData) return null;
 
-  const hasReadyImage = shareData.type === 'playlist' && summaryImageStatus === 'ready' && includeSummaryImage && summaryImageFile;
+  // RETOUR DIRECT (01/09, suite du chantier Instagram Stories — "et pour
+  // les trophées ?" puis "oui, crée un visuel pour les trophées") — un
+  // trophée dispose désormais lui aussi d'un visuel partageable
+  // (TrophyShareCard.jsx, généré par TrophiesView.jsx) : `hasReadyImage`
+  // accepte maintenant les 2 types, PAS seulement 'playlist' comme avant.
+  const hasReadyImage = (shareData.type === 'playlist' || shareData.type === 'trophy') && summaryImageStatus === 'ready' && includeSummaryImage && summaryImageFile;
 
   // RETOUR DIRECT (01/09, capture d'écran : "es-tu sûr que les boutons de
   // partage vers les réseaux sociaux ouvrent bien les réseaux sociaux ? ça
@@ -72,7 +77,8 @@ export default function ShareModal({
   // image prête), `shareToInstagramStories` bascule lui-même directement
   // sur ce même repli — comportement inchangé pour ces cas. `shareImageFile`
   // ne ferme pas la modale elle-même (appelée aussi ailleurs sans modale de
-  // partage ouverte, voir PlaylistDetailView.jsx/StatsView.jsx) — fermée
+  // partage ouverte, voir PlaylistDetailView.jsx/StatsView.jsx/
+  // TrophiesView.jsx) — fermée
   // ici explicitement après.
   const handleNativeShare = async () => {
     if (hasReadyImage) {
@@ -131,17 +137,20 @@ export default function ShareModal({
           </div>
         )}
 
-        {/* État "en cours" du Bilan Visuel de Séance — génération en
-            arrière-plan (voir la docstring de tête de fichier), jamais
-            déclenchée depuis cette modale. Le 4e état (error) reste
+        {/* État "en cours" du Bilan Visuel de Séance OU du visuel de
+            trophée (01/09, généralisé aux 2 types) — génération en
+            arrière-plan (voir la docstring de tête de fichier pour le
+            Bilan de Séance, celle de TrophiesView.jsx pour le trophée),
+            jamais déclenchée depuis cette modale. Le 4e état (error) reste
             silencieux (voir startBackgroundImageGeneration,
-            PlaylistDetailView.jsx — c'est un bonus discret, pas une action
-            explicitement demandée). Reste un bloc à part, SOUS le texte
-            (pas fusionné avec lui comme le cas "prêt" ci-dessus) : il n'y a
-            pas encore d'image à ce stade, rien à mettre côte-à-côte. */}
-        {shareData.type === 'playlist' && summaryImageStatus === 'loading' && (
+            PlaylistDetailView.jsx / shareTrophy, TrophiesView.jsx — dans
+            les 2 cas, c'est un bonus discret, pas une action explicitement
+            demandée). Reste un bloc à part, SOUS le texte (pas fusionné
+            avec lui comme le cas "prêt" ci-dessus) : il n'y a pas encore
+            d'image à ce stade, rien à mettre côte-à-côte. */}
+        {(shareData.type === 'playlist' || shareData.type === 'trophy') && summaryImageStatus === 'loading' && (
           <div className={`flex items-center gap-2 mb-4 text-xs font-semibold ${textMuted}`}>
-            <Loader2 size={14} className="animate-spin"/> Préparation du bilan visuel...
+            <Loader2 size={14} className="animate-spin"/> {shareData.type === 'trophy' ? 'Préparation du visuel...' : 'Préparation du bilan visuel...'}
           </div>
         )}
 
@@ -160,7 +169,7 @@ export default function ShareModal({
             avant de cliquer WhatsApp/X/Facebook plus bas qu'après. */}
         {hasReadyImage && (
           <a
-            href={summaryImagePreviewUrl} download="tempofit-bilan-de-seance.png"
+            href={summaryImagePreviewUrl} download={shareData.type === 'trophy' ? 'tempofit-trophee.png' : 'tempofit-bilan-de-seance.png'}
             className={`w-full py-3 mb-4 rounded-xl text-sm font-bold ${textMuted} hover:text-main transition-colors flex items-center justify-center gap-2`}
           >
             <Download size={16}/> Télécharger le visuel
