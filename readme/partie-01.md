@@ -39,43 +39,26 @@ VERIFICATION.md`, restructuré en `claude-sandbox-verification/partie-
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement — 2 chantiers le 01/09, même session. (1)
-**Check-up de reprise** : sanity check complet (mécanique + audit ciblé,
-rien à corriger côté architecture), 2 petites corrections (faux positifs
-`testFileIdentityTrap.test.js`, `key` React de `SearchModal.jsx`), bug
-"texte blanc sur fond clair" trouvé et généralisé à 3 fichiers
-(`StatsView.jsx`/`ProfileView.jsx`/`PlaylistDetailView.jsx`), nouveau
-garde-fou permanent `hoverWhiteTextTrap.test.js` — voir bloc 12. (2)
-**Alignement Sidebar/bloc du bas** : la ligne au-dessus de "Découvrir"
-est désormais ANCRÉE (espaceur `flex-1` + `h-full` sur `<nav>`,
-`Sidebar.jsx`) au haut du bloc MiniPlayerBar+GuestModeBar, quelle que soit
-la hauteur de fenêtre — vérifié par une vraie mesure Playwright (Chromium
-en cache, écart de 0px à 5 hauteurs testées), pas au calcul à la main.
-Découverte en cours de route d'un précédent du 22/08 (`creditRowHeight`,
-retiré pour préserver l'espace de nav) — présenté à l'utilisateur avant
-d'implémenter, solution retenue compatible (n'absorbe que le vide déjà
-inutilisé, ne force jamais rien à grandir). Résidu d'environ 5px trouvé
-après un vrai déploiement (mesure sur capture d'écran par analyse
-d'image calibrée, pas à l'œil), corrigé. Puis "Découvrir" plus centré
-dans son bloc (tout l'espace réservé était d'un seul côté) — réparti en
-2 (17px/11px, asymétrique pour compenser un padding caché de 6px), sans
-déplacer la ligne. Enfin, un "léger scroll" du menu de gauche sur fenêtre
-courte, causé par une marge (`mt-4`) devenue inerte mais toujours
-consommée — mise à 0px, seuil de débordement repoussé à ~500-550px de
-hauteur de fenêtre (vérifié par mesure réelle, 450-1000px). Enfin, 4
-principes tirés de ce chantier transformés en documentation permanente
-(1 dans Convention UI, 3 dans CLAUDE-SANDBOX-VERIFICATION.md) — voir
-blocs 13 et 14. Puis `ShareModal.jsx` : texte de partage fusionné à côté
-de la vignette du Bilan Visuel (au lieu d'au-dessus, isolée), "Télécharger
-le visuel" remonté juste sous le visuel — voir bloc 15. Enfin, vrai
-partage Instagram Stories sur iOS (`shareToInstagramStories`, useShare.js)
-— le bouton "Story / IG" n'avait jusqu'ici aucune intégration Instagram
-réelle, juste le partage générique de l'OS ; ⚠️ jamais testé sur un vrai
-iPhone (aucun disponible dans ce bac à sable), à confirmer sur un vrai
-appareil — même correctif étendu à `StatsView.jsx` ("Partager mon bilan",
-oublié une 1re fois, traité sur rappel direct) — voir bloc 16. Suite
-complète : 123 fichiers, 1710 tests au vert. Voir l'index `HISTORIQUE.md`
-→ blocs 12 à 16 pour le récit complet.
+Rien en cours actuellement — session très longue le 01/09, 6 chantiers
+enchaînés. Résumé bref (voir `HISTORIQUE.md` → blocs 12 à 17 pour le
+récit complet) : (12) check-up de reprise (sanity check, bug "texte blanc
+sur fond clair" généralisé à 3 fichiers, nouveau garde-fou
+`hoverWhiteTextTrap.test.js`) ; (13) alignement de la ligne au-dessus de
+"Découvrir" avec le bloc MiniPlayerBar+GuestModeBar (espaceur `flex-1`,
+vérifié par mesure Playwright réelle, 2 résidus corrigés après un vrai
+déploiement — centrage, puis "léger scroll" sur fenêtre courte) ; (14)
+4 principes de ce chantier transformés en documentation permanente
+(Convention UI + CLAUDE-SANDBOX-VERIFICATION.md) ; (15) `ShareModal.jsx` :
+texte fusionné à côté du Bilan Visuel (au lieu d'au-dessus, isolé),
+"Télécharger le visuel" remonté juste sous le visuel ; (16) vrai partage
+Instagram Stories sur iOS (`shareToInstagramStories`, useShare.js — le
+bouton "Story / IG" n'avait aucune intégration Instagram réelle
+auparavant ; ⚠️ jamais testé sur un vrai iPhone, à confirmer), étendu à
+`StatsView.jsx` ; (17) visuel partageable pour un trophée débloqué
+(`TrophyShareCard.jsx`, `TrophiesView.jsx`) — bug potentiel corrigé AVANT
+qu'il n'existe en prod (`summaryImageContextKey`, ShareImageContext.jsx,
+évite qu'un partage de trophée et un Bilan de Séance ne se mélangent).
+Suite complète : 125 fichiers, 1729 tests au vert.
 
 ### ⚠️ Règle permanente (25/08) — cette section ne contient QUE le chantier en cours, jamais l'historique clos
 
