@@ -1,62 +1,76 @@
-// @vitest-environment jsdom
-//
-// Premier fichier de test pour TrophyShareCard.jsx (01/09, chantier "vrai
-// partage Instagram Stories" — "et pour les trophées ?" puis "oui, crée un
-// visuel pour les trophées"). Même modèle que GlobalStatsShareCard.test.jsx :
-// composant purement présentationnel, une seule prop réellement variable
-// (`trophy`), pas de thème/contexte à mocker.
+/**
+ * TrophyShareCard — visuel partageable pour un trophée débloqué, même
+ * principe que SessionSummaryCard.jsx/GlobalStatsShareCard.jsx (composant
+ * PUREMENT présentationnel, capturé ensuite via html2canvas par l'appelant —
+ * voir TrophiesView.jsx pour la logique d'export une fois câblée).
+ *
+ * RETOUR DIRECT (01/09, suite du chantier "vrai partage Instagram Stories" —
+ * "et pour les trophées ?", puis "oui, crée un visuel pour les trophées") :
+ * jusqu'ici, partager un trophée ne partageait QUE du texte (`handleShare`,
+ * useShare.js) — aucun visuel, donc `hasReadyImage` (ShareModal.jsx) restait
+ * toujours faux pour ce type de partage, et le bouton "Story / IG"
+ * n'apparaissait jamais (juste "Plus", honnête mais sans intégration
+ * Instagram réelle). Ce composant comble ce manque.
+ *
+ * Design volontairement DORÉ/AMBRE (pas le rouge habituel de l'app ni le
+ * bleu/violet de GlobalStatsShareCard.jsx) — cohérent avec la couleur déjà
+ * utilisée pour un trophée débloqué ailleurs dans l'app (bordure/halo jaune
+ * sur la carte trophée, voir TrophiesView.jsx, `renderTrophyCard`) : un
+ * accomplissement mérite sa propre identité visuelle, pas un recyclage des
+ * couleurs déjà prises par les 2 autres visuels partageables.
+ *
+ * Zéro appel réseau/pochette à résoudre (contrairement à
+ * SessionSummaryCard.jsx) : un trophée n'a qu'un emoji (`trophy.icon`,
+ * appConfig.js) comme illustration — la capture peut donc se faire
+ * immédiatement au clic, sans étape de préparation asynchrone préalable.
+ */
+export default function TrophyShareCard({ trophy, isNaughtyMode = false }) {
+  if (!trophy) return null;
 
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
-import '@testing-library/jest-dom/vitest';
-import TrophyShareCard from '../../src/components/shared/TrophyShareCard.jsx';
+  return (
+    <div
+      className="w-[400px] rounded-[32px] overflow-hidden relative"
+      style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
+    >
+      {/* Fond dégradé doré/ambre (mode standard) ou rose sombre (Mode
+          Intime, même principe que les 2 autres cartes partageables) — en
+          style inline avec des valeurs hex réelles, PAS des classes
+          Tailwind nommées (voir GlobalStatsShareCard.jsx : les couleurs
+          nommées Tailwind v4 génèrent de l'oklch(), qu'html2canvas ne sait
+          pas toujours parser correctement selon la combinaison de styles —
+          convention déjà établie, reprise ici par prudence plutôt que
+          revérifiée au cas par cas). */}
+      <div className="absolute inset-0" style={{ background: isNaughtyMode ? 'linear-gradient(to bottom right, #9f1239, #831843, #450a0a)' : 'linear-gradient(to bottom right, #b45309, #92400e, #451a03)' }} />
+      <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full blur-3xl" style={{ backgroundColor: 'rgba(255,255,255,0.12)' }} />
+      <div className="absolute -bottom-20 -left-10 w-64 h-64 rounded-full blur-3xl" style={{ backgroundColor: 'rgba(0,0,0,0.20)' }} />
 
-afterEach(() => {
-  cleanup();
-});
+      <div className="relative p-8 pb-6">
+        <div className="flex items-center gap-2 mb-10">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}>
+            <span style={{ fontSize: '18px', lineHeight: 1 }}>{isNaughtyMode ? '🔥' : '🏆'}</span>
+          </div>
+          <span className="font-black text-lg tracking-tight" style={{ color: '#ffffff' }}>{isNaughtyMode ? 'TempoIntime' : 'TempoFit'}</span>
+        </div>
 
-const sampleTrophy = { id: 't_first', name: 'Premier Pas', desc: "Complète ta toute 1ère session d'entraînement.", icon: '🥉' };
+        <p className="text-xs font-bold uppercase tracking-[0.2em] mb-1" style={{ color: 'rgba(255,255,255,0.70)' }}>Trophée débloqué</p>
 
-describe('TrophyShareCard', () => {
-  it('sans trophy fourni : ne rend rien (garde `if (!trophy) return null`, cas "aucun partage encore lancé cette session")', () => {
-    const { container } = render(<TrophyShareCard trophy={null} />);
-    expect(container).toBeEmptyDOMElement();
-  });
+        {/* Icône du trophée — gros plan, pas juste une petite pastille comme
+            sur la carte du mur des trophées (TrophiesView.jsx) : c'est ICI
+            le sujet principal du visuel, pas un élément secondaire à côté
+            d'un titre. */}
+        <div className="flex justify-center my-8">
+          <div className="w-32 h-32 rounded-[28px] flex items-center justify-center" style={{ backgroundColor: 'rgba(255,255,255,0.15)', fontSize: '64px', lineHeight: 1 }}>
+            {trophy.icon}
+          </div>
+        </div>
 
-  it('affiche le nom, la description et l\'icône du trophée fourni', () => {
-    render(<TrophyShareCard trophy={sampleTrophy} />);
-    expect(screen.getByText('Premier Pas')).toBeInTheDocument();
-    expect(screen.getByText("Complète ta toute 1ère session d'entraînement.")).toBeInTheDocument();
-    expect(screen.getByText('🥉')).toBeInTheDocument();
-    expect(screen.getByText('Trophée débloqué')).toBeInTheDocument();
-  });
+        <h1 className="text-3xl font-black leading-tight mb-3 text-center" style={{ color: '#ffffff' }}>{trophy.name}</h1>
+        <p className="text-sm text-center px-2" style={{ color: 'rgba(255,255,255,0.80)' }}>{trophy.desc}</p>
+      </div>
 
-  it('mode standard : marque "TempoFit" et un dégradé doré/ambre (pas rose)', () => {
-    const { container } = render(<TrophyShareCard trophy={sampleTrophy} isNaughtyMode={false} />);
-    expect(screen.getByText('TempoFit')).toBeInTheDocument();
-    expect(screen.getByText('🏆')).toBeInTheDocument();
-    const gradientLayer = container.querySelector('.absolute.inset-0');
-    expect(gradientLayer.style.background).toContain('rgb(180, 83, 9)'); // #b45309, doré/ambre
-  });
-
-  it('Mode Intime : "TempoIntime", icône 🔥, dégradé rose sombre (pas le doré/ambre habituel) — même principe que GlobalStatsShareCard.jsx/SessionSummaryCard.jsx', () => {
-    const { container } = render(<TrophyShareCard trophy={sampleTrophy} isNaughtyMode={true} />);
-    expect(screen.getByText('TempoIntime')).toBeInTheDocument();
-    expect(screen.getByText('🔥')).toBeInTheDocument();
-    expect(screen.queryByText('TempoFit', { exact: true })).toBeNull();
-    const gradientLayer = container.querySelector('.absolute.inset-0');
-    expect(gradientLayer.style.background).toContain('rgb(159, 18, 57)'); // #9f1239, rose sombre
-    expect(gradientLayer.style.background).not.toContain('rgb(180, 83, 9)');
-  });
-
-  it('change bien de trophée affiché quand la prop change (re-render, pas un état figé au montage)', () => {
-    const { rerender } = render(<TrophyShareCard trophy={sampleTrophy} />);
-    expect(screen.getByText('Premier Pas')).toBeInTheDocument();
-
-    const otherTrophy = { id: 't_bolt', name: 'La Foudre', desc: 'Génère une session extrême.', icon: '⚡' };
-    rerender(<TrophyShareCard trophy={otherTrophy} />);
-    expect(screen.queryByText('Premier Pas')).toBeNull();
-    expect(screen.getByText('La Foudre')).toBeInTheDocument();
-    expect(screen.getByText('⚡')).toBeInTheDocument();
-  });
-});
+      <div className="relative px-8 py-4 border-t flex items-center justify-center" style={{ borderColor: 'rgba(255,255,255,0.15)' }}>
+        <p className="text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.60)' }}>tempofit.app — cale ta musique sur ton effort</p>
+      </div>
+    </div>
+  );
+}
