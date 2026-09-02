@@ -137,9 +137,10 @@ describe('ShareModal — bilan visuel de séance', () => {
     expect(screen.getByText('Préparation du bilan visuel...')).toBeInTheDocument();
   });
 
-  it('type "trophy" : jamais de section image, même en "loading"', () => {
+  it('type "trophy" en "loading" : affiche le texte de préparation dédié aux trophées ("visuel", pas "bilan visuel" — propre à une playlist), depuis le chantier "visuel de trophée partageable" (01/09)', () => {
     useShareImage.mockReturnValue(mockShareImage({ summaryImageStatus: 'loading' }));
     render(<ShareModal {...baseProps({ shareData: trophyShareData })} />);
+    expect(screen.getByText('Préparation du visuel...')).toBeInTheDocument();
     expect(screen.queryByText('Préparation du bilan visuel...')).not.toBeInTheDocument();
   });
 
@@ -176,6 +177,25 @@ describe('ShareModal — bilan visuel de séance', () => {
     const downloadLink = screen.getByText(/Télécharger le visuel/).closest('a');
     expect(downloadLink).toHaveAttribute('href', 'blob:preview');
     expect(downloadLink).toHaveAttribute('download', 'tempofit-bilan-de-seance.png');
+  });
+
+  it('type "trophy" avec image prête : hasReadyImage fonctionne comme pour une playlist (fusion image+texte, nom de fichier dédié) — 01/09, chantier "visuel de trophée partageable"', () => {
+    navigator.share = vi.fn();
+    useShareImage.mockReturnValue(mockShareImage({
+      summaryImageStatus: 'ready', summaryImageFile: new File(['x'], 'tempofit-trophee.png'), summaryImagePreviewUrl: 'blob:trophee-preview',
+    }));
+    render(<ShareModal {...baseProps({ shareData: trophyShareData })} />);
+
+    // Même encart fusionné image+texte que pour une playlist (voir le
+    // chantier "texte à côté du visuel" du même jour) — PAS le texte
+    // pleine largeur utilisé sinon.
+    expect(screen.getByAltText('Bilan visuel de la séance')).toHaveAttribute('src', 'blob:trophee-preview');
+    expect(screen.getByText('Story / IG')).toBeInTheDocument();
+
+    // Nom de fichier de téléchargement DÉDIÉ (pas celui d'une playlist).
+    const downloadLink = screen.getByText(/Télécharger le visuel/).closest('a');
+    expect(downloadLink).toHaveAttribute('href', 'blob:trophee-preview');
+    expect(downloadLink).toHaveAttribute('download', 'tempofit-trophee.png');
   });
 });
 
