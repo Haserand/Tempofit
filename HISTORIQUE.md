@@ -103,6 +103,9 @@ contenu perdu ni dupliqué dans ces opérations.
 ### Bloc 16 — 01/09 (suite, vrai partage Instagram Stories sur iOS)
 - `historique/bloc-16.md` — retour direct ("es-tu sûr que les boutons de partage ouvrent bien les réseaux sociaux ? ça ne me semble pas être le cas pour Instagram") : confirmé, le bouton "Story / IG" n'appelait que le partage générique de l'OS, sans intégration Instagram réelle — nouvelle fonction `shareToInstagramStories` (schéma d'URL `instagram-stories://share`, documenté par Meta, iOS uniquement, écrit l'image dans le presse-papier général puis navigue, avec repli automatique si la page reste visible), câblée en préservant le trophée "hasSharedSomething" existant, 5 nouveaux tests. ⚠️ Jamais testé sur un vrai iPhone (aucun disponible dans ce bac à sable) — implémentation basée sur la documentation Meta et des retours publics, à reconfirmer sur un vrai appareil
 
+### Bloc 17 — 01/09 (suite, visuel partageable pour un trophée débloqué)
+- `historique/bloc-17.md` — retour direct ("et pour les trophées ?" puis "oui, crée un visuel pour les trophées") : jusqu'ici un trophée ne partageait que du texte, jamais de visuel — nouveau `TrophyShareCard.jsx` (doré/ambre, rose en Mode Intime), câblé dans `TrophiesView.jsx` (capture immédiate au clic, pas de résolution réseau nécessaire) et `ShareModal.jsx` (`hasReadyImage` accepte désormais aussi `type === 'trophy'`). Vrai bug potentiel trouvé et corrigé AVANT qu'il n'existe en prod : nouvelle clé de contexte `summaryImageContextKey` (ShareImageContext.jsx) pour empêcher qu'un "ready" laissé par un partage de trophée soit réutilisé par erreur pour une playlist (ou l'inverse). 2 nouveaux fichiers de test (ShareImageContext.jsx et TrophyShareCard.jsx n'en avaient jamais eu), 3 fichiers de test existants mis à jour
+
 ## Blocs futurs
 
 Le prochain bloc (12) doit suivre la même convention : un ou plusieurs
