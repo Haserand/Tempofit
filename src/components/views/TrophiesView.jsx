@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Award, Share2, HelpCircle, Lock } from 'lucide-react';
 import { TROPHIES_DATA, TROPHY_CATEGORIES } from '../../appConfig';
 import ViewHeader from '../shared/ViewHeader';
 import TabPills from '../shared/TabPills';
+import TrophyShareCard from '../shared/TrophyShareCard';
+import { useShareImage } from '../../contexts/ShareImageContext';
+import { captureElementAsFile } from '../../utils/captureElementAsFile';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 
 /**
@@ -53,6 +56,68 @@ export default function TrophiesView({ theme, userStats, handleShare, isNaughtyM
   }, []);
   const [activeTab, setActiveTab] = useState('visible');
 
+  // Visuel partageable d'un trophée (01/09, voir la docstring de tête de
+  // fichier) — MÊME principe que le Bilan Visuel de Séance
+  // (PlaylistDetailView.jsx) : état partagé globalement via
+  // ShareImageContext (ShareModal.jsx, rendu ailleurs dans App.jsx, doit
+  // pouvoir le LIRE), carte hors écran capturée via `captureElementAsFile`
+  // (réf DOM qui, elle, reste locale à CE composant). Contrairement au
+  // Bilan de Séance (préparation asynchrone : pochettes à résoudre AVANT
+  // capture), un trophée n'a qu'un emoji statique (`trophy.icon`,
+  // appConfig.js) — la capture peut suivre le clic immédiatement, sans
+  // étape de préparation réseau intermédiaire.
+  const { setSummaryImageStatus, setSummaryImageFile, setSummaryImagePreviewUrl, setIncludeSummaryImage, summaryImageStatus, summaryImageContextKey, setSummaryImageContextKey } = useShareImage();
+  const [sharingTrophy, setSharingTrophy] = useState(null);
+  const trophyCardRef = useRef(null);
+
+  const shareTrophy = async (trophy) => {
+    const contextKey = `trophy:${trophy.id}`;
+    // Même clé de contexte que PlaylistDetailView.jsx (voir
+    // ShareImageContext.jsx) — évite de régénérer inutilement si CE MÊME
+    // trophée est déjà prêt (ex. double-clic, ou modale refermée puis
+    // rouverte sans rien changer entre-temps), tout en régénérant
+    // correctement si le "ready" en cache appartient à un AUTRE sujet
+    // (une playlist, ou un trophée différent).
+    if (summaryImageStatus === 'ready' && summaryImageContextKey === contextKey) {
+      handleShare('trophy', trophy);
+      return;
+    }
+    // Réinitialise tout AVANT de démarrer (même principe que le useEffect
+    // de reset de PlaylistDetailView.jsx au changement de playlist) — sinon
+    // l'aperçu d'un AUTRE partage précédent (playlist ou trophée différent)
+    // pourrait rester affiché un court instant. Révoque l'URL d'objet
+    // précédente pour éviter une fuite mémoire, même principe que les
+    // autres previews blob de l'app.
+    setSummaryImageStatus('loading');
+    setSummaryImageContextKey(contextKey);
+    setSummaryImageFile(null);
+    setIncludeSummaryImage(true);
+    setSummaryImagePreviewUrl(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    handleShare('trophy', trophy);
+    setSharingTrophy(trophy);
+
+    try {
+      // Laisse le re-render (carte hors écran avec CE trophée) se produire
+      // avant de capturer — un `setState` ne met pas à jour le DOM de façon
+      // synchrone, `captureElementAsFile` capturerait sinon encore
+      // l'ancien contenu (ou rien du tout, au tout premier partage).
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const file = await captureElementAsFile(trophyCardRef.current, 'tempofit-trophee.png', { scale: 2.7 });
+      setSummaryImageFile(file);
+      setSummaryImagePreviewUrl(URL.createObjectURL(file));
+      setSummaryImageStatus('ready');
+    } catch (e) {
+      // Échec silencieux (voir startBackgroundImageGeneration,
+      // PlaylistDetailView.jsx, même choix) — le partage texte/lien reste
+      // utilisable normalement, c'est un bonus discret, pas une action
+      // explicitement demandée.
+      setSummaryImageStatus('error');
+    }
+  };
+
   const visibleTrophies = TROPHIES_DATA.filter(t => !t.secret);
   const secretTrophies = TROPHIES_DATA.filter(t => t.secret);
   const unlockedSecretCount = secretTrophies.filter(t => userStats.unlockedTrophies.includes(t.id)).length;
@@ -75,7 +140,7 @@ export default function TrophiesView({ theme, userStats, handleShare, isNaughtyM
             {isMasked ? 'Un comportement précis dans l\'appli débloque ce trophée — à toi de le découvrir.' : trophy.desc}
           </p>
           {isUnlocked && (
-            <button onClick={() => handleShare('trophy', trophy)} className="mt-3 text-xs font-bold text-blue-500 hover:text-blue-600 flex items-center space-x-1">
+            <button onClick={() => shareTrophy(trophy)} className="mt-3 text-xs font-bold text-blue-500 hover:text-blue-600 flex items-center space-x-1">
               <Share2 size={12}/> <span>Partager mon exploit</span>
             </button>
           )}
@@ -153,6 +218,20 @@ export default function TrophiesView({ theme, userStats, handleShare, isNaughtyM
         <div className="flex justify-center items-center space-x-8">
           <div>Sessions totales : <span className={`font-black text-xl block ${textHighlight}`}>{userStats.totalCompleted}</span></div>
           <div>Fichiers analysés : <span className={`font-black text-xl block ${textHighlight}`}>{userStats.dataImports}</span></div>
+        </div>
+      </div>
+
+      {/* Rendu hors écran, en permanence — voir shareTrophy plus haut pour
+          la logique d'export une fois câblée (même principe que
+          PlaylistDetailView.jsx/StatsView.jsx : `captureElementAsFile` a
+          besoin d'un élément DOM réellement monté, `fixed left:-9999px`
+          plutôt que monté/démonté à la volée). `sharingTrophy` vaut `null`
+          tant qu'aucun partage n'a encore été lancé cette session — la
+          carte affiche alors simplement rien (`TrophyShareCard` gère ce
+          cas, voir sa garde `if (!trophy) return null`). */}
+      <div style={{ position: 'fixed', left: '-9999px', top: 0, pointerEvents: 'none' }} aria-hidden="true">
+        <div ref={trophyCardRef}>
+          <TrophyShareCard trophy={sharingTrophy} isNaughtyMode={isNaughtyMode} />
         </div>
       </div>
     </div>
