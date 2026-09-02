@@ -15,15 +15,53 @@
 // jeu de données garde au moins 1 trophée secret et 1 non-secret par
 // catégorie utilisée ci-dessous.
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { render, screen, fireEvent, cleanup, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import TrophiesView from '../../src/components/views/TrophiesView.jsx';
 import { TROPHIES_DATA, TROPHY_CATEGORIES } from '../../src/appConfig.js';
+import { useShareImage } from '../../src/contexts/ShareImageContext.jsx';
+import { captureElementAsFile } from '../../src/utils/captureElementAsFile.js';
+
+// Mockés (01/09, chantier "visuel de trophée partageable") — même
+// convention que ShareModal.test.jsx/StatsView.test.jsx : la génération
+// réelle de l'image (html2canvas-pro, contexte partagé) est hors scope
+// d'un test de composant, chaque test pose son propre comportement.
+vi.mock('../../src/contexts/ShareImageContext.jsx', () => ({
+  useShareImage: vi.fn(),
+}));
+vi.mock('../../src/utils/captureElementAsFile.js', () => ({
+  captureElementAsFile: vi.fn(),
+}));
 
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
+});
+
+function mockShareImage(overrides = {}) {
+  return {
+    summaryImageStatus: 'idle',
+    summaryImageContextKey: null,
+    setSummaryImageStatus: vi.fn(),
+    setSummaryImageFile: vi.fn(),
+    setSummaryImagePreviewUrl: vi.fn(),
+    setIncludeSummaryImage: vi.fn(),
+    setSummaryImageContextKey: vi.fn(),
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  useShareImage.mockReturnValue(mockShareImage());
+  captureElementAsFile.mockResolvedValue(new File(['x'], 'tempofit-trophee.png', { type: 'image/png' }));
+  // `URL.createObjectURL`/`revokeObjectURL` — pas implémentées nativement
+  // par jsdom (même piège déjà rencontré dans useShare.test.js) ;
+  // `shareTrophy` (TrophiesView.jsx) les appelle directement, contrairement
+  // à `exportGlobalStatsImage` (StatsView.jsx) qui délègue cette partie à
+  // `shareImageFile`, mocké de bout en bout dans ce fichier-là.
+  global.URL.createObjectURL = vi.fn(() => 'blob:mock-trophee');
+  global.URL.revokeObjectURL = vi.fn();
 });
 
 const mockTheme = {
@@ -143,5 +181,85 @@ describe('TrophiesView', () => {
     } })} />);
     expect(screen.getByText('42')).toBeInTheDocument();
     expect(screen.getByText('7')).toBeInTheDocument();
+  });
+});
+
+// 01/09, chantier "vrai partage Instagram Stories" — "et pour les
+// trophées ?" puis "oui, crée un visuel pour les trophées" : le clic sur
+// "Partager mon exploit" génère désormais un visuel (TrophyShareCard.jsx,
+// capturé via captureElementAsFile), en plus d'ouvrir la modale de texte
+// comme avant.
+describe('TrophiesView — génération du visuel partageable (shareTrophy)', () => {
+  it('pose loading puis ready, avec la clé de contexte "trophy:{id}" (voir ShareImageContext.jsx pour le raisonnement complet)', async () => {
+    const setSummaryImageStatus = vi.fn();
+    const setSummaryImageContextKey = vi.fn();
+    const setSummaryImageFile = vi.fn();
+    const setSummaryImagePreviewUrl = vi.fn();
+    useShareImage.mockReturnValue(mockShareImage({
+      setSummaryImageStatus, setSummaryImageContextKey, setSummaryImageFile, setSummaryImagePreviewUrl,
+    }));
+    render(<TrophiesView {...baseProps()} />);
+
+    await act(async () => { fireEvent.click(screen.getByText('Partager mon exploit')); });
+
+    expect(setSummaryImageStatus).toHaveBeenCalledWith('loading');
+    expect(setSummaryImageContextKey).toHaveBeenCalledWith(`trophy:${unlockedVisible.id}`);
+    await waitFor(() => expect(setSummaryImageStatus).toHaveBeenCalledWith('ready'));
+    expect(captureElementAsFile).toHaveBeenCalledWith(expect.anything(), 'tempofit-trophee.png', { scale: 2.7 });
+    expect(setSummaryImageFile).toHaveBeenCalled();
+    expect(setSummaryImagePreviewUrl).toHaveBeenCalledWith('blob:mock-trophee');
+  });
+
+  it('appelle bien handleShare(\'trophy\', trophy) — le texte reste utilisable immédiatement, sans attendre la génération de l\'image', () => {
+    const handleShare = vi.fn();
+    render(<TrophiesView {...baseProps({ handleShare })} />);
+    fireEvent.click(screen.getByText('Partager mon exploit'));
+    // Appelé de façon SYNCHRONE, avant même que la promesse de capture ne
+    // se résolve — contrairement à setSummaryImageStatus('ready') (voir le
+    // test précédent, qui doit lui attendre un `waitFor`).
+    expect(handleShare).toHaveBeenCalledWith('trophy', unlockedVisible);
+  });
+
+  it('un trophée déjà "ready" avec la MÊME clé de contexte ne régénère pas (évite un travail redondant, ex. double-clic)', async () => {
+    const setSummaryImageStatus = vi.fn();
+    useShareImage.mockReturnValue(mockShareImage({
+      summaryImageStatus: 'ready',
+      summaryImageContextKey: `trophy:${unlockedVisible.id}`,
+      setSummaryImageStatus,
+    }));
+    const handleShare = vi.fn();
+    render(<TrophiesView {...baseProps({ handleShare })} />);
+
+    fireEvent.click(screen.getByText('Partager mon exploit'));
+
+    expect(handleShare).toHaveBeenCalledWith('trophy', unlockedVisible);
+    expect(setSummaryImageStatus).not.toHaveBeenCalled();
+    expect(captureElementAsFile).not.toHaveBeenCalled();
+  });
+
+  it('un "ready" appartenant à un AUTRE sujet (ex. une playlist) régénère bien — ne réutilise jamais l\'image d\'un autre partage par erreur', async () => {
+    const setSummaryImageStatus = vi.fn();
+    useShareImage.mockReturnValue(mockShareImage({
+      summaryImageStatus: 'ready',
+      summaryImageContextKey: 'playlist:abc123', // "ready", mais pour un AUTRE sujet
+      setSummaryImageStatus,
+    }));
+    render(<TrophiesView {...baseProps()} />);
+
+    await act(async () => { fireEvent.click(screen.getByText('Partager mon exploit')); });
+
+    expect(setSummaryImageStatus).toHaveBeenCalledWith('loading');
+    await waitFor(() => expect(captureElementAsFile).toHaveBeenCalled());
+  });
+
+  it('échec de la capture : bascule sur \'error\', silencieusement (pas de crash, le partage texte/lien reste utilisable)', async () => {
+    captureElementAsFile.mockRejectedValue(new Error('html2canvas bloqué'));
+    const setSummaryImageStatus = vi.fn();
+    useShareImage.mockReturnValue(mockShareImage({ setSummaryImageStatus }));
+    render(<TrophiesView {...baseProps()} />);
+
+    await act(async () => { fireEvent.click(screen.getByText('Partager mon exploit')); });
+
+    await waitFor(() => expect(setSummaryImageStatus).toHaveBeenCalledWith('error'));
   });
 });
