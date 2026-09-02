@@ -1,109 +1,108 @@
-# TempoFit
+### SESSION DU 01/09 (suite) — Visuel partageable pour un trophée débloqué
 
-Générateur de playlists musicales calées sur un BPM cible, pour l'entraînement sportif (course, cyclisme, musculation...) ou en Mode Intime. React 19 + Vite + Tailwind v4, données/comptes via Supabase, déployé sur Vercel.
+**Demande** — après confirmation qu'un trophée n'avait aucun problème de
+libellé trompeur ("Story / IG" ne s'affichait jamais pour un trophée,
+faute d'image, remplacé par "Plus" honnête), question directe : "et pour
+les trophées ?", suivie d'une proposition (créer un vrai visuel
+partageable, comme le Bilan Visuel de Séance) — acceptée : "oui, crée un
+visuel pour les trophées".
 
-## ⚠️ À LIRE avant de retoucher le code (Claude ou humain)
+**Implémentation** :
 
-Ce fichier n'est **pas** un document de passation — les passations (narratives, une par session, jetables une fois lues) documentent *ce qui a été fait et pourquoi, pendant une session donnée*. Ce README documente *l'état actuel*, en continu. Il doit rester vrai en permanence, pas seulement au moment où il a été écrit.
+1. **`src/components/shared/TrophyShareCard.jsx`** (nouveau) — même
+   principe que `SessionSummaryCard.jsx`/`GlobalStatsShareCard.jsx`
+   (composant purement présentationnel, capturé ensuite via
+   `captureElementAsFile`). Design doré/ambre (rose sombre en Mode
+   Intime) — cohérent avec la bordure/le halo jaune déjà utilisés pour un
+   trophée débloqué ailleurs dans l'app (`TrophiesView.jsx`), plutôt qu'un
+   recyclage des couleurs déjà prises par les 2 autres visuels
+   partageables. Zéro appel réseau : un trophée n'a qu'un emoji statique
+   (`trophy.icon`, appConfig.js) comme illustration, contrairement au
+   Bilan de Séance qui doit résoudre des pochettes Deezer — la capture
+   peut donc suivre le clic immédiatement, sans étape de préparation
+   asynchrone. Couleurs en style inline (hex réels), pas en classes
+   Tailwind nommées — même prudence que `GlobalStatsShareCard.jsx`
+   (couleurs nommées Tailwind v4 → oklch(), qu'html2canvas ne sait pas
+   toujours parser selon la combinaison de styles).
 
-**Règle pour toute session qui termine avec un changement d'architecture durable** (une nouvelle table, une nouvelle contrainte, une décision "pourquoi X plutôt que Y" qui sera utile à quelqu'un dans 3 mois) : la mise à jour va **ici**, pas seulement dans la passation de fin de session. Une passation qui décrit une décision d'architecture sans que ce fichier en parle est une passation incomplète.
+2. **`src/components/views/TrophiesView.jsx`** — nouvelle fonction
+   `shareTrophy(trophy)` qui remplace l'appel direct à `handleShare`
+   derrière "Partager mon exploit" : ouvre la modale de texte
+   immédiatement (comme avant, le partage texte/lien reste utilisable
+   sans attendre), PUIS génère le visuel en arrière-plan (`useShareImage()`
+   directement, comme `PlaylistDetailView.jsx`/`ShareModal.jsx` — ce
+   Contexte est global, pas prop-drillé). Carte rendue hors écran en
+   permanence (`position: fixed; left: -9999px`, même motif que
+   `PlaylistDetailView.jsx`/`StatsView.jsx`), avec `sharingTrophy`
+   (state local) pour savoir QUEL trophée afficher dedans au moment de la
+   capture.
 
-Objectif explicite : rester **court et pointer vers le code** plutôt que de le paraphraser en détail — moins de texte dupliqué entre ce fichier et les commentaires du code source, moins de risque que les deux divergent avec le temps (voir `CLAUDE-SANDBOX-VERIFICATION.md` pour un exemple concret de commentaire devenu faux, trouvé et corrigé le 02/08).
+3. **`src/components/modals/ShareModal.jsx`** — `hasReadyImage` accepte
+   désormais `shareData.type === 'playlist' || shareData.type === 'trophy'`
+   (avant : seulement `'playlist'`). Textes/noms de fichiers adaptés selon
+   le type ("Préparation du visuel..." vs "Préparation du bilan
+   visuel...", `tempofit-trophee.png` vs `tempofit-bilan-de-seance.png`).
 
-**Convention de taille de fichier (22/08)** : tout fichier de documentation
-créé sur ce projet (README, historique, passation...) doit rester lisible
-EN ENTIER par Claude en un seul appel de son outil de lecture — celui-ci
-tronque silencieusement (sans erreur, juste en montrant début+fin) tout
-fichier dépassant ~16 000 caractères lu sans plage de lignes précisée.
-Cible interne : ~12 000 caractères par fichier, marge de sécurité
-incluse. `HISTORIQUE.md` a dû être restructuré en plusieurs fichiers
-(`historique/bloc-NNx.md`) pour cette raison précise le 22/08 — voir ce
-fichier pour le détail complet et la convention à suivre pour tout futur
-bloc.
+**Vrai bug potentiel trouvé et corrigé AVANT qu'il n'existe en prod** —
+en concevant l'intégration, repéré que `ShareImageContext.jsx` n'avait
+jusqu'ici qu'UN SEUL producteur (`PlaylistDetailView.jsx`, une playlist à
+la fois) : son garde-fou anti-double-génération
+(`summaryImageStatus === 'ready'` → ne pas régénérer) ne se posait
+JAMAIS la question "prêt pour QUOI exactement ?", puisque rien d'autre
+n'écrivait dans ce Contexte. En ajoutant un 2e producteur
+(`TrophiesView.jsx`), un scénario réel serait devenu possible : partager
+un trophée (statut passe à `'ready'` avec l'image du TROPHÉE), revenir
+sur une playlist DÉJÀ ouverte (son `useEffect` de reset ne se
+redéclenche QUE si l'ID de playlist change, pas en revisitant la MÊME
+page) et cliquer "Partager" dessus — `startBackgroundImageGeneration`
+aurait vu `summaryImageStatus === 'ready'` et sauté la régénération,
+partageant PAR ERREUR l'image du trophée précédent à la place du Bilan
+de Séance attendu.
 
-✅ **Corrigé le 25/08** : `README.md` (~57 000 caractères) et
-`CLAUDE-SANDBOX-VERIFICATION.md` (~66 000 caractères) dépassaient
-LARGEMENT ce même seuil — jamais remarqué avant car ces 2 fichiers sont
-presque toujours lus par section ciblée (recherche de mot-clé, plage de
-lignes), jamais d'un coup. Volontairement PAS restructurés le 22/08
-(risque de casser le flux de travail d'une session déjà très longue sans
-bénéfice immédiat) — traité au tout début de la session suivante, à tête
-reposée, avec la même méthode que celle qui a fonctionné sur
-`HISTORIQUE.md` (découpage par unité logique — sections `##`/`###`
-existantes plutôt que des paragraphes — puis vérification bit à bit que
-rien n'est perdu). `README.md` est désormais lui-même un INDEX, son
-contenu réel vit dans `readme/partie-0N.md` — voir tout en tête de ce
-fichier pour l'index détaillé. Même chose pour `CLAUDE-SANDBOX-
-VERIFICATION.md`, restructuré en `claude-sandbox-verification/partie-
-0N.md`.
+Corrigé en ajoutant `summaryImageContextKey` (`ShareImageContext.jsx`,
+ex. `'playlist:abc123'` ou `'trophy:t_first'`) — chaque producteur
+vérifie désormais que le "ready" en cache correspond bien à SON PROPRE
+sujet avant de le réutiliser, sans quoi il régénère. Répercuté dans
+`PlaylistDetailView.jsx` (`startBackgroundImageGeneration`) et
+`TrophiesView.jsx` (`shareTrophy`), chacun posant/vérifiant sa propre
+clé.
 
-## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
+**Tests** :
+- `tests/shared/TrophyShareCard.test.jsx` (nouveau, 5 tests) — même
+  modèle que `GlobalStatsShareCard.test.jsx`.
+- `tests/contexts/ShareImageContext.test.jsx` (nouveau, 7 tests) —
+  PREMIER fichier de test pour ce Contexte, jamais testé directement
+  jusqu'ici (repéré en auditant la convention "chaque `src/contexts/*.jsx`
+  a son test miroir", jusque-là respectée partout ailleurs). Même modèle
+  que `ModalContext.test.jsx` (sonde `Probe` qui capture la `value` à
+  chaque rendu).
+- `tests/views/TrophiesView.test.jsx` — 5 nouveaux tests couvrant
+  `shareTrophy` (loading→ready, clé de contexte posée, dédoublonnage sur
+  clé identique, régénération sur clé différente, échec silencieux).
+  `captureElementAsFile`/`useShareImage` mockés (jusqu'ici la suite
+  existante laissait tourner la VRAIE capture html2canvas-pro non
+  mockée en test, sans que ça casse quoi que ce soit par chance — corrigé
+  au passage).
+- `tests/views/PlaylistDetailView.test.jsx` — `mockShareImage` complété
+  (`summaryImageContextKey`/son setter, sans quoi
+  `setSummaryImageContextKey is not a function` plantait 4 tests
+  existants) ; le test "ne relance pas la génération si déjà ready"
+  corrigé pour poser la clé de contexte CORRESPONDANTE (sans quoi il
+  testait par erreur un cas où la régénération DOIT désormais se
+  déclencher) ; nouveau test ajouté pour ce cas précis (clé différente →
+  régénère).
+- `tests/modals/ShareModal.test.jsx` — 1 test existant devenu FAUX par ce
+  chantier ("type trophy : jamais de section image, même en loading")
+  corrigé pour refléter la nouvelle réalité ; 1 nouveau test couvrant
+  `hasReadyImage` pour un trophée (encart fusionné, nom de fichier dédié).
 
-Rien en cours actuellement — session très longue le 01/09, 6 chantiers
-enchaînés. Résumé bref (voir `HISTORIQUE.md` → blocs 12 à 17 pour le
-récit complet) : (12) check-up de reprise (sanity check, bug "texte blanc
-sur fond clair" généralisé à 3 fichiers, nouveau garde-fou
-`hoverWhiteTextTrap.test.js`) ; (13) alignement de la ligne au-dessus de
-"Découvrir" avec le bloc MiniPlayerBar+GuestModeBar (espaceur `flex-1`,
-vérifié par mesure Playwright réelle, 2 résidus corrigés après un vrai
-déploiement — centrage, puis "léger scroll" sur fenêtre courte) ; (14)
-4 principes de ce chantier transformés en documentation permanente
-(Convention UI + CLAUDE-SANDBOX-VERIFICATION.md) ; (15) `ShareModal.jsx` :
-texte fusionné à côté du Bilan Visuel (au lieu d'au-dessus, isolé),
-"Télécharger le visuel" remonté juste sous le visuel ; (16) vrai partage
-Instagram Stories sur iOS (`shareToInstagramStories`, useShare.js — le
-bouton "Story / IG" n'avait aucune intégration Instagram réelle
-auparavant ; ⚠️ jamais testé sur un vrai iPhone, à confirmer), étendu à
-`StatsView.jsx` ; (17) visuel partageable pour un trophée débloqué
-(`TrophyShareCard.jsx`, `TrophiesView.jsx`) — bug potentiel corrigé AVANT
-qu'il n'existe en prod (`summaryImageContextKey`, ShareImageContext.jsx,
-évite qu'un partage de trophée et un Bilan de Séance ne se mélangent).
-Suite complète : 125 fichiers, 1729 tests au vert.
+**Suite complète** : 125 fichiers, 1729 tests, tous verts (+2 fichiers,
++19 tests par rapport au bloc 16).
 
-### ⚠️ Règle permanente (25/08) — cette section ne contient QUE le chantier en cours, jamais l'historique clos
-
-**Ne JAMAIS laisser une version condensée d'un chantier CLOS s'accumuler
-ici.** Cette section a longtemps contenu, en plus de l'état courant, une
-sous-section "### Historique détaillé (bloc N)" par ancien bloc de
-session — un pur DOUBLON de ce qui vit déjà en entier dans
-`historique/bloc-NNx.md`, jamais purgé au fil du temps. Constaté le
-25/08 : ce doublon représentait 32% du poids total du README (18 215
-caractères sur 57 426) — cause directe du dépassement du seuil de
-lecture d'un coup (~16 000 caractères) qui a forcé le découpage de ce
-fichier en plusieurs parties (voir tout en tête de `README.md`).
-
-**Procédure à appliquer désormais, systématiquement, à la fin de
-CHAQUE chantier/session** :
-1. Le récit chronologique complet part (comme d'habitude) dans
-   `historique/bloc-NNx.md`.
-2. Cette section "État d'avancement" ne garde QUE 1 paragraphe : l'état
-   courant (quoi est fait, quoi reste ouvert) + un pointeur "voir
-   l'index `HISTORIQUE.md` → bloc N pour le récit complet".
-3. Le paragraphe d'état courant de la session précédente est ALORS
-   supprimé d'ici (pas archivé ailleurs — il fait double emploi avec le
-   bloc historique qui vient d'être créé). Une seule version courante
-   existe à un instant donné dans cette section, jamais un empilement
-   de anciennes.
-4. Si une décision d'architecture ou une convention UI doit survivre
-   au-delà de la session (pas juste "ce qui a été fait" mais "ce qui
-   est vrai en permanence"), elle va dans les sections dédiées plus bas
-   (`Décisions d'architecture`, `Convention UI`...), PAS ici.
-
-## Contraintes de travail
-
-- **Aucun terminal côté utilisateur** — tout passe par l'interface web de GitHub (créer/éditer des fichiers à la main) ; vérification via un vrai déploiement Vercel (logs collés dans la conversation avec Claude).
-- **Déploiement automatique Vercel désactivé** (`vercel.json`,
-  `"deploymentEnabled": false` — confirmé volontaire, 19/08) : un push
-  GitHub ne déclenche PAS de build Vercel tout seul, contrairement au
-  comportement par défaut — choix délibéré pour ne pas épuiser le quota
-  gratuit Vercel. Le déploiement doit être déclenché manuellement
-  (dashboard Vercel) avant de pouvoir coller les logs dans la conversation.
-- **Bac à sable Claude sans accès réseau** — `npm install`/`vitest run` réels impossibles. Voir `CLAUDE-SANDBOX-VERIFICATION.md` pour les outils de vérification disponibles quand même (validation de syntaxe réelle via `esbuild`, résolution d'imports).
-- Le build Vercel (`npm run build`) lance `vitest run` avant `vite build` (voir `package.json`, script `build`) — un test qui échoue bloque le déploiement.
-
-## Stack
-
-- React 19, Vite 8, Tailwind v4 (design tokens custom, voir `src/index.css`)
-- Supabase : auth (email/mot de passe), Postgres + RLS, Edge Function (`supabase/functions/delete-account`)
-- Déploiement Vercel, 2 fonctions serverless (`api/deezer.js`, `api/getsongbpm.js`) — proxys pour contourner l'absence de CORS de ces API tierces, gardent leurs clés côté serveur
-- Tests : Vitest + Testing Library, `tests/` en miroir de `src/` (voir la section Tests plus bas)
+**Livraison** : `src/components/shared/TrophyShareCard.jsx`,
+`src/components/views/TrophiesView.jsx`, `src/components/modals/ShareModal.jsx`,
+`src/contexts/ShareImageContext.jsx`, `src/components/views/PlaylistDetailView.jsx`,
+`tests/shared/TrophyShareCard.test.jsx`, `tests/contexts/ShareImageContext.test.jsx`,
+`tests/views/TrophiesView.test.jsx`, `tests/views/PlaylistDetailView.test.jsx`,
+`tests/modals/ShareModal.test.jsx` — fichier par fichier, chemin repo
+exact, esbuild + tsc --checkJs + `npx vitest run` avant chaque livraison.
