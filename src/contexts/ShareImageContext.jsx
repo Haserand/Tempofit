@@ -31,6 +31,23 @@ import { createContext, useContext, useState, useMemo } from 'react';
  * `shareData.type === 'playlist'` avant de les utiliser, qui reste vrai
  * indépendamment de la valeur de `summaryImageStatus` pour un partage de
  * trophée.
+ *
+ * `summaryImageContextKey` (01/09, chantier "visuel de trophée" —
+ * TrophyShareCard.jsx/TrophiesView.jsx) — ce Contexte, jusqu'ici
+ * exclusivement PRODUIT par `PlaylistDetailView.jsx` (une seule playlist à
+ * la fois, jamais 2 producteurs concurrents), est désormais aussi produit
+ * par `TrophiesView.jsx` (un trophée à la fois). Sans cette clé, un
+ * scénario réel casserait le partage : partager un trophée (statut passe à
+ * `'ready'` avec l'image du TROPHÉE), puis revenir sur une playlist DÉJÀ
+ * ouverte (son `useEffect` de reset ne se redéclenche QUE si l'ID de
+ * playlist change, pas juste en revisitant la MÊME page) et cliquer
+ * "Partager" dessus — `startBackgroundImageGeneration` (PlaylistDetailView.jsx)
+ * verrait `summaryImageStatus === 'ready'` et sauterait la régénération,
+ * partageant alors PAR ERREUR l'image du trophée précédent à la place du
+ * Bilan de Séance attendu. Cette clé (`playlist:{id}` ou `trophy:{id}`)
+ * permet à chaque producteur de vérifier que l'image "prête" en cache
+ * correspond bien à SON PROPRE sujet avant de la réutiliser, sans quoi il
+ * régénère.
  */
 const ShareImageContext = createContext(null);
 
@@ -39,11 +56,12 @@ export function ShareImageProvider({ children }) {
   const [summaryImageFile, setSummaryImageFile] = useState(null);
   const [summaryImagePreviewUrl, setSummaryImagePreviewUrl] = useState(null);
   const [includeSummaryImage, setIncludeSummaryImage] = useState(true);
+  const [summaryImageContextKey, setSummaryImageContextKey] = useState(null); // ex. 'playlist:abc123' | 'trophy:t_first'
 
-  // `useMemo` (même convention que ModalContext.jsx) — les 4 setters issus
+  // `useMemo` (même convention que ModalContext.jsx) — les 5 setters issus
   // de `useState` sont déjà référentiellement stables d'un rendu à l'autre
   // (garanti par React), donc ce memo ne recalcule un nouvel objet `value`
-  // QUE quand l'une des 4 valeurs elles-mêmes change réellement, jamais à
+  // QUE quand l'une des 5 valeurs elles-mêmes change réellement, jamais à
   // chaque rendu d'un composant qui monte `<ShareImageProvider>` au-dessus
   // de lui sans rapport avec le bilan visuel.
   const value = useMemo(
@@ -52,8 +70,9 @@ export function ShareImageProvider({ children }) {
       summaryImageFile, setSummaryImageFile,
       summaryImagePreviewUrl, setSummaryImagePreviewUrl,
       includeSummaryImage, setIncludeSummaryImage,
+      summaryImageContextKey, setSummaryImageContextKey,
     }),
-    [summaryImageStatus, summaryImageFile, summaryImagePreviewUrl, includeSummaryImage],
+    [summaryImageStatus, summaryImageFile, summaryImagePreviewUrl, includeSummaryImage, summaryImageContextKey],
   );
 
   return (
@@ -71,6 +90,7 @@ const FALLBACK = {
   summaryImageFile: null, setSummaryImageFile: () => {},
   summaryImagePreviewUrl: null, setSummaryImagePreviewUrl: () => {},
   includeSummaryImage: true, setIncludeSummaryImage: () => {},
+  summaryImageContextKey: null, setSummaryImageContextKey: () => {},
 };
 
 export function useShareImage() {
