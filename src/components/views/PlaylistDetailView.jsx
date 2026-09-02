@@ -74,6 +74,7 @@ function PlaylistDetailViewInner({
   const {
     summaryImageStatus, setSummaryImageStatus, setSummaryImageFile,
     setSummaryImagePreviewUrl, setIncludeSummaryImage,
+    summaryImageContextKey, setSummaryImageContextKey,
   } = useShareImage();
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass } = theme;
   // Replié par défaut : ce tableau ne sert qu'à vérifier ponctuellement une
@@ -287,6 +288,7 @@ function PlaylistDetailViewInner({
     setSummaryImageFile(null);
     setIncludeSummaryImage(true);
     setSummarySessionCover(null);
+    setSummaryImageContextKey(null);
     setSummaryImagePreviewUrl(prev => {
       if (prev) URL.revokeObjectURL(prev);
       return null;
@@ -402,9 +404,17 @@ function PlaylistDetailViewInner({
   // seule (même principe que `lock_parent_lineage`/l'omission de
   // `parent_id` côté client, useSyncedCollection.js).
   const startBackgroundImageGeneration = async () => {
-    if (!currentPlaylist || summaryImageStatus === 'loading' || summaryImageStatus === 'ready') return;
+    const contextKey = `playlist:${currentPlaylist?.id}`;
+    // `summaryImageContextKey` (01/09, voir ShareImageContext.jsx) — le
+    // 3e critère qui manquait ici : un `summaryImageStatus === 'ready'`
+    // provenant d'un partage de TROPHÉE (autre producteur, même Contexte
+    // partagé) ne doit jamais être confondu avec une image de CETTE
+    // playlist déjà prête — sans lui, cette fonction sauterait à tort la
+    // régénération et partagerait l'image du trophée précédent à la place.
+    if (!currentPlaylist || summaryImageStatus === 'loading' || (summaryImageStatus === 'ready' && summaryImageContextKey === contextKey)) return;
     const playlistIdAtStart = currentPlaylist.id;
     setSummaryImageStatus('loading');
+    setSummaryImageContextKey(contextKey);
     try {
       const file = await generateSummaryImageFile();
       if (!file || currentPlaylistIdRef.current !== playlistIdAtStart) return;
