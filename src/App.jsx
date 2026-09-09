@@ -174,9 +174,22 @@ function AppContent({
   // un lien externe). Même state cible (`viewingProfileUsername`), 2
   // chemins différents pour y arriver — ProfileView.jsx ne fait aucune
   // différence entre les deux une fois affichée.
-  const handleViewProfile = (username) => {
-    setViewingProfileUsername(username);
+  const handleViewProfile = (username_) => {
+    setViewingProfileUsername(username_);
     changeView('profile');
+    // Trophée "Curieux de Nature" (01/09, audit — voir appConfig.js) —
+    // UNIQUEMENT le profil de QUELQU'UN D'AUTRE, jamais son propre profil
+    // (`onViewOwnProfile`, StatsView.jsx/TrophiesView.jsx, passe déjà par
+    // un chemin séparé qui n'appelle pas cette fonction avec SON PROPRE
+    // pseudo — mais un visiteur pourrait en théorie arriver ici avec son
+    // propre pseudo via un lien qu'il se serait envoyé à lui-même, d'où
+    // cette vérification explicite plutôt que de supposer que ça n'arrive
+    // jamais). `username` (son propre pseudo, useAuthContext()) peut être
+    // `undefined` en mode invité — `username_ !== username` reste alors
+    // toujours vrai, correct (un invité n'a pas de profil à soi à exclure).
+    if (username_ !== username && !userStats.hasViewedProfile) {
+      checkTrophies({ ...userStats, hasViewedProfile: true });
+    }
   };
 
   // Ouvre une playlist PUBLIQUE d'un autre utilisateur en APERÇU (Feature
@@ -334,6 +347,10 @@ function AppContent({
     // raisonnement que handleOpenPublicRoutine plus haut.
     handleOpenPlaylists('routine');
     showToast('⚡ Routine clonée dans Mes Routines !');
+    // Trophée "Deuxième Vie" (01/09, audit — voir appConfig.js) — même
+    // trophée que le clonage de playlist (usePlaylistLibrary.js), peu
+    // importe le TYPE de contenu cloné.
+    if (!userStats.hasClonedSomething) checkTrophies({ ...userStats, hasClonedSomething: true });
 
     // Compteur de clonages RÉEL — REFONTE (03/08) : UN SEUL appel RPC
     // désormais (au lieu de 2 avant), MÊME raisonnement que
@@ -539,7 +556,7 @@ function AppContent({
   // complet (notamment pourquoi pas de cloisonnement Mode Intime, contrairement
   // aux favoris juste au-dessus).
   const {
-    exclusions, setExclusions, toggleArtistExclusion, toggleTrackExclusion, toggleGenreExclusion,
+    exclusions, setExclusions, toggleArtistExclusion, toggleTrackExclusion, toggleGenreExclusion: toggleGenreExclusionRaw,
     newExclusionArtist, setNewExclusionArtist, isAddingExclusionArtist, setIsAddingExclusionArtist,
   } = useExclusions(showToast);
 
@@ -568,6 +585,26 @@ function AppContent({
     toggleArtistFavorite(artistName); // simple ajout, pas de transition
   };
 
+  // Trophée "Le Trieur" (01/09, audit — voir appConfig.js) — 3 points
+  // d'entrée distincts pour EXCLURE quelque chose (artiste/titre/genre),
+  // eux-mêmes chacun avec 1 ou 2 chemins possibles ("simple ajout" vs
+  // "déplacé depuis les favoris") — centralisé ici plutôt que dupliqué à
+  // chaque appel, un seul endroit à faire évoluer si le déclencheur change
+  // un jour.
+  const markExcludedSomething = () => {
+    if (!userStats.hasExcludedSomething) checkTrophies({ ...userStats, hasExcludedSomething: true });
+  };
+
+  // Pas de transition favoris ici (un genre entier n'est jamais "un favori"
+  // au sens de useFavorites.js, voir useExclusions.js) — seul le trophée
+  // "Le Trieur" à ajouter par-dessus la fonction brute, sur un AJOUT
+  // uniquement (jamais un retrait).
+  const toggleGenreExclusion = (genre) => {
+    const isExcluded = exclusions.genres.includes(genre);
+    toggleGenreExclusionRaw(genre);
+    if (!isExcluded) markExcludedSomething();
+  };
+
   const toggleArtistExclusionCoordinated = (artistName) => {
     const isExcluded = exclusions.artists.some(a => a.trim().toLowerCase() === artistName.trim().toLowerCase());
     if (isExcluded) { toggleArtistExclusion(artistName); return; } // simple retrait, pas de transition
@@ -576,9 +613,11 @@ function AppContent({
       setFavorites(prev => ({ ...prev, artists: prev.artists.filter(a => a !== artistName) }));
       setExclusions(prev => ({ ...prev, artists: Array.from(new Set([...prev.artists, artistName])) }));
       showToast(`🚫 "${artistName}" déplacé des favoris vers les exclusions.`);
+      markExcludedSomething();
       return;
     }
     toggleArtistExclusion(artistName); // simple ajout, pas de transition
+    markExcludedSomething();
   };
 
   const toggleTrackFavoriteCoordinated = (track) => {
@@ -606,9 +645,11 @@ function AppContent({
       setFavorites(prev => ({ ...prev, tracks: prev.tracks.filter((_, i) => i !== wasFavIdx) }));
       setExclusions(prev => ({ ...prev, tracks: [...prev.tracks, track] }));
       showToast(`🚫 "${track.title}" déplacé des favoris vers les exclusions.`);
+      markExcludedSomething();
       return;
     }
     toggleTrackExclusion(track); // simple ajout, pas de transition
+    markExcludedSomething();
   };
 
 
@@ -715,6 +756,18 @@ function AppContent({
 
     setViewingProfileUsername(profileUsername);
     setView('profile');
+    // Trophée "Curieux de Nature" (01/09, audit — voir appConfig.js) —
+    // même vérification que handleViewProfile ci-dessus (jamais son
+    // propre profil). ⚠️ `username` (son propre pseudo) peut ne pas
+    // encore être résolu à ce stade précis (tout premier montage, avant
+    // que l'authentification n'ait fini de charger) — cas limite accepté :
+    // au pire, visiter SON PROPRE profil via un lien externe partagé avant
+    // que l'auth ait chargé débloquerait ce trophée à tort, un scénario
+    // rare et sans conséquence réelle (juste un trophée "social" débloqué
+    // un peu par erreur, jamais l'inverse).
+    if (profileUsername !== username && !userStats.hasViewedProfile) {
+      checkTrophies({ ...userStats, hasViewedProfile: true });
+    }
     // PAS de nettoyage de l'URL ici (contrairement à `?import=` juste au-
     // dessus) — volontaire : cette page doit rester partageable/rechargeable
     // telle quelle (`tempofit.app/?profile=alex`), exactement comme un lien
@@ -764,6 +817,7 @@ function AppContent({
   // `GeneratorContext.jsx`) et à `StatsView`/`PlaylistDetailView` (props
   // locales à ces 2 vues, jamais lues dedans).
   const {
+    athleticProfile,
     getProfileForWorkout,
     getProfileForWorkoutOrDefault,
   } = athleticProfileApi;
@@ -785,6 +839,25 @@ function AppContent({
   // utilisé dans ce fichier — `useUserStats()` continue de le générer en
   // interne, ce retrait ne change rien à son fonctionnement.
   const { userStats, checkTrophies, unseenTrophyCount, markTrophiesSeen } = useUserStats(showToast, user);
+
+  // Trophée "Sur Mesure" (01/09, audit — voir appConfig.js) — 4 points
+  // d'entrée DIFFÉRENTS posent `isConfigured: true` dans
+  // `useAthleticProfile.js` (Assistant Rapide, activité personnalisée,
+  // ajustement manuel...) — plutôt que de dupliquer ce même appel à
+  // `checkTrophies` à chacun des 4 (et risquer d'en oublier un 5e demain),
+  // un seul `useEffect` ICI observe le résultat final : dès qu'AU MOINS
+  // UNE activité (native ou personnalisée) devient configurée, peu importe
+  // laquelle ni par quel chemin. `athleticProfileApi` (donc
+  // `useAthleticProfile()`) vit dans `App()`, au-dessus de CE composant —
+  // `checkTrophies`/`userStats` n'existent qu'ICI (AppContent), d'où ce
+  // useEffect plutôt qu'un ajout direct dans le hook lui-même.
+  useEffect(() => {
+    if (userStats.hasSetAthleticProfile) return;
+    const hasAnyConfigured = Object.values(athleticProfile.activities).some(a => a.isConfigured)
+      || athleticProfile.custom.some(c => c.isConfigured);
+    if (hasAnyConfigured) checkTrophies({ ...userStats, hasSetAthleticProfile: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [athleticProfile]);
 
   // `userStatsRef` (check-up 10/08 — 5e occurrence de la même famille de
   // course cette session, voir `shareImageFileWithTrophy` plus bas pour le
@@ -2062,7 +2135,7 @@ function AppContent({
                 editCompletionDate={editCompletionDate} removeCompletionDate={removeCompletionDate}
                 triggerCSVUpload={triggerCSVUpload} removeImportedData={removeImportedData}
                 markPlaylistAsCompleted={markPlaylistAsCompleted}
-                showToast={showToast}
+                showToast={showToast} userStats={userStats} checkTrophies={checkTrophies}
                 routines={routines} setRoutines={setRoutines}
                 routineBatchCounts={routineBatchCounts} setRoutineBatchCounts={setRoutineBatchCounts}
                 getDisplayRoutineIcon={getDisplayRoutineIcon} getDisplayRoutineName={getDisplayRoutineName}
@@ -2080,6 +2153,7 @@ function AppContent({
                 shareImageFile={shareImageFileWithTrophy} shareToInstagramStories={shareToInstagramStories} showToast={showToast}
                 isNaughtyMode={isNaughtyMode}
                 user={user} username={username} profilePrivacy={profilePrivacy}
+                userStats={userStats} checkTrophies={checkTrophies}
                 onViewOwnProfile={() => handleViewProfile(username)}
                 onManageProfilePrivacy={() => handleOpenSettings('account')}
               />
