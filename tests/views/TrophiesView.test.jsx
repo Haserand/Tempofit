@@ -262,4 +262,42 @@ describe('TrophiesView — génération du visuel partageable (shareTrophy)', ()
 
     await waitFor(() => expect(setSummaryImageStatus).toHaveBeenCalledWith('error'));
   });
+
+  it('double-clic rapide sur 2 trophées différents : seul le résultat du DERNIER trophée cliqué est appliqué, jamais un résultat périmé (bug réel corrigé, capture d\'écran envoyée par l\'utilisateur — 2e trophée capturé quasi vierge)', async () => {
+    // 2 trophées VISIBLES (pas secrets) marqués débloqués, pour avoir 2
+    // boutons "Partager mon exploit" cliquables sans changer d'onglet.
+    const trophyA = visibleTrophies[0];
+    const trophyB = visibleTrophies[2];
+    const setSummaryImageStatus = vi.fn();
+    const setSummaryImageFile = vi.fn();
+    const setSummaryImagePreviewUrl = vi.fn();
+    useShareImage.mockReturnValue(mockShareImage({ setSummaryImageStatus, setSummaryImageFile, setSummaryImagePreviewUrl }));
+    const fileB = new File(['b'], 'b.png');
+    captureElementAsFile.mockResolvedValue(fileB);
+    render(<TrophiesView {...baseProps({
+      userStats: { unlockedTrophies: [trophyA.id, trophyB.id], totalCompleted: 1, dataImports: 1 },
+    })} />);
+    const shareButtons = screen.getAllByText('Partager mon exploit');
+    expect(shareButtons.length).toBe(2);
+
+    // Les 2 clics partent AVANT que le double `requestAnimationFrame` du
+    // 1er n'ait eu la moindre chance de se résoudre (il ne se résout QUE
+    // sur une frame future, jamais dans le même tick synchrone) — au
+    // moment où le 1er clic vérifie enfin "suis-je toujours le trophée
+    // demandé ?", la réf a déjà été réécrite par le 2e clic.
+    await act(async () => {
+      fireEvent.click(shareButtons[0]);
+      fireEvent.click(shareButtons[1]);
+      // Laisse les frames (et donc les double rAF) se dérouler.
+      await new Promise(resolve => setTimeout(resolve, 50));
+    });
+
+    // Le résultat appliqué est celui du DERNIER trophée cliqué (B) — et
+    // surtout, la capture du 1er trophée (périmée dès le clic sur le 2e)
+    // n'a jamais été lancée ni appliquée : un seul appel de capture au
+    // total, jamais 2 résultats qui se marchent dessus.
+    expect(captureElementAsFile).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(setSummaryImageFile).toHaveBeenCalledWith(fileB));
+    await waitFor(() => expect(setSummaryImagePreviewUrl).toHaveBeenCalledWith('blob:mock-trophee'));
+  });
 });
