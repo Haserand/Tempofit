@@ -62,8 +62,12 @@ PUIS un vrai bug trouvé en prod (2 captures d'écran envoyées) : 2e
 trophée capturé quasi vierge (`setTimeout(0)` insuffisant pour garantir
 un repaint, pas de protection contre un double-clic rapide) — corrigé par
 double `requestAnimationFrame` + `sharingTrophyIdRef`, les 2 autres
-visuels partageables du projet audités (aucun aussi exposé).
-Suite complète : 125 fichiers, 1730 tests au vert.
+visuels partageables du projet audités (aucun aussi exposé). (18) 3e
+correctif du même visuel — le bug persistait sur d'autres trophées (fond
+dégradé manquant à la capture, texte blanc devenu invisible dessus) :
+reflow forcé avant capture + vérification a posteriori avec nouvelle
+tentative automatique (taille de fichier PNG mesurée empiriquement,
+seuil de 150 Ko). Suite complète : 125 fichiers, 1732 tests au vert.
 
 ### ⚠️ Règle permanente (25/08) — cette section ne contient QUE le chantier en cours, jamais l'historique clos
 
