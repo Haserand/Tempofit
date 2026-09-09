@@ -76,6 +76,41 @@ const TROPHIES_DATA = [
   { id: 't_firstRoutine', name: 'Ma Première Routine', desc: 'Sauvegarde ta toute première routine réutilisable.', icon: '📋', category: 'feature', requirement: { type: 'custom', key: 'hasFirstRoutine' } },
   { id: 't_sharer', name: 'Ambassadeur', desc: 'Utilise le bouton Partager, sur une playlist ou un trophée.', icon: '📣', category: 'habit', requirement: { type: 'custom', key: 'hasSharedSomething' } },
   { id: 't_favorites', name: 'Fidèle à tes Artistes', desc: 'Génère une session en utilisant tes Favoris.', icon: '⭐', category: 'feature', requirement: { type: 'custom', key: 'hasUsedFavorites' } },
+  // --- Ajoutés lors d'un audit (01/09, retour direct : "je pense qu'il en
+  // manque plein ayant ajouté plein de nouvelles fonctionnalités, comme
+  // cloner une playlist ou recevoir un compteur de clonage") — 6 fonctions
+  // entièrement instrumentées côté code (clonage, exclusions, profil
+  // athlétique, profils publics, publication) mais jamais reliées à un
+  // trophée jusqu'ici. Voir historique/bloc-19.md pour le détail complet
+  // de chaque point de câblage.
+  { id: 't_cloner', name: 'Deuxième Vie', desc: 'Clone une playlist, un modèle ou une routine.', icon: '🧬', category: 'feature', requirement: { type: 'custom', key: 'hasClonedSomething' } },
+  { id: 't_inspiration', name: 'Source d\'Inspiration', desc: 'Une de tes créations a été clonée par quelqu\'un.', icon: '💡', category: 'habit', requirement: { type: 'custom', key: 'hasReceivedClone' } },
+  { id: 't_trieur', name: 'Le Trieur', desc: 'Exclus un artiste, un titre ou un genre.', icon: '🧹', category: 'feature', requirement: { type: 'custom', key: 'hasExcludedSomething' } },
+  { id: 't_surMesure', name: 'Sur Mesure', desc: 'Renseigne ton profil athlétique (âge, poids, zones).', icon: '📏', category: 'feature', requirement: { type: 'custom', key: 'hasSetAthleticProfile' } },
+  { id: 't_curieux', name: 'Curieux de Nature', desc: 'Consulte le profil public d\'un autre utilisateur.', icon: '🔎', category: 'feature', requirement: { type: 'custom', key: 'hasViewedProfile' } },
+  { id: 't_grandOuvert', name: 'Grand Ouvert', desc: 'Rends une playlist ou une routine publique.', icon: '🌍', category: 'feature', requirement: { type: 'custom', key: 'hasMadePublic' } },
+  // --- Paliers Garmin-style (01/09, retour direct : "souvent sur les
+  // applications type Garmin il y a plusieurs itérations des trophées...
+  // faudrait-il en dupliquer certains en fonction des paliers
+  // d'objectifs ?") — audit demandé, mené et appliqué sans validation
+  // intermédiaire ("ajoute les tous sans me demander"). MÊME métrique
+  // cumulative que le trophée "tier 1" déjà existant, juste un seuil plus
+  // exigeant — même catégorie que ce "tier 1" dans chaque cas, pour rester
+  // groupés ensemble à l'affichage (TrophiesView.jsx, groupé par
+  // `category`). Voir historique/bloc-20.md pour le détail complet du
+  // choix des métriques retenues (et de celles délibérément écartées —
+  // les trophées "découverte" à un seul coup, comme le Marathonien ou le
+  // Rickroll, ne se prêtent pas à des paliers).
+  { id: 't_veteran', name: 'Vétéran', desc: 'Complète 100 sessions. Une vraie légende.', icon: '🎖️', category: 'progression', requirement: { type: 'total', count: 100 } },
+  { id: 't_naughty10', name: 'Habitué·e du Mode Intime', desc: 'Complète 10 sessions en mode "Intime".', icon: '😈', category: 'feature', requirement: { type: 'naughty', count: 10 } },
+  { id: 't_naughty50', name: 'Insatiable', desc: 'Complète 50 sessions en mode "Intime".', icon: '💋', category: 'feature', requirement: { type: 'naughty', count: 50 } },
+  { id: 't_dj25', name: 'DJ Résident', desc: 'Utilise "Remplacer" 25 fois sur tes titres.', icon: '🎧', category: 'habit', requirement: { type: 'replace', count: 25 } },
+  { id: 't_dj100', name: 'Perfectionniste du Mix', desc: 'Utilise "Remplacer" 100 fois sur tes titres.', icon: '🎚️', category: 'habit', requirement: { type: 'replace', count: 100 } },
+  { id: 't_300km', name: 'Grand Voyageur', desc: 'Cumule 300 km parcourus sur l\'ensemble de tes séances.', icon: '🗺️', secret: true, requirement: { type: 'custom', key: 'has300km' } },
+  { id: 't_1000km', name: 'Mille Bornes', desc: 'Cumule 1000 km parcourus sur l\'ensemble de tes séances.', icon: '🚀', secret: true, requirement: { type: 'custom', key: 'has1000km' } },
+  { id: 't_data10', name: 'Data Analyst', desc: 'Importe tes données Garmin/Strava 10 fois.', icon: '📉', category: 'feature', requirement: { type: 'data', count: 10 } },
+  { id: 't_inspiration10', name: 'Créateur Suivi', desc: 'Une de tes créations a été clonée 10 fois.', icon: '🌟', category: 'habit', requirement: { type: 'custom', key: 'hasReceivedClone10' } },
+  { id: 't_inspiration50', name: 'Star Montante', desc: 'Une de tes créations a été clonée 50 fois.', icon: '🎬', category: 'habit', requirement: { type: 'custom', key: 'hasReceivedClone50' } },
 ];
 
 // Métadonnées d'affichage des 3 catégories de trophées visibles (voir
