@@ -223,6 +223,15 @@ export function PlaylistDetailProvider({
     // une seule ligne") : voir PlaylistsView.jsx pour le raisonnement
     // complet — même raccourci appliqué aux 3 endroits identiques.
     showToast(updatedPlaylist.isPublic ? `🌐 "${updatedPlaylist.name}" est maintenant publique.` : `🔒 "${updatedPlaylist.name}" est de nouveau privée.`);
+    // Trophée "Grand Ouvert" (01/09, audit — voir appConfig.js) —
+    // UNIQUEMENT quand ça devient public (jamais l'inverse). Câblé aussi
+    // dans PlaylistsView.jsx/RoutinesView.jsx, 2 AUTRES implémentations
+    // indépendantes de cette même bascule (voir la docstring juste
+    // au-dessus — 3 endroits distincts pour ce même geste, donc 3 endroits
+    // à toucher pour ce trophée aussi).
+    if (updatedPlaylist.isPublic && !userStats.hasMadePublic) {
+      checkTrophies({ ...userStats, hasMadePublic: true });
+    }
   };
 
   // --- Description libre (Vague 2, Chantier 3 — "description texte libre
