@@ -105,6 +105,7 @@ export default function PlaylistsView({
   editingCompletion, setEditingCompletion, editCompletionDate, removeCompletionDate, triggerCSVUpload,
   removeImportedData,
   showToast,
+  userStats, checkTrophies,
   // NOUVEAU (20/08, fusion "Mes Routines") — transmises telles quelles au
   // corps RoutinesView.jsx (voir la docstring de ce fichier) quand l'onglet
   // actif est 'routine'. Mêmes props qu'App.jsx passait avant à
@@ -180,6 +181,12 @@ export default function PlaylistsView({
       // implémentations indépendantes, voir la docstring de
       // handleTogglePlaylistPublic dans PlaylistDetailContext.jsx).
       showToast(updated.isPublic ? `🌐 "${updated.name}" est maintenant publique.` : `🔒 "${updated.name}" est de nouveau privée.`);
+      // Trophée "Grand Ouvert" (01/09, audit — voir appConfig.js) — même
+      // raisonnement que PlaylistDetailContext.jsx (l'autre implémentation
+      // de cette bascule) : uniquement quand ça DEVIENT public.
+      if (updated.isPublic && !userStats.hasMadePublic) {
+        checkTrophies({ ...userStats, hasMadePublic: true });
+      }
       return updated;
     }));
   };
@@ -506,7 +513,7 @@ export default function PlaylistsView({
           renderConfigInfoLine={renderConfigInfoLine} getRankStyle={getRankStyle}
           setEditingRoutine={setEditingRoutine}
           executeGeneration={executeGeneration} isGenerating={isGenerating} changeView={changeView}
-          showToast={showToast}
+          showToast={showToast} userStats={userStats} checkTrophies={checkTrophies}
         />
       ) : (
         <div className="space-y-10">
