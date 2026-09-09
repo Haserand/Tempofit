@@ -116,6 +116,12 @@ export function usePlaylistCompletions(savedPlaylists, setSavedPlaylists, showTo
       const distKm = pl.distanceUnit === 'mi' ? distInUnit * 1.60934 : distInUnit;
       stats.totalDistanceKm = (stats.totalDistanceKm || 0) + distKm;
       if (stats.totalDistanceKm >= 100) stats.has100km = true;
+      // Paliers Garmin-style ajoutés (01/09, audit — "souvent sur les
+      // applications type Garmin il y a plusieurs itérations des
+      // trophées") — même mécanisme exact que has100km ci-dessus, juste 2
+      // seuils supplémentaires sur LE MÊME compteur cumulatif.
+      if (stats.totalDistanceKm >= 300) stats.has300km = true;
+      if (stats.totalDistanceKm >= 1000) stats.has1000km = true;
     }
 
     // "Sur ta Lancée" — une séance complétée 3 jours calendaires D'AFFILÉE,
