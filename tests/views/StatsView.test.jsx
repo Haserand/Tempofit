@@ -94,6 +94,7 @@ function baseProps(overrides = {}) {
     theme: mockTheme,
     savedPlaylists: baseSavedPlaylists,
     userStats: {},
+    checkTrophies: vi.fn(),
     changeView: vi.fn(),
     setCurrentPlaylist: vi.fn(),
     athleticProfile: {},
@@ -208,6 +209,72 @@ describe('StatsView — clonages reçus', () => {
 
     expect(await screen.findByText('8')).toBeInTheDocument();
     expect(screen.getByText('Clonages reçus sur tes playlists/routines publiques')).toBeInTheDocument();
+  });
+
+  it('Trophée "Source d\'Inspiration" (01/09, audit — appConfig.js) : total > 0 le déclenche', async () => {
+    const checkTrophies = vi.fn();
+    mockFrom.mockImplementation((table) => makeQueryBuilder({
+      data: table === 'playlists' ? [{ clone_count: 3 }] : [],
+      error: null,
+    }));
+    render(<StatsView {...baseProps({ checkTrophies, userStats: { hasReceivedClone: false } })} />);
+
+    await waitFor(() => expect(checkTrophies).toHaveBeenCalledWith({ hasReceivedClone: true }));
+  });
+
+  it('Trophée "Source d\'Inspiration" : total à 0 ne le déclenche pas', async () => {
+    const checkTrophies = vi.fn();
+    mockFrom.mockImplementation(() => makeQueryBuilder({ data: [], error: null }));
+    render(<StatsView {...baseProps({ checkTrophies, userStats: { hasReceivedClone: false } })} />);
+
+    await waitFor(() => expect(mockFrom).toHaveBeenCalled());
+    expect(checkTrophies).not.toHaveBeenCalled();
+  });
+
+  it('Trophée "Source d\'Inspiration" : déjà débloqué, ne rappelle pas checkTrophies', async () => {
+    const checkTrophies = vi.fn();
+    mockFrom.mockImplementation((table) => makeQueryBuilder({
+      data: table === 'playlists' ? [{ clone_count: 3 }] : [],
+      error: null,
+    }));
+    render(<StatsView {...baseProps({ checkTrophies, userStats: { hasReceivedClone: true } })} />);
+
+    await waitFor(() => expect(mockFrom).toHaveBeenCalled());
+    expect(checkTrophies).not.toHaveBeenCalled();
+  });
+
+  it('Trophée "Créateur Suivi" (01/09, palier Garmin-style) : total ≥ 10 le déclenche', async () => {
+    const checkTrophies = vi.fn();
+    mockFrom.mockImplementation((table) => makeQueryBuilder({
+      data: table === 'playlists' ? [{ clone_count: 10 }] : [],
+      error: null,
+    }));
+    render(<StatsView {...baseProps({ checkTrophies, userStats: { hasReceivedClone: true, hasReceivedClone10: false } })} />);
+
+    await waitFor(() => expect(checkTrophies).toHaveBeenCalledWith({ hasReceivedClone: true, hasReceivedClone10: true }));
+  });
+
+  it('Trophée "Star Montante" (01/09, palier Garmin-style) : total ≥ 50 le déclenche', async () => {
+    const checkTrophies = vi.fn();
+    mockFrom.mockImplementation((table) => makeQueryBuilder({
+      data: table === 'playlists' ? [{ clone_count: 50 }] : [],
+      error: null,
+    }));
+    render(<StatsView {...baseProps({ checkTrophies, userStats: { hasReceivedClone: true, hasReceivedClone10: true, hasReceivedClone50: false } })} />);
+
+    await waitFor(() => expect(checkTrophies).toHaveBeenCalledWith({ hasReceivedClone: true, hasReceivedClone10: true, hasReceivedClone50: true }));
+  });
+
+  it('total entre 1 et 9 : le palier de base se déclenche, PAS "Créateur Suivi" (seuil 10 pas encore atteint)', async () => {
+    const checkTrophies = vi.fn();
+    mockFrom.mockImplementation((table) => makeQueryBuilder({
+      data: table === 'playlists' ? [{ clone_count: 5 }] : [],
+      error: null,
+    }));
+    render(<StatsView {...baseProps({ checkTrophies, userStats: { hasReceivedClone: false, hasReceivedClone10: false } })} />);
+
+    await waitFor(() => expect(checkTrophies).toHaveBeenCalled());
+    expect(checkTrophies).not.toHaveBeenCalledWith(expect.objectContaining({ hasReceivedClone10: true }));
   });
 
   it('n\'affiche RIEN quand le total vaut 0 (pas de bloc vide à montrer)', async () => {
