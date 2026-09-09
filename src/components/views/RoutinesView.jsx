@@ -34,6 +34,7 @@ export default function RoutinesView({
   theme, isNaughtyMode, routines, setRoutines, routineBatchCounts, setRoutineBatchCounts,
   getDisplayRoutineIcon, getDisplayRoutineName, renderConfigInfoLine, getRankStyle,
   setEditingRoutine, executeGeneration, isGenerating, changeView, showToast,
+  userStats, checkTrophies,
 }) {
   const { openModal } = useModalContext();
   const { cardBg, cardBorder, textHighlight, textMuted, bgAccentClass, inputBg, inputBorder } = theme;
@@ -65,6 +66,13 @@ export default function RoutinesView({
       // une seule ligne") : voir PlaylistsView.jsx pour le raisonnement
       // complet — même raccourci appliqué aux 3 endroits identiques.
       showToast(updated.isPublic ? `🌐 "${getDisplayRoutineName(updated)}" est maintenant publique.` : `🔒 "${getDisplayRoutineName(updated)}" est de nouveau privée.`);
+      // Trophée "Grand Ouvert" (01/09, audit — voir appConfig.js) — même
+      // raisonnement que PlaylistDetailContext.jsx/PlaylistsView.jsx (les 2
+      // autres implémentations de cette bascule) : uniquement quand ça
+      // DEVIENT public.
+      if (updated.isPublic && !userStats.hasMadePublic) {
+        checkTrophies({ ...userStats, hasMadePublic: true });
+      }
       return updated;
     }));
   };
