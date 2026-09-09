@@ -69,6 +69,28 @@ describe('usePlaylistLibrary — compteur de clonages (handleClonePlaylist)', ()
     });
   });
 
+  it('Trophée "Deuxième Vie" (01/09, audit — appConfig.js) : cloner une playlist étrangère le déclenche', () => {
+    mockRpc.mockResolvedValue({ error: null });
+    const checkTrophies = vi.fn();
+    const foreignPlaylist = { id: 'pl-original', user_id: 'owner-uuid-123', name: 'Sortie running', isReadOnly: true };
+    const result = renderLibrary(foreignPlaylist, { checkTrophies, userStats: { hasClonedSomething: false } });
+
+    result.current.handleClonePlaylist();
+
+    expect(checkTrophies).toHaveBeenCalledWith({ hasClonedSomething: true });
+  });
+
+  it('Trophée "Deuxième Vie" : déjà débloqué, ne rappelle pas checkTrophies (garde-fou `!userStats.hasClonedSomething`)', () => {
+    mockRpc.mockResolvedValue({ error: null });
+    const checkTrophies = vi.fn();
+    const foreignPlaylist = { id: 'pl-original', user_id: 'owner-uuid-123', name: 'Sortie running', isReadOnly: true };
+    const result = renderLibrary(foreignPlaylist, { checkTrophies, userStats: { hasClonedSomething: true } });
+
+    result.current.handleClonePlaylist();
+
+    expect(checkTrophies).not.toHaveBeenCalled();
+  });
+
   // ⚠️ RENOMMÉ le 02/08 (compteur de clonages HONNÊTE pour les templates) —
   // ce fixture ne pose pas `sourceTemplateId`, donc n'appelle toujours pas
   // la RPC playlist — mais un VRAI template de la vitrine EN A un
@@ -422,6 +444,33 @@ describe('usePlaylistLibrary — handleSavePlaylist', () => {
       result.current.handleSavePlaylist();
 
       expect(mockRpc).toHaveBeenCalledWith('increment_template_clone_count', { target_template_id: 'tpl-cardio' });
+    });
+
+    it('Trophée "Deuxième Vie" (01/09, audit — appConfig.js) : ajouter un template depuis Découvrir le déclenche', () => {
+      mockRpc.mockResolvedValue({ error: null });
+      const checkTrophies = vi.fn();
+      const discoverTemplate = { id: 'pl-curated-tpl-cardio-123', sourceTemplateId: 'tpl-cardio', name: 'Cardio Express' };
+      const result = renderLibrary(discoverTemplate, {
+        setSavedPlaylists: vi.fn(), setCurrentPlaylist: vi.fn(),
+        checkTrophies, userStats: { hasClonedSomething: false },
+      });
+
+      result.current.handleSavePlaylist();
+
+      expect(checkTrophies).toHaveBeenCalledWith({ hasClonedSomething: true });
+    });
+
+    it('une playlist fraîchement générée (pas de sourceTemplateId) ne déclenche PAS le trophée "Deuxième Vie" — une sauvegarde normale n\'est pas un clonage', () => {
+      const checkTrophies = vi.fn();
+      const freshGeneration = { id: 'pl-fresh-456', name: 'Ma séance' };
+      const result = renderLibrary(freshGeneration, {
+        setSavedPlaylists: vi.fn(), setCurrentPlaylist: vi.fn(),
+        checkTrophies, userStats: { hasClonedSomething: false },
+      });
+
+      result.current.handleSavePlaylist();
+
+      expect(checkTrophies).not.toHaveBeenCalled();
     });
 
     it('une playlist fraîchement générée par le wizard (pas de sourceTemplateId) n\'appelle AUCUNE RPC — jamais comptée à tort comme un clonage de template', () => {
