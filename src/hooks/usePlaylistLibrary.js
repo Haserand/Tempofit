@@ -123,6 +123,11 @@ export function usePlaylistLibrary({
     // vanité qui rate une fois ne justifie pas une erreur visible sur une
     // action qui, de son point de vue, a déjà pleinement réussi).
     if (currentPlaylist.sourceTemplateId) {
+      // Trophée "Deuxième Vie" (01/09, audit — voir appConfig.js) — même
+      // garde-fou `sourceTemplateId` que le compteur juste au-dessus :
+      // seul un VRAI clonage de template compte, jamais une simple
+      // sauvegarde de playlist fraîchement générée par le wizard.
+      if (!userStats.hasClonedSomething) checkTrophies({ ...userStats, hasClonedSomething: true });
       supabase.rpc('increment_template_clone_count', {
         target_template_id: currentPlaylist.sourceTemplateId,
       }).then(({ error }) => {
@@ -274,6 +279,11 @@ export function usePlaylistLibrary({
     // reste sur la même vue détail, seul l'objet affiché change).
     setCurrentPlaylist(cloned);
     showToast("🎵 Playlist clonée dans Mes Playlists !");
+    // Trophée "Deuxième Vie" (01/09, audit — voir appConfig.js) — cette
+    // fonction EST entièrement dédiée au clonage (contrairement à
+    // `handleSavePlaylist` ci-dessus, où seule une branche précise compte),
+    // le trophée s'applique donc inconditionnellement ici.
+    if (!userStats.hasClonedSomething) checkTrophies({ ...userStats, hasClonedSomething: true });
 
     // Compteur de clonages RÉEL — REFONTE (03/08) : UN SEUL appel RPC
     // désormais (au lieu de 2 avant) — `increment_playlist_clone_count`
