@@ -37,10 +37,20 @@ export function useUserStats(showToast, user) {
     usedStructureKinds: [], hasAllStructures: false,
     hasCrescendoCompleted: false, hasOnTimeCompletion: false,
     completedWorkoutTypes: [], hasAllWorkoutTypes: false,
-    totalDistanceKm: 0, has100km: false,
+    totalDistanceKm: 0, has100km: false, has300km: false, has1000km: false,
     hasLightMode: false, hasStreak3: false,
     hasExtraGenre: false, hasPlannedSession: false, hasAutoGen: false,
     hasFirstRoutine: false, hasSharedSomething: false, hasUsedFavorites: false,
+    // 6 nouveaux flags (audit du 01/09 — voir appConfig.js pour le récit
+    // complet de chaque fonctionnalité concernée) :
+    hasClonedSomething: false, hasReceivedClone: false, hasExcludedSomething: false,
+    hasSetAthleticProfile: false, hasViewedProfile: false, hasMadePublic: false,
+    // Paliers Garmin-style (01/09, audit "plusieurs itérations des
+    // trophées") — voir appConfig.js pour le détail de chaque métrique
+    // tierée. `has300km`/`has1000km` juste au-dessus (même compteur que
+    // `has100km`) ; ces 2-là couvrent "clonages reçus" (déjà un total
+    // calculé côté StatsView.jsx, jamais persisté avant ce chantier).
+    hasReceivedClone10: false, hasReceivedClone50: false,
     unlockedTrophies: []
   }));
 
