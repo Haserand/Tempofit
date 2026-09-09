@@ -39,6 +39,17 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
+// Fichier "assez gros" pour dépasser MIN_VALID_TROPHY_IMAGE_BYTES
+// (TrophiesView.jsx, 150 Ko) — sans ça, tout fichier mocké minuscule
+// (`new File(['x'], ...)`, quelques octets) déclencherait à tort la
+// logique de nouvelle tentative sur CHAQUE test, ralentissant inutilement
+// toute la suite et masquant l'intention réelle de chaque test (voir la
+// docstring du bloc "nouvelle tentative" plus bas pour LE test qui, lui,
+// vérifie spécifiquement ce mécanisme avec un petit fichier délibéré).
+function bigFile(name = 'tempofit-trophee.png') {
+  return new File([new Uint8Array(200000)], name, { type: 'image/png' });
+}
+
 function mockShareImage(overrides = {}) {
   return {
     summaryImageStatus: 'idle',
@@ -54,7 +65,7 @@ function mockShareImage(overrides = {}) {
 
 beforeEach(() => {
   useShareImage.mockReturnValue(mockShareImage());
-  captureElementAsFile.mockResolvedValue(new File(['x'], 'tempofit-trophee.png', { type: 'image/png' }));
+  captureElementAsFile.mockResolvedValue(bigFile());
   // `URL.createObjectURL`/`revokeObjectURL` — pas implémentées nativement
   // par jsdom (même piège déjà rencontré dans useShare.test.js) ;
   // `shareTrophy` (TrophiesView.jsx) les appelle directement, contrairement
@@ -272,7 +283,7 @@ describe('TrophiesView — génération du visuel partageable (shareTrophy)', ()
     const setSummaryImageFile = vi.fn();
     const setSummaryImagePreviewUrl = vi.fn();
     useShareImage.mockReturnValue(mockShareImage({ setSummaryImageStatus, setSummaryImageFile, setSummaryImagePreviewUrl }));
-    const fileB = new File(['b'], 'b.png');
+    const fileB = bigFile('b.png');
     captureElementAsFile.mockResolvedValue(fileB);
     render(<TrophiesView {...baseProps({
       userStats: { unlockedTrophies: [trophyA.id, trophyB.id], totalCompleted: 1, dataImports: 1 },
@@ -285,19 +296,58 @@ describe('TrophiesView — génération du visuel partageable (shareTrophy)', ()
     // sur une frame future, jamais dans le même tick synchrone) — au
     // moment où le 1er clic vérifie enfin "suis-je toujours le trophée
     // demandé ?", la réf a déjà été réécrite par le 2e clic.
-    await act(async () => {
-      fireEvent.click(shareButtons[0]);
-      fireEvent.click(shareButtons[1]);
-      // Laisse les frames (et donc les double rAF) se dérouler.
-      await new Promise(resolve => setTimeout(resolve, 50));
-    });
+    fireEvent.click(shareButtons[0]);
+    fireEvent.click(shareButtons[1]);
 
     // Le résultat appliqué est celui du DERNIER trophée cliqué (B) — et
     // surtout, la capture du 1er trophée (périmée dès le clic sur le 2e)
     // n'a jamais été lancée ni appliquée : un seul appel de capture au
     // total, jamais 2 résultats qui se marchent dessus.
-    expect(captureElementAsFile).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(setSummaryImageFile).toHaveBeenCalledWith(fileB));
     await waitFor(() => expect(setSummaryImagePreviewUrl).toHaveBeenCalledWith('blob:mock-trophee'));
+    expect(captureElementAsFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('capture "vierge" (fichier trop petit, < 150 Ko) : retente automatiquement jusqu\'à obtenir un visuel valide, plutôt que d\'accepter le 1er résultat raté (2e bug réel corrigé, voir la docstring de shareTrophy)', async () => {
+    const smallFile1 = new File([new Uint8Array(1000)], 'petit1.png', { type: 'image/png' });
+    const smallFile2 = new File([new Uint8Array(2000)], 'petit2.png', { type: 'image/png' });
+    const goodFile = bigFile('bon.png');
+    captureElementAsFile
+      .mockResolvedValueOnce(smallFile1)
+      .mockResolvedValueOnce(smallFile2)
+      .mockResolvedValueOnce(goodFile);
+    const setSummaryImageFile = vi.fn();
+    useShareImage.mockReturnValue(mockShareImage({ setSummaryImageFile }));
+    render(<TrophiesView {...baseProps()} />);
+
+    fireEvent.click(screen.getByText('Partager mon exploit'));
+
+    // Comparer des `File` par égalité profonde (`toHaveBeenCalledWith`) n'est
+    // pas fiable ici (2 instances `File` distinctes n'exposent rien de
+    // structurellement distinguable par une comparaison superficielle) —
+    // on vérifie plutôt le NOM du fichier réellement appliqué, un par un.
+    await waitFor(() => {
+      const lastCall = setSummaryImageFile.mock.calls.at(-1);
+      expect(lastCall?.[0]?.name).toBe('bon.png');
+    }, { timeout: 2000 });
+    expect(captureElementAsFile).toHaveBeenCalledTimes(3);
+    expect(setSummaryImageFile.mock.calls.some(call => call[0]?.name === 'petit1.png')).toBe(false);
+    expect(setSummaryImageFile.mock.calls.some(call => call[0]?.name === 'petit2.png')).toBe(false);
+  });
+
+  it('capture "vierge" à CHAQUE tentative (MAX_CAPTURE_ATTEMPTS atteint) : applique quand même le dernier résultat obtenu plutôt que de bloquer indéfiniment sans aucun visuel', async () => {
+    const smallFile = new File([new Uint8Array(500)], 'toujours-petit.png', { type: 'image/png' });
+    captureElementAsFile.mockResolvedValue(smallFile);
+    const setSummaryImageFile = vi.fn();
+    const setSummaryImageStatus = vi.fn();
+    useShareImage.mockReturnValue(mockShareImage({ setSummaryImageFile, setSummaryImageStatus }));
+    render(<TrophiesView {...baseProps()} />);
+
+    fireEvent.click(screen.getByText('Partager mon exploit'));
+
+    await waitFor(() => expect(setSummaryImageStatus).toHaveBeenCalledWith('ready'), { timeout: 2000 });
+    expect(captureElementAsFile).toHaveBeenCalledTimes(3); // MAX_CAPTURE_ATTEMPTS
+    const lastCall = setSummaryImageFile.mock.calls.at(-1);
+    expect(lastCall?.[0]?.name).toBe('toujours-petit.png');
   });
 });
