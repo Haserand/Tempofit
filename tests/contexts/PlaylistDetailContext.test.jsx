@@ -205,7 +205,7 @@ function TogglePublicProbe() {
   return <button onClick={handleTogglePlaylistPublic}>toggle-public</button>;
 }
 
-function renderWithProviderForTogglePublic(currentPlaylist, savedPlaylists, { setCurrentPlaylist = vi.fn(), setSavedPlaylists = vi.fn() } = {}) {
+function renderWithProviderForTogglePublic(currentPlaylist, savedPlaylists, { setCurrentPlaylist = vi.fn(), setSavedPlaylists = vi.fn(), userStats = {}, checkTrophies = () => {} } = {}) {
   return render(
     <PlaylistDetailProvider
       currentPlaylist={currentPlaylist}
@@ -214,8 +214,8 @@ function renderWithProviderForTogglePublic(currentPlaylist, savedPlaylists, { se
       setSavedPlaylists={setSavedPlaylists}
       favorites={{ tracks: [], artists: [] }}
       spotifyTrackPool={[]}
-      userStats={{}}
-      checkTrophies={() => {}}
+      userStats={userStats}
+      checkTrophies={checkTrophies}
       showToast={() => {}}
       requestRemoveSavedPlaylist={() => {}}
       handleSavePlaylist={() => {}}
@@ -273,6 +273,26 @@ describe('PlaylistDetailContext — handleTogglePlaylistPublic (simple flip, plu
 
     const updated = setSavedPlaylists.mock.calls[0][0][0];
     expect(updated.isPublic).toBe(true);
+  });
+
+  it('Trophée "Grand Ouvert" (01/09, audit — appConfig.js) : rendre une playlist publique le déclenche', () => {
+    const checkTrophies = vi.fn();
+    const privatePlaylist = makePlaylist({ isPublic: false });
+    renderWithProviderForTogglePublic(privatePlaylist, [privatePlaylist], { checkTrophies, userStats: { hasMadePublic: false } });
+
+    fireEvent.click(screen.getByText('toggle-public'));
+
+    expect(checkTrophies).toHaveBeenCalledWith({ hasMadePublic: true });
+  });
+
+  it('Trophée "Grand Ouvert" : rendre une playlist DE NOUVEAU PRIVÉE ne le déclenche pas (uniquement le sens public)', () => {
+    const checkTrophies = vi.fn();
+    const publicPlaylist = makePlaylist({ isPublic: true });
+    renderWithProviderForTogglePublic(publicPlaylist, [publicPlaylist], { checkTrophies, userStats: { hasMadePublic: false } });
+
+    fireEvent.click(screen.getByText('toggle-public'));
+
+    expect(checkTrophies).not.toHaveBeenCalled();
   });
 });
 
