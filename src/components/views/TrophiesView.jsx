@@ -8,6 +8,24 @@ import { useShareImage } from '../../contexts/ShareImageContext';
 import { captureElementAsFile } from '../../utils/captureElementAsFile';
 import { VIEW_HEADER_ICON_SIZE, VIEW_CONTENT_WRAPPER } from '../../layout/viewHeaderLayout';
 
+// Seuil de détection d'une capture ratée (01/09, voir la docstring de
+// `shareTrophy` plus bas pour le récit complet) — mesuré empiriquement
+// dans un bac à sable, PAS deviné : un visuel de trophée correctement
+// rendu (fond dégradé + texte + icône) pèse ~366-376 Ko une fois capturé
+// (`captureElementAsFile`, `scale: 2.7`), contre ~56 Ko pour le même
+// visuel SANS son fond dégradé (juste l'emoji, qui a sa propre couleur
+// intégrée et reste visible même quand tout le reste — en texte blanc —
+// devient invisible sur un fond blanc/transparent). 150 Ko : à mi-chemin,
+// avec une bonne marge de chaque côté, mesuré sur plusieurs trophées à
+// texte court ET long pour écarter un faux positif sur un texte court.
+const MIN_VALID_TROPHY_IMAGE_BYTES = 150000;
+// Nombre de tentatives avant d'accepter le dernier résultat obtenu, même
+// imparfait, plutôt que de bloquer indéfiniment — 3 tentatives avec un
+// délai croissant (100ms/200ms) donnent largement le temps à un appareil
+// chargé/lent de rattraper son retard sans pour autant risquer un blocage
+// perceptible pour l'utilisateur (quelques centaines de ms au pire).
+const MAX_CAPTURE_ATTEMPTS = 3;
+
 /**
  * TrophiesView — vue "Mes Trophées" (mur des succès débloqués).
  *
@@ -128,16 +146,63 @@ export default function TrophiesView({ theme, userStats, handleShare, isNaughtyM
       // nettement plus fiable qu'un délai fixe arbitraire (`captureElementAsFile`
       // ajoute lui-même encore 50ms par défaut ENSUITE, voir sa docstring —
       // les deux se cumulent plutôt que de se remplacer).
-      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      // Défense en profondeur, 2e couche (même esprit que
-      // `startBackgroundImageGeneration`, PlaylistDetailView.jsx) : si un
-      // AUTRE trophée a été cliqué entre-temps (double-clic rapide, avant
-      // même que CETTE capture n'ait démarré), abandonner plutôt que de
-      // capturer un contenu déjà périmé — la carte hors écran est UNIQUE
-      // et PARTAGÉE, capturer maintenant montrerait de toute façon le
-      // trophée le plus récent, pas celui demandé par CET appel.
-      if (sharingTrophyIdRef.current !== trophy.id) return;
-      const file = await captureElementAsFile(trophyCardRef.current, 'tempofit-trophee.png', { scale: 2.7 });
+      //
+      // ⚠️ 2e BUG RÉEL EN PROD, APRÈS ce 1er correctif (01/09, nouvelles
+      // captures d'écran envoyées) : le double rAF a bien réglé le cas déjà
+      // vu, mais un AUTRE trophée reste capturé quasi vierge ensuite. Point
+      // commun révélateur entre les 2 échecs observés : SEULS les emoji
+      // restent visibles (le logo 🏆 et l'icône du trophée) — jamais aucun
+      // texte, jamais le fond. Un emoji a sa propre couleur intégrée
+      // (ignore la couleur CSS) ; TOUT LE RESTE de ce composant est en
+      // texte BLANC (`color: '#ffffff'`/`rgba(255,255,255,X)`) — si le
+      // FOND DÉGRADÉ échoue spécifiquement à se capturer, ce texte blanc
+      // devient invisible sur un fond blanc/transparent, exactement le
+      // symptôme observé. Un double rAF garantit qu'un PEINT a eu lieu,
+      // mais pas que le moteur de style ait fini de committer une
+      // propriété `background` posée via `style={{...}}` React (valeur
+      // recalculée à chaque rendu, contrairement à une classe Tailwind
+      // statique déjà présente dans la feuille de style compilée) au
+      // moment où html2canvas lit les styles calculés — d'où l'ajout d'un
+      // reflow forcé (`element.offsetHeight`) juste avant chaque capture,
+      // PLUS une vérification a posteriori avec nouvelle tentative
+      // (ci-dessous) en toute dernière ligne de défense : mesuré
+      // empiriquement (bac à sable, plusieurs trophées différents) qu'un
+      // fichier PNG "vierge" (fond blanc + emoji seul) pèse ~56 Ko, contre
+      // ~370 Ko pour un visuel correctement rendu (fond dégradé + texte +
+      // icône) — un écart net et fiable, largement suffisant pour détecter
+      // une capture ratée sans jamais faussement rejeter une capture
+      // correcte. `MIN_VALID_TROPHY_IMAGE_BYTES` fixé à 150 Ko, à mi-chemin
+      // avec une bonne marge des deux côtés.
+      let file = null;
+      for (let attempt = 1; attempt <= MAX_CAPTURE_ATTEMPTS; attempt++) {
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        // Défense en profondeur, 2e couche (même esprit que
+        // `startBackgroundImageGeneration`, PlaylistDetailView.jsx) : si un
+        // AUTRE trophée a été cliqué entre-temps (double-clic rapide),
+        // abandonner plutôt que de capturer un contenu déjà périmé — la
+        // carte hors écran est UNIQUE et PARTAGÉE, capturer maintenant
+        // montrerait de toute façon le trophée le plus récent, pas celui
+        // demandé par CET appel.
+        if (sharingTrophyIdRef.current !== trophy.id) return;
+        void trophyCardRef.current.offsetHeight; // reflow forcé, voir ci-dessus
+        const attemptFile = await captureElementAsFile(trophyCardRef.current, 'tempofit-trophee.png', { scale: 2.7 });
+        if (sharingTrophyIdRef.current !== trophy.id) return;
+        if (attemptFile.size >= MIN_VALID_TROPHY_IMAGE_BYTES) {
+          file = attemptFile;
+          break;
+        }
+        // Capture visiblement incomplète (fond manquant) — retente après un
+        // délai croissant (100ms, 200ms...), laissant plus de temps au
+        // navigateur si celui-ci était simplement chargé/lent. Garde quand
+        // même le dernier résultat (même imparfait) en dernier recours
+        // plutôt que d'abandonner tout visuel après MAX_CAPTURE_ATTEMPTS
+        // tentatives — un visuel imparfait reste un partage possible,
+        // l'utilisateur peut toujours voir/écarter l'aperçu avant d'envoyer.
+        file = attemptFile;
+        if (attempt < MAX_CAPTURE_ATTEMPTS) {
+          await new Promise(resolve => setTimeout(resolve, attempt * 100));
+        }
+      }
       if (sharingTrophyIdRef.current !== trophy.id) return;
       setSummaryImageFile(file);
       setSummaryImagePreviewUrl(URL.createObjectURL(file));
