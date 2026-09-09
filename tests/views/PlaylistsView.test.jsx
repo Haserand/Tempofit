@@ -78,6 +78,11 @@ function baseProps(overrides = {}) {
     editingCompletion: null, setEditingCompletion: vi.fn(),
     editCompletionDate: vi.fn(), removeCompletionDate: vi.fn(), triggerCSVUpload: vi.fn(),
     showToast: vi.fn(),
+    // Trophée "Grand Ouvert" (01/09, audit — voir appConfig.js) — valeur
+    // neutre par défaut, les tests qui en ont besoin l'écrasent
+    // explicitement.
+    userStats: { hasMadePublic: false },
+    checkTrophies: vi.fn(),
     // NOUVEAU (20/08, fusion "Mes Routines") — jeu minimal mais valide,
     // requis même quand on ne teste QUE l'onglet Séances (le compteur du
     // sélecteur d'onglet lit `routines.length` inconditionnellement).
@@ -233,6 +238,26 @@ describe('PlaylistsView — bascule publique/privée (Feature Sociale, 01/08)', 
     const updater = setSavedPlaylists.mock.calls[0][0];
     const result = Array.isArray(updater) ? updater : updater([target]);
     expect(result.find(p => p.id === 'p1').isPublic).toBe(true);
+  });
+
+  it('Trophée "Grand Ouvert" (01/09, audit — appConfig.js) : rendre une playlist publique le déclenche', () => {
+    const checkTrophies = vi.fn();
+    const target = makePlaylist({ id: 'p1', isPublic: false });
+    render(<PlaylistsView {...baseProps({ savedPlaylists: [target], checkTrophies, userStats: { hasMadePublic: false } })} />);
+
+    fireEvent.click(screen.getByTestId('toggle-public-p1'));
+
+    expect(checkTrophies).toHaveBeenCalledWith({ hasMadePublic: true });
+  });
+
+  it('Trophée "Grand Ouvert" : rendre une playlist DE NOUVEAU PRIVÉE ne le déclenche pas', () => {
+    const checkTrophies = vi.fn();
+    const target = makePlaylist({ id: 'p1', isPublic: true });
+    render(<PlaylistsView {...baseProps({ savedPlaylists: [target], checkTrophies, userStats: { hasMadePublic: false } })} />);
+
+    fireEvent.click(screen.getByTestId('toggle-public-p1'));
+
+    expect(checkTrophies).not.toHaveBeenCalled();
   });
 
   // NOUVEAU (05/08, retour direct : "j'aimerais un message de confirmation
