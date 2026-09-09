@@ -71,6 +71,11 @@ function baseProps(overrides = {}) {
     isGenerating: false,
     changeView: vi.fn(),
     showToast: vi.fn(),
+    // Trophée "Grand Ouvert" (01/09, audit — voir appConfig.js) — valeur
+    // neutre par défaut, les tests qui en ont besoin l'écrasent
+    // explicitement.
+    userStats: { hasMadePublic: false },
+    checkTrophies: vi.fn(),
     ...overrides,
   };
 }
@@ -162,6 +167,25 @@ describe('RoutinesView', () => {
 
     fireEvent.click(screen.getAllByTitle('Rendre cette routine visible sur ton profil public')[0]);
     expect(showToast).toHaveBeenCalledWith(`🌐 "${routineB.name}" est maintenant publique.`);
+  });
+
+  it('Trophée "Grand Ouvert" (01/09, audit — appConfig.js) : rendre une routine publique le déclenche', () => {
+    const checkTrophies = vi.fn();
+    render(<RoutinesView {...baseProps({ checkTrophies, userStats: { hasMadePublic: false } })} />);
+
+    fireEvent.click(screen.getAllByTitle('Rendre cette routine visible sur ton profil public')[0]);
+
+    expect(checkTrophies).toHaveBeenCalledWith({ hasMadePublic: true });
+  });
+
+  it('Trophée "Grand Ouvert" : rendre une routine DE NOUVEAU PRIVÉE ne le déclenche pas', () => {
+    const checkTrophies = vi.fn();
+    const publicRoutine = { id: 'r1', name: 'Déjà publique', manualGenerations: 0, workoutType: 'Course à pied', isPublic: true };
+    render(<RoutinesView {...baseProps({ routines: [publicRoutine], checkTrophies, userStats: { hasMadePublic: false } })} />);
+
+    fireEvent.click(screen.getByTitle('Visible sur ton profil public — clique pour la rendre privée'));
+
+    expect(checkTrophies).not.toHaveBeenCalled();
   });
 
   // ⚠️ SIMPLIFIÉ (03/08, refonte lignée serveur, voir supabase-schema.sql)
