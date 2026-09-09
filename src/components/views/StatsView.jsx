@@ -53,6 +53,7 @@ export default function StatsView({
   shareImageFile, shareToInstagramStories, showToast,
   isNaughtyMode,
   user, username, profilePrivacy, onViewOwnProfile, onManageProfilePrivacy,
+  userStats, checkTrophies,
 }) {
   const { cardBg, cardBorder, textHighlight, textMuted, textColorClass, bgAccentClass } = theme;
 
@@ -103,6 +104,26 @@ export default function StatsView({
       const total = [...(playlistsRes.data || []), ...(routinesRes.data || [])]
         .reduce((sum, row) => sum + (row.clone_count || 0), 0);
       setReceivedCloneCount(total);
+      // Trophée "Source d'Inspiration" (01/09, audit — voir appConfig.js)
+      // — ⚠️ ce total est filtré par `isIntimateMode` (voir la requête
+      // ci-dessus, MÊME mode que l'onglet Statistiques actuellement
+      // affiché) : un utilisateur dont seules les créations de L'AUTRE
+      // mode ont été clonées ne déclenchera ce trophée qu'en visitant CET
+      // onglet-là — décalage mineur accepté (l'utilisateur finit
+      // normalement par consulter les deux onglets), pas de raison de
+      // complexifier avec une 2e requête dédiée juste pour ce trophée.
+      if (total > 0 && !userStats.hasReceivedClone) {
+        checkTrophies({ ...userStats, hasReceivedClone: true });
+      }
+      // Paliers Garmin-style (01/09, audit — voir appConfig.js) : mêmes
+      // garde-fous, sur LE MÊME total déjà calculé juste au-dessus — pas
+      // de nouvelle requête, juste 2 seuils de plus vérifiés au passage.
+      if (total >= 10 && !userStats.hasReceivedClone10) {
+        checkTrophies({ ...userStats, hasReceivedClone10: true });
+      }
+      if (total >= 50 && !userStats.hasReceivedClone50) {
+        checkTrophies({ ...userStats, hasReceivedClone50: true });
+      }
     }).finally(() => {
       if (!cancelled) setCloneCountLoading(false);
     });
