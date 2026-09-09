@@ -164,3 +164,21 @@ du dernier trophée cliqué est appliqué.
 
 **Suite complète après cet addendum** : 125 fichiers, 1730 tests, tous
 verts (+1 test).
+
+**2e addendum — audit visuel des 24 trophées** : demande initialement mal
+comprise ("les 2 autres visuels" lu comme "les 2 autres TYPES de visuel
+partageable du projet", alors qu'il s'agissait de "les 24 AUTRES
+trophées") — clarifié par l'utilisateur, corrigé. Les 24 trophées
+(`TROPHIES_DATA`, appConfig.js) rendus un par un via un harnais temporaire
+(vrai Chromium en cache + Playwright, supprimé après coup) et mesurés
+(débordement de texte, hauteur de carte) puis inspectés visuellement sur
+une capture d'écran groupée. Résultat : les 24 se rendent correctement,
+aucun ne reproduit le bug corrigé dans l'addendum précédent — confirme
+que le correctif s'attaquait bien à la vraie cause (timing de capture),
+pas à un symptôme isolé sur un seul trophée. 2 observations mineures,
+aucune ne nécessitant de correctif : une variation naturelle de hauteur
+de carte (479-517px) selon que le texte tient sur 1 ou 2 lignes, et
+l'émoji 📅 ("Planificateur") rendu avec "July 17" par la police Noto
+Emoji de ce bac à sable — variation d'affichage propre à la police, pas
+un bug de ce code (rendra différemment sur un vrai téléphone). Aucun
+fichier de code modifié.
