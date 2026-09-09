@@ -69,6 +69,15 @@ export default function TrophiesView({ theme, userStats, handleShare, isNaughtyM
   const { setSummaryImageStatus, setSummaryImageFile, setSummaryImagePreviewUrl, setIncludeSummaryImage, summaryImageStatus, summaryImageContextKey, setSummaryImageContextKey } = useShareImage();
   const [sharingTrophy, setSharingTrophy] = useState(null);
   const trophyCardRef = useRef(null);
+  // TOUJOURS le trophée du DERNIER clic sur "Partager mon exploit" (pas
+  // celui capturé au moment où CETTE invocation de `shareTrophy` a
+  // démarré) — même rôle que `currentPlaylistIdRef` dans
+  // PlaylistDetailView.jsx : une `ref`, jamais un `state`, car lue APRÈS un
+  // point d'attente asynchrone dans une fonction qui a pu être appelée une
+  // 2e fois entre-temps (fermeture sur une valeur de state y serait
+  // périmée, voir le même piège documenté ailleurs dans ce projet pour
+  // `checkTrophies`/`userStatsRef`).
+  const sharingTrophyIdRef = useRef(null);
 
   const shareTrophy = async (trophy) => {
     const contextKey = `trophy:${trophy.id}`;
@@ -98,14 +107,38 @@ export default function TrophiesView({ theme, userStats, handleShare, isNaughtyM
     });
     handleShare('trophy', trophy);
     setSharingTrophy(trophy);
+    sharingTrophyIdRef.current = trophy.id;
 
     try {
-      // Laisse le re-render (carte hors écran avec CE trophée) se produire
-      // avant de capturer — un `setState` ne met pas à jour le DOM de façon
-      // synchrone, `captureElementAsFile` capturerait sinon encore
-      // l'ancien contenu (ou rien du tout, au tout premier partage).
-      await new Promise(resolve => setTimeout(resolve, 0));
+      // ⚠️ BUG RÉEL EN PROD (01/09, capture d'écran envoyée par
+      // l'utilisateur : 2e trophée partagé capturé quasi vierge — pas de
+      // fond, pas de texte, juste les 2 emoji flottant à leur taille
+      // naturelle, comme si le CSS/la mise en page n'avaient pas eu le
+      // temps d'être appliqués avant la capture) — CAUSE : un simple
+      // `setTimeout(resolve, 0)` planifie une TÂCHE, pas un PEINT ; rien ne
+      // garantit qu'un repaint ait eu lieu entre le `setState` et
+      // l'exécution de ce callback (fonctionnait au 1er essai par pure
+      // chance de timing, pas par garantie — cassé dès qu'un 2e clic
+      // arrivait pendant que le navigateur avait encore du travail en
+      // attente). CORRIGÉ par un double `requestAnimationFrame` : le 1er
+      // s'exécute juste AVANT le prochain repaint programmé, le 2e (posé
+      // DEPUIS le 1er) s'exécute seulement APRÈS que ce repaint a eu lieu —
+      // technique standard pour garantir qu'un changement de style/mise en
+      // page a réellement été peint à l'écran avant de continuer,
+      // nettement plus fiable qu'un délai fixe arbitraire (`captureElementAsFile`
+      // ajoute lui-même encore 50ms par défaut ENSUITE, voir sa docstring —
+      // les deux se cumulent plutôt que de se remplacer).
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      // Défense en profondeur, 2e couche (même esprit que
+      // `startBackgroundImageGeneration`, PlaylistDetailView.jsx) : si un
+      // AUTRE trophée a été cliqué entre-temps (double-clic rapide, avant
+      // même que CETTE capture n'ait démarré), abandonner plutôt que de
+      // capturer un contenu déjà périmé — la carte hors écran est UNIQUE
+      // et PARTAGÉE, capturer maintenant montrerait de toute façon le
+      // trophée le plus récent, pas celui demandé par CET appel.
+      if (sharingTrophyIdRef.current !== trophy.id) return;
       const file = await captureElementAsFile(trophyCardRef.current, 'tempofit-trophee.png', { scale: 2.7 });
+      if (sharingTrophyIdRef.current !== trophy.id) return;
       setSummaryImageFile(file);
       setSummaryImagePreviewUrl(URL.createObjectURL(file));
       setSummaryImageStatus('ready');
