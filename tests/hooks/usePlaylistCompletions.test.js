@@ -23,7 +23,7 @@ function baseUserStats(overrides = {}) {
     totalCompleted: 0, naughtyCompleted: 0, hasNightOwl: false,
     hasCrescendoCompleted: false, hasOnTimeCompletion: false,
     completedWorkoutTypes: [], hasAllWorkoutTypes: false,
-    totalDistanceKm: 0, has100km: false, hasStreak3: false,
+    totalDistanceKm: 0, has100km: false, has300km: false, has1000km: false, hasStreak3: false,
     ...overrides,
   };
 }
@@ -151,6 +151,38 @@ describe('markPlaylistAsCompleted — cas "maintenant" (isoDate absent)', () => 
     markPlaylistAsCompleted('pl-1');
     // 3600/360 = 10 mi → 10 * 1.60934 = 16.0934 km, + 90 déjà acquis = 106.09 ≥ 100
     expect(checkTrophies).toHaveBeenCalledWith(expect.objectContaining({ has100km: true }));
+  });
+
+  it('"Grand Voyageur" (01/09, palier Garmin-style) : distance cumulée ≥ 300km, même mécanisme que has100km', () => {
+    const { markPlaylistAsCompleted, checkTrophies } = setup({
+      savedPlaylists: [basePlaylist({ totalDuration: 3600, avgPace: 300, distanceUnit: 'km' })],
+      userStats: baseUserStats({ totalDistanceKm: 288 }),
+    });
+    markPlaylistAsCompleted('pl-1');
+    // 3600/300 = 12 km, + 288 déjà acquis = 300 ≥ 300
+    expect(checkTrophies).toHaveBeenCalledWith(expect.objectContaining({ has300km: true }));
+  });
+
+  it('"Mille Bornes" (01/09, palier Garmin-style) : distance cumulée ≥ 1000km', () => {
+    const { markPlaylistAsCompleted, checkTrophies } = setup({
+      savedPlaylists: [basePlaylist({ totalDuration: 3600, avgPace: 300, distanceUnit: 'km' })],
+      userStats: baseUserStats({ totalDistanceKm: 990 }),
+    });
+    markPlaylistAsCompleted('pl-1');
+    expect(checkTrophies).toHaveBeenCalledWith(expect.objectContaining({ has1000km: true }));
+  });
+
+  it('sous les 3 seuils (100/300/1000km) : aucun des 3 flags de distance ne passe à true', () => {
+    const { markPlaylistAsCompleted, checkTrophies } = setup({
+      savedPlaylists: [basePlaylist({ totalDuration: 3600, avgPace: 3600, distanceUnit: 'km' })],
+      userStats: baseUserStats({ totalDistanceKm: 0 }),
+    });
+    markPlaylistAsCompleted('pl-1');
+    // 3600/3600 = 1 km, + 0 = 1km, largement sous les 3 seuils.
+    const call = checkTrophies.mock.calls[0][0];
+    expect(call.has100km).toBeFalsy();
+    expect(call.has300km).toBeFalsy();
+    expect(call.has1000km).toBeFalsy();
   });
 
   it('"Sur ta Lancée" : 3 jours calendaires consécutifs avec au moins une complétion chacun', () => {
