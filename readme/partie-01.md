@@ -39,35 +39,24 @@ VERIFICATION.md`, restructuré en `claude-sandbox-verification/partie-
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement — session très longue le 01/09, 6 chantiers
-enchaînés. Résumé bref (voir `HISTORIQUE.md` → blocs 12 à 17 pour le
-récit complet) : (12) check-up de reprise (sanity check, bug "texte blanc
-sur fond clair" généralisé à 3 fichiers, nouveau garde-fou
-`hoverWhiteTextTrap.test.js`) ; (13) alignement de la ligne au-dessus de
-"Découvrir" avec le bloc MiniPlayerBar+GuestModeBar (espaceur `flex-1`,
-vérifié par mesure Playwright réelle, 2 résidus corrigés après un vrai
-déploiement — centrage, puis "léger scroll" sur fenêtre courte) ; (14)
-4 principes de ce chantier transformés en documentation permanente
-(Convention UI + CLAUDE-SANDBOX-VERIFICATION.md) ; (15) `ShareModal.jsx` :
-texte fusionné à côté du Bilan Visuel (au lieu d'au-dessus, isolé),
-"Télécharger le visuel" remonté juste sous le visuel ; (16) vrai partage
-Instagram Stories sur iOS (`shareToInstagramStories`, useShare.js — le
-bouton "Story / IG" n'avait aucune intégration Instagram réelle
-auparavant ; ⚠️ jamais testé sur un vrai iPhone, à confirmer), étendu à
-`StatsView.jsx` ; (17) visuel partageable pour un trophée débloqué
-(`TrophyShareCard.jsx`, `TrophiesView.jsx`) — bug potentiel corrigé AVANT
-qu'il n'existe en prod (`summaryImageContextKey`, ShareImageContext.jsx,
-évite qu'un partage de trophée et un Bilan de Séance ne se mélangent),
-PUIS un vrai bug trouvé en prod (2 captures d'écran envoyées) : 2e
-trophée capturé quasi vierge (`setTimeout(0)` insuffisant pour garantir
-un repaint, pas de protection contre un double-clic rapide) — corrigé par
-double `requestAnimationFrame` + `sharingTrophyIdRef`, les 2 autres
-visuels partageables du projet audités (aucun aussi exposé). (18) 3e
-correctif du même visuel — le bug persistait sur d'autres trophées (fond
-dégradé manquant à la capture, texte blanc devenu invisible dessus) :
-reflow forcé avant capture + vérification a posteriori avec nouvelle
-tentative automatique (taille de fichier PNG mesurée empiriquement,
-seuil de 150 Ko). Suite complète : 125 fichiers, 1732 tests au vert.
+Rien en cours actuellement — session très longue le 01/09, 9 chantiers
+enchaînés. Voir `HISTORIQUE.md` → blocs 12 à 20 pour le récit complet de
+chacun ; résumé très bref ici : (12) check-up de reprise + garde-fou
+`hoverWhiteTextTrap.test.js` ; (13) alignement Sidebar/bloc du bas
+(espaceur `flex-1`, mesure Playwright réelle) ; (14) 4 principes
+transformés en documentation permanente ; (15) `ShareModal.jsx` : texte
+fusionné au visuel, lien de téléchargement repositionné ; (16) vrai
+partage Instagram Stories sur iOS (⚠️ jamais testé sur un vrai iPhone) ;
+(17-18) visuel partageable pour un trophée débloqué, avec 2 correctifs
+successifs après des bugs réels trouvés en prod (mélange de contexte,
+puis fond dégradé manquant à la capture — reflow forcé + nouvelle
+tentative automatique) ; (19) audit complet des trophées manquants — 6
+nouveaux trophées ajoutés (clonage, exclusions, profil athlétique,
+consultation de profil, publication), câblés à travers 8 fichiers source ;
+(20) paliers Garmin-style pour 5 métriques cumulatives (sessions Mode
+Intime, remplacements de titres, distance, imports, clonages reçus) — 10
+nouveaux trophées, trophées "découverte" à un seul coup délibérément
+écartés. Suite complète : 125 fichiers, 1751 tests au vert.
 
 ### ⚠️ Règle permanente (25/08) — cette section ne contient QUE le chantier en cours, jamais l'historique clos
 
