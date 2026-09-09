@@ -106,3 +106,61 @@ clé.
 `tests/views/TrophiesView.test.jsx`, `tests/views/PlaylistDetailView.test.jsx`,
 `tests/modals/ShareModal.test.jsx` — fichier par fichier, chemin repo
 exact, esbuild + tsc --checkJs + `npx vitest run` avant chaque livraison.
+
+**Addendum — 2e trophée partagé capturé quasi vierge en prod** : 2
+captures d'écran envoyées par l'utilisateur (1er trophée correct, 2e
+capturé sans fond ni texte, juste les 2 emoji flottant à leur taille
+naturelle) — demande explicite de vérifier TOUS les visuels partageables,
+pas seulement celui-ci.
+
+Diagnostic — `shareTrophy` attendait un simple `setTimeout(resolve, 0)`
+avant de capturer, en comptant sur le fait qu'un `setState` React entraîne
+un nouveau rendu "bientôt" ; un `setTimeout(0)` planifie une TÂCHE, pas un
+PEINT — rien ne garantit qu'un repaint ait eu lieu entre le `setState` et
+l'exécution du callback. Fonctionnait au 1er essai par pure chance de
+timing (assez de temps mort navigateur), cassait dès qu'un 2e clic
+arrivait pendant que le navigateur avait encore du travail en attente.
+
+Audité aussi les 2 AUTRES visuels partageables du projet (demande
+explicite) :
+- `SessionSummaryCard.jsx` (Bilan de Séance, `PlaylistDetailView.jsx`) —
+  déjà protégé : de vraies attentes réseau (résolution de pochettes en
+  data URI) précèdent la capture, laissant largement le temps à un
+  repaint naturel, PLUS `waitForImagesToLoad` (`captureElementAsFile.js`)
+  attend les vraies balises `<img>` de cette carte. Pas de correctif
+  nécessaire.
+- `GlobalStatsShareCard.jsx` (StatsView.jsx) — encore moins exposé : cette
+  carte est TOUJOURS montée avec les données courantes (jamais de
+  transition `null` → données comme pour un trophée), déjà peinte bien
+  avant qu'un clic ne survienne. Pas de correctif nécessaire.
+
+Seul `TrophyShareCard.jsx` (via `TrophiesView.jsx`) capture un contenu
+FRAÎCHEMENT monté/transitionné SANS aucune attente réseau naturelle
+préalable — le seul des 3 flux réellement exposé à ce risque.
+
+Correctifs (`TrophiesView.jsx`) :
+1. `setTimeout(resolve, 0)` → double `requestAnimationFrame` (le 1er
+   s'exécute juste avant le prochain repaint programmé, le 2e — posé
+   DEPUIS le 1er — seulement APRÈS que ce repaint a eu lieu) : technique
+   standard pour garantir qu'un changement de style/mise en page a
+   réellement été peint avant de continuer. S'ajoute aux 50ms déjà posés
+   par défaut dans `captureElementAsFile.js` (les deux se cumulent).
+2. Protection contre un double-clic rapide sur 2 trophées différents —
+   absente jusqu'ici (contrairement à `startBackgroundImageGeneration`,
+   PlaylistDetailView.jsx, qui a `isStale()`/`currentPlaylistIdRef` pour
+   le même problème). Nouvelle `sharingTrophyIdRef` (ref, pas un state —
+   lue après un point d'attente asynchrone, même piège que
+   `checkTrophies`/`userStatsRef` documenté ailleurs) : vérifiée à 2
+   endroits (juste après le double rAF, et juste après la capture
+   elle-même) — si un AUTRE trophée a été cliqué entre-temps, le résultat
+   est abandonné plutôt qu'appliqué.
+
+Nouveau test (`tests/views/TrophiesView.test.jsx`) reproduisant le
+scénario exact du bug : 2 clics rapprochés sur 2 trophées différents —
+vérifié qu'un seul appel de capture a lieu au total (le 1er est abandonné
+AVANT même d'atteindre `captureElementAsFile`, la vérification de
+fraîcheur intervenant dès la sortie du double rAF) et que seul le résultat
+du dernier trophée cliqué est appliqué.
+
+**Suite complète après cet addendum** : 125 fichiers, 1730 tests, tous
+verts (+1 test).
