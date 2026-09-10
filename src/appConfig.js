@@ -97,8 +97,9 @@ const TROPHIES_DATA = [
   // cumulative que le trophée "tier 1" déjà existant, juste un seuil plus
   // exigeant — même catégorie que ce "tier 1" dans chaque cas, pour rester
   // groupés ensemble à l'affichage (TrophiesView.jsx, groupé par
-  // `category`). Voir historique/bloc-20.md pour le détail complet du
-  // choix des métriques retenues (et de celles délibérément écartées —
+  // `category`). Voir historique/bloc-19.md (2e passe) pour le détail
+  // complet du choix des métriques retenues (et de celles délibérément
+  // écartées —
   // les trophées "découverte" à un seul coup, comme le Marathonien ou le
   // Rickroll, ne se prêtent pas à des paliers).
   { id: 't_veteran', name: 'Vétéran', desc: 'Complète 100 sessions au total.', icon: '🏆', category: 'progression', requirement: { type: 'total', count: 100 } },
