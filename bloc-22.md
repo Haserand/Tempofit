@@ -85,3 +85,19 @@ nombre, seul le contenu texte de `appConfig.js` a changé).
 **Livraison** : `src/appConfig.js`, `HISTORIQUE.md`, `HISTORIQUE-2.md`
 (nouveau) — fichier par fichier, chemin repo exact, esbuild +
 tsc --checkJs + `npx vitest run` avant livraison.
+
+**Addendum — texte générique des trophées secrets verrouillés oublié** :
+retour direct avec capture d'écran ("tu as oublié de mettre sur une
+ligne la description des trophées secrets") — le texte affiché pour un
+trophée secret encore verrouillé (`isMasked`, `TrophiesView.jsx`,
+"Un geste précis dans l'appli le débloque.") n'avait jamais été inclus
+dans la mesure du 1er passage, qui ne portait que sur les 40
+`trophy.desc` réelles. Mesuré séparément : débordait aussi à partir de
+1024px de large (la même cible déjà retenue) — raccourci en
+"Un geste précis le débloque." (29 → plus précisément 42 → 29
+caractères, "dans l'appli" retiré, superflu dans ce contexte). Vérifié
+0 débordement à partir de 960px. Aucun test ne dépendait du texte exact.
+Suite complète re-confirmée : 125 fichiers, 1755 tests, tous verts.
+
+**Livraison finale** : `src/components/views/TrophiesView.jsx` — chemin
+repo exact, esbuild + tsc --checkJs + `npx vitest run` avant livraison.
