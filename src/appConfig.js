@@ -32,18 +32,18 @@ import { Footprints, Dumbbell, Bike, MoreHorizontal, Wind, Heart, Flame } from '
 // leur intérêt — la page qui les affiche les garde dans une seule grille non
 // groupée (voir TrophiesView.jsx).
 const TROPHIES_DATA = [
-  { id: 't_first', name: 'Premier Pas', desc: 'Termine ta toute première séance.', icon: '🥉', category: 'progression', requirement: { type: 'total', count: 1 } },
-  { id: 't_regular', name: 'Athlète Régulier', desc: 'Complète 5 sessions au total.', icon: '🥈', category: 'progression', requirement: { type: 'total', count: 5 } },
-  { id: 't_machine', name: 'La Machine', desc: 'Complète 30 sessions au total.', icon: '🏆', category: 'progression', requirement: { type: 'total', count: 30 } },
+  { id: 't_first', name: 'Premier Pas', desc: 'Termine ta toute première séance.', icon: '👣', category: 'progression', requirement: { type: 'total', count: 1 } },
+  { id: 't_regular', name: 'Athlète Régulier', desc: 'Complète 5 sessions au total.', icon: '🥉', category: 'progression', requirement: { type: 'total', count: 5 } },
+  { id: 't_machine', name: 'La Machine', desc: 'Complète 30 sessions au total.', icon: '🥈', category: 'progression', requirement: { type: 'total', count: 30 } },
   { id: 't_lover', name: 'Tempo Lover', desc: 'Essaie le mode Intime.', icon: '🔥', category: 'feature', requirement: { type: 'naughty', count: 1 } },
   // ⚠️ Description condensée (14/08, retour direct avec capture : "toutes
   // les descriptions doivent tenir en 1 ligne") — 98 → 50 caractères.
   { id: 't_data', name: 'Data Scientist', desc: 'Importe Garmin/Strava une fois.', icon: '📊', category: 'feature', requirement: { type: 'data', count: 1 } },
-  { id: 't_marathon', name: 'Le Marathonien', desc: 'Génère une session de 42 km ou 4h, minimum.', icon: '🏅', secret: true, requirement: { type: 'custom', key: 'hasMarathon' } },
+  { id: 't_marathon', name: 'Le Marathonien', desc: 'Génère une session de 42 km ou 4h, minimum.', icon: '🏃', secret: true, requirement: { type: 'custom', key: 'hasMarathon' } },
   // Condensé (14/08, même chantier) — 69 → 54 caractères.
   { id: 't_bolt', name: 'La Foudre', desc: 'Session extrême : > 180 BPM ou < 4:00/km.', icon: '⚡', secret: true, requirement: { type: 'custom', key: 'hasBolt' } },
   // Condensé (14/08, même chantier) — 63 → 53 caractères.
-  { id: 't_hiit', name: 'Maître du HIIT', desc: 'Génère un fractionné complexe (5+ portions).', icon: '📈', secret: true, requirement: { type: 'custom', key: 'hasHiitMaster' } },
+  { id: 't_hiit', name: 'Maître du HIIT', desc: 'Génère un fractionné complexe (5+ portions).', icon: '💓', secret: true, requirement: { type: 'custom', key: 'hasHiitMaster' } },
   // Condensé (14/08, même chantier) — 66 → 42 caractères.
   { id: 't_dj', name: 'Le Mixeur', desc: 'Utilise Remplacer 3 fois.', icon: '🎛️', category: 'habit', requirement: { type: 'replace', count: 3 } },
   { id: 't_night', name: 'Oiseau de Nuit', desc: 'Complète une session entre 22h et 5h du matin.', icon: '🦉', secret: true, requirement: { type: 'custom', key: 'hasNightOwl' } },
@@ -101,7 +101,7 @@ const TROPHIES_DATA = [
   // choix des métriques retenues (et de celles délibérément écartées —
   // les trophées "découverte" à un seul coup, comme le Marathonien ou le
   // Rickroll, ne se prêtent pas à des paliers).
-  { id: 't_veteran', name: 'Vétéran', desc: 'Complète 100 sessions au total.', icon: '🎖️', category: 'progression', requirement: { type: 'total', count: 100 } },
+  { id: 't_veteran', name: 'Vétéran', desc: 'Complète 100 sessions au total.', icon: '🏆', category: 'progression', requirement: { type: 'total', count: 100 } },
   { id: 't_naughty10', name: 'Habitué·e du Mode Intime', desc: '10 séances en mode Intime.', icon: '😈', category: 'feature', requirement: { type: 'naughty', count: 10 } },
   { id: 't_naughty50', name: 'Insatiable', desc: '50 séances en mode Intime.', icon: '💋', category: 'feature', requirement: { type: 'naughty', count: 50 } },
   { id: 't_dj25', name: 'DJ Résident', desc: 'Utilise Remplacer 25 fois.', icon: '🎧', category: 'habit', requirement: { type: 'replace', count: 25 } },
