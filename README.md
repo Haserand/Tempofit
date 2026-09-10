@@ -64,10 +64,15 @@ d'historique à purger plutôt qu'à découper (voir ci-dessus).
 - `readme/partie-04.md` (27/08, extrait de partie-01.md qui dépassait le
   seuil de taille) — "Décisions d'architecture non évidentes en lisant
   juste le code" (identité des playlists/routines, validation source vs
-  consommation, confidentialité, synchronisation Supabase, pseudos
-  réservés, profil vitrine, login wall, réutilisation de
-  `useProfileSearchFilter.js`, garde-fou genre sur les favoris,
+  consommation, confidentialité, synchronisation Supabase, réutilisation
+  de `useProfileSearchFilter.js`, garde-fou genre sur les favoris,
   `classifyGenreMatchTier` partagé, lien Deezer externe)
+- `readme/partie-04b.md` (01/09, extrait de partie-04.md qui dépassait le
+  seuil de taille) — suite de "Décisions d'architecture" : pseudos
+  réservés, profil vitrine `@tempofit_officiel`, Login Wall des profils
+  publics, trophées à paliers (préférer un type générique de seuil à un
+  flag booléen ad-hoc pour toute métrique susceptible d'avoir plusieurs
+  paliers un jour)
 
 ## Autres fichiers de référence à ce niveau
 
