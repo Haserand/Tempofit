@@ -79,5 +79,7 @@ d'historique à purger plutôt qu'à découper (voir ci-dessus).
 - `CLAUDE-SANDBOX-VERIFICATION.md` — index vers `claude-sandbox-
   verification/partie-0N.md` (habitudes de travail attendues de Claude
   sur ce projet, restructuré le 25/08 selon la même méthode)
-- `HISTORIQUE.md` — index vers `historique/bloc-NNx.md` (récit
+- `HISTORIQUE.md` (blocs 1-11, 02/08 → 28/08) et `HISTORIQUE-2.md`
+  (blocs 12+, 01/09 →, nouveau fichier depuis que le 1er dépassait son
+  propre seuil de taille) — index vers `historique/bloc-NNx.md` (récit
   chronologique complet des chantiers)
