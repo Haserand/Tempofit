@@ -39,8 +39,8 @@ VERIFICATION.md`, restructuré en `claude-sandbox-verification/partie-
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement — session très longue le 01/09, 11 chantiers
-enchaînés (blocs 12 à 22, voir `HISTORIQUE-2.md` pour le récit complet
+Rien en cours actuellement — session très longue le 01/09, 12 chantiers
+enchaînés (blocs 12 à 23, voir `HISTORIQUE-2.md` pour le récit complet
 de chacun — `HISTORIQUE.md` s'arrête au bloc 11, scindé en 2 fichiers
 le 01/09 en dépassant son propre seuil de taille). Résumé très bref :
 alignement Sidebar, principes UI généralisés, refonte du partage
@@ -48,13 +48,15 @@ alignement Sidebar, principes UI généralisés, refonte du partage
 ⚠️ jamais testé sur un vrai iPhone), visuel de trophée partageable (2
 correctifs après bugs réels en prod), audit complet des trophées
 manquants (6 nouveaux) puis paliers Garmin-style (10 nouveaux), 3
-principes de design/architecture généralisés pour les trophées, et enfin
-34 descriptions de trophées raccourcies (0 débordement à partir de
-1024px de largeur réelle — un point mort à 768px signalé séparément,
-pas corrigé par du texte). Suite complète : 125 fichiers, 1755 tests au
+principes de design/architecture généralisés pour les trophées, 34
+descriptions de trophées raccourcies (0 débordement à partir de 1024px
+de largeur réelle — un point mort à 768px signalé séparément, pas
+corrigé par du texte), et enfin un audit sémantique des 40 icônes (2
+vraies incohérences corrigées — famille sessions totales décalée d'un
+cran, HIIT — plus 2 nouveaux principes généralisés : justesse
+sémantique littérale d'une icône, garde-fou automatique approximatif de
+longueur de description). Suite complète : 125 fichiers, 1756 tests au
 vert.
-
-écartés. Suite complète : 125 fichiers, 1751 tests au vert.
 
 ### ⚠️ Règle permanente (25/08) — cette section ne contient QUE le chantier en cours, jamais l'historique clos
 
