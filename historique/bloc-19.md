@@ -1,4 +1,4 @@
-### SESSION DU 01/09 (suite) — Audit des trophées manquants
+### SESSION DU 01/09 (suite) — Audit des trophées manquants, puis paliers Garmin-style
 
 **Demande** — retour direct : "fais un audite sur les trophès, je pense
 qu'il en manque plein ayant ajouté plein de nouvelles fonctionnalités,
@@ -103,10 +103,10 @@ fournissaient pas encore `userStats`/`checkTrophies` (nouvelles props
 pour ces 2 premières vues, `checkTrophies` manquant du 2nd pour la 3e).
 Corrigé au fur et à mesure, un fichier de test à la fois.
 
-**Suite complète** : 125 fichiers, 1745 tests, tous verts (+13 tests par
-rapport au bloc 18).
+**Suite complète (1re passe)** : 125 fichiers, 1745 tests, tous verts
+(+13 tests par rapport à avant ce chantier).
 
-**Livraison** : `src/appConfig.js`, `src/hooks/useUserStats.js`,
+**Livraison (1re passe)** : `src/appConfig.js`, `src/hooks/useUserStats.js`,
 `src/hooks/usePlaylistLibrary.js`, `src/App.jsx`,
 `src/contexts/PlaylistDetailContext.jsx`,
 `src/components/views/PlaylistsView.jsx`,
@@ -115,5 +115,65 @@ rapport au bloc 18).
 `tests/hooks/usePlaylistLibrary.test.js`,
 `tests/contexts/PlaylistDetailContext.test.jsx`,
 `tests/views/PlaylistsView.test.jsx`, `tests/views/RoutinesView.test.jsx`,
-`tests/views/StatsView.test.jsx` — fichier par fichier, chemin repo exact,
-esbuild + tsc --checkJs + `npx vitest run` avant livraison.
+`tests/views/StatsView.test.jsx`.
+
+**2e passe (fusionnée depuis l'ancien bloc 20) — paliers Garmin-style pour
+5 métriques cumulatives** : retour direct ("souvent sur les applications
+type Garmin il y a plusieurs itérations des trophées... faudrait-il en
+dupliquer certains ? ajoute les tous sans me demander"). Audit des 30
+trophées existants (24 d'origine + 6 de la 1re passe), en distinguant 2
+familles : **métriques cumulatives** (un compteur qui grandit — sessions,
+distance, remplacements) = vrais candidats à plusieurs paliers, comme
+`totalCompleted` (1/5/30) déjà en place ; **trophées "découverte"** (un
+exploit ponctuel — session extrême, Rickroll, 3 structures...) = pas de
+paliers pertinents, délibérément écartés (aucun sens à "refaire 5 fois"
+une découverte-surprise).
+
+**5 métriques retenues, 10 nouveaux trophées** :
+
+| Métrique | Palier(s) existant(s) | Nouveaux paliers |
+|---|---|---|
+| Sessions totales | 1 / 5 / 30 | +100 ("Vétéran") |
+| Sessions Mode Intime | 1 | +10, +50 |
+| Remplacements de titres | 3 | +25, +100 |
+| Distance cumulée | 100 km | +300, +1000 |
+| Imports de données | 1 | +10 |
+| Clonages reçus | 1 (1re passe) | +10, +50 |
+
+**Mise en œuvre — 2 groupes bien distincts** :
+1. **Total/naughty/replace/data (6 nouveaux)** — AUCUN changement de code
+   au-delà d'`appConfig.js` : ces 4 types de `requirement` sont déjà gérés
+   GÉNÉRIQUEMENT par `checkTrophies` (compare un compteur existant au
+   seuil `count`) — ajouter un palier, c'est juste une nouvelle entrée.
+2. **Distance/clonages reçus (4 nouveaux)** — ces 2 métriques utilisent un
+   flag booléen ad-hoc (`has100km`, `hasReceivedClone`), pas le mécanisme
+   générique — 2 nouveaux flags par métrique, posés au MÊME endroit que
+   l'existant (`usePlaylistCompletions.js`/`StatsView.jsx`) plutôt qu'une
+   réarchitecture en type générique (minimal-diff préféré).
+
+**Choix de catégorie** : chaque nouveau palier reprend EXACTEMENT la
+catégorie de son "palier 1" existant, pour rester groupé ensemble à
+l'affichage (`TrophiesView.jsx`, groupé par `category`).
+
+**Icônes** — 10 nouveaux emoji, vérifiés un par un pour ne réutiliser
+aucun des 30 déjà en place : 🎖️😈💋🎧🎚️🗺️🚀📉🌟🎬.
+
+**Piège rencontré** : une édition de texte imprécise (`str_replace`) dans
+`tests/views/StatsView.test.jsx` a fait disparaître la ligne d'ouverture
+d'un test existant en capturant par erreur un fragment trop générique —
+repéré immédiatement en revérifiant la structure après l'édition (habitude
+systématique, pas seulement en cas d'erreur signalée), corrigé avant même
+de lancer les tests.
+
+**Tests (2e passe)** — 6 nouveaux : `tests/hooks/usePlaylistCompletions.test.js`
+(+3, seuils de distance + 1 négatif), `tests/views/StatsView.test.jsx`
+(+3, seuils de clonages reçus + 1 négatif).
+
+**Suite complète (2e passe)** : 125 fichiers, 1751 tests, tous verts (+6
+tests par rapport à la 1re passe).
+
+**Livraison (2e passe)** : `src/appConfig.js`, `src/hooks/useUserStats.js`,
+`src/hooks/usePlaylistCompletions.js`, `src/components/views/StatsView.jsx`,
+`tests/hooks/usePlaylistCompletions.test.js`, `tests/views/StatsView.test.jsx`
+— fichier par fichier, chemin repo exact, esbuild + tsc --checkJs +
+`npx vitest run` avant chaque livraison.
