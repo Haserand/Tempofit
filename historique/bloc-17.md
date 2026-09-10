@@ -1,4 +1,4 @@
-### SESSION DU 01/09 (suite) — Visuel partageable pour un trophée débloqué
+### SESSION DU 01/09 (suite) — Visuel partageable pour un trophée débloqué (+ 3 correctifs successifs)
 
 **Demande** — après confirmation qu'un trophée n'avait aucun problème de
 libellé trompeur ("Story / IG" ne s'affichait jamais pour un trophée,
@@ -99,7 +99,7 @@ clé.
 **Suite complète** : 125 fichiers, 1729 tests, tous verts (+2 fichiers,
 +19 tests par rapport au bloc 16).
 
-**Livraison** : `src/components/shared/TrophyShareCard.jsx`,
+**Livraison finale (3 vagues cumulées)** : `src/components/shared/TrophyShareCard.jsx`,
 `src/components/views/TrophiesView.jsx`, `src/components/modals/ShareModal.jsx`,
 `src/contexts/ShareImageContext.jsx`, `src/components/views/PlaylistDetailView.jsx`,
 `tests/shared/TrophyShareCard.test.jsx`, `tests/contexts/ShareImageContext.test.jsx`,
@@ -182,3 +182,47 @@ l'émoji 📅 ("Planificateur") rendu avec "July 17" par la police Noto
 Emoji de ce bac à sable — variation d'affichage propre à la police, pas
 un bug de ce code (rendra différemment sur un vrai téléphone). Aucun
 fichier de code modifié.
+
+**3e correctif — fond dégradé manquant à la capture (fusionné depuis
+l'ancien bloc 18)** : 2 NOUVELLES captures envoyées ("tu te trompes, oui
+tu as corrigé un visuel mais tous les autres ne le sont pas encore
+correctement") — un autre trophée ("Data Scientist") restait capturé
+quasi vierge malgré le correctif ci-dessus. Diagnostic affiné :
+comparaison des 2 échecs observés (celui-ci et le 1er) — dans les DEUX
+cas, SEULS les emoji restent visibles (couleur intégrée, ignorent le CSS
+`color`), jamais aucun texte, jamais le fond. Or TOUT LE RESTE de
+`TrophyShareCard.jsx` est en texte BLANC — si le FOND DÉGRADÉ échoue
+spécifiquement à se capturer, ce texte devient invisible sur un fond
+blanc/transparent, exactement le symptôme observé. Le double rAF
+garantit qu'un PEINT a eu lieu, mais pas que le moteur de style ait fini
+de committer une propriété `background` posée via `style={{...}}` React
+(recalculée à chaque rendu, contrairement à une classe Tailwind statique
+déjà compilée) au moment précis où html2canvas lit les styles calculés.
+Comparé à `GlobalStatsShareCard.jsx` (jamais ce souci) : même technique
+exacte, mais TOUJOURS montée avec des données stables — la fenêtre de
+risque est propre à la transition `null` → trophée, pas au design de la
+carte.
+
+Correctifs (`TrophiesView.jsx`) :
+1. **Reflow forcé avant chaque capture** — `void trophyCardRef.current.offsetHeight`
+   juste avant `captureElementAsFile` : force un recalcul SYNCHRONE de
+   tout style/mise en page en attente, ce que le double rAF seul (garantit
+   un PEINT, pas un recalcul de style) ne garantissait pas.
+2. **Vérification a posteriori + nouvelle tentative automatique** —
+   dernière ligne de défense. Mesuré empiriquement (PAS deviné) : un
+   visuel correct pèse ~366-376 Ko une fois capturé (`scale: 2.7`), contre
+   ~56 Ko sans son fond. `MIN_VALID_TROPHY_IMAGE_BYTES = 150000` (150 Ko,
+   marge des deux côtés), `MAX_CAPTURE_ATTEMPTS = 3` avec délai croissant
+   (100ms/200ms) — le dernier résultat est appliqué même imparfait après
+   3 tentatives, plutôt qu'un blocage indéfini.
+
+2 nouveaux tests (capture ratée puis réussie, capture ratée aux 3
+tentatives). Piège rencontré : comparer 2 instances `File` différentes
+via `toHaveBeenCalledWith()` n'est pas fiable (rien de structurellement
+distinguable par énumération) — corrigé en comparant par `.name`. Helper
+`bigFile()` (200 Ko, au-dessus du seuil) ajouté pour tous les tests qui
+n'avaient pas vocation à tester CE mécanisme précis, sans quoi les
+fichiers mock minuscules auraient déclenché à tort 3 tentatives partout.
+
+**Suite complète après ce 3e correctif** : 125 fichiers, 1732 tests, tous
+verts (+2 tests par rapport au 2e addendum).
