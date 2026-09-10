@@ -7,6 +7,7 @@ import {
   getActivityEmoji,
   getCadenceUnitLabel,
   getRankStyle,
+  TROPHIES_DATA,
 } from '../../src/appConfig.js';
 
 describe('getZoneForValue', () => {
@@ -125,5 +126,44 @@ describe('getRankStyle', () => {
 
   it('renvoie null pour un rang négatif', () => {
     expect(getRankStyle(-1)).toBeNull();
+  });
+});
+
+// Garde-fou permanent (01/09, retour direct : "vois-tu des principes à
+// généraliser... sur le design des photos des trophées à générer ?") —
+// jusqu'ici, l'unicité de `id`/`icon` était vérifiée À LA MAIN à chaque
+// ajout de trophée (une recherche manuelle dans le fichier avant
+// d'écrire un nouvel emoji) — fiable une fois, deux fois, risqué à mesure
+// que la liste grandit (déjà 40 entrées). Un `icon` dupliqué rendrait 2
+// trophées visuellement indissociables sur le mur des trophées ET sur
+// leurs visuels partageables respectifs (TrophyShareCard.jsx) — la seule
+// vraie information visuelle de la carte, avec le nom.
+describe('TROPHIES_DATA — intégrité (garde-fou permanent)', () => {
+  it('tous les `id` sont uniques', () => {
+    const ids = TROPHIES_DATA.map(t => t.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('tous les `icon` sont uniques — 2 trophées ne doivent jamais partager le même emoji', () => {
+    const icons = TROPHIES_DATA.map(t => t.icon);
+    const duplicates = icons.filter((icon, i) => icons.indexOf(icon) !== i);
+    expect(duplicates).toEqual([]);
+  });
+
+  it('chaque trophée a bien tous ses champs obligatoires (id/name/desc/icon/requirement)', () => {
+    for (const t of TROPHIES_DATA) {
+      expect(t.id, `trophée sans id : ${JSON.stringify(t)}`).toBeTruthy();
+      expect(t.name, `${t.id} sans name`).toBeTruthy();
+      expect(t.desc, `${t.id} sans desc`).toBeTruthy();
+      expect(t.icon, `${t.id} sans icon`).toBeTruthy();
+      expect(t.requirement, `${t.id} sans requirement`).toBeTruthy();
+      expect(t.requirement.type, `${t.id} : requirement sans type`).toBeTruthy();
+    }
+  });
+
+  it('un trophée non secret a toujours une `category` (nécessaire au groupement de TrophiesView.jsx)', () => {
+    for (const t of TROPHIES_DATA) {
+      if (!t.secret) expect(t.category, `${t.id} n'est pas secret mais n'a pas de category`).toBeTruthy();
+    }
   });
 });
