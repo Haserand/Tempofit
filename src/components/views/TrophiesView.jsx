@@ -235,7 +235,7 @@ export default function TrophiesView({ theme, userStats, handleShare, isNaughtyM
         <div className="flex-1">
           <h3 className={`font-bold text-lg ${isUnlocked ? textHighlight : textMuted}`}>{isMasked ? 'Trophée secret' : trophy.name}</h3>
           <p className={`text-sm mt-1 ${isUnlocked ? textMuted : 'text-gray-400 dark:text-gray-600'}`}>
-            {isMasked ? 'Un comportement précis dans l\'appli débloque ce trophée — à toi de le découvrir.' : trophy.desc}
+            {isMasked ? 'Un geste précis le débloque.' : trophy.desc}
           </p>
           {isUnlocked && (
             <button onClick={() => shareTrophy(trophy)} className="mt-3 text-xs font-bold text-blue-500 hover:text-blue-600 flex items-center space-x-1">
