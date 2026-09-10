@@ -39,8 +39,9 @@ VERIFICATION.md`, restructuré en `claude-sandbox-verification/partie-
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement — session très longue le 01/09, 12 chantiers
-enchaînés (blocs 12 à 23, voir `HISTORIQUE-2.md` pour le récit complet
+Rien en cours actuellement — session très longue le 01/09, 13 chantiers
+enchaînés (blocs 12 à 24 — anciens blocs 18/20/23 fusionnés dans
+17/19/21, voir `HISTORIQUE-2.md` pour le récit complet
 de chacun — `HISTORIQUE.md` s'arrête au bloc 11, scindé en 2 fichiers
 le 01/09 en dépassant son propre seuil de taille). Résumé très bref :
 alignement Sidebar, principes UI généralisés, refonte du partage
@@ -55,8 +56,10 @@ corrigé par du texte), et enfin un audit sémantique des 40 icônes (2
 vraies incohérences corrigées — famille sessions totales décalée d'un
 cran, HIIT — plus 2 nouveaux principes généralisés : justesse
 sémantique littérale d'une icône, garde-fou automatique approximatif de
-longueur de description). Suite complète : 125 fichiers, 1756 tests au
-vert.
+longueur de description). Enfin, consolidation de l'historique lui-même
+(9 fichiers → 6, anciens blocs 18/20/23 fusionnés dans 17/19/21, toutes
+les références corrigées) — nouvelle règle permanente ci-dessous.
+Suite complète : 125 fichiers, 1756 tests au vert.
 
 ### ⚠️ Règle permanente (25/08) — cette section ne contient QUE le chantier en cours, jamais l'historique clos
 
@@ -86,6 +89,49 @@ CHAQUE chantier/session** :
    au-delà de la session (pas juste "ce qui a été fait" mais "ce qui
    est vrai en permanence"), elle va dans les sections dédiées plus bas
    (`Décisions d'architecture`, `Convention UI`...), PAS ici.
+
+### ⚠️ Règle permanente (01/09) — fusionner un bloc dans un bloc RÉCENT plutôt que d'en ouvrir un nouveau par réflexe
+
+Constaté le 01/09 (retour direct : "depuis le début tu as créé plein de
+fichiers pour l'historique, sont-ils tous vraiment utiles ? j'ai
+l'impression que tu pourrais largement en synthétiser") : 9 fichiers
+créés en une seule session, dont 3 racontaient en réalité LE MÊME fil
+qu'un bloc tout juste écrit — un bug redécouvert 2-3 fois de suite sur
+LE MÊME correctif, ou un "prends du recul, généralise" répété à 2
+moments différents sur LE MÊME sujet. Chacun avait ouvert un nouveau
+numéro par réflexe plutôt que de se demander s'il prolongeait un fil
+déjà en cours.
+
+**Vérification à faire À CHAQUE fois qu'un nouveau chantier commence,
+AVANT d'écrire le moindre mot dans un nouveau `historique/bloc-NNx.md`**
+— se poser la question, pas juste au moment de rédiger mais dès la
+1re lecture du nouveau retour direct :
+- Ce chantier revient-il sur EXACTEMENT le même sujet/la même
+  fonctionnalité qu'un bloc écrit dans les dernières heures (même
+  session) ? (ex. "le bug persiste" sur un correctif qui vient d'être
+  livré, "regarde encore" après un audit qui vient d'être fait sur le
+  même thème.)
+- Si OUI → **fusionner dans le bloc existant** (nouvelle section
+  "**Addendum**" ou "**2e passe**" à l'intérieur du MÊME fichier,
+  exactement comme d'habitude pour un correctif supplémentaire),
+  jamais un nouveau fichier séparé pour la suite du même fil.
+- Si le fichier existant dépasserait le seuil de taille une fois
+  l'addendum ajouté → condenser en fusionnant (raccourcir les parties
+  les plus verbeuses, garder l'essentiel du raisonnement) plutôt que de
+  scinder automatiquement en un 2e fichier — un fil unique mérite de
+  rester un seul fichier tant que c'est possible sous le seuil.
+- Si NON (sujet vraiment différent) → nouveau bloc, comme d'habitude.
+
+**Si un oubli est repéré APRÈS COUP** (plusieurs blocs déjà écrits pour
+le même fil, comme le 01/09) : fusionner quand même, à condition de
+corriger TOUTES les références externes au(x) fichier(s) supprimé(s)
+(recherche `bloc-NN.md` dans `src/`, `tests/`, `readme/`, et l'index lui-
+même) — jamais laisser une référence pointer vers un fichier qui n'existe
+plus. Documenté comme exception délibérée à la règle "jamais réorganiser
+les blocs déjà numérotés" (`HISTORIQUE.md`/`HISTORIQUE-2.md`) : cette
+règle protège contre une réorganisation AVEUGLE qui casserait des
+références sans les corriger, pas contre une fusion PROPRE où toutes les
+références sont vérifiées et mises à jour dans la même opération.
 
 ## Contraintes de travail
 
