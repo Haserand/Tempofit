@@ -59,3 +59,8 @@ resurgit plus tard sous forme de bug d'apparence totalement différente
 qu'à un cas de repli dégradé (contenu qui déborde malgré l'espaceur), la
 réduire au minimum viable pour ce cas précis plutôt que de garder sa
 valeur d'origine, pensée pour un contexte qui n'existe plus.
+
+### Icônes de trophées (TrophyShareCard.jsx/TrophiesView.jsx) — vérifier l'unicité ET l'escalade thématique
+- Garde-fou permanent en place (`tests/config/appConfig.test.js`) : `id` et `icon` de `TROPHIES_DATA` doivent rester uniques — un `icon` dupliqué rendrait 2 trophées visuellement indissociables, sur le mur des trophées ET sur leurs visuels partageables respectifs (la seule vraie information visuelle de la carte avec le nom). Ce garde-fou détecte le doublon, mais ne choisit pas un BON emoji à la place — ça reste au jugement.
+- Repéré après coup (01/09, en ajoutant 10 paliers d'un coup) : un emoji mal choisi pour un palier supérieur peut suggérer le contraire de la progression (`📉`, "baisse", posé par erreur pour "10 imports de données" — corrigé en `🛰️`, plus juste thématiquement et cohérent avec le thème Garmin/GPS des autres trophées liés aux données). Le garde-fou d'unicité n'aurait rien détecté ici (aucun doublon), seule une relecture volontaire l'a repéré.
+- **Convention pour tout futur palier d'un trophée existant** : choisir une PROGRESSION VISUELLE cohérente entre les paliers d'une même métrique plutôt que des emoji juste "différents et non dupliqués" — le trio 🥉🥈🏆 (1/5/30 séances) est le modèle à suivre : chaque palier suggère clairement "plus" que le précédent. Exemple suivi pour la distance : 🛣️ (route, 100km) → 🗺️ (carte, 300km) → 🚀 (fusée, 1000km) — une escalade lisible d'un coup d'œil, pas 3 emoji choisis indépendamment.
