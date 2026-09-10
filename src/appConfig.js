@@ -108,7 +108,7 @@ const TROPHIES_DATA = [
   { id: 't_dj100', name: 'Perfectionniste du Mix', desc: 'Utilise "Remplacer" 100 fois sur tes titres.', icon: '🎚️', category: 'habit', requirement: { type: 'replace', count: 100 } },
   { id: 't_300km', name: 'Grand Voyageur', desc: 'Cumule 300 km parcourus sur l\'ensemble de tes séances.', icon: '🗺️', secret: true, requirement: { type: 'custom', key: 'has300km' } },
   { id: 't_1000km', name: 'Mille Bornes', desc: 'Cumule 1000 km parcourus sur l\'ensemble de tes séances.', icon: '🚀', secret: true, requirement: { type: 'custom', key: 'has1000km' } },
-  { id: 't_data10', name: 'Data Analyst', desc: 'Importe tes données Garmin/Strava 10 fois.', icon: '📉', category: 'feature', requirement: { type: 'data', count: 10 } },
+  { id: 't_data10', name: 'Data Analyst', desc: 'Importe tes données Garmin/Strava 10 fois.', icon: '🛰️', category: 'feature', requirement: { type: 'data', count: 10 } },
   { id: 't_inspiration10', name: 'Créateur Suivi', desc: 'Une de tes créations a été clonée 10 fois.', icon: '🌟', category: 'habit', requirement: { type: 'custom', key: 'hasReceivedClone10' } },
   { id: 't_inspiration50', name: 'Star Montante', desc: 'Une de tes créations a été clonée 50 fois.', icon: '🎬', category: 'habit', requirement: { type: 'custom', key: 'hasReceivedClone50' } },
 ];
