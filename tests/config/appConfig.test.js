@@ -166,4 +166,29 @@ describe('TROPHIES_DATA — intégrité (garde-fou permanent)', () => {
       if (!t.secret) expect(t.category, `${t.id} n'est pas secret mais n'a pas de category`).toBeTruthy();
     }
   });
+
+  // Garde-fou HEURISTIQUE (01/09, retour direct : "généralise aussi les
+  // règles qu'on vient d'appliquer sur... la taille des descriptions") —
+  // jsdom ne peut PAS mesurer un vrai rendu (pas de moteur de mise en page
+  // réel, `getBoundingClientRect()` n'y reflète aucune métrique de police
+  // réelle) : ce test ne remplace donc PAS une vraie mesure Playwright
+  // (seule méthode fiable, voir historique/bloc-22.md pour le récit
+  // complet — 3 passes de correctifs successives cette même journée,
+  // toutes découvertes à la main via un harnais temporaire). C'est un
+  // FILET DE SÉCURITÉ grossier : la longueur en caractères n'est pas un
+  // prédicteur parfait de la largeur réellement rendue (des lettres
+  // étroites — i, l, t — occupent moins de place que des lettres larges —
+  // m, w — à nombre égal de caractères), mais elle attrape déjà les cas
+  // évidents. Seuil fixé à 48 caractères, calibré sur la plus longue
+  // description qui, une fois mesurée réellement, tient bien sur 1 ligne
+  // à partir de 1024px de large (47 caractères, "Never Gonna Give You
+  // Up") — toute NOUVELLE description dépassant ce seuil doit être
+  // reprise, puis revérifiée par une vraie mesure avant d'être considérée
+  // sûre, pas seulement re-comptée en caractères.
+  it('aucune description ne dépasse 48 caractères (filet de sécurité approximatif, PAS une garantie de rendu — voir la mesure réelle Playwright pour ça)', () => {
+    const MAX_DESC_LENGTH = 48;
+    for (const t of TROPHIES_DATA) {
+      expect(t.desc.length, `${t.id} : "${t.desc}" (${t.desc.length} car.) dépasse ${MAX_DESC_LENGTH} caractères — à revoir, PUIS à revérifier par une vraie mesure`).toBeLessThanOrEqual(MAX_DESC_LENGTH);
+    }
+  });
 });
