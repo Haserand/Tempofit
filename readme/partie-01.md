@@ -133,6 +133,41 @@ règle protège contre une réorganisation AVEUGLE qui casserait des
 références sans les corriger, pas contre une fusion PROPRE où toutes les
 références sont vérifiées et mises à jour dans la même opération.
 
+### ⚠️ Règle permanente (01/09) — TOUJOURS signaler explicitement les fichiers à supprimer côté utilisateur, sans attendre qu'on le demande
+
+Constaté le 01/09, juste après la fusion ci-dessus (retour direct :
+"je veux que tu notes dans tes instructions qu'à l'avenir tu dois me
+dire quand je dois supprimer des fichiers... là j'ai dû te demander") :
+Claude a supprimé `bloc-18.md`/`bloc-20.md`/`bloc-23.md` de SON PROPRE
+bac à sable, livré les fichiers fusionnés qui les remplacent, mais n'a
+JAMAIS dit explicitement "supprime ces 3 fichiers de ton côté" — laissant
+l'utilisateur découvrir le problème seul puis le demander.
+
+**Raison structurelle à ne pas oublier** : Claude et l'utilisateur ont
+CHACUN leur propre copie du dépôt (le bac à sable de Claude ≠ le vrai
+dépôt de l'utilisateur) — livrer un fichier de remplacement ne supprime
+JAMAIS automatiquement l'ancien fichier chez l'utilisateur. Une
+suppression côté Claude qui n'est jamais traduite en instruction
+explicite reste invisible pour l'utilisateur jusqu'à ce qu'il tombe
+dessus par hasard (comme ici, en repérant les 5 fichiers "Update"/"Create"
+dans son historique Git sans voir de suppression correspondante).
+
+**Procédure à appliquer désormais, systématiquement, dans le MÊME
+message que la livraison** — dès qu'un chantier supprime, renomme, ou
+déplace un fichier (pas seulement lors d'une restructuration de
+l'historique — toute suppression/renommage de fichier `src/`, `tests/`,
+`readme/`, peu importe le contexte) :
+1. Lister EXPLICITEMENT, en clair, les fichiers à supprimer côté
+   utilisateur — pas juste "les fichiers fusionnés remplacent les
+   anciens" en sous-entendu, une vraie liste avec les chemins exacts et
+   la commande `rm` prête à copier-coller si plusieurs fichiers.
+2. Pour un renommage (A.md devient B.md, contenu inchangé) : préciser
+   qu'il faut supprimer A.md APRÈS avoir bien enregistré B.md, pas juste
+   livrer B.md en silence.
+3. Ce rappel va DANS la même réponse que la livraison des fichiers
+   modifiés — jamais différé à "si l'utilisateur demande", jamais
+   supposé "évident depuis le contexte de la conversation".
+
 ## Contraintes de travail
 
 - **Aucun terminal côté utilisateur** — tout passe par l'interface web de GitHub (créer/éditer des fichiers à la main) ; vérification via un vrai déploiement Vercel (logs collés dans la conversation avec Claude).
