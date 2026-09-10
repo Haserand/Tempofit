@@ -39,28 +39,20 @@ VERIFICATION.md`, restructuré en `claude-sandbox-verification/partie-
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement — session très longue le 01/09, 10 chantiers
-enchaînés. Voir `HISTORIQUE.md` → blocs 12 à 21 pour le récit complet de
-chacun ; résumé très bref ici : (12) check-up de reprise + garde-fou
-`hoverWhiteTextTrap.test.js` ; (13) alignement Sidebar/bloc du bas
-(espaceur `flex-1`, mesure Playwright réelle) ; (14) 4 principes
-transformés en documentation permanente ; (15) `ShareModal.jsx` : texte
-fusionné au visuel, lien de téléchargement repositionné ; (16) vrai
-partage Instagram Stories sur iOS (⚠️ jamais testé sur un vrai iPhone) ;
-(17-18) visuel partageable pour un trophée débloqué, avec 2 correctifs
-successifs après des bugs réels trouvés en prod (mélange de contexte,
-puis fond dégradé manquant à la capture — reflow forcé + nouvelle
-tentative automatique) ; (19) audit complet des trophées manquants — 6
-nouveaux trophées ajoutés (clonage, exclusions, profil athlétique,
-consultation de profil, publication), câblés à travers 8 fichiers source ;
-(20) paliers Garmin-style pour 5 métriques cumulatives (sessions Mode
-Intime, remplacements de titres, distance, imports, clonages reçus) — 10
-nouveaux trophées, trophées "découverte" à un seul coup délibérément
-écartés ; (21) généralisation de 3 principes (garde-fou d'unicité
-`id`/`icon` sur les trophées, escalade visuelle thématique entre paliers,
-préférer un seuil générique à un flag ad-hoc pour les futures métriques
-tierables) — 1 vraie icône incohérente trouvée et corrigée au passage
-(📉 → 🛰️). Suite complète : 125 fichiers, 1755 tests au vert.
+Rien en cours actuellement — session très longue le 01/09, 11 chantiers
+enchaînés (blocs 12 à 22, voir `HISTORIQUE-2.md` pour le récit complet
+de chacun — `HISTORIQUE.md` s'arrête au bloc 11, scindé en 2 fichiers
+le 01/09 en dépassant son propre seuil de taille). Résumé très bref :
+alignement Sidebar, principes UI généralisés, refonte du partage
+(ShareModal.jsx texte+visuel fusionnés, Instagram Stories réel sur iOS
+⚠️ jamais testé sur un vrai iPhone), visuel de trophée partageable (2
+correctifs après bugs réels en prod), audit complet des trophées
+manquants (6 nouveaux) puis paliers Garmin-style (10 nouveaux), 3
+principes de design/architecture généralisés pour les trophées, et enfin
+34 descriptions de trophées raccourcies (0 débordement à partir de
+1024px de largeur réelle — un point mort à 768px signalé séparément,
+pas corrigé par du texte). Suite complète : 125 fichiers, 1755 tests au
+vert.
 
 écartés. Suite complète : 125 fichiers, 1751 tests au vert.
 
