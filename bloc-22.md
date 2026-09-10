@@ -101,3 +101,16 @@ Suite complète re-confirmée : 125 fichiers, 1755 tests, tous verts.
 
 **Livraison finale** : `src/components/views/TrophiesView.jsx` — chemin
 repo exact, esbuild + tsc --checkJs + `npx vitest run` avant livraison.
+
+**2e addendum — bandeau d'intro de l'onglet Secrets** : question directe
+avec capture ("la partie du texte avec le tiret est pas superflue ?"),
+sur "Un comportement précis dans l'appli débloque chacun de ces
+trophées — pas de liste, la surprise fait partie du jeu." Avis donné :
+oui, la clause après le tiret est largement redondante — l'absence de
+liste est déjà visible sur les cartes masquées ("?"), pas besoin de
+l'énoncer en plus. Mesuré au passage : ce bandeau débordait LUI AUSSI à
+partir de 1024px (même seuil que tout le reste) — retirer la clause
+règle les deux à la fois (115 → 68 caractères). Vérifié 0 débordement
+jusqu'à 768px après coup (mieux que la cible de 1024px déjà retenue).
+Aucun test ne dépendait de ce texte. Suite complète re-confirmée :
+125 fichiers, 1755 tests, tous verts.
