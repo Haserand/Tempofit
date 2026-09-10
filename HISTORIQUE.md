@@ -115,6 +115,9 @@ contenu perdu ni dupliqué dans ces opérations.
 ### Bloc 20 — 01/09 (suite, paliers Garmin-style pour 5 métriques)
 - `historique/bloc-20.md` — retour direct ("souvent sur les applications type Garmin il y a plusieurs itérations des trophées... faudrait-il en dupliquer certains ? ajoute les tous sans me demander") : audit des 30 trophées pour repérer les métriques cumulatives à un seul palier — 5 retenues (sessions totales déjà à 3 paliers +1 quatrième, sessions Mode Intime, remplacements de titres, distance cumulée, imports de données, clonages reçus), 10 nouveaux trophées ajoutés. La moitié (total/naughty/replace/data) ne nécessitait AUCUN changement de code au-delà d'appConfig.js (mécanisme de seuil déjà générique dans checkTrophies) ; l'autre moitié (distance, clonages reçus) a nécessité 2 nouveaux flags chacune, par le même mécanisme ad-hoc que l'existant plutôt qu'une refonte architecturale. 6 nouveaux tests. Bilan complet des métriques retenues ET délibérément écartées (trophées "découverte" à un seul coup) présenté à l'utilisateur
 
+### Bloc 21 — 01/09 (suite, généralisation de principes — design des trophées + paliers futurs)
+- `historique/bloc-21.md` — retour direct ("vois-tu des principes à généraliser... si oui fais-le") : audit du propre travail du bloc 20, 1 erreur trouvée (icône 📉 pour "10 imports" suggérant une baisse, corrigée en 🛰️) et 3 principes généralisés — garde-fou permanent d'unicité `id`/`icon` sur `TROPHIES_DATA` (4 nouveaux tests), convention d'escalade visuelle thématique entre paliers d'une même métrique (`readme/partie-02b.md`), et préférence pour un seuil générique plutôt qu'un flag ad-hoc pour toute future métrique tierable (`readme/partie-04b.md`, nouveau — 04.md dépassait le seuil)
+
 ## Blocs futurs
 
 Le prochain bloc (12) doit suivre la même convention : un ou plusieurs
