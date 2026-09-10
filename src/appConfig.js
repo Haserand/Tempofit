@@ -32,20 +32,20 @@ import { Footprints, Dumbbell, Bike, MoreHorizontal, Wind, Heart, Flame } from '
 // leur intérêt — la page qui les affiche les garde dans une seule grille non
 // groupée (voir TrophiesView.jsx).
 const TROPHIES_DATA = [
-  { id: 't_first', name: 'Premier Pas', desc: 'Complète ta toute 1ère session d\'entraînement.', icon: '🥉', category: 'progression', requirement: { type: 'total', count: 1 } },
-  { id: 't_regular', name: 'Athlète Régulier', desc: 'Complète 5 sessions. La constance est la clé !', icon: '🥈', category: 'progression', requirement: { type: 'total', count: 5 } },
-  { id: 't_machine', name: 'La Machine', desc: 'Complète 30 sessions. Un mois entier d\'efforts.', icon: '🏆', category: 'progression', requirement: { type: 'total', count: 30 } },
-  { id: 't_lover', name: 'Tempo Lover', desc: 'Complète une session avec le mode "Intime".', icon: '🔥', category: 'feature', requirement: { type: 'naughty', count: 1 } },
+  { id: 't_first', name: 'Premier Pas', desc: 'Termine ta toute première séance.', icon: '🥉', category: 'progression', requirement: { type: 'total', count: 1 } },
+  { id: 't_regular', name: 'Athlète Régulier', desc: 'Complète 5 sessions au total.', icon: '🥈', category: 'progression', requirement: { type: 'total', count: 5 } },
+  { id: 't_machine', name: 'La Machine', desc: 'Complète 30 sessions au total.', icon: '🏆', category: 'progression', requirement: { type: 'total', count: 30 } },
+  { id: 't_lover', name: 'Tempo Lover', desc: 'Essaie le mode Intime.', icon: '🔥', category: 'feature', requirement: { type: 'naughty', count: 1 } },
   // ⚠️ Description condensée (14/08, retour direct avec capture : "toutes
   // les descriptions doivent tenir en 1 ligne") — 98 → 50 caractères.
-  { id: 't_data', name: 'Data Scientist', desc: 'Importe tes données Garmin/Strava (cadence, FC).', icon: '📊', category: 'feature', requirement: { type: 'data', count: 1 } },
-  { id: 't_marathon', name: 'Le Marathonien', desc: 'Génère une session de plus de 42 km ou 4 heures.', icon: '🏅', secret: true, requirement: { type: 'custom', key: 'hasMarathon' } },
+  { id: 't_data', name: 'Data Scientist', desc: 'Importe Garmin/Strava une fois.', icon: '📊', category: 'feature', requirement: { type: 'data', count: 1 } },
+  { id: 't_marathon', name: 'Le Marathonien', desc: 'Génère une session de 42 km ou 4h, minimum.', icon: '🏅', secret: true, requirement: { type: 'custom', key: 'hasMarathon' } },
   // Condensé (14/08, même chantier) — 69 → 54 caractères.
-  { id: 't_bolt', name: 'La Foudre', desc: 'Génère une session extrême (> 180 BPM ou < 4:00/km).', icon: '⚡', secret: true, requirement: { type: 'custom', key: 'hasBolt' } },
+  { id: 't_bolt', name: 'La Foudre', desc: 'Session extrême : > 180 BPM ou < 4:00/km.', icon: '⚡', secret: true, requirement: { type: 'custom', key: 'hasBolt' } },
   // Condensé (14/08, même chantier) — 63 → 53 caractères.
-  { id: 't_hiit', name: 'Maître du HIIT', desc: 'Génère un fractionné complexe (5 portions ou plus).', icon: '📈', secret: true, requirement: { type: 'custom', key: 'hasHiitMaster' } },
+  { id: 't_hiit', name: 'Maître du HIIT', desc: 'Génère un fractionné complexe (5+ portions).', icon: '📈', secret: true, requirement: { type: 'custom', key: 'hasHiitMaster' } },
   // Condensé (14/08, même chantier) — 66 → 42 caractères.
-  { id: 't_dj', name: 'Le Mixeur', desc: 'Utilise "Remplacer" 3 fois sur tes titres.', icon: '🎛️', category: 'habit', requirement: { type: 'replace', count: 3 } },
+  { id: 't_dj', name: 'Le Mixeur', desc: 'Utilise Remplacer 3 fois.', icon: '🎛️', category: 'habit', requirement: { type: 'replace', count: 3 } },
   { id: 't_night', name: 'Oiseau de Nuit', desc: 'Complète une session entre 22h et 5h du matin.', icon: '🦉', secret: true, requirement: { type: 'custom', key: 'hasNightOwl' } },
   { id: 't_rickroll', name: 'Never Gonna Give You Up', desc: 'Tu as trouvé le secret ultime de l\'application.', icon: '🕺', secret: true, requirement: { type: 'custom', key: 'hasRickroll' } },
   // --- Ajoutés lors d'une passe de mise à jour, pour couvrir des fonctionnalités
@@ -55,27 +55,27 @@ const TROPHIES_DATA = [
   // structures retirés (Allure Constante/Crescendo/Fractionné) : les
   // garder tous les 3 rendait toute reformulation trop longue pour 1
   // ligne, quelle que soit la tournure — l'essentiel (générer les 3) reste.
-  { id: 't_structures', name: 'Les 3 Visages de l\'Effort', desc: 'Essaie les 3 structures de séance.', icon: '🎭', category: 'feature', requirement: { type: 'custom', key: 'hasAllStructures' } },
-  { id: 't_crescendo', name: 'Le Grimpeur', desc: 'Complète une séance en mode Crescendo.', icon: '⛰️', category: 'feature', requirement: { type: 'custom', key: 'hasCrescendoCompleted' } },
+  { id: 't_structures', name: 'Les 3 Visages de l\'Effort', desc: 'Essaie les 3 types de structure.', icon: '🎭', category: 'feature', requirement: { type: 'custom', key: 'hasAllStructures' } },
+  { id: 't_crescendo', name: 'Le Grimpeur', desc: 'Termine une séance en Crescendo.', icon: '⛰️', category: 'feature', requirement: { type: 'custom', key: 'hasCrescendoCompleted' } },
   // Condensé (14/08, même chantier) — 66 → 46 caractères.
   { id: 't_onTime', name: 'Pile à l\'Heure', desc: 'Complète une séance pile à la date planifiée.', icon: '🎯', secret: true, requirement: { type: 'custom', key: 'hasOnTimeCompletion' } },
   // Condensé (14/08, même chantier) — 73 → 49 caractères.
-  { id: 't_allTypes', name: 'Touche-à-Tout', desc: 'Pratique Course à pied, Musculation ET Cyclisme.', icon: '🤹', category: 'habit', requirement: { type: 'custom', key: 'hasAllWorkoutTypes' } },
-  { id: 't_100km', name: '100 Bornes au Compteur', desc: 'Cumule 100 km parcourus sur l\'ensemble de tes séances.', icon: '🛣️', secret: true, requirement: { type: 'custom', key: 'has100km' } },
+  { id: 't_allTypes', name: 'Touche-à-Tout', desc: 'Pratique Course, Muscu, Vélo.', icon: '🤹', category: 'habit', requirement: { type: 'custom', key: 'hasAllWorkoutTypes' } },
+  { id: 't_100km', name: '100 Bornes au Compteur', desc: 'Cumule 100 km parcourus sur tes séances.', icon: '🛣️', secret: true, requirement: { type: 'custom', key: 'has100km' } },
   // Condensé (14/08, même chantier) — 68 → 34 caractères.
-  { id: 't_lightMode', name: 'Adepte de la Lumière', desc: 'Active le mode clair. Bienvenue !', icon: '☀️', category: 'feature', requirement: { type: 'custom', key: 'hasLightMode' } },
+  { id: 't_lightMode', name: 'Adepte de la Lumière', desc: 'Active le mode clair.', icon: '☀️', category: 'feature', requirement: { type: 'custom', key: 'hasLightMode' } },
   { id: 't_streak', name: 'Sur ta Lancée', desc: 'Complète une séance 3 jours d\'affilée.', icon: '🔗', secret: true, requirement: { type: 'custom', key: 'hasStreak3' } },
   // --- Ajoutés lors d'une 2e passe, après clarification : la logique
   // trophées vise avant tout à inciter à ESSAYER chaque fonctionnalité de
   // l'app, pas juste à récompenser du volume. ---
   // Condensé (14/08, même chantier) — 66 → 45 caractères.
-  { id: 't_extraGenre', name: 'Explorateur de Genres', desc: 'Déplie "+ Plus de genres" et choisis-en un.', icon: '🧭', category: 'feature', requirement: { type: 'custom', key: 'hasExtraGenre' } },
+  { id: 't_extraGenre', name: 'Explorateur de Genres', desc: 'Ajoute un genre supplémentaire.', icon: '🧭', category: 'feature', requirement: { type: 'custom', key: 'hasExtraGenre' } },
   // Condensé (14/08, même chantier) — 74 → 37 caractères.
-  { id: 't_planner', name: 'Planificateur', desc: 'Planifie une date pour une playlist.', icon: '📅', category: 'feature', requirement: { type: 'custom', key: 'hasPlannedSession' } },
-  { id: 't_autoGen', name: 'Pilote Automatique', desc: 'Active la génération automatique sur une routine.', icon: '🤖', category: 'feature', requirement: { type: 'custom', key: 'hasAutoGen' } },
-  { id: 't_firstRoutine', name: 'Ma Première Routine', desc: 'Sauvegarde ta toute première routine réutilisable.', icon: '📋', category: 'feature', requirement: { type: 'custom', key: 'hasFirstRoutine' } },
-  { id: 't_sharer', name: 'Ambassadeur', desc: 'Utilise le bouton Partager, sur une playlist ou un trophée.', icon: '📣', category: 'habit', requirement: { type: 'custom', key: 'hasSharedSomething' } },
-  { id: 't_favorites', name: 'Fidèle à tes Artistes', desc: 'Génère une session en utilisant tes Favoris.', icon: '⭐', category: 'feature', requirement: { type: 'custom', key: 'hasUsedFavorites' } },
+  { id: 't_planner', name: 'Planificateur', desc: 'Planifie la date d\'une playlist.', icon: '📅', category: 'feature', requirement: { type: 'custom', key: 'hasPlannedSession' } },
+  { id: 't_autoGen', name: 'Pilote Automatique', desc: 'Active la génération automatique.', icon: '🤖', category: 'feature', requirement: { type: 'custom', key: 'hasAutoGen' } },
+  { id: 't_firstRoutine', name: 'Ma Première Routine', desc: 'Sauvegarde ta première routine.', icon: '📋', category: 'feature', requirement: { type: 'custom', key: 'hasFirstRoutine' } },
+  { id: 't_sharer', name: 'Ambassadeur', desc: 'Partage un contenu de l\'app.', icon: '📣', category: 'habit', requirement: { type: 'custom', key: 'hasSharedSomething' } },
+  { id: 't_favorites', name: 'Fidèle à tes Artistes', desc: 'Génère une séance via tes Favoris.', icon: '⭐', category: 'feature', requirement: { type: 'custom', key: 'hasUsedFavorites' } },
   // --- Ajoutés lors d'un audit (01/09, retour direct : "je pense qu'il en
   // manque plein ayant ajouté plein de nouvelles fonctionnalités, comme
   // cloner une playlist ou recevoir un compteur de clonage") — 6 fonctions
@@ -83,12 +83,12 @@ const TROPHIES_DATA = [
   // athlétique, profils publics, publication) mais jamais reliées à un
   // trophée jusqu'ici. Voir historique/bloc-19.md pour le détail complet
   // de chaque point de câblage.
-  { id: 't_cloner', name: 'Deuxième Vie', desc: 'Clone une playlist, un modèle ou une routine.', icon: '🧬', category: 'feature', requirement: { type: 'custom', key: 'hasClonedSomething' } },
-  { id: 't_inspiration', name: 'Source d\'Inspiration', desc: 'Une de tes créations a été clonée par quelqu\'un.', icon: '💡', category: 'habit', requirement: { type: 'custom', key: 'hasReceivedClone' } },
-  { id: 't_trieur', name: 'Le Trieur', desc: 'Exclus un artiste, un titre ou un genre.', icon: '🧹', category: 'feature', requirement: { type: 'custom', key: 'hasExcludedSomething' } },
-  { id: 't_surMesure', name: 'Sur Mesure', desc: 'Renseigne ton profil athlétique (âge, poids, zones).', icon: '📏', category: 'feature', requirement: { type: 'custom', key: 'hasSetAthleticProfile' } },
-  { id: 't_curieux', name: 'Curieux de Nature', desc: 'Consulte le profil public d\'un autre utilisateur.', icon: '🔎', category: 'feature', requirement: { type: 'custom', key: 'hasViewedProfile' } },
-  { id: 't_grandOuvert', name: 'Grand Ouvert', desc: 'Rends une playlist ou une routine publique.', icon: '🌍', category: 'feature', requirement: { type: 'custom', key: 'hasMadePublic' } },
+  { id: 't_cloner', name: 'Deuxième Vie', desc: 'Clone une playlist ou une routine.', icon: '🧬', category: 'feature', requirement: { type: 'custom', key: 'hasClonedSomething' } },
+  { id: 't_inspiration', name: 'Source d\'Inspiration', desc: 'Une de tes créations a été clonée.', icon: '💡', category: 'habit', requirement: { type: 'custom', key: 'hasReceivedClone' } },
+  { id: 't_trieur', name: 'Le Trieur', desc: 'Exclus un artiste ou un titre.', icon: '🧹', category: 'feature', requirement: { type: 'custom', key: 'hasExcludedSomething' } },
+  { id: 't_surMesure', name: 'Sur Mesure', desc: 'Renseigne ton profil sportif.', icon: '📏', category: 'feature', requirement: { type: 'custom', key: 'hasSetAthleticProfile' } },
+  { id: 't_curieux', name: 'Curieux de Nature', desc: 'Consulte un profil public.', icon: '🔎', category: 'feature', requirement: { type: 'custom', key: 'hasViewedProfile' } },
+  { id: 't_grandOuvert', name: 'Grand Ouvert', desc: 'Rends un contenu public.', icon: '🌍', category: 'feature', requirement: { type: 'custom', key: 'hasMadePublic' } },
   // --- Paliers Garmin-style (01/09, retour direct : "souvent sur les
   // applications type Garmin il y a plusieurs itérations des trophées...
   // faudrait-il en dupliquer certains en fonction des paliers
@@ -101,16 +101,16 @@ const TROPHIES_DATA = [
   // choix des métriques retenues (et de celles délibérément écartées —
   // les trophées "découverte" à un seul coup, comme le Marathonien ou le
   // Rickroll, ne se prêtent pas à des paliers).
-  { id: 't_veteran', name: 'Vétéran', desc: 'Complète 100 sessions. Une vraie légende.', icon: '🎖️', category: 'progression', requirement: { type: 'total', count: 100 } },
-  { id: 't_naughty10', name: 'Habitué·e du Mode Intime', desc: 'Complète 10 sessions en mode "Intime".', icon: '😈', category: 'feature', requirement: { type: 'naughty', count: 10 } },
-  { id: 't_naughty50', name: 'Insatiable', desc: 'Complète 50 sessions en mode "Intime".', icon: '💋', category: 'feature', requirement: { type: 'naughty', count: 50 } },
-  { id: 't_dj25', name: 'DJ Résident', desc: 'Utilise "Remplacer" 25 fois sur tes titres.', icon: '🎧', category: 'habit', requirement: { type: 'replace', count: 25 } },
-  { id: 't_dj100', name: 'Perfectionniste du Mix', desc: 'Utilise "Remplacer" 100 fois sur tes titres.', icon: '🎚️', category: 'habit', requirement: { type: 'replace', count: 100 } },
-  { id: 't_300km', name: 'Grand Voyageur', desc: 'Cumule 300 km parcourus sur l\'ensemble de tes séances.', icon: '🗺️', secret: true, requirement: { type: 'custom', key: 'has300km' } },
-  { id: 't_1000km', name: 'Mille Bornes', desc: 'Cumule 1000 km parcourus sur l\'ensemble de tes séances.', icon: '🚀', secret: true, requirement: { type: 'custom', key: 'has1000km' } },
-  { id: 't_data10', name: 'Data Analyst', desc: 'Importe tes données Garmin/Strava 10 fois.', icon: '🛰️', category: 'feature', requirement: { type: 'data', count: 10 } },
-  { id: 't_inspiration10', name: 'Créateur Suivi', desc: 'Une de tes créations a été clonée 10 fois.', icon: '🌟', category: 'habit', requirement: { type: 'custom', key: 'hasReceivedClone10' } },
-  { id: 't_inspiration50', name: 'Star Montante', desc: 'Une de tes créations a été clonée 50 fois.', icon: '🎬', category: 'habit', requirement: { type: 'custom', key: 'hasReceivedClone50' } },
+  { id: 't_veteran', name: 'Vétéran', desc: 'Complète 100 sessions au total.', icon: '🎖️', category: 'progression', requirement: { type: 'total', count: 100 } },
+  { id: 't_naughty10', name: 'Habitué·e du Mode Intime', desc: '10 séances en mode Intime.', icon: '😈', category: 'feature', requirement: { type: 'naughty', count: 10 } },
+  { id: 't_naughty50', name: 'Insatiable', desc: '50 séances en mode Intime.', icon: '💋', category: 'feature', requirement: { type: 'naughty', count: 50 } },
+  { id: 't_dj25', name: 'DJ Résident', desc: 'Utilise Remplacer 25 fois.', icon: '🎧', category: 'habit', requirement: { type: 'replace', count: 25 } },
+  { id: 't_dj100', name: 'Perfectionniste du Mix', desc: 'Utilise Remplacer 100 fois.', icon: '🎚️', category: 'habit', requirement: { type: 'replace', count: 100 } },
+  { id: 't_300km', name: 'Grand Voyageur', desc: 'Cumule 300 km parcourus sur tes séances.', icon: '🗺️', secret: true, requirement: { type: 'custom', key: 'has300km' } },
+  { id: 't_1000km', name: 'Mille Bornes', desc: 'Cumule 1000 km parcourus sur tes séances.', icon: '🚀', secret: true, requirement: { type: 'custom', key: 'has1000km' } },
+  { id: 't_data10', name: 'Data Analyst', desc: 'Importe tes données 10 fois.', icon: '🛰️', category: 'feature', requirement: { type: 'data', count: 10 } },
+  { id: 't_inspiration10', name: 'Créateur Suivi', desc: 'Une création clonée 10 fois.', icon: '🌟', category: 'habit', requirement: { type: 'custom', key: 'hasReceivedClone10' } },
+  { id: 't_inspiration50', name: 'Star Montante', desc: 'Une création clonée 50 fois.', icon: '🎬', category: 'habit', requirement: { type: 'custom', key: 'hasReceivedClone50' } },
 ];
 
 // Métadonnées d'affichage des 3 catégories de trophées visibles (voir
