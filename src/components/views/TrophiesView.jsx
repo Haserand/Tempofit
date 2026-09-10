@@ -304,7 +304,7 @@ export default function TrophiesView({ theme, userStats, handleShare, isNaughtyM
       ) : (
         <div>
           <p className={`text-sm mb-4 flex items-center gap-1.5 ${textMuted}`}>
-            <Lock size={14}/> Un comportement précis dans l'appli débloque chacun de ces trophées — pas de liste, la surprise fait partie du jeu.
+            <Lock size={14}/> Un comportement précis dans l'appli débloque chacun de ces trophées.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {secretTrophies.map(renderTrophyCard)}
