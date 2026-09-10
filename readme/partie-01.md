@@ -39,8 +39,8 @@ VERIFICATION.md`, restructuré en `claude-sandbox-verification/partie-
 
 ## 🚧 État d'avancement — à mettre à jour à CHAQUE début/fin de chantier
 
-Rien en cours actuellement — session très longue le 01/09, 9 chantiers
-enchaînés. Voir `HISTORIQUE.md` → blocs 12 à 20 pour le récit complet de
+Rien en cours actuellement — session très longue le 01/09, 10 chantiers
+enchaînés. Voir `HISTORIQUE.md` → blocs 12 à 21 pour le récit complet de
 chacun ; résumé très bref ici : (12) check-up de reprise + garde-fou
 `hoverWhiteTextTrap.test.js` ; (13) alignement Sidebar/bloc du bas
 (espaceur `flex-1`, mesure Playwright réelle) ; (14) 4 principes
@@ -56,6 +56,12 @@ consultation de profil, publication), câblés à travers 8 fichiers source ;
 (20) paliers Garmin-style pour 5 métriques cumulatives (sessions Mode
 Intime, remplacements de titres, distance, imports, clonages reçus) — 10
 nouveaux trophées, trophées "découverte" à un seul coup délibérément
+écartés ; (21) généralisation de 3 principes (garde-fou d'unicité
+`id`/`icon` sur les trophées, escalade visuelle thématique entre paliers,
+préférer un seuil générique à un flag ad-hoc pour les futures métriques
+tierables) — 1 vraie icône incohérente trouvée et corrigée au passage
+(📉 → 🛰️). Suite complète : 125 fichiers, 1755 tests au vert.
+
 écartés. Suite complète : 125 fichiers, 1751 tests au vert.
 
 ### ⚠️ Règle permanente (25/08) — cette section ne contient QUE le chantier en cours, jamais l'historique clos
